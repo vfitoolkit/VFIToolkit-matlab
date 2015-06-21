@@ -58,7 +58,7 @@ if vfoptions.lowmemory==0
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Parallel2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParams);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParams);
     end
     
     %     %% Create Phi_aprimeKron
