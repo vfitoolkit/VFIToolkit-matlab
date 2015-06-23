@@ -10,6 +10,7 @@ if nargin<11
     vfoptions.verbose=0;
     vfoptions.returnmatrix=0;
     vfoptions.tolerance=10^(-9);
+    vfoptions.polindorval=1;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -36,6 +37,10 @@ else
     eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
     if fieldexists==0
         vfoptions.tolerance=10^(-9);
+    end
+    eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.polindorval=1;
     end
 end
 
@@ -169,7 +174,7 @@ elseif vfoptions.lowmemory==1
 %             [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamNames, ReturnFnParams,vfoptions.howards,vfoptions.tolerance);
 %         end
 %     end
-% end
+end
 
 if vfoptions.verbose==1
     time=toc;
