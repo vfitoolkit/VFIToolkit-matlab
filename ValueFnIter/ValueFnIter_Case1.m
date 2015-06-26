@@ -4,16 +4,23 @@ function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_
 if nargin<11
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-    vfoptions.lowmemory=0;
-    vfoptions.howards=80;
-    vfoptions.parallel=0;
-    vfoptions.verbose=0;
-    vfoptions.returnmatrix=0;
     vfoptions.tolerance=10^(-9);
+    vfoptions.howards=80;
+    vfoptions.parallel=2;
+    vfoptions.returnmatrix=2;
+    vfoptions.verbose=0;
+    vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
+    %Check vfoptions for missing fields, if there are some fill them with the defaults
+    eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.parallel=2;
+    end
+    if vfoptions.parallel==2
+        vfoptions.returnmatrix=2; % On GPU, must use this option
+    end
+    
     eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
     if fieldexists==0
         vfoptions.lowmemory=0;
@@ -21,18 +28,14 @@ else
     eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
     if fieldexists==0
         vfoptions.howards=80;
-    end
-    eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.parallel=0;
-    end
+    end    
     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
     if fieldexists==0
         vfoptions.verbose=0;
     end
     eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.returnmatrix=0;
+    if fieldexists==0 % If still doesn't exist by now, then not using GPU
+        vfoptions.returnmatrix=1;
     end
     eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
     if fieldexists==0
@@ -143,8 +146,8 @@ elseif vfoptions.lowmemory==1
             [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, vfoptions.howards, vfoptions.tolerance);
         elseif vfoptions.parallel==1
             [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, vfoptions.howards, vfoptions.tolerance);
-        elseif vfoptions.parallel==2
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamNames, ReturnFnParams, vfoptions.howards, vfoptions.tolerance);
+        elseif vfoptions.parallel==2 % On GPU
+            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams, vfoptions.howards, vfoptions.tolerance);
         end
     else
         if vfoptions.parallel==0
@@ -152,7 +155,7 @@ elseif vfoptions.lowmemory==1
         elseif vfoptions.parallel==1
             [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, beta, ReturnFn,vfoptions.howards,vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamNames, ReturnFnParams,vfoptions.howards,vfoptions.tolerance);
+            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams,vfoptions.howards,vfoptions.tolerance);
         end
     end
     

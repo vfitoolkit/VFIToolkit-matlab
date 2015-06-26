@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, ReturnFnParamNames, ReturnFnParams, Howards,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Tolerance) %Verbose,
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -12,58 +12,60 @@ bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
 
-CreateCleanedReturnFn(ReturnFn, ReturnFnParamNames, ReturnFnParams);
+%CreateCleanedReturnFn(ReturnFn, ReturnFnParamNames, ReturnFnParams);
 
 %%
-l_d=length(n_d);
-l_a=length(n_a); 
+% l_d=length(n_d);
+% l_a=length(n_a); 
 l_z=length(n_z);
 
-if l_d==1 && l_a==1 && l_z==1
-    dvals=d_grid; dvals(1,1,1)=d_grid(1);
-    aprimevals=shiftdim(a_grid,-1);
-    avals=shiftdim(a_grid,-2);
-elseif l_d==1 && l_a==1 && l_z==2
-    dvals=d_grid;
-    aprimevals=shiftdim(a_grid,-1);
-    avals=shiftdim(a_grid,-2);
-elseif l_d==1 && l_a==2 && l_z==1
-    dvals=d_grid;
-    a1primevals=shiftdim(a_grid(1:n_a(1)),-1);
-    a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-2);
-    a1vals=shiftdim(a_grid(1:n_a(1)),-3);
-    a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-4);
-elseif l_d==1 && l_a==2 && l_z==2
-    dvals=d_grid;
-    a1primevals=shiftdim(a_grid(1:n_a(1)),-1);
-    a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-2);
-    a1vals=shiftdim(a_grid(1:n_a(1)),-3);
-    a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-4);
-elseif l_d==2 && l_a==1 && l_z==1
-    d1vals=d_grid(1:n_d(1));
-    d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
-    aprimevals=shiftdim(a_grid,-2);
-    avals=shiftdim(a_grid,-3);
-elseif l_d==2 && l_a==1 && l_z==2
-    d1vals=d_grid(1:n_d(1));
-    d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
-    aprimevals=shiftdim(a_grid,-2);
-    avals=shiftdim(a_grid,-3);
-elseif l_d==2 && l_a==2 && l_z==1
-    d1vals=d_grid(1:n_d(1));
-    d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
-    a1primevals=shiftdim(a_grid(1:n_a(1)),-2);
-    a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
-    a1vals=shiftdim(a_grid(1:n_a(1)),-4);
-    a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-5);
-elseif l_d==2 && l_a==2 && l_z==2
-    d1vals=d_grid(1:n_d(1));
-    d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
-    a1primevals=shiftdim(a_grid(1:n_a(1)),-2);
-    a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
-    a1vals=shiftdim(a_grid(1:n_a(1)),-4);
-    a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-5);
-end
+% THIS SHOULD BE DONE HERE, RATHER THAN INSIDE FOR LOOP, AND THEN USE A
+% MODIFIED VERSION OF CreateReturnFnMatrix_Case1_Disc_Par2.
+% if l_d==1 && l_a==1 && l_z==1
+%     dvals=d_grid; dvals(1,1,1)=d_grid(1);
+%     aprimevals=shiftdim(a_grid,-1);
+%     avals=shiftdim(a_grid,-2);
+% elseif l_d==1 && l_a==1 && l_z==2
+%     dvals=d_grid;
+%     aprimevals=shiftdim(a_grid,-1);
+%     avals=shiftdim(a_grid,-2);
+% elseif l_d==1 && l_a==2 && l_z==1
+%     dvals=d_grid;
+%     a1primevals=shiftdim(a_grid(1:n_a(1)),-1);
+%     a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-2);
+%     a1vals=shiftdim(a_grid(1:n_a(1)),-3);
+%     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-4);
+% elseif l_d==1 && l_a==2 && l_z==2
+%     dvals=d_grid;
+%     a1primevals=shiftdim(a_grid(1:n_a(1)),-1);
+%     a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-2);
+%     a1vals=shiftdim(a_grid(1:n_a(1)),-3);
+%     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-4);
+% elseif l_d==2 && l_a==1 && l_z==1
+%     d1vals=d_grid(1:n_d(1));
+%     d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
+%     aprimevals=shiftdim(a_grid,-2);
+%     avals=shiftdim(a_grid,-3);
+% elseif l_d==2 && l_a==1 && l_z==2
+%     d1vals=d_grid(1:n_d(1));
+%     d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
+%     aprimevals=shiftdim(a_grid,-2);
+%     avals=shiftdim(a_grid,-3);
+% elseif l_d==2 && l_a==2 && l_z==1
+%     d1vals=d_grid(1:n_d(1));
+%     d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
+%     a1primevals=shiftdim(a_grid(1:n_a(1)),-2);
+%     a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+%     a1vals=shiftdim(a_grid(1:n_a(1)),-4);
+%     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-5);
+% elseif l_d==2 && l_a==2 && l_z==2
+%     d1vals=d_grid(1:n_d(1));
+%     d2vals=shiftdim(d_grid(n_d(1)+n_d(1)+n_d(2)),-1);
+%     a1primevals=shiftdim(a_grid(1:n_a(1)),-2);
+%     a2primevals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+%     a1vals=shiftdim(a_grid(1:n_a(1)),-4);
+%     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-5);
+% end
 
 %%
 z_gridvals=zeros(N_z,length(n_z),'gpuArray'); 
@@ -89,39 +91,43 @@ currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
     
+    
     for z_c=1:N_z
-        % TempReturnFn.m is created by CreateCleanedReturnFn() as part of ValueFnIter_Case1()
-        if l_d==1 && l_a==1 && l_z==1
-            zvals=z_gridvals(z_c);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, aprimevals, avals, zvals);
-        elseif l_d==1 && l_a==1 && l_z==2
-            z1vals=z_gridvals(z_c,1);
-            z2vals=z_gridvals(z_c,1);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, aprimevals, avals, z1vals,z2vals);
-        elseif l_d==1 && l_a==2 && l_z==1
-            zvals=z_gridvals(z_c);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, a1primevals,a2primevals, a1vals,a2vals, zvals);
-        elseif l_d==1 && l_a==2 && l_z==2
-            z1vals=z_gridvals(z_c,1);
-            z2vals=z_gridvals(z_c,1);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals);
-        elseif l_d==2 && l_a==1 && l_z==1
-            zvals=z_gridvals(z_c);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, aprimevals, avals, zvals);
-        elseif l_d==2 && l_a==1 && l_z==2
-            z1vals=z_gridvals(z_c,1);
-            z2vals=z_gridvals(z_c,1);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, aprimevals, avals, z1vals,z2vals);
-        elseif l_d==2 && l_a==2 && l_z==1
-            zvals=z_gridvals(z_c);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, zvals);
-        elseif l_d==2 && l_a==2 && l_z==2
-            z1vals=z_gridvals(z_c,1);
-            z2vals=z_gridvals(z_c,1);
-            ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals);
-        end
         
-        ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d*N_a,N_a]);
+        zvals=z_gridvals(z_c,:);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParams);
+%         % TempReturnFn.m is created by CreateCleanedReturnFn() as part of ValueFnIter_Case1()
+%         if l_d==1 && l_a==1 && l_z==1
+%             zvals=z_gridvals(z_c);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, aprimevals, avals, zvals);
+%         elseif l_d==1 && l_a==1 && l_z==2
+%             z1vals=z_gridvals(z_c,1);
+%             z2vals=z_gridvals(z_c,1);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, aprimevals, avals, z1vals,z2vals);
+%         elseif l_d==1 && l_a==2 && l_z==1
+%             zvals=z_gridvals(z_c);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, a1primevals,a2primevals, a1vals,a2vals, zvals);
+%         elseif l_d==1 && l_a==2 && l_z==2
+%             z1vals=z_gridvals(z_c,1);
+%             z2vals=z_gridvals(z_c,1);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, dvals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals);
+%         elseif l_d==2 && l_a==1 && l_z==1
+%             zvals=z_gridvals(z_c);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, aprimevals, avals, zvals);
+%         elseif l_d==2 && l_a==1 && l_z==2
+%             z1vals=z_gridvals(z_c,1);
+%             z2vals=z_gridvals(z_c,1);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, aprimevals, avals, z1vals,z2vals);
+%         elseif l_d==2 && l_a==2 && l_z==1
+%             zvals=z_gridvals(z_c);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, a1primevals,a2primevals, a1vals,a2vals, zvals);
+%         elseif l_d==2 && l_a==2 && l_z==2
+%             z1vals=z_gridvals(z_c,1);
+%             z2vals=z_gridvals(z_c,1);
+%             ReturnMatrix_z=arrayfun(@TempReturnFn, d1vals,d2vals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals);
+%         end
+%         
+%         ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d*N_a,N_a]);
         
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
