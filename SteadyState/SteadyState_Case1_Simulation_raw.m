@@ -3,6 +3,7 @@ function SteadyStateDistKron=SteadyState_Case1_Simulation_raw(PolicyIndexesKron,
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
 
+
 if nargin<6
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^4;
@@ -95,7 +96,6 @@ if simoptions.parallel==2
     simoptions.parallel=1;
     MoveSSDKtoGPU=1;
 end
-
 
 if simoptions.parallel==1
     eachsimperiods=ceil(simoptions.simperiods/simoptions.ncores);
