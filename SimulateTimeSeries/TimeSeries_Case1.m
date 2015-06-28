@@ -12,26 +12,6 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions);
-% %PolicyIndexes is [num_d_vars+num_a_vars,n_a,n_s,n_z]
-% if N_d==0
-%     tempPolicyIndexes=reshape(PolicyIndexes,[l_a,N_a,N_z]); %first dim indexes the optimal choice for d and rest of dimensions a,z
-%     PolicyIndexesKron=zeros(1,N_a,N_z);
-%     for i1=1:N_a
-%         for i2=1:N_z
-%             PolicyIndexesKron(1,i1,i2)=sub2ind_homemade([n_a],tempPolicyIndexes(:,i1,i2));
-%         end
-%     end
-% else
-%     num_d_vars=length(n_d);
-%     tempPolicyIndexes=reshape(PolicyIndexes,[l_a+num_d_vars,N_a,N_z]); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-%     PolicyIndexesKron=zeros(2,N_a,N_z);
-%     for i1=1:N_a
-%         for i2=1:N_z
-%             PolicyIndexesKron(1,i1,i2)=sub2ind_homemade([n_d],tempPolicyIndexes(1:num_d_vars,i1,i2));
-%             PolicyIndexesKron(2,i1,i2)=sub2ind_homemade([n_a],tempPolicyIndexes(num_d_vars+1:num_d_vars+l_a,i1,i2));
-%         end
-%     end
-% end
 
 % Just being lazy in implementing GPU here for now, will do it properly
 % some other time (see the SSAggVars codes for example of doing this

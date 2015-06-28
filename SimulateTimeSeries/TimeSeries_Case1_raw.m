@@ -15,7 +15,6 @@ d_values=zeros(num_d_vars,1);
 aprime_values=zeros(num_a_vars,1);
 a_values=zeros(num_a_vars,1);
 s_values=zeros(num_s_vars,1);
-%PolicyIndexesKron=reshape(PolicyIndexes,[num_d_vars+num_a_vars,N_a,N_s]);
 d_indexes=zeros(num_d_vars,1); aprime_indexes=zeros(num_a_vars,1);
 
 for t=1:periods
@@ -60,7 +59,8 @@ for t=1:periods
         end
     end
     for i=1:length(TimeSeriesFn)
-        TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_values,d_indexes,aprime_values,aprime_indexes,a_values,a_indexes,s_values,s_indexes);
+        TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_values,aprime_values,a_values,s_values);
+%        TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_values,d_indexes,aprime_values,aprime_indexes,a_values,a_indexes,s_values,s_indexes);
     end
 end
 
