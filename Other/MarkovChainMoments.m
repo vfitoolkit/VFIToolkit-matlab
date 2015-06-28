@@ -2,13 +2,13 @@ function [mean,variance,corr,statdist]=MarkovChainMoments(z_grid,pi_z,mcmomentso
 
 % mcmomentsoptions is a bit of a hack
 if nargin<3
-    mcmomentsoptions.parallel=0;
+    mcmomentsoptions.parallel=2;
     mcmomentsoptions.T=10^6;
     mcmomentsoptions.Tolerance=10^(-9);
 else
     eval('fieldexists=1;mcmomentsoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        mcmomentsoptions.parallel=0;
+        mcmomentsoptions.parallel=2;
     end
     eval('fieldexists=1;mcmomentsoptions.Tolerance;','fieldexists=0;')
     if fieldexists==0
