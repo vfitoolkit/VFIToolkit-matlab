@@ -45,7 +45,7 @@ function [output] = getFredData(series_id, observation_start, observation_end, u
 %   'Data'
 %
 %
-% Formats for inputs: http://api.stlouisfed.org/docs/fred/series_observations.html
+% Formats for inputs: https://api.stlouisfed.org/docs/fred/series_observations.html
 %   units:  'lin', 'chg', 'ch1', 'pch', 'pc1', 'pca', 'cch', 'cca', 'log' 
 %   frequency: 'd', 'w', 'bw', 'm', 'q', 'sa', 'a', 'wef', 'weth', 'wew', 'wetu', 'wem', 'wesu', 'wesa', 'bwew', 'bwem' 
 %   aggregation_method: 'avg', 'sum', 'eop' 
@@ -113,7 +113,7 @@ if nargin>=8
 end
 
 % /fred/series
-xDoc=xmlread(['http://api.stlouisfed.org/fred/series?series_id=',series_id,optionstring,'&api_key=',api_key]);
+xDoc=xmlread(['https://api.stlouisfed.org/fred/series?series_id=',series_id,optionstring,'&api_key=',api_key]);
 info=xDoc.getElementsByTagName('series');
 output.Title=cellstr(char(getValue(info,'title')));
 output.SeriesID=cellstr(char(getValue(info,'id')));
@@ -132,14 +132,14 @@ catch
 end
 
 % /fred/release
-xDoc1=xmlread(['http://api.stlouisfed.org/fred/series/release?series_id=',series_id,optionstring,'&api_key=',api_key]);
+xDoc1=xmlread(['https://api.stlouisfed.org/fred/series/release?series_id=',series_id,optionstring,'&api_key=',api_key]);
 release=xDoc1.getElementsByTagName('release');
 output.Source=cellstr(char(getValue(release,'link')));
 output.Release=cellstr(char(getValue(release,'name')));
 
 %['http://api.stlouisfed.org/fred/series/observations?series_id=',series_id,optionstring,'&api_key=',api_key]
 % /fred/observations
-xDoc2=xmlread(['http://api.stlouisfed.org/fred/series/observations?series_id=',series_id,optionstring,'&api_key=',api_key]);
+xDoc2=xmlread(['https://api.stlouisfed.org/fred/series/observations?series_id=',series_id,optionstring,'&api_key=',api_key]);
 data=xDoc2.getElementsByTagName('observation');
 nn=data.getLength;
 output.Data=NaN(nn,2);
