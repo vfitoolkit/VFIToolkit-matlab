@@ -1,4 +1,4 @@
-function SteadyStateDist=SteadyState_Case2_Simulation(PolicyIndexes,Phi_aprimeKron,Case2_Type,n_d,n_a,n_z,pi_z, simoptions)
+function StationaryDist=StationaryDist_Case2_Simulation(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_z,pi_z, simoptions)
 %Simulates a path based on PolicyIndexes (and Phi_aprime) of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
@@ -48,19 +48,10 @@ end
 
 %%
 
-% l_d=length(n_d);
+PolicyKron=KronPolicyIndexes_Case2(Policy, n_d, n_a, n_z,simoptions);
 
-PolicyIndexesKron=KronPolicyIndexes_Case2(PolicyIndexes, n_d, n_a, n_z,simoptions);
-% tempPolicyIndexes=reshape(PolicyIndexes,[l_d,N_a,N_z]); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-% PolicyIndexesKron=zeros(N_a,N_z);
-% for i1=1:N_a
-%     for i2=1:N_z
-%         PolicyIndexesKron(i1,i2)=sub2ind_homemade([n_d],tempPolicyIndexes(:,i1,i2));
-%     end
-% end
+StationaryDistKron=StationaryDist_Case2_Simulation_raw(PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z, simoptions);
 
-SteadyStateDistKron=SteadyState_Case2_Simulation_raw(PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z, simoptions);
-
-SteadyStateDist=reshape(SteadyStateDistKron,[n_a,n_z]);
+StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
 
 end

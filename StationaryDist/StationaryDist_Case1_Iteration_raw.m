@@ -1,10 +1,5 @@
-function SteadyStateDistKron=SteadyState_Case1_raw(SteadyStateDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
-
-% %If Nagents is any other (integer), it will give the most likely of the
-% %distributions of that many agents across the various steady-states; this
-% %is for use with models that have a finite number of agents, rather than a
-% %continuum.
 
 if nargin<8
 %     simoptions.nagents=0;
@@ -51,17 +46,17 @@ if simoptions.parallel~=2
 
     %SteadyStateDistKron=ones(N_a*N_z,1)/(N_a*N_z);
     SteadyStateDistKronOld=zeros(N_a*N_z,1);
-    SScurrdist=sum(abs(SteadyStateDistKron-SteadyStateDistKronOld));
+    SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
     SScounter=0;
     while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
         
         for jj=1:100
-            SteadyStateDistKron=P*SteadyStateDistKron; %No point checking distance every single iteration. Do 100, then check.
+            StationaryDistKron=P*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
         end
         
-        SteadyStateDistKronOld=SteadyStateDistKron;
-        SteadyStateDistKron=P*SteadyStateDistKron;
-        SScurrdist=sum(abs(SteadyStateDistKron-SteadyStateDistKronOld));
+        SteadyStateDistKronOld=StationaryDistKron;
+        StationaryDistKron=P*StationaryDistKron;
+        SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
         
         SScounter=SScounter+1;
         if rem(SScounter,50)==0
@@ -107,7 +102,7 @@ elseif simoptions.parallel==2 % Using the GPU
 %     tic;
     %SteadyStateDistKron=ones(N_a*N_z,1)/(N_a*N_z);
     SteadyStateDistKronOld=zeros(N_a*N_z,1,'gpuArray');
-    SScurrdist=sum(abs(SteadyStateDistKron-SteadyStateDistKronOld));
+    SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
     SScounter=0;
     
     while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
@@ -115,12 +110,12 @@ elseif simoptions.parallel==2 % Using the GPU
 %         SteadyStateDistKronOld=SteadyStateDistKron;
 %         SteadyStateDistKron=P*SteadyStateDistKron;
         for jj=1:100
-            SteadyStateDistKron=Ptran*SteadyStateDistKron; %No point checking distance every single iteration. Do 100, then check.
+            StationaryDistKron=Ptran*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
         end
         
-        SteadyStateDistKronOld=SteadyStateDistKron;
-        SteadyStateDistKron=Ptran*SteadyStateDistKron;
-        SScurrdist=sum(abs(SteadyStateDistKron-SteadyStateDistKronOld));
+        SteadyStateDistKronOld=StationaryDistKron;
+        StationaryDistKron=Ptran*StationaryDistKron;
+        SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
 %         SScurrdist=sum(abs(reshape(SteadyStateDistKron-SteadyStateDistKronOld, [N_a*N_z,1])));
     
         

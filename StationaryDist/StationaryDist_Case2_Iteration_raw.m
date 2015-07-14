@@ -1,22 +1,14 @@
-function SteadyStateDistKron=SteadyState_Case2_raw(SteadyStateDistKron,PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z,simoptions)
-%If Nagents=0, then it will treat the agents as being on a continuum of
-%weight 1.
-%If Nagents is any other (integer), it will give the most likely of the
-%distributions of that many agents across the various steady-states; this
-%is for use with models that have a finite number of agents, rather than a
-%continuum.
-%Note: N_d is not actually needed, it is included to make it more like
-%Case1 code.
+function StationaryDistKron=StationaryDist_Case2_Iteration_raw(StationaryDistKron,PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z,simoptions)
+%Note: N_d is not actually needed, it is included to make it more like Case1 code.
 
 if nargin<10
-    simoptions.nagents=0;
+%     simoptions.nagents=0;
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
-%     Nagents=0;
 else
-    eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.nagents=0;
-    end
+%     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.nagents=0;
+%     end
     eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
     if fieldexists==0
         simoptions.maxit=5*10^4;
@@ -61,12 +53,12 @@ if simoptions.parallel~=2
     Ptran=P';
     
     SteadyStateDistKronOld=zeros(N_a*N_z,1);
-    SScurrdist=max(max(abs(SteadyStateDistKron-SteadyStateDistKronOld)));
+    SScurrdist=max(max(abs(StationaryDistKron-SteadyStateDistKronOld)));
     SScounter=0;
     while SScurrdist>simoptions.tolerance && SScounter<simoptions.maxit
-        SScurrdist=sum(abs(reshape(SteadyStateDistKron-SteadyStateDistKronOld, [N_a*N_z,1])));
-        SteadyStateDistKronOld=SteadyStateDistKron;
-        SteadyStateDistKron=Ptran*SteadyStateDistKron;
+        SScurrdist=sum(abs(reshape(StationaryDistKron-SteadyStateDistKronOld, [N_a*N_z,1])));
+        SteadyStateDistKronOld=StationaryDistKron;
+        StationaryDistKron=Ptran*StationaryDistKron;
         
         SScounter=SScounter+1;
         if rem(SScounter,5000)==0
@@ -98,7 +90,7 @@ else % simoptions.parallel==2
     end
     
     SteadyStateDistKronOld=zeros(N_a*N_z,1,'gpuArray');
-    SScurrdist=sum(abs(SteadyStateDistKron-SteadyStateDistKronOld));
+    SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
     SScounter=0;
     
     while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
@@ -106,12 +98,12 @@ else % simoptions.parallel==2
 %         SteadyStateDistKronOld=SteadyStateDistKron;
 %         SteadyStateDistKron=P*SteadyStateDistKron;
         for jj=1:100
-            SteadyStateDistKron=Ptran*SteadyStateDistKron; %No point checking distance every single iteration. Do 100, then check.
+            StationaryDistKron=Ptran*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
         end
         
-        SteadyStateDistKronOld=SteadyStateDistKron;
-        SteadyStateDistKron=Ptran*SteadyStateDistKron;
-        SScurrdist=sum(abs(SteadyStateDistKron-SteadyStateDistKronOld));
+        SteadyStateDistKronOld=StationaryDistKron;
+        StationaryDistKron=Ptran*StationaryDistKron;
+        SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
 %         SScurrdist=sum(abs(reshape(SteadyStateDistKron-SteadyStateDistKronOld, [N_a*N_z,1])));
     
         SScounter=SScounter+1;
