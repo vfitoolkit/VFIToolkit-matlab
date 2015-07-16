@@ -1,6 +1,6 @@
 function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case1_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid, beta, ReturnFn, SSvaluesFn, SSvalueParams, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, simoptions, vfoptions,ReturnFnParams, IndexesForPricesInReturnFnParams)
 %Things you may want to try adjusting for speed
-% In 'SteadyState_Case1_Simulation_raw' you might want to adjust; nsims, periods, burnin
+% In 'SteadyState_Case1' you might want to adjust; nsims, periods, burnin
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -122,11 +122,12 @@ for p_c=1:N_p
     [~,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, beta, ReturnFn,vfoptions,ReturnFnParams);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-    SteadyStateDistKron=SteadyState_Case1_Simulation(Policy,n_d,n_a,n_s,pi_s,simoptions);
-    if simoptions.ssfull==1
-        SteadyStateDistKron=SteadyState_Case1(SteadyStateDistKron,Policy,n_d,n_a,n_s,pi_s,simoptions);
-    end
-    SSvalues_AggVars=SSvalues_AggVars_Case1(SteadyStateDistKron, Policy, SSvaluesFn, SSvalueParams, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2); % The 2 is for Parallel (use GPU)
+    StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_s,pi_s,simoptions);
+%     SteadyStateDistKron=SteadyState_Case1_Simulation(Policy,n_d,n_a,n_s,pi_s,simoptions);
+%     if simoptions.ssfull==1
+%         SteadyStateDistKron=SteadyState_Case1(SteadyStateDistKron,Policy,n_d,n_a,n_s,pi_s,simoptions);
+%     end
+    SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, SSvalueParams, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2); % The 2 is for Parallel (use GPU)
 
     % use of real() is a hack that could disguise errors, but I couldn't
     % find why matlab was treating output as complex

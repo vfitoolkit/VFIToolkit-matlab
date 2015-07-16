@@ -49,7 +49,7 @@ else
 end
 
 if nargin<18
-    simoptions.ssfull=1;
+    simoptions.iterate=1;
     simoptions.nagents=0;
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
@@ -59,9 +59,9 @@ if nargin<18
     simoptions.verbose=0;
     simoptions.ncores=1;
 else
-    eval('fieldexists=1;simoptions.ssfull;','fieldexists=0;')
+    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
-        simoptions.ssfull=1;
+        simoptions.iterate=1;
     end
     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
     if fieldexists==0
@@ -151,16 +151,17 @@ for p_c=1:N_p
     time_valuefn=toc();
     
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
+    StationaryDistKron=StationaryDist_Case1(Policy,N_d,N_a,N_s,pi_s,simoptions);
+%     tic()
+%     SteadyStateDistKron=SteadyState_Case1_Simulation_raw(Policy,N_d,N_a,N_s,pi_s,simoptions);
+%     time_steadystatesim=toc();
+%     if simoptions.ssfull==1
+%         tic()
+%         SteadyStateDistKron=SteadyState_Case1_raw(SteadyStateDistKron,Tolerance,Policy,N_d,N_a,N_s,pi_s,simoptions);
+%         time_steadystatessfull=toc();
+%     end
     tic()
-    SteadyStateDistKron=SteadyState_Case1_Simulation_raw(Policy,N_d,N_a,N_s,pi_s,simoptions);
-    time_steadystatesim=toc();
-    if simoptions.ssfull==1
-        tic()
-        SteadyStateDistKron=SteadyState_Case1_raw(SteadyStateDistKron,Tolerance,Policy,N_d,N_a,N_s,pi_s,simoptions);
-        time_steadystatessfull=toc();
-    end
-    tic()
-    SSvalues_AggVars=SSvalues_AggVars_Case1_raw(SteadyStateDistKron, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
+    SSvalues_AggVars=SSvalues_AggVars_Case1_raw(StationaryDistKron, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
     time_aggvars=toc();
     tic()
     MarketClearanceKron(p_c,:)=MarketClearance_Case1(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, MarketPriceParams);

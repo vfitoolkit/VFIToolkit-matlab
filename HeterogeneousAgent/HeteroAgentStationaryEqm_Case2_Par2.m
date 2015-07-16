@@ -18,7 +18,7 @@ if nargin<21
     simoptions.parallel=2;
     simoptions.verbose=0;
     simoptions.ncores=1;
-    simoptions.ssfull=0;
+    simoptions.iterate=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -46,9 +46,9 @@ else
     if fieldexists==0
         simoptions.ncores=1;
     end
-    eval('fieldexists=1;simoptions.ssfull;','fieldexists=0;')
+    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
-        simoptions.ssfull=0;
+        simoptions.iterate=0;
     end
 end
 
@@ -143,14 +143,12 @@ for p_c=1:N_p
    
     %Step 2: Calculate the Steady-state distn (given this price)
     %and use it to assess market clearance
-%     SteadyStateDistKron=SteadyState_Case2_Simulation_raw(PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_s,pi_s, simoptions);
-%    SteadyStateDistKron=SteadyState_Case2_Simulation_raw(SimPeriods, ceil(SimPeriods/100), NumOfSeedPoint, PolicyIndexesKron, Phi_aprimeKron,Case2_Type,N_d,N_a,N_s,pi_s);
-    SteadyStateDist=SteadyState_Case2_Simulation(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
-    if simoptions.ssfull==1
-%         SteadyStateDistKron=SteadyState_Case2_raw(SteadyStateDistKron,Tolerance,PolicyIndexesKron,Phi_aprimeKron, Case2_Type, N_d,N_a,N_s,pi_s,0);
-        SteadyStateDist=SteadyState_Case2(SteadyStateDist,Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s,simoptions);
-    end
-    SSvalues_AggVars=SSvalues_AggVars_Case2(SteadyStateDist, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
+    StationaryDist=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
+%     SteadyStateDist=SteadyState_Case2_Simulation(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
+%     if simoptions.ssfull==1
+%         SteadyStateDist=SteadyState_Case2(SteadyStateDist,Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s,simoptions);
+%     end
+    SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDist, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
 %     SSvalues_AggVars=SSvalues_AggVars_Case2_raw(SteadyStateDistKron, PolicyIndexesKron, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
 
     MarketClearanceKron(p_c,:)=MarketClearance_Case2(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, MarketPriceParams);
