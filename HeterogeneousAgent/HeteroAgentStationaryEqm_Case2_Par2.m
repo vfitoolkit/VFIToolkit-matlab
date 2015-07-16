@@ -1,8 +1,4 @@
 function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, beta, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions,ReturnFnParams, IndexesForPricesInReturnFnParams)
-                                                                               % (V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid, beta, ReturnFn, SSvaluesFn, SSvalueParams, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, simoptions, vfoptions,ReturnFnParams, IndexesForPricesInReturnFnParams)
-
-%Things you may want to try adjusting for speed
-% In 'SteadyState_Case2_Simulation_raw' you might want to adjust; nsims, periods, burnin
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -11,14 +7,19 @@ N_p=prod(n_p);
 l_p=length(n_p);
 
 %% Check which simoptions and vfoptions have been used, set all others to defaults 
-if nargin<21
+if nargin<20
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
     simoptions.simperiods=10^4;
     simoptions.burnin=10^3;
     simoptions.parallel=2;
     simoptions.verbose=0;
-    simoptions.ncores=1;
-    simoptions.iterate=0;
+    try 
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
+    simoptions.iterate=1;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -44,15 +45,20 @@ else
     end
     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
     if fieldexists==0
-        simoptions.ncores=1;
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
     end
     eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
-        simoptions.iterate=0;
+        simoptions.iterate=1;
     end
 end
 
-if nargin<20
+if nargin<19
     %If vfoptions is not given, just use all the defaults
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
@@ -76,7 +82,7 @@ else
     end
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.parallel=0;
+        vfoptions.parallel=2;
     end
     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
     if fieldexists==0
@@ -124,30 +130,12 @@ for p_c=1:N_p
 
     %tic;
     
-%     if vfoptions.returnmatrix==1
-%         ReturnMatrix=ReturnFnHeteroAgent(p{:});
-%     else
-%         ReturnFn=@(d,a,s) ReturnFnHeteroAgent(d,a,s,p{:});
-%         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, vfoptions.parallel);
-%     end
     ReturnFnParams(IndexesForPricesInReturnFnParams)=p;
     [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, beta, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,ReturnFnParams);
-    
-%     if vfoptions.parallel==0
-%         [VKron, PolicyIndexesKron]=ValueFnIter_Case2_raw(Tolerance, V0Kron, n_d,n_a,n_s, pi_s, beta, ReturnMatrix,Phi_aprimeKron,Case2_Type,vfoptions.howards,vfoptions.verbose); 
-%     elseif vfoptions.parallel==1
-%         [VKron, PolicyIndexesKron]=ValueFnIter_Case2_Par1_raw(Tolerance, V0Kron, n_d,n_a,n_s, pi_s, beta, ReturnMatrix,Phi_aprimeKron,Case2_Type,vfoptions.howards,vfoptions.verbose);
-%     end
-    
-%    [V0Kron,PolicyIndexesKron]=ValueFnIter_Case2_raw(Tolerance, V0Kron, N_d, N_a, N_s, pi_s, Phi_aprimeKron, Case2_Type, beta, FmatrixKron, Howards);
-   
+
     %Step 2: Calculate the Steady-state distn (given this price)
     %and use it to assess market clearance
     StationaryDist=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
-%     SteadyStateDist=SteadyState_Case2_Simulation(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
-%     if simoptions.ssfull==1
-%         SteadyStateDist=SteadyState_Case2(SteadyStateDist,Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s,simoptions);
-%     end
     SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDist, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
 %     SSvalues_AggVars=SSvalues_AggVars_Case2_raw(SteadyStateDistKron, PolicyIndexesKron, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
 

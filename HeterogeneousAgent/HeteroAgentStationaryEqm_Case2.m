@@ -1,4 +1,6 @@
-function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2(Tolerance, V0, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, beta, ReturnFnHeteroAgent, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions)
+function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2(V0, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, beta, ReturnFnHeteroAgent, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions)
+
+disp('HeteroAgentStationaryEqm_Case2 may contain errors')
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -11,10 +13,15 @@ if nargin<21
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
     simoptions.simperiods=10^4;
     simoptions.burnin=10^3;
-    simoptions.parallel=0;
+    simoptions.parallel=2;
     simoptions.verbose=0;
-    simoptions.ncores=1;
-    simoptions.iterate=0;
+    try 
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
+    simoptions.iterate=1;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -40,7 +47,12 @@ else
     end
     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
     if fieldexists==0
-        simoptions.ncores=1;
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
     end
     eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
@@ -114,19 +126,18 @@ for p_c=1:N_p
     end
     
     if vfoptions.parallel==0
-        [VKron, PolicyIndexesKron]=ValueFnIter_Case2_raw(Tolerance, V0Kron, n_d,n_a,n_s, pi_s, beta, ReturnMatrix,Phi_aprimeKron,Case2_Type,vfoptions.howards,vfoptions.verbose); 
+        [VKron, PolicyIndexesKron]=ValueFnIter_Case2_raw(V0Kron, n_d,n_a,n_s, pi_s, beta, ReturnMatrix,Phi_aprimeKron,Case2_Type,vfoptions.howards,vfoptions.verbose); 
     elseif vfoptions.parallel==1
-        [VKron, PolicyIndexesKron]=ValueFnIter_Case2_Par1_raw(Tolerance, V0Kron, n_d,n_a,n_s, pi_s, beta, ReturnMatrix,Phi_aprimeKron,Case2_Type,vfoptions.howards,vfoptions.verbose);
+        [VKron, PolicyIndexesKron]=ValueFnIter_Case2_Par1_raw(V0Kron, n_d,n_a,n_s, pi_s, beta, ReturnMatrix,Phi_aprimeKron,Case2_Type,vfoptions.howards,vfoptions.verbose);
     end
     
 %    [V0Kron,PolicyIndexesKron]=ValueFnIter_Case2_raw(Tolerance, V0Kron, N_d, N_a, N_s, pi_s, Phi_aprimeKron, Case2_Type, beta, FmatrixKron, Howards);
     %Step 2: Calculate the Steady-state distn (given this price)
     %and use it to assess market clearance
-    StationaryDistKron=SteadyState_Case2(PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_s,pi_s, simoptions);
-%     SteadyStateDistKron=SteadyState_Case2_Simulation_raw(PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_s,pi_s, simoptions);
-%     if simoptions.ssfull==1
-%         SteadyStateDistKron=SteadyState_Case2_raw(SteadyStateDistKron,Tolerance,PolicyIndexesKron,Phi_aprimeKron, Case2_Type, N_d,N_a,N_s,pi_s,0);
-%     end
+    StationaryDistKron=StationaryDist_Case2_Simulation_raw(PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_s,pi_s, simoptions);
+    if simoptions.iterate==1
+        StationaryDistKron=StationaryDist_Case2_Iteration_raw(StationaryDistKron, PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_s,pi_s, simoptions);
+    end
     SSvalues_AggVars=SSvalues_AggVars_Case2_raw(StationaryDistKron, PolicyIndexesKron, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
     MarketClearanceKron(p_c,:)=MarketClearance_Case2(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, MarketPriceParams);
     

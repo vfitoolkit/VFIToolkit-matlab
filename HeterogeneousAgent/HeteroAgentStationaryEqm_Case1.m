@@ -1,6 +1,6 @@
 function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case1(V0, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid, beta, ReturnFn_p, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, simoptions, vfoptions)
-%Things you may want to try adjusting for speed
-% In 'SteadyState_Case1_Simulation_raw' you might want to adjust; nsims, periods, burnin
+
+disp('HeteroAgentStationaryEqm_Case1 may contain errors')
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -10,15 +10,14 @@ N_p=prod(n_p);
 l_p=length(n_p);
 
 %% Check which vfoptions and simoptions have been used, set all others to defaults 
-tic()
-if nargin<19
+if nargin<18
     %If vfoptions is not given, just use all the defaults
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
     vfoptions.howards=80;
-    vfoptions.parallel=0;
+    vfoptions.parallel=2;
     vfoptions.verbose=0;
-    vfoptions.returnmatrix=0;
+    vfoptions.returnmatrix=2;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -36,7 +35,7 @@ else
     end
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.parallel=0;
+        vfoptions.parallel=2;
     end
     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
     if fieldexists==0
@@ -44,20 +43,25 @@ else
     end
     eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.returnmatrix=0;
+        vfoptions.returnmatrix=2;
     end
 end
 
-if nargin<18
+if nargin<17
     simoptions.iterate=1;
     simoptions.nagents=0;
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
     simoptions.simperiods=10^4;
     simoptions.burnin=10^3;
-    simoptions.parallel=0;
+    simoptions.parallel=2;
     simoptions.verbose=0;
-    simoptions.ncores=1;
+    try
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
 else
     eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
@@ -85,18 +89,22 @@ else
     end
     eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        simoptions.parallel=0;
+        simoptions.parallel=2;
     end
     eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
     if fieldexists==0
         simoptions.verbose=0;
     end
     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.ncores=1;
+    if fieldexists==0 
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
     end
 end
-toc()
 
 %% 
 
@@ -151,15 +159,10 @@ for p_c=1:N_p
     time_valuefn=toc();
     
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-    StationaryDistKron=StationaryDist_Case1(Policy,N_d,N_a,N_s,pi_s,simoptions);
-%     tic()
-%     SteadyStateDistKron=SteadyState_Case1_Simulation_raw(Policy,N_d,N_a,N_s,pi_s,simoptions);
-%     time_steadystatesim=toc();
-%     if simoptions.ssfull==1
-%         tic()
-%         SteadyStateDistKron=SteadyState_Case1_raw(SteadyStateDistKron,Tolerance,Policy,N_d,N_a,N_s,pi_s,simoptions);
-%         time_steadystatessfull=toc();
-%     end
+    StationaryDistKron=StationaryDist_Case1_Simulation_raw(Policy,N_d,N_a,N_s,pi_s,simoptions);
+    if simoptions.iterate==1
+        StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKron,Policy,N_d,N_a,N_s,pi_s,simoptions);
+    end
     tic()
     SSvalues_AggVars=SSvalues_AggVars_Case1_raw(StationaryDistKron, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
     time_aggvars=toc();
