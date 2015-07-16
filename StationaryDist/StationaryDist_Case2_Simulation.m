@@ -16,7 +16,12 @@ if nargin<8
     simoptions.burnin=10^3;
     simoptions.parallel=0;
     simoptions.verbose=0;
-    simoptions.ncores=1;
+    try 
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -42,7 +47,12 @@ else
     end
     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
     if fieldexists==0
-        simoptions.ncores=1;
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
     end
 end
 

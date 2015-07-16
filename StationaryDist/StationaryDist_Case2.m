@@ -11,7 +11,12 @@ if nargin<8
     simoptions.burnin=10^3;
     simoptions.parallel=0;
     simoptions.verbose=0;
-    simoptions.ncores=1;
+    try 
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
 %     simoptions.nagents=0;
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.tolerance=10^(-9);
@@ -41,7 +46,12 @@ else
     end
     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
     if fieldexists==0
-        simoptions.ncores=1;
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
     end
 %     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
 %     if fieldexists==0
