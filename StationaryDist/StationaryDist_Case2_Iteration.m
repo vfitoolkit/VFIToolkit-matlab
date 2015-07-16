@@ -1,10 +1,10 @@
 function StationaryDist=StationaryDist_Case2_Iteration(StationaryDist,Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_z,pi_z,simoptions)
 
-if nargin<10
+if nargin<9
 %     simoptions.nagents=0;
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.tolerance=10^(-9);
-%     Nagents=0;
+    simoptions.parallel=2;
 else
 %     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
 %     if fieldexists==0
@@ -17,6 +17,10 @@ else
     eval('fieldexists=1;simoptions.tolerance;','fieldexists=0;')
     if fieldexists==0
         simoptions.tolerance=10^(-9);
+    end
+    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
+    if fieldexists==0
+        simoptions.parallel=2;
     end
 end
 

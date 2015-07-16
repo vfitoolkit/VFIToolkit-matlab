@@ -1,19 +1,10 @@
 function StationaryDistKron=StationaryDist_Case2_Iteration_raw(StationaryDistKron,PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z,simoptions)
 %Note: N_d is not actually needed, it is included to make it more like Case1 code.
 
-if nargin<10
-%     simoptions.nagents=0;
-    simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
-else
-%     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
-%     if fieldexists==0
-%         simoptions.nagents=0;
-%     end
-    eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.maxit=5*10^4;
-    end
-end
+% Options needed
+%    simoptions.parallel
+%    simoptions.maxit
+%    simoptions.tolerance
 
 if simoptions.parallel~=2
     %First, generate the transition matrix P=phi of Q (in the notation of SLP)

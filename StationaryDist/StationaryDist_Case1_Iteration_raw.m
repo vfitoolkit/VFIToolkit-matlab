@@ -1,24 +1,10 @@
 function StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
-if nargin<8
-%     simoptions.nagents=0;
-    simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
-    simoptions.tolerance=10^(-9);
-else
-%     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
-%     if fieldexists==0
-%         simoptions.nagents=0;
-%     end
-    eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.maxit=5*10^4;
-    end
-    eval('fieldexists=1;simoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.tolerance=10^(-9);
-    end
-end
+% Options needed
+%  simoptions.maxit
+%  simoptions.tolerance
+%  simoptions.parallel
 
 %kstep tells the code to use the k-step transition matrix P^k, instead of
 %P, when calculating the steady state distn

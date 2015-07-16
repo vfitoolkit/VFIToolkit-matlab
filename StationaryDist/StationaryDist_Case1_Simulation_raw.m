@@ -3,57 +3,19 @@ function StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyIndexesKro
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
 
+% Options needed
+%    simoptions.seedpoint
+%    simoptions.simperiods
+%    simoptions.burnin
+%    simoptions.parallel
+%    simoptions.verbose
+%    simoptions.ncores
 
-if nargin<6
-    simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    simoptions.simperiods=10^4;
-    simoptions.burnin=10^3;
-    simoptions.parallel=0;
-    simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
-else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    end
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.simperiods=10^4;
-    end
-    eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.burnin=10^3;
-    end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.parallel=0;
-    end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.verbose=0;
-    end
-    eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
-    end
-end
-
+% TRIED GENERATING P AND SIMULATING FROM THIS. TOO SLOW
 %N_a=prod(n_a);
 %N_z=prod(n_z);
 %num_a_vars=length(n_a);
-
+%
 % %First, generate the transition matrix P=phi of Q (in the notation of SLP)
 % P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
 % for a_c=1:N_a

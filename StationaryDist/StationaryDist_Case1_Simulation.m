@@ -11,7 +11,7 @@ if nargin<6
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^4;
     simoptions.burnin=10^3;
-    simoptions.parallel=0;
+    simoptions.parallel=2;
     simoptions.verbose=0;
     simoptions.ncores=1;
 else
@@ -31,7 +31,7 @@ else
     end
     eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        simoptions.parallel=0;
+        simoptions.parallel=2;
     end
     eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
     if fieldexists==0
