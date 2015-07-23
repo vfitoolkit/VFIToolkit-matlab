@@ -1,4 +1,4 @@
-function [VKron,PolicyIndexesKron]=ValueFnIter_Case2_Par2_raw(VKron, n_d, n_a, n_z, pi_z, beta, ReturnMatrix, Phi_aprime, Case2_Type, Howards, Verbose, Tolerance)
+function [VKron,PolicyIndexesKron]=ValueFnIter_Case2_Par2_raw(VKron, n_d, n_a, n_z, pi_z, beta, ReturnMatrix, Phi_aprime, Case2_Type, Howards,Howards2, Verbose, Tolerance)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -13,7 +13,8 @@ Ftemp=zeros(N_a,N_z,'gpuArray');
 % aaa=reshape(ccc,[N_a*N_z,N_z]);
 aaa=kron(ones(N_a,1,'gpuArray'),pi_z);
 
-tempcounter=1; currdist=Inf;
+tempcounter=1; 
+currdist=Inf;
 
 if Case2_Type==1
     disp('ERROR: Case2_Type==1 has not yet been implemented for GPU')
@@ -142,7 +143,7 @@ if Case2_Type==2
         % I CANNOT FIGURE OUT WHY BUT EVKrontemp TERM APPEARS TO CALCULATE INCORRECTLY. 
         % MAYBE EVEN JUST ROUNDING ERRORS???    
 %         tic;
-        if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+        if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
             for z_c=1:N_z
                 Phi_of_Policy(:,:,z_c)=Phi_aprime(PolicyIndexesKron(:,z_c),:,z_c);
             end

@@ -6,6 +6,7 @@ if nargin<13
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
     vfoptions.howards=80;
+    vfoptions.maxhowards=500;
     vfoptions.parallel=0;
     vfoptions.verbose=0;
     vfoptions.returnmatrix=0;
@@ -24,6 +25,10 @@ else
     eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
     if fieldexists==0
         vfoptions.howards=80;
+    end
+    eval('fieldexists=1;vfoptions.maxhowards;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.maxhowards=500;
     end
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
@@ -74,31 +79,16 @@ if vfoptions.lowmemory==0
     V0Kron=reshape(V0,[N_a,N_z]);
     
     if vfoptions.parallel==0 % On CPU
-        [VKron, Policy]=ValueFnIter_Case2_raw(V0Kron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.verbose,vfoptions.tolerance); 
+        [VKron, Policy]=ValueFnIter_Case2_raw(V0Kron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance); 
     elseif vfoptions.parallel==1 % On Parallel CPU
-        [VKron, Policy]=ValueFnIter_Case2_Par1_raw(V0Kron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.verbose,vfoptions.tolerance);
+        [VKron, Policy]=ValueFnIter_Case2_Par1_raw(V0Kron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance);
     elseif vfoptions.parallel==2 % On GPU
-        [VKron, Policy]=ValueFnIter_Case2_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.verbose,vfoptions.tolerance);
+        [VKron, Policy]=ValueFnIter_Case2_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance);
     end
     
     %% Sort out Policy
     if vfoptions.polindorval==2
         Policy=PolicyInd2Val_Case2(Policy,n_d,n_a,n_z,d_grid,vfoptions.parallel);
-%         PolicyInd=Policy;
-%         Policy=zeros(length(n_d),N_a,N_z);
-%         for a_c=1:N_a
-%             for z_c=1:N_z
-%                 temp_d=ind2grid_homemade(n_d,PolicyInd(1,a_c,z_c),d_grid);
-%                 for ii=1:length(n_d)
-%                     Policy(ii,a_c,z_c)=temp_d(ii);
-%                 end
-%                 temp_a=ind2grid_homemade(n_a,PolicyInd(2,a_c,z_c),a_grid);
-%                 for ii=1:length(n_a)
-%                     Policy(length(n_d)+ii,a_c,z_c)=temp_a(ii);
-%                 end
-%             end
-%         end
-%         clear PolicyInd
     end
 end
 

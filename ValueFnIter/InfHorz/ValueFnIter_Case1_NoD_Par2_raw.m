@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_NoD_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Tolerance) % Verbose, a_grid, z_grid, 
+function [VKron, Policy]=ValueFnIter_Case1_NoD_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -15,6 +15,7 @@ aaa=reshape(ccc,[N_a*N_z,N_z]);
 
 
 %%
+tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
@@ -40,7 +41,7 @@ while currdist>Tolerance
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             %VKrontemp=VKron;
             %EVKrontemp=VKrontemp(PolicyIndexes,:);
@@ -60,6 +61,7 @@ while currdist>Tolerance
 %         end
 %         tempcounter=tempcounter+1;
 %     end
+    tempcounter=tempcounter+1;
 
 end
 

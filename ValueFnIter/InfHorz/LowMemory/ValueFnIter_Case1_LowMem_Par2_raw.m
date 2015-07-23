@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -87,6 +87,7 @@ end
 
 
 %%
+tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
@@ -150,7 +151,7 @@ while currdist>Tolerance
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
 
-    if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             
@@ -169,7 +170,7 @@ while currdist>Tolerance
 %         end
 %         tempcounter=tempcounter+1;
 %     end
-    
+    tempcounter=tempcounter+1;
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form

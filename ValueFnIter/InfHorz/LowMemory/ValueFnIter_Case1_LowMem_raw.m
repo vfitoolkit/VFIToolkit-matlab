@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(VKron, N_d,N_a,N_z,d_grid, a_grid, z_grid, pi_z, beta, ReturnFn,Howards,Tolerance) %Verbose
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(VKron, N_d,N_a,N_z,d_grid, a_grid, z_grid, pi_z, beta, ReturnFn,Howards,Howards2,Tolerance) %Verbose
 
 disp('WARNING: ValueFnIter_Case1_LowMem_raw is out of date')
 % N_d=prod(n_d);
@@ -13,6 +13,8 @@ disp('WARNING: ValueFnIter_Case1_LowMem_raw is out of date')
 
 PolicyIndexes1=zeros(N_a,N_z);
 PolicyIndexes2=zeros(N_a,N_z);
+
+tempcounter=1;
 currdist=Inf;
 
 while currdist>Tolerance
@@ -52,7 +54,7 @@ while currdist>Tolerance
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     
-    if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=zeros(N_a,N_z);
         for z_c=1:N_z
             for a_c=1:N_a
@@ -76,7 +78,8 @@ while currdist>Tolerance
 %         end
 %         tempcounter=tempcounter+1;
 %     end
-    
+    tempcounter=tempcounter+1;
+
 end
 
 % if Verbose==1

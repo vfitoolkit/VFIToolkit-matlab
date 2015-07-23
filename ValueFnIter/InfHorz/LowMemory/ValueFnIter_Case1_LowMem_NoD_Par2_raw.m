@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Tolerance) % Verbose, ReturnFnParamNames, 
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -57,6 +57,7 @@ end
 
 
 %%
+tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
@@ -106,7 +107,7 @@ while currdist>Tolerance
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             
@@ -125,7 +126,7 @@ while currdist>Tolerance
 %         end
 %         tempcounter=tempcounter+1;
 %     end
-
+    tempcounter=tempcounter+1;
 end
 
 Policy=PolicyIndexes;

@@ -1,11 +1,13 @@
-function [VKron,PolicyIndexesKron]=ValueFnIter_Case2_raw(VKron, n_d, n_a, n_z, pi_z, beta, Fmatrix, Phi_aprime, Case2_Type, Howards, Verbose, Tolerance)
+function [VKron,PolicyIndexesKron]=ValueFnIter_Case2_raw(VKron, n_d, n_a, n_z, pi_z, beta, Fmatrix, Phi_aprime, Case2_Type, Howards,Howards2, Verbose, Tolerance)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 PolicyIndexesKron=zeros(N_a,N_z); %indexes the optimal choice for d given rest of dimensions a,z
-tempcounter=1; currdist=Inf;
+
+currdist=Inf;
+tempcounter=1; 
 
 if Case2_Type==1
     while currdist>Tolerance
@@ -35,7 +37,7 @@ if Case2_Type==1
         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
         
-        if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+        if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
             for Howards_counter=1:Howards
                 VKrontemp=VKron;
                 for a_c=1:N_a
@@ -95,7 +97,7 @@ if Case2_Type==2
         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
         
-        if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+        if isfinite(currdist) && tempcounter<Howards2  %Use Howards Policy Fn Iteration Improvement
             for Howards_counter=1:Howards
                 VKrontemp=VKron;
                 for z_c=1:N_z
@@ -156,7 +158,7 @@ if Case2_Type==3
         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
         
-        if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+        if isfinite(currdist) && tempcounter<Howards2  %Use Howards Policy Fn Iteration Improvement
             for Howards_counter=1:Howards
                 VKrontemp=VKron;
                 for z_c=1:N_z

@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(VKron, n_a, n_z, a_grid,z_grid, pi_z, beta, ReturnFn, Howards, Tolerance)%Verbose)
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(VKron, n_a, n_z, a_grid,z_grid, pi_z, beta, ReturnFn, Howards, Howards2,Tolerance)%Verbose)
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -44,7 +44,7 @@ for i2=1:N_a
     a_gridvals(i2,:)=a_grid(sub);
 end
 
-
+tempcounter=1;
 while currdist>Tolerance
 
     VKronold=VKron;
@@ -75,7 +75,7 @@ while currdist>Tolerance
         
     VKrondist=reshape(VKron-VKronold,[numel(VKron),1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    if isfinite(currdist) %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=zeros(N_a,N_z);
         for z_c=1:N_z
             z=z_gridvals(z_c,:);
@@ -98,9 +98,9 @@ while currdist>Tolerance
             disp(tempcounter)
             disp(currdist)
         end
-        tempcounter=tempcounter+1;
     end
 
+    tempcounter=tempcounter+1;
 end
   
 
