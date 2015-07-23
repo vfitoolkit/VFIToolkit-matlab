@@ -1,7 +1,19 @@
 function [states, transmatrix]=TauchenMethod(mew,sigmasq,rho,znum,q, tauchenoptions)
-% Create states vector and transition matrix for the discrete markov process approximation of AR(1) process z'=rho*z+e, e~N(mew,sigmasq), by Tauchens method
-% q    % max number of std devs from mean
-% znum % number of states in discretization of z (must be an odd number)
+% Create states vector and transition matrix for the discrete markov process approximation of AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq), by Tauchens method
+% Inputs
+%   mew            - AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq)
+%   rho            - AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq)
+%   sigmasq        - AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq)
+%   q              - max number of std devs from mean
+%   znum           - number of states in discretization of z (must be an odd number)
+% Optional Inputs
+%   tauchenoptions - allows user to control internal options
+%     tauchenoptions.parallel: set equal to 2 to use GPU, 0 to use CPU
+% Outputs
+%   states         - column vector containing the znum states of the discrete approximation of z
+%   transmatrix    - transition matrix of the discrete approximation of z;
+%                    transmatrix(i,j) is the probability of transitioning from state i to state j
+%%%%%%%%%%%%%%%
 
 if nargin<6
     % Recommended choice for Parallel is 2 (on GPU). It is substantially faster (albeit only for very large grids; for small grids cpu is just as fast)
