@@ -4,6 +4,7 @@ function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid
 if nargin<13
     %If vfoptions is not given, just use all the defaults
     vfoptions.lowmemory=0;
+    vfoptions.returnmatrix=2;
     vfoptions.polindorval=1;
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
@@ -17,6 +18,10 @@ else
     eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
     if fieldexists==0
         vfoptions.lowmemory=0;
+    end
+    eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.returnmatrix=2;
     end
     eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
     if fieldexists==0
