@@ -30,7 +30,7 @@ if Parallel==2
     for i=1:length(SSvaluesFn)
         Values1=ValuesOnSSGrid_Case1(SSvaluesFn{1,i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values1=reshape(Values1,[N_a*N_z,1]);
-        Values2=ValuesOnSSGrid_Case1(SSvaluesFn{1,i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values2=ValuesOnSSGrid_Case1(SSvaluesFn{2,i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values2=reshape(Values2,[N_a*N_z,1]);
                 
         SSvalues_Mean1=sum(Values1.*SteadyStateDistVec);
