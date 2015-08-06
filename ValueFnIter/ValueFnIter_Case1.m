@@ -84,6 +84,10 @@ N_z=prod(n_z);
 %    pi_z=gpuArray(pi_z);
 % end
 
+if vfoptions.verbose==1
+    vfoptions
+end
+
 %%
 if vfoptions.lowmemory==0
     

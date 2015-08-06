@@ -53,8 +53,9 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-vfoptions
-
+if vfoptions.verbose==1
+    vfoptions
+end
 
 %%
 if vfoptions.lowmemory==0
