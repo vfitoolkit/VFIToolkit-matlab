@@ -113,7 +113,6 @@ if Case2_Type==2
         
         VKronold=VKron;
         
-%         tic;
         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
             Phi_aprime_z=Phi_aprime(:,:,z_c); %Case2_Type==2: phi(d,z,z')
@@ -134,7 +133,6 @@ if Case2_Type==2
             
             % Phi_of_Policy2(:,:,z_c)=Phi_aprime_z(maxindex,:);
         end
-%         time1=toc;
         
         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
@@ -142,15 +140,19 @@ if Case2_Type==2
         % I HAVE DISABLED HOWARDS AS FOR SOME REASON IT DOESN'T SEEM TO BE WORKING CORRECTLY. 
         % I CANNOT FIGURE OUT WHY BUT EVKrontemp TERM APPEARS TO CALCULATE INCORRECTLY. 
         % MAYBE EVEN JUST ROUNDING ERRORS???    
-%         tic;
-        if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+        if isfinite(currdist) && tempcounter>10 && currdist>(Tolerance*10) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+            % % && tempcounter>10 && currdist>(Tolerance*10)
+            % isfinite(currdist): ensures do not contaminate value function with -Infs
+            % tempcounter>10: just because there is probably not much point
+            % tempcounter<Howards2: to guarantee that Howards cannot break convergence
+            % currdist>(Tolerance*10): to ensure eventual solution is not driven by Howards
+            
             for z_c=1:N_z
                 Phi_of_Policy(:,:,z_c)=Phi_aprime(PolicyIndexesKron(:,z_c),:,z_c);
             end
-            % %             Phi_of_Policy=Phi_of_Policy2; % They are equal, use
-            % %                     % whichever is fastest! appears to be largely a deadheat, have just gone with Phi_of_Policy
+            % %             Phi_of_Policy=Phi_of_Policy2; % They are equal, use whichever is fastest!
+            % %                     %  Appears to be largely a deadheat, have just gone with Phi_of_Policy
             
-%             Htimes=[0,0,0];
             for Howards_counter=1:Howards
                 % Version 3 of the implementation appears to be fastest
                 
@@ -177,7 +179,6 @@ if Case2_Type==2
 %                 Htimes(2)=Htimes(2)+toc;
                 
                 % Howards Version 3
-%                 tic;
                 EVKrontemp=zeros(N_a*N_z,N_z,'gpuArray'); % Can move this outside most of the loops
                 for z_c=1:N_z
                     EVKrontemp(:,z_c)=VKron(Phi_of_Policy(:,:,z_c),z_c);
@@ -185,18 +186,13 @@ if Case2_Type==2
                 EVKrontemp=EVKrontemp.*aaa;
                 EVKrontemp(isnan(EVKrontemp))=0;
                 EVKrontemp=reshape(sum(reshape(EVKrontemp,[N_a,N_z,N_z]),2),[N_a,N_z]);
-                VKron=Ftemp+beta*EVKrontemp;
-%                 Htimes(3)=Htimes(3)+toc;
-                
+                VKron=Ftemp+beta*EVKrontemp;                
             end
         end
-%         Htimes
-%         time2=toc;
   
         if rem(tempcounter,100)==0
             disp(tempcounter)
             disp(currdist)
-%             fprintf('times: %2.8f, %2.8f \n',time1,time2)
         end
         
         tempcounter=tempcounter+1;

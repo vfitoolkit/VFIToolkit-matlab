@@ -6,7 +6,7 @@ if nargin<13
     vfoptions.lowmemory=0;
     vfoptions.returnmatrix=2;
     vfoptions.polindorval=1;
-    vfoptions.howards=80;
+    vfoptions.howards=0;
     vfoptions.maxhowards=500;
     vfoptions.parallel=0;
     vfoptions.verbose=0;
@@ -29,7 +29,7 @@ else
     end
     eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.howards=80;
+        vfoptions.howards=0;
     end
     eval('fieldexists=1;vfoptions.maxhowards;','fieldexists=0;')
     if fieldexists==0
