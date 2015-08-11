@@ -7,12 +7,6 @@ N_z=prod(n_z);
 PolicyIndexesKron=zeros(N_a,N_z,'gpuArray'); %indexes the optimal choice for d given rest of dimensions a,z
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
-% bbb=reshape(pi_z,[1,N_z*N_z]);
-% %bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-% ccc=kron(ones(N_a,1,'gpuArray'),bbb);
-% aaa=reshape(ccc,[N_a*N_z,N_z]);
-aaa=kron(ones(N_a,1,'gpuArray'),pi_z);
-
 tempcounter=1; 
 currdist=Inf;
 
@@ -104,42 +98,37 @@ end
 
 if Case2_Type==2
     
-    Phi_of_Policy=zeros(N_a,N_z,N_z,'gpuArray'); %a'(a,z',z)
-%     Phi_of_Policy2=zeros(N_a,N_z,N_z,'gpuArray'); %a'(a,z',z)
-    % SHOULD IT BE pi_z OR pi_z' IN aaa ????? (NEED TO CHECK THIS)
-    aaa=kron(ones(N_a,1,'gpuArray'),pi_z); % Part of one of the Howards Implemantations
+    Phi_of_Policy=zeros(N_a,N_z,N_z,'gpuArray'); %a'(a,z,z')
+    aaa=kron(pi_z,ones(N_d,1,'gpuArray'));
+    bbb=kron(pi_z,ones(N_a,1,'gpuArray')); % Part of the Howards
     
     while currdist>Tolerance
         
         VKronold=VKron;
+
+        EV=zeros(N_d*N_z,N_z,'gpuArray');
+        for zprime_c=1:N_z
+            EV(:,zprime_c)=VKronold(Phi_aprime(:,:,zprime_c),zprime_c); %(d,z')
+        end
+        EV=EV.*aaa;
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=reshape(sum(EV,2),[N_d,1,N_z]);
         
-        for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-            Phi_aprime_z=Phi_aprime(:,:,z_c); %Case2_Type==2: phi(d,z,z')
-            %Calc the condl expectation term (except beta), which depends on z
-            EV_z=VKronold(Phi_aprime_z).*(ones(N_d,1,'gpuArray')*pi_z(z_c,:));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1,'gpuArray');
+        for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
+            entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray');
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
             VKron(:,z_c)=Vtemp;
             PolicyIndexesKron(:,z_c)=maxindex;
             
-            tempmaxindex=maxindex+(0:1:N_a-1)*(N_d);
-            Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
-            
-            % Phi_of_Policy2(:,:,z_c)=Phi_aprime_z(maxindex,:);
+            tempmaxindex=maxindex+(0:1:N_a-1)*(N_d)+(z_c-1)*N_d*N_a;
+            Ftemp(:,z_c)=ReturnMatrix(tempmaxindex);
         end
         
         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
-
-        % I HAVE DISABLED HOWARDS AS FOR SOME REASON IT DOESN'T SEEM TO BE WORKING CORRECTLY. 
-        % I CANNOT FIGURE OUT WHY BUT EVKrontemp TERM APPEARS TO CALCULATE INCORRECTLY. 
-        % MAYBE EVEN JUST ROUNDING ERRORS???    
+ 
         if isfinite(currdist) && tempcounter>10 && currdist>(Tolerance*10) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
             % % && tempcounter>10 && currdist>(Tolerance*10)
             % isfinite(currdist): ensures do not contaminate value function with -Infs
@@ -148,44 +137,17 @@ if Case2_Type==2
             % currdist>(Tolerance*10): to ensure eventual solution is not driven by Howards
             
             for z_c=1:N_z
-                Phi_of_Policy(:,:,z_c)=Phi_aprime(PolicyIndexesKron(:,z_c),:,z_c);
+                Phi_of_Policy(:,z_c,:)=reshape(Phi_aprime(PolicyIndexesKron(:,z_c),z_c,:),[N_a,1,N_z]); % (d,a,z)
             end
-            % %             Phi_of_Policy=Phi_of_Policy2; % They are equal, use whichever is fastest!
-            % %                     %  Appears to be largely a deadheat, have just gone with Phi_of_Policy
             
             for Howards_counter=1:Howards
-                % Version 3 of the implementation appears to be fastest
-                
-%                 % Howards Version 1
-%                 tic;
-%                 VKrontemp=VKron;
-%                 EVKrontemp=zeros(N_a,N_z,'gpuArray'); % Can move this outside most of the loops
-%                 for z_c=1:N_z
-%                     temp1=reshape(VKrontemp(Phi_of_Policy(:,:,z_c),z_c),[N_a,N_z]).*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-%                     temp1(isnan(temp1))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                     VKron(:,z_c)=Ftemp(:,z_c)+beta*sum(temp1,2);
-%                 end
-%                 Htimes(1)=Htimes(1)+toc;
-%                 
-%                 % Howards Version 2
-%                 tic;
-%                 EVKrontemp=zeros(N_a,N_z,'gpuArray'); % Can move this outside most of the loops
-%                 for z_c=1:N_z
-%                     temp1=reshape(VKron(Phi_of_Policy(:,:,z_c),z_c),[N_a,N_z]).*kron(ones(N_a,1,'gpuArray'),pi_z(z_c,:));
-%                     temp1(isnan(temp1))=0;
-%                     EVKrontemp(:,z_c)=sum(temp1,2);
-%                 end
-%                 VKron=Ftemp+beta*EVKrontemp;
-%                 Htimes(2)=Htimes(2)+toc;
-                
-                % Howards Version 3
-                EVKrontemp=zeros(N_a*N_z,N_z,'gpuArray'); % Can move this outside most of the loops
-                for z_c=1:N_z
-                    EVKrontemp(:,z_c)=VKron(Phi_of_Policy(:,:,z_c),z_c);
+                EVKrontemp2=zeros(N_a*N_z,N_z,'gpuArray'); %((a,z),z') % Can move this outside most of the loops
+                for zprime_c=1:N_z
+                    EVKrontemp2(:,zprime_c)=VKron(Phi_of_Policy(:,:,zprime_c),zprime_c);
                 end
-                EVKrontemp=EVKrontemp.*aaa;
-                EVKrontemp(isnan(EVKrontemp))=0;
-                EVKrontemp=reshape(sum(reshape(EVKrontemp,[N_a,N_z,N_z]),2),[N_a,N_z]);
+                EVKrontemp3=EVKrontemp2.*bbb;
+                EVKrontemp3(isnan(EVKrontemp3))=0;
+                EVKrontemp=reshape(sum(EVKrontemp3,2),[N_a,N_z]); %
                 VKron=Ftemp+beta*EVKrontemp;                
             end
         end

@@ -100,6 +100,7 @@ if Case2_Type==2
         if isfinite(currdist) && tempcounter<Howards2  %Use Howards Policy Fn Iteration Improvement
             for Howards_counter=1:Howards
                 VKrontemp=VKron;
+%        BigTemp=zeros(N_a,N_z);
                 for z_c=1:N_z
                     for a_c=1:N_a
                         %VKron(a_c,z_c)=FmatrixKron(PolicyIndexesKron(a_c,z_c),a_c,z_c);
@@ -115,6 +116,7 @@ if Case2_Type==2
                         VKron(a_c,z_c)=Fmatrix(PolicyIndexesKron(a_c,z_c),a_c,z_c)+beta*temp;
                         %VKron(a_c,z_c)=VKron(a_c,z_c)+beta*VKrontemp(Phi_aprimeKron(PolicyIndexesKron(a_c,z_c),a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                         %end
+%       BigTemp(a_c,z_c)=gather(temp);
                     end
                 end
             end

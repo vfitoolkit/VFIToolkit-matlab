@@ -6,11 +6,10 @@ if nargin<13
     vfoptions.lowmemory=0;
     vfoptions.returnmatrix=2;
     vfoptions.polindorval=1;
-    vfoptions.howards=0;
+    vfoptions.howards=60;
     vfoptions.maxhowards=500;
-    vfoptions.parallel=0;
+    vfoptions.parallel=2;
     vfoptions.verbose=0;
-    vfoptions.returnmatrix=0;
     vfoptions.tolerance=10^(-9);
 else
     %Check vfoptions for missing fields, if there are some fill them with
@@ -29,7 +28,7 @@ else
     end
     eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.howards=0;
+        vfoptions.howards=60;
     end
     eval('fieldexists=1;vfoptions.maxhowards;','fieldexists=0;')
     if fieldexists==0
@@ -37,7 +36,7 @@ else
     end
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.parallel=0;
+        vfoptions.parallel=2;
     end
     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
     if fieldexists==0

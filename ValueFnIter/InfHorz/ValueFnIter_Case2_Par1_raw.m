@@ -23,7 +23,7 @@ if Case2_Type==1
                         %                     Phi_of_d=Phi_aprime(:,a_c,z_c,zprime_c);
                         %                     RHSpart2=RHSpart2+VKronold(Phi_of_d,zprime_c)*pi_z(z_c,zprime_c);
                         for d_c=1:N_d
-                            RHSpart2(d_c)=RHSpart2(d_c)+VKronold(Phi_aprime(d_c,a_c,zprime_c,z_c),zprime_c)*pi_z(z_c,zprime_c);
+                            RHSpart2(d_c)=RHSpart2(d_c)+VKronold(Phi_aprime(d_c,a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                         end
                     end
                 end
@@ -49,7 +49,7 @@ if Case2_Type==1
                         temp=0;
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                                temp=temp+VKrontemp(Phi_aprime(PolicyIndexesKron(a_c,z_c),a_c,zprime_c,z_c),zprime_c)*pi_z(z_c,zprime_c);
+                                temp=temp+VKrontemp(Phi_aprime(PolicyIndexesKron(a_c,z_c),a_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                             end
                         end
                         VKron(a_c,z_c)=ReturnMatrix(PolicyIndexesKron(a_c,z_c),a_c,z_c)+beta*temp;
@@ -81,7 +81,7 @@ if Case2_Type==2
             for zprime_c=1:N_z
                 if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                     for d_c=1:N_d
-                        RHSpart2(d_c)=RHSpart2(d_c)+VKronold(Phi_aprime(d_c,zprime_c,z_c),zprime_c)*pi_z(z_c,zprime_c);
+                        RHSpart2(d_c)=RHSpart2(d_c)+VKronold(Phi_aprime(d_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                     end
                 end
             end
@@ -109,7 +109,7 @@ if Case2_Type==2
                         temp=0;
                         for zprime_c=1:N_z
                             if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                                temp=temp+VKrontemp(Phi_aprime(PolicyIndexesKron(a_c,z_c),zprime_c,z_c),zprime_c)*pi_z(z_c,zprime_c);
+                                temp=temp+VKrontemp(Phi_aprime(PolicyIndexesKron(a_c,z_c),z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
                             end
                         end
                         VKron(a_c,z_c)=ReturnMatrix(PolicyIndexesKron(a_c,z_c),a_c,z_c)+beta*temp;
