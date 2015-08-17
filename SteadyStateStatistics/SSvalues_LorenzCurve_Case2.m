@@ -5,6 +5,10 @@ function SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case2(SteadyStateDist, Policy
 %SSvalues_AggVars for the same variable. This will give you the inverse
 %cdf.
 
+if nargin<12 %Default is to assume SteadyStateDist exists on the gpu
+    Parallel=2;
+end
+
 l_d=length(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
