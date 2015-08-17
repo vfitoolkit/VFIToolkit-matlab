@@ -1,5 +1,9 @@
 function SSvalues_AggVars=SSvalues_AggVars_Case2(SteadyStateDist, PolicyIndexes, SSvaluesFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel)
 
+if nargin<12 %Default is to assume SteadyStateDist exists on the gpu
+    Parallel=2;
+end
+
 l_d=length(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
