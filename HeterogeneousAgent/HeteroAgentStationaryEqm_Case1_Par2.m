@@ -147,4 +147,9 @@ for i=1:l_p
     end
 end
 
+% Move results from gpu to cpu before returning them
+p_eqm=gather(p_eqm);
+p_eqm_index=gather(p_eqm_index);
+MarketClearance=gather(MarketClearance);
+
 end
