@@ -1,11 +1,10 @@
 function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2(V0, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, beta, ReturnFnHeteroAgent, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions)
 
-disp('HeteroAgentStationaryEqm_Case2 may contain errors')
-
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_s=prod(n_s);
 N_p=prod(n_p);
+
 l_p=length(n_p);
 
 %% Check which simoptions and vfoptions have been used, set all others to defaults 
@@ -39,7 +38,7 @@ else
     end
     eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        simoptions.parallel=0;
+        simoptions.parallel=2;
     end
     eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
     if fieldexists==0
@@ -56,7 +55,7 @@ else
     end
     eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
-        simoptions.iterate=0;
+        simoptions.iterate=1;
     end
 end
 
@@ -65,7 +64,7 @@ if nargin<20
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
     vfoptions.howards=80;
-    vfoptions.parallel=0;
+    vfoptions.parallel=2;
     vfoptions.verbose=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with
@@ -84,7 +83,7 @@ else
     end
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.parallel=0;
+        vfoptions.parallel=2;
     end
     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
     if fieldexists==0
