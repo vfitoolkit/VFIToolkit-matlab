@@ -20,7 +20,7 @@ if simoptions.parallel~=2
             end
         end
     elseif Case2_Type==2
-        for z_c=1:N_z
+        for z_c=1:N_z % TRY AND TURN THESE TWO FOR LOOPS INTO A PARFOR AS IN TransitionPath_Case2 (does it improve run times???)
             for a_c=1:N_a
                 optd=PolicyKron(a_c,z_c);
                 for zprime_c=1:N_z
