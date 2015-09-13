@@ -9,6 +9,41 @@ function [PricePathNew]=TransitionPath_Case2(PricePathOld,IndexesForPricesInRetu
 %transpathoptions.oldpathweight % default =0.9
 %transpathoptions.weightscheme % default =1
 
+%% Check which vfoptions have been used, set all others to defaults 
+if nargin<23
+    disp('No transpathoptions given, using defaults')
+    %If vfoptions is not given, just use all the defaults
+    transpathoptions.tolerance=10^(-5);
+    transpathoptions.parallel=2;
+    transpathoptions.oldpathweight=0.9; % default =0.9
+    transpathoptions.weightscheme=1; % default =1
+    transpathoptions.verbose=1;
+else
+    %Check vfoptions for missing fields, if there are some fill them with the defaults
+    eval('fieldexists=1;transpathoptions.tolerance;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.tolerance=10^(-5);
+    end
+    eval('fieldexists=1;transpathoptions.parallel;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.parallel=2;
+    end
+    eval('fieldexists=1;transpathoptions.oldpathweight;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.oldpathweight=0.9;
+    end
+    eval('fieldexists=1;transpathoptions.weightscheme;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.weightscheme=1;
+    end
+    eval('fieldexists=1;transpathoptions.verbose;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.verbose=1;
+    end
+end
+
+%%
+
 Phi_aprimeKron=Phi_aprimeKron_final; % Might want to change this so that Phi_aprimeKron can change along the transition path.
 
 if transpathoptions.parallel~=2
@@ -262,20 +297,23 @@ if Case2_Type==2
         PricePathDist=max(abs(reshape(PricePathNew-PricePathOld,[numel(PricePathOld),1])));        
 %         PricePathDist=sum(abs(reshape(PricePathNew-PricePathOld,[numel(PricePathOld),1])));
         
-        disp('Old, New')
-        [PricePathOld,gather(PricePathNew)]
+        if transpathoptions.verbose==1
+            disp('Old, New')
+            [PricePathOld,gather(PricePathNew)]
+        end
+        
         %Set price path to be 9/10ths the old path and 1/10th the new path (but
         %making sure to leave prices in periods 1 & T unchanged).
-        
         if transpathoptions.weightscheme==1 % Just a constant weighting
             PricePathOld(1:T-1)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*gather(PricePathNew(1:T-1));
         elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
-        
-        
-        PricePathOld(1:T-1)=(transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.1),T-1)))*(1-transpathoptions.oldpathweight))*PricePathOld(1:T-1)+exp(linspace(0,log(0.1),T-1))*(1-transpathoptions.oldpathweight)*gather(PricePathNew(1:T-1));
+            PricePathOld(1:T-1)=(transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.1),T-1)))*(1-transpathoptions.oldpathweight))*PricePathOld(1:T-1)+exp(linspace(0,log(0.1),T-1))*(1-transpathoptions.oldpathweight)*gather(PricePathNew(1:T-1));
+        end
         
         pathcounter=pathcounter+1;
-        TransPathConvergence=PricePathDist/transpathoptions.tolerance %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+        if transpathoptions.verbose==1
+            TransPathConvergence=PricePathDist/transpathoptions.tolerance %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+        end
         save ./SavedOutput/TransPathConv.mat PricePathOld TransPathConvergence pathcounter
     end
     save ./SavedOutput/TransPath_Policy.mat PolicyIndexesPath
