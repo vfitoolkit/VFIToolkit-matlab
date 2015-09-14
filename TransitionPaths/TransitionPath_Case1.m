@@ -1,13 +1,39 @@
 function [PricePathNew]=TransitionPath_Case1(PricePathOld,IndexesForPricesInReturnFnParams, ParamPath, IndexesForPathParamsInReturnFnParams, beta, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParams, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn, MarketPriceEqns, MarketPriceParams,transpathoptions)
 
+%% Check which transpathoptions have been used, set all others to defaults 
+if nargin<21
+    disp('No transpathoptions given, using defaults')
+    %If vfoptions is not given, just use all the defaults
+    transpathoptions.tolerance=10^(-5);
+    transpathoptions.parallel=2;
+    transpathoptions.oldpathweight=0.9; % default =0.9
+    transpathoptions.weightscheme=1; % default =1
+    transpathoptions.verbose=1;
+else
+    %Check vfoptions for missing fields, if there are some fill them with the defaults
+    eval('fieldexists=1;transpathoptions.tolerance;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.tolerance=10^(-5);
+    end
+    eval('fieldexists=1;transpathoptions.parallel;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.parallel=2;
+    end
+    eval('fieldexists=1;transpathoptions.oldpathweight;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.oldpathweight=0.9;
+    end
+    eval('fieldexists=1;transpathoptions.weightscheme;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.weightscheme=1;
+    end
+    eval('fieldexists=1;transpathoptions.verbose;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.verbose=1;
+    end
+end
 
-%Even though this function will only ever likely be called for heterogenous
-%agent models (and so we will have s instead of z) I have left the notation
-%here as z.
-
-%transpathoptions.tolerance
-%transpathoptions.parallel
-%transpathoptions.oldpathweight
+%%
 
 if transpathoptions.parallel~=2
     disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case2')
@@ -135,14 +161,21 @@ while PricePathDist>transpathoptions.tolerance
     %See how far apart the price paths are
     PricePathDist=sum(abs(reshape(PricePathNew-PricePathOld,[numel(PricePathOld),1])));
     
-    disp('Old, New')
-    [PricePathOld,gather(PricePathNew)]
+    if transpathoptions.verbose==1
+        disp('Old, New')
+        [PricePathOld,gather(PricePathNew)]
+    end
     %Set price path to be 9/10ths the old path and 1/10th the new path (but
     %making sure to leave prices in periods 1 & T unchanged).
     PricePathOld(2:T-1)=transpathoptions.oldpathweight*PricePathOld(2:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(2:T-1);
     
     pathcounter=pathcounter+1;
-    TransPathConvergence=PricePathDist/PricePathTolerance %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+    TransPathConvergence=PricePathDist/PricePathTolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+    if transpathoptions.verbose==1
+        fprintf('Number of iterations on transtion path: %i \n',pathcounter)
+        fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+    end
+    
     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
 end
 

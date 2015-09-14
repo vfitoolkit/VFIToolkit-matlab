@@ -1,15 +1,6 @@
 function [PricePathNew]=TransitionPath_Case2(PricePathOld,IndexesForPricesInReturnFnParams, ParamPath, IndexesForPathParamsInReturnFnParams, beta, Phi_aprimeKron_final, Case2_Type, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParams, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn, MarketPriceEqns, MarketPriceParams,transpathoptions)
-                      %=TransitionPath_Case2(PricePathTolerance, PricePathOld, n_d, n_a, n_z, pi_z, d_grid,a_grid,s_grid,beta, Phi_aprimeKron, Case2_Type, T, ParamPath, V_final, SteadyStateDist_initial, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParams, transpathoptions)
-%Even though this function will only ever likely be called for heterogenous
-%agent models (and so we will have s instead of z) I have left the notation
-%here as z.
 
-%transpathoptions.tolerance
-%transpathoptions.parallel
-%transpathoptions.oldpathweight % default =0.9
-%transpathoptions.weightscheme % default =1
-
-%% Check which vfoptions have been used, set all others to defaults 
+%% Check which transpathoptions have been used, set all others to defaults 
 if nargin<23
     disp('No transpathoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
@@ -65,6 +56,7 @@ V_final=reshape(V_final,[N_a,N_z]);
 SteadyStateDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
 V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T)=PricePathOld(T);
+l_p=size(PricePathOld,2);
 PolicyIndexes=zeros(N_a,N_z,'gpuArray');
 
 % if Case2_Type==1
@@ -307,12 +299,15 @@ if Case2_Type==2
         if transpathoptions.weightscheme==1 % Just a constant weighting
             PricePathOld(1:T-1)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*gather(PricePathNew(1:T-1));
         elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
-            PricePathOld(1:T-1)=(transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.1),T-1)))*(1-transpathoptions.oldpathweight))*PricePathOld(1:T-1)+exp(linspace(0,log(0.1),T-1))*(1-transpathoptions.oldpathweight)*gather(PricePathNew(1:T-1));
+            % I should precalculate these weighting vectors
+            PricePathOld(1:T-1)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*gather(PricePathNew(1:T-1));
         end
         
         pathcounter=pathcounter+1;
+        TransPathConvergence=PricePathDist/transpathoptions.tolerance;
         if transpathoptions.verbose==1
-            TransPathConvergence=PricePathDist/transpathoptions.tolerance %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+            fprintf('Number of iterations on transtion path: %i \n',pathcounter)
+            fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
         end
         save ./SavedOutput/TransPathConv.mat PricePathOld TransPathConvergence pathcounter
     end
