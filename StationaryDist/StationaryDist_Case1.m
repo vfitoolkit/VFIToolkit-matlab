@@ -18,6 +18,7 @@ if nargin<6
         simoptions.ncores=1;
     end
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
+    simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
 else
     %Check vfoptions for missing fields, if there are some fill them with
@@ -62,6 +63,10 @@ else
         catch
             simoptions.ncores=1;
         end
+    end
+    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
+    if fieldexists==0
+        simoptions.iterate=1;
     end
 end
 
