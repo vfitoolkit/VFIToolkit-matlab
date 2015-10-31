@@ -1,4 +1,4 @@
-function VectorOfParamValues=CreateVectorFromParams(ParamNames, Parameters)
+function VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames)
 
 % CreateVectorFromParams looks in structure called 'Parameters' and 
 % then creates a vector containing the values of it's fields that
@@ -6,14 +6,14 @@ function VectorOfParamValues=CreateVectorFromParams(ParamNames, Parameters)
 % given by CalibParamNames)
 
 nCalibParams=length(ParamNames);
-ParamNames=fieldnames(Parameters);
-nFields=length(ParamNames);
+FullParamNames=fieldnames(Parameters);
+nFields=length(FullParamNames);
 
 VectorOfParamValues=nan(nCalibParams,1);
 for iCalibParam = 1:nCalibParams
     for iField=1:nFields
-        if strcmp(ParamNames{iCalibParam},ParamNames{iField})
-            VectorOfParamValues(iCalibParam)=Parameters.(ParamNames{iField});
+        if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
+            VectorOfParamValues(iCalibParam)=Parameters.(FullParamNames{iField});
         end
     end
 end

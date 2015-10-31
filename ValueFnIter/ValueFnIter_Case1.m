@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, vfoptions,ReturnFnParams)
+function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, vfoptions,Params,ReturnFnParams)
 
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<11
@@ -78,15 +78,21 @@ N_z=prod(n_z);
 % end
 
 %%
-% % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-% if vfoptions.parallel==2 
-%    V0=gpuArray(V0);
-%    pi_z=gpuArray(pi_z);
-% end
+ReturnFnParamsVec=CreateVectorFromParams(Params, ReturnFnParams);
+
+% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+if vfoptions.parallel==2 
+   V0=gpuArray(V0);
+   pi_z=gpuArray(pi_z);
+   d_grid=gpuArray(d_grid);
+   a_grid=gpuArray(a_grid);
+   z_grid=gpuArray(z_grid);
+end
 
 if vfoptions.verbose==1
     vfoptions
 end
+
 
 %%
 if vfoptions.lowmemory==0
@@ -106,11 +112,7 @@ if vfoptions.lowmemory==0
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParams);
-%     elseif vfoptions.returnmatrix==3 %An attempt to use spmd to parallelize on CPU
-%         spmd
-%            ReturnMatrix = codistributed(ReturnFn);
-%         end
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
     end
     
     if vfoptions.verbose==1
@@ -156,7 +158,7 @@ elseif vfoptions.lowmemory==1
         elseif vfoptions.parallel==1
             [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         end
     else
         if vfoptions.parallel==0
@@ -164,7 +166,7 @@ elseif vfoptions.lowmemory==1
         elseif vfoptions.parallel==1
             [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, beta, ReturnFn,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         end
     end
     

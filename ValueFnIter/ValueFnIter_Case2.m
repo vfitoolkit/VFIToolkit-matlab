@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,beta, ReturnFn, Phi_aprime, Case2_Type, vfoptions,ReturnFnParams)
+function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,beta, ReturnFn, Phi_aprime, Case2_Type, vfoptions,Params,ReturnFnParams)
 
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<13
@@ -51,6 +51,17 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+%% 
+ReturnFnParamsVec=CreateVectorFromParams(Params, ReturnFnParams);
+
+% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+if vfoptions.parallel==2 
+   V0=gpuArray(V0);
+   pi_z=gpuArray(pi_z);
+   d_grid=gpuArray(d_grid);
+   a_grid=gpuArray(a_grid);
+   z_grid=gpuArray(z_grid);
+end
 
 if vfoptions.verbose==1
     vfoptions
@@ -68,7 +79,7 @@ if vfoptions.lowmemory==0
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParams);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
     end
     
     %     %% Create Phi_aprimeKron
