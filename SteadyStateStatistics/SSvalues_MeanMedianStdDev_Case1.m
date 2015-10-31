@@ -1,4 +1,6 @@
-function SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
+function SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 if n_d(1)==0
     l_d=0;
@@ -17,8 +19,8 @@ nargin_vec=zeros(numel(SSvaluesFn),1);
 for ii=1:numel(SSvaluesFn)
     nargin_vec(ii)=nargin(SSvaluesFn{ii});
 end
-if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParams)) && Parallel==2
-    SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
+if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
+    SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
     return 
 end
 

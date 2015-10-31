@@ -1,4 +1,4 @@
-function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel,npoints)
+function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel,npoints)
 %Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-1.
@@ -6,6 +6,8 @@ function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(SteadyStateDist, Poli
 %Note that to unnormalize the Lorenz Curve you can just multiply it be the
 %SSvalues_AggVars for the same variable. This will give you the inverse
 %cdf.
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 if n_d(1)==0
     l_d=0;
@@ -28,9 +30,9 @@ nargin_vec=zeros(numel(SSvaluesFn),1);
 for ii=1:numel(SSvaluesFn)
     nargin_vec(ii)=nargin(SSvaluesFn{ii});
 end
-if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParams)) && Parallel==2
+if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
     % Faster as allows use of ValuesOnSSGrid_Case1() rather than loop.
-    SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel,npoints);
+    SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel,npoints);
     return 
 end
 
@@ -74,7 +76,7 @@ if Parallel~=2
                 end
                 if l_d==0
 %                     d_val=0;
-                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,s_val,pi_z,p_val,SSvalueParams);
+                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,s_val,pi_z,p_val,SSvalueParamsVec);
                 else
                     d_ind=PolicyIndexesKron(1:l_d,j1,j2);
                     for kk=1:l_d
@@ -84,7 +86,7 @@ if Parallel~=2
                             d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
                         end
                     end
-                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,s_val,pi_z,p_val,SSvalueParams);
+                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,s_val,pi_z,p_val,SSvalueParamsVec);
                 end
             end
         end
@@ -192,7 +194,7 @@ else %Parallel==2
                 end
                 if l_d==0
                     %d_val=0;
-                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,s_val,pi_z,p_val,SSvalueParams);
+                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,s_val,pi_z,p_val,SSvalueParamsVec);
                 else
                     d_ind=PolicyIndexesKron(1:l_d,j1,j2);
                     for kk=1:l_d
@@ -202,7 +204,7 @@ else %Parallel==2
                             d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
                         end
                     end
-                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,s_val,pi_z,p_val,SSvalueParams);
+                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,s_val,pi_z,p_val,SSvalueParamsVec);
                 end
                 
             end

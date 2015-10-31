@@ -1,10 +1,12 @@
-function SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid,p_val,Parallel,npoints)
+function SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,p_val,Parallel,npoints)
 %Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
 %to 100 (update: npoints-by-1).
 
 %Note that to unnormalize the Lorenz Curve you can just multiply it be the
 %SSvalues_AggVars for the same variable. This will give you the inverse
 %cdf.
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 if n_d(1)==0
     l_d=0;
@@ -32,7 +34,7 @@ if Parallel==2
 
     for i=1:length(SSvaluesFn)
         i
-        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
                 
         WeightedValues=Values.*SteadyStateDistVec;
@@ -121,7 +123,7 @@ else
                 end
                 if l_d==0
 %                     d_val=0;
-                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,s_val,pi_s,p_val,SSvalueParams);
+                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,s_val,pi_s,p_val,SSvalueParamsVec);
                 else
                     d_ind=PolicyIndexesKron(1:l_d,j1,j2);
                     for kk=1:l_d
@@ -131,7 +133,7 @@ else
                             d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
                         end
                     end
-                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,s_val,pi_s,p_val,SSvalueParams);
+                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,s_val,pi_s,p_val,SSvalueParamsVec);
                 end
             end
         end

@@ -1,6 +1,8 @@
-function [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid,p_val,Parallel)
+function [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid,p_val,Parallel)
 %Returns the cut-off values and the within percentile means from dividing
 %the SteadyStateDist into NumPercentiles percentiles.
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 Tolerance=10^(-12); %Used with cdf to determine the minimum and maximum values
 
@@ -28,7 +30,7 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
     for i=1:length(SSvaluesFn)
-        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
                 
         [SortedValues,SortedValues_index] = sort(Values);

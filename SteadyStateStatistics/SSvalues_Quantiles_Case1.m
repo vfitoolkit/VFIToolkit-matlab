@@ -1,6 +1,8 @@
-function [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel)
+function [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel)
 %Returns the cut-off values and the within percentile means from dividing
 %the SteadyStateDist into NumPercentiles percentiles.
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 Tolerance=10^(-12); % Numerical tolerance used when calculated min and max values.
 
@@ -25,8 +27,8 @@ nargin_vec=zeros(numel(SSvaluesFn),1);
 for ii=1:numel(SSvaluesFn)
     nargin_vec(ii)=nargin(SSvaluesFn{ii});
 end
-if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParams)) && Parallel==2
-    [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
+if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
+    [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
     return 
 end
 

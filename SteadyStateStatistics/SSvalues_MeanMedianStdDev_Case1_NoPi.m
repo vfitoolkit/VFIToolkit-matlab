@@ -1,4 +1,6 @@
-function SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid,p_val, Parallel)
+function SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,p_val, Parallel)
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 if n_d(1)==0
     l_d=0;
@@ -21,7 +23,7 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
     for i=1:length(SSvaluesFn)
-        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);        
         
         %Mean

@@ -1,10 +1,12 @@
-function SSvalues_CrossSectionCorr=SSvalues_CrossSectionCorr_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParams, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
+function SSvalues_CrossSectionCorr=SSvalues_CrossSectionCorr_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
 % Evaluates the cross-sectional correlation for each column of SSvaluesFn
 %
 % It is not possible for SSvalueFn to depend on pi_s if you want to look at
 % cross-sectional correlations. The option of inputing pi_s is left there
 % just to keep the exact same input lists as all the other
 % SSvalues_AAA_Case1 commands.
+
+SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
 
 if n_d(1)==0
     l_d=0;
@@ -28,9 +30,9 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
     for i=1:length(SSvaluesFn)
-        Values1=ValuesOnSSGrid_Case1(SSvaluesFn{1,i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values1=ValuesOnSSGrid_Case1(SSvaluesFn{1,i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values1=reshape(Values1,[N_a*N_z,1]);
-        Values2=ValuesOnSSGrid_Case1(SSvaluesFn{2,i}, SSvalueParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values2=ValuesOnSSGrid_Case1(SSvaluesFn{2,i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
         Values2=reshape(Values2,[N_a*N_z,1]);
                 
         SSvalues_Mean1=sum(Values1.*SteadyStateDistVec);
