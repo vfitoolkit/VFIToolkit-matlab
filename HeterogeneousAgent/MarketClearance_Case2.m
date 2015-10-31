@@ -1,6 +1,7 @@
-function  [MarketClearanceVec]=MarketClearance_Case2(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, MarketPriceParams)
+function  [MarketClearanceVec]=MarketClearance_Case2(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters, MarketPriceParamNames)
 %For models with more than one market MultiMarketCriterion determines which method to use to combine them.
 
+MarketPriceParamsVec=CreateVectorFromParams(Parameters,MarketPriceParamNames);
 
 MarketClearanceVec=ones(1,length(MarketPriceEqns))*Inf;
 p_sub=ind2sub_homemade(n_p,p_c);
@@ -14,7 +15,7 @@ for i=1:num_p_vars
     end
 end
 for i=1:length(MarketPriceEqns)
-    MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParams);
+    MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
 end
 
 
