@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, vfoptions,Params,ReturnFnParams)
+function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
 
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<11
@@ -78,7 +78,7 @@ N_z=prod(n_z);
 % end
 
 %%
-ReturnFnParamsVec=CreateVectorFromParams(Params, ReturnFnParams);
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 if vfoptions.parallel==2 
