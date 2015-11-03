@@ -1,6 +1,6 @@
 function Gini=Gini_from_LorenzCurve(LorenzCurve);
 %Takes in a LorenzCurve with N evenly spaced point points from 1/N up to 1 (in practice my
-%codes always use N=100 when creating the LorenzCurve). Returns the Gini
+%codes default to using N=100 when creating the LorenzCurve). Returns the Gini
 %coefficient.
 
 N=length(LorenzCurve);

@@ -7,8 +7,11 @@ function CreateIndividualParams(Parameters)
 ParamNames=fieldnames(Parameters);
 nFields=length(ParamNames);
 
+dbstack
 for iField = 1:nFields
-    assignin('caller',ParamNames{iField},Parameters.(ParamNames{iField}));
+   assignin('caller',ParamNames{iField},Parameters.(ParamNames{iField}));
 end
 
+
 end
+

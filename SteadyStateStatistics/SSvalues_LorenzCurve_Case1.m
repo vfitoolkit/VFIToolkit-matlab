@@ -1,4 +1,4 @@
-function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel,npoints)
+function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val,Parallel,npoints)
 %Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-1.
@@ -19,7 +19,7 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if nargin<14
+if nargin<15
     npoints=100;
 end
 
@@ -32,7 +32,7 @@ for ii=1:numel(SSvaluesFn)
 end
 if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
     % Faster as allows use of ValuesOnSSGrid_Case1() rather than loop.
-    SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel,npoints);
+    SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case1_NoPi(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel,npoints);
     return 
 end
 
@@ -44,7 +44,7 @@ if Parallel~=2
     a_val=zeros(l_a,1);
     s_val=zeros(l_z,1);
     PolicyIndexesKron=reshape(PolicyIndexes,[l_d+l_a,N_a,N_z]);
-    SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_z,1]);
+    SteadyStateDistVec=reshape(StationaryDist,[N_a*N_z,1]);
     for i=1:length(SSvaluesFn)
         Values=zeros(N_a,N_z);
         for j1=1:N_a
@@ -163,7 +163,7 @@ else %Parallel==2
     a_val=zeros(l_a,1,'gpuArray');
     s_val=zeros(l_z,1,'gpuArray');
     PolicyIndexesKron=reshape(PolicyIndexes,[l_d+l_a,N_a,N_z]);
-    SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_z,1]);
+    SteadyStateDistVec=reshape(StationaryDist,[N_a*N_z,1]);
     for i=1:length(SSvaluesFn)
         Values=zeros(N_a,N_z,'gpuArray');
         for j1=1:N_a
