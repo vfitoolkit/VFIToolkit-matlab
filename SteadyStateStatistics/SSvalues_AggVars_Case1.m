@@ -1,4 +1,4 @@
-function SSvalues_AggVars=SSvalues_AggVars_Case1(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
+function SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
 
 SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames);
@@ -19,7 +19,7 @@ for ii=1:numel(SSvaluesFn)
     nargin_vec(ii)=nargin(SSvaluesFn{ii});
 end
 if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
-    SSvalues_AggVars=SSvalues_AggVars_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
+    SSvalues_AggVars=SSvalues_AggVars_Case1_NoPi(StationaryDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
     return 
 end
 
@@ -33,7 +33,7 @@ if Parallel==2 % This Parallel==2 case is only used if there is pi_s
     a_val=zeros(l_a,1,'gpuArray');
     z_val=zeros(l_z,1,'gpuArray');
     
-    SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_s,1]);
+    SteadyStateDistVec=reshape(StationaryDist,[N_a*N_s,1]);
 
     for i=1:length(SSvaluesFn)
     
@@ -93,7 +93,7 @@ else
     aprime_val=zeros(l_a,1);
     a_val=zeros(l_a,1);
     z_val=zeros(l_z,1);
-    SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_s,1]);
+    SteadyStateDistVec=reshape(StationaryDist,[N_a*N_s,1]);
     
     for i=1:length(SSvaluesFn)
         Values=zeros(N_a,N_s);

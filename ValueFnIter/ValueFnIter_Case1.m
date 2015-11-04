@@ -57,36 +57,40 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 
-
-% %Check the sizes of some of the inputs
-% if length(n_z)==1 && n_z(1)==1
-%     if size(pi_z)~=[N_z, N_z]
-%         disp('Error: pi is not of size N_z-by-N_z')
-%     elseif size(Fmatrix)~=[n_d, n_a, n_a]
-%         disp('Error: Fmatrix is not of size [n_d, n_a, n_a, n_z]')
-%     elseif size(V0)~=[n_a]
-%         disp('Error: Starting choice for ValueFn is not of size [n_a,n_z]')
-%     end
-% else
-%     if size(pi_z)~=[N_z, N_z]
-%         disp('Error: pi is not of size N_z-by-N_z')
-%     elseif size(Fmatrix)~=[n_d, n_a, n_a, n_z]
-%         disp('Error: Fmatrix is not of size [n_d, n_a, n_a, n_z]')
-%     elseif size(V0)~=[n_a,n_z]
-%         disp('Error: Starting choice for ValueFn is not of size [n_a,n_z]')
-%     end
-% end
+%% Check the sizes of some of the inputs
+if size(d_grid)~=[N_d, 1]
+    disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
+    dbstack
+    return
+elseif size(a_grid)~=[N_a, 1]
+    disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
+    dbstack
+    return
+elseif size(z_grid)~=[N_z, 1]
+    disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
+    dbstack
+    return
+elseif size(pi_z)~=[N_z, N_z]
+    disp('ERROR: pi is not of size N_z-by-N_z')
+    dbstack
+    return
+elseif size(V0)~=[n_a,n_z]
+    disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
+    dbstack
+    return
+end
 
 %%
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 
-% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 if vfoptions.parallel==2 
+   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
    V0=gpuArray(V0);
    pi_z=gpuArray(pi_z);
    d_grid=gpuArray(d_grid);
    a_grid=gpuArray(a_grid);
    z_grid=gpuArray(z_grid);
+   % Create a vector containing all the return function parameters (in order)
+   ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 end
 
 if vfoptions.verbose==1
