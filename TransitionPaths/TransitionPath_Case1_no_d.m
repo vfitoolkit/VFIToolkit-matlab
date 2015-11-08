@@ -1,4 +1,4 @@
-function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld,IndexesForPricesInReturnFnParams, ParamPath, IndexesForPathParamsInReturnFnParams, beta, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParams, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn, MarketPriceEqns, MarketPriceParams,transpathoptions)
+function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, beta, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn, SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if nargin<19
@@ -8,6 +8,7 @@ if nargin<19
     transpathoptions.parallel=2;
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
+    transpathoptions.maxiterations=1000;
     transpathoptions.verbose=1;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
@@ -27,6 +28,10 @@ else
     if fieldexists==0
         transpathoptions.weightscheme=1;
     end
+    eval('fieldexists=1;transpathoptions.maxiterations;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.maxiterations=1000;
+    end
     eval('fieldexists=1;transpathoptions.verbose;','fieldexists=0;')
     if fieldexists==0
         transpathoptions.verbose=1;
@@ -37,29 +42,41 @@ end
 
 if transpathoptions.parallel~=2
     disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case2')
+    dbstack
 else
     a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-%     PricePathOld=gpuArray(PricePathOld);
+    PricePathOld=gpuArray(PricePathOld);
 end
 unkronoptions.parallel=2;
 
 N_z=prod(n_z);
 N_a=prod(n_a);
+l_p=size(PricePathOld,2);
 
 PricePathDist=Inf;
-pathcounter=0;
+pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z]);
-SteadyStateDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
+AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
 V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T)=PricePathOld(T);
-PolicyIndexes=zeros(N_a,N_z,'gpuArray');
+Policy=zeros(N_a,N_z,'gpuArray');
+
+ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
+IndexesForPricesInReturnFnParamsVec=CreateParamVectorIndexes(ReturnFnParamNames, PriceParamNames);
+IndexesForPathParamsInReturnFnParamsVec=CreateParamVectorIndexes(ReturnFnParamNames, PathParamNames);
+SSvalueParamsVec=gpuArray(CreateVectorFromParams(Parameters, SSvalueParamNames));
+IndexesForPricesInSSvalueParamsVec=CreateParamVectorIndexes(SSvalueParamNames, PriceParamNames);
+IndexesForPathParamsInSSvalueParamsVec=CreateParamVectorIndexes(SSvalueParamNames, PathParamNames);
+MarketPriceParamsVec=gpuArray(CreateVectorFromParams(Parameters, MarketPriceParamNames));
+IndexesForPricesInMarketPriceParamsVec=CreateParamVectorIndexes(MarketPriceParamNames, PriceParamNames);
+IndexesForPathParamsInMarketPriceParamsVec=CreateParamVectorIndexes(MarketPriceParamNames, PathParamNames);
 
 
-while PricePathDist>transpathoptions.tolerance
-    PolicyIndexesPath=zeros(N_a,N_z,T-1); %Periods 1 to T-1
+while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+    PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
     
-    PricePathOld
+%     PricePathOld
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
     %policy function at each step. Since we won't need to keep the value
@@ -68,12 +85,9 @@ while PricePathDist>transpathoptions.tolerance
     Vnext=V_final;
     for i=1:T-1 %so t=T-i
         
-%         p=PricePathOld(T-i,:);
-        ReturnFnParams(IndexesForPricesInReturnFnParams)=PricePathOld(T-i,:);
-%         params=ParamPath(T-i,:);
-        ReturnFnParams(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,:);
-%         Fmatrix=reshape(FmatrixFn(p,params),[N_a,N_a,N_z]);
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParams);
+        ReturnFnParamsVec(IndexesForPricesInReturnFnParamsVec)=PricePathOld(T-i,:);
+        ReturnFnParamsVec(IndexesForPathParamsInReturnFnParamsVec)=ParamPath(T-i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
         
         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
@@ -88,72 +102,74 @@ while PricePathDist>transpathoptions.tolerance
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
             V(:,z_c)=Vtemp;
-            PolicyIndexes(:,z_c)=maxindex;
+            Policy(:,z_c)=maxindex;
             
         end
         
-%         for z_c=1:N_z
-%             %first calc the second half of the RHS (except beta)
-%             RHSpart2=zeros(N_a,1); %aprime by kprime
-%             for zprime_c=1:N_z
-%                 if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                     RHSpart2=RHSpart2+Vnext(:,zprime_c)*pi_z(z_c,zprime_c)';
-%                 end
-%             end
-%             for a_c=1:N_a
-%                 
-%                 entireRHS=Fmatrix(:,a_c,z_c)+beta*RHSpart2; %aprime by 1
-%                 %calculate in order, the maximizing aprime indexes
-%                 [V(a_c,z_c),PolicyIndexes(a_c,z_c)]=max(entireRHS,[],1);
-%             end
-%         end
-        
-        PolicyIndexesPath(:,:,T-i)=PolicyIndexes;
+        PolicyIndexesPath(:,:,T-i)=Policy;
         Vnext=V;
+        
+        if pathcounter==1
+            V(1:8)
+            V(101:108)
+            V(401:408)
+            Policy(1:8)
+            Policy(101:108)
+            Policy(401:408)
+            save ./SavedOutput/TransPathPolicy_Test.mat PolicyIndexesPath
+        end
     end
+        
     
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
     %to T using the policies to update the agents distribution generating a
     %new price path
     %Call SteadyStateDist the current periods distn and SteadyStateDistnext
     %the next periods distn which we must calculate
-    SteadyStateDist=SteadyStateDist_initial;
+    AgentDist=AgentDist_initial;
     for i=1:T-1
         %Get the current optimal policy
-        PolicyIndexes=PolicyIndexesPath(:,:,i);
-        %Use this to calculate the steady state distn
-%         P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
-%         for z_c=1:N_z
-%             for a_c=1:N_a
-%                 optaprime=PolicyIndexes(a_c,z_c);
-%                 for zprime_c=1:N_z
-%                     P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
-%                 end
-%             end
-%         end
-%         P=reshape(P,[N_a*N_z,N_a*N_z]);
-%         P=P';
-%         SteadyStateDistnext=P*SteadyStateDist;
+        Policy=PolicyIndexesPath(:,:,i);
 
-        optaprime=reshape(PolicyIndexes,[1,N_a*N_z]);
+        optaprime=reshape(Policy,[1,N_a*N_z]);
         
         Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
         Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
         Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
-        SteadyStateDistnext=Ptran*SteadyStateDist;
+        AgentDistnext=Ptran*AgentDist;
         
         p=PricePathOld(i,:);
-        Policy=UnKronPolicyIndexes_Case1(PolicyIndexes, 0, n_a, n_z,unkronoptions);
-        SSvalues_AggVars=SSvalues_AggVars_Case1_raw(SteadyStateDist, Policy, SSvaluesFn, 0, n_a, n_z, 0, a_grid,s_grid,pi_z,p); %the two zeros represent the d variables
+        
+        if ~isnan(IndexesForPricesInSSvalueParamsVec)
+            SSvalueParamsVec(IndexesForPricesInSSvalueParamsVec)=PricePathOld(i,:);
+        end
+        if ~isnan(IndexesForPathParamsInSSvalueParamsVec)
+            SSvalueParamsVec(IndexesForPathParamsInSSvalueParamsVec)=ParamPath(i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+        end
+        PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
+        SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
+                     
+        if ~isnan(IndexesForPricesInMarketPriceParamsVec)
+            MarketPriceParamsVec(IndexesForPricesInMarketPriceParamsec)=PricePathOld(i,:);
+        end
+        if ~isnan(IndexesForPathParamsInMarketPriceParamsVec)
+            MarketPriceParamsVec(IndexesForPathParamsInMarketPriceParamsVec)=ParamPath(i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+        end
         %An easy way to get the new prices is just to call MarketClearance
         %and then adjust it for the current prices
         for j=1:length(MarketPriceEqns)
-            PricePathNew(i,j)=MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParams);
+            
+            % When using negative powers matlab will often return complex
+            % numbers, even if the solution is actually a real number. I
+            % force converting these to real, albeit at the risk of missing problems
+            % created by actual complex numbers.
+            PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+           
         end
         
-        SteadyStateDist=SteadyStateDistnext;
+        AgentDist=AgentDistnext;
     end
-    
+        
     %See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     %Notice that the distance is always calculated ignoring the time t=1 &
@@ -161,20 +177,40 @@ while PricePathDist>transpathoptions.tolerance
     
     if transpathoptions.verbose==1
         disp('Old, New')
-        [PricePathOld,gather(PricePathNew)]
+        [PricePathOld,PricePathNew]
     end
+    
+    %Set price path to be 9/10ths the old path and 1/10th the new path (but
+    %making sure to leave prices in periods 1 & T unchanged).
+    if transpathoptions.weightscheme==1 % Just a constant weighting
+        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
+    elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
+        % I should precalculate these weighting vectors
+        PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
+    elseif transpathoptions.weightscheme==3
+        if (pathcounter*3)<T
+            PricePathOld(1:(pathcounter*3),:)=transpathoptions.oldpathweight*PricePathOld(1:(pathcounter*3),:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:(pathcounter*3),:);
+        else
+            PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
+        end
+    end
+    
     %Set price path to be 9/10ths the old path and 1/10th the new path (but
     %making sure to leave prices in period T unchanged).
     PricePathOld(1:T-1)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1);
  
-    pathcounter=pathcounter+1;
-    TransPathConvergence=PricePathDist/PricePathTolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+    TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     if transpathoptions.verbose==1
-        fprintf('Number of iterations on transtion path: %i \n',pathcounter)
+        fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-    
     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
+    
+    if pathcounter==1
+        save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
+    end
+    
+    pathcounter=pathcounter+1;
 end
 
 

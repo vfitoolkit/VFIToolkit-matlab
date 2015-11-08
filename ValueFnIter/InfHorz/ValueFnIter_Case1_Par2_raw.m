@@ -48,7 +48,7 @@ while currdist>Tolerance
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
 %     time2=toc;
 %     tic;
-    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
 %             VKrontemp=VKron;
 %             EVKrontemp=VKrontemp(ceil(PolicyIndexes/N_d),:);

@@ -1,4 +1,4 @@
-function [PricePathNew]=TransitionPath_Case1(PricePathOld,IndexesForPricesInReturnFnParams, ParamPath, IndexesForPathParamsInReturnFnParams, beta, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParams, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn, MarketPriceEqns, MarketPriceParams,transpathoptions)
+function [PricePathNew]=TransitionPath_Case1(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, beta, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if nargin<21
@@ -48,7 +48,7 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 
 if N_d==0
-    PricePathNew=TransitionPath_Case1_no_d(PricePathOld,IndexesForPricesInReturnFnParams, ParamPath, IndexesForPathParamsInReturnFnParams, beta, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParams, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn, MarketPriceEqns, MarketPriceParams,transpathoptions);
+    PricePathNew=TransitionPath_Case1_no_d(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, beta, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions);
     return
 end
 
@@ -148,7 +148,7 @@ while PricePathDist>transpathoptions.tolerance
         
         p=PricePathOld(i,:);
         Policy=UnKronPolicyIndexes_Case1(PolicyIndexes, n_d, n_a, n_z,unkronoptions);
-        SSvalues_AggVars=SSvalues_AggVars_Case1(SteadyStateDist, Policy, SSvaluesFn, 0, n_a, n_z, 0, a_grid,s_grid,pi_s,p); %the two zeros represent the d variables
+        SSvalues_AggVars=SSvalues_AggVars_Case1(SteadyStateDist, Policy, SSvaluesFn, 0, n_a, n_z, 0, a_grid,z_grid,pi_z,p); %the two zeros represent the d variables
         %An easy way to get the new prices is just to call MarketClearance
         %and then adjust it for the current prices
         for j=1:length(MarketPriceEqns)
