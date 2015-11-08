@@ -1,4 +1,4 @@
-function [PricePathNew]=TransitionPath_Case1(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, beta, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
+function [PricePathNew]=TransitionPath_Case1(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, DiscountFactorParamNames, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if nargin<21
@@ -6,6 +6,7 @@ if nargin<21
     %If vfoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
     transpathoptions.parallel=2;
+    transpathoptions.exoticpreferences=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.verbose=1;
@@ -18,6 +19,10 @@ else
     eval('fieldexists=1;transpathoptions.parallel;','fieldexists=0;')
     if fieldexists==0
         transpathoptions.parallel=2;
+    end
+    eval('fieldexists=1;transpathoptions.exoticpreferences;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.exoticpreferences=0;
     end
     eval('fieldexists=1;transpathoptions.oldpathweight;','fieldexists=0;')
     if fieldexists==0
@@ -34,9 +39,18 @@ else
 end
 
 %%
+if transpathoptions.exoticpreferences~=0
+    disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
+    dbstack
+else
+    if length(DiscountFactorParamNames)~=1
+        disp('ERROR: DiscountFactorParamNames should be of length one')
+        dbstack
+    end
+end
 
 if transpathoptions.parallel~=2
-    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case2')
+    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1')
 else
     d_grid=gpuArray(d_grid); a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
 %     PricePathOld=gpuArray(PricePathOld);
@@ -48,9 +62,11 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 
 if N_d==0
-    PricePathNew=TransitionPath_Case1_no_d(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, beta, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions);
+    PricePathNew=TransitionPath_Case1_no_d(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, DiscountFactorParamNames, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions);
     return
 end
+
+beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 
 PricePathDist=Inf;
 pathcounter=0;

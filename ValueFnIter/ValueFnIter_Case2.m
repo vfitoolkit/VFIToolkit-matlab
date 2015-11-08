@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,beta, ReturnFn, Phi_aprime, Case2_Type, vfoptions,Parameters,ReturnFnParamNames)
+function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,DiscountFactorParamNames, ReturnFn, Phi_aprime, Case2_Type, vfoptions,Parameters,ReturnFnParamNames)
 
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<13
@@ -8,6 +8,7 @@ if nargin<13
     vfoptions.polindorval=1;
     vfoptions.howards=60;
     vfoptions.maxhowards=500;
+    vfoptions.exoticpreferences=0;
     vfoptions.parallel=2;
     vfoptions.verbose=0;
     vfoptions.tolerance=10^(-9);
@@ -34,6 +35,10 @@ else
     if fieldexists==0
         vfoptions.maxhowards=500;
     end
+    eval('fieldexists=1;vfoptions.exoticpreferences;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.exoticpreferences=0;
+    end  
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
         vfoptions.parallel=2;
@@ -52,7 +57,10 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 %% 
+
+% Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
+DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 if vfoptions.parallel==2 
@@ -65,6 +73,17 @@ end
 
 if vfoptions.verbose==1
     vfoptions
+end
+
+if vfoptions.exoticpreferences==0
+    if length(DiscountFactorParamsVec)~=1
+        disp('ERROR: There should only be a single Discount Factor (in DiscountFactorParamNames)')
+        dbstack
+    end
+elseif vfoptions.exoticpreferences==1 % alpha-beta hyperbolic discounting
+    
+elseif vfoptions.exoticpreferences==2 % epstein-zin preferences
+    
 end
 
 %%

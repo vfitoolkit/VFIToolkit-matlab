@@ -1,4 +1,4 @@
-function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, beta, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn, SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
+function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, DiscountFactorParamNames, T, V_final, StationaryDist_init, ReturnFn,ReturnFnParamNames, n_a, n_z, pi_z, a_grid,z_grid, SSvaluesFn, SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if nargin<19
@@ -62,6 +62,8 @@ V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T)=PricePathOld(T);
 Policy=zeros(N_a,N_z,'gpuArray');
 
+beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, PathParamNames);
 ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
 IndexesForPricesInReturnFnParamsVec=CreateParamVectorIndexes(ReturnFnParamNames, PriceParamNames);
 IndexesForPathParamsInReturnFnParamsVec=CreateParamVectorIndexes(ReturnFnParamNames, PathParamNames);
@@ -85,6 +87,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     Vnext=V_final;
     for i=1:T-1 %so t=T-i
         
+        beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
         ReturnFnParamsVec(IndexesForPricesInReturnFnParamsVec)=PricePathOld(T-i,:);
         ReturnFnParamsVec(IndexesForPathParamsInReturnFnParamsVec)=ParamPath(T-i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);

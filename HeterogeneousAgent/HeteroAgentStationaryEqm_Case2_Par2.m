@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, beta, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions,ReturnFnParams, IndexesForPricesInReturnFnParams)
+function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, DiscountFactorParamNames, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions,ReturnFnParams, IndexesForPricesInReturnFnParams)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -122,7 +122,7 @@ for p_c=1:N_p
     end
     
     ReturnFnParams(IndexesForPricesInReturnFnParams)=p;
-    [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, beta, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,ReturnFnParams);
+    [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, DiscountFactorParamNames, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,ReturnFnParams);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDist=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
