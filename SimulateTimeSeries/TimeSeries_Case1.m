@@ -11,6 +11,20 @@ N_d=prod(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
 
+%% Check which simoptions have been used, set all others to defaults 
+if nargin<10
+    %If simoptions is not given, just use all the relevant defaults
+    simoptions.parallel=2;
+else
+    %Check vfoptions for missing fields, if there are some fill them with
+    %the defaults
+    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
+    if fieldexists==0
+        simoptions.parallel=2;
+    end
+end
+
+%%
 PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions);
 
 % Just being lazy in implementing GPU here for now, will do it properly

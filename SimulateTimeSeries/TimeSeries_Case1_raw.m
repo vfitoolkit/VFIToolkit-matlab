@@ -60,7 +60,6 @@ for t=1:periods
     end
     for i=1:length(TimeSeriesFn)
         TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_values,aprime_values,a_val,z_val);
-%        TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_values,d_indexes,aprime_values,aprime_indexes,a_values,a_indexes,s_values,s_indexes);
     end
 end
 
