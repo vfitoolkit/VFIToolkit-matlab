@@ -176,7 +176,6 @@ if vfoptions.lowmemory==0
     end
     
 elseif vfoptions.lowmemory==1    
-    disp('ERROR: vfoptions.lowmemory=1 cannot yet be used together with vfoption.exoticpreferences=2 (Epstein-Zin) as has not been implemented')
     V0Kron=reshape(V0,[N_a,N_z]);
     
     if vfoptions.verbose==1
@@ -190,7 +189,7 @@ elseif vfoptions.lowmemory==1
         elseif vfoptions.parallel==1
             %[VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            %[VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         end
     else
         if vfoptions.parallel==0
@@ -198,7 +197,7 @@ elseif vfoptions.lowmemory==1
         elseif vfoptions.parallel==1
             %[VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            %[VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         end
     end
 end

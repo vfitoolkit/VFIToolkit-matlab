@@ -12,8 +12,6 @@ bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
 
-%CreateCleanedReturnFn(ReturnFn, ReturnFnParamNames, ReturnFnParams);
-
 %%
 % l_d=length(n_d);
 % l_a=length(n_a); 
