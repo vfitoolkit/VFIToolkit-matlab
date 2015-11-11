@@ -1,4 +1,12 @@
-function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
+function [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames)
+% DiscountFactorParamNames contains the names for the three parameters relating to
+% Epstein-Zin preferences. Calling them beta, gamma, and psi,
+% respectively the Epstein-Zin preferences are given by
+% U_t= [(1-beta) u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
+% where
+%  u_t is per-period utility function
+% See eg., Caldara, Fernandez-Villaverde, Rubio-Ramirez, and Yao (2012)
+
 
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<11
@@ -7,7 +15,7 @@ if nargin<11
     vfoptions.tolerance=10^(-9);
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
-    vfoptions.exoticpreferences=0;
+    vfoptions.exoticpreferences=2;
     vfoptions.parallel=2;
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
@@ -37,7 +45,7 @@ else
     end  
     eval('fieldexists=1;vfoptions.exoticpreferences;','fieldexists=0;')
     if fieldexists==0
-        vfoptions.exoticpreferences=0;
+        vfoptions.exoticpreferences=2;
     end  
     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
     if fieldexists==0
@@ -87,6 +95,7 @@ end
 
 %%
 
+
 if vfoptions.parallel==2 
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
    V0=gpuArray(V0);
@@ -100,22 +109,18 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-if vfoptions.exoticpreferences==0
-    if length(DiscountFactorParamNames)~=1
-        disp('ERROR: There should only be a single Discount Factor (in DiscountFactorParamNames)')
+if vfoptions.exoticpreferences==2
+    if length(DiscountFactorParamNames)~=3
+        disp('ERROR: There should be three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
         dbstack
     end
-elseif vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
-    %NOT YET IMPLEMENTED
-%    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%    return
-elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
-    [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-    return
+else
+    disp('ERROR')
+    dbstack
 end
 
-
 %%
+
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
@@ -153,24 +158,24 @@ if vfoptions.lowmemory==0
     
     if n_d(1)==0
         if vfoptions.parallel==0     % On CPU
-            [VKron,Policy]=ValueFnIter_Case1_NoD_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            %[VKron,Policy]=ValueFnIter_Case1_NoD_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif vfoptions.parallel==1 % On Parallel CPU
-            [VKron,Policy]=ValueFnIter_Case1_NoD_Par1_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            %[VKron,Policy]=ValueFnIter_Case1_NoD_Par1_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
+            [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
         end
     else
         if vfoptions.parallel==0 % On CPU
-            [VKron, Policy]=ValueFnIter_Case1_raw(V0Kron, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            %[VKron, Policy]=ValueFnIter_Case1_raw(V0Kron, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         elseif vfoptions.parallel==1 % On Parallel CPU
-            [VKron, Policy]=ValueFnIter_Case1_Par1_raw(V0Kron, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            %[VKron, Policy]=ValueFnIter_Case1_Par1_raw(V0Kron, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         end
     end
     
 elseif vfoptions.lowmemory==1    
-    
+    disp('ERROR: vfoptions.lowmemory=1 cannot yet be used together with vfoption.exoticpreferences=2 (Epstein-Zin) as has not been implemented')
     V0Kron=reshape(V0,[N_a,N_z]);
     
     if vfoptions.verbose==1
@@ -180,40 +185,21 @@ elseif vfoptions.lowmemory==1
     
     if n_d(1)==0
         if vfoptions.parallel==0
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            %[VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif vfoptions.parallel==1
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            %[VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            %[VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         end
     else
         if vfoptions.parallel==0
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            %[VKron, Policy]=ValueFnIter_Case1_LowMem_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         elseif vfoptions.parallel==1
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            %[VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         elseif vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            %[VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         end
     end
-    
-% elseif vfoptions.lowmemory==2
-%     
-%     V0Kron=reshape(V0,[N_a,N_z]);
-%     
-%     if vfoptions.verbose==1
-%         disp('Starting Value Function')
-%         tic;
-%     end
-%     
-%     if n_d(1)==0
-%         if vfoptions.parallel==2
-%             [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamNames, ReturnFnParams, vfoptions.howards, vfoptions.tolerance);
-%         end
-%     else
-%         if vfoptions.parallel==2 % On GPU
-%             [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamNames, ReturnFnParams,vfoptions.howards,vfoptions.tolerance);
-%         end
-%     end
 end
 
 if vfoptions.verbose==1
