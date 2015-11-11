@@ -105,9 +105,10 @@ if vfoptions.parallel==2
    z_grid=gpuArray(z_grid);
 end
 
-if vfoptions.verbose==1
-    vfoptions
-end
+% Turned this off as it will anyway be reported by ValueFnIter_Case1
+% if vfoptions.verbose==1
+%     vfoptions
+% end
 
 if vfoptions.exoticpreferences==2
     if length(DiscountFactorParamNames)~=3

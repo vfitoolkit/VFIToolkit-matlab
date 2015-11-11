@@ -23,9 +23,17 @@ aaa=reshape(ccc,[N_a*N_z,N_z]);
 % aaa=kron(ones(N_a,1,'gpuArray'),pi_z);
 
 % Modify the Return Function appropriately for Epstein-Zin Preferences
-temp2=ReturnMatrix;
-temp2(isfinite(ReturnMatrix))=ReturnMatrix(isfinite(ReturnMatrix)).^(1-1/DiscountFactorParamsVec(3));
-temp2=(1-DiscountFactorParamsVec(1))*temp2;
+% temp2=ReturnMatrix;
+% temp2(isfinite(ReturnMatrix))=ReturnMatrix(isfinite(ReturnMatrix)).^(1-1/DiscountFactorParamsVec(3));
+% temp2=(1-DiscountFactorParamsVec(1))*temp2;
+for z_c=1:N_z % This slows code down, but removes what was otherwise a bottleneck for memory usage.
+    ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+    ReturnMatrix_z(isfinite(ReturnMatrix_z))=ReturnMatrix_z(isfinite(ReturnMatrix_z)).^(1-1/DiscountFactorParamsVec(3));
+    ReturnMatrix_z=(1-DiscountFactorParamsVec(1))*ReturnMatrix_z;
+    ReturnMatrix(:,:,z_c)=ReturnMatrix_z;
+end
+% ReturnMatrix(isfinite(ReturnMatrix))=ReturnMatrix(isfinite(ReturnMatrix)).^(1-1/DiscountFactorParamsVec(3));
+% ReturnMatrix=(1-DiscountFactorParamsVec(1))*ReturnMatrix;
 
 %%
 tempcounter=1;
@@ -36,7 +44,7 @@ while currdist>Tolerance
 %     tic;
     for z_c=1:N_z
 %         ReturnMatrix_z=ReturnMatrix(:,:,z_c);    
-        temp2_z=temp2(:,:,z_c);
+        temp2_z=ReturnMatrix(:,:,z_c);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         temp=VKronold;
