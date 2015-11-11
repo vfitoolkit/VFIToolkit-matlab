@@ -102,7 +102,7 @@ end
 
 if vfoptions.exoticpreferences==0
     if length(DiscountFactorParamNames)~=1
-        disp('ERROR: There should only be a single Discount Factor (in DiscountFactorParamNames)')
+        disp('WARNING: There should only be a single Discount Factor (in DiscountFactorParamNames) when using standard VFI')
         dbstack
     end
 elseif vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
