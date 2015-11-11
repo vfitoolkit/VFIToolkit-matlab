@@ -87,7 +87,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     Vnext=V_final;
     for i=1:T-1 %so t=T-i
         
-        beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
+        if ~isnan(IndexesForPathParamsInDiscountFactor)
+            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
+        end
         ReturnFnParamsVec(IndexesForPricesInReturnFnParamsVec)=PricePathOld(T-i,:);
         ReturnFnParamsVec(IndexesForPathParamsInReturnFnParamsVec)=ParamPath(T-i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
@@ -112,15 +114,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PolicyIndexesPath(:,:,T-i)=Policy;
         Vnext=V;
         
-        if pathcounter==1
-            V(1:8)
-            V(101:108)
-            V(401:408)
-            Policy(1:8)
-            Policy(101:108)
-            Policy(401:408)
-            save ./SavedOutput/TransPathPolicy_Test.mat PolicyIndexesPath
-        end
+%         if pathcounter==1
+%             V(1:8)
+%             V(101:108)
+%             V(401:408)
+%             Policy(1:8)
+%             Policy(101:108)
+%             Policy(401:408)
+%             save ./SavedOutput/TransPathPolicy_Test.mat PolicyIndexesPath
+%         end
     end
         
     
@@ -191,10 +193,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % I should precalculate these weighting vectors
         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==3
-        if (pathcounter*3)<T
+        if (pathcounter*3)<T-1
             PricePathOld(1:(pathcounter*3),:)=transpathoptions.oldpathweight*PricePathOld(1:(pathcounter*3),:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:(pathcounter*3),:);
         else
             PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
+        end
+    elseif transpathoptions.weightscheme==4 % Combines weightscheme 2 & 3
+        if (pathcounter*3)<T-1
+            PricePathOld(1:(pathcounter*3),:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),pathcounter*3)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:(pathcounter*3),:)+((exp(linspace(0,log(0.2),pathcounter*3)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:(pathcounter*3),:);
+        else
+            PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
         end
     end
     
@@ -209,9 +217,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     end
     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
     
-    if pathcounter==1
-        save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
-    end
+%     if pathcounter==1
+%         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
+%     end
     
     pathcounter=pathcounter+1;
 end
