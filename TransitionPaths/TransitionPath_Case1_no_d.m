@@ -59,7 +59,7 @@ pathcounter=1;
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
 V=zeros(size(V_final),'gpuArray');
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T)=PricePathOld(T);
+PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 Policy=zeros(N_a,N_z,'gpuArray');
 
 if transpathoptions.verbose==1
