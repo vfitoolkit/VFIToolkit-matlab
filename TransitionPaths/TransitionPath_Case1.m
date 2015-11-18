@@ -108,6 +108,7 @@ IndexesForMarketPriceParamsInPricePath=CreateParamVectorIndexes(PriceParamNames,
 IndexesForPathParamsInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, PathParamNames);
 IndexesForMarketPriceParamsInPathParams=CreateParamVectorIndexes(PathParamNames,MarketPriceParamNames);
 
+transtime=zeros(3,1);
 
 while PricePathDist>transpathoptions.tolerance
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
@@ -128,7 +129,7 @@ while PricePathDist>transpathoptions.tolerance
         if ~isnan(IndexesForPathParamsInReturnFnParams)
             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParams);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
         
         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
@@ -150,7 +151,8 @@ while PricePathDist>transpathoptions.tolerance
         PolicyIndexesPath(:,:,T-i)=Policy;
         Vnext=V;
     end
-
+    
+    
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
     %to T using the policies to update the agents distribution generating a
     %new price path
@@ -158,9 +160,10 @@ while PricePathDist>transpathoptions.tolerance
     %the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for i=1:T-1
+                
         %Get the current optimal policy
         Policy=PolicyIndexesPath(:,:,i);
-
+        
         optaprime=shiftdim(ceil(Policy/N_d),-1); % This shipting of dimensions is probably not necessary
         optaprime=reshape(optaprime,[1,N_a*N_z]);
     
@@ -177,9 +180,19 @@ while PricePathDist>transpathoptions.tolerance
         if ~isnan(IndexesForPathParamsInSSvalueParams)
             SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(i,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
-        PolicyTemp=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
-                     
+        
+        % The next five lines should really be replaced with a custom
+        % alternative version of SSvalues_AggVars_Case1_vec that can
+        % operate directly on Policy, rather than present messing around
+        % with converting to PolicyTemp and then using
+        % UnKronPolicyIndexes_Case1.
+        % Current approach is likely way suboptimal speedwise.
+        PolicyTemp=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
+        PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+        PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+
+        SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p, 2);
+            
         if ~isnan(IndexesForPricePathInMarketPriceParams)
             MarketPriceParamsVec(IndexesForPricePathInMarketPriceParams)=PricePathOld(i,IndexesForMarketPriceParamsInPricePath);
         end
@@ -194,11 +207,12 @@ while PricePathDist>transpathoptions.tolerance
             % numbers, even if the solution is actually a real number. I
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
-            PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParams));
+            PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
         end
         
         AgentDist=AgentDistnext;
     end
+    
     
     %See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
@@ -243,6 +257,8 @@ while PricePathDist>transpathoptions.tolerance
 %     end
     
     pathcounter=pathcounter+1;
+    
+
 end
 
 
