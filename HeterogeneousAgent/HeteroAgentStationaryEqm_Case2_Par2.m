@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, DiscountFactorParamNames, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParamNames, MultiMarketCriterion, vfoptions, simoptions, Parameters, ReturnFnParamNames, PriceParamNames)
+function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, DiscountFactorParamNames, ReturnFn, SSvaluesFn,SSvalueParamNames,  MarketPriceEqns, MarketPriceParamNames, MultiMarketCriterion, vfoptions, simoptions, Parameters, ReturnFnParamNames, PriceParamNames)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
