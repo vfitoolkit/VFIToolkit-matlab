@@ -15,7 +15,7 @@ for i=1:l_p
     end
 end
 for i=1:length(MarketPriceEqns)
-    MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars,p, MarketPriceParamsVec);
+    MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
 end
 
 
