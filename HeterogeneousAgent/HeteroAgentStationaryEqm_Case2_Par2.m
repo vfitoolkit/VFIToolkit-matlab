@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, DiscountFactorParamNames, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParams, MultiMarketCriterion, vfoptions, simoptions,ReturnFnParams, IndexesForPricesInReturnFnParams)
+function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_Par2(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, p_grid,Phi_aprimeKron, Case2_Type, DiscountFactorParamNames, ReturnFn, SSvaluesFn, MarketPriceEqns, MarketPriceParamNames, MultiMarketCriterion, vfoptions, simoptions, Parameters, ReturnFnParamNames, PriceParamNames)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -113,22 +113,23 @@ for p_c=1:N_p
     %p_index=zeros(num_p,1);
     p_index=ind2sub_homemade(n_p,p_c);
     p=zeros(l_p,1);
-    for i=1:l_p
-        if i==1
-            p(i)=p_grid(p_index(1));
+    for ii=1:l_p
+        if ii==1
+            p(ii)=p_grid(p_index(1));
         else
-            p(i)=p_grid(sum(n_p(1:i-1))+p_index(i));
+            p(ii)=p_grid(sum(n_p(1:ii-1))+p_index(ii));
         end
+        Parameters.(PriceParamNames{ii})=p(ii)
     end
     
-    ReturnFnParams(IndexesForPricesInReturnFnParams)=p;
-    [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, DiscountFactorParamNames, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,ReturnFnParams);
+%     ReturnFnParamNames(IndexesForPricesInReturnFnParams)=p;
+    [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, DiscountFactorParamNames, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,ReturnFnParamNames);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDist=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
-    SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDist, Policy, SSvaluesFn, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p);
+    SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDist, Policy, SSvaluesFn,Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2);
 
-    MarketClearanceKron(p_c,:)=MarketClearance_Case2(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, MarketPriceParams);
+    MarketClearanceKron(p_c,:)=MarketClearance_Case2(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters, MarketPriceParamNames);
 end
 
 
@@ -144,11 +145,11 @@ MarketClearance=reshape(MarketClearanceKron,[n_p,1]);
 %Calculate the price associated with p_eqm_index
 l_p=length(n_p);
 p_eqm=zeros(l_p,1);
-for i=1:l_p
-    if i==1
-        p_eqm(i)=p_grid(p_eqm_index(1));
+for ii=1:l_p
+    if ii==1
+        p_eqm(ii)=p_grid(p_eqm_index(1));
     else
-        p_eqm(i)=p_grid(sum(n_p(1:i-1))+p_eqm_index(i));
+        p_eqm(ii)=p_grid(sum(n_p(1:ii-1))+p_eqm_index(ii));
     end
 end
 
