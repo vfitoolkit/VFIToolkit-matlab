@@ -123,7 +123,7 @@ for p_c=1:N_p
     end
     
 %     ReturnFnParamNames(IndexesForPricesInReturnFnParams)=p;
-    [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, DiscountFactorParamNames, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,ReturnFnParamNames);
+    [~,Policy]=ValueFnIter_Case2(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, DiscountFactorParamNames, ReturnFn,Phi_aprimeKron, Case2_Type, vfoptions,Parameters,ReturnFnParamNames);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDist=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a,n_s,pi_s, simoptions);
