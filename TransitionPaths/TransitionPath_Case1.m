@@ -108,7 +108,6 @@ IndexesForMarketPriceParamsInPricePath=CreateParamVectorIndexes(PriceParamNames,
 IndexesForPathParamsInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, PathParamNames);
 IndexesForMarketPriceParamsInPathParams=CreateParamVectorIndexes(PathParamNames,MarketPriceParamNames);
 
-transtime=zeros(3,1);
 
 while PricePathDist>transpathoptions.tolerance
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
@@ -156,7 +155,7 @@ while PricePathDist>transpathoptions.tolerance
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
     %to T using the policies to update the agents distribution generating a
     %new price path
-    %Call SteadyStateDist the current periods distn and SteadyStateDistnext
+    %Call AgentDist the current periods distn and AgentDistnext
     %the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for i=1:T-1
