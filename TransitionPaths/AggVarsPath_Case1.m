@@ -78,7 +78,7 @@ end
 %put in it's initial and final values.
 AggVarsPath=zeros(T,length(SSvaluesFn),'gpuArray');
 AggVarsPath(T,:)=SSvalues_AggVars_final;
-%Call AgentDist the current periods distn and SteadyStateDistnext
+%Call AgentDist the current periods distn and AgentDistnext
 %the next periods distn which we must calculate
 AgentDist=AgentDist_initial;
 %Now we have the full PolicyIndexesPath, we go forward in time from 1
