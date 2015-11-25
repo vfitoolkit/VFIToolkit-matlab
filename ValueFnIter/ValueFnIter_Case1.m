@@ -22,7 +22,6 @@ else
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    
     eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
     if fieldexists==0
         vfoptions.lowmemory=0;

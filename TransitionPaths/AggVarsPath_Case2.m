@@ -143,15 +143,15 @@ if Case2_Type==2
     %functions for anything later we just store the next period one in
     %Vnext, and the current period one to be calculated in V
     Vnext=V_final;
-    for i=1:T-1 %so t=T-i
+    for ii=1:T-1 %so t=T-i
         if ~isnan(IndexesForPathParamsInDiscountFactor)
-            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,IndexesForDiscountFactorInPathParams); % This step could be moved outside all the loops
+            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ii,IndexesForDiscountFactorInPathParams); % This step could be moved outside all the loops
         end
         if ~isnan(IndexesForPricePathInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePath(T-i,IndexesForReturnFnParamsInPricePath);
+            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePath(T-ii,IndexesForReturnFnParamsInPricePath);
         end
         if ~isnan(IndexesForPathParamsInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ii,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
         
@@ -173,7 +173,7 @@ if Case2_Type==2
             Policy(:,z_c)=maxindex;
         end
         
-        PolicyIndexesPath(:,:,T-i)=Policy;
+        PolicyIndexesPath(:,:,T-ii)=Policy;
         Vnext=V;
 %         params=ParamPath(T-i,:);
 %         p=PricePath(T-i,:);
@@ -215,9 +215,9 @@ if Case2_Type==2
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
     %to T using the policies to update the agents distribution generating a
     %new price path
-    for i=1:T-1
+    for ii=1:T-1
         %Get the current optimal policy
-        Policy=PolicyIndexesPath(:,:,i);
+        Policy=PolicyIndexesPath(:,:,ii);
         
         % optaprime is here replaced by Phi_of_Policy, which is a different shape
         Phi_of_Policy=zeros(N_a,N_z,N_z,'gpuArray'); %a'(a,z',z)
@@ -229,13 +229,13 @@ if Case2_Type==2
         Ptran=kron(pi_z',ones(N_a,N_a,'gpuArray')).*reshape(Ptemp,[N_a*N_z,N_a*N_z]);
         AgentDistnext=Ptran*AgentDist;
         
-        p=PricePath(i,:);
+        p=PricePath(ii,:);
         
         if ~isnan(IndexesForPricePathInSSvalueParams)
-            SSvalueParamsVec(IndexesForPricePathInSSvalueParams)=PricePath(i,IndexesForSSvalueParamsInPricePath);
+            SSvalueParamsVec(IndexesForPricePathInSSvalueParams)=PricePath(ii,IndexesForSSvalueParamsInPricePath);
         end
         if ~isnan(IndexesForPathParamsInSSvalueParams)
-            SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(i,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+            SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(ii,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
         PolicyTemp=UnKronPolicyIndexes_Case2(Policy, n_d, n_a, n_z,unkronoptions);
         SSvalues_AggVars=SSvalues_AggVars_Case2_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p, 2);
