@@ -43,8 +43,12 @@ else
         vfoptions.verbose=0;
     end
     eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
-    if fieldexists==0 % If still doesn't exist by now, then not using GPU
-        vfoptions.returnmatrix=1;
+    if fieldexists==0
+        if isa(ReturnFn,'function_handle')==1;
+            vfoptions.returnmatrix=0;
+        else
+            vfoptions.returnmatrix=1;
+        end
     end
     eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
     if fieldexists==0
@@ -93,6 +97,14 @@ if vfoptions.parallel==2
    d_grid=gpuArray(d_grid);
    a_grid=gpuArray(a_grid);
    z_grid=gpuArray(z_grid);
+% else
+%    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
+%    % This may be completely unnecessary.
+%    V0=gather(V0);
+%    pi_z=gather(pi_z);
+%    d_grid=gather(d_grid);
+%    a_grid=gather(a_grid);
+%    z_grid=gather(z_grid);
 end
 
 if vfoptions.verbose==1
@@ -133,11 +145,12 @@ if vfoptions.lowmemory==0
     end
     
     if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel);
+        disp('NOTE: You are not using GPU parallelization. \n NOTE: Your codes will run slowly unless you use vfoptions.returnmatrix=1 \n NOTE: (rather than current vfoptions.returnmatrix=0). \n NOTE: See documentation on vfoptions.returnmatrix option for more.')
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
     elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
     end
     
     if vfoptions.verbose==1

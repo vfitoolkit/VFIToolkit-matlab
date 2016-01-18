@@ -1,10 +1,15 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel,ReturnFnParamsVec)
 %If there is no d variable, just input n_d=0 and d_grid=0
+
+ParamCell=cell(length(ReturnFnParamsVec),1);
+for ii=1:length(ReturnFnParamsVec)
+    ParamCell(ii,1)={ReturnFnParamsVec(ii)};
+end
+
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-
 
 if Parallel==0
     
@@ -45,7 +50,7 @@ if Parallel==0
                 %a_gridvals=ind2grid_homemade(n_a,i2,a_grid);
                 for i3=1:N_z
                     %z_gridvals=ind2grid_homemade(n_z,i3,z_grid);
-                    Fmatrix(i1,i2,i3)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:));
+                    Fmatrix(i1,i2,i3)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:),ParamCell{:});
                 end
             end
         end
@@ -78,7 +83,7 @@ if Parallel==0
                     for i4=1:N_z
                         %z_gridvals=ind2grid_homemade(n_z,i4,z_grid);
 %                        Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:));
-                        Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals,a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:));
+                        Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals,a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:),ParamCell{:});
                     end
                 end
             end
@@ -120,7 +125,7 @@ elseif Parallel==1
             Fmatrix_z=zeros(N_a,N_a);
             for i1=1:N_a
                 for i2=1:N_a
-                    Fmatrix_z(i1,i2)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals);
+                    Fmatrix_z(i1,i2)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals,ParamCell{:});
                 end
             end
             Fmatrix(:,:,i3)=Fmatrix_z;
@@ -159,7 +164,7 @@ elseif Parallel==1
             for i1=1:N_d
                 for i2=1:N_a
                     for i3=1:N_a
-                        Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals);
+                        Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals,ParamCell{:});
                     end
                 end
             end
