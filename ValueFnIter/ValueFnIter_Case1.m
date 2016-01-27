@@ -82,10 +82,12 @@ elseif size(pi_z)~=[N_z, N_z]
     disp('ERROR: pi is not of size N_z-by-N_z')
     dbstack
     return
-elseif size(V0)~=[n_a,n_z]
-    disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
-    dbstack
-    return
+elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
+    if size(V0)~=[n_a,n_z]
+        disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
+        dbstack
+        return
+    end
 end
 
 %%

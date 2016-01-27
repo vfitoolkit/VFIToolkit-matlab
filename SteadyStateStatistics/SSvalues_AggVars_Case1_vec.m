@@ -80,7 +80,11 @@ if Parallel==2 % This Parallel==2 case is only used if there is pi_s
 %                 d_val(:)
 %                 z_val(:)
 %                 size(SSvaluesFn{i}(d_val(:),aprime_val(:),a_val(:),z_val(:),pi_z,p_val))
-                Values(j1,j2)=SSvaluesFn{i}(d_val(:),aprime_val(:),a_val(:),z_val(:),pi_z,p_val);
+                if l_d==0
+                    Values(j1,j2)=SSvaluesFn{i}(aprime_val(:),a_val(:),z_val(:),pi_z,p_val);
+                else
+                    Values(j1,j2)=SSvaluesFn{i}(d_val(:),aprime_val(:),a_val(:),z_val(:),pi_z,p_val);
+                end
             end
         end
         Values=reshape(Values,[N_a*N_s,1]);
@@ -137,7 +141,11 @@ else
                         aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
                     end
                 end
-                Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,pi_z,p_val);
+                if l_d==0
+                    Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,z_val,pi_z,p_val);
+                else
+                    Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,pi_z,p_val);
+                end
             end
         end
         Values=reshape(Values,[N_a*N_s,1]);
