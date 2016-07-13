@@ -26,7 +26,9 @@ SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, 
 % find why matlab was treating output as complex
 MarketClearanceVec=real(MarketClearance_Case1(SSvalues_AggVars,p, MarketPriceEqns, Parameters,MarketPriceParamNames));
 
-if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
+if heteroagentoptions.multimarketcriterion==0 %only used when there is only one price 
+    MarketClearance=MarketClearanceVec;
+elseif heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
     MarketClearance=sum(MarketClearanceVec.^2);                                                                                                         
 end
 

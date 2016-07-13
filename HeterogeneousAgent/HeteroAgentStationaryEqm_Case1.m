@@ -7,6 +7,8 @@ N_p=prod(n_p);
 
 l_p=length(n_p);
 
+p_eqm=nan; p_eqm_index=nan; MarketClearance=nan;
+
 %% Check which options have been used, set all others to defaults 
 if nargin<21
     %If vfoptions is not given, just use all the defaults
@@ -46,7 +48,7 @@ else
 end
 
 if nargin<20
-    simoptions.iterate=1;
+    simoptions.iterate=0;
     simoptions.nagents=0;
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
@@ -63,7 +65,7 @@ if nargin<20
 else
     eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
     if fieldexists==0
-        simoptions.iterate=1;
+        simoptions.iterate=0;
     end
     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
     if fieldexists==0
@@ -122,6 +124,10 @@ else
     if fieldexists==0
         heteroagentoptions.verbose=0;
     end
+    eval('fieldexists=1;heteroagentoptions.fminalgo;','fieldexists=0;')
+    if fieldexists==0
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
 end
 
 %%
@@ -140,12 +146,16 @@ p0=nan(length(PriceParamNames),1);
 for ii=1:l_p
     p0(ii)=Parameters.(PriceParamNames{ii});
 end
-% eval('fieldexists=1;heteroagentoptions.plb;','fieldexists=0;')
-% if fieldexists==0
-[p_eqm,MarketClearance]=fminsearch(MarketClearanceFn,p0);
-% else
-% 
-% end
+
+if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
+    heteroagentoptions.multimarketcriterion=0;
+    [p_eqm,MarketClearance]=fzero(MarketClearanceFn,p0);    
+elseif heteroagentoptions.fminalgo==1
+    [p_eqm,MarketClearance]=fminsearch(MarketClearanceFn,p0);
+else
+    [p_eqm,MarketClearance]=fminsearch(MarketClearanceFn,p0);
+end
+
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
 

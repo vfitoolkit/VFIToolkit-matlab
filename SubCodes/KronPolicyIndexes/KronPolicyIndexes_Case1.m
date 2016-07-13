@@ -10,6 +10,8 @@ N_z=prod(n_z);
 
 l_a=length(n_a);
 
+Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
+
 if n_d(1)==0
     
     if options.parallel~=2
@@ -54,7 +56,10 @@ else
         end
         PolicyKron=PolicyTemp; %Overwrite
     else
-%         PolicyTemp=zeros(2,N_a,N_z,'gpuArray');
+        
+        % Should test whether code runs faster with this predeclaration of PolicyKron commented or uncommented
+%         PolicyKron=zeros(2,N_a,N_z,'gpuArray'); 
+        
         
         % First, d
         if l_d==1        
@@ -75,7 +80,7 @@ else
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector
             PolicyTemp=(reshape(Policy(l_d+1:l_d+l_a,:,:),[l_a,N_a*N_z])-temp*ones(1,N_a*N_z,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_z,'gpuArray'));
-            PolicyKron(2,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_z]);
+            PolicyKron(2,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_z]);
 %             temp=ones(l_a,1)-eye(l_a,1);
 %             temp2=cumprod(n_a);
 %             PolicyTemp(2,:,:)=shiftdim((Policy(l_d+1:l_d+l_a,:,:)-temp).*([0,temp2(1:end-1)]*ones(1,N_a,N_z)),1);
