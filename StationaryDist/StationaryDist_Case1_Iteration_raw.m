@@ -45,9 +45,11 @@ if simoptions.parallel~=2
         SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
         
         SScounter=SScounter+1;
-        if rem(SScounter,50)==0
-            SScounter
-            SScurrdist
+        if simoptions.verbose==1
+            if rem(SScounter,50)==0
+                SScounter
+                SScurrdist
+            end
         end
     end
 elseif simoptions.parallel==2 % Using the GPU
@@ -106,9 +108,11 @@ elseif simoptions.parallel==2 % Using the GPU
     
         
         SScounter=SScounter+1;
-        if rem(SScounter,50)==0
-            SScounter
-            SScurrdist
+        if simoptions.verbose==1
+            if rem(SScounter,50)==0
+                SScounter
+                SScurrdist
+            end
         end
     end
 %     time2=toc
