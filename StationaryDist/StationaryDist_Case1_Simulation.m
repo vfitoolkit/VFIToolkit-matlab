@@ -13,7 +13,7 @@ if nargin<6
     simoptions.burnin=10^3;
     simoptions.parallel=2;
     simoptions.verbose=0;
-    simoptions.ncores=1;
+%    simoptions.ncores=1; not needed as using simoptions.parallel=2
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -37,9 +37,11 @@ else
     if fieldexists==0
         simoptions.verbose=0;
     end
-    eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.ncores=1;
+    if simoptions.parallel>0
+        eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
+        if fieldexists==0
+            simoptions.ncores=NCores;
+        end
     end
 end
 

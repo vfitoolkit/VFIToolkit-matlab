@@ -60,12 +60,16 @@ function StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyIndexesKro
 MoveSSDKtoGPU=0;
 if simoptions.parallel==2
     % Simulation on GPU is really slow.
-    % So instead, switch to CPU, use all available cores, and then switch
-    % back. For anything but ridiculously short simulations it is more than
-    % worth the overhead.
+    % So instead, switch to CPU. If going to iterate then use all available cores for speed, but doing this is not 
+    % in line with the mathematical theories on convergence, so if not iterating just use one core.
+    % For anything but ridiculously short simulations it is more than worth the overhead to switch to CPU and back.
     PolicyIndexesKron=gather(PolicyIndexesKron);
     pi_z=gather(pi_z);
-    simoptions.parallel=1;
+    if simoptions.iterate==1
+        simoptions.parallel=1;
+    else
+        simoptions.parallel=0;
+    end
     MoveSSDKtoGPU=1;
 end
 
