@@ -11,16 +11,16 @@ if nargin<8
     simoptions.burnin=10^3;
     simoptions.parallel=2;
     simoptions.verbose=0;
-    try 
+%     simoptions.nagents=0;
+    simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
+    simoptions.tolerance=10^(-9);
+    simoptions.iterate=1;
+    try
         PoolDetails=gcp;
         simoptions.ncores=PoolDetails.NumWorkers;
     catch
         simoptions.ncores=1;
     end
-%     simoptions.nagents=0;
-    simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
-    simoptions.tolerance=10^(-9);
-    simoptions.iterate=1;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -44,16 +44,24 @@ else
     if fieldexists==0
         simoptions.verbose=0;
     end
+    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
+    if fieldexists==0
+        simoptions.iterate=1;
+    end
     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
     if fieldexists==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
+        if simoptions.iterate==1
+            try
+                PoolDetails=gcp;
+                simoptions.ncores=PoolDetails.NumWorkers;
+            catch
+                simoptions.ncores=1;
+            end
+        else
             simoptions.ncores=1;
         end
     end
-%     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
+    %     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
 %     if fieldexists==0
 %         simoptions.nagents=0;
 %     end
@@ -64,10 +72,6 @@ else
     eval('fieldexists=1;simoptions.tolerance;','fieldexists=0;')
     if fieldexists==0
         simoptions.tolerance=10^(-9);
-    end
-    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.iterate=1;
     end
 end
 
