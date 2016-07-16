@@ -1,5 +1,5 @@
-function  [MarketClearanceVec]=MarketClearance_Case1_pgrid(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters, MarketPriceParamNames)
-%For models with more than one market MultiMarketCriterion determines which method to use to combine them.
+function  [MarketClearanceVec]=MarketClearance_Case2_pgrid(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters, MarketPriceParamNames)
+% This code is actually identical to MarketClearance_Case1_pgrid anyway
 
 MarketPriceParamsVec=gpuArray(CreateVectorFromParams(Parameters,MarketPriceParamNames));
 
