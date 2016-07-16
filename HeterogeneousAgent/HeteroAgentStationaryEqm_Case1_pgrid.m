@@ -23,9 +23,10 @@ for p_c=1:N_p
         p_c
     end
     
+    V0Kron(~isfinite(V0Kron))=0; %Since we loop through with V0Kron from previous p_c this is necessary to avoid contamination by -Inf's
+    
     %Step 1: Solve the value fn iteration problem (given this price, indexed by p_c)
     %Calculate the price vector associated with p_c
-    %p_index=zeros(num_p,1);
     p_index=ind2sub_homemade(n_p,p_c);
     p=zeros(l_p,1);
     for ii=1:l_p
