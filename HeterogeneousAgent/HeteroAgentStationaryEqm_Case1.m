@@ -1,8 +1,8 @@
 function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case1(V0, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, MarketPriceParamNames, PriceParamNames,heteroagentoptions, simoptions, vfoptions)
 % If n_p=0 then will use fminsearch to find the general equilibrium (find
 % price vector that corresponds to MarketClearance=0). By setting n_p to
-% nonzero it is assumend you want to use a grid on prices, which must then
-% be passed in heteroagentoptions.p_grid
+% nonzero it is assumed you want to use a grid on prices, which must then
+% be passed in using heteroagentoptions.p_grid
 
 N_d=prod(n_d);
 N_a=prod(n_a);
