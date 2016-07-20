@@ -140,6 +140,7 @@ V0Kron=reshape(V0,[N_a,N_s]);
 
 if N_p~=0
     [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case1_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, MarketPriceParamNames, PriceParamNames, heteroagentoptions, simoptions, vfoptions);
+    return
 end
 
 %% Otherwise, use fminsearch to find the general equilibrium
