@@ -78,6 +78,10 @@ if N_d==0
     return
 end
 
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
 PricePathDist=Inf;
 pathcounter=0;
 
@@ -236,7 +240,7 @@ while PricePathDist>transpathoptions.tolerance
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
-    elseif transpathoptions.weightscheme==3
+    elseif transpathoptions.weightscheme==3 % A gradually opening window.
         if (pathcounter*3)<T-1
             PricePathOld(1:(pathcounter*3),:)=transpathoptions.oldpathweight*PricePathOld(1:(pathcounter*3),:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:(pathcounter*3),:);
         else

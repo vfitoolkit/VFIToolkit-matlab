@@ -1,7 +1,7 @@
 function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, MarketPriceParamNames,transpathoptions)
 
 %% Check which transpathoptions have been used, set all others to defaults 
-if nargin<19
+if nargin<21
     disp('No transpathoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
@@ -9,7 +9,7 @@ if nargin<19
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.maxiterations=1000;
-    transpathoptions.verbose=1;
+    transpathoptions.verbose=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     eval('fieldexists=1;transpathoptions.tolerance;','fieldexists=0;')
@@ -34,11 +34,15 @@ else
     end
     eval('fieldexists=1;transpathoptions.verbose;','fieldexists=0;')
     if fieldexists==0
-        transpathoptions.verbose=1;
+        transpathoptions.verbose=0;
     end
 end
 
 %%
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
 
 if transpathoptions.parallel~=2
     disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case2')
@@ -198,7 +202,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
-    elseif transpathoptions.weightscheme==3
+    elseif transpathoptions.weightscheme==3 % A gradually opening window.
         if (pathcounter*3)<T-1
             PricePathOld(1:(pathcounter*3),:)=transpathoptions.oldpathweight*PricePathOld(1:(pathcounter*3),:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:(pathcounter*3),:);
         else
@@ -212,10 +216,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
     end
     
-    %Set price path to be 9/10ths the old path and 1/10th the new path (but
-    %making sure to leave prices in period T unchanged).
-    PricePathOld(1:T-1)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1);
- 
     TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
