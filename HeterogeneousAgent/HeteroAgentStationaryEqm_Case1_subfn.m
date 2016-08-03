@@ -29,7 +29,7 @@ MarketClearanceVec=real(MarketClearance_Case1(SSvalues_AggVars,p, MarketPriceEqn
 if heteroagentoptions.multimarketcriterion==0 %only used when there is only one price 
     MarketClearance=MarketClearanceVec;
 elseif heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    MarketClearance=sum(MarketClearanceVec.^2);                                                                                                         
+    MarketClearance=sqrt(sum(MarketClearanceVec.^2));                                                                                                         
 end
 
 MarketClearance=gather(MarketClearance);

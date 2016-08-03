@@ -4,6 +4,7 @@ function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case1(V0, 
 % nonzero it is assumed you want to use a grid on prices, which must then
 % be passed in using heteroagentoptions.p_grid
 
+
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_s=prod(n_s);
@@ -15,105 +16,108 @@ p_eqm=nan; p_eqm_index=nan; MarketClearance=nan;
 
 %% Check which options have been used, set all others to defaults 
 if nargin<21
-    %If vfoptions is not given, just use all the defaults
-    vfoptions.lowmemory=0;
-    vfoptions.polindorval=1;
-    vfoptions.howards=80;
+    vfoptions.fakeoption=0; % create a 'placeholder' vfoptions that can be passed to subcodes
+%     %If vfoptions is not given, just use all the defaults
+%     vfoptions.lowmemory=0;
+%     vfoptions.polindorval=1;
+%     vfoptions.howards=80;
     vfoptions.parallel=2;
-    vfoptions.verbose=0;
-    vfoptions.returnmatrix=2;
+%     vfoptions.verbose=0;
+%     vfoptions.returnmatrix=2;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.lowmemory=0;
-    end
-    eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.polindorval=1;
-    end
-    eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.howards=80;
-    end
+%     %Check vfoptions for missing fields, if there are some fill them with
+%     %the defaults
+%     eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
+%     if fieldexists==0
+%         vfoptions.lowmemory=0;
+%     end
+%     eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
+%     if fieldexists==0
+%         vfoptions.polindorval=1;
+%     end
+%     eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
+%     if fieldexists==0
+%         vfoptions.howards=80;
+%     end
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
     if fieldexists==0
         vfoptions.parallel=2;
     end
-    eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.verbose=0;
-    end
-    eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.returnmatrix=2;
-    end
+%     eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
+%     if fieldexists==0
+%         vfoptions.verbose=0;
+%     end
+%     eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
+%     if fieldexists==0
+%         vfoptions.returnmatrix=2;
+%     end
 end
 
 if nargin<20
-    simoptions.iterate=0;
-    simoptions.nagents=0;
-    simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
-    simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
-    simoptions.simperiods=10^4;
-    simoptions.burnin=10^3;
-    simoptions.parallel=2;
-    simoptions.verbose=0;
-    try
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
-else
-    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.iterate=0;
-    end
-    eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.nagents=0;
-    end
-    eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.maxit=5*10^4;
-    end
-    eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
-    end
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.simperiods=10^4;
-    end
-    eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.burnin=10^3;
-    end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.parallel=2;
-    end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.verbose=0;
-    end
-    eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0 
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
-    end
+    simoptions.fakeoption=0; % create a 'placeholder' simoptions that can be passed to subcodes
+%     simoptions.iterate=0;
+%     simoptions.nagents=0;
+%     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
+%     simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
+%     simoptions.simperiods=10^4;
+%     simoptions.burnin=10^3;
+%     simoptions.parallel=2;
+%     simoptions.verbose=0;
+%     try
+%         PoolDetails=gcp;
+%         simoptions.ncores=PoolDetails.NumWorkers;
+%     catch
+%         simoptions.ncores=1;
+%     end
+% else
+%     eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.iterate=0;
+%     end
+%     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.nagents=0;
+%     end
+%     eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.maxit=5*10^4;
+%     end
+%     eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.seedpoint=[ceil(N_a/2),ceil(N_s/2)];
+%     end
+%     eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.simperiods=10^4;
+%     end
+%     eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.burnin=10^3;
+%     end
+%     eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.parallel=2;
+%     end
+%     eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
+%     if fieldexists==0
+%         simoptions.verbose=0;
+%     end
+%     eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
+%     if fieldexists==0 
+%         try
+%             PoolDetails=gcp;
+%             simoptions.ncores=PoolDetails.NumWorkers;
+%         catch
+%             simoptions.ncores=1;
+%         end
+%     end
 end
 
 if nargin<19
     heteroagentoptions.multimarketcriterion=1;
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
+    heteroagentoptions.maxiter=1000;
 else
     eval('fieldexists=1;heteroagentoptions.multimarketcriterion;','fieldexists=0;')
     if fieldexists==0
@@ -133,10 +137,15 @@ else
     if fieldexists==0
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
+    eval('fieldexists=1;heteroagentoptions.maxiter;','fieldexists=0;')
+    if fieldexists==0
+        heteroagentoptions.maxiter=1000; % use fminsearch
+    end
 end
 
 %%
 V0Kron=reshape(V0,[N_a,N_s]);
+
 
 if N_p~=0
     [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case1_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, MarketPriceParamNames, PriceParamNames, heteroagentoptions, simoptions, vfoptions);

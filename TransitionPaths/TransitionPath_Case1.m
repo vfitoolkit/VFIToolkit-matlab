@@ -225,8 +225,7 @@ while PricePathDist>transpathoptions.tolerance
     
     %See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
-    %Notice that the distance is always calculated ignoring the time t=1 &
-    %t=T periods, as these needn't ever converges
+    %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
         disp('Old, New')
