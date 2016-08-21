@@ -6,9 +6,8 @@ function VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames,index1
 % given by CalibParamNames)
 
 % Some parameters are stored in the Parameters structure as vectors or
-% matrices (eg., because the parameter values depends on age, or on agent
-% type). In these cases 'index1' (and 'index2') can be used to specify which
-% is the relevant element.
+% matrices (eg., because the parameter values depends on age). In these 
+% cases 'index1' (and 'index2') can be used to specify which is the relevant element.
 
 nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
