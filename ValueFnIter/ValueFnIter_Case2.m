@@ -111,10 +111,13 @@ if vfoptions.lowmemory==0
         disp('ERROR: vfoptions.phi_aprimematrix==0 has not yet been implemented')
     elseif vfoptions.phiaprimematrix==1
         Phi_aprimeMatrix=Phi_aprime;
+        if vfoptions.parallel==2 % If appropriate, make sure that this is on the gpu
+            Phi_aprimeMatrix=gather(Phi_aprimeMatrix);
+        end
     elseif vfoptions.phiaprimematrix==2 % GPU
         Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
     end
-            
+    
     %% The Value Function Iteration
     V0Kron=reshape(V0,[N_a,N_z]);
     
