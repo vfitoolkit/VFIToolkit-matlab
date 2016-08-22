@@ -190,6 +190,7 @@ elseif Case2_Type==3 %a'(d,z')  % NOTE: THIS HAS NOT BEEN TESTED
             Ftemp(:,z_c)=ReturnMatrix(tempmaxindex);
         end
         
+        
         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
  
@@ -229,67 +230,70 @@ elseif Case2_Type==4 %a'(d,a)
     disp('ERROR: Case2_Type==4 has not yet been implemented for GPU')
     return
     
-elseif Case2_Type==5 %a'(d) % NOTE: THIS HAS NOT BEEN TESTED
-    Phi_of_Policy=zeros(N_a,N_z,'gpuArray'); %a'(a,z) % (a,z from Policy, no extra from Phi)
-    aaa=kron(pi_z,ones(N_d,1,'gpuArray'));
-    bbb=kron(pi_z,ones(N_a,1,'gpuArray')); % Part of the Howards
+elseif Case2_Type==5 %a'(d,e')
+    disp('ERROR: Case2_Type==5 has not yet been implemented for GPU')
+    return
     
-    while currdist>Tolerance
-        
-        VKronold=VKron;
-
-        EV=zeros(N_d*N_z,N_z,'gpuArray');
-        for zprime_c=1:N_z % This can likely be improved
-            EV(:,zprime_c)=VKronold(Phi_aprime(:)*ones(1,N_z),zprime_c); %(d,z')
-        end
-        EV=EV.*aaa;
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=reshape(sum(EV,2),[N_d,1,N_z]);
-        
-        for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
-            entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray');
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            VKron(:,z_c)=Vtemp;
-            Policy(:,z_c)=maxindex;
-            
-            tempmaxindex=maxindex+(0:1:N_a-1)*(N_d)+(z_c-1)*N_d*N_a;
-            Ftemp(:,z_c)=ReturnMatrix(tempmaxindex);
-        end
-        
-        VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
-        currdist=max(abs(VKrondist));
- 
-        if isfinite(currdist) && tempcounter>10 && currdist>(Tolerance*10) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-            % % && tempcounter>10 && currdist>(Tolerance*10)
-            % isfinite(currdist): ensures do not contaminate value function with -Infs
-            % tempcounter>10: just because there is probably not much point
-            % tempcounter<Howards2: to guarantee that Howards cannot break convergence
-            % currdist>(Tolerance*10): to ensure eventual solution is not driven by Howards
-            
-            Phi_of_Policy=reshape(Phi_aprime(Policy,:),[N_a,N_z]); % (d,z')
-
-            
-            for Howards_counter=1:Howards
-                EVKrontemp2=zeros(N_a*N_z,N_z,'gpuArray'); %((a,z),z') % Can move this outside most of the loops
-                for zprime_c=1:N_z
-                    EVKrontemp2(:,zprime_c)=VKron(Phi_of_Policy(:,:),zprime_c);
-                end
-                EVKrontemp3=EVKrontemp2.*bbb;
-                EVKrontemp3(isnan(EVKrontemp3))=0;
-                EVKrontemp=reshape(sum(EVKrontemp3,2),[N_a,N_z]); %
-                VKron=Ftemp+beta*EVKrontemp;                
-            end
-        end
-  
-        if rem(tempcounter,100)==0
-            disp(tempcounter)
-            disp(currdist)
-        end
-        
-        tempcounter=tempcounter+1;
-    end
+%     Phi_of_Policy=zeros(N_a,N_z,'gpuArray'); %a'(a,z) % (a,z from Policy, no extra from Phi)
+%     aaa=kron(pi_z,ones(N_d,1,'gpuArray'));
+%     bbb=kron(pi_z,ones(N_a,1,'gpuArray')); % Part of the Howards
+%     
+%     while currdist>Tolerance
+%         
+%         VKronold=VKron;
+% 
+%         EV=zeros(N_d*N_z,N_z,'gpuArray');
+%         for zprime_c=1:N_z % This can likely be improved
+%             EV(:,zprime_c)=VKronold(Phi_aprime(:)*ones(1,N_z),zprime_c); %(d,z')
+%         end
+%         EV=EV.*aaa;
+%         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+%         EV=reshape(sum(EV,2),[N_d,1,N_z]);
+%         
+%         for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
+%             entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray');
+%             
+%             %Calc the max and it's index
+%             [Vtemp,maxindex]=max(entireRHS,[],1);
+%             VKron(:,z_c)=Vtemp;
+%             Policy(:,z_c)=maxindex;
+%             
+%             tempmaxindex=maxindex+(0:1:N_a-1)*(N_d)+(z_c-1)*N_d*N_a;
+%             Ftemp(:,z_c)=ReturnMatrix(tempmaxindex);
+%         end
+%         
+%         VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
+%         currdist=max(abs(VKrondist));
+%  
+%         if isfinite(currdist) && tempcounter>10 && currdist>(Tolerance*10) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+%             % % && tempcounter>10 && currdist>(Tolerance*10)
+%             % isfinite(currdist): ensures do not contaminate value function with -Infs
+%             % tempcounter>10: just because there is probably not much point
+%             % tempcounter<Howards2: to guarantee that Howards cannot break convergence
+%             % currdist>(Tolerance*10): to ensure eventual solution is not driven by Howards
+%             
+%             Phi_of_Policy=reshape(Phi_aprime(Policy,:),[N_a,N_z]); % (d,z')
+% 
+%             
+%             for Howards_counter=1:Howards
+%                 EVKrontemp2=zeros(N_a*N_z,N_z,'gpuArray'); %((a,z),z') % Can move this outside most of the loops
+%                 for zprime_c=1:N_z
+%                     EVKrontemp2(:,zprime_c)=VKron(Phi_of_Policy(:,:),zprime_c);
+%                 end
+%                 EVKrontemp3=EVKrontemp2.*bbb;
+%                 EVKrontemp3(isnan(EVKrontemp3))=0;
+%                 EVKrontemp=reshape(sum(EVKrontemp3,2),[N_a,N_z]); %
+%                 VKron=Ftemp+beta*EVKrontemp;                
+%             end
+%         end
+%   
+%         if rem(tempcounter,100)==0
+%             disp(tempcounter)
+%             disp(currdist)
+%         end
+%         
+%         tempcounter=tempcounter+1;
+%     end
 end
 
 
