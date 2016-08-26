@@ -64,7 +64,7 @@ for ii=1:N_i
         Phi_aprime_temp=Phi_aprime.(names{ii});
     end
     
-    if nargin==17
+    if exist('vfoptions','var')
         [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfoptions);
     else
         [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);

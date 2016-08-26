@@ -103,17 +103,15 @@ if Case2_Type==1 % (d,a,z',z)
         z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-6);
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, avals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
     elseif l_d==2 && l_a==2 && l_z==2
-        ap1vals=a_grid(1:n_a(1));
-        ap2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1);
-        d1vals=shiftdim(d_grid(1:n_d(1)),-2);
-        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-3);
-        a1vals=shiftdim(a_grid(1:n_a(1)),-4);
-        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-5);
-        zp1vals=shiftdim(z_grid(1:n_z(1)),-6);
-        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-7);
-        z1vals=shiftdim(z_grid(1:n_z(1)),-8);
-        z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-9);
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, ap1vals,ap2vals,d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        a1vals=shiftdim(a_grid(1:n_a(1)),-2);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-4);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-5);
+        z1vals=shiftdim(z_grid(1:n_z(1)),-6);
+        z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-7);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
     elseif l_d==3 && l_a==1 && l_z==2
         d1vals=d_grid(1:n_d(1));
         d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
@@ -136,7 +134,94 @@ if Case2_Type==1 % (d,a,z',z)
         z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-7);
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
     end
-    Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_a,N_d,N_a,N_z,N_z]);
+    Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_a,N_z,N_z]);
+elseif Case2_Type==11 % (d,a,z')
+    if l_d==1 && l_a==1 && l_z==1
+        dvals=d_grid; dvals(1,1,1)=d_grid(1);
+        avals=shiftdim(a_grid,-1);
+        zpvals=shiftdim(z_grid,-2);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, dvals, avals,zpvals,ParamCell{:});
+    elseif l_d==1 && l_a==2 && l_z==1
+        dvals=d_grid;
+        a1vals=shiftdim(a_grid(1:n_a(1)),-1);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-2);
+        zpvals=shiftdim(z_grid,-3);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, dvals, a1vals,a2vals,zpvals,ParamCell{:});
+    elseif l_d==2 && l_a==1 && l_z==1
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        avals=shiftdim(a_grid,-2);
+        zpvals=shiftdim(z_grid,-3);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, avals,zpvals,ParamCell{:});
+    elseif l_d==2 && l_a==2 && l_z==1
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        a1vals=shiftdim(a_grid(1:n_a(1)),-2);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+        zpvals=shiftdim(z_grid,-4);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime,d1vals,d2vals, a1vals,a2vals,zpvals,ParamCell{:});
+    elseif l_d==3 && l_a==1 && l_z==1
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        d3vals=shiftdim(d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3)),-2);
+        avals=shiftdim(a_grid,-3);
+        zpvals=shiftdim(z_grid,-4);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, avals,zpvals,ParamCell{:});
+    elseif l_d==3 && l_a==2 && l_z==1
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        d3vals=shiftdim(d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3)),-2);
+        a1vals=shiftdim(a_grid(1:n_a(1)),-2);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+        zpvals=shiftdim(z_grid,-4);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals,zpvals,ParamCell{:});
+    elseif l_d==1 && l_a==1 && l_z==2
+        dvals=d_grid; dvals(1,1,1)=d_grid(1);
+        avals=shiftdim(a_grid,-1);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-2);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-3);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, dvals, avals, zp1vals,zp2vals, ParamCell{:});
+    elseif l_d==1 && l_a==2 && l_z==2
+        dvals=d_grid;
+        a1vals=shiftdim(a_grid(1:n_a(1)),-1);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-2);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-3);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-4);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, dvals, a1vals,a2vals, zp1vals,zp2vals, ParamCell{:});
+    elseif l_d==2 && l_a==1 && l_z==2
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        avals=shiftdim(a_grid,-2);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-3);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-4);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, avals, zp1vals,zp2vals, ParamCell{:});
+    elseif l_d==2 && l_a==2 && l_z==2
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        a1vals=shiftdim(a_grid(1:n_a(1)),-2);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-4);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-5);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, a1vals,a2vals, zp1vals,zp2vals, ParamCell{:});
+    elseif l_d==3 && l_a==1 && l_z==2
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        d3vals=shiftdim(d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3)),-2);
+        avals=shiftdim(a_grid,-3);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-4);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-5);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, avals, zp1vals,zp2vals,ParamCell{:});
+    elseif l_d==3 && l_a==2 && l_z==2
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        d3vals=shiftdim(d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3)),-2);
+        a1vals=shiftdim(a_grid(1:n_a(1)),-2);
+        a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-3);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-4);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-5);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals, zp1vals,zp2vals,ParamCell{:});
+    end
+    Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_a,N_z]);
 if Case2_Type==2 % (d,z',z)
     if l_d==1 && l_z==1
         dvals=d_grid; dvals(1,1,1)=d_grid(1);
@@ -182,7 +267,7 @@ if Case2_Type==2 % (d,z',z)
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
     end
     Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_z,N_z]);
-elseif Case2_Type==3 % aprime-by-(d,z')
+elseif Case2_Type==3 % (d,z')
     if l_d==1 && l_z==1
         dvals=d_grid; dvals(1,1,1)=d_grid(1);
         zpvals=shiftdim(z_grid,-1);
@@ -197,21 +282,18 @@ elseif Case2_Type==3 % aprime-by-(d,z')
         d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
         zpvals=shiftdim(z_grid,-2);
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, zpvals,ParamCell{:});
-    elseif l_d==2 && l_a==1 && l_z==2
-        apvals=a_grid(1:n_a(1));
-        d1vals=shiftdim(d_grid(1:n_d(1),-1));
-        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-2);
-        zp1vals=shiftdim(z_grid(1:n_z(1)),-3);
-        zp2vals=shiftdim(z_grid(n_z(1)+1:sum(n_z(1:2))),-4);
-        Phi_aprimeMatrix=arrayfun(Phi_aprime,apvals, d1vals,d2vals, zp1vals,zp2vals,ParamCell{:});
-    elseif l_d==2 && l_a==2 && l_z==2
-        ap1vals=a_grid(1:n_a(1));
-        ap2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1);
-        d1vals=shiftdim(d_grid(1:n_d(1)),-2);
-        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-3);
-        zp1vals=shiftdim(z_grid(1:n_z(1)),-4);
-        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-5);
-        Phi_aprimeMatrix=arrayfun(Phi_aprime, ap1vals,ap2vals, d1vals,d2vals, zp1vals,zp2vals,ParamCell{:});
+    elseif l_d==2 && l_z==2
+        d1vals=d_grid(1:n_d(1),-1);
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-2);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:sum(n_z(1:2))),-3);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, zp1vals,zp2vals,ParamCell{:});
+    elseif l_d==2 && l_z==2
+        d1vals=d_grid(1:n_d(1));
+        d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
+        zp1vals=shiftdim(z_grid(1:n_z(1)),-2);
+        zp2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-3);
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals, zp1vals,zp2vals,ParamCell{:});
     elseif l_d==3 && l_z==1
         d1vals=d_grid(1:n_d(1));
         d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);

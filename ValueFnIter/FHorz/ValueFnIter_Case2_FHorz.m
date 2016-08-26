@@ -2,7 +2,7 @@ function [V, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_g
 
 
 %% Check which vfoptions have been used, set all others to defaults 
-if nargin<16
+if ~exist('vfoptions','var')
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
 %     vfoptions.tolerance=10^(-9);
