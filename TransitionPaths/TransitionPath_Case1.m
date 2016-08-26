@@ -160,6 +160,8 @@ while PricePathDist>transpathoptions.tolerance
         PolicyIndexesPath(:,:,T-i)=Policy;
         Vnext=V;
     end
+    % Free up space on GPU by deleting things no longer needed
+    clear ReturnMatrix ReturnMatrix_z entireRHS entireEV_z EV_z Vtemp maxindex V Vnext
     
     
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
@@ -221,7 +223,8 @@ while PricePathDist>transpathoptions.tolerance
         
         AgentDist=AgentDistnext;
     end
-    
+    % Free up space on GPU by deleting things no longer needed
+    clear Ptemp Ptran AgentDistnext AgentDist PolicyTemp
     
     %See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));

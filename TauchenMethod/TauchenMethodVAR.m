@@ -42,7 +42,7 @@ n=length(znum); % number of variables in VAR
 prod_znum=cumprod_znum(n); % number of states in Markov chain
 sigma=sqrt(sigmasq); %stddev of e
 
-q_sigmaz=q.*sqrt(diag(substitutefor_dlyap(rho,diag(sigmasq)))); % std.dev. of y
+q_sigmaz=real(q.*sqrt(diag(substitutefor_dlyap(rho,diag(sigmasq))))); % std.dev. of y
 zgrids=cell(n,1); z=nan(n,prod_znum);
 for i=1:n
     if znum(i)>1

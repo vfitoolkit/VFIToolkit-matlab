@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_i, N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 %[V, PolicyIndexes]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,n_i,N_j, pi_z, beta_j, FmatrixFn_ij)
 
 % N_d=prod(n_d);
