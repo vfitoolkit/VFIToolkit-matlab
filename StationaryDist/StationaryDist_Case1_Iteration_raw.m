@@ -64,9 +64,9 @@ elseif simoptions.parallel==2 % Using the GPU
     else
         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
     end
-    Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
-    Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-    Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+    Ptran=zeros(N_a,N_a*N_z,'gpuArray');
+    Ptran(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+    Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptran));
 %     timeP=toc
 
 %     tic;
