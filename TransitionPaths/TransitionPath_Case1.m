@@ -119,7 +119,7 @@ IndexesForPathParamsInMarketPriceParams=CreateParamVectorIndexes(MarketPricePara
 IndexesForMarketPriceParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,MarketPriceParamNames);
 
 
-while PricePathDist>transpathoptions.tolerance
+while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
