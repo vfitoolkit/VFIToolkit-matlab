@@ -4,7 +4,6 @@ function [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_g
 if nargin<13
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.tolerance=10^(-9);
 %     vfoptions.exoticpreferences=0;
     vfoptions.parallel=2;
     vfoptions.returnmatrix=2;
@@ -40,10 +39,6 @@ else
             vfoptions.returnmatrix=1;
         end
     end
-%     eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
-%     if fieldexists==0
-%         vfoptions.tolerance=10^(-9);
-%     end
     eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
     if fieldexists==0
         vfoptions.polindorval=1;
@@ -109,12 +104,20 @@ end
 % end
 
 %% 
-
+% eval('fieldexists=1;vfoptions.ExogShockFn;','fieldexists=0;')
+% if fieldexists==0
 if N_d==0
     [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 else
     [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 end
+% elseif %fieldexists==1
+%     if N_d==0
+%         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_ExogShock_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, ExogShocksFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+%     else
+%         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExogShock_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, ExogShocksFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+%     end
+% end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 V=reshape(VKron,[n_a,n_z,N_j]);

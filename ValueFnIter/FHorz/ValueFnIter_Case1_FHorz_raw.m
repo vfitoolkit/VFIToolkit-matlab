@@ -8,6 +8,9 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 PolicyIndexes=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
+
+eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
     
@@ -94,6 +97,14 @@ end
 for reverse_j=1:N_j-1
     j=N_j-reverse_j;
 
+    if vfoptions.verbose==1
+        sprintf('Finite horizon: %i of %i',reverse_j, N_j)
+    end
+    
+    if fieldexists_ExogShockFn==1
+        [z_grid,pi_z]=vfoptions.ExogShockFn(j);
+    end
+    
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);

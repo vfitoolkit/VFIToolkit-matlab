@@ -15,6 +15,7 @@ if nargin<23
     transpathoptions.exoticpreferences=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
+    transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
 else
@@ -38,6 +39,10 @@ else
     eval('fieldexists=1;transpathoptions.weightscheme;','fieldexists=0;')
     if fieldexists==0
         transpathoptions.weightscheme=1;
+    end
+    eval('fieldexists=1;transpathoptions.Ttheta;','fieldexists=0;')
+    if fieldexists==0
+        transpathoptions.Ttheta=1;
     end
     eval('fieldexists=1;transpathoptions.maxiterations;','fieldexists=0;')
     if fieldexists==0
@@ -241,7 +246,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
-        PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
+%         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
+        Ttheta=transpathoptions.Ttheta;
+        PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
+        PricePathOld(Ttheta:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-Ttheta)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(Ttheta:T-1,:)+((exp(linspace(0,log(0.2),T-Ttheta)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(Ttheta:T-1,:);
     elseif transpathoptions.weightscheme==3 % A gradually opening window.
         if (pathcounter*3)<T-1
             PricePathOld(1:(pathcounter*3),:)=transpathoptions.oldpathweight*PricePathOld(1:(pathcounter*3),:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:(pathcounter*3),:);
