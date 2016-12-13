@@ -13,7 +13,6 @@ nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
 nFields=length(FullParamNames);
 
-VectorOfParamValues=nan(nCalibParams,1);
 if nargin==2
     for iCalibParam = 1:nCalibParams
         found=0;
