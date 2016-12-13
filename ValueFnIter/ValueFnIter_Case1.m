@@ -1,4 +1,5 @@
 function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% Solves infinite-horizon 'Case 1' value function problems.
 
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<13

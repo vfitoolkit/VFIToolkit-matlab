@@ -97,7 +97,7 @@ if Parallel~=2
         SSvalues_AggVars(i)=sum(WeightedValues);
         
         
-        [trash1,SortedValues_index] = sort(Values);
+        [~,SortedValues_index] = sort(Values);
         
         SortedSteadyStateDistVec=SteadyStateDistVec(SortedValues_index);
         SortedWeightedValues=WeightedValues(SortedValues_index);
@@ -117,7 +117,7 @@ if Parallel~=2
         %variables to 5 decimal points before checking for uniqueness (Do 
         %this because otherwise rounding in the ~12th decimal place was causing 
         % problems with vector not being sorted as strictly increasing.
-        [trash2,UniqueIndex] = unique(floor(CumSumSortedSteadyStateDistVec*10^5),'first');
+        [~,UniqueIndex] = unique(floor(CumSumSortedSteadyStateDistVec*10^5),'first');
         CumSumSortedSteadyStateDistVec_NoDuplicates=CumSumSortedSteadyStateDistVec(sort(UniqueIndex));
         SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
         
@@ -216,7 +216,7 @@ else %Parallel==2
         SSvalues_AggVars(i)=sum(WeightedValues);
         
         
-        [trash1,SortedValues_index] = sort(Values);
+        [~,SortedValues_index] = sort(Values);
         
         SortedSteadyStateDistVec=SteadyStateDistVec(SortedValues_index);
         SortedWeightedValues=WeightedValues(SortedValues_index);
@@ -231,7 +231,7 @@ else %Parallel==2
         %variables to 5 decimal points before checking for uniqueness (Do 
         %this because otherwise rounding in the ~12th decimal place was causing 
         % problems with vector not being sorted as strictly increasing.
-        [trash2,UniqueIndex] = unique(floor(CumSumSortedSteadyStateDistVec*10^5),'first');
+        [~,UniqueIndex] = unique(floor(CumSumSortedSteadyStateDistVec*10^5),'first');
         CumSumSortedSteadyStateDistVec_NoDuplicates=CumSumSortedSteadyStateDistVec(sort(UniqueIndex));
         SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
         
