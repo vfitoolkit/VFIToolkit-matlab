@@ -10,7 +10,8 @@ end
 
 MarketClearanceVec=ones(1,length(MarketPriceEqns),'gpuArray')*Inf;
 for i=1:length(MarketPriceEqns)
-    MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
+    MarketClearanceVec(i)=MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
+%     MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
 end
 
 
