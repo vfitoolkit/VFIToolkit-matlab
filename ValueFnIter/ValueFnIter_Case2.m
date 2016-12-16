@@ -66,7 +66,9 @@ N_z=prod(n_z);
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames);
+if vfoptions.phiaprimematrix~=1
+    PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames);
+end
 
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 if vfoptions.parallel==2 
