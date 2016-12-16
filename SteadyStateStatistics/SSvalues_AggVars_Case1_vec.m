@@ -16,7 +16,7 @@ nargin_vec=zeros(numel(SSvaluesFn),1);
 for ii=1:numel(SSvaluesFn)
     nargin_vec(ii)=nargin(SSvaluesFn{ii});
 end
-if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
+if max(nargin_vec)==(l_d+2*l_a+l_z+length(p_val)+length(SSvalueParamsVec)) && Parallel==2
     SSvalues_AggVars=SSvalues_AggVars_Case1_NoPi(StationaryDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
     return 
 end

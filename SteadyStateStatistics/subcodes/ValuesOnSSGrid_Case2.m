@@ -17,51 +17,56 @@ for ii=1:length(ValuesFnParams)
     ParamCell(ii,1)={ValuesFnParams(ii)};
 end
 
+p_valCell=cell(length(p_val),1);
+for ii=1:length(p_val)
+    p_valCell(ii,1)={p_val(ii)};
+end
+
 
 if l_d==1 && l_a==1 && l_z==1
     dvals=PolicyValuesPermute(:,:,1);
     avals=a_grid;
     zvals=shiftdim(z_grid,-1);
-    Values=arrayfun(ValuesFn, dvals, avals, zvals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, dvals, avals, zvals,p_valCell{:}, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==2
     dvals=PolicyValuesPermute(:,:,:,1);
     avals=a_grid;
     z1vals=shiftdim(z_grid(1:n_z(1)),-1);
     z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-2);
-    Values=arrayfun(ValuesFn, dvals, avals, z1vals,z2vals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, dvals, avals, z1vals,z2vals,p_valCell{:}, ParamCell{:});
 elseif l_d==1 && l_a==2 && l_z==1
     dvals=PolicyValuesPermute(:,:,:,1);
     a1vals=a_grid(1:n_a(1));
     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-1);
     zvals=shiftdim(z_grid,-2);
-    Values=arrayfun(ValuesFn, dvals,a1vals,a2vals, zvals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, dvals,a1vals,a2vals, zvals,p_valCell{:}, ParamCell{:});
 elseif l_d==1 && l_a==2 && l_z==2
     dvals=PolicyValuesPermute(:,:,:,:,1);
     a1vals=a_grid(1:n_a(1));
     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-1);
     z1vals=shiftdim(z_grid(1:n_z(1)),-2);
     z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-3);
-    Values=arrayfun(ValuesFn, dvals, a1vals,a2vals, z1vals,z2vals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, dvals, a1vals,a2vals, z1vals,z2vals,p_valCell{:}, ParamCell{:});
 elseif l_d==2 && l_a==1 && l_z==1
     d1vals=PolicyValuesPermute(:,:,1);
     d2vals=PolicyValuesPermute(:,:,2);
     avals=a_grid;
     zvals=shiftdim(z_grid,-1);
-    Values=arrayfun(ValuesFn, d1vals, d2vals, avals, zvals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, avals, zvals,p_valCell{:}, ParamCell{:});
 elseif l_d==2 && l_a==1 && l_z==2
     d1vals=PolicyValuesPermute(:,:,:,1);
     d2vals=PolicyValuesPermute(:,:,:,2);
     avals=a_grid;
     z1vals=shiftdim(z_grid(1:n_z(1)),-1);
     z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-2);
-    Values=arrayfun(ValuesFn, d1vals, d2vals, avals, z1vals,z2vals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, avals, z1vals,z2vals,p_valCell{:}, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==1
     d1vals=PolicyValuesPermute(:,:,:,1);
     d2vals=PolicyValuesPermute(:,:,:,2);
     a1vals=a_grid(1:n_a(1));
     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-1);
     zvals=shiftdim(z_grid,-2);
-    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, zvals,p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, zvals,p_valCell{:}, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==2
     d1vals=PolicyValuesPermute(:,:,:,:,1);
     d2vals=PolicyValuesPermute(:,:,:,:,2);
@@ -69,7 +74,7 @@ elseif l_d==2 && l_a==2 && l_z==2
     a2vals=shiftdim(a_grid(n_a(1)+1:n_a(1)+n_a(2)),-1);
     z1vals=shiftdim(z_grid(1:n_z(1)),-2);
     z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-3);
-    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, z1vals, z2vals, p_val, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, z1vals, z2vals, p_valCell{:}, ParamCell{:});
 end
 
 Values=reshape(Values,[N_a,N_z]);
