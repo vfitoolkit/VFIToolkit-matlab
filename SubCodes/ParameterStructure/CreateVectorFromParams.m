@@ -1,18 +1,24 @@
 function VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames,index1,index2)
-
+%
+% VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames)
+% VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames,index1)
+% VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames,index1,index2)
+%
 % CreateVectorFromParams looks in structure called 'Parameters' and 
 % then creates a vector containing the values of it's fields that
 % correspond to those field names in ParamNames (and in the order
 % given by CalibParamNames)
-
+%
 % Some parameters are stored in the Parameters structure as vectors or
 % matrices (eg., because the parameter values depends on age). In these 
 % cases 'index1' (and 'index2') can be used to specify which is the relevant element.
+%
 
 nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
 nFields=length(FullParamNames);
 
+VectorOfParamValues=zeros(1,nCalibParams);
 if nargin==2
     for iCalibParam = 1:nCalibParams
         found=0;

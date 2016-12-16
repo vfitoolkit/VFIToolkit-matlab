@@ -28,12 +28,12 @@ for p_c=1:N_p
     %Step 1: Solve the value fn iteration problem (given this price, indexed by p_c)
     %Calculate the price vector associated with p_c
     p_index=ind2sub_homemade(n_p,p_c);
-    p=cell(l_p,1);
+    p=nan(l_p,1);
     for ii=1:l_p
         if ii==1
-            p{ii}=p_grid(p_index(1));
+            p(ii)=p_grid(p_index(1));
         else
-            p{ii}=p_grid(sum(n_p(1:ii-1))+p_index(ii));
+            p(ii)=p_grid(sum(n_p(1:ii-1))+p_index(ii));
         end
         Parameters.(PriceParamNames{ii})=gather(p(ii));
     end
