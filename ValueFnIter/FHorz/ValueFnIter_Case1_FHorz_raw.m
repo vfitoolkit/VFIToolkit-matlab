@@ -108,6 +108,7 @@ for reverse_j=1:N_j-1
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     VKronNext_j=V(:,:,j+1);
     
