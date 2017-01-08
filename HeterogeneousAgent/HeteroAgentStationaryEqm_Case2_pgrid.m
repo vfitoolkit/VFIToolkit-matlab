@@ -58,7 +58,7 @@ if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance i
 end
 
 %p_eqm_index=zeros(num_p,1);
-p_eqm_index=ind2sub_homemade(n_p,p_eqm_indexKron);
+p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
 MarketClearance=reshape(MarketClearanceKron,[n_p,1]);
 
 
