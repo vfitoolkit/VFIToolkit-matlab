@@ -9,6 +9,8 @@ Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for 
 %%
 
 eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
@@ -51,6 +53,17 @@ end
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+
+if fieldexists_ExogShockFn==1
+    if fieldexists_ExogShockFnParamNames==1
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+    else
+        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+    end
+end
 
 if vfoptions.lowmemory==0
     
@@ -100,14 +113,23 @@ for reverse_j=1:N_j-1
         sprintf('Finite horizon: %i of %i (counting backwards to 1)',j, N_j)
     end
     
-    if fieldexists_ExogShockFn==1
-        [z_grid,pi_z]=vfoptions.ExogShockFn(j);
-    end
     
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+    if fieldexists_ExogShockFn==1
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,j);
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        else
+            [z_grid,pi_z]=vfoptions.ExogShockFn(j);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        end
+    end
+
     
     VKronNext_j=V(:,:,j+1);
     

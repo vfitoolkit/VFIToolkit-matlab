@@ -54,6 +54,18 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
+if fieldexists_ExogShockFn==1
+    if fieldexists_ExogShockFnParamNames==1
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+    else
+        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+    end
+end
+
+
 if vfoptions.lowmemory==0
     
     %if vfoptions.returnmatrix==2 % GPU
@@ -101,15 +113,24 @@ for reverse_j=1:N_j-1
         sprintf('Finite horizon: %i of %i',reverse_j, N_j)
     end
     
-    if fieldexists_ExogShockFn==1
-        [z_grid,pi_z]=vfoptions.ExogShockFn(j);
-    end
     
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+    if fieldexists_ExogShockFn==1
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,j);
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        else
+            [z_grid,pi_z]=vfoptions.ExogShockFn(j);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        end
+    end
+    
+    
     VKronNext_j=V(:,:,j+1);
     
     if lowmemory==0
