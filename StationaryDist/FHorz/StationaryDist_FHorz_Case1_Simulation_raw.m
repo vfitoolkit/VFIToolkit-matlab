@@ -22,11 +22,30 @@ if simoptions.parallel==2
     MoveSSDKtoGPU=1;
 end
 
+% This implementation is slightly inefficient when shocks are not age
+% dependent, but speed loss is fairly trivial
+eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+if fieldexists_ExogShockFn==1
+    pi_z_J=zeros(N_z,N_z,N_j);
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+        else
+            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
+        end
+        pi_z_J(:,:,jj);
+    end
+else
+    pi_z_J=repmat(pi_z,1,1,N_j);
+end
+
 if simoptions.parallel==1
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
     StationaryDistKron=zeros(N_a*N_z,N_j,simoptions.ncores);
-    cumsum_pi_z=cumsum(pi_z,2);
+    cumsum_pi_z_J=cumsum(pi_z_J,2);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
     %Create simoptions.ncores different steady state distn's, then combine them.
     if N_d==0
@@ -38,7 +57,7 @@ if simoptions.parallel==1
             SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
                 currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
+                currstate(2)=max(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
                 SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
             end
             StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
@@ -55,7 +74,7 @@ if simoptions.parallel==1
             SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
                 currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),jj);
-                currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
+                currstate(2)=max(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
                 SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
             end
             StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
@@ -67,7 +86,7 @@ elseif simoptions.parallel==0
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
     StationaryDistKron=zeros(N_a*N_z,N_j,simoptions.ncores);
-    cumsum_pi_z=cumsum(pi_z,2);
+    cumsum_pi_z_J=cumsum(pi_z_J,2);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
     %Create simoptions.ncores different steady state distn's, then combine them.
     if N_d==0
@@ -78,7 +97,7 @@ elseif simoptions.parallel==0
         SteadyStateDistKron(currstate(1),currstate(2),1)=SteadyStateDistKron(currstate(1),currstate(2),1)+1;
         for jj=1:(N_j-1)
             currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj);
-            currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
+            currstate(2)=max(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
             SteadyStateDistKron(currstate(1),currstate(2),jj+1)=SteadyStateDistKron(currstate(1),currstate(2),jj+1)+1;
         end
         StationaryDistKron=sum(StationaryDistKron,4);
@@ -92,7 +111,7 @@ elseif simoptions.parallel==0
         SteadyStateDistKron(currstate(1),currstate(2),1)=SteadyStateDistKron(currstate(1),currstate(2),1)+1;
         for jj=1:(N_j-1)
             currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),jj);
-            currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
+            currstate(2)=max(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1)); %NEED TO IMPLEMENT OPTION OF AGE DEPENDENT EXOGSHOCKFN
             SteadyStateDistKron(currstate(1),currstate(2),jj+1)=SteadyStateDistKron(currstate(1),currstate(2),jj+1)+1;
         end
         StationaryDistKron=sum(StationaryDistKron,4);
