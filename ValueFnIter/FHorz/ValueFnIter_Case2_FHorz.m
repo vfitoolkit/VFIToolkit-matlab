@@ -14,6 +14,7 @@ if ~exist('vfoptions','var')
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
+    vfoptions.nphi=1;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
@@ -30,6 +31,10 @@ else
     eval('fieldexists=1;vfoptions.phiaprimedependsonage;','fieldexists=0;')
     if fieldexists==0
         vfoptions.phiaprimedependsonage=0;
+    end
+    eval('fieldexists=1;vfoptions.nphi;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.nphi=1;
     end
     eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
     if fieldexists==0
@@ -120,11 +125,20 @@ end
 % end
 
 %% 
-if vfoptions.parallel==0
-    disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
-    [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
-elseif vfoptions.parallel==2
-    [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+if vfoptions.nphi==1
+    if vfoptions.parallel==0
+        disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
+        [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+    elseif vfoptions.parallel==2
+        [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+    end
+else
+    if vfoptions.parallel==0
+        disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
+        [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+    elseif vfoptions.parallel==2
+        [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+    end
 end
 
 % Transform V & PolicyIndexes out of kroneckered form
