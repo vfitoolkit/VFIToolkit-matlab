@@ -1,11 +1,11 @@
-function Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime,Case2_Type,n_d, n_a, n_z, d_grid, a_grid, z_grid,Phi_aprimeParamsVec)
+function Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime,Case2_Type,n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec)
 
-ParamCell=cell(length(Phi_aprimeParamsVec),1);
-for ii=1:length(Phi_aprimeParamsVec)
-    if size(Phi_aprimeParamsVec(ii))~=[1,1]
+ParamCell=cell(length(PhiaprimeParamsVec),1);
+for ii=1:length(PhiaprimeParamsVec)
+    if size(PhiaprimeParamsVec(ii))~=[1,1]
         disp('ERROR: Using GPU for the return fn does not allow for and of Phi_aprimeFnParams to be anything but a scalar')
     end
-    ParamCell(ii,1)={Phi_aprimeParamsVec(ii)};
+    ParamCell(ii,1)={PhiaprimeParamsVec(ii)};
 end
 
 N_d=prod(n_d);
@@ -135,7 +135,7 @@ if Case2_Type==1 % (d,a,z',z)
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals, a1vals,a2vals, zp1vals,zp2vals, z1vals,z2vals,ParamCell{:});
     end
     Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_a,N_z,N_z]);
-elseif Case2_Type==11 % (d,a,z')
+elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
     if l_d==1 && l_a==1 && l_z==1
         dvals=d_grid; dvals(1,1,1)=d_grid(1);
         avals=shiftdim(a_grid,-1);
