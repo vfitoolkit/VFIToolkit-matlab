@@ -65,7 +65,13 @@ else % simoptions.parallel==2
     
     %optdprime=reshape(PolicyKron,[1,N_a*N_z]);
     if Case2_Type==1
-        disp('ERROR: SteadyState_Case2_raw() not yet implemented for Case2_Type==1')
+        disp('ERROR: StationaryDist_Case2_Iteration_raw() not yet implemented for Case2_Type==1')
+        % Create P matrix
+    elseif Case2_Type==11
+        disp('ERROR: StationaryDist_Case2_Iteration_raw() not yet implemented for Case2_Type==11')
+        % Create P matrix
+    elseif Case2_Type==12
+        disp('ERROR: StationaryDist_Case2_Iteration_raw() not yet implemented for Case2_Type==12')
         % Create P matrix
     elseif Case2_Type==2
         % optaprime is here replaced by Phi_of_Policy, which is a different shape
