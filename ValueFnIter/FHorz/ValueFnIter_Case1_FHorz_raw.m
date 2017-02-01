@@ -5,7 +5,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-PolicyIndexes=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
 
@@ -73,7 +73,7 @@ if vfoptions.lowmemory==0
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],3);
     V(:,:,N_j)=Vtemp;
-    PolicyIndexes(:,:,N_j)=maxindex;
+    Policy(:,:,N_j)=maxindex;
 
 elseif vfoptions.lowmemory==1
     
@@ -84,7 +84,7 @@ elseif vfoptions.lowmemory==1
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
         V(:,z_c,N_j)=Vtemp;
-        PolicyIndexes(:,z_c,N_j)=maxindex;
+        Policy(:,z_c,N_j)=maxindex;
     end
     
 elseif vfoptions.lowmemory==2
@@ -98,7 +98,7 @@ elseif vfoptions.lowmemory==2
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_az);
             V(a_c,z_c,N_j)=Vtemp;
-            PolicyIndexes(a_c,z_c,N_j)=maxindex;
+            Policy(a_c,z_c,N_j)=maxindex;
 
         end
     end   
@@ -167,7 +167,7 @@ for reverse_j=1:N_j-1
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,j)=Vtemp;
-            PolicyIndexes(:,z_c,j)=maxindex;
+            Policy(:,z_c,j)=maxindex;
         end
         
     elseif lowmemory==1
@@ -187,7 +187,7 @@ for reverse_j=1:N_j-1
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,j)=Vtemp;
-            PolicyIndexes(:,z_c,j)=maxindex;
+            Policy(:,z_c,j)=maxindex;
         end
         
     elseif lowmemory==2
@@ -209,7 +209,7 @@ for reverse_j=1:N_j-1
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
                 V(a_c,z_c,j)=Vtemp;
-                PolicyIndexes(a_c,z_c,j)=maxindex;
+                Policy(a_c,z_c,j)=maxindex;
             end
         end
         
@@ -217,7 +217,7 @@ for reverse_j=1:N_j-1
 end
 
 Policy=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy(1,:,:,:)=shiftdim(rem(PolicyIndexes-1,N_d)+1,-1);
-Policy(2,:,:,:)=shiftdim(ceil(PolicyIndexes/N_d),-1);
+Policy(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+Policy(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

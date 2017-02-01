@@ -59,7 +59,7 @@ if vfoptions.lowmemory==0
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],3);
     V(:,:,N_j)=Vtemp;
-    PolicyIndexes(:,:,N_j)=maxindex;
+    Policy(:,:,N_j)=maxindex;
 
 elseif vfoptions.lowmemory==1
     
@@ -70,7 +70,7 @@ elseif vfoptions.lowmemory==1
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
         V(:,z_c,N_j)=Vtemp;
-        PolicyIndexes(:,z_c,N_j)=maxindex;
+        Policy(:,z_c,N_j)=maxindex;
     end
     
 elseif vfoptions.lowmemory==2
@@ -84,7 +84,7 @@ elseif vfoptions.lowmemory==2
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_az);
             V(a_c,z_c,N_j)=Vtemp;
-            PolicyIndexes(a_c,z_c,N_j)=maxindex;
+            Policy(a_c,z_c,N_j)=maxindex;
 
         end
     end   

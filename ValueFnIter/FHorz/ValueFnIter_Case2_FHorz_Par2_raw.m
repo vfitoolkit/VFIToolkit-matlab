@@ -81,7 +81,7 @@ if vfoptions.lowmemory==0
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
-    PolicyIndexes(:,:,N_j)=maxindex;
+    Policy(:,:,N_j)=maxindex;
     
 elseif vfoptions.lowmemory==1
     
@@ -92,7 +92,7 @@ elseif vfoptions.lowmemory==1
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
         V(:,z_c,N_j)=Vtemp;
-        PolicyIndexes(:,z_c,N_j)=maxindex;
+        Policy(:,z_c,N_j)=maxindex;
     end
     
 elseif vfoptions.lowmemory==2
@@ -106,7 +106,7 @@ elseif vfoptions.lowmemory==2
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_a,[],1);
             V(a_c,:,N_j)=Vtemp;
-            PolicyIndexes(a_c,:,N_j)=maxindex;
+            Policy(a_c,:,N_j)=maxindex;
             
         end
 %     end
@@ -595,7 +595,7 @@ if Case2_Type==3  % phi_a'(d,z')
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V(:,z_c,jj)=Vtemp;
-                PolicyIndexes(:,z_c,jj)=maxindex;
+                Policy(:,z_c,jj)=maxindex;
             end
         elseif vfoptions.lowmemory==1
             for z_c=1:N_z
@@ -620,7 +620,7 @@ if Case2_Type==3  % phi_a'(d,z')
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V(:,z_c,jj)=Vtemp;
-                PolicyIndexes(:,z_c,jj)=maxindex;
+                Policy(:,z_c,jj)=maxindex;
             end
         elseif vfoptions.lowmemory==2
             EV_z=zeros(N_d,1);
