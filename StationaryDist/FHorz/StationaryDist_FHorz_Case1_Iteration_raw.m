@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -77,5 +77,22 @@ elseif simoptions.parallel==2 % Using the GPU
         StationaryDistKron(:,jj+1)=Ptran*StationaryDistKron(:,jj);
     end
 end
+
+% Reweight the different ages based on 'AgeWeightParamNames'. (it is
+% assumed there is only one Age Weight Parameter (name))
+FullParamNames=fieldnames(Parameters);
+nFields=length(FullParamNames);
+found=0;
+for iField=1:nFields
+    if strcmp(AgeWeightParamNames{1},FullParamNames{iField})
+        AgeWeights=Parameters.(FullParamNames{iField});
+        found=1;
+    end
+end
+if found==0 % Have added this check so that user can see if they are missing a parameter
+    fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
+end
+% I assume AgeWeights is a row vector
+StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z,1)*AgeWeights);
 
 end

@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_Simulation(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z, simoptions)
+function StationaryDist=StationaryDist_FHorz_Case2_Simulation(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Params,PhiaprimeParamNames,simoptions)
 %Simulates a path based on PolicyIndexes of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
@@ -7,7 +7,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
-if nargin<6
+if nargin<12
     simoptions.nsims=10^4;
     simoptions.parallel=2;
     simoptions.verbose=0;
@@ -36,11 +36,11 @@ else
 end
 
 %%
-PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,simoptions);
+PolicyKron=KronPolicyIndexes_FHorz_Case2(Policy, n_d, n_a, n_z,N_j,simoptions);
 
 jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
 
-StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_j,pi_z, simoptions);
+StationaryDistKron=StationaryDist_FHorz_Case2_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Params,PhiaprimeParamNames,simoptions);
     
 StationaryDist=reshape(StationaryDistKron,[n_a,n_z,N_j]);
 

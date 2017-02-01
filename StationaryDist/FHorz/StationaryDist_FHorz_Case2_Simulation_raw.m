@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z, simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case2_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions)
 %Simulates path based on PolicyIndexes of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
@@ -8,6 +8,11 @@ function StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneD
 %    simoptions.parallel
 %    simoptions.verbose
 %    simoptions.ncores
+
+
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
 
 MoveSSDKtoGPU=0;
 if simoptions.parallel==2
@@ -119,7 +124,6 @@ elseif simoptions.parallel==0
     end
 end
 
-
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is
 % assumed there is only one Age Weight Parameter (name))
 FullParamNames=fieldnames(Parameters);
@@ -140,5 +144,7 @@ StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z,1)*AgeWeights);
 if MoveSSDKtoGPU==1
     StationaryDistKron=gpuArray(StationaryDistKron);
 end
+
+
 
 end
