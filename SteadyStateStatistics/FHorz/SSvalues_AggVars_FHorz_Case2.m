@@ -84,7 +84,6 @@ else
 
 end
 
-% 
 % % % Includes check for cases in which no parameters are actually required
 % % if (isempty(SSvalueParamNames) || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
 % %     SSvalueParamsVec=[];

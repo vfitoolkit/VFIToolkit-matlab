@@ -102,7 +102,6 @@ else
 end
 
 
-% 
 % if n_d(1)==0
 %     l_d=0;
 % else
