@@ -1,4 +1,4 @@
-function MarketClearance=HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, MarketPriceParamNames, PriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function MarketClearance=HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, MarketClearanceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, MarketClearanceParamNames, PriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -24,7 +24,7 @@ SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, 
 
 % use of real() is a hack that could disguise errors, but I couldn't
 % find why matlab was treating output as complex
-MarketClearanceVec=real(MarketClearance_Case2(SSvalues_AggVars,p, MarketPriceEqns, Parameters,MarketPriceParamNames));
+MarketClearanceVec=real(MarketClearance_Case2(SSvalues_AggVars,p, MarketClearanceEqns, Parameters,MarketClearanceParamNames));
 
 if heteroagentoptions.multimarketcriterion==0 %only used when there is only one price 
     MarketClearance=MarketClearanceVec;
