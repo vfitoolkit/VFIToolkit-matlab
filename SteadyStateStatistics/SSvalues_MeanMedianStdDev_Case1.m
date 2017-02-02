@@ -20,7 +20,7 @@ for ii=1:numel(SSvaluesFn)
     nargin_vec(ii)=nargin(SSvaluesFn{ii});
 end
 if max(nargin_vec)==(l_d+2*l_a+l_z+1+length(SSvalueParamsVec)) && Parallel==2
-    SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
+    SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_Case1_NoPi(SteadyStateDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, p_val, Parallel);
     return 
 end
 
