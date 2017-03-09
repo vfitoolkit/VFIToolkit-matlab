@@ -67,16 +67,16 @@ N_z=prod(n_z);
 
 
 %% Check the sizes of some of the inputs
-if size(d_grid)~=[N_d, 1]
-    disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
+if size(d_grid)~=[sum(n_d), 1]
+    disp('ERROR: d_grid is not the correct shape (should be  of size sum(n_d)-by-1)')
     dbstack
     return
-elseif size(a_grid)~=[N_a, 1]
-    disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
+elseif size(a_grid)~=[sum(n_a), 1]
+    disp('ERROR: a_grid is not the correct shape (should be  of size sum(n_a)-by-1)')
     dbstack
     return
-elseif size(z_grid)~=[N_z, 1]
-    disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
+elseif size(z_grid)~=[sum(n_z), 1]
+    disp('ERROR: z_grid is not the correct shape (should be  of size sum(n_z)-by-1)')
     dbstack
     return
 elseif size(pi_z)~=[N_z, N_z]
