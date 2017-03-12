@@ -14,10 +14,10 @@ N_z=prod(n_z);
 l_a=length(n_a); 
 l_z=length(n_z);
 if l_a>2
-    disp('ERROR: Using GPU for the return fn does not allow for more than two of any variable (you have length(n_a)>2): (in CreateReturnFnMatrix_Case1_Disc_Parallel2). Email me (robertdkirkby@gmail.com) and I will add this functionality (have been too lazy till now).')
+    disp('ERROR: Using GPU for the return fn does not allow for more than two of a variable (you have length(n_a)>2): (in CreateReturnFnMatrix_Case1_Disc_Parallel2). Email me (robertdkirkby@gmail.com) and I will add this functionality (have been too lazy till now).')
 end
 if l_z>4
-    disp('ERROR: Using GPU for the return fn does not allow for more than two of any variable (you have length(n_z)>2): (in CreateReturnFnMatrix_Case1_Disc_Parallel2). Email me (robertdkirkby@gmail.com) and I will add this functionality (have been too lazy till now).')
+    disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case1_Disc_Parallel2). Email me (robertdkirkby@gmail.com) and I will add this functionality (have been too lazy till now).')
 end
 
 if N_d==0
@@ -90,7 +90,7 @@ if N_d==0
 else
     l_d=length(n_d); 
     if l_d>2
-        disp('ERROR: Using GPU the return fn does not allow for more than two of any variable (length(n_d)>2): (in CreateReturnFnMatrix_Case1_Disc_Parallel2)')
+        disp('ERROR: Using GPU the return fn does not allow for more than two of d variable (length(n_d)>2): (in CreateReturnFnMatrix_Case1_Disc_Parallel2)')
     end
     
     if l_d==1 && l_a==1 && l_z==1
