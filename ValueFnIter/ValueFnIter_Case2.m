@@ -13,6 +13,7 @@ if nargin<15
     vfoptions.parallel=2;
     vfoptions.verbose=0;
     vfoptions.tolerance=10^(-9);
+    vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
@@ -55,6 +56,10 @@ else
     eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
     if fieldexists==0
         vfoptions.tolerance=10^(-9);
+    end
+    eval('fieldexists=1;vfoptions.policy_forceintegertype;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.policy_forceintegertype=0;
     end
 end
 
@@ -142,5 +147,8 @@ if vfoptions.polindorval==1
     Policy=UnKronPolicyIndexes_Case2(Policy, n_d, n_a, n_z,vfoptions);
 end
 
+if vfoptions.policy_forceintegertype==1
+    Policy=uint64(Policy);
+end
 
 end

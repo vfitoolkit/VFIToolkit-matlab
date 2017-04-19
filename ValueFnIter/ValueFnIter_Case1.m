@@ -14,6 +14,7 @@ if nargin<13
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
+    vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
@@ -58,6 +59,10 @@ else
     eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
     if fieldexists==0
         vfoptions.polindorval=1;
+    end
+    eval('fieldexists=1;vfoptions.policy_forceintegertype;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.policy_forceintegertype=0;
     end
 end
 
@@ -249,5 +254,8 @@ if vfoptions.polindorval==2
     Policy=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,vfoptions.parallel);
 end
     
+if vfoptions.policy_forceintegertype==1
+    Policy=uint64(Policy);
+end
 
 end

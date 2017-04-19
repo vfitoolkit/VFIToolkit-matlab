@@ -15,6 +15,7 @@ if ~exist('vfoptions','var')
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
     vfoptions.nphi=1;
+    vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
@@ -63,6 +64,10 @@ else
     eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
     if fieldexists==0
         vfoptions.polindorval=1;
+    end
+    eval('fieldexists=1;vfoptions.policy_forceintegertype;','fieldexists=0;')
+    if fieldexists==0
+        vfoptions.policy_forceintegertype=0;
     end
 end
 
@@ -144,5 +149,9 @@ end
 % Transform V & PolicyIndexes out of kroneckered form
 V=reshape(VKron,[n_a,n_z,N_j]);
 Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z,N_j,vfoptions);
+
+if vfoptions.policy_forceintegertype==1
+    Policy=uint64(Policy);
+end
 
 end
