@@ -43,7 +43,7 @@ for p_c=1:N_p
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_s,pi_s,simoptions);
-    SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2); % The 2 is for Parallel (use GPU)
+    SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, 2); % The 2 is for Parallel (use GPU)
     
     % The following line is often a useful double-check if something is going wrong.
 %    SSvalues_AggVars
@@ -60,10 +60,19 @@ end
 
 %p_eqm_index=zeros(num_p,1);
 p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
-MarketClearance=reshape(MarketClearanceKron,[n_p,1]);
+if l_p>1
+    MarketClearance=nan(N_p,1+l_p,'gpuArray');
+    if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
+        MarketClearance(:,1)=sum(MarketClearanceKron.^2,2);
+    end
+    MarketClearance(:,2:end)=MarketClearanceKron;
+    MarketClearance=reshape(MarketClearance,[n_p,1+l_p]);
+else
+    MarketClearance=reshape(MarketClearanceKron,[n_p,1]);
+end
+
 
 %Calculate the price associated with p_eqm_index
-l_p=length(n_p);
 p_eqm=zeros(l_p,1);
 for ii=1:l_p
     if ii==1
