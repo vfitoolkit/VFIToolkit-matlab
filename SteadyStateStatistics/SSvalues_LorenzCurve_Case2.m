@@ -1,10 +1,13 @@
-function SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case2(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel)
+function SSvalues_LorenzCurve=SSvalues_LorenzCurve_Case2(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, npoints)
 %Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1 to 100
 
 %Note that to unnormalize the Lorenz Curve you can just multiply it be the
 %SSvalues_AggVars for the same variable. This will give you the inverse
 %cdf.
 
+if nargin<13
+    npoints=100;
+end
 
 l_d=length(n_d);
 l_a=length(n_a);
@@ -47,19 +50,20 @@ if Parallel==2
         %values in are CumSumSortedSteadyStateDist distinct. So we now remove
         %any duplicates (ie. points of zero probability mass/density). We then
         %have to remove the corresponding points of SortedValues
-        [~,UniqueIndex] = unique(CumSumSortedStationaryDistVec,'first');
+%         [~,UniqueIndex] = unique(CumSumSortedStationaryDistVec,'first');
+        [~,UniqueIndex] = uniquetol(CumSumSortedStationaryDistVec); % uses a default tolerance of 1e-6 for single-precision inputs and 1e-12 for double-precision inputs
         CumSumSortedStationaryDistVec_NoDuplicates=CumSumSortedStationaryDistVec(sort(UniqueIndex));
         SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
-        
         CumSumSortedWeightedValues_NoDuplicates=cumsum(SortedWeightedValues_NoDuplicates);
         
-        InverseCDF_xgrid=0.01:0.01:1;
+
+        InverseCDF_xgrid=gpuArray(1/npoints:1/npoints:1);
         
         InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
         % interp1 cannot work for the point of InverseCDF_xgrid=1 (gives NaN). Since we
         % have already sorted and removed duplicates this will just be the last
         % point so we can just grab it directly.
-        InverseCDF_SSvalues(100)=CumSumSortedWeightedValues_NoDuplicates(length(CumSumSortedWeightedValues_NoDuplicates));
+        InverseCDF_SSvalues(npoints)=CumSumSortedWeightedValues_NoDuplicates(length(CumSumSortedWeightedValues_NoDuplicates));
         % interp1 may have similar problems at the bottom of the cdf
         j=1; %use j to figure how many points with this problem
         while InverseCDF_xgrid(j)<CumSumSortedStationaryDistVec_NoDuplicates(1)
@@ -168,13 +172,13 @@ else
         
         CumSumSortedWeightedValues_NoDuplicates=cumsum(SortedWeightedValues_NoDuplicates);
         
-        InverseCDF_xgrid=0.01:0.01:1;
+        InverseCDF_xgrid=1/npoints:1/npoints:1;
         
         InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
         % interp1 cannot work for the point of InverseCDF_xgrid=1 (gives NaN). Since we
         % have already sorted and removed duplicates this will just be the last
         % point so we can just grab it directly.
-        InverseCDF_SSvalues(100)=CumSumSortedWeightedValues_NoDuplicates(length(CumSumSortedWeightedValues_NoDuplicates));
+        InverseCDF_SSvalues(npoints)=CumSumSortedWeightedValues_NoDuplicates(length(CumSumSortedWeightedValues_NoDuplicates));
         % interp1 may have similar problems at the bottom of the cdf
         j=1; %use j to figure how many points with this problem
         while InverseCDF_xgrid(j)<CumSumSortedStationaryDistVec_NoDuplicates(1)

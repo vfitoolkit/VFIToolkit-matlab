@@ -7,6 +7,10 @@ function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(StationaryDist, Polic
 %SSvalues_AggVars for the same variable. This will give you the inverse
 %cdf.
 
+if nargin<13
+    npoints=100;
+end
+
 if n_d(1)==0
     l_d=0;
 else
@@ -17,10 +21,6 @@ l_z=length(n_z);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
-
-if nargin<13
-    npoints=100;
-end
 
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
@@ -76,7 +76,6 @@ if Parallel==2
         %         CumSumSortedSteadyStateDistVec_NoDuplicates=CumSumSortedSteadyStateDistVec_NoDuplicates(1:firstIndex);
         %         CumSumSortedWeightedValues_NoDuplicates=CumSumSortedWeightedValues_NoDuplicates(1:firstIndex);
         
-        %         InverseCDF_xgrid=gpuArray(0.01:0.01:1);
         InverseCDF_xgrid=gpuArray(1/npoints:1/npoints:1);
         
         
@@ -271,28 +270,28 @@ else
         %We now want to use interpolation, but this won't work unless all
         %values in are CumSumSortedSteadyStateDist distinct. So we now remove
         %any duplicates (ie. points of zero probability mass/density). We then
-        %have to remove the corresponding points of SortedValues. Since we
-        %are just looking for 100 points to make up our cdf I round all
-        %variables to 5 decimal points before checking for uniqueness (Do
-        %this because otherwise rounding in the ~12th decimal place was causing
-        % problems with vector not being sorted as strictly increasing.
-        [~,UniqueIndex] = unique(floor(CumSumSortedStationaryDistVec*10^5),'first');
+        %have to remove the corresponding points of SortedValues. 
+% %         %Since we are just looking for 100 points to make up our cdf I round all
+% %         %variables to 5 decimal points before checking for uniqueness (Do
+% %         %this because otherwise rounding in the ~12th decimal place was causing
+% %         % problems with vector not being sorted as strictly increasing.
+% %         [~,UniqueIndex] = unique(floor(CumSumSortedStationaryDistVec*10^5),'first');
+        [~,UniqueIndex] = uniquetol(CumSumSortedStationaryDistVec); % uses a default tolerance of 1e-6 for single-precision inputs and 1e-12 for double-precision inputs
+
         CumSumSortedStationaryDistVec_NoDuplicates=CumSumSortedStationaryDistVec(sort(UniqueIndex));
         SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
         
         CumSumSortedWeightedValues_NoDuplicates=cumsum(SortedWeightedValues_NoDuplicates);
         
-        %         % I now also get rid of all of those points after the cdf reaches
-        %         % 1-10^(-9). This is just because otherwise rounding in the ~12th
-        %         % decimal place was causing problems with vector not being
-        %         % 'sorted'.
-        %         firstIndex = find((CumSumSortedSteadyStateDistVec_NoDuplicates-1+10^(-9))>0,1,'first');
-        %         CumSumSortedSteadyStateDistVec_NoDuplicates=CumSumSortedSteadyStateDistVec_NoDuplicates(1:firstIndex);
-        %         CumSumSortedWeightedValues_NoDuplicates=CumSumSortedWeightedValues_NoDuplicates(1:firstIndex);
+% %         % I now also get rid of all of those points after the cdf reaches
+% %         % 1-10^(-9). This is just because otherwise rounding in the ~12th
+% %         % decimal place was causing problems with vector not being
+% %         % 'sorted'.
+% %         firstIndex = find((CumSumSortedSteadyStateDistVec_NoDuplicates-1+10^(-9))>0,1,'first');
+% %         CumSumSortedSteadyStateDistVec_NoDuplicates=CumSumSortedSteadyStateDistVec_NoDuplicates(1:firstIndex);
+% %         CumSumSortedWeightedValues_NoDuplicates=CumSumSortedWeightedValues_NoDuplicates(1:firstIndex);
         
-        %         InverseCDF_xgrid=0.01:0.01:1;
         InverseCDF_xgrid=1/npoints:1/npoints:1;
-        
         
         InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
         % interp1 cannot work for the point of InverseCDF_xgrid=1 (gives NaN). Since we
