@@ -1,12 +1,15 @@
-function  [MarketClearanceVec]=MarketClearance_Case2(SSvalues_AggVars,p, MarketPriceEqns, Parameters, MarketPriceParamNames)
+function  [MarketClearanceVec]=MarketClearance_Case2(SSvalues_AggVars,p, MarketClearanceEqns, Parameters, MarketClearanceParamNames)
 % This code is actually identical to MarketClearance_Case1 anyway
 
-MarketPriceParamsVec=gpuArray(CreateVectorFromParams(Parameters,MarketPriceParamNames));
-
-MarketClearanceVec=ones(1,length(MarketPriceEqns),'gpuArray')*Inf;
-for i=1:length(MarketPriceEqns)
-    MarketClearanceVec(i)=MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
-%     MarketClearanceVec(i)=p(i)-MarketPriceEqns{i}(SSvalues_AggVars, p, MarketPriceParamsVec);
+MarketClearanceVec=ones(1,length(MarketClearanceEqns),'gpuArray')*Inf;
+for i=1:length(MarketClearanceEqns)
+    if isempty(MarketClearanceParamNames(i).Names)  % check for 'MarketClearanceParamNames(i).Names={}'
+        MarketClearanceParamsVec=gpuArray([]);
+    else
+        MarketClearanceParamsVec=gpuArray(CreateVectorFromParams(Parameters,MarketClearanceParamNames(i).Names));
+    end
+    
+    MarketClearanceVec(i)=MarketClearanceEqns{i}(SSvalues_AggVars, p, MarketClearanceParamsVec);
 end
 
 end
