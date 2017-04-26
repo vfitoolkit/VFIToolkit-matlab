@@ -19,7 +19,6 @@ function output1 = ImportPSIDdata(jobname)
 
 %%
 disp(['Starting import of PSID data for jobname ', jobname])
-disp('Typically takes around 10-20 minutes to import the PSID data. If it takes more than a few hours something has likely gone wrong.')
 
 % jobname='J226269'
 
@@ -27,6 +26,7 @@ filename_xml = [jobname,'_codebook.xml']; % the .xml cookbook containing the met
 filename_txt = [jobname,'.txt']; % the .txt file containing the data itself
 filename_sps = [jobname,'_sps.txt']; % contains the formatting info needed to get the data from the .txt file
                                      % Note: you need to rename the .sps as _sps.txt (code checks for this and asks you to if you haven't)
+filename_listcodes = [jobname, '_formats_sps.txt'];                                     
 
 %% Read the .xml file to find out all of the details of the variables
 disp(['Import of PSID data for jobname ', jobname, ' currently at step 1 of 4'])
@@ -55,6 +55,43 @@ for ii=1:nPSIDvariables
     end
 end
 
+% list_codes are stored in the .xml, but I can't seem to get them out of
+% this. So I get them from '_format.sps' instead (which has to be renamed
+% '_format_sps.txt' to enable Matlab to access it).
+if exist([jobname,'_formats_sps.txt'],'file')~=2
+    disp(['Matlab cannot access the data inside ',jobname,'_formats.sps directly. Please rename this file to ',jobname,'formats_sps.txt (or create a duplicate copy renamed in this manner)'])
+    return
+end
+fid = fopen(filename_listcodes,'r');
+tline = fgetl(fid);
+ii=1;
+while ii<=nPSIDvariables
+    name=PSIDsummary.name{ii};
+    % Go through each line until you find the variable name
+    if ~isempty(strfind(tline,PSIDsummary.name{ii}))
+        jj=1;
+        while jj<Inf
+            tline = fgetl(fid);
+            if strcmp(strtrim(tline),'.')
+                jj=Inf;
+            else
+                PSIDdata.(name{:}).list_code(jj,1)={tline};
+                jj=jj+1;
+        	end
+        end
+        ii=ii+1;
+        frewind(fid); % PSID xml file contains the variables 'out of order', so have to reset to beginning each time.
+    else
+        tline = fgetl(fid);
+    end
+
+    if ~ischar(tline) % Has reached end of the file without finding list_code for that variable, so set to empty and just move on to next variable
+        ii=ii+1;
+        frewind(fid); % PSID xml file contains the variables 'out of order', so have to reset to beginning each time.
+        tline = fgetl(fid);
+    end
+end
+fclose(fid);    
 
 %% Now, read the .sps file to find out all of the variable locations.
 disp(['Import of PSID data for jobname ', jobname, ' currently at step 2 of 4'])
