@@ -1,9 +1,9 @@
-function output1 = ImportPSIDdata(jobname, ExtraOutput)
+function output1 = ImportPSIDdata(jobname)
 
 % Import the PSID data (and some of metadata) into matlab
 %
 % So, for example, I downloaded some PSID data and the data was called
-% J179504.txt. To import it to matlab I then run ImportPSIDdata('J179504')
+% J226269.txt. To import it to matlab I then run ImportPSIDdata('J226269')
 %
 % To use this you must download your PSID data with 'xml' cookbook
 % and with the data for SPSS.
@@ -13,34 +13,31 @@ function output1 = ImportPSIDdata(jobname, ExtraOutput)
 % each variable from the '.sps' file, and then imports the data itself from
 % the '.txt' file.
 %
-% In basic mode it returns:
+% Output:
 %  PSIDexplore: a structure that contains all the data and metadata
-%
-% If you give ExtraOutput=1, it also returns the objects: (DISABLED)
-%  PSIDsummary: a structure containing the metadata
-%  PSIDdataset: a cell array containing all of the data as strings
-%  PSIDdataset2: same as PSIDdataset, except it is an array, missing observations show as NaN
-% These extra objects just repeat the contents of PSIDexplore, but maybe
-% they are more useful forms for certain purposes.
+
 
 %%
 disp(['Starting import of PSID data for jobname ', jobname])
+disp('Typically takes around 10-20 minutes to import the PSID data. If it takes more than a few hours something has likely gone wrong.')
 
-% jobname='J179504'
+% jobname='J226269'
 
-filename_xml = [jobname,'.xml']; % the .xml cookbook containing the metadata
+filename_xml = [jobname,'_codebook.xml']; % the .xml cookbook containing the metadata
 filename_txt = [jobname,'.txt']; % the .txt file containing the data itself
-filename_sps = [jobname,'.sps']; % contains the formatting info needed to get the data from the .txt file
+filename_sps = [jobname,'_sps.txt']; % contains the formatting info needed to get the data from the .txt file
+                                     % Note: you need to rename the .sps as _sps.txt (code checks for this and asks you to if you haven't)
 
 %% Read the .xml file to find out all of the details of the variables
+disp(['Import of PSID data for jobname ', jobname, ' currently at step 1 of 4'])
 PSIDdata=struct;
 PSIDsummary=struct;
 xDoc=xmlread(filename_xml);
 allvariables=xDoc.getElementsByTagName('VARIABLE'); 
 nPSIDvariables=allvariables.getLength;
 
-strnamevec={'name','year','type_id','label','qtext','etext'}; %It is important that 'name' is the first of these to be retrieved
-tagnamevec={'NAME','YEAR','TYPE_ID','LABEL','QTEXT','ETEXT'};
+strnamevec={'name','year','type_id','label','qtext','etext'}; %,'list_code'}; %It is important that 'name' is the first of these to be retrieved
+tagnamevec={'NAME','YEAR','TYPE_ID','LABEL','QTEXT','ETEXT'}; %,'LIST_CODE'};
 
 for ii=1:nPSIDvariables 
     thisvariable = allvariables.item(ii-1); % xml are indexed from 0
@@ -58,50 +55,83 @@ for ii=1:nPSIDvariables
     end
 end
 
+
 %% Now, read the .sps file to find out all of the variable locations.
+disp(['Import of PSID data for jobname ', jobname, ' currently at step 2 of 4'])
 % To do this you must rename the .sps as _sps.txt as otherwise matlab cannot read it.
+% Following two lines do this for you by creating a copy of the .sps and
+% then renaming it.
 
-PSIDfixedlengths=zeros(nPSIDvariables,2);
+if exist([jobname,'_sps.txt'],'file')~=2
+    disp(['Matlab cannot access the data inside ',jobname,'.sps directly. Please rename this file to ',jobname,'_sps.txt (or create a duplicate copy renamed in this manner)'])
+    return
+end
 
+
+% April 2017: PSID sps file layout has changed. Old version is commented out below the following new version.
+PSIDfixedlengths=zeros(nPSIDvariables,1);
 fid = fopen(filename_sps,'r');
 tline = fgetl(fid);
-% First, go find the 'FORMATS' information. This is the only info we will need.
-foundFORMATS=0;
-while foundFORMATS==0
-    if length(tline)>6
-        if strcmp('FORMATS',tline(1:7))==1
-            foundFORMATS=1;
-        end
+ii=1;
+while ii<=nPSIDvariables
+    if ~isempty(strfind(tline,PSIDsummary.name{ii}))
+        temp=strfind(tline,PSIDsummary.name{ii}); % Find the name of the variable
+        tempstr=tline(temp+7:min(temp+7+20,length(tline)));  % Grab a bunch of the characters that come after the variable name
+        temp2=strfind(tempstr,'-'); % Find the '-' in the middle of tempstr
+        % Figure out the length of this variable (in number of characters)
+        % [This is a bit of a silly way to do it but is how the old PSID
+        % sps formatting files gave the info and saves me rewriting Step 3
+        % of 4 in this command.]
+        PSIDfixedlengths(ii)=1+str2num(strtrim(tempstr(temp2+1:end)))-str2num(strtrim(tempstr(1:temp2-1))); 
+        ii=ii+1;
+        frewind(fid); % PSID xml file contains the variables 'out of order', so have to reset to beginning each time.
+    else
+        tline = fgetl(fid);
     end
-    tline = fgetl(fid);
-end
-ii=0;
-% Now, just keep getting the formatting info until hit '.'
-while ~strcmp('.',tline(1))
-    for tlinescan=1:length(tline)-1
-        if strcmp(tline(tlinescan:tlinescan+1),'(F')
-            ii=ii+1;
-            PSIDfixedlengths(ii,1)=str2num(tline(tlinescan+2));
-            PSIDfixedlengths(ii,2)=str2num(tline(tlinescan+4));
-        end
+
+    if ~ischar(tline)
+        break
     end
-    tline = fgetl(fid);
 end
-if ii~=nPSIDvariables
+fclose(fid);    
+% % PSIDfixedlengths=zeros(nPSIDvariables,2);
+% % fid = fopen(filename_sps,'r');
+% % tline = fgetl(fid);
+% % % First, go find the 'FORMATS' information. This is the only info we will need.
+% % foundFORMATS=0;
+% % while foundFORMATS==0
+% %     if length(tline)>6
+% % %         if strcmp('FORMATS',tline(1:7))==1
+% %         if strcmp('DATA LIST',tline(1:9))==1
+% %             foundFORMATS=1;
+% %         end
+% %     end
+% %     tline = fgetl(fid);
+% %     if tline==-1
+% %         break
+% %     end
+% % end
+% % ii=0;
+% % % Now, just keep getting the formatting info until hit '.'
+% % while ~strcmp('.',strtrim(tline))
+% %     for tlinescan=1:length(tline)-1
+% %         if strcmp(tline(tlinescan:tlinescan+1),'(F')
+% %             ii=ii+1;
+% %             PSIDfixedlengths(ii,1)=str2num(tline(tlinescan+2));
+% %             PSIDfixedlengths(ii,2)=str2num(tline(tlinescan+4));
+% %         end
+% %     end
+% %     tline = fgetl(fid);
+% %     if tline==-1
+% %         break
+% %     end
+% % end
+if ii~=nPSIDvariables+1
     disp('ERROR: ImportPSIDdata does not find number of variables expected (A)')
 end
 
-% PSIDlineformat=['%',num2str(PSIDfixedlengths(1)),'u']; %This didn't work.
-% %     Had problems with the decimal points in the floating point numbers.
-% for ii=2:nPSIDvariables
-%     if PSIDfixedlengths(ii,2)==0
-%         PSIDlineformat=[PSIDlineformat,' %',num2str(PSIDfixedlengths(ii,1)),'u'];
-%     else
-%         PSIDlineformat=[PSIDlineformat,' %',num2str(PSIDfixedlengths(ii,1)),'.',num2str(PSIDfixedlengths(ii,2)),'f'];
-%     end
-% end
-
 %% Now we do the actual importing of the data
+disp(['Import of PSID data for jobname ', jobname, ' currently at step 3 of 4'])
 
 jj=0;
 PSIDdataset=cell(nPSIDvariables,1);
@@ -131,32 +161,19 @@ for jj=1:nPSIDhouseholds
     end
     %read a line of data from file
     tline = fgetl(fid);
+    if ~ischar(tline)
+        break
+    end
 end
 fclose(fid);
 
-%% Create two structures that contain everything: metadata and the data itself
-% First just calls the variables var(ii), second uses the actual names of the PSID
-% variables
-
-% PSIDexplore = struct;
-% % Following loops are poorly constructed, but does the job. Could be sped up.
-% for ii=1:nPSIDvariables
-%     for jj=1:nPSIDhouseholds    
-%         PSIDexplore.var(ii).value(jj)=PSIDdataset(ii,jj);
-%     end
-%     name=PSIDsummary.name{ii};
-%     PSIDexplore.var(ii).name=name;
-%     for kk=2:length(strnamevec)
-%         strname=strnamevec{kk};
-%         temp=PSIDsummary.(strname){ii};
-%         PSIDexplore.var(ii).(strname)=temp;
-%     end
-% end
+%% Create structure that contain everything: metadata and the data itself
+disp(['Import of PSID data for jobname ', jobname, ' currently at step 4 of 4'])
 
 PSIDexplore = struct;
 % Following loops are poorly constructed, but does the job. Could be sped up.
 for ii=1:nPSIDvariables
-    name=PSIDsummary.name{ii};
+    name=PSIDsummary.name{ii}; 
     for jj=1:nPSIDhouseholds    
         PSIDexplore.(name{:}).value(jj)=PSIDdataset(ii,jj);
     end
@@ -168,19 +185,10 @@ for ii=1:nPSIDvariables
     end
 end
 % Given that PSIDexplore is largely just a combination of PSIDsummary of PSIDdata I should really
-% take advantage of this
-
-
+% take advantage of this to speed up these loops.
 
 %% 
 output1=PSIDexplore;
-if nargin>1 %This is currently DISABLED
-    if ExtraOutput==1
-        output2=PSIDsummary;
-        output3=PSIDdataset;
-        output4=PSIDdataset2;
-    end
-end
 
 disp('Finished import of PSID data')
 
