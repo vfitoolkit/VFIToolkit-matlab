@@ -26,7 +26,11 @@ if Parallel==2
         end
         Values=ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
-        SSvalues_AggVars(i)=sum(Values.*StationaryDistVec);
+        % When evaluating value function (which may sometimes give -Inf
+        % values) on StationaryDistVec (which at those points will be
+        % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+        temp=Values.*StationaryDistVec;
+        SSvalues_AggVars(i)=sum(temp(~isnan(temp)));
     end
 else
     SSvalues_AggVars=zeros(length(SSvaluesFn),1);
@@ -104,7 +108,11 @@ else
             end
             Values=reshape(Values,[N_a*N_z,1]);
             
-            SSvalues_AggVars(i)=sum(Values.*StationaryDistVec);
+            % When evaluating value function (which may sometimes give -Inf
+            % values) on StationaryDistVec (which at those points will be
+            % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+            temp=Values.*StationaryDistVec;
+            SSvalues_AggVars(i)=sum(temp(~isnan(temp)));
         end
         
     end
