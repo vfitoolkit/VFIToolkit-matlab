@@ -13,12 +13,12 @@ l_a=length(n_a);
 if N_d==0
     if vfoptions.parallel~=2
         PolicyTemp=zeros(l_a,N_a,N_z,N_j);
-        for i=1:N_a
-            for j=1:N_z
-                for k=1:N_j
-                    optaindexKron=Policy(i,j,k);
+        for a_c=1:N_a
+            for z_c=1:N_z
+                for jj=1:N_j
+                    optaindexKron=Policy(a_c,z_c,jj);
                     optA=ind2sub_homemade([n_a'],optaindexKron);
-                    PolicyTemp(:,i,j,k)=[optA'];
+                    PolicyTemp(:,a_c,z_c,jj)=[optA'];
                 end
             end
         end
@@ -26,15 +26,17 @@ if N_d==0
     else
         PolicyTemp=zeros(l_a,N_a,N_z,N_j,'gpuArray');
         
-        PolicyTemp(1,:,:,:)=shiftdim(rem(Policy-1,n_a(1))+1,-1);
-        if l_a>1
-            if l_a>2
-                for ii=2:l_a-1
-                    PolicyTemp(ii,:,:,:)=shiftdim(rem(ceil(Policy/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
-                end                
+        for jj=1:N_j
+            PolicyTemp(1,:,:,jj)=shiftdim(rem(Policy(:,:,jj)-1,n_a(1))+1,-1);
+            if l_a>1
+                if l_a>2
+                    for ii=2:l_a-1
+                        PolicyTemp(ii,:,:,jj)=shiftdim(rem(ceil(Policy(:,:,jj)/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
+                    end
+                end
+                PolicyTemp(l_a,:,:,jj)=shiftdim(ceil(Policy(:,:,jj)/prod(n_a(1:l_a-1))),-1);
             end
-            PolicyTemp(l_a,:,:,:)=shiftdim(ceil(Policy/prod(n_a(1:l_a-1))),-1);
-        end            
+        end
         
         Policy=reshape(PolicyTemp,[l_a,n_a,n_z,N_j]);
     end
@@ -44,14 +46,14 @@ else
     
     if vfoptions.parallel~=2
         PolicyTemp=zeros(l_d+l_a,N_a,N_z,N_j);
-        for i=1:N_a
-            for j=1:N_z
-                for k=1:N_j
-                optdindexKron=Policy(1,i,j,k);
-                optaindexKron=Policy(2,i,j,k);
+        for a_c=1:N_a
+            for z_c=1:N_z
+                for jj=1:N_j
+                optdindexKron=Policy(1,a_c,z_c,jj);
+                optaindexKron=Policy(2,a_c,z_c,jj);
                 optD=ind2sub_homemade(n_d',optdindexKron);
                 optA=ind2sub_homemade(n_a',optaindexKron);
-                PolicyTemp(:,i,j,k)=[optD';optA'];
+                PolicyTemp(:,a_c,z_c,jj)=[optD';optA'];
                 end
             end
         end
@@ -60,25 +62,27 @@ else
         l_da=length(n_d)+length(n_a);
         n_da=[n_d,n_a];
         PolicyTemp=zeros(l_da,N_a,N_z,N_j,'gpuArray');
-
-        PolicyTemp(1,:,:,:)=rem(Policy(1,:,:,:)-1,n_da(1))+1;
-        if l_d>1
-            if l_d>2
-                for ii=2:l_d-1
-                    PolicyTemp(ii,:,:,:)=rem(ceil(Policy(1,:,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
-                end                
-            end
-            PolicyTemp(l_d,:,:,:)=ceil(Policy(1,:,:,:)/prod(n_d(1:l_d-1)));
-        end
         
-        PolicyTemp(l_d+1,:,:,:)=rem(Policy(2,:,:,:)-1,n_a(1))+1;
-        if l_a>1
-            if l_a>2
-                for ii=2:l_a-1
-                    PolicyTemp(l_d+ii,:,:,:)=rem(ceil(Policy(2,:,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                end                
+        for jj=1:N_j
+            PolicyTemp(1,:,:,jj)=rem(Policy(1,:,:,jj)-1,n_da(1))+1;
+            if l_d>1
+                if l_d>2
+                    for ii=2:l_d-1
+                        PolicyTemp(ii,:,:,jj)=rem(ceil(Policy(1,:,:,jj)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+                    end
+                end
+                PolicyTemp(l_d,:,:,jj)=ceil(Policy(1,:,:,jj)/prod(n_d(1:l_d-1)));
             end
-            PolicyTemp(l_da,:,:,:)=ceil(Policy(2,:,:,:)/prod(n_a(1:l_a-1)));
+            
+            PolicyTemp(l_d+1,:,:,jj)=rem(Policy(2,:,:,jj)-1,n_a(1))+1;
+            if l_a>1
+                if l_a>2
+                    for ii=2:l_a-1
+                        PolicyTemp(l_d+ii,:,:,jj)=rem(ceil(Policy(2,:,:,jj)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+                    end
+                end
+                PolicyTemp(l_da,:,:,jj)=ceil(Policy(2,:,:,jj)/prod(n_a(1:l_a-1)));
+            end
         end
         
         Policy=reshape(PolicyTemp,[l_da,n_a,n_z,N_j]);
