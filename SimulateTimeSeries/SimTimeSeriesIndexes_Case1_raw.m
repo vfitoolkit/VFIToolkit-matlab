@@ -18,7 +18,6 @@ if parallel==2
     % worth the overhead.
     PolicyIndexesKron=gather(PolicyIndexesKron);
     pi_z=gather(pi_z);
-%    simoptions.parallel=1;
     MoveSTSKtoGPU=1;
 end
 
