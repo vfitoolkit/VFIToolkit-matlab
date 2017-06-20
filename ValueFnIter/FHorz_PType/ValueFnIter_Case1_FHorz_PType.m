@@ -60,6 +60,9 @@ for ii=1:N_i
         ReturnFnParamNames_temp=ReturnFnParamNames.(names{ii});
     end
     
+    size(pi_z_temp)
+    
+    
     try vfoptions % check whether vfoptions was inputted
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     catch

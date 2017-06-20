@@ -73,6 +73,7 @@ elseif size(pi_z)~=[N_z, N_z]
     return
 end
 
+
 %% 
 if vfoptions.parallel==2 
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)

@@ -58,10 +58,10 @@ if fieldexists_ExogShockFn==1
     if fieldexists_ExogShockFnParamNames==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
         [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     end
 end
 
@@ -123,13 +123,12 @@ for reverse_j=1:N_j-1
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
             [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         end
     end
-
     
     VKronNext_j=V(:,:,jj+1);
     
