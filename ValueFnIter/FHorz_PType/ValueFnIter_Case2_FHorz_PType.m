@@ -34,13 +34,24 @@ for ii=1:N_i
         names=fieldnames(ReturnFn);
         ReturnFn_temp=ReturnFn.(names{ii});
     end
+    % Parameters are allowed to be given as structure, or as vector/matrix
+    % (in terms of their dependence on fixed type). So go through each of
+    % these in term.
     Parameters_temp=Parameters;
     FullParamNames=fieldnames(Parameters);
     nFields=length(FullParamNames);
     for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct')
+        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
             names=fieldnames(Parameters.(FullParamNames{kField}));
             Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{ii});
+        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)==1 % Check for permanent type in vector/matrix form.
+            temp=Parameters.(FullParamNames{kField});
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
+            if ptypedim==1
+                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
+            elseif ptypedim==2
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
+            end
         end
     end
     DiscountFactorParamNames_temp=DiscountFactorParamNames;

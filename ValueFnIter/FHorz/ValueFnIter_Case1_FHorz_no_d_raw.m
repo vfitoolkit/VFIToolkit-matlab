@@ -52,7 +52,7 @@ end
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
-ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if fieldexists_ExogShockFn==1
     if fieldexists_ExogShockFnParamNames==1
