@@ -13,11 +13,6 @@ function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,
 
 SimLifeCycleKron=nan(2,N_j);
 
-% if N_d==0
-%     optaprime=1;
-% else
-%     optaprime=2;
-% end
 currstate=seedpoint;
 cumsum_pi_z=cumsum(pi_z,2);
 
@@ -43,11 +38,5 @@ else
         [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
     end
 end
-% for jj=1:periods
-%     SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); %a_c
-%     SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); %z_c
-%     
-%     currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),jj+seedpoint(3)-1);
-%     [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
-% end
+
 end
