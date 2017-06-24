@@ -33,12 +33,12 @@ else
     if options.parallel~=2
         PolicyKron=zeros(2,N_a,N_z,N_j);
         for jj=1:N_j
-            PolicyKron(:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z,options);
+            PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z,options);
         end
     else
         PolicyKron=zeros(2,N_a,N_z,N_j,'gpuArray');
         for jj=1:N_j
-            PolicyKron(:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z,options);
+            PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z,options);
         end
     end
 end
