@@ -87,12 +87,29 @@ else
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 end
 
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+if fieldexists_ExogShockFn==1
+    cumsumpi_z=nan(N_z,N_z,N_j);
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            [~,pi_z_jj]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+        else
+            [~,pi_z_jj]=simoptions.ExogShockFn(jj);
+        end
+        cumsumpi_z(:,:,jj)=gather(cumsum(pi_z_jj,2));
+    end
+else
+    cumsumpi_z=cumsum(pi_z,2);
+end
+
 MoveOutputtoGPU=0;
 if simoptions.parallel==2
     % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
     % back. For anything but ridiculously short simulations it is more than worth the overhead.
     PolicyIndexesKron=gather(PolicyIndexesKron);
-    pi_z=gather(pi_z);
+    cumsumpi_z=gather(cumsumpi_z);
     seedpoints=gather(seedpoints);
     MoveOutputtoGPU=1;
 end
@@ -100,7 +117,7 @@ end
 SimPanel=nan(l_a+l_z+1,simoptions.simperiods,simoptions.numbersims); % (a,z,j)
 for ii=1:simoptions.numbersims
     seedpoint=seedpoints(ii,:);
-    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z, seedpoint, simoptions.simperiods);
+    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_ExogShockFn);
     
     SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
 

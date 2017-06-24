@@ -74,6 +74,10 @@ for ii=1:N_i
     else % Depends on N_j
         InitialDist_temp=InitialDist(:,:,:,ii);
     end
+    eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+    if fieldexists_ExogShockFnParamNames==1
+        disp('WARNING: ExogShockFn not yet implemented for PType (in SimPanelIndexes_FHorz_PType_Case1)')
+    end
         
     SimPanel_ii=gather(SimPanelIndexes_FHorz_Case1(InitialDist_temp,Policy_temp,n_d,n_a,n_z,N_j,pi_z_temp, simoptions));
     if ii==1
@@ -81,9 +85,6 @@ for ii=1:N_i
         SimPanel(l_a+l_z+2,:,1:sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions.simperiods,PType_numbersims(ii));
     else
         SimPanel(1:(l_a+l_z+1),:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanel_ii;
-        
-%         size(SimPanel(l_a+l_z+2,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii))))
-%         size(SimPanel_ii)
         SimPanel(l_a+l_z+2,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions.simperiods,PType_numbersims(ii));
     end
 end
