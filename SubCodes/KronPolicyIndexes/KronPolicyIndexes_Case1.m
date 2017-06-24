@@ -18,7 +18,7 @@ if n_d(1)==0
         PolicyTemp=zeros(N_a,N_z);
         for i=1:N_a
             for j=1:N_z
-                optasub=Policy(1,i,j);
+                optasub=Policy(1:l_a,i,j);
                 optA=sub2ind_homemade([n_a'],optasub);
                 PolicyTemp(i,j)=optA;
             end
@@ -47,8 +47,8 @@ else
         PolicyTemp=zeros(2,N_a,N_z);
         for i=1:N_a
             for j=1:N_z
-                optdsub=Policy(1,i,j);
-                optasub=Policy(2,i,j);
+                optdsub=Policy(1:l_d,i,j);
+                optasub=Policy((l_d+1):(l_d+l_a),i,j);
                 optD=sub2ind_homemade(n_d',optdsub);
                 optA=sub2ind_homemade(n_a',optasub);
                 PolicyTemp(:,i,j)=[optD;optA];
