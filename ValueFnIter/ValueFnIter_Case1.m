@@ -2,7 +2,7 @@ function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_
 % Solves infinite-horizon 'Case 1' value function problems.
 
 %% Check which vfoptions have been used, set all others to defaults 
-if nargin<13
+if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     vfoptions.tolerance=10^(-9);
@@ -17,51 +17,41 @@ if nargin<13
     vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=2;
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'lowmemory')==0
         vfoptions.lowmemory=0;
     end
-    eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'howards')==0
         vfoptions.howards=80;
     end  
-    eval('fieldexists=1;vfoptions.maxhowards;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'maxhowards')==0
         vfoptions.maxhowards=500;
     end  
-    eval('fieldexists=1;vfoptions.exoticpreferences;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'exoticpreferences')==0
         vfoptions.exoticpreferences=0;
     end  
-    eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'verbose')==0
         vfoptions.verbose=0;
     end
-    eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'returnmatrix')==0
         if isa(ReturnFn,'function_handle')==1;
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
     end
-    eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'tolerance')==0
         vfoptions.tolerance=10^(-9);
     end
-    eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
-    eval('fieldexists=1;vfoptions.policy_forceintegertype;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
     end
 end
@@ -133,6 +123,11 @@ elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
     return
 end
 
+if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
+    % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
+    [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
+    return
+end
 
 %%
 % Create a vector containing all the return function parameters (in order)
@@ -242,7 +237,7 @@ if vfoptions.verbose==1
     disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
     tic;
 end
-%%
+%% Cleaning up the output
 V=reshape(VKron,[n_a,n_z]);
 Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 if vfoptions.verbose==1
