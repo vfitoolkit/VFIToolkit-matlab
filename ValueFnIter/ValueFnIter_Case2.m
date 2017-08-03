@@ -1,7 +1,8 @@
 function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
 
 %% Check which vfoptions have been used, set all others to defaults 
-if nargin<15
+if exist('vfoptions','var')==0
+    disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     vfoptions.lowmemory=0;
     vfoptions.returnmatrix=2;
@@ -17,48 +18,37 @@ if nargin<15
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
-    eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'lowmemory')==0
         vfoptions.lowmemory=0;
     end
-    eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'returnmatrix')==0
         vfoptions.returnmatrix=2;
     end
-    eval('fieldexists=1;vfoptions.phiaprimematrix;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'phiaprimematrix')==0
         vfoptions.phiaprimematrix=2;
     end
-    eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
-    eval('fieldexists=1;vfoptions.howards;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'howards')==0
         vfoptions.howards=60;
     end
-    eval('fieldexists=1;vfoptions.maxhowards;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'maxhowards')==0
         vfoptions.maxhowards=500;
     end
-    eval('fieldexists=1;vfoptions.exoticpreferences;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'exoticpreferences')==0
         vfoptions.exoticpreferences=0;
     end  
-    eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=2;
     end
-    eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'verbose')==0
         vfoptions.verbose=0;
     end
-    eval('fieldexists=1;vfoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'tolerance')==0
         vfoptions.tolerance=10^(-9);
     end
-    eval('fieldexists=1;vfoptions.policy_forceintegertype;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
     end
 end

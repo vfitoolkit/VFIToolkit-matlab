@@ -1,30 +1,49 @@
 function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Solves infinite-horizon 'Case 1' value function problems.
 
+V=nan; % Matlab was complaining that V was not assigned
+
 %% Check which vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
+    vfoptions.solnmethod='purediscretization';
+    vfoptions.parallel=2;
+    vfoptions.returnmatrix=2;
+    vfoptions.lowmemory=0;
+    vfoptions.verbose=0;
     vfoptions.tolerance=10^(-9);
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
     vfoptions.exoticpreferences=0;
-    vfoptions.parallel=2;
-    vfoptions.returnmatrix=2;
-    vfoptions.verbose=0;
-    vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
+    if isfield(vfoptions,'solnmethod')==0
+        vfoptions.solnmethod='purediscretization';
+    end
     if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=2;
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
+    if isfield(vfoptions,'returnmatrix')==0
+        if isa(ReturnFn,'function_handle')==1
+            vfoptions.returnmatrix=0;
+        else
+            vfoptions.returnmatrix=1;
+        end
+    end
     if isfield(vfoptions,'lowmemory')==0
         vfoptions.lowmemory=0;
+    end
+    if isfield(vfoptions,'verbose')==0
+        vfoptions.verbose=0;
+    end
+     if isfield(vfoptions,'tolerance')==0
+        vfoptions.tolerance=10^(-9);
     end
     if isfield(vfoptions,'howards')==0
         vfoptions.howards=80;
@@ -35,19 +54,6 @@ else
     if isfield(vfoptions,'exoticpreferences')==0
         vfoptions.exoticpreferences=0;
     end  
-    if isfield(vfoptions,'verbose')==0
-        vfoptions.verbose=0;
-    end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1;
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    if isfield(vfoptions,'tolerance')==0
-        vfoptions.tolerance=10^(-9);
-    end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
@@ -62,27 +68,29 @@ N_z=prod(n_z);
 
 
 %% Check the sizes of some of the inputs
-if size(d_grid)~=[sum(n_d), 1]
-    disp('ERROR: d_grid is not the correct shape (should be  of size sum(n_d)-by-1)')
-    dbstack
-    return
-elseif size(a_grid)~=[sum(n_a), 1]
-    disp('ERROR: a_grid is not the correct shape (should be  of size sum(n_a)-by-1)')
-    dbstack
-    return
-elseif size(z_grid)~=[sum(n_z), 1]
-    disp('ERROR: z_grid is not the correct shape (should be  of size sum(n_z)-by-1)')
-    dbstack
-    return
-elseif size(pi_z)~=[N_z, N_z]
-    disp('ERROR: pi is not of size N_z-by-N_z')
-    dbstack
-    return
-elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
-    if size(V0)~=[n_a,n_z]
-        disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
+if strcmp(vfoptions.solnmethod,'purediscretization')
+    if size(d_grid)~=[sum(n_d), 1]
+        disp('ERROR: d_grid is not the correct shape (should be  of size sum(n_d)-by-1)')
         dbstack
         return
+    elseif size(a_grid)~=[sum(n_a), 1]
+        disp('ERROR: a_grid is not the correct shape (should be  of size sum(n_a)-by-1)')
+        dbstack
+        return
+    elseif size(z_grid)~=[sum(n_z), 1]
+        disp('ERROR: z_grid is not the correct shape (should be  of size sum(n_z)-by-1)')
+        dbstack
+        return
+    elseif size(pi_z)~=[N_z, N_z]
+        disp('ERROR: pi is not of size N_z-by-N_z')
+        dbstack
+        return
+    elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
+        if size(V0)~=[n_a,n_z]
+            disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
+            dbstack
+            return
+        end
     end
 end
 
@@ -125,7 +133,7 @@ end
 
 if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
     % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
-    [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
     return
 end
 
