@@ -54,7 +54,7 @@ end
 %%
 
 zerosinphi_aprimekron=sum(sum(sum(sum(Phi_aprimeKron==0))));
-disp(sprintf('If this number is not zero there is an problem with Phi_aprimeKron: %.0f', zerosinphi_aprimekron))
+fprintf('If this number is not zero there is an problem with Phi_aprimeKron: %.0f', zerosinphi_aprimekron)
 
 %%
 V0Kron=reshape(V0,[N_a,N_s]);
