@@ -101,6 +101,7 @@ if l_d==1
             z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-6);
             z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-7);
             Fmatrix=arrayfun(ReturnFn, dvals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
+        end
     elseif l_a==4
         a1vals=shiftdim(a_grid(1:n_a(1)),-1);
         a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-2);
@@ -171,6 +172,7 @@ elseif l_d==2
             z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-6);
             z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-7);
             Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
+        end
     elseif l_a==3
         a1vals=shiftdim(a_grid(1:n_a(1)),-2);
         a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-3);
@@ -288,6 +290,7 @@ elseif l_d==3
             z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-8);
             z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-9);
             Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
+        end
     elseif l_a==4
         a1vals=shiftdim(a_grid(1:n_a(1)),-3);
         a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-4);
