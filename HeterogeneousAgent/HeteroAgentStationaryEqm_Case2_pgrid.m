@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,MarketClearance]=HeteroAgentStationaryEqm_Case2_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, MarketClearaceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, MarketClearanceParamNames, PriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -12,9 +12,9 @@ p_grid=heteroagentoptions.pgrid;
 %%
 
 if vfoptions.parallel==2
-    MarketClearanceKron=ones(N_p,l_p,'gpuArray');
+    GeneralEqmConditionsKron=ones(N_p,l_p,'gpuArray');
 else
-    MarketClearanceKron=ones(N_p,l_p);
+    GeneralEqmConditionsKron=ones(N_p,l_p);
 end
 %V0Kron=reshape(V0,[N_a,N_s]);
 
@@ -35,7 +35,7 @@ for p_c=1:N_p
         else
             p(ii)=p_grid(sum(n_p(1:ii-1))+p_index(ii));
         end
-        Parameters.(PriceParamNames{ii})=gather(p(ii));
+        Parameters.(GEPriceParamNames{ii})=gather(p(ii));
     end
     
     [~, Policy]=ValueFnIter_Case2(V0Kron, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s, Phi_aprimeKron, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
@@ -49,25 +49,28 @@ for p_c=1:N_p
     
     % use of real() is a hack that could disguise errors, but I couldn't
     % find why matlab was treating output as complex
-    MarketClearanceKron(p_c,:)=real(MarketClearance_Case2(SSvalues_AggVars,p, MarketClearaceEqns, Parameters,MarketClearanceParamNames));
+    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case2(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
 
-
-if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    [~,p_eqm_indexKron]=min(sum(MarketClearanceKron.^2,2));                                                                                                         
+if heteroagentoptions.multiGEcriterion==0 
+    [~,p_eqm_indexKron]=min(sum(abs(GeneralEqmConditionsKron),2));
+elseif heteroagentoptions.multiGEcriterion==1 % general eqm is to take the sum of squares for each of the general eqm conditions holding 
+    [~,p_eqm_indexKron]=min(sum(GeneralEqmConditionsKron.^2,2));                                                                                                         
 end
 
 %p_eqm_index=zeros(num_p,1);
 p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
 if l_p>1
-    MarketClearance=nan(N_p,1+l_p,'gpuArray');
-    if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-        MarketClearance(:,1)=sum(MarketClearanceKron.^2,2);
+    GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');
+    if heteroagentoptions.multiGEcriterion==0 
+        GeneralEqmConditions(:,1)=sum(abs(GeneralEqmConditionsKron),2);
+    elseif heteroagentoptions.multiGEcriterion==1 % general eqm is to take the sum of squares for each of the general eqm conditions holding 
+        GeneralEqmConditions(:,1)=sum(GeneralEqmConditionsKron.^2,2);
     end
-    MarketClearance(:,2:end)=MarketClearanceKron;
-    MarketClearance=reshape(MarketClearance,[n_p,1+l_p]);
+    GeneralEqmConditions(:,2:end)=GeneralEqmConditionsKron;
+    GeneralEqmConditions=reshape(GeneralEqmConditions,[n_p,1+l_p]);
 else
-    MarketClearance=reshape(MarketClearanceKron,[n_p,1]);
+    GeneralEqmConditions=reshape(GeneralEqmConditionsKron,[n_p,1]);
 end
 
 
@@ -84,6 +87,6 @@ end
 % Move results from gpu to cpu before returning them
 p_eqm=gather(p_eqm);
 p_eqm_index=gather(p_eqm_index);
-MarketClearance=gather(MarketClearance);
+GeneralEqmConditions=gather(GeneralEqmConditions);
 
 end

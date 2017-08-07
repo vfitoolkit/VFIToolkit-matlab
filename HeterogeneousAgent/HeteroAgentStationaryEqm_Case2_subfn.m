@@ -1,4 +1,4 @@
-function MarketClearance=HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, MarketClearanceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, MarketClearanceParamNames, PriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -9,7 +9,7 @@ l_p=length(n_p);
 
 %% 
 for ii=1:l_p
-    Parameters.(PriceParamNames{ii})=p(ii);
+    Parameters.(GEPriceParamNames{ii})=p(ii);
 end
 
 [~, Policy]=ValueFnIter_Case2(V0Kron, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s, Phi_aprimeKron, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
@@ -24,18 +24,18 @@ SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, 
 
 % use of real() is a hack that could disguise errors, but I couldn't
 % find why matlab was treating output as complex
-MarketClearanceVec=real(MarketClearance_Case2(SSvalues_AggVars,p, MarketClearanceEqns, Parameters,MarketClearanceParamNames));
+GeneralEqmCondititionsVec=real(GeneralEqmConditions_Case2(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
-if heteroagentoptions.multimarketcriterion==0 %only used when there is only one price 
-    MarketClearance=MarketClearanceVec;
-elseif heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    MarketClearance=sum(MarketClearanceVec.^2);                                                                                                         
+if heteroagentoptions.multiGEcriterion==0 
+    GeneralEqmConditions=sum(abs(GeneralEqmCondititionsVec));
+elseif heteroagentoptions.multiGEcriterion==1 %the measure of general eqm is to take the sum of squares of each of the general eqm conditions being satisfied 
+    GeneralEqmConditions=sum(GeneralEqmCondititionsVec.^2);                                                                                                         
 end
 
-MarketClearance=gather(MarketClearance);
+GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
-    [p,MarketClearance]
+    [p,GeneralEqmConditions]
 end
 
 end
