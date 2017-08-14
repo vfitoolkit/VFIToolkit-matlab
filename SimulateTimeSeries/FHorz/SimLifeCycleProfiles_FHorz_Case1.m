@@ -37,7 +37,7 @@ else
     simoptions.verbose=0;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^4; % Given that aim is to calculate ventiles of life-cycle profiles 10^4 seems appropriate
-    simperiods.lifecyclepercentiles=20; % by default gives ventiles
+    simoptions.lifecyclepercentiles=20; % by default gives ventiles
 end
 
 if n_d(1)==0
@@ -58,6 +58,10 @@ tic;
 PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions); % This is actually being created inside SimPanelIndexes already
 toc
 
+% if simoptions.parallel~=2
+%     PolicyIndexesKron=gather(PolicyIndexesKron);
+% end
+
 tic;
 % Because we want life-cycle profiles we only use the part of InitialDist that is how agents appear 'at birth' (in j=1).
 % (InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
@@ -68,6 +72,12 @@ else
     SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist(:,1),PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions); % Use only j=1: InitialDist(:,1)
 end
 toc
+
+% Move everything to cpu for what remains.
+d_grid=gather(d_grid);
+a_grid=gather(a_grid);
+z_grid=gather(z_grid);
+PolicyIndexesKron=gather(PolicyIndexesKron);
 
 SimPanelValues=zeros(length(ValuesFns), simoptions.simperiods, simoptions.numbersims);
 
@@ -164,16 +174,26 @@ end
 toc
 
 % Now get the life-cycle profiles by looking at (age-conditional) cross-sections of this panel data.
-SimLifeCycleProfiles=zeros(length(ValuesFns), simoptions.simperiods, simoptions.lifecyclepercentiles+3); % Mean, median, min, 19 intermediate ventiles, and max.
-prctilegrid=(0:1/simoptions.lifecyclepercentiles:1)*100;
-for ii=1:length(ValuesFns)
-    for jj=1:simoptions.simperiods
-        temp=SimPanelValues(ii,jj,:);
-        SimLifeCycleProfiles(ii,jj,1)=mean(temp);
-        SimLifeCycleProfiles(ii,jj,2)=median(temp);
-        SimLifeCycleProfiles(ii,jj,3:end)=prctile(temp,prctilegrid);
+if simoptions.lifecyclepercentiles>0
+    SimLifeCycleProfiles=zeros(length(ValuesFns), simoptions.simperiods, simoptions.lifecyclepercentiles+3); % Mean, median, min, 19 intermediate ventiles, and max.
+    prctilegrid=(0:1/simoptions.lifecyclepercentiles:1)*100;
+    for ii=1:length(ValuesFns)
+        for jj=1:simoptions.simperiods
+            temp=SimPanelValues(ii,jj,:);
+            SimLifeCycleProfiles(ii,jj,1)=mean(temp);
+            SimLifeCycleProfiles(ii,jj,2)=median(temp);
+            SimLifeCycleProfiles(ii,jj,3:end)=prctile(temp,prctilegrid);
+        end
+    end
+else
+    SimLifeCycleProfiles=zeros(length(ValuesFns), simoptions.simperiods, 2); % Mean, median
+    for ii=1:length(ValuesFns)
+        for jj=1:simoptions.simperiods
+            temp=SimPanelValues(ii,jj,:);
+            SimLifeCycleProfiles(ii,jj,1)=mean(temp);
+            SimLifeCycleProfiles(ii,jj,2)=median(temp);
+        end
     end
 end
-
 
 

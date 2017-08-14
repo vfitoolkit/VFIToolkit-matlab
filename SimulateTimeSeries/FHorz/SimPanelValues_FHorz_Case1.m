@@ -34,9 +34,9 @@ else
 end
 
 if n_d(1)==0
-    num_d_vars=0;
+    l_d=0;
 else
-    num_d_vars=length(n_d);
+    l_d=length(n_d);
 end
 l_a=length(n_a);
 l_z=length(n_z);
@@ -47,24 +47,24 @@ if simoptions.parallel~=2
     z_grid=gather(z_grid);
 end
 
-tic;
-PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions); % This is actually being created inside SimPanelIndexes already
-toc
+% NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
+PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
 
-tic;
 SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions);
-toc
+
+% Move everything to cpu for what remains.
+d_grid=gather(d_grid);
+a_grid=gather(a_grid);
+z_grid=gather(z_grid);
+PolicyIndexesKron=gather(PolicyIndexesKron);
 
 SimPanelValues=zeros(length(ValuesFns), simoptions.simperiods, simoptions.numbersims);
-%SimPanel=nan(l_a+l_z+1,simoptions.simperiods,ii)
 
-d_val=zeros(1,num_d_vars);
+d_val=zeros(1,l_d);
 aprime_val=zeros(1,l_a);
 a_val=zeros(1,l_a);
 z_val=zeros(1,l_z);
-% d_ind=zeros(1,num_d_vars); aprime_ind=zeros(1,l_a);
 
-tic;
 SimPanelValues_ii=zeros(length(ValuesFns),simoptions.simperiods);
 %% For sure the following could be made faster by parallelizing some stuff.
 for ii=1:simoptions.numbersims
@@ -92,7 +92,7 @@ for ii=1:simoptions.numbersims
         
         j_ind=SimPanel_ii(end,t);
         
-        if num_d_vars==0            
+        if l_d==0            
             aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);
             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
         else
@@ -100,7 +100,7 @@ for ii=1:simoptions.numbersims
             d_ind=temp(1); aprime_ind=temp(2);
             d_sub=ind2sub_homemade(n_a,d_ind);
             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-            for kk1=1:num_d_vars
+            for kk1=1:l_d
                 if kk1==1
                     d_val(kk1)=d_grid(d_sub(kk1));
                 else
@@ -115,7 +115,7 @@ for ii=1:simoptions.numbersims
                 aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
             end
         end
-        if num_d_vars==0
+        if l_d==0
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                     tempv=[aprime_val,a_val,z_val];
@@ -147,7 +147,7 @@ for ii=1:simoptions.numbersims
     end
     SimPanelValues(:,:,ii)=SimPanelValues_ii;
 end
-toc
+
 
 end
 

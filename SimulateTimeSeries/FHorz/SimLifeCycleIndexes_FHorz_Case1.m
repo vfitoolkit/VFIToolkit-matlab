@@ -50,12 +50,11 @@ PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simop
 %seedtemp=sub2ind_homemade([n_a,n_z],simoptions.seedpoint);
 %seedpoint=ind2sub_homemade([N_a,N_z],seedtemp);
 
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-if fieldexists_ExogShockFn==1
+if isfield(simoptions,'ExogShockFn')==1
+    fieldexists_ExogShockFn=1; % Needed as input for SimLifeCycleIndexes_FHorz_Case1_raw()
     cumsumpi_z=nan(N_z,N_z,N_j);
     for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
+        if isfield(simoptions,'ExogShockFnParamNames')==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
             [~,pi_z_jj]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
         else
@@ -64,6 +63,7 @@ if fieldexists_ExogShockFn==1
         cumsumpi_z(:,:,jj)=cumsum(pi_z_jj,2);
     end
 else
+    fieldexists_ExogShockFn=0; % Needed as input for SimLifeCycleIndexes_FHorz_Case1_raw()
     cumsumpi_z=cumsum(pi_z,2);
 end
 
@@ -72,7 +72,7 @@ if simoptions.parallel==2
     % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
     % back. For anything but ridiculously short simulations it is more than worth the overhead.
     PolicyIndexesKron=gather(PolicyIndexesKron);
-%     pi_z=gather(pi_z);
+    cumsumpi_z=gather(cumsumpi_z);
     MoveOutputtoGPU=1;
 end
 

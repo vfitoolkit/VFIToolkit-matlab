@@ -81,11 +81,13 @@ if simoptions.parallel==2
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 else
-    % Get seedpoints from InitialDist while on gpu
+    InitialDist=gather(InitialDist); % Make sure it is not on gpu
+    numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
+    % Get seedpoints from InitialDist
     seedpoints=nan(simoptions.numbersims,3); % 3 as a,z,j (vectorized)
     if numel(InitialDist)==N_a*N_z % Has just been given for age j=1
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z,1]));
-        [~,seedpointvec]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims,1));
+        [~,seedpointvec]=max(cumsumInitialDistVec>rand(1,numbersims,1));
         for ii=1:simoptions.numbersims
             seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointvec(ii)),1];
         end
@@ -99,12 +101,11 @@ else
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 end
 
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-if fieldexists_ExogShockFn==1
+if isfield(simoptions,'ExogShockFn')==1
+    fieldexists_ExogShockFn=1; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
     cumsumpi_z=nan(N_z,N_z,N_j);
     for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
+        if isfield(simoptions,'ExogShockFnParamNames')==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
             [~,pi_z_jj]=simoptions.ExogShockFn(ExogShockFnParamsVec);
         else
@@ -113,6 +114,7 @@ if fieldexists_ExogShockFn==1
         cumsumpi_z(:,:,jj)=gather(cumsum(pi_z_jj,2));
     end
 else
+    fieldexists_ExogShockFn=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
     cumsumpi_z=cumsum(pi_z,2);
 end
 
@@ -124,6 +126,7 @@ if simoptions.parallel==2
     cumsumpi_z=gather(cumsumpi_z);
     seedpoints=gather(seedpoints);
     MoveOutputtoGPU=1;
+    simoptions.simperiods=gather(simoptions.simperiods);
 end
 
 SimPanel=nan(l_a+l_z+1,simoptions.simperiods,simoptions.numbersims); % (a,z,j)

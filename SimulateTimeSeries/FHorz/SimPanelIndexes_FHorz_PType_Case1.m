@@ -21,16 +21,13 @@ l_z=length(n_z);
 
 if exist('simoptions','var')==1 % check whether simoptions was inputted
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'simperiods')==0
         simoptions.simperiods=N_j;
     end
-    eval('fieldexists=1;simoptions.numbersims;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'numbersims')==0
         simoptions.numbersims=10^3;
     end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
     end
 else
@@ -74,11 +71,10 @@ for ii=1:N_i
     else % Depends on N_j
         InitialDist_temp=InitialDist(:,:,:,ii);
     end
-    eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-    if fieldexists_ExogShockFnParamNames==1
+    if isfield(simoptions,'ExogShockFnParamNames')==1
         disp('WARNING: ExogShockFn not yet implemented for PType (in SimPanelIndexes_FHorz_PType_Case1)')
     end
-        
+    
     SimPanel_ii=gather(SimPanelIndexes_FHorz_Case1(InitialDist_temp,Policy_temp,n_d,n_a,n_z,N_j,pi_z_temp, simoptions));
     if ii==1
         SimPanel(1:(l_a+l_z+1),:,1:sum(PType_numbersims(1:ii)))=SimPanel_ii;
