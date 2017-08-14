@@ -56,21 +56,21 @@ simperiods=t;
 
 % NSims=10^5;
 
-Transitions_StartAndFinishIndexes=nan(2,NSims);
-
 cumsumStationaryDist=cumsum(reshape(StationaryDist,[N_a*N_z,1]));
-[~,seedpoints]=max(cumsumStationaryDist>rand(1,NSims,'gpuArray'));
+% [~,seedpoints]=max(cumsumStationaryDist>rand(1,NSims,'gpuArray'));
 
-% Store first
-Transitions_StartAndFinishIndexes(1,:)=seedpoints;
+Transitions_StartAndFinishIndexes=nan(2,NSims);
 parfor ii=1:NSims
+    Transitions_StartAndFinishIndexes_ii=Transitions_StartAndFinishIndexes(:,ii);
     % Draw initial condition
-    seedpoint=seedpoints(ii);
+    [~,seedpoint]=max(cumsumStationaryDist>rand(1,1,'gpuArray'));
+    Transitions_StartAndFinishIndexes_ii(1)=seedpoint;
     seedpoint=ind2sub_homemade([N_a,N_z],seedpoint); % put in form needed for SimTimeSeriesIndexes_Case1_raw
     % Simulate time series
     SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,burnin,seedpoint,simperiods,parallel);
     % Store last
-    Transitions_StartAndFinishIndexes(2,ii)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
+    Transitions_StartAndFinishIndexes_ii(2)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
+    Transitions_StartAndFinishIndexes(:,ii)=Transitions_StartAndFinishIndexes_ii;
 end
 
 %% Done simulating, switch back to GPU
@@ -107,13 +107,20 @@ for jj=1:length(SSvaluesFn)
     SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
     CumSumSortedStationaryDistVec=cumsum(SortedStationaryDistVec);
     
+    ranks_index_start=nan(NSims,1);
+    ranks_index_fin=nan(NSims,1);
+    for kk=1:NSims
+        % Ranks of starting points
+        [~,ranks_index_start]=max(SortedValues>Transitions_StartAndFinish(1,kk,jj));
+        % Ranks of finishing points
+        [~,ranks_index_fin]=max(SortedValues>Transitions_StartAndFinish(2,kk,jj));
+    end
+    
     % Ranks of starting points
-    [~,ranks_index]=max(SortedValues>Transitions_StartAndFinish(1,:,jj));
-    ranks=CumSumSortedStationaryDistVec(ranks_index);
+    ranks=CumSumSortedStationaryDistVec(ranks_index_start);
     Transitions_StartAndFinish(1,:,jj)=ranks;
     % Ranks of finishing points
-    [~,ranks_index]=max(SortedValues>Transitions_StartAndFinish(2,:,jj));
-    ranks=CumSumSortedStationaryDistVec(ranks_index);
+    ranks=CumSumSortedStationaryDistVec(ranks_index_fin);
     Transitions_StartAndFinish(2,:,jj)=ranks;
     
 end

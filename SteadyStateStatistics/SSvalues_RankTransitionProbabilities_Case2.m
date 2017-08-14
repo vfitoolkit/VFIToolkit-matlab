@@ -55,10 +55,8 @@ simperiods=t;
 
 %NSims=10^5;
 
-Transitions_StartAndFinishIndexes=nan(2,NSims);
-
 cumsumStationaryDist=cumsum(reshape(StationaryDist,[N_a*N_z,1]));
-[~,seedpoints]=max(cumsumStationaryDist>rand(1,NSims));
+% [~,seedpoints]=max(cumsumStationaryDist>rand(1,NSims));
 
 tempPolicyIndexes=reshape(PolicyIndexes,[l_d,N_a,N_z]); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 PolicyIndexesKron=zeros(N_a,N_z);
@@ -68,16 +66,18 @@ for i1=1:N_a
     end
 end
 
-% Store first
-Transitions_StartAndFinishIndexes(1,:)=seedpoints;
+Transitions_StartAndFinishIndexes=nan(2,NSims);
 parfor ii=1:NSims
+    Transitions_StartAndFinishIndexes_ii=Transitions_StartAndFinishIndexes(:,ii);
     % Draw initial condition
-    seedpoint=seedpoints(ii);
+    seedpoint=max(cumsumStationaryDist>rand(1,1));
+    Transitions_StartAndFinishIndexes_ii(1)=seedpoint;
     seedpoint=ind2sub_homemade([N_a,N_z],seedpoint); % put in form needed for SimTimeSeriesIndexes_Case2_raw
     % Simulate time series
     SimTimeSeriesKron=SimTimeSeriesIndexes_Case2_raw(PolicyIndexesKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z,burnin,seedpoint,simperiods,parallel);
     % Store last
-    Transitions_StartAndFinishIndexes(2,ii)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
+    Transitions_StartAndFinishIndexes_ii(2)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
+    Transitions_StartAndFinishIndexes(:,ii)=Transitions_StartAndFinishIndexes_ii;
 end
 
 %% Done simulating, switch back to GPU
@@ -94,7 +94,7 @@ PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid,parallel);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
-for jj=1:length(SSvaluesFn)
+for jj=1:length(SSvaluesFn) % SHOULD PROBABLY USE PARFOR AT THIS LEVEL???
     % Includes check for cases in which no parameters are actually required
     if isempty(SSvalueParamNames(jj).Names)  % check for 'SSvalueParamNames={}'
         SSvalueParamsVec=[];
@@ -115,14 +115,19 @@ for jj=1:length(SSvaluesFn)
     SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
     CumSumSortedStationaryDistVec=cumsum(SortedStationaryDistVec);
     
-    % Ranks of starting points
-    [~,ranks_index]=max(SortedValues>Transitions_StartAndFinish(1,:,jj));
-    ranks=CumSumSortedStationaryDistVec(ranks_index);
+    ranks_index_start=nan(NSims,1);
+    ranks_index_fin=nan(NSims,1);
+    for kk=1:NSims
+        % Ranks of starting points
+        [~,ranks_index_start]=max(SortedValues>Transitions_StartAndFinish(1,kk,jj));
+        % Ranks of finishing points
+        [~,ranks_index_fin]=max(SortedValues>Transitions_StartAndFinish(2,kk,jj));
+    end
+    ranks=CumSumSortedStationaryDistVec(ranks_index_start);
 %     Transitions_StartAndFinish(1,:,jj)=ranks;
     [~,Transitions_StartAndFinish(1,:,jj)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row
-    % Ranks of finishing points
-    [~,ranks_index]=max(SortedValues>Transitions_StartAndFinish(2,:,jj));
-    ranks=CumSumSortedStationaryDistVec(ranks_index);
+    
+    ranks=CumSumSortedStationaryDistVec(ranks_index_fin);
 %     Transitions_StartAndFinish(2,:,jj)=ranks;
     [~,Transitions_StartAndFinish(2,:,jj)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row
 end
