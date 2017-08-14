@@ -89,6 +89,7 @@ end
 
 %% We have the indexes. Now convert into values. Will give us NSims transitions (values)
 Transitions_StartAndFinish=nan(2,NSims,length(SSvaluesFn),'gpuArray');
+Transitions_StartAndFinish_jj=nan(2,NSims,'gpuArray');
 
 PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid,parallel);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
@@ -105,8 +106,8 @@ for jj=1:length(SSvaluesFn) % SHOULD PROBABLY USE PARFOR AT THIS LEVEL???
     Values=reshape(Values,[N_a*N_z,1]);
     % MIGHT BE POSSIBLE TO MERGE FOLLOWING TWO LINES (replace rows 1 and 2 with all rows ':'), JUST UNSURE WHAT
     % RESULTING BEHAVIOUR WILL BE IN TERMS OF SIZE() AND CURRENTLY TO LAZY TO CHECK.
-    Transitions_StartAndFinish(1,:,jj)=Values(Transitions_StartAndFinishIndexes(1,:));
-    Transitions_StartAndFinish(2,:,jj)=Values(Transitions_StartAndFinishIndexes(2,:));
+    Transitions_StartAndFinish_jj(1,:)=Values(Transitions_StartAndFinishIndexes(1,:));
+    Transitions_StartAndFinish_jj(2,:)=Values(Transitions_StartAndFinishIndexes(2,:));
     
     %% Now convert values into ranks. Will give us NSims transitions (ranks)
     % Do this inside same for loop as also uses Values.
@@ -117,19 +118,22 @@ for jj=1:length(SSvaluesFn) % SHOULD PROBABLY USE PARFOR AT THIS LEVEL???
     
     ranks_index_start=nan(NSims,1);
     ranks_index_fin=nan(NSims,1);
-    for kk=1:NSims
+    parfor kk=1:NSims
+        temp=Transitions_StartAndFinish_jj(:,kk);
         % Ranks of starting points
-        [~,ranks_index_start]=max(SortedValues>Transitions_StartAndFinish(1,kk,jj));
+        [~,ranks_index_start(kk)]=max(SortedValues>temp(1));
         % Ranks of finishing points
-        [~,ranks_index_fin]=max(SortedValues>Transitions_StartAndFinish(2,kk,jj));
+        [~,ranks_index_fin(kk)]=max(SortedValues>temp(2));
     end
     ranks=CumSumSortedStationaryDistVec(ranks_index_start);
 %     Transitions_StartAndFinish(1,:,jj)=ranks;
-    [~,Transitions_StartAndFinish(1,:,jj)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row
+    [~,Transitions_StartAndFinish_jj(1,:)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row
     
     ranks=CumSumSortedStationaryDistVec(ranks_index_fin);
 %     Transitions_StartAndFinish(2,:,jj)=ranks;
-    [~,Transitions_StartAndFinish(2,:,jj)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row
+    [~,Transitions_StartAndFinish_jj(2,:)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row
+    
+    Transitions_StartAndFinish(:,:,jj)=Transitions_StartAndFinish_jj;
 end
 
 %% We have NSims rank transitions. Now switch into rank transition probabilities.
