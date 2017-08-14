@@ -32,6 +32,16 @@ if nargin<7
     dshift=0;
 end
 
+if znum==1
+    states=mew/(1-rho); %expected value of z
+    transmatrix=1;
+    if tauchenoptions.parallel==2
+        states=gpuArray(states);
+        transmatrix=gpuArray(states);
+    end
+    return
+end
+
 % Note: dshift equals zero gives the Tauchen method. For nonzero dshift
 % this is actually implementing a non-standard Tauchen method.
 if tauchenoptions.parallel==0
