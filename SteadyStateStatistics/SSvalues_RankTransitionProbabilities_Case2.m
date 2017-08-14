@@ -116,8 +116,8 @@ for jj=1:length(SSvaluesFn) % SHOULD PROBABLY USE PARFOR AT THIS LEVEL???
     SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
     CumSumSortedStationaryDistVec=cumsum(SortedStationaryDistVec);
     
-    ranks_index_start=nan(NSims,1);
-    ranks_index_fin=nan(NSims,1);
+    ranks_index_start=nan(NSims,1,'gpuArray');
+    ranks_index_fin=nan(NSims,1,'gpuArray');
     parfor kk=1:NSims
         temp=Transitions_StartAndFinish_jj(:,kk);
         % Ranks of starting points
