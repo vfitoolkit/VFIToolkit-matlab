@@ -11,7 +11,7 @@ nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
 nFields=length(FullParamNames);
 
-VectorOfParamValues=nan;
+VectorOfParamValues=nan; % Will be a row vector
 for iCalibParam = 1:nCalibParams
     found=0;
     for iField=1:nFields
@@ -21,9 +21,9 @@ for iCalibParam = 1:nCalibParams
             else
                 temp=Parameters.(FullParamNames{iField});
                 if isrow(temp)
-                    VectorOfParamValues=[VectorOfParamValues(iCalibParam),temp];
+                    VectorOfParamValues=[VectorOfParamValues,temp];
                 else
-                    VectorOfParamValues=[VectorOfParamValues(iCalibParam),temp'];
+                    VectorOfParamValues=[VectorOfParamValues,temp'];
                 end
             end
             found=1;
