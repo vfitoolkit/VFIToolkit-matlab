@@ -1,4 +1,4 @@
-function SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDist, PolicyIndexes, SSvaluesFn, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p_val, Parallel)
+function SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel)
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
 
 if n_d(1)==0
