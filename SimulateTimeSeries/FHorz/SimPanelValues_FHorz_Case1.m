@@ -60,40 +60,75 @@ PolicyIndexesKron=gather(PolicyIndexesKron);
 
 SimPanelValues=zeros(length(ValuesFns), simoptions.simperiods, simoptions.numbersims);
 
+%% Precompute the gridvals vectors.
+z_gridvals=cell(N_z,l_z);
+for i1=1:N_z
+    sub=zeros(1,l_z);
+    sub(1)=rem(i1-1,n_z(1))+1;
+    for ii=2:length(n_z)-1
+        sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+    end
+    sub(l_z)=ceil(i1/prod(n_z(1:l_z-1)));
+    
+    if l_z>1
+        sub=sub+[0,cumsum(n_z(1:end-1))];
+    end
+    z_gridvals(i1,:)=num2cell(z_grid(sub));
+end
+a_gridvals=cell(N_a,l_a);
+for i2=1:N_a
+    sub=zeros(1,l_a);
+    sub(1)=rem(i2-1,n_a(1)+1);
+    for ii=2:length(n_a)-1
+        sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+    end
+    sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
+    
+    if l_a>1
+        sub=sub+[0,cumsum(n_a(1:end-1))];
+    end
+    a_gridvals(i2,:)=num2cell(a_grid(sub));
+end
+
 d_val=zeros(1,l_d);
 aprime_val=zeros(1,l_a);
 a_val=zeros(1,l_a);
 z_val=zeros(1,l_z);
 
+%%
 SimPanelValues_ii=zeros(length(ValuesFns),simoptions.simperiods);
 %% For sure the following could be made faster by parallelizing some stuff.
 for ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
     for t=1:simoptions.simperiods
         a_sub=SimPanel_ii(1:l_a,t);
-        for jj1=1:l_a
-            if jj1==1
-                a_val(jj1)=a_grid(a_sub(jj1));
-            else
-                a_val(jj1)=a_grid(a_sub(jj1)+sum(n_a(1:jj1-1)));
-            end
-        end
+%         for jj1=1:l_a
+%             if jj1==1
+%                 a_val(jj1)=a_grid(a_sub(jj1));
+%             else
+%                 a_val(jj1)=a_grid(a_sub(jj1)+sum(n_a(1:jj1-1)));
+%             end
+%         end
         a_ind=sub2ind_homemade(n_a,a_sub);
-        
+%         
         z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
-        for jj2=1:l_z
-            if jj2==1
-                z_val(jj2)=z_grid(z_sub(jj2));
-            else
-                z_val(jj2)=z_grid(z_sub(jj2)+sum(n_z(1:jj2-1)));
-            end
-        end
+%         for jj2=1:l_z
+%             if jj2==1
+%                 z_val(jj2)=z_grid(z_sub(jj2));
+%             else
+%                 z_val(jj2)=z_grid(z_sub(jj2)+sum(n_z(1:jj2-1)));
+%             end
+%         end
         z_ind=sub2ind_homemade(n_z,z_sub);
+
         
         j_ind=SimPanel_ii(end,t);
+                
+        a_val=a_gridvals(a_ind,:);
+        z_val=z_gridvals(z_ind,:);
         
-        if l_d==0            
-            aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);
+        if l_d==0
+            aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
         else
             temp=PolicyIndexesKron(:,a_ind,z_ind,t);
@@ -115,6 +150,7 @@ for ii=1:simoptions.numbersims
                 aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
             end
         end
+        
         if l_d==0
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
