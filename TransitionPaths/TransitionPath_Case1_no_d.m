@@ -1,47 +1,5 @@
 function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, MarketPriceParamNames,transpathoptions)
 
-%% Check which transpathoptions have been used, set all others to defaults 
-if nargin<21
-    disp('No transpathoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-    transpathoptions.tolerance=10^(-5);
-    transpathoptions.parallel=2;
-    transpathoptions.oldpathweight=0.9; % default =0.9
-    transpathoptions.weightscheme=1; % default =1
-    transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=1000;
-    transpathoptions.verbose=0;
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1;transpathoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.tolerance=10^(-5);
-    end
-    eval('fieldexists=1;transpathoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.parallel=2;
-    end
-    eval('fieldexists=1;transpathoptions.oldpathweight;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.oldpathweight=0.9;
-    end
-    eval('fieldexists=1;transpathoptions.weightscheme;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.weightscheme=1;
-    end
-    eval('fieldexists=1;transpathoptions.Ttheta;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.Ttheta=1;
-    end
-    eval('fieldexists=1;transpathoptions.maxiterations;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.maxiterations=1000;
-    end
-    eval('fieldexists=1;transpathoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
-        transpathoptions.verbose=0;
-    end
-end
 
 %%
 if transpathoptions.verbose==1
@@ -86,17 +44,20 @@ IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames,
 IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PricePathNames, ReturnFnParamNames);
 IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,ReturnFnParamNames);
-SSvalueParamsVec=gpuArray(CreateVectorFromParams(Parameters, SSvalueParamNames));
-IndexesForPricePathInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, PricePathNames);
-IndexesForSSvalueParamsInPricePath=CreateParamVectorIndexes(PricePathNames,SSvalueParamNames);
-IndexesForPathParamsInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, ParamPathNames);
-IndexesForSSvalueParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,SSvalueParamNames);
-MarketPriceParamsVec=gpuArray(CreateVectorFromParams(Parameters, MarketPriceParamNames));
-IndexesForPricePathInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, PricePathNames);
-IndexesForMarketPriceParamsInPricePath=CreateParamVectorIndexes(PricePathNames, MarketPriceParamNames);
-IndexesForPathParamsInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, ParamPathNames);
-IndexesForMarketPriceParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,MarketPriceParamNames);
-
+% for ii=1:length(SSvaluesFn)
+%     SSvalueParamsVec=gpuArray(CreateVectorFromParams(Parameters, SSvalueParamNames));
+%     IndexesForPricePathInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, PricePathNames);
+%     IndexesForSSvalueParamsInPricePath=CreateParamVectorIndexes(PricePathNames,SSvalueParamNames);
+%     IndexesForPathParamsInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, ParamPathNames);
+%     IndexesForSSvalueParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,SSvalueParamNames);
+% end
+% for ii=1:length(length(MarketPriceEqns))
+%     MarketPriceParamsVec=gpuArray(CreateVectorFromParams(Parameters, MarketPriceParamNames));
+%     IndexesForPricePathInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, PricePathNames);
+%     IndexesForMarketPriceParamsInPricePath=CreateParamVectorIndexes(PricePathNames, MarketPriceParamNames);
+%     IndexesForPathParamsInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, ParamPathNames);
+%     IndexesForMarketPriceParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,MarketPriceParamNames);
+% end
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
@@ -161,31 +122,45 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         p=PricePathOld(i,:);
         
-        if ~isnan(IndexesForPricePathInSSvalueParams)
-            SSvalueParamsVec(IndexesForPricePathInSSvalueParams)=PricePathOld(i,IndexesForSSvalueParamsInPricePath);
+        for nn=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{nn})=ParamPath(i,nn);
         end
-        if ~isnan(IndexesForPathParamsInSSvalueParams)
-            SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(i,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+        for nn=1:length(PricePathNames)
+            Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
         end
+        
+%         if ~isnan(IndexesForPricePathInSSvalueParams)
+%             SSvalueParamsVec(IndexesForPricePathInSSvalueParams)=PricePathOld(i,IndexesForSSvalueParamsInPricePath);
+%         end
+%         if ~isnan(IndexesForPathParamsInSSvalueParams)
+%             SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(i,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+%         end
+        
         PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-        SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
-                     
-        if ~isnan(IndexesForPricePathInMarketPriceParams)
-            MarketPriceParamsVec(IndexesForPricePathInMarketPriceParams)=PricePathOld(i,IndexesForMarketPriceParamsInPricePath);
-        end
-        if ~isnan(IndexesForPathParamsInMarketPriceParams)
-            MarketPriceParamsVec(IndexesForPathParamsInMarketPriceParams)=ParamPath(i,IndexesForMarketPriceParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-        end
-        %An easy way to get the new prices is just to call MarketClearance
-        %and then adjust it for the current prices
+%         SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
+        SSvalues_AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, SSvaluesFn, Parameters, SSvalueParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2);   
+        
+%         if ~isnan(IndexesForPricePathInMarketPriceParams)
+%             MarketPriceParamsVec(IndexesForPricePathInMarketPriceParams)=PricePathOld(i,IndexesForMarketPriceParamsInPricePath);
+%         end
+%         if ~isnan(IndexesForPathParamsInMarketPriceParams)
+%             MarketPriceParamsVec(IndexesForPathParamsInMarketPriceParams)=ParamPath(i,IndexesForMarketPriceParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+%         end
+        %An easy way to get the new prices is just to call MarketClearance and then adjust it for the current prices
         for j=1:length(MarketPriceEqns)
             
             % When using negative powers matlab will often return complex
             % numbers, even if the solution is actually a real number. I
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
-            PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-           
+            if transpathoptions.GEnewprice==1
+                PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+            elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+                fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
+                return
+                GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+                PricePathNew(i,j)=fzero(GEeqn_temp,p);
+            end
         end
         
         AgentDist=AgentDistnext;
