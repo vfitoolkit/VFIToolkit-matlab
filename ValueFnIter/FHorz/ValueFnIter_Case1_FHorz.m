@@ -13,39 +13,29 @@ if nargin<13
     vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=2;
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    eval('fieldexists=1;vfoptions.lowmemory;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'lowmemory')==0
         vfoptions.lowmemory=0;
     end
-%     eval('fieldexists=1;vfoptions.exoticpreferences;','fieldexists=0;')
-%     if fieldexists==0
-%         vfoptions.exoticpreferences=0;
-%     end  
-    eval('fieldexists=1;vfoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'verbose')==0
         vfoptions.verbose=0;
     end
-    eval('fieldexists=1;vfoptions.returnmatrix;','fieldexists=0;')
-    if fieldexists==0
-        if isa(ReturnFn,'function_handle')==1;
+    if isfield(vfoptions,'returnmatrix')==0
+        if isa(ReturnFn,'function_handle')==1
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
     end
-    eval('fieldexists=1;vfoptions.polindorval;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
-    eval('fieldexists=1;vfoptions.policy_forceintegertype;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
     end
 end

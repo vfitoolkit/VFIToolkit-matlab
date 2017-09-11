@@ -38,9 +38,9 @@ try % if Parallel==2
         if isempty(SSvalueParamNames(i).Names)  % check for 'SSvalueParamNames={}'
             SSvalueParamsCell=[];
         else
-            SSvalueParamsCell=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names);
+            SSvalueParamsCell=gpuArray(CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names));
         end
-        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,p_val,Parallel);
+        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
         % When evaluating value function (which may sometimes give -Inf
         % values) on StationaryDistVec (which at those points will be

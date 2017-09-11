@@ -61,7 +61,7 @@ PolicyIndexesKron=gather(PolicyIndexesKron);
 SimPanelValues=zeros(length(ValuesFns), simoptions.simperiods, simoptions.numbersims);
 
 %% Precompute the gridvals vectors.
-z_gridvals=cell(N_z,l_z);
+z_gridvals=-Inf*ones(N_z,l_z);
 for i1=1:N_z
     sub=zeros(1,l_z);
     sub(1)=rem(i1-1,n_z(1))+1;
@@ -73,9 +73,9 @@ for i1=1:N_z
     if l_z>1
         sub=sub+[0,cumsum(n_z(1:end-1))];
     end
-    z_gridvals(i1,:)=num2cell(z_grid(sub));
+    z_gridvals(i1,:)=z_grid(sub);
 end
-a_gridvals=cell(N_a,l_a);
+a_gridvals=-Inf*ones(N_a,l_a);
 for i2=1:N_a
     sub=zeros(1,l_a);
     sub(1)=rem(i2-1,n_a(1)+1);
@@ -87,7 +87,7 @@ for i2=1:N_a
     if l_a>1
         sub=sub+[0,cumsum(n_a(1:end-1))];
     end
-    a_gridvals(i2,:)=num2cell(a_grid(sub));
+    a_gridvals(i2,:)=a_grid(sub);
 end
 
 d_val=zeros(1,l_d);
