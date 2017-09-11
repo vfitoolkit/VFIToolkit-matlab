@@ -1,4 +1,4 @@
-function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, MarketPriceEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, MarketPriceParamNames,transpathoptions)
+function [PricePathNew]=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions)
 
 
 %%
@@ -147,21 +147,24 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 %             MarketPriceParamsVec(IndexesForPathParamsInMarketPriceParams)=ParamPath(i,IndexesForMarketPriceParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
 %         end
         %An easy way to get the new prices is just to call MarketClearance and then adjust it for the current prices
-        for j=1:length(MarketPriceEqns)
+%         for j=1:length(GeneralEqmEqns)
             
             % When using negative powers matlab will often return complex
             % numbers, even if the solution is actually a real number. I
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
-            if transpathoptions.GEnewprice==1
-                PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-            elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-                fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
-                return
+        if transpathoptions.GEnewprice==1
+            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+%             PricePathNew(i,j)=real(GeneralEqmEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+            fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
+            return
+            for j=1:length(GeneralEqmEqns)
                 GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
                 PricePathNew(i,j)=fzero(GEeqn_temp,p);
             end
         end
+%         end
         
         AgentDist=AgentDistnext;
     end
