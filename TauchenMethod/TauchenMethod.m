@@ -115,6 +115,9 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     
 end
 
+if znum==1
+    P=1;
+end
 
 states=z;
 transmatrix=P; %(z,zprime)
