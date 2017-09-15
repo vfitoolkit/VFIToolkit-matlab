@@ -37,7 +37,7 @@ if znum==1
     transmatrix=1;
     if tauchenoptions.parallel==2
         states=gpuArray(states);
-        transmatrix=gpuArray(states);
+        transmatrix=gpuArray(transmatrix);
     end
     return
 end
@@ -113,10 +113,6 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     P(:,1)=P_part1(:,1);
     P(:,znum)=1-P_part2(:,znum);
     
-end
-
-if znum==1
-    P=1;
 end
 
 states=z;
