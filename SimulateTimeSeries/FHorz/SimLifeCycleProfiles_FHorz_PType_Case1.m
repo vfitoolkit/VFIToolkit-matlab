@@ -63,7 +63,7 @@ PType_numbersims=round(PType_mass*simoptions.numbersims);
 
 for ii=1:N_i
     if simoptions.verbose==1
-        sprintf('Fixed type: %i of %i',ii, N_i)
+        fprintf('Fixed type: %i of %i \n',ii, N_i)
     end
     
     simoptions.numbersims=PType_numbersims(ii);
@@ -97,8 +97,10 @@ for ii=1:N_i
     end
     if N_a*N_z*N_i==numelInitialDist %Does not depend on N_j
         InitialDist_temp=InitialDist(:,:,ii);
+        InitialDist_temp=InitialDist_temp./(sum(sum(InitialDist_temp)));
     else % Depends on N_j
         InitialDist_temp=InitialDist(:,:,:,ii);
+        InitialDist_temp=InitialDist_temp./(sum(sum(sum(InitialDist_temp))));
     end
     if isfield(simoptions,'ExogShockFnParamNames')==1
         disp('WARNING: ExogShockFn not yet implemented for PType (in SimPanelValues_FHorz_PType_Case1)')
