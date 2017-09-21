@@ -18,19 +18,19 @@ if Parallel==2
     
     PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid, Parallel);
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a,N_j]
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
     
-    PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_s*(l_d+l_a),N_j]);
+    PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
     for i=1:length(SSvaluesFn)
         Values=nan(N_a*N_z,N_j,'gpuArray');
-        for jj=1:J
+        for jj=1:N_j
             % Includes check for cases in which no parameters are actually required
             if isempty(SSvalueParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
                 SSvalueParamsVec=[];
             else
                 SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
             end
-            Values(:,jj)=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_s,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel);
+            Values(:,jj)=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel);
         end
         %         Values=reshape(Values,[N_a*N_z,N_j]);
         SSvalues_AggVars(i)=sum(sum(Values.*SteadyStateDistVec));
