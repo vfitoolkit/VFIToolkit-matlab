@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -71,7 +71,7 @@ if vfoptions.lowmemory==0
     %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
     %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],3);
+    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
     Policy(:,:,N_j)=maxindex;
 
@@ -110,7 +110,7 @@ for reverse_j=1:N_j-1
     j=N_j-reverse_j;
 
     if vfoptions.verbose==1
-        sprintf('Finite horizon: %i of %i',reverse_j, N_j)
+        sprintf('Finite horizon: %i of %i',j, N_j)
     end
     
     
@@ -133,7 +133,7 @@ for reverse_j=1:N_j-1
     
     VKronNext_j=V(:,:,j+1);
     
-    if lowmemory==0
+    if vfoptions.lowmemory==0
         
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
@@ -170,7 +170,7 @@ for reverse_j=1:N_j-1
             Policy(:,z_c,j)=maxindex;
         end
         
-    elseif lowmemory==1
+    elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
@@ -190,7 +190,7 @@ for reverse_j=1:N_j-1
             Policy(:,z_c,j)=maxindex;
         end
         
-    elseif lowmemory==2
+    elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -216,8 +216,9 @@ for reverse_j=1:N_j-1
     end
 end
 
-Policy=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+%%
+Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
+Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

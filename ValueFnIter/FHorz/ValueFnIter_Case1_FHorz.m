@@ -1,5 +1,8 @@
 function [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+V=nan;
+Policy=nan;
+
 %% Check which vfoptions have been used, set all others to defaults 
 if nargin<13
     disp('No vfoptions given, using defaults')
@@ -98,6 +101,34 @@ end
 % %     [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
 % %     return
 % end
+
+%%
+if isfield(vfoptions,'StateDependentVariables_z')==1
+    if vfoptions.verbose==1
+        fprintf('StateDependentVariables_z option is being used \n')
+    end
+    
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
+    
+    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+    V=reshape(VKron,[n_a,n_z,N_j]);
+    Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+    
+    % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
+    % that Policy is not integer valued. The following corrects this by converting to int64 and then
+    % makes the output back into double as Matlab otherwise cannot use it in
+    % any arithmetical expressions.
+    if vfoptions.policy_forceintegertype==1
+        Policy=uint64(Policy);
+        Policy=double(Policy);
+    end
+    
+    return
+end
 
 %% 
 if N_d==0
