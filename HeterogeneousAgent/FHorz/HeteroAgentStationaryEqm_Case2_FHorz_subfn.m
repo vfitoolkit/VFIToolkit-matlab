@@ -1,8 +1,8 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_FHorz_subfn(p, jequaloneDist,AgeWeights, n_d, n_a, n_s, N_j, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeFn, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_FHorz_subfn(p, jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, Phi_aprimeFn, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
-N_s=prod(n_s);
+N_z=prod(n_z);
 N_p=prod(n_p);
 
 l_p=length(n_p);
@@ -12,11 +12,11 @@ for ii=1:l_p
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
 
-[~, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_s,N_j,d_grid, a_grid, s_grid, pi_s, Phi_aprimeFn, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+[~, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, Phi_aprimeFn, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-StationaryDistKron=StationaryDist_FHorz_Case2(jequaloneDist,AgeWeights,Policy,n_d,n_a,n_s,N_j,d_grid, a_grid, s_grid,pi_s,Phi_aprimeFn,Case2_Type,Params,PhiaprimeParamNames,simoptions);
-SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2); % The 2 is for Parallel (use GPU) % The 2 is for Parallel (use GPU)
+StationaryDistKron=StationaryDist_FHorz_Case2(jequaloneDist,AgeWeights,Policy,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Params,PhiaprimeParamNames,simoptions);
+SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s,N_j d_grid, a_grid, z_grid, pi_z,p,2); % The 2 is for Parallel (use GPU) % The 2 is for Parallel (use GPU)
 
 % The following line is often a useful double-check if something is going wrong.
 %    SSvalues_AggVars

@@ -1,8 +1,8 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist, n_d, n_a, n_s, N_j, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
-N_s=prod(n_s);
+N_z=prod(n_z);
 N_p=prod(n_p);
 
 l_p=length(n_p);
@@ -38,8 +38,8 @@ for p_c=1:N_p
     [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-    StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist,Policy,n_d,n_a,n_s,N_j,pi_s,simoptions);
-    SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2); % The 2 is for Parallel (use GPU)
+    StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist, AgeWeights, Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
     
     % The following line is often a useful double-check if something is going wrong.
 %    SSvalues_AggVars
@@ -50,7 +50,9 @@ for p_c=1:N_p
     GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
 
-if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
+if heteroagentoptions.multiGEcriterion==0 % the measure of market clearance is to take the sum of absolute distance in each market 
+    [~,p_eqm_indexKron]=min(sum(abs(GeneralEqmConditionsKron),2));
+elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
     [~,p_eqm_indexKron]=min(sum(GeneralEqmConditionsKron.^2,2));                                                                                                         
 end
 
@@ -58,7 +60,9 @@ end
 p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
 if l_p>1
     GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');
-    if heteroagentoptions.multimarketcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
+    if heteroagentoptions.multiGEcriterion==0
+        GeneralEqmConditions(:,1)=sum(abs(GeneralEqmConditionsKron),2);
+    elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
         GeneralEqmConditions(:,1)=sum(GeneralEqmConditionsKron.^2,2);
     end
     GeneralEqmConditions(:,2:end)=GeneralEqmConditionsKron;
