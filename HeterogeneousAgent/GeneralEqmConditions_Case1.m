@@ -3,8 +3,7 @@ function  [GeneralEqmConditionsVec]=GeneralEqmConditions_Case1(SSvalues_AggVars,
 GeneralEqmConditionsVec=ones(1,length(GeneralEqmEqns),'gpuArray')*Inf;
 for i=1:length(GeneralEqmEqns)
     if isempty(GeneralEqmEqnParamNames(i).Names)  % check for 'GeneralEqmEqnParamNames(i).Names={}'
-        GeneralEqmEqnParamsVec=gpuArray([]);
-        GeneralEqmConditionsVec(i)=GeneralEqmEqns{i}(SSvalues_AggVars, p, GeneralEqmEqnParamsVec);
+        GeneralEqmConditionsVec(i)=GeneralEqmEqns{i}(SSvalues_AggVars, p);
     else
         GeneralEqmEqnParamsVec=gpuArray(CreateVectorFromParams(Parameters,GeneralEqmEqnParamNames(i).Names));
         GeneralEqmEqnParamsCell=cell(length(GeneralEqmEqnParamsVec),1);
