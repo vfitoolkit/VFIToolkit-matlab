@@ -71,6 +71,13 @@ else
     GeneralEqmConditions=reshape(GeneralEqmConditionsKron,[n_p,1]);
 end
 
+% %TEMPORARILY PRINT THIS OUT
+% p_eqm_index
+% p_eqm_index=gather(p_eqm_index);
+% whos p_eqm_index
+% p_eqm_index-[11,3,3]
+
+p_eqm_index=round(p_eqm_index); % Was having rounding errors of order of numerical accuracy.
 
 %Calculate the price associated with p_eqm_index
 p_eqm=zeros(l_p,1);
