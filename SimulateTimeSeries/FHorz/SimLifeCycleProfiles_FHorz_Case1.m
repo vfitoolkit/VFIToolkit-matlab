@@ -157,7 +157,7 @@ for ii=1:simoptions.numbersims
             d_ind=temp(1); aprime_ind=temp(2);
             d_sub=ind2sub_homemade(n_a,d_ind);
             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-            for kk1=1:num_d_vars
+            for kk1=1:l_d
                 if kk1==1
                     d_val(kk1)=d_grid(d_sub(kk1));
                 else
@@ -194,13 +194,31 @@ for ii=1:simoptions.numbersims
             end
         else
             for vv=1:length(ValuesFns)
-                if isempty(ValuesFnsParamNames)  % check for 'SSvalueParamNames={}'
-                    ValuesFnParamsVec=[];
+                if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+                    tempv=[d_val,aprime_val,a_val,z_val];
+                    tempcell=cell(1,length(tempv));
+                    for temp_c=1:length(tempv)
+                        tempcell{temp_c}=tempv(temp_c);
+                    end
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                    tempv=[d_val,aprime_val,a_val,z_val,ValuesFnParamsVec];
+                    tempcell=cell(1,length(tempv));
+                    for temp_c=1:length(tempv)
+                        tempcell{temp_c}=tempv(temp_c);
+                    end
                 end
-                SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
+                SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+                %SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
             end
+%             for vv=1:length(ValuesFns)
+%                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val);
+%                 else
+%                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
+%                 end
+%             end
         end
     end
     SimPanelValues(:,:,ii)=SimPanelValues_ii;
