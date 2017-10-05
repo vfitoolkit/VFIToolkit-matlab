@@ -24,7 +24,7 @@ if nargin==2
         found=0;
         for iField=1:nFields
             if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
-                VectorOfParamValues(iCalibParam)=Parameters.(FullParamNames{iField});
+                VectorOfParamValues(iCalibParam)=gather(Parameters.(FullParamNames{iField}));
                 found=1;
             end
         end
@@ -37,7 +37,7 @@ elseif nargin==3
         found=0;
         for iField=1:nFields
             if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
-                temp=Parameters.(FullParamNames{iField});
+                temp=gather(Parameters.(FullParamNames{iField}));
                 if length(temp)>1 % Some parameters will depend on the index, some will not.
                     VectorOfParamValues(iCalibParam)=temp(index1); 
                 else
@@ -55,7 +55,7 @@ elseif nargin==4
         found=0;
         for iField=1:nFields
             if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
-                temp=Parameters.(FullParamNames{iField});
+                temp=gather(Parameters.(FullParamNames{iField}));
                 if numel(temp)>length(temp) % Some parameters will depend on both index1 and index2
                     VectorOfParamValues(iCalibParam)=temp(index1,index2);
                 elseif size(temp,1)==length(temp) % Some parameters will depend only on index1.
