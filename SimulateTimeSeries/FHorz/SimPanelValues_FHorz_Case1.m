@@ -78,7 +78,7 @@ end
 a_gridvals=-Inf*ones(N_a,l_a);
 for i2=1:N_a
     sub=zeros(1,l_a);
-    sub(1)=rem(i2-1,n_a(1)+1);
+    sub(1)=rem(i2-1,n_a(1))+1;
     for ii=2:length(n_a)-1
         sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
     end
