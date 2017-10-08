@@ -1,5 +1,6 @@
-function SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel) %  pi_z,p_val,
-% Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
+function OtherPolicies=OtherPolicyFunctions_FHorz_Case1(Policy2, ValuesFn,ValuesFnsParamNames,Params,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid);
+% Creates OtherPolicies, which is the same thing as Policy but rather than
+% being for the underlying policies it evaluates those in ValuesFn.
 
 if n_d(1)==0
     l_d=0;
