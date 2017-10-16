@@ -68,12 +68,21 @@ else
                 end
                 for jj=1:N_j
                     % Includes check for cases in which no parameters are actually required
-                    if isempty(SSvalueParamNames)% || strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={}'
-                        Values(j1,j2,jj)=SSvaluesFn{i}(d_val,a_val,z_val); %,p_val
+                    if isempty(SSvalueParamNames(i).Names)
+                        tempv=[d_val,a_val,z_val];
+                        tempcell=cell(1,length(tempv));
+                        for temp_c=1:length(tempv)
+                            tempcell{temp_c}=tempv(temp_c);
+                        end
                     else
                         SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
-                        Values(j1,j2,jj)=SSvaluesFn{i}(d_val,a_val,z_val,SSvalueParamsVec); %,p_val
+                        tempv=[d_val,a_val,z_val,SSvalueParamsVec];
+                        tempcell=cell(1,length(tempv));
+                        for temp_c=1:length(tempv)
+                            tempcell{temp_c}=tempv(temp_c);
+                        end
                     end
+                    Values(j1,j2,jj)=SSvaluesFn{i}(tempcell{:});
                 end
             end
         end

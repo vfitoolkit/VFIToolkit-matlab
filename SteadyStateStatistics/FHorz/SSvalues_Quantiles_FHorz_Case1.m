@@ -1,5 +1,12 @@
-function SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(StationaryDist,PolicyIndexes, SSvaluesFn,Parameters,SSvalueParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel)
+function  [SSvalues_QuantileCutOffs, SSvalues_QuantileMeans]=SSvalues_Quantiles_FHorz_Case1(StationaryDist,PolicyIndexes, SSvaluesFn,Parameters,SSvalueParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel)
+%Returns the cut-off values and the within percentile means from dividing
+%the StationaryDist into NumPercentiles percentiles.
 
+Tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+
+%Note that to unnormalize the Lorenz Curve you can just multiply it be the
+%SSvalues_AggVars for the same variable. This will give you the inverse
+%cdf.
 
 if n_d(1)==0
     l_d=0;
@@ -12,7 +19,8 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if Parallel==2
-    SSvalues_AggVars=zeros(length(SSvaluesFn),1,'gpuArray');
+    SSvalues_QuantileCutOffs=zeros(length(SSvaluesFn),NumQuantiles+1,'gpuArray'); %Includes min and max
+    SSvalues_QuantileMeans=zeros(length(SSvaluesFn),NumQuantiles,'gpuArray');
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
     
@@ -32,12 +40,49 @@ if Parallel==2
             end
             Values(:,jj)=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel);
         end
-        %         Values=reshape(Values,[N_a*N_z,N_j]);
-        SSvalues_AggVars(i)=sum(sum(Values.*StationaryDistVec));
+%         SSvalues_AggVars(i)=sum(sum(Values.*StationaryDistVec));
+%        Values=reshape(Values,[N_a*N_z,N_j]); % DO 'VALUES' and
+%        'StationaryDistVec' NEED TO BE RESHAPED TO COLUMNS?
+
+        [SortedValues,SortedValues_index] = sort(Values);
+        SortedWeights = StationaryDistVec(SortedValues_index);
+        
+        CumSumSortedWeights=cumsum(SortedWeights);
+        
+        WeightedValues=Values.*StationaryDistVec;
+        SortedWeightedValues=WeightedValues(SortedValues_index);
+        
+        QuantileIndexes=zeros(1,NumQuantiles-1,'gpuArray');
+        QuantileCutoffs=zeros(1,NumQuantiles-1,'gpuArray');
+        QuantileMeans=zeros(1,NumQuantiles,'gpuArray');
+        for ii=1:NumQuantiles-1
+            [~,tempindex]=find(CumSumSortedWeights>=ii/NumQuantiles,1,'first');
+            QuantileIndexes(ii)=tempindex;
+            QuantileCutoffs(ii)=SortedValues(tempindex);
+            if ii==1
+                QuantileMeans(ii)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+            elseif (1<ii) && (ii<(NumQuantiles-1))
+                QuantileMeans(ii)=sum(SortedWeightedValues(QuantileIndexes(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ii-1)));
+            elseif ii==(NumQuantiles-1)
+                QuantileMeans(ii)=sum(SortedWeightedValues(QuantileIndexes(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ii-1)));
+                QuantileMeans(ii+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+            end
+        end
+        
+        % Min value
+        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
+        minvalue=SortedValues(tempindex);
+        % Max value
+        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
+        maxvalue=SortedValues(tempindex);
+        
+        SSvalues_QuantileCutOffs(i,:)=[minvalue, QuantileCutoffs, maxvalue];
+        SSvalues_QuantileMeans(i,:)=QuantileMeans;
     end
     
 else
-    SSvalues_AggVars=zeros(length(SSvaluesFn),1);
+    SSvalues_QuantileCutOffs=zeros(length(SSvaluesFn),NumQuantiles+1); %Includes min and max
+    SSvalues_QuantileMeans=zeros(length(SSvaluesFn),NumQuantiles);
     if l_d>0
         d_val=zeros(1,l_d);
     end
@@ -156,8 +201,45 @@ else
                 end
             end
         end
+%         Values=reshape(Values,[N_a*N_z*N_j,1]);
+%         SSvalues_AggVars(i)=sum(Values.*StationaryDistVec);
+        
         Values=reshape(Values,[N_a*N_z*N_j,1]);
-        SSvalues_AggVars(i)=sum(Values.*StationaryDistVec);
+        
+        [SortedValues,SortedValues_index] = sort(Values);
+        SortedWeights = StationaryDistVec(SortedValues_index);
+        
+        CumSumSortedWeights=cumsum(SortedWeights);
+        
+        WeightedValues=Values.*StationaryDistVec;
+        SortedWeightedValues=WeightedValues(SortedValues_index);
+        
+        QuantileIndexes=zeros(1,NumQuantiles-1);
+        QuantileCutoffs=zeros(1,NumQuantiles-1);
+        QuantileMeans=zeros(1,NumQuantiles);
+        for ii=1:NumQuantiles-1
+            [~,tempindex]=find(CumSumSortedWeights>=ii/NumQuantiles,1,'first');
+            QuantileIndexes(ii)=tempindex;
+            QuantileCutoffs(ii)=SortedValues(tempindex);
+            if ii==1
+                QuantileMeans(ii)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+            elseif (1<ii) && (ii<(NumQuantiles-1))
+                QuantileMeans(ii)=sum(SortedWeightedValues(QuantileIndexes(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ii-1)));
+            elseif ii==(NumQuantiles-1)
+                QuantileMeans(ii)=sum(SortedWeightedValues(QuantileIndexes(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ii-1)));
+                QuantileMeans(ii+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+            end
+        end
+        
+        % Min value
+        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
+        minvalue=SortedValues(tempindex);
+        % Max value
+        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
+        maxvalue=SortedValues(tempindex);
+        
+        SSvalues_QuantileCutOffs(i,:)=[minvalue, QuantileCutoffs, maxvalue];
+        SSvalues_QuantileMeans(i,:)=QuantileMeans;
     end
     
 end

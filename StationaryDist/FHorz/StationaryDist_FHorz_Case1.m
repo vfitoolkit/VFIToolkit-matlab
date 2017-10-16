@@ -4,7 +4,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if nargin<7
+if exist('simoptions','var')==0
     simoptions.nsims=10^4;
     simoptions.parallel=2;
     simoptions.verbose=0;
@@ -19,24 +19,19 @@ if nargin<7
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
-    eval('fieldexists=1;simoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'tolerance')==0
         simoptions.tolerance=10^(-9);
     end
-    eval('fieldexists=1;simoptions.nsims;','fieldexists=0;')
-    if fieldexists==0
+        if isfield(simoptions,'nsims')==0
         simoptions.nsims=10^4;
     end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
+        if isfield(simoptions,'parallel')==0
         simoptions.parallel=2;
     end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+        if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
     end
-    eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'ncores')==0
         try
             PoolDetails=gcp;
             simoptions.ncores=PoolDetails.NumWorkers;
@@ -44,8 +39,7 @@ else
             simoptions.ncores=1;
         end
     end
-    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'iterate')==0
         simoptions.iterate=1;
     end
 end
