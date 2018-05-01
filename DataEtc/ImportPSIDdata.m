@@ -7,6 +7,8 @@ function output1 = ImportPSIDdata(jobname)
 %
 % To use this you must download your PSID data with 'xml' cookbook
 % and with the data for SPSS.
+% You must rename the two files ending in '.sps' to instead end in '_sps.txt'.
+% 
 %
 % For the inputed 'jobname' --- the filename/code of your PSID dataset this
 % code reads the metadata from the '.xml' file, finds out the fixed widths for
@@ -20,7 +22,7 @@ function output1 = ImportPSIDdata(jobname)
 %%
 disp(['Starting import of PSID data for jobname ', jobname])
 
-% jobname='J226269'
+% jobname='J226274'
 
 filename_xml = [jobname,'_codebook.xml']; % the .xml cookbook containing the metadata
 filename_txt = [jobname,'.txt']; % the .txt file containing the data itself
@@ -106,6 +108,7 @@ end
 
 
 % April 2017: PSID sps file layout has changed. Old version is commented out below the following new version.
+% April 2018: some PSID variable names now have an A2 or A3 on the end. Have had to make some minor changes to allow for this.
 PSIDfixedlengths=zeros(nPSIDvariables,1);
 fid = fopen(filename_sps,'r');
 tline = fgetl(fid);
@@ -119,7 +122,19 @@ while ii<=nPSIDvariables
         % [This is a bit of a silly way to do it but is how the old PSID
         % sps formatting files gave the info and saves me rewriting Step 3
         % of 4 in this command.]
-        PSIDfixedlengths(ii)=1+str2num(strtrim(tempstr(temp2+1:end)))-str2num(strtrim(tempstr(1:temp2-1))); 
+        firstpart=strtrim(tempstr(1:temp2-1)); % Start of April 2018 modification: grab this, then if it contains any spaces remove everything prior to first space. This gets rid of 'A2' etc at end of variable names.
+        if max(isspace(firstpart))==1
+            % Remove characters one by one until get to a space
+            firstspace=0;
+            while firstspace==0
+                if ~isspace(firstpart(1))
+                    firstpart=firstpart(2:end);
+                else
+                    firstspace=1;
+                end
+            end
+        end % End of April 2018 modification.
+        PSIDfixedlengths(ii)=1+str2num(strtrim(tempstr(temp2+1:end)))-str2num(strtrim(firstpart)); %str2num(strtrim(tempstr(1:temp2-1)));
         ii=ii+1;
         frewind(fid); % PSID xml file contains the variables 'out of order', so have to reset to beginning each time.
     else
