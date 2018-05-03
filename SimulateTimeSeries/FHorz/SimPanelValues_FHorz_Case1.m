@@ -154,30 +154,34 @@ for ii=1:simoptions.numbersims
         if l_d==0
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                    tempv=[aprime_val,a_val,z_val];
-                    tempcell=cell(1,length(tempv));
-                    for temp_c=1:length(tempv)
-                        tempcell{temp_c}=tempv(temp_c);
-                    end
+%                     tempv=[aprime_val,a_val,z_val];
+%                     tempcell=cell(1,length(tempv));
+%                     for temp_c=1:length(tempv)
+%                         tempcell{temp_c}=tempv(temp_c);
+%                     end
+                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val);
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
-                    tempv=[aprime_val,a_val,z_val,ValuesFnParamsVec];
-                    tempcell=cell(1,length(tempv));
-                    for temp_c=1:length(tempv)
-                        tempcell{temp_c}=tempv(temp_c);
-                    end
+%                     tempv=[aprime_val,a_val,z_val,ValuesFnParamsVec];
+%                     tempcell=cell(1,length(tempv));
+%                     for temp_c=1:length(tempv)
+%                         tempcell{temp_c}=tempv(temp_c);
+%                     end
+                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val,ValuesFnParamsVec);
                 end
-                SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+%                 SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
                 %SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val,ValuesFnParamsVec);
             end
         else
             for vv=1:length(ValuesFns)
-                if isempty(ValuesFnsParamNames)  % check for 'SSvalueParamNames={}'
-                    ValuesFnParamsVec=[];
+                if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+%                     ValuesFnParamsVec=[];
+                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val);
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
                 end
-                SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
+%                 SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
             end
         end
     end
