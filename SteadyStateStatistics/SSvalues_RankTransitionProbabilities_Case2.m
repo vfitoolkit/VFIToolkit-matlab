@@ -116,15 +116,23 @@ for jj=1:length(SSvaluesFn) % SHOULD PROBABLY USE PARFOR AT THIS LEVEL???
     SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
     CumSumSortedStationaryDistVec=cumsum(SortedStationaryDistVec);
     
-    ranks_index_start=nan(NSims,1,'gpuArray');
-    ranks_index_fin=nan(NSims,1,'gpuArray');
-    parfor kk=1:NSims
+%     ranks_index_start=nan(NSims,1,'gpuArray');
+%     ranks_index_fin=nan(NSims,1,'gpuArray');
+    ranks_index_start=nan(NSims,1);
+    ranks_index_fin=nan(NSims,1);
+    SortedValues=gather(SortedValues);
+    Transitions_StartAndFinish_jj=gather(Transitions_StartAndFinish_jj);
+    parfor kk=1:NSims %to use parfor here I have to move everything off gpu temporarily
         temp=Transitions_StartAndFinish_jj(:,kk);
         % Ranks of starting points
         [~,ranks_index_start(kk)]=max(SortedValues>temp(1));
         % Ranks of finishing points
         [~,ranks_index_fin(kk)]=max(SortedValues>temp(2));
     end
+    ranks_index_start=gpuArray(ranks_index_start);
+    ranks_index_fin=gpuArray(ranks_index_fin);
+    Transitions_StartAndFinish_jj=gpuArray(Transitions_StartAndFinish_jj);
+    
     ranks=CumSumSortedStationaryDistVec(ranks_index_start);
 %     Transitions_StartAndFinish(1,:,jj)=ranks;
     [~,Transitions_StartAndFinish_jj(1,:)]=min(abs(linspace(1/npoints,1,npoints)'- ranks')); % first should be column, second row

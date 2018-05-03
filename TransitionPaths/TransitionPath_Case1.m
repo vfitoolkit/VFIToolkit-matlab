@@ -7,7 +7,7 @@ function [PricePathNew]=TransitionPath_Case1(PricePathOld, PricePathNames, Param
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
 %% Check which transpathoptions have been used, set all others to defaults 
-if nargin<23
+if exist('transpathoptions','var')==1
     disp('No transpathoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
