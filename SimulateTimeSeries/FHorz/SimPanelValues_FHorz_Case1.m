@@ -102,30 +102,14 @@ for ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
     for t=1:simoptions.simperiods
         a_sub=SimPanel_ii(1:l_a,t);
-%         for jj1=1:l_a
-%             if jj1==1
-%                 a_val(jj1)=a_grid(a_sub(jj1));
-%             else
-%                 a_val(jj1)=a_grid(a_sub(jj1)+sum(n_a(1:jj1-1)));
-%             end
-%         end
         a_ind=sub2ind_homemade(n_a,a_sub);
-%         
+        a_val=a_gridvals(a_ind,:);
+         
         z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
-%         for jj2=1:l_z
-%             if jj2==1
-%                 z_val(jj2)=z_grid(z_sub(jj2));
-%             else
-%                 z_val(jj2)=z_grid(z_sub(jj2)+sum(n_z(1:jj2-1)));
-%             end
-%         end
         z_ind=sub2ind_homemade(n_z,z_sub);
-
+        z_val=z_gridvals(z_ind,:);
         
         j_ind=SimPanel_ii(end,t);
-                
-        a_val=a_gridvals(a_ind,:);
-        z_val=z_gridvals(z_ind,:);
         
         if l_d==0
             aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
@@ -133,7 +117,7 @@ for ii=1:simoptions.numbersims
         else
             temp=PolicyIndexesKron(:,a_ind,z_ind,t);
             d_ind=temp(1); aprime_ind=temp(2);
-            d_sub=ind2sub_homemade(n_a,d_ind);
+            d_sub=ind2sub_homemade(n_d,d_ind);
             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
             for kk1=1:l_d
                 if kk1==1
@@ -154,36 +138,31 @@ for ii=1:simoptions.numbersims
         if l_d==0
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-%                     tempv=[aprime_val,a_val,z_val];
-%                     tempcell=cell(1,length(tempv));
-%                     for temp_c=1:length(tempv)
-%                         tempcell{temp_c}=tempv(temp_c);
-%                     end
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val);
+                   tempcell=num2cell([aprime_val,a_val,z_val]');
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val);
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
-%                     tempv=[aprime_val,a_val,z_val,ValuesFnParamsVec];
-%                     tempcell=cell(1,length(tempv));
-%                     for temp_c=1:length(tempv)
-%                         tempcell{temp_c}=tempv(temp_c);
-%                     end
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val,ValuesFnParamsVec);
+                   tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val,ValuesFnParamsVec);
                 end
 %                 SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
-                %SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val,ValuesFnParamsVec);
             end
         else
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-%                     ValuesFnParamsVec=[];
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val);
+                    tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val);
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
+                    tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
                 end
-%                 SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
             end
         end
+        SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
     end
     SimPanelValues(:,:,ii)=SimPanelValues_ii;
 end
