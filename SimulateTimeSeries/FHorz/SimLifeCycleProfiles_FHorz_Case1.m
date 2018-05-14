@@ -155,6 +155,9 @@ for ii=1:simoptions.numbersims
         else
             temp=PolicyIndexesKron(:,a_ind,z_ind,t);
             d_ind=temp(1); aprime_ind=temp(2);
+            % SHOULD BE ABLE TO CHANGE NEXT BUNCH OF LINES TO GET d_val and
+            % aprime_val DIRECTLY FROM d_gridvals and a_gridvals. WOULD BE
+            % FASTER THAN CURRENT APPROACH.
             d_sub=ind2sub_homemade(n_a,d_ind);
             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
             for kk1=1:l_d
