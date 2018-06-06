@@ -109,6 +109,8 @@ end
 
 % April 2017: PSID sps file layout has changed. Old version is commented out below the following new version.
 % April 2018: some PSID variable names now have an A2 or A3 on the end. Have had to make some minor changes to allow for this.
+% June 2018: Correction: realised large data sets were used they were creating an error when the fixed locations reached four-digits: 
+%                   Just had to make it 'temp+7+25' instead of 20 when creating 'tempstr'.
 PSIDfixedlengths=zeros(nPSIDvariables,1);
 fid = fopen(filename_sps,'r');
 tline = fgetl(fid);
@@ -116,7 +118,7 @@ ii=1;
 while ii<=nPSIDvariables
     if ~isempty(strfind(tline,PSIDsummary.name{ii}))
         temp=strfind(tline,PSIDsummary.name{ii}); % Find the name of the variable
-        tempstr=tline(temp+7:min(temp+7+20,length(tline)));  % Grab a bunch of the characters that come after the variable name
+        tempstr=tline(temp+7:min(temp+7+25,length(tline)));  % Grab a bunch of the characters that come after the variable name
         temp2=strfind(tempstr,'-'); % Find the '-' in the middle of tempstr
         % Figure out the length of this variable (in number of characters)
         % [This is a bit of a silly way to do it but is how the old PSID
