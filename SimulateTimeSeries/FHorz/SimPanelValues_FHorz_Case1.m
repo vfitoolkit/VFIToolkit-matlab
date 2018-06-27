@@ -24,7 +24,7 @@ if exist('simoptions','var')==1
     end
     if isfield(simoptions,'numbersims')==0
         simoptions.numbersims=10^3;
-    end
+    end    
 else
     %If simoptions is not given, just use all the defaults
     simoptions.parallel=2;
@@ -139,26 +139,18 @@ for ii=1:simoptions.numbersims
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                    tempcell=num2cell([aprime_val,a_val,z_val]');
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val);
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
                    tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(aprime_val,a_val,z_val,ValuesFnParamsVec);
                 end
-%                 SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
             end
         else
             for vv=1:length(ValuesFns)
                 if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                     tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val);
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
                     tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
-%                     SimPanelValues_ii(vv,t)=ValuesFns{vv}(d_val,aprime_val,a_val,z_val,ValuesFnParamsVec);
                 end
             end
         end
