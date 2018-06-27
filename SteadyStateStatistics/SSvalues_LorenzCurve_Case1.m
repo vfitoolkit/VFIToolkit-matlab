@@ -7,7 +7,7 @@ function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(StationaryDist, Polic
 %SSvalues_AggVars for the same variable. This will give you the inverse
 %cdf.
 
-if exists('npoints','var')==0
+if exist('npoints','var')==0
     npoints=100;
 end
 

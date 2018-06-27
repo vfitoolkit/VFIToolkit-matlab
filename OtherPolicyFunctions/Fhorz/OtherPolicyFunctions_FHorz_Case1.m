@@ -53,7 +53,7 @@ else
     if  l_d==0 && l_a==1 && length(sizePolicyIndexes)~=3 % 3 is length([N_a,N_z,N_j]) % If not in vectorized form
         PolicyIndexes=reshape(PolicyIndexes,[N_a,N_z,N_j]);
     elseif length(sizePolicyIndexes(2:end))~=3 % 3 is length([N_a,N_z,N_j]) % If not in vectorized form
-        PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
+        PolicyIndexes=reshape(PolicyIndexes,[l_d+l_a,N_a,N_z,N_j]);
     end
     
     for i=1:length(ValuesFn)
