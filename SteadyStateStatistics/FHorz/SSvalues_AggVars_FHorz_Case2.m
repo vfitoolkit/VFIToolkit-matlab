@@ -25,7 +25,7 @@ if Parallel==2
             else
                 SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
             end
-            Values(:,jj)=ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+            Values(:,jj)=reshape(ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
         end
 %         Values=reshape(Values,[N_a*N_z,N_j]);
         SSvalues_AggVars(i)=sum(sum(Values.*StationaryDistVec));

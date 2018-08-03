@@ -136,30 +136,58 @@ if simoptions.parallel==2
 end
 
 SimPanel=nan(l_a+l_z+1,simoptions.simperiods,simoptions.numbersims); % (a,z,j)
-for ii=1:simoptions.numbersims
-    seedpoint=seedpoints(ii,:);
-    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_ExogShockFn);
-    
-    SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
-
-    j1=seedpoint(3);
-    j2=min(N_j,j1+simoptions.simperiods);
-    for t=1:(j2-j1+1)
-        jj=t+j1-1;
-        temp=SimLifeCycleKron(:,jj);
-        if ~isnan(temp)
-            a_c_vec=ind2sub_homemade([n_a],temp(1));
-            z_c_vec=ind2sub_homemade([n_z],temp(2));
-            for kk=1:l_a
-                SimPanel_ii(kk,t)=a_c_vec(kk);
+if simoptions.parallel==0
+    for ii=1:simoptions.numbersims
+        seedpoint=seedpoints(ii,:);
+        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_ExogShockFn);
+        
+        SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
+        
+        j1=seedpoint(3);
+        j2=min(N_j,j1+simoptions.simperiods);
+        for t=1:(j2-j1+1)
+            jj=t+j1-1;
+            temp=SimLifeCycleKron(:,jj);
+            if ~isnan(temp)
+                a_c_vec=ind2sub_homemade([n_a],temp(1));
+                z_c_vec=ind2sub_homemade([n_z],temp(2));
+                for kk=1:l_a
+                    SimPanel_ii(kk,t)=a_c_vec(kk);
+                end
+                for kk=1:l_z
+                    SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
+                end
             end
-            for kk=1:l_z
-                SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-            end
+            SimPanel_ii(l_a+l_z+1,t)=jj;
         end
-        SimPanel_ii(l_a+l_z+1,t)=jj;
+        SimPanel(:,:,ii)=SimPanel_ii;
     end
-    SimPanel(:,:,ii)=SimPanel_ii;
+else
+    parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+        seedpoint=seedpoints(ii,:);
+        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_ExogShockFn);
+        
+        SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
+        
+        j1=seedpoint(3);
+        j2=min(N_j,j1+simoptions.simperiods);
+        for t=1:(j2-j1+1)
+            jj=t+j1-1;
+            temp=SimLifeCycleKron(:,jj);
+            if ~isnan(temp)
+                a_c_vec=ind2sub_homemade([n_a],temp(1));
+                z_c_vec=ind2sub_homemade([n_z],temp(2));
+                for kk=1:l_a
+                    SimPanel_ii(kk,t)=a_c_vec(kk);
+                end
+                for kk=1:l_z
+                    SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
+                end
+            end
+            SimPanel_ii(l_a+l_z+1,t)=jj;
+        end
+        SimPanel(:,:,ii)=SimPanel_ii;
+    end
 end
 
 if simoptions.newbirths==1

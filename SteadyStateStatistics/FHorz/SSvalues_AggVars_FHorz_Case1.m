@@ -25,12 +25,12 @@ if Parallel==2
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
             % Includes check for cases in which no parameters are actually required
-            if isempty(SSvalueParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
+            if isempty(SSvalueParamNames(i).Names)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
                 SSvalueParamsVec=[];
             else
                 SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
             end
-            Values(:,jj)=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel);
+            Values(:,jj)=reshape(ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
         end
         %         Values=reshape(Values,[N_a*N_z,N_j]);
         SSvalues_AggVars(i)=sum(sum(Values.*StationaryDistVec));
