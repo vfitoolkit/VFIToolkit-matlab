@@ -1,4 +1,4 @@
-function PricePathNew=TransitionPath_Case1_Fhorz(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions)
+function PricePathNew=TransitionPath_Case1_Fhorz(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -51,6 +51,10 @@ else
 end
 
 %% Check which vfoptions have been used, set all others to defaults 
+if isfield(transpathoptions,'vfoptions')==1
+    vfoptions=transpathoptions.vfoptions;
+end
+
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
@@ -87,6 +91,50 @@ else
     end
     if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
+    end
+end
+
+%% Check which simoptions have been used, set all others to defaults 
+if isfield(transpathoptions,'simoptions')==1
+    simoptions=transpathoptions.simoptions;
+end
+if exist('simoptions','var')==0
+    simoptions.nsims=10^4;
+    simoptions.parallel=2;
+    simoptions.verbose=0;
+    try 
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
+    simoptions.iterate=1;
+    simoptions.tolerance=10^(-9);
+else
+    %Check vfoptions for missing fields, if there are some fill them with
+    %the defaults
+    if isfield(simoptions,'tolerance')==0
+        simoptions.tolerance=10^(-9);
+    end
+        if isfield(simoptions,'nsims')==0
+        simoptions.nsims=10^4;
+    end
+        if isfield(simoptions,'parallel')==0
+        simoptions.parallel=2;
+    end
+        if isfield(simoptions,'verbose')==0
+        simoptions.verbose=0;
+    end
+    if isfield(simoptions,'ncores')==0
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
+    end
+    if isfield(simoptions,'iterate')==0
+        simoptions.iterate=1;
     end
 end
 
@@ -190,8 +238,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
     %to T using the policies to update the agents distribution generating a
     %new price path
-    %Call AgentDist the current periods distn and AgentDistnext
-    %the next periods distn which we must calculate
+    %Call AgentDist the current periods distn
     AgentDist=AgentDist_initial;
     for i=1:T-1
                 
@@ -213,7 +260,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
         SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
-%         SSvalues_AggVars=SSvalues_AggVars_Case1(AgentDist, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
       
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
@@ -221,22 +267,20 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             % numbers, even if the solution is actually a real number. I
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
-        if transpathoptions.GEnewprice==1
+        if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
             PricePathNew(i,:)=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
-            %                 PricePathNew(i,j)=real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-            fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
-            return
-            for j=1:length(MarketPriceEqns)
-                GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-                PricePathNew(i,j)=fzero(GEeqn_temp,p);
+        if transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+            % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
+            for j=1:length(GeneralEqmEqns)
+                GEeqn_temp=@(p) sum(real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames)).^2);
+                PricePathNew(i,j)=fminsearch(GEeqn_temp,p);
             end
         end
         
-        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
     end
-    % Free up space on GPU by deleting things no longer needed
-    clear Ptemp Ptran AgentDistnext AgentDist PolicyTemp
+%     % Free up space on GPU by deleting things no longer needed
+%     clear AgentDist
     
     %See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
@@ -251,12 +295,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Set price path to be 9/10ths the old path and 1/10th the new path (but
     %making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==1 % Just a constant weighting
-        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
+        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
 %         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
         Ttheta=transpathoptions.Ttheta;
-        PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
+        PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
         PricePathOld(Ttheta:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-Ttheta)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(Ttheta:T-1,:)+((exp(linspace(0,log(0.2),T-Ttheta)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(Ttheta:T-1,:);
     elseif transpathoptions.weightscheme==3 % A gradually opening window.
         if (pathcounter*3)<T-1
