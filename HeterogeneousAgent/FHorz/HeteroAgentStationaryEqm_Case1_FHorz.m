@@ -5,12 +5,13 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 % be passed in using heteroagentoptions.p_grid
 
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
+% N_d=prod(n_d);
+% N_a=prod(n_a);
+% N_z=prod(n_z);
 N_p=prod(n_p);
 
-l_p=length(n_p);
+l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
+%l_p=length(n_p);
 
 p_eqm=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 
@@ -74,9 +75,12 @@ end
 GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 p0=nan(length(GEPriceParamNames),1);
-for ii=1:l_p
+for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
+
+fprintf('p0 is: \n')
+p0
 
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multiGEcriterion=0;

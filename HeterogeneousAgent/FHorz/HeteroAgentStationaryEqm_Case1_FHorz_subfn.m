@@ -34,7 +34,9 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
-    [p,GeneralEqmConditions]
+    fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
+    p
+    GeneralEqmConditionsVec
 end
 
 end
