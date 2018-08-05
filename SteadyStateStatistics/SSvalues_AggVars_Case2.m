@@ -59,7 +59,7 @@ catch % else % Use the CPU
         for ii=2:l_a-1
             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
         end
-        sub(l_a)=ceil(i2/prod(n_a(1:l_d-1)));
+        sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
         
         if l_a>1
             sub=sub+[0,cumsum(n_a(1:end-1))];
