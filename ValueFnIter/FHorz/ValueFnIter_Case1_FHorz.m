@@ -181,6 +181,9 @@ if vfoptions.policy_forceintegertype==1
     fprintf('  CHECK: Minimum value of Policy is %8.6f (if this is <=0 then something is wrong) \n', temp)
 %     Policy=uint64(Policy);
 %     Policy=double(Policy);
+elseif vfoptions.policy_forceintegertype==2
+    % Do the actual rounding to integers
+    Policy=round(Policy);
 end
 
 end
