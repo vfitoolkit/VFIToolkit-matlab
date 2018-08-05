@@ -1,14 +1,11 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_s=prod(n_s);
-N_p=prod(n_p);
-
-l_p=length(n_p);
 
 %% 
-for ii=1:l_p
+for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
 
@@ -20,22 +17,28 @@ StationaryDistKron=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a
 SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid,2); % The 2 is for Parallel (use GPU) % The 2 is for Parallel (use GPU)
 
 % The following line is often a useful double-check if something is going wrong.
-%    SSvalues_AggVars
+   SSvalues_AggVars
+   Policy(:,1,1:4)
+   StationaryDistKron(1:10,4)'
+   StationaryDistKron(end-5:end,4)'
+   a_grid(1:10)'
 
 % use of real() is a hack that could disguise errors, but I couldn't
 % find why matlab was treating output as complex
-GeneralEqmCondititionsVec=real(GeneralEqmConditions_Case2(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+GeneralEqmConditionsVec=real(GeneralEqmConditions_Case2(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
 if heteroagentoptions.multiGEcriterion==0 
-    GeneralEqmConditions=sum(abs(GeneralEqmCondititionsVec));
+    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of general eqm is to take the sum of squares of each of the general eqm conditions being satisfied 
-    GeneralEqmConditions=sum(GeneralEqmCondititionsVec.^2);                                                                                                         
+    GeneralEqmConditions=sum(GeneralEqmConditionsVec.^2);                                                                                                         
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
-    [p,GeneralEqmConditions]
+    fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
+    p
+    GeneralEqmConditionsVec
 end
 
 end

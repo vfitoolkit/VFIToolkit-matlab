@@ -59,7 +59,6 @@ fprintf('If this number is not zero there is an problem with Phi_aprimeKron: %.0
 %%
 V0Kron=reshape(V0,[N_a,N_s]);
 
-
 if N_p~=0
     [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
     return
@@ -67,10 +66,10 @@ end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
 % I SHOULD IMPLEMENT A BETTER V0Kron HERE
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case2_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 p0=nan(length(GEPriceParamNames),1);
-for ii=1:l_p
+for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 

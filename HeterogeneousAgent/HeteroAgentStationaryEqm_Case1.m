@@ -70,7 +70,7 @@ end
 %% Otherwise, use fminsearch to find the general equilibrium
 
 % I SHOULD IMPLEMENT A BETTER V0Kron HERE
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:l_p

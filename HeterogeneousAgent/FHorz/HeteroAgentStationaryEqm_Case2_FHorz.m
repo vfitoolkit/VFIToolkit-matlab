@@ -75,10 +75,10 @@ if N_p~=0
 end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case2_FHorz_subfn(p,jequaloneDist,AgeWeights, n_d, n_a, n_s, N_j, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case2_FHorz_subfn(p,jequaloneDist,AgeWeights, n_d, n_a, n_s, N_j, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 p0=nan(length(GEPriceParamNames),1);
-for ii=1:l_p
+for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 

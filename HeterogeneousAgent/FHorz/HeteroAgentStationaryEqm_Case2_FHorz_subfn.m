@@ -1,14 +1,11 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_FHorz_subfn(p, jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, Phi_aprimeFn, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_FHorz_subfn(p, jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, Phi_aprimeFn, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_p=prod(n_p);
 
-l_p=length(n_p);
-
-%% 
-for ii=1:l_p
+%%
+for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
 
@@ -34,7 +31,7 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
-    [p,GeneralEqmConditions]
-end
-
+    fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
+    p
+    GeneralEqmConditionsVecend
 end
