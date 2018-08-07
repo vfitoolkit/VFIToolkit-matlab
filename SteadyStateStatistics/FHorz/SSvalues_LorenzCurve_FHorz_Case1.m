@@ -47,6 +47,7 @@ if Parallel==2
         Values=reshape(Values,[N_a*N_z*N_j,1]);
         
         WeightedValues=Values.*StationaryDistVec;
+        WeightedValues(isnan(WeightedValues))=0; % Values of -Inf times weight of zero give nan, we want them to be zeros.
         SSvalues_AggVars(i)=sum(WeightedValues);
         
         [~,SortedValues_index] = sort(Values);
