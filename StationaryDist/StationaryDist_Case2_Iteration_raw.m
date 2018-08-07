@@ -74,26 +74,25 @@ else % simoptions.parallel==2
         disp('ERROR: StationaryDist_Case2_Iteration_raw() not yet implemented for Case2_Type==12')
         % Create P matrix
     elseif Case2_Type==2
+        % Case2_Type==2: a'(d,z,z')
         % optaprime is here replaced by Phi_of_Policy, which is a different shape
-        Phi_of_Policy=zeros(N_a,N_z,N_z,'gpuArray'); %a'(a,z',z)
-        for z_c=1:N_z
-            Phi_of_Policy(:,:,z_c)=Phi_aprimeKron(PolicyKron(:,z_c),:,z_c);
+        Phi_of_Policy=zeros(N_a,N_z,N_z,'gpuArray'); % Phi_of_Policy is a'(a,z,z')
+        for z_c=1:N_z % z
+            Phi_of_Policy(:,z_c,:)=Phi_aprimeKron(PolicyKron(:,z_c),z_c,:);
         end
-%        Phi_aprimeKron % aprime(d,zprime,z)
-        Ptemp=zeros(N_a,N_a*N_z*N_z,'gpuArray');
-        Ptemp(reshape(permute(Phi_of_Policy,[2,1,3]),[1,N_a*N_z*N_z])+N_a*(gpuArray(0:1:N_a*N_z*N_z-1)))=1;
-%        Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+        Ptemp=zeros(N_a,N_a*N_z*N_z,'gpuArray'); % (a,z)-by-(a',z')
+        Ptemp(reshape(permute(Phi_of_Policy,[3,1,2]),[1,N_a*N_z*N_z])+N_a*(gpuArray(0:1:N_a*N_z*N_z-1)))=1;
         Ptran=kron(pi_z',ones(N_a,N_a,'gpuArray')).*reshape(Ptemp,[N_a*N_z,N_a*N_z]);
     end
-    
+
     SteadyStateDistKronOld=zeros(N_a*N_z,1,'gpuArray');
     SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
     SScounter=0;
     
+    fprintf('DEBUG StationaryDist_Case2_Iteration_raw: SScurrdist=%d (should be 1 prior to starting) \n',SScurrdist )
+    
     while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
     
-%         SteadyStateDistKronOld=SteadyStateDistKron;
-%         SteadyStateDistKron=P*SteadyStateDistKron;
         for jj=1:100
             StationaryDistKron=Ptran*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
         end
@@ -101,8 +100,8 @@ else % simoptions.parallel==2
         SteadyStateDistKronOld=StationaryDistKron;
         StationaryDistKron=Ptran*StationaryDistKron;
         SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
-%         SScurrdist=sum(abs(reshape(SteadyStateDistKron-SteadyStateDistKronOld, [N_a*N_z,1])));
-    
+%         fprintf('DEBUG StationaryDist_Case2_Iteration_raw: SScurrdist=%d  \n',SScurrdist )
+
         SScounter=SScounter+1;
         if rem(SScounter,50)==0
             SScounter

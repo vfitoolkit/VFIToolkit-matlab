@@ -5,7 +5,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if nargin<8
+if exist('simoptions','var')==0
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^4;
     simoptions.burnin=10^3;
@@ -24,32 +24,25 @@ if nargin<8
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
-    eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'seedpoint')==0
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     end
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'simperiods')==0
         simoptions.simperiods=10^4;
     end
-    eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'burnin')==0
         simoptions.burnin=10^3;
     end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'parallel')==0
         simoptions.parallel=2;
     end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
     end
-    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'iterate')==0
         simoptions.iterate=1;
     end
-    eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'ncores')==0
         if simoptions.iterate==1
             try
                 PoolDetails=gcp;
@@ -61,16 +54,10 @@ else
             simoptions.ncores=1;
         end
     end
-    %     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
-%     if fieldexists==0
-%         simoptions.nagents=0;
-%     end
-    eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'maxit')==0
         simoptions.maxit=5*10^4;
     end
-    eval('fieldexists=1;simoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions,'tolerance')==0
         simoptions.tolerance=10^(-9);
     end
 end
@@ -81,9 +68,12 @@ PolicyKron=KronPolicyIndexes_Case2(Policy, n_d, n_a, n_z,simoptions);
 
 StationaryDistKron=StationaryDist_Case2_Simulation_raw(PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z, simoptions);
 
+fprintf('DEBUG of StationaryDist_Case2, before iterate: sum(sum(StationaryDistKron))=%8.2f \n', sum(sum(StationaryDistKron)))
+
 if simoptions.iterate==1
     StationaryDistKron=StationaryDist_Case2_Iteration_raw(StationaryDistKron,PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z,simoptions);
 end
+fprintf('DEBUG of StationaryDist_Case2, after iterate: sum(sum(StationaryDistKron))=%8.2f \n', sum(sum(StationaryDistKron)))
 
 StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
 

@@ -40,7 +40,7 @@ if simoptions.parallel==1
             currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
             for i=1:simoptions.burnin
                 optd=PolicyIndexesKron(currstate(1),currstate(2));
-                [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
                 currstate(1)=Phi_aprimeKron(optd,currstate(1),currstate(2),newcurrstate2);
                 currstate(2)=newcurrstate2;
             end
@@ -48,19 +48,19 @@ if simoptions.parallel==1
                 SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)+1;
                 
                 optd=PolicyIndexesKron(currstate(1),currstate(2));
-                [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
                 currstate(1)=Phi_aprimeKron(optd,currstate(1),currstate(2),newcurrstate2);
                 currstate(2)=newcurrstate2;
             end
             StationaryDistKron(:,seed_c)=SteadyStateDistKron_seed_c;
         end
-    elseif Case2_Type==2
+    elseif Case2_Type==2 % a'(d,z,z')
         parfor seed_c=1:simoptions.ncores
             SteadyStateDistKron_seed_c=zeros(N_a*N_z,1);
             currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
             for i=1:simoptions.burnin
                 optd=PolicyIndexesKron(currstate(1),currstate(2));
-                [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
                 currstate(1)=Phi_aprimeKron(optd,currstate(2),newcurrstate2);
                 currstate(2)=newcurrstate2;
             end
@@ -68,7 +68,7 @@ if simoptions.parallel==1
                 SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)+1;
                 
                 optd=PolicyIndexesKron(currstate(1),currstate(2));
-                [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
                 currstate(1)=Phi_aprimeKron(optd,currstate(2),newcurrstate2);
                 currstate(2)=newcurrstate2;
             end
@@ -81,14 +81,14 @@ if simoptions.parallel==1
             for i=1:simoptions.burnin
                 optd=PolicyIndexesKron(currstate(1),currstate(2));
                 currstate(1)=Phi_aprimeKron(optd);
-                [trash,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             end
             for i=1:eachsimperiods
                 SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)+1;
                 
                 optd=PolicyIndexesKron(currstate(1),currstate(2));
                 currstate(1)=Phi_aprimeKron(optd);
-                [trash,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             end
             StationaryDistKron(:,seed_c)=SteadyStateDistKron_seed_c;
         end
@@ -103,7 +103,7 @@ elseif simoptions.parallel==0
         currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
         for i=1:simoptions.burnin
             optd=PolicyIndexesKron(currstate(1),currstate(2));
-            [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+            [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             currstate(1)=Phi_aprimeKron(optd,currstate(1),currstate(2),newcurrstate2);
             currstate(2)=newcurrstate2;
         end
@@ -111,7 +111,7 @@ elseif simoptions.parallel==0
             StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)=StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)+1;
             
             optd=PolicyIndexesKron(currstate(1),currstate(2));
-            [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+            [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             currstate(1)=Phi_aprimeKron(optd,currstate(1),currstate(2),newcurrstate2);
             currstate(2)=newcurrstate2;
         end
@@ -119,7 +119,7 @@ elseif simoptions.parallel==0
         currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
         for i=1:simoptions.burnin
             optd=PolicyIndexesKron(currstate(1),currstate(2));
-            [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+            [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             currstate(1)=Phi_aprimeKron(optd,currstate(2),newcurrstate2);
             currstate(2)=newcurrstate2;
         end
@@ -127,7 +127,7 @@ elseif simoptions.parallel==0
             StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)=StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)+1;
             
             optd=PolicyIndexesKron(currstate(1),currstate(2));
-            [trash,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+            [~,newcurrstate2]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             currstate(1)=Phi_aprimeKron(optd,currstate(2),newcurrstate2);
             currstate(2)=newcurrstate2;
         end
@@ -136,14 +136,14 @@ elseif simoptions.parallel==0
         for i=1:simoptions.burnin
             optd=PolicyIndexesKron(currstate(1),currstate(2));
             currstate(1)=Phi_aprimeKron(optd);
-            [trash,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+            [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
         end
         for i=1:simoptions.simperiods
             StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)=StationaryDistKron(currstate(1)+(currstate(2)-1)*N_a)+1;
             
             optd=PolicyIndexesKron(currstate(1),currstate(2));
             currstate(1)=Phi_aprimeKron(optd);
-            [trash,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+            [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
         end
     end
     StationaryDistKron=sum(StationaryDistKron,2)./(simoptions.simperiods);
