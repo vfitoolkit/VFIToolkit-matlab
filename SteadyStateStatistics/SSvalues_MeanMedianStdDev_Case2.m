@@ -31,7 +31,9 @@ if Parallel==2
         % Median
         [SortedValues,SortedValues_index] = sort(Values);
         SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
-        SSvalues_MeanMedianStdDev(i,2)=min(SortedValues(cumsum(SortedStationaryDistVec)>0.5));
+        median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
+        SortedValues(median_index)
+        SSvalues_MeanMedianStdDev(i,2)=SortedValues(median_index);
         % Standard Deviation
         SSvalues_MeanMedianStdDev(i,3)=sqrt(sum(StationaryDistVec.*((Values-SSvalues_MeanMedianStdDev(i,1).*ones(N_a*N_z,1)).^2)));
     end
@@ -121,10 +123,12 @@ else
             
             % Mean
             SSvalues_MeanMedianStdDev(i,1)=sum(Values.*StationaryDistVec);
-            % Median
+            % Median            
             [SortedValues,SortedValues_index] = sort(Values);
             SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
-            SSvalues_MeanMedianStdDev(i,2)=min(SortedValues(cumsum(SortedStationaryDistVec)>0.5));
+            median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
+            SortedValues(median_index)
+            SSvalues_MeanMedianStdDev(i,2)=SortedValues(median_index);
             % Standard Deviation
             SSvalues_MeanMedianStdDev(i,3)=sqrt(sum(StationaryDistVec.*((Values-SSvalues_MeanMedianStdDev(i,1).*ones(N_a*N_z,1)).^2)));
         end
