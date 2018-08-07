@@ -94,6 +94,16 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
     end
 end
 
+if min(min(pi_z))<0
+    fprintf('WARNING: Problem with pi_z in ValueFnIter_Case2: min(min(pi_z))<0 \n')
+    dbstack
+    return
+elseif max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
+    fprintf('WARNING: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
+    dbstack
+    return
+end
+
 %%
 
 if vfoptions.parallel==2 

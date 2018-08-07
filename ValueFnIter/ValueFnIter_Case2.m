@@ -16,8 +16,7 @@ if exist('vfoptions','var')==0
     vfoptions.tolerance=10^(-9);
     vfoptions.policy_forceintegertype=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
+    %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'lowmemory')==0
         vfoptions.lowmemory=0;
     end
@@ -57,6 +56,16 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 %% 
+
+if min(min(pi_z))<0
+    fprintf('ERROR: Problem with pi_z in ValueFnIter_Case2: min(min(pi_z))<0 \n')
+    dbstack
+    return
+elseif max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
+    fprintf('ERROR: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
+	dbstack
+    return
+end
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
@@ -137,13 +146,9 @@ if vfoptions.polindorval==1
     Policy=UnKronPolicyIndexes_Case2(Policy, n_d, n_a, n_z,vfoptions);
 end
 
-% Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-% that Policy is not integer valued. The following corrects this by converting to int64 and then
-% makes the output back into double as Matlab otherwise cannot use it in
-% any arithmetical expressions.
+% Sometimes numerical rounding errors (of the order of 10^(-16) can mean that Policy is not integer valued. The following corrects this.
 if vfoptions.policy_forceintegertype==1
-    Policy=uint64(Policy);
-    Policy=double(Policy);
+    Policy=round(Policy);
 end
 
 end
