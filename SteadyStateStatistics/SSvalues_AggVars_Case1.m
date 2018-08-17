@@ -39,6 +39,8 @@ try % if Parallel==2
 catch % else
     StationaryDistVec=gather(StationaryDistVec);
     
+    PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
+
     SSvalues_AggVars=zeros(length(SSvaluesFn),1);
     if l_d>0
         d_val=zeros(l_d,1);
@@ -62,7 +64,7 @@ catch % else
     a_gridvals=cell(N_a,length(n_a));
     for i2=1:N_a
         sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1)+1);
+        sub(1)=rem(i2-1,n_a(1))+1;
         for ii=2:length(n_a)-1
             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
         end

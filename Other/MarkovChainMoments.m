@@ -44,6 +44,9 @@ while currdist>mcmomentsoptions.Tolerance
 end
 
 statdist=((ones(1,length(z_grid))/length(z_grid))*new)'; %A column vector
+% statdist=((ones(1,prod(n_z))/prod(n_z))*new)'; %A column vector
+% mean_zr=sum(kron(z_grid(1:5),ones(7,1)).*statdist)
+% mean_ze=sum(kron(ones(5,1),z_grid(6:end)).*statdist)
 
 % % Eigenvalues approach to stationary distriubtion 
 % % (see https://en.wikipedia.org/wiki/Markov_chain#Stationary_distribution_relation_to_eigenvectors_and_simplices )

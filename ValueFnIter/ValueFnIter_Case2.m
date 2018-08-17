@@ -59,10 +59,13 @@ N_z=prod(n_z);
 
 if min(min(pi_z))<0
     fprintf('ERROR: Problem with pi_z in ValueFnIter_Case2: min(min(pi_z))<0 \n')
+    min(min(pi_z))
     dbstack
     return
 elseif max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
     fprintf('ERROR: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
+    max(sum(pi_z,2))
+    min(sum(pi_z,2))
 	dbstack
     return
 end

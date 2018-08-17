@@ -34,7 +34,7 @@ try % if Parallel==2 % First try to use gpu as this will be faster when it works
     end
 catch % else % Use the CPU
     StationaryDistVec=gather(StationaryDistVec);
-    
+        
     SSvalues_AggVars=zeros(length(SSvaluesFn),1);
     d_val=zeros(l_d,1);
     
@@ -55,7 +55,7 @@ catch % else % Use the CPU
     a_gridvals=cell(N_a,l_a);
     for i2=1:N_a
         sub=zeros(1,l_a);
-        sub(1)=rem(i2-1,n_a(1)+1);
+        sub(1)=rem(i2-1,n_a(1))+1;
         for ii=2:l_a-1
             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
         end
@@ -65,7 +65,9 @@ catch % else % Use the CPU
             sub=sub+[0,cumsum(n_a(1:end-1))];
         end
         a_gridvals(i2,:)=num2cell(a_grid(sub));
-    end  
+    end
+    
+    PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
     d_gridvals=cell(N_a*N_z,l_d);
     for ii=1:N_a*N_z
 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.

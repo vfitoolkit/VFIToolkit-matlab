@@ -62,7 +62,7 @@ while currdist>Tolerance
         temp3=EV_z;
         temp3(isfinite(temp3))=temp3(isfinite(temp3)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
         temp3(EV_z==0)=0;
-        entireRHS=temp2_z+DiscountFactorParamsVec(1)*temp3;        
+        entireRHS=ReturnMatrix_z+DiscountFactorParamsVec(1)*temp3;        
         % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
         % the whole entireRHS. This will be a monotone function, so just find the max, and
         % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
