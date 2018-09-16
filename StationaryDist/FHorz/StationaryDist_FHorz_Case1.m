@@ -44,11 +44,21 @@ else
     end
 end
 
+jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
+if simoptions.parallel~=2
+    Policy=gather(Policy);
+    jequaloneDistKron=gather(jequaloneDistKron);    
+    pi_z=gather(pi_z);
+end
+
 PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,simoptions);
 
-jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
 
 if simoptions.iterate==0
+    if simoptions.parallel==3 || simoptions.parallel==4 
+        % Sparse matrix is not relevant for the simulation methods, only for iteration method
+        simoptions.parallel=simoptions.parallel-3;
+    end
     StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_j,pi_z,Parameters,simoptions);
 elseif simoptions.iterate==1
     StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_j,pi_z,Parameters,simoptions);

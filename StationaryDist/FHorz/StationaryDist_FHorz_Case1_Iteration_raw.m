@@ -11,7 +11,7 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 
-if simoptions.parallel~=2
+if simoptions.parallel<2
     
     StationaryDistKron=zeros(N_a*N_z,N_j);
     StationaryDistKron(:,1)=jequaloneDistKron;
@@ -76,6 +76,48 @@ elseif simoptions.parallel==2 % Using the GPU
         
         StationaryDistKron(:,jj+1)=Ptran*StationaryDistKron(:,jj);
     end
+    
+elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead of a standard matrix for P
+    
+    StationaryDistKron=sparse(N_a*N_z,N_j);
+    StationaryDistKron(:,1)=jequaloneDistKron;
+    
+    for jj=1:(N_j-1)
+        if fieldexists_ExogShockFn==1
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            else
+                [~,pi_z]=vfoptions.ExogShockFn(jj);
+            end
+        end
+
+        
+        %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+        Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]
+        if N_d==0 %length(n_d)==1 && n_d(1)==0
+            PolicyIndexesKron_jj=reshape(PolicyIndexesKron(:,:,jj),[N_a*N_z,1]);
+        else
+            PolicyIndexesKron_jj=reshape(PolicyIndexesKron(2,:,:,jj),[N_a*N_z,1]);
+        end
+                
+%         whos N_a N_z StationaryDistKron PolicyIndexesKron_jj pi_z Ptranspose
+        parfor az_c=1:N_a*N_z
+            Ptranspose_az=sparse(N_a*N_z,1);
+            optaprime=PolicyIndexesKron_jj(az_c);
+            az_sub=ind2sub_homemade([N_a,N_z],az_c);
+            pi_z_temp=pi_z(az_sub(2),:);
+            sum_pi_z_temp=sum(pi_z_temp);
+            for zprime_c=1:N_z
+                optaprimezprime=sub2ind_homemade([N_a,N_z],[optaprime,zprime_c]);
+                Ptranspose_az(optaprimezprime)=pi_z_temp(zprime_c)/sum_pi_z_temp;
+            end
+            Ptranspose(:,az_c)=Ptranspose_az;
+        end
+
+        StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
+    end
+    StationaryDistKron=full(StationaryDistKron);
 end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is
