@@ -32,7 +32,9 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
-    fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
+    fprintf('Current Aggregates: \n')
+    SSvalues_AggVars
+    fprintf('Current GE prices and GeneralEqmConditionsVec: \n')
     p
     GeneralEqmConditionsVec
 end

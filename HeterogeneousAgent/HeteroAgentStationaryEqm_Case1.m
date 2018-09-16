@@ -59,8 +59,10 @@ else
 end
 
 %%
-V0Kron=reshape(V0,[N_a,N_s]);
-
+% I should do implement this and then make the subfunctions _pgrid and
+% _subfn use the 'raw' valuefniter_case1 codes, but have not yet done so.
+% V0Kron=reshape(V0,[N_a,N_s]);
+V0Kron=V0;
 
 if N_p~=0
     [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
@@ -73,7 +75,7 @@ end
 GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 p0=nan(length(GEPriceParamNames),1);
-for ii=1:l_p
+for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 

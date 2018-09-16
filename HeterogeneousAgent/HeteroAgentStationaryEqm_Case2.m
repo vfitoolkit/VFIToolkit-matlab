@@ -9,7 +9,7 @@ N_a=prod(n_a);
 N_s=prod(n_s);
 N_p=prod(n_p);
 
-l_p=length(n_p);
+% l_p=length(n_p);
 
 %% Check which simoptions and vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0
