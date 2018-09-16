@@ -69,7 +69,9 @@ while currdist>Tolerance
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        VKron(:,z_c)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        
+        VKron(isfinite(Vtemp),z_c)=Vtemp(isfinite(Vtemp)).^(1/(1-1/DiscountFactorParamsVec(3))); % Need the isfinite() as otherwise the -Inf throw errors
+        VKron(~isfinite(Vtemp),z_c)=-Inf;
         PolicyIndexes(:,z_c)=maxindex;
         
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
@@ -82,7 +84,8 @@ while currdist>Tolerance
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
             
-            EVKrontemp=(EVKrontemp.^(1-DiscountFactorParamsVec(2))).*aaa;
+            EVKrontemp(isfinite(EVKrontemp))=(EVKrontemp(isfinite(EVKrontemp)).^(1-DiscountFactorParamsVec(2)));
+            EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             
@@ -91,7 +94,8 @@ while currdist>Tolerance
             temp3(EVKrontemp==0)=0;
             
             % Note that Ftemp already includes all the relevant Epstein-Zin modifications
-            VKron=(Ftemp+DiscountFactorParamsVec(1)*temp3).^(1/(1-1/DiscountFactorParamsVec(3)));            
+            VKron=(Ftemp+DiscountFactorParamsVec(1)*temp3); %.^(1/(1-1/DiscountFactorParamsVec(3))); 
+            VKron(isfinite(VKron))=VKron(isfinite(VKron)).^(1/(1-1/DiscountFactorParamsVec(3)));
         end
     end
 

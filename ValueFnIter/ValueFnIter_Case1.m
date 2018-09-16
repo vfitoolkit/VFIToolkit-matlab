@@ -86,7 +86,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         dbstack
         return
     elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
-        if size(V0)~=[n_a,n_z]
+        if size(V0)~=[n_a,n_z] % Allow for input to be already transformed into Kronecker form
             disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
             dbstack
             return
