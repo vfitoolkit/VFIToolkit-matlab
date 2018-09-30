@@ -74,13 +74,13 @@ if vfoptions.parallel==2
    d_grid=gpuArray(d_grid);
    a_grid=gpuArray(a_grid);
    z_grid=gpuArray(z_grid);
-% else
-%    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-%    % This may be completely unnecessary.
-%    pi_z=gather(pi_z);
-%    d_grid=gather(d_grid);
-%    a_grid=gather(a_grid);
-%    z_grid=gather(z_grid);
+else
+   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
+   % This may be completely unnecessary.
+   pi_z=gather(pi_z);
+   d_grid=gather(d_grid);
+   a_grid=gather(a_grid);
+   z_grid=gather(z_grid);
 end
 
 if vfoptions.verbose==1
@@ -147,12 +147,21 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
 end
 
 %% 
-if N_d==0
-    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-else
-    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+if vfoptions.parallel==2
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
+elseif vfoptions.parallel==0 || vfoptions.parallel==1
+    if N_d==0
+        % Following command is somewhat misnamed, as actually does Par0 and Par1
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_Par0_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        % Following command is somewhat misnamed, as actually does Par0 and Par1
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Par0_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
 end
-
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 V=reshape(VKron,[n_a,n_z,N_j]);
