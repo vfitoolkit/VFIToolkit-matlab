@@ -15,6 +15,7 @@ if exist('vfoptions','var')==0
     vfoptions.verbose=0;
     vfoptions.tolerance=10^(-9);
     vfoptions.policy_forceintegertype=0;
+    vfoptions.piz_strictonrowsaddingtoone=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'lowmemory')==0
@@ -50,6 +51,9 @@ else
     if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
     end
+    if isfield(vfoptions,'piz_strictonrowsaddingtoone')==0
+        vfoptions.piz_strictonrowsaddingtoone=0;
+    end
 end
 
 N_d=prod(n_d);
@@ -62,12 +66,22 @@ if min(min(pi_z))<0
     min(min(pi_z))
     dbstack
     return
-elseif max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
-    fprintf('ERROR: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
-    max(sum(pi_z,2))
-    min(sum(pi_z,2))
-	dbstack
-    return
+elseif vfoptions.piz_strictonrowsaddingtoone==1
+    if max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
+        fprintf('WARNING: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
+        max(sum(pi_z,2))
+        min(sum(pi_z,2))
+        dbstack
+        return
+    end
+elseif vfoptions.piz_strictonrowsaddingtoone==0
+    if max((sum(pi_z,2))-1) > 10^(-13)
+        fprintf('WARNING: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
+        max(sum(pi_z,2))
+        min(sum(pi_z,2))
+        dbstack
+        return
+    end
 end
 
 % Create a vector containing all the return function parameters (in order)
