@@ -75,7 +75,7 @@ elseif vfoptions.piz_strictonrowsaddingtoone==1
         return
     end
 elseif vfoptions.piz_strictonrowsaddingtoone==0
-    if max((sum(pi_z,2))-1) > 10^(-13)
+    if max(abs((sum(pi_z,2))-1)) > 10^(-13)
         fprintf('WARNING: Problem with pi_z in ValueFnIter_Case2: rows do not sum to one \n')
         max(sum(pi_z,2))
         min(sum(pi_z,2))
