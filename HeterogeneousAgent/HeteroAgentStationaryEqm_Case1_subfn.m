@@ -9,7 +9,6 @@ for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
 
-%     ReturnFnParams(IndexesForPricesInReturnFnParams)=p;
 [~,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, ReturnFn, Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
@@ -24,7 +23,7 @@ SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, 
 GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
 if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
-    GeneralEqmConditions=GeneralEqmConditionsVec;
+    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
     GeneralEqmConditions=sqrt(sum(GeneralEqmConditionsVec.^2));                                                                                                         
 end

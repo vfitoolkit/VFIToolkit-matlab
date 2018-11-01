@@ -17,11 +17,7 @@ StationaryDistKron=StationaryDist_Case2(Policy,Phi_aprimeKron,Case2_Type,n_d,n_a
 SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid,2); % The 2 is for Parallel (use GPU) % The 2 is for Parallel (use GPU)
 
 % The following line is often a useful double-check if something is going wrong.
-   SSvalues_AggVars
-   Policy(:,1,1:4)
-   StationaryDistKron(1:10,4)'
-   StationaryDistKron(end-5:end,4)'
-   a_grid(1:10)'
+%    SSvalues_AggVars
 
 % use of real() is a hack that could disguise errors, but I couldn't
 % find why matlab was treating output as complex
@@ -36,6 +32,8 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
+    fprintf('Current Aggregates: \n')
+    SSvalues_AggVars
     fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
     p
     GeneralEqmConditionsVec
