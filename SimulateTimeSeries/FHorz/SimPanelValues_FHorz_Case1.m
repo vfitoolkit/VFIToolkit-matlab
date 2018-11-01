@@ -1,6 +1,9 @@
 function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,ValuesFns,ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist.
+% SimPanelValues is a 3-dimensional matrix with first dimension being the
+% number of 'variables' to be simulated, second dimension is FHorz, and
+% third dimension is the number-of-simulations
 %
 % InitialDist can be inputed as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
