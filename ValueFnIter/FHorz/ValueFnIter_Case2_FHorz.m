@@ -129,6 +129,46 @@ end
 % %     return
 % end
 
+%% Deal with Dynasty_CareAboutDecendents if need to do that.
+if isfield(vfoptions,'Dynasty_CareAboutDecendents')==1
+    if vfoptions.verbose==1
+        fprintf('Dynasty_CareAboutDecendents option is being used \n')
+    end
+    if isfield(vfoptions,'tolerance')==0
+        vfoptions.tolerance=10^(-9);
+    end
+    
+    if vfoptions.nphi==1
+        if vfoptions.parallel==0
+            disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
+            [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Dynasty_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+        elseif vfoptions.parallel==2
+            [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Par2_Dynasty_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+        end
+    else
+        if vfoptions.parallel==0
+            disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
+            [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Dynasty_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+        elseif vfoptions.parallel==2
+            [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Dynasty_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+        end
+    end
+    
+    % Transform V & PolicyIndexes out of kroneckered form
+    V=reshape(VKron,[n_a,n_z,N_j]);
+    Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z,N_j,vfoptions);
+    
+    % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
+    % that Policy is not integer valued. The following corrects this by converting to int64 and then
+    % makes the output back into double as Matlab otherwise cannot use it in
+    % any arithmetical expressions.
+    if vfoptions.policy_forceintegertype==1
+        Policy=uint64(Policy);
+        Policy=double(Policy);
+    end
+    
+end
+
 %% 
 if vfoptions.nphi==1
     if vfoptions.parallel==0
