@@ -6,10 +6,12 @@ function PricePathNew=TransitionPath_Case1_Fhorz(PricePathOld, PricePathNames, P
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
+% Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
+
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
+    %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
     transpathoptions.parallel=2;
     transpathoptions.exoticpreferences=0;
@@ -20,7 +22,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbose=0;
     transpathoptions.GEnewprice=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
+    %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
         transpathoptions.tolerance=10^(-5);
     end
@@ -186,7 +188,7 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z,N_j]);
 AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,N_j]);
-V=zeros(size(V_final),'gpuArray');
+V=zeros(size(V_final),'gpuArray'); %preallocate space
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 if N_d>0
     Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
@@ -269,7 +271,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             % created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
             PricePathNew(i,:)=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
-        if transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
             for j=1:length(GeneralEqmEqns)
                 GEeqn_temp=@(p) sum(real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames)).^2);
