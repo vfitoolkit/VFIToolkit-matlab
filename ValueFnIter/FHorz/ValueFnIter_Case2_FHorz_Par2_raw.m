@@ -282,30 +282,71 @@ if Case2_Type==11 % phi_a'(d,a,z')
                 end
             end
         elseif vfoptions.lowmemory==1
-            for z_c=1:N_z
-                z_val=z_gridvals(z_c,:);
-                
-                if vfoptions.phiaprimedependsonage==1
+            % Current Case2_Type=11: phi_a'(d,a,z') 
+            if vfoptions.phiaprimedependsonage==1
                     PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-                end
+            end
+            Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec); %z_grid as doing all of zprime (note that it is independent of z as Case2_Type=11)
+%             size(Phi_aprimeMatrix_z)
+            Phi_aprimeMatrix_z=reshape(Phi_aprimeMatrix_z,[N_d*N_a*N_z,1]);
+%             size(Phi_aprimeMatrix_z)
+            aaaVnextj=kron(ones(N_d,1),Vnextj);
+            for z_c=1:N_z
+%                 z_c
+                z_val=z_gridvals(z_c,:); % Value of z (not of z')
+                aaa=kron(pi_z(z_c,:),ones(N_d*N_a,1,'gpuArray'));
+%                 size(aaa)
+%                 z_val
+                
+                zprime_ToMatchPhi=kron((1:1:N_z)',ones(N_d*N_a,1));
+%                 size(zprime_ToMatchPhi)
+%                 zprime_ToMatchPhi(1:(2*N_z))
+%                 zprime_ToMatchPhi([1,N_d*N_a+1,N_d*N_a+2,2*N_d*N_a+1])
+% zprime_ToMatchPhi SEEMS OKAY
+                
                 ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
-                for a_c=1:N_a
-                    RHSpart2=zeros(N_d,1,'gpuArray');
-                    for zprime_c=1:N_z
-                        zprime_val=z_gridvals(zprime_c,:);
-                        Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, zprime_val,PhiaprimeParamsVec);
-                        
-                        if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                            for d_c=1:N_d
-                                RHSpart2(d_c)=RHSpart2(d_c)+Vnextj(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
-                            end
-                        end
-                    end
-                    entireRHS=ReturnMatrix_z(:,a_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
+%                 size(ReturnMatrix_z)
+%                 EV_z=zeros(N_d*N_a,1,'gpuArray'); %z dimension is covered by for loop (zprime folded away by Expectation)
+                
+%                 Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec); %z_grid as doing all of zprime
+%                 max(Phi_aprimeMatrix_z)
+%                 max(zprime_ToMatchPhi)
+%                 max(Phi_aprimeMatrix_z+(N_d*N_a)*(zprime_ToMatchPhi-1))
+%                 [N_d,N_a,N_z]
+                EV_z=aaaVnextj(Phi_aprimeMatrix_z+(N_d*N_a)*(zprime_ToMatchPhi-1)); %*aaa;
+                
+%                 size(EV_z)
+                
+                EV_z=reshape(EV_z,[N_d*N_a,N_z]);
+                EV_z=EV_z.*aaa;
+                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z=reshape(sum(EV_z,2),[N_d,N_a]);
+                
+                entireRHS=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %d by a (by z)                
+                
+                %calculate in order, the maximizing aprime indexes
+                [V(:,z_c,jj),Policy(:,z_c,jj)]=max(entireRHS,[],1);
+
                     
-                    %calculate in order, the maximizing aprime indexes
-                    [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-                end
+%                 z_val=z_gridvals(z_c,:);                    
+
+%                 for a_c=1:N_a
+%                     RHSpart2=zeros(N_d,1,'gpuArray');
+%                     for zprime_c=1:N_z
+%                         zprime_val=z_gridvals(zprime_c,:);
+%                         Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, zprime_val,PhiaprimeParamsVec);
+%                         
+%                         if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+%                             for d_c=1:N_d
+%                                 RHSpart2(d_c)=RHSpart2(d_c)+Vnextj(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
+%                             end
+%                         end
+%                     end
+%                     entireRHS=ReturnMatrix_z(:,a_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
+%                     
+%                     %calculate in order, the maximizing aprime indexes
+%                     [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
+%                 end
             end
         elseif vfoptions.lowmemory==2
             for a_c=1:N_a
