@@ -1,4 +1,4 @@
-function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,ValuesFns,ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
+function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist.
 % SimPanelValues is a 3-dimensional matrix with first dimension being the
@@ -61,7 +61,7 @@ a_grid=gather(a_grid);
 z_grid=gather(z_grid);
 PolicyIndexesKron=gather(PolicyIndexesKron);
 
-SimPanelValues=zeros(length(ValuesFns), simoptions.simperiods, simoptions.numbersims);
+SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
 
 %% Precompute the gridvals vectors.
 z_gridvals=-Inf*ones(N_z,l_z);
@@ -99,7 +99,7 @@ a_val=zeros(1,l_a);
 z_val=zeros(1,l_z);
 
 %%
-SimPanelValues_ii=zeros(length(ValuesFns),simoptions.simperiods);
+SimPanelValues_ii=zeros(length(FnsToEvaluate),simoptions.simperiods);
 %% For sure the following could be made faster by parallelizing some stuff.
 for ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
@@ -139,25 +139,27 @@ for ii=1:simoptions.numbersims
         end
         
         if l_d==0
-            for vv=1:length(ValuesFns)
-                if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+            for vv=1:length(FnsToEvaluate)
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                    tempcell=num2cell([aprime_val,a_val,z_val]');
                 else
-                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                   ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
                    tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
                 end
+                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
             end
         else
-            for vv=1:length(ValuesFns)
-                if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+            for vv=1:length(FnsToEvaluate)
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                     tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
                 else
-                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
                     tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
                 end
+                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
             end
         end
-        SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+        
     end
     SimPanelValues(:,:,ii)=SimPanelValues_ii;
 end
