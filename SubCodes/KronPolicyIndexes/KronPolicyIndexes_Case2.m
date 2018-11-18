@@ -13,7 +13,7 @@ if options.parallel~=2
     if l_d==1 % no need to do anything
         PolicyKron=Policy;
     elseif l_d>1
-        tempPolicy=reshape(PolicyIndexes,[l_d,N_a,N_z]); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+        tempPolicy=reshape(Policy,[l_d,N_a,N_z]); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
         PolicyKron=zeros(N_a,N_z);
         for i1=1:N_a
             for i2=1:N_z
