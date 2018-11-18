@@ -16,56 +16,59 @@ if ~exist('vfoptions','var')
     vfoptions.polindorval=1;
     vfoptions.nphi=1;
     vfoptions.policy_forceintegertype=0;
-    vfoptions.Dynasty_CareAboutDecendents=0;
+    vfoptions.dynasty=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=2;
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    if isfield(vfoptions,'phiaprimematrix')
+    if ~isfield(vfoptions,'phiaprimematrix')
         vfoptions.phiaprimematrix=2;
     end
-    if isfield(vfoptions,'phiaprimedependsonage')
+    if ~isfield(vfoptions,'phiaprimedependsonage')
         vfoptions.phiaprimedependsonage=0;
     end
-    if isfield(vfoptions,'nphi')
+    if ~isfield(vfoptions,'nphi')
         vfoptions.nphi=1;
     end
-    if isfield(vfoptions,'lowmemory')
+    if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-%     if isfield(vfoptions,'exoticpreferences')
+%     if ~isfield(vfoptions,'exoticpreferences')
 %         vfoptions.exoticpreferences=0;
 %     end  
-    if isfield(vfoptions,'verbose')
+    if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
-    if isfield(vfoptions,'returnmatrix')
-        if isa(ReturnFn,'function_handle')==1;
+    if ~isfield(vfoptions,'returnmatrix')
+        if isa(ReturnFn,'function_handle')==1
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
     end
-%     if isfield(vfoptions,'tolerance')
-%         vfoptions.tolerance=10^(-9);
-%     end
-    if isfield(vfoptions,'polindorval')
+    if ~isfield(vfoptions,'tolerance')
+        vfoptions.tolerance=10^(-9);
+    end
+    if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if isfield(vfoptions,'policy_forceintegertype')
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
     end
-    if isfield(vfoptions,'Dynasty_CareAboutDecendents')==0
-        vfoptions.Dynasty_CareAboutDecendents=0;
+    if ~isfield(vfoptions,'dynasty')
+        vfoptions.dynasty=0;
+    end
+    if ~isfield(vfoptions,'agedependentgrids')
+        vfoptions.agedependentgrids=0;
     end
 end
 
 % Check for age dependent grids
-if isfield(vfoptions,'agedependentgrids')
+if prod(vfoptions.agedependentgrids)~=0
     % Some of the grid sizes vary by age, so send to the relevant subcommand
     [V, Policy]=ValueFnIter_Case2_FHorz_AgeDependentGrids(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
     return
@@ -130,7 +133,7 @@ end
 % end
 
 %% Deal with Dynasty_CareAboutDecendents if need to do that.
-if vfoptions.Dynasty_CareAboutDecendents==0
+if vfoptions.dynasty==1
     if vfoptions.verbose==1
         fprintf('Dynasty_CareAboutDecendents option is being used \n')
     end
@@ -167,6 +170,7 @@ if vfoptions.Dynasty_CareAboutDecendents==0
         Policy=double(Policy);
     end
     
+    return
 end
 
 %% 
