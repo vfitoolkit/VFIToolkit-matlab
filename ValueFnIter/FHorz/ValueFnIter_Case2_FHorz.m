@@ -70,7 +70,7 @@ end
 % Check for age dependent grids
 if prod(vfoptions.agedependentgrids)~=0
     % Some of the grid sizes vary by age, so send to the relevant subcommand
-    [V, Policy]=ValueFnIter_Case2_FHorz_AgeDependentGrids(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_Case2_FHorz_AgeDepGrids(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
     return
 end
 
