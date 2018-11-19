@@ -6,6 +6,19 @@ Policy=struct(); %indexes the optimal choice for d given rest of dimensions a,z
 fprintf('ValueFnIter_Case2_FHorz_AgeDependentGrids_Par2_Dynasty_raw() \n')
 
 %%
+% Precompute some things for speed.
+jj=N_j;
+%Make a three digit number out of jj
+if jj<10
+    jstrN_j=['j00',num2str(jj)];
+elseif jj>=10 && jj<100
+    jstrN_j=['j0',num2str(jj)];
+else
+    jstrN_j=['j',num2str(jj)];
+end
+% Actually I could precompute all the jstr for each different jj and store the resulting strings in a cell.
+
+%%
 V.j001=zeros(daz_gridstructure.N_a.('j001'),daz_gridstructure.N_z.('j001')); % Initial guess for j==1 (dynasty means this is essentially the starting point)
 tempcounter=1;
 currdist=Inf;
@@ -780,39 +793,15 @@ while currdist>vfoptions.tolerance
     if tempcounter>=2 % I simply assume you won't converge on the first try when using dynasty
         % No need to check convergence for the whole value function, if the
         % 'oldest', N_j, has converged then necessarily so have all the others.
-        jj=N_j;
-        %Make a three digit number out of jj
-        if jj<10
-            jstr=['j00',num2str(jj)];
-        elseif jj>=10 && jj<100
-            jstr=['j0',num2str(jj)];
-        else
-            jstr=['j',num2str(jj)];
-        end
-        N_a=daz_gridstructure.N_a.(jstr(:));
-        N_z=daz_gridstructure.N_z.(jstr(:));
-        Vdist=reshape(V.(jstr)-Vold.(jstr(:)),[N_a*N_z,1]); Vdist(isnan(Vdist))=0;
+        % Since I anyway want this jj=N_j for storing Vold (where only the
+        % N_j value function needs to be stored, it is done just prior to
+        % this if statement)
+        N_a=daz_gridstructure.N_a.(jstrN_j);
+        N_z=daz_gridstructure.N_z.(jstrN_j);
+        Vdist=reshape(V.(jstrN_j)-Vold,[N_a*N_z,1]); Vdist(isnan(Vdist))=0;
         currdist=max(abs(Vdist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-
-
-% 
-%         for jj=1:N_j
-%             % Make a three digit number out of jj
-%             if jj<10
-%                 jstr=['j00',num2str(jj)];
-%             elseif jj>=10 && jj<100
-%                 jstr=['j0',num2str(jj)];
-%             else
-%                 jstr=['j',num2str(jj)];
-%             end
-%             N_a=daz_gridstructure.N_a.(jstr(:));
-%             N_z=daz_gridstructure.N_z.(jstr(:));
-%             Vdist=reshape(V.(jstr)-Vold.(jstr(:)),[N_a*N_z,1]); Vdist(isnan(Vdist))=0;
-%             currdist_j=max(abs(Vdist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-%             currdist=currdist+currdist_j;
-%         end
     end
-    Vold=V;
+    Vold=V.(jstrN_j); % Only the final period one is ever needed
     
     tempcounter=tempcounter+1;
     if vfoptions.verbose==1 && rem(tempcounter,10)==0

@@ -46,7 +46,6 @@ if vfoptions.lowmemory>1
 end
 
 %%
-Vold=zeros(N_a,N_z,N_j);
 tempcounter=1;
 currdist=Inf;
 while currdist>vfoptions.tolerance
@@ -331,9 +330,14 @@ while currdist>vfoptions.tolerance
         end
     end
     
-    Vdist=reshape(V-Vold,[N_a*N_z*N_j,1]); Vdist(isnan(Vdist))=0;
-    currdist=max(abs(Vdist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-    Vold=V;
+    if tempcounter>2
+        % I simply assume you won't converge on the first try when using dynasty
+        % No need to check convergence for the whole value function, if the
+        % 'oldest', N_j, has converged then necessarily so have all the others.
+        Vdist=reshape(V(:,:,N_j)-Vold,[N_a*N_z,1]); Vdist(isnan(Vdist))=0;
+        currdist=max(abs(Vdist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
+    end
+    Vold=V(:,:,N_j);  % Only the final period one is ever needed
     
     tempcounter=tempcounter+1;
     if vfoptions.verbose==1 && rem(tempcounter,10)==0
