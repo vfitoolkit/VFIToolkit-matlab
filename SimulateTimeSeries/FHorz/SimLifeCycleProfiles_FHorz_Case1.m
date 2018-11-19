@@ -55,7 +55,7 @@ if simoptions.parallel~=2
 end
 
 tic;
-PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions); % This is actually being created inside SimPanelIndexes already
+PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);%,simoptions); % This is actually being created inside SimPanelIndexes already
 toc
 
 % if simoptions.parallel~=2

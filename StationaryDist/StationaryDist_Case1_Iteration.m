@@ -28,7 +28,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions);
+PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z); %,simoptions);
 
 StationaryDistKron=reshape(StationaryDist,[N_a*N_z,1]);
 

@@ -45,7 +45,7 @@ l_z=length(n_z);
 
 
 %Policy is [l_d+l_a,n_a,n_s,n_z]
-PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions);
+PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);%,simoptions);
 
 %seedtemp=sub2ind_homemade([n_a,n_z],simoptions.seedpoint);
 %seedpoint=ind2sub_homemade([N_a,N_z],seedtemp);

@@ -58,7 +58,7 @@ end
 
 %%
 
-PolicyKron=KronPolicyIndexes_Case2(Policy, n_d, n_a, n_z,simoptions);
+PolicyKron=KronPolicyIndexes_Case2(Policy, n_d, n_a, n_z);%,simoptions);
 
 StationaryDistKron=StationaryDist_Case2_Simulation_raw(PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z, simoptions);
 

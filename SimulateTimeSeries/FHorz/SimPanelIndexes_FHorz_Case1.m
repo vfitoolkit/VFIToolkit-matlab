@@ -66,7 +66,7 @@ if (l_d==0 && ndims(Policy)==3) || ndims(Policy)==4
 %     disp('Policy is alread Kron')
     PolicyIndexesKron=Policy;
 else %    size(Policy)==[l_d+l_a,n_a,n_z,N_j]
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions);
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);%,simoptions);
 end
 
 if simoptions.parallel==2
