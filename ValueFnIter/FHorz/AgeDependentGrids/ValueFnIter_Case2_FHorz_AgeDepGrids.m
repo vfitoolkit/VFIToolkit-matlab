@@ -46,8 +46,8 @@ if vfoptions.dynasty==1
         n_a_j=daz_gridstructure.n_a.(jstr(:));
         n_z_j=daz_gridstructure.n_z.(jstr(:));
         
-        V.(jstr)=reshape(V.(jstr),[n_a_j',n_z_j']);
-        Policy.(jstr)=UnKronPolicyIndexes_Case2(Policy.(jstr), n_d_j', n_a_j', n_z_j',vfoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
+        V.(jstr)=reshape(V.(jstr),[n_a_j,n_z_j]);
+        Policy.(jstr)=UnKronPolicyIndexes_Case2(Policy.(jstr), n_d_j, n_a_j, n_z_j,vfoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
     end
     
     % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
@@ -88,8 +88,8 @@ for jj=1:N_j
     n_a_j=daz_gridstructure.n_a.(jstr(:));
     n_z_j=daz_gridstructure.n_z.(jstr(:));
 
-    V.(jstr)=reshape(V.(jstr),[n_a_j',n_z_j']);
-    Policy.(jstr)=UnKronPolicyIndexes_Case2(Policy.(jstr), n_d_j', n_a_j', n_z_j',vfoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
+    V.(jstr)=reshape(V.(jstr),[n_a_j,n_z_j]);
+    Policy.(jstr)=UnKronPolicyIndexes_Case2(Policy.(jstr), n_d_j, n_a_j, n_z_j,vfoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
 end
     
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean

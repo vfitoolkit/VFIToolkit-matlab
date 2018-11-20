@@ -1,6 +1,7 @@
 function SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, options, AgeDependentGridParamNames) %pi_z,p_val
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
 
+% Note: n_d,n_a,n_z are used once here at beginning and then overwritten with their age-conditional equivalents for all further usage.
 daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_gridfn, a_gridfn, z_gridfn, AgeDependentGridParamNames, Parameters, options);
 % Creates daz_gridstructure which contains both the grids themselves and a
 % bunch of info about the grids in an easy to access way.
@@ -38,7 +39,7 @@ if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
         
         StationaryDistVec=reshape(StationaryDist.(jstr),[N_a*N_z,1]);
         
-        PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid,Parallel);
+        PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid,2);
         permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
         PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
         
@@ -50,7 +51,7 @@ if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
             else
                 SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
             end
-            Values=reshape(ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+            Values=reshape(ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
             SSvalues_AggVars(i)=SSvalues_AggVars(i)+sum(sum(Values.*StationaryDistVec)); % Since just summing them up can do the sum for each jj seperately.
         end
         % Would adding 'clear Values' decrease runtime?? (given that Values will likely be a different size for each jj)

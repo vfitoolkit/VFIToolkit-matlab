@@ -1,13 +1,13 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_FHorz_pgrid(jequaloneDist,AgeWeights,n_d, n_a, n_s, N_j, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeFn, Case2_Type, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_FHorz_pgrid(jequaloneDist,AgeWeights,n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, Phi_aprimeFn, Case2_Type, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_s=prod(n_s);
+% N_d=prod(n_d);
+% N_a=prod(n_a);
+% N_z=prod(n_z);
 N_p=prod(n_p);
 
 l_p=length(n_p);
 
-p_grid=heteroagentoptions.pgrid;
+p_grid=heteroagentoptions.p_grid;
 
 %%
 
@@ -36,13 +36,11 @@ for p_c=1:N_p
         Parameters.(GEPriceParamNames{ii})=gather(p(ii));
     end
     
-    [~, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_s,N_j,d_grid, a_grid, s_grid, pi_s, Phi_aprimeFn, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+    [~, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, Phi_aprimeFn, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
     
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-    StationaryDist=StationaryDist_FHorz_Case2(jequaloneDist,AgeWeights,Policy,n_d,n_a,n_s,N_j,d_grid, a_grid, s_grid,pi_s,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
-%     StationaryDistKron=StationaryDist_FHorz_Case2(jequaloneDist,Policy,n_d,n_a,n_s,N_j,d_grid, a_grid, s_grid,pi_s,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
-    %SSvalues_AggVars=SSvalues_AggVars_Case2(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s,p,2); % The 2 is for Parallel (use GPU)
-    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2(StationaryDist, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s,N_j, d_grid, a_grid, s_grid, 2); % The 2 is for Parallel (use GPU)
+    StationaryDist=StationaryDist_FHorz_Case2(jequaloneDist,AgeWeights,Policy,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
+    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2(StationaryDist, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid, simoptions, pi_z); % If using Age Dependent Variables then 'pi_z' is actually AgeDependentGridParamNames. If not then it will anyway be ignored.
 
     % The following line is often a useful double-check if something is going wrong.
 %    SSvalues_AggVars

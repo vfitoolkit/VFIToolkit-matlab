@@ -14,7 +14,7 @@ if nargin>5
     for jj=1:N_j
         % First, get the sizes of the grids for this age.
         if options.agedependentgrids(1)==1
-            n_d_j=n_d(:,jj);
+            n_d_j=n_d(:,jj)'; % Store as a row since that is how they are typically stored (due to legacy setup)
             d_gridParamsCell=num2cell(CreateVectorFromParams(Parameters, AgeDependentGridParamNames.d_grid,jj)');
             d_grid_j=d_gridfn(d_gridParamsCell{:});
         else % If not dependent on age
@@ -22,7 +22,7 @@ if nargin>5
             d_grid_j=d_grid;
         end
         if options.agedependentgrids(2)==1
-            n_a_j=n_a(:,jj);
+            n_a_j=n_a(:,jj)'; % Store as a row since that is how they are typically stored (due to legacy setup)
             a_gridParamsCell=num2cell(CreateVectorFromParams(Parameters, AgeDependentGridParamNames.a_grid,jj)');
             a_grid_j=a_gridfn(a_gridParamsCell{:});
         else % If not dependent on age
@@ -30,7 +30,7 @@ if nargin>5
             a_grid_j=a_grid;
         end
         if options.agedependentgrids(3)==1
-            n_z_j=n_z(:,jj);
+            n_z_j=n_z(:,jj)'; % Store as a row since that is how they are typically stored (due to legacy setup)
             z_gridParamsCell=num2cell(CreateVectorFromParams(Parameters, AgeDependentGridParamNames.z_grid,jj)');
             [z_grid_j,pi_z_j]=z_gridfn(z_gridParamsCell{:});
         else % If not dependent on age
