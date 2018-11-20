@@ -1,5 +1,14 @@
-function SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel) %pi_z,p_val
+function SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, options, AgeDependentGridParamNames) %pi_z,p_val
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
+% options and AgeDependentGridParamNames is only needed when you are using Age Dependent Grids, otherwise this is not a required input.
+
+if isa(StationaryDist,'struct')
+    % Using Age Dependent Grids so send there
+    % Note that in this case: d_grid is d_gridfn, a_grid is a_gridfn,
+    % z_grid is z_gridfn. Parallel is options. AgeDependentGridParamNames is also needed. 
+    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, options, AgeDependentGridParamNames);
+    return
+end
 
 l_d=length(n_d);
 l_a=length(n_a);
@@ -7,12 +16,12 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if Parallel==2
+if isa(StationaryDist,'gpuArray')% Parallel==2
     SSvalues_AggVars=zeros(length(SSvaluesFn),1,'gpuArray');
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
     
-    PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,Parallel);
+    PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,2);
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
@@ -25,7 +34,7 @@ if Parallel==2
             else
                 SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
             end
-            Values(:,jj)=reshape(ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+            Values(:,jj)=reshape(ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
         end
 %         Values=reshape(Values,[N_a*N_z,N_j]);
         SSvalues_AggVars(i)=sum(sum(Values.*StationaryDistVec));
