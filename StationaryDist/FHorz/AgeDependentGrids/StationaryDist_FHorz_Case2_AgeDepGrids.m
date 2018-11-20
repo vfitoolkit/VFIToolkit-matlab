@@ -70,11 +70,11 @@ for jj=1:N_j
     else
         jstr=['j',num2str(jj)];
     end
-    n_d_j=daz_gridstructure.n_d.(jstr(:));
-    n_a_j=daz_gridstructure.n_a.(jstr(:));
-    n_z_j=daz_gridstructure.n_z.(jstr(:));
+    n_d_j=daz_gridstructure.n_d.(jstr);
+    n_a_j=daz_gridstructure.n_a.(jstr);
+    n_z_j=daz_gridstructure.n_z.(jstr);
 
-    StationaryDist.(jstr)=reshape(StationaryDistKron.(jstr(:)),[n_a_j',n_z_j']); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
+    StationaryDist.(jstr)=reshape(StationaryDistKron.(jstr),[n_a_j,n_z_j]); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
 end
 
 end
