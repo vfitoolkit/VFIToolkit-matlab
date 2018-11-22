@@ -1,4 +1,4 @@
-function SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, options, AgeDependentGridParamNames) %pi_z,p_val
+function SSvalues_MeanMedianStdDev=SSvalues_MeanMedianStdDev_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters,SSvalueParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, options, AgeDependentGridParamNames) %pi_z,p_val
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
 
 % Note: n_d,n_a,n_z are used once here at beginning and then overwritten with their age-conditional equivalents for all further usage.
@@ -11,11 +11,12 @@ daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_g
 
 
 if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
-    SSvalues_AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');    
-
-    % Seems likely that outer loop over age jj and inner loop over
-    % SSvaluesFn i is the faster option. But I have not actually checked
-    % this.
+    SSvalues_MeanMedianStdDev=zeros(length(SSvaluesFn),3,'gpuArray');    
+ 
+    FullStationaryDistVec=zeros(prod(prod(n_a))*prod(prod(n_z)),1); % This will be across all the ages j (note that n_a and n_z at this point are still for all ages, not age specific)
+    FullValuesVec=zeros(prod(prod(n_a))*prod(prod(n_z)),length(SSvaluesFn)); % Actually is a matrix, with a column vector for each SSvaluesFn
+    
+    counter_Naz=0;
     for jj=1:N_j
         % Make a three digit number out of jj
         if jj<10
@@ -39,29 +40,49 @@ if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
         
         StationaryDistVec=reshape(StationaryDist.(jstr),[N_a*N_z,1]);
         
+        FullStationaryDistVec(counter_Naz+1:counter_Naz+N_a*N_z)=StationaryDistVec;
+        
         PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid,2);
         permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
-        PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
+        PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
         
-        for i=1:length(FnsToEvaluateFn)
+        for i=1:length(SSvaluesFn)
 %             Values=zeros(N_a*N_z,'gpuArray');
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames) %|| strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={} or SSvalueParamNames={''}'
+            if isempty(SSvalueParamNames) %|| strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={} or SSvalueParamNames={''}'
                 SSvalueParamsVec=[];
             else
-                SSvalueParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
             end
-            Values=reshape(ValuesOnSSGrid_Case2(FnsToEvaluateFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
-            SSvalues_AggVars(i)=SSvalues_AggVars(i)+sum(sum(Values.*StationaryDistVec)); % Since just summing them up can do the sum for each jj seperately.
+            Values=reshape(ValuesOnSSGrid_Case2(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
+            FullValuesVec(counter_Naz+1:counter_Naz+N_a*N_z,i)=Values;
         end
-        % Would adding 'clear Values' decrease runtime?? (given that Values will likely be a different size for each jj)
-    end    
+        counter_Naz=counter_Naz+N_a*N_z;
+    end
+
+    for i=1:length(SSvaluesFn)
+        Values=FullValuesVec(:,i);
+        % FullValuesVec and FullStationaryVec can now be used as usual
+        % Mean
+        SSvalues_MeanMedianStdDev(i,1)=sum(Values.*FullStationaryDistVec);
+        % Median
+        [SortedValues,SortedValues_index] = sort(Values);
+        SortedStationaryDistVec=FullStationaryDistVec(SortedValues_index);
+        median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
+        SSvalues_MeanMedianStdDev(i,2)=SortedValues(median_index);
+        % SSvalues_MeanMedianStdDev(i,2)=min(SortedValues(cumsum(SortedStationaryDistVec)>0.5));
+        % Standard Deviation
+        SSvalues_MeanMedianStdDev(i,3)=sqrt(sum(FullStationaryDistVec.*((Values-SSvalues_MeanMedianStdDev(i,1).*ones(length(FullStationaryDistVec),1)).^2)));
+    end
 else
-    SSvalues_AggVars=zeros(length(FnsToEvaluateFn),1);
+    SSvalues_MeanMedianStdDev=zeros(length(SSvaluesFn),3);
     % Seems likely that outer loop over age jj and inner loop over
     % SSvaluesFn i is the faster option. But I have not actually checked
     % this.
+    FullStationaryDistVec=zeros(prod(prod(n_a))*prod(prod(n_z)),1); % This will be across all the ages j (note that n_a and n_z at this point are still for all ages, not age specific)
+    FullValuesVec=zeros(prod(prod(n_a))*prod(prod(n_z)),length(SSvaluesFn)); % Actually is a matrix, with a column vector for each SSvaluesFn
 
+    counter_Naz=0;
     for jj=1:N_j
         % Make a three digit number out of jj
         if jj<10
@@ -88,8 +109,9 @@ else
         z_val=zeros(l_z,1);
 
         StationaryDistVec=reshape(StationaryDist.(jstr),[N_a*N_z,1]);
+        FullStationaryDistVec(counter_Naz+1:counter_Naz+N_a*N_z)=StationaryDistVec;
 
-        for i=1:length(FnsToEvaluateFn)
+        for i=1:length(SSvaluesFn)
             Values=zeros(N_a,N_z);
             for j1=1:N_a
                 a_ind=ind2sub_homemade_gpu([n_a],j1);
@@ -119,27 +141,42 @@ else
                     end
                     
                     % Includes check for cases in which no parameters are actually required
-                    if isempty(FnsToEvaluateParamNames(i).Names)
+                    if isempty(SSvalueParamNames(i).Names)
                         tempv=[d_val,a_val,z_val];
                         tempcell=cell(1,length(tempv));
                         for temp_c=1:length(tempv)
                             tempcell{temp_c}=tempv(temp_c);
                         end
                     else
-                        SSvalueParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                        SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names,jj);
                         tempv=[d_val,a_val,z_val,SSvalueParamsVec];
                         tempcell=cell(1,length(tempv));
                         for temp_c=1:length(tempv)
                             tempcell{temp_c}=tempv(temp_c);
                         end
                     end
-                    Values(j1,j2)=FnsToEvaluateFn{i}(tempcell{:});
+                    Values(j1,j2)=SSvaluesFn{i}(tempcell{:});
                 end
             end
-            SSvalues_AggVars(i)=SSvalues_AggVars(i)+sum(Values.*StationaryDistVec);
+            FullValuesVec(counter_Naz+1:counter_Naz+N_a*N_z,i)=reshape(Values,[N_a*N_z,1]);
         end
+        counter_Naz=counter_Naz+N_a*N_z;
     end
 
+    for i=1:length(SSvaluesFn)
+        Values=FullValuesVec(:,i);
+        % FullValuesVec and FullStationaryVec can now be used as usual
+        % Mean
+        SSvalues_MeanMedianStdDev(i,1)=sum(Values.*FullStationaryDistVec);
+        % Median
+        [SortedValues,SortedValues_index] = sort(Values);
+        SortedStationaryDistVec=FullStationaryDistVec(SortedValues_index);
+        median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
+        SSvalues_MeanMedianStdDev(i,2)=SortedValues(median_index);
+        % SSvalues_MeanMedianStdDev(i,2)=min(SortedValues(cumsum(SortedStationaryDistVec)>0.5));
+        % Standard Deviation
+        SSvalues_MeanMedianStdDev(i,3)=sqrt(sum(FullStationaryDistVec.*((Values-SSvalues_MeanMedianStdDev(i,1).*ones(length(FullStationaryDistVec),1)).^2)));
+    end
 end
 
 end
