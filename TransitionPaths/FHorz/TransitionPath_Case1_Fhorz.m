@@ -144,15 +144,16 @@ end
 if transpathoptions.exoticpreferences~=0
     disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
     dbstack
-else
-    if length(DiscountFactorParamNames)~=1
-        disp('WARNING: DiscountFactorParamNames should be of length one')
-        dbstack
-    end
+% else % HAVE NOW IMPLEMENTED THIS
+%     if length(DiscountFactorParamNames)~=1
+%         disp('WARNING: DiscountFactorParamNames should be of length one')
+%         dbstack
+%     end
 end
 
 if transpathoptions.parallel~=2
     disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1')
+    dbstack
 else
     d_grid=gpuArray(d_grid); a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     PricePathOld=gpuArray(PricePathOld);
@@ -184,7 +185,7 @@ if transpathoptions.verbose==1
 end
 
 PricePathDist=Inf;
-pathcounter=0;
+pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z,N_j]);
 AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,N_j]);
@@ -328,7 +329,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 %     if pathcounter==1
 %         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
 %     end
-    
+
+    if transpathoptions.historyofpricepath==1
+        PricePathHistory{pathcounter,1}=PricePathDist;
+        PricePathHistory{pathcounter,2}=PricePathOld;
+        
+        if rem(pathcounter,5)==1
+            save ./SavedOutput/TransPath_Internal.mat PricePathHistory
+        end
+    end
+
     pathcounter=pathcounter+1;
     
 

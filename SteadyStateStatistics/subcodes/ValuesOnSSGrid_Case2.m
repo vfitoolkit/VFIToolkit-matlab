@@ -115,13 +115,13 @@ elseif l_d==2 && l_a==1 && l_z==2
 elseif l_d==2 && l_a==1 && l_z==3
     Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==1
-    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, zvals, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==2
     Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, z1vals, z2vals, ParamCell{:}); 
 elseif l_d==2 && l_a==2 && l_z==3
     Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals, z1vals, z2vals, z3vals, ParamCell{:}); 
 elseif l_d==2 && l_a==3 && l_z==1
-    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals,a3vals, zvals, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==2 && l_a==3 && l_z==2
     Values=arrayfun(ValuesFn, d1vals, d2vals, a1vals,a2vals,a3vals, z1vals, z2vals, ParamCell{:}); 
 elseif l_d==2 && l_a==3 && l_z==3
@@ -133,13 +133,13 @@ elseif l_d==3 && l_a==1 && l_z==2
 elseif l_d==3 && l_a==1 && l_z==3
     Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==3 && l_a==2 && l_z==1
-    Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals, zvals, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==3 && l_a==2 && l_z==2
     Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals, z1vals, z2vals, ParamCell{:}); 
 elseif l_d==3 && l_a==2 && l_z==3
     Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals, z1vals, z2vals, z3vals, ParamCell{:}); 
 elseif l_d==3 && l_a==3 && l_z==1
-    Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals,a3vals, zvals, ParamCell{:});
+    Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==3 && l_a==3 && l_z==2
     Values=arrayfun(ValuesFn, d1vals, d2vals, d3vals, a1vals,a2vals,a3vals, z1vals, z2vals, ParamCell{:}); 
 elseif l_d==3 && l_a==3 && l_z==3

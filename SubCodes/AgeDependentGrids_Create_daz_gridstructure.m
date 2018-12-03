@@ -4,6 +4,8 @@ function daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_
 % e.g., the d_grid for age j=10: daz_gridstructure.d_grid.j010
 % e.g., the value of N_a for age j=5: daz_gridstructure.N_a.j005
 % e.g., the zprime_grid for age j=20: daz_gridstructure.zprime_grid.j020
+% Also contains the jstr that are used to access them.
+% e.g., the jstr for age j=15: daz_gridstructure.jstr(15)='j015'
 
 % Create a structure that contains all of these grids. Can do this once and for all on first run. Seems likely to
 % be a good idea. Will only use a little extra memory, and will save a lot
@@ -11,6 +13,7 @@ function daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_
 % Will also allow me to then to do the usual checks on grid sizes.
 if nargin>5
     daz_gridstructure=struct();
+    daz_gridstructure.jstr=cell(N_j,1); % preallocate this one since size is known
     for jj=1:N_j
         % First, get the sizes of the grids for this age.
         if options.agedependentgrids(1)==1
@@ -85,6 +88,7 @@ if nargin>5
         else
             jstr=['j',num2str(jj)];
         end
+        daz_gridstructure.jstr(jj)=jstr;
         
         % Store all the grids (and transition matrices) as a structure
         if options.parallel==2
@@ -135,6 +139,7 @@ else % if nargin<=5
     
     % Following lines just repeat the above, but without the grids themselves.
     daz_gridstructure=struct();
+    daz_gridstructure.jstr=cell(N_j,1); % preallocate this one since size is known
     for jj=1:N_j
         % First, get the sizes of the grids for this age.
         if options.agedependentgrids(1)==1
@@ -188,6 +193,7 @@ else % if nargin<=5
         else
             jstr=['j',num2str(jj)];
         end
+        daz_gridstructure.jstr(jj)=jstr;
         
         % Store all the grids (and transition matrices) as a structure
         if options.parallel==2
