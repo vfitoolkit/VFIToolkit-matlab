@@ -25,13 +25,7 @@ if simoptions.parallel<2
     for jj=1:(N_j-1)
         
         % Make a three digit number out of jj
-        if jj<10
-            jstr=['j00',num2str(jj)];
-        elseif jj>=10 && jj<100
-            jstr=['j0',num2str(jj)];
-        else
-            jstr=['j',num2str(jj)];
-        end
+        jstr=daz_gridstructure.jstr{jj};
         jjplus1=jj+1;
         % Make a three digit number out of jjplus1
         if jjplus1<10
@@ -112,13 +106,7 @@ elseif simoptions.parallel==2 % GPU
     for jj=1:(N_j-1)
         
         % Make a three digit number out of jj
-        if jj<10
-            jstr=['j00',num2str(jj)];
-        elseif jj>=10 && jj<100
-            jstr=['j0',num2str(jj)];
-        else
-            jstr=['j',num2str(jj)];
-        end
+        jstr=daz_gridstructure.jstr{jj};
         jjplus1=jj+1;
         % Make a three digit number out of jjplus1
         if jjplus1<10
@@ -229,13 +217,7 @@ elseif simoptions.parallel>2 % Same as <2, but using sparse matrices. To make it
     for jj=1:(N_j-1)
         
         % Make a three digit number out of jj
-        if jj<10
-            jstr=['j00',num2str(jj)];
-        elseif jj>=10 && jj<100
-            jstr=['j0',num2str(jj)];
-        else
-            jstr=['j',num2str(jj)];
-        end
+        jstr=daz_gridstructure.jstr{jj};
         jjplus1=jj+1;
         % Make a three digit number out of jjplus1
         if jjplus1<10
@@ -356,16 +338,11 @@ if found==0 % Have added this check so that user can see if they are missing a p
     fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
 end
 % I assume AgeWeights is a row vector
-    for jj=1:N_j
-        
-        % Make a three digit number out of jj
-        if jj<10
-            jstr=['j00',num2str(jj)];
-        elseif jj>=10 && jj<100
-            jstr=['j0',num2str(jj)];
-        else
-            jstr=['j',num2str(jj)];
-        end
+for jj=1:N_j
+    jstr=daz_gridstructure.jstr{jj};    
+    StationaryDistKron.(jstr)=StationaryDistKron.(jstr)*AgeWeights(jj);
+end
+StationaryDistKron.AgeWeights=AgeWeights; % Save recalculating this later whenever I need to draw randomly from the stationary distribution.
 
-        StationaryDistKron.(jstr)=StationaryDistKron.(jstr)*AgeWeights(jj);
+
 end

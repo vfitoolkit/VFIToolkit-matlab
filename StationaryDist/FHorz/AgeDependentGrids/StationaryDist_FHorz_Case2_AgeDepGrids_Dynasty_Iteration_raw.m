@@ -42,13 +42,7 @@ while currdist>simoptions.tolerance
         for jj=1:N_j
             
             % Make a three digit number out of jj
-            if jj<10
-                jstr=['j00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['j0',num2str(jj)];
-            else
-                jstr=['j',num2str(jj)];
-            end
+            jstr=daz_gridstructure.jstr{jj};
             jjplus1=jj+1;
             if jjplus1==N_j+1
                 jjplus1=1;
@@ -132,13 +126,7 @@ while currdist>simoptions.tolerance
         for jj=1:N_j
             
             % Make a three digit number out of jj
-            if jj<10
-                jstr=['j00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['j0',num2str(jj)];
-            else
-                jstr=['j',num2str(jj)];
-            end
+            jstr=daz_gridstructure.jstr{jj};
             jjplus1=jj+1;
             if jjplus1==N_j+1
                 jjplus1=1;
@@ -252,13 +240,7 @@ while currdist>simoptions.tolerance
         for jj=1:N_j
             
             % Make a three digit number out of jj
-            if jj<10
-                jstr=['j00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['j0',num2str(jj)];
-            else
-                jstr=['j',num2str(jj)];
-            end
+            jstr=daz_gridstructure.jstr{jj};
             jjplus1=jj+1;
             if jjplus1==N_j+1
                 jjplus1=1;
@@ -402,18 +384,10 @@ end
 for jj=1:N_j
     
     % Make a three digit number out of jj
-    if jj<10
-        jstr=['j00',num2str(jj)];
-    elseif jj>=10 && jj<100
-        jstr=['j0',num2str(jj)];
-    else
-        jstr=['j',num2str(jj)];
-    end
-    
+    jstr=daz_gridstructure.jstr{jj};    
     StationaryDistKron.(jstr)=StationaryDistKron.(jstr)*AgeWeights(jj);
 end
-
-
+StationaryDistKron.AgeWeights=AgeWeights; % This will be helpful to have precomputed for any time I want to draw randomly from the stationary distribution
 
 
 end

@@ -88,7 +88,7 @@ if nargin>5
         else
             jstr=['j',num2str(jj)];
         end
-        daz_gridstructure.jstr(jj)=jstr;
+        daz_gridstructure.jstr{jj}=jstr;
         
         % Store all the grids (and transition matrices) as a structure
         if options.parallel==2
