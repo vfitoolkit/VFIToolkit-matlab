@@ -63,18 +63,13 @@ end
 StationaryDist=struct();
 for jj=1:N_j
     % Make a three digit number out of jj
-    if jj<10
-        jstr=['j00',num2str(jj)];
-    elseif jj>=10 && jj<100
-        jstr=['j0',num2str(jj)];
-    else
-        jstr=['j',num2str(jj)];
-    end
+    jstr=daz_gridstructure.jstr{jj};
     n_d_j=daz_gridstructure.n_d.(jstr);
     n_a_j=daz_gridstructure.n_a.(jstr);
     n_z_j=daz_gridstructure.n_z.(jstr);
 
     StationaryDist.(jstr)=reshape(StationaryDistKron.(jstr),[n_a_j,n_z_j]); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
+    StationaryDist.AgeWeights=StationaryDistKron.AgeWeights;
 end
 
 end

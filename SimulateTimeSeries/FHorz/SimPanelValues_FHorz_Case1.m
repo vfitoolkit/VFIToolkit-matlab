@@ -99,7 +99,7 @@ a_val=zeros(1,l_a);
 z_val=zeros(1,l_z);
 
 %%
-SimPanelValues_ii=zeros(length(FnsToEvaluate),simoptions.simperiods);
+SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die' (reach N_j) before end of panel
 %% For sure the following could be made faster by parallelizing some stuff.
 for ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
