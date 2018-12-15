@@ -25,7 +25,7 @@ else
 end
 
 %%
-PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions);
+PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
 
 % Just being lazy in implementing GPU here for now, will do it properly
 % some other time (see the SSAggVars codes for example of doing this

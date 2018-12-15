@@ -52,12 +52,13 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 %Policy is [l_d+l_a,n_a,n_s,n_z]
-PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions);
+PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
 
 seedtemp=sub2ind_homemade([n_a,n_z],simoptions.seedpoint);
-seedpoint=ind2sub_homemade([N_a,N_z],seedtemp);
+seedpoint_sub=ind2sub_homemade([N_a,N_z],seedtemp);
 
-SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N_a,N_z,gather(pi_z), simoptions.burnin, simoptions.seedpoint, simoptions.simperiods,0);
+SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N_a,N_z,gather(pi_z), simoptions.burnin, seedpoint_sub, simoptions.simperiods,0);
+% SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N_a,N_z,gather(pi_z), simoptions.burnin, simoptions.seedpoint, simoptions.simperiods,0);
 
 SimTimeSeries=zeros(l_a+l_z,simoptions.simperiods);
 for t=1:simoptions.simperiods
