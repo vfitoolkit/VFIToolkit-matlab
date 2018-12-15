@@ -229,8 +229,8 @@ if simoptions.parallel==0
         SimPanel(:,:,ii)=SimPanel_ii;
     end
 else
-%     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-      for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+    parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+%       for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
         
 %         ii

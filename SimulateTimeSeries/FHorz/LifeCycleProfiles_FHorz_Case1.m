@@ -20,10 +20,9 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(ngroups,options.nquantiles+1); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(ngroups,options.nquantiles);
 
-
+% N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_d=prod(n_d);
 
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('options','var')==1
@@ -90,7 +89,7 @@ AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngrou
 AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
 AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups,'gpuArray');
 
-PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
+PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
 for kk=1:length(options.agegroupings)
     j1=options.agegroupings(kk);
     if kk<length(options.agegroupings)

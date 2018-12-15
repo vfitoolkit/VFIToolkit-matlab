@@ -24,12 +24,19 @@ if exist('simoptions','var')==1
     if isfield(simoptions,'numbersims')==0
         simoptions.numbersims=10^3;
     end    
+    if isfield(simoptions,'dynasty')==0
+        simoptions.dynasty=0;
+    end 
+    if isfield(simoptions,'agedependentgrids')==0
+        simoptions.agedependentgrids=0;
+    end 
 else
     %If simoptions is not given, just use all the defaults
     simoptions.parallel=2;
     simoptions.verbose=0;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;
+    simoptions.dynasty=0;
 end
 
 if prod(simoptions.agedependentgrids)~=0
@@ -37,7 +44,11 @@ if prod(simoptions.agedependentgrids)~=0
     % Note a_grid is actually a_gridfn
     % Note z_grid is actually z_gridfn
     % Note pi_z is actually AgeDependentGridParamNames
-    SimPanelValues=SimPanelValues_FHorz_Case2_AgeDepGrids(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, Phi_aprimeFn,Case2_Type,PhiaprimeParamNames, simoptions);
+    if simoptions.dynasty==0
+        SimPanelValues=SimPanelValues_FHorz_Case2_AgeDepGrids(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, Phi_aprimeFn,Case2_Type,PhiaprimeParamNames, simoptions);
+    else % if simoptions.dynasty==1
+        SimPanelValues=SimPanelValues_FHorz_Case2_AgeDepGrids_Dynasty(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, Phi_aprimeFn,Case2_Type,PhiaprimeParamNames, simoptions);        
+    end
     return
 end
 
@@ -58,8 +69,12 @@ end
 % NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
 PolicyIndexesKron=KronPolicyIndexes_FHorz_Case2(Policy, n_d, n_a, n_z, N_j);%,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case2 (which will recognise that it is already in this form)
 
-SimPanelIndexes=SimPanelIndexes_FHorz_Case2(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions);
-
+if simoptions.dynasty==0
+    SimPanelIndexes=SimPanelIndexes_FHorz_Case2(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions);
+else % if simoptions.dynasty==1
+    fprintf('ERROR: SimPanelValues with Dynasty is currently only implemented for age dependent grids (simoptions.agedependentgrids) \n')
+    fprintf('ERROR: If you get this error and would have a use for these codes email me robertdkirkby@gmail.com and I will look at implementing them. \n')
+end
 % Move everything to cpu for what remains.
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);

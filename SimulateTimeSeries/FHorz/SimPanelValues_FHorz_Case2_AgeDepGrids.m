@@ -127,13 +127,19 @@ for ii=1:simoptions.numbersims
             d_ind=PolicyIndexesKron_j(a_ind,z_ind);
             d_sub=ind2sub_homemade(n_d_j,d_ind);
             d_grid_j=daz_gridstructure.d_grid.(jstr(:));
-            for kk1=1:l_d
+            for kk1=1:l_d % This for loop could probably be replaced with what follows
                 if kk1==1
                     d_val(kk1)=d_grid_j(d_sub(kk1));
                 else
                     d_val(kk1)=d_grid_j(d_sub(kk1)+sum(n_d_j(1:kk1-1)));
                 end
             end
+            % Can probably replace with
+%             if l_d>1
+%                 d_sub=d_sub+[0,cumsum(n_d_j(1:end-1))];
+%             end
+%             d_val=d_grid_j(d_sub);
+
             
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
