@@ -178,7 +178,7 @@ if vfoptions.lowmemory==0
     end
     
     if vfoptions.returnmatrix==0
-        disp('NOTE: You are not using GPU parallelization. \n NOTE: Your codes will run slowly unless you use vfoptions.returnmatrix=1 \n NOTE: (rather than current vfoptions.returnmatrix=0). \n NOTE: See documentation on vfoptions.returnmatrix option for more.')
+        fprintf('NOTE: You are not using GPU parallelization. \n NOTE: Your codes will run slowly unless you use vfoptions.returnmatrix=1 \n NOTE: (rather than current vfoptions.returnmatrix=0). \n NOTE: See documentation on vfoptions.returnmatrix option for more.')
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;

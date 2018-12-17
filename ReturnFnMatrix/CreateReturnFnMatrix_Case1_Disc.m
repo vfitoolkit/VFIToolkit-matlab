@@ -11,32 +11,35 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+l_a=length(n_a);
+l_z=length(n_z);
+
 if Parallel==0
     
-    z_gridvals=zeros(N_z,length(n_z));
+    z_gridvals=zeros(N_z,l_z);
     for i1=1:N_z
-        sub=zeros(1,length(n_z));
+        sub=zeros(1,l_z);
         sub(1)=rem(i1-1,n_z(1))+1;
-        for ii=2:length(n_z)-1
+        for ii=2:l_z-1
             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
         end
-        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
+        sub(l_z)=ceil(i1/prod(n_z(1:l_z-1)));
         
-        if length(n_z)>1
+        if l_z>1
             sub=sub+[0,cumsum(n_z(1:end-1))];
         end
         z_gridvals(i1,:)=z_grid(sub);
     end
-    a_gridvals=zeros(N_a,length(n_a));
+    a_gridvals=zeros(N_a,l_a);
     for i2=1:N_a
-        sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1)+1);
-        for ii=2:length(n_a)-1
+        sub=zeros(1,l_a);
+        sub(1)=rem(i2-1,n_a(1))+1;
+        for ii=2:l_a-1
             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
         end
-        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+        sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
         
-        if length(n_a)>1
+        if l_a>1
             sub=sub+[0,cumsum(n_a(1:end-1))];
         end
         a_gridvals(i2,:)=a_grid(sub);
@@ -45,12 +48,11 @@ if Parallel==0
     if N_d==0
         Fmatrix=zeros(N_a,N_a,N_z);
         for i1=1:N_a
-            %aprime_gridvals=ind2grid_homemade(n_a,i1,a_grid);
             for i2=1:N_a
-                %a_gridvals=ind2grid_homemade(n_a,i2,a_grid);
                 for i3=1:N_z
-                    %z_gridvals=ind2grid_homemade(n_z,i3,z_grid);
-                    Fmatrix(i1,i2,i3)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:),ParamCell{:});
+                    tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:)]);
+                    Fmatrix(i1,i2,i3)=ReturnFn(tempcell{:},ParamCell{:});
+%                     Fmatrix(i1,i2,i3)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:),ParamCell{:});
                 end
             end
         end
@@ -75,15 +77,12 @@ if Parallel==0
            
         for i1=1:N_d
             for i2=1:N_a
-                %aprime_gridvals=ind2grid_homemade(n_a,i2,a_grid);
-                %i1i2=sub2ind_homemade([N_d,N_a],[i1,i2]);
                 i1i2=i1+(i2-1)*N_d;
                 for i3=1:N_a
-                    %a_gridvals=ind2grid_homemade(n_a,i3,a_grid);
                     for i4=1:N_z
-                        %z_gridvals=ind2grid_homemade(n_z,i4,z_grid);
-%                        Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:));
-                        Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals,a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:),ParamCell{:});
+                        tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:)]);
+                        Fmatrix(i1i2,i3,i4)=ReturnFn(tempcell{:},ParamCell{:});
+%                         Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:),ParamCell{:});
                     end
                 end
             end
@@ -92,16 +91,16 @@ if Parallel==0
     
 elseif Parallel==1
     
-    a_gridvals=zeros(N_a,length(n_a));
+    a_gridvals=zeros(N_a,l_a);
     for i2=1:N_a
-        sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1)+1);
-        for ii=2:length(n_a)-1
+        sub=zeros(1,l_a);
+        sub(1)=rem(i2-1,n_a(1))+1;
+        for ii=2:l_a-1
             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
         end
-        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+        sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
         
-        if length(n_a)>1
+        if l_a>1
             sub=sub+[0,cumsum(n_a(1:end-1))];
         end
         a_gridvals(i2,:)=a_grid(sub);
@@ -110,14 +109,14 @@ elseif Parallel==1
     if N_d==0
         Fmatrix=zeros(N_a,N_a,N_z);
         parfor i3=1:N_z
-            sub=zeros(1,length(n_z));
+            sub=zeros(1,l_z);
             sub(1)=rem(i3-1,n_z(1))+1;
-            for ii=2:length(n_z)-1
+            for ii=2:l_z-1
                 sub(ii)=rem(ceil(i3/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
             end
-            sub(length(n_z))=ceil(i3/prod(n_z(1:length(n_z)-1)));
+            sub(l_z)=ceil(i3/prod(n_z(1:l_z-1)));
             
-            if length(n_z)>1
+            if l_z>1
                 sub=sub+[0,cumsum(n_z(1:end-1))];
             end
             z_gridvals=z_grid(sub);
@@ -125,7 +124,8 @@ elseif Parallel==1
             Fmatrix_z=zeros(N_a,N_a);
             for i1=1:N_a
                 for i2=1:N_a
-                    Fmatrix_z(i1,i2)=ReturnFn(a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals,ParamCell{:});
+                    tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals]);
+                    Fmatrix_z(i1,i2)=ReturnFn(tempcell{:},ParamCell{:});
                 end
             end
             Fmatrix(:,:,i3)=Fmatrix_z;
@@ -134,7 +134,7 @@ elseif Parallel==1
         d_gridvals=zeros(N_d,length(n_d));
         for i2=1:N_d
             sub=zeros(1,length(n_d));
-            sub(1)=rem(i2-1,n_d(1)+1);
+            sub(1)=rem(i2-1,n_d(1))+1;
             for ii=2:length(n_d)-1
                 sub(ii)=rem(ceil(i2/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
             end
@@ -148,14 +148,14 @@ elseif Parallel==1
         
         Fmatrix=zeros(N_d*N_a,N_a,N_z);
         parfor i4=1:N_z
-            sub=zeros(1,length(n_z));
+            sub=zeros(1,l_z);
             sub(1)=rem(i4-1,n_z(1))+1;
-            for ii=2:length(n_z)-1
+            for ii=2:l_z-1
                 sub(ii)=rem(ceil(i4/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
             end
-            sub(length(n_z))=ceil(i4/prod(n_z(1:length(n_z)-1)));
+            sub(l_z)=ceil(i4/prod(n_z(1:l_z-1)));
             
-            if length(n_z)>1
+            if l_z>1
                 sub=sub+[0,cumsum(n_z(1:end-1))];
             end
             z_gridvals=z_grid(sub);
@@ -164,7 +164,9 @@ elseif Parallel==1
             for i1=1:N_d
                 for i2=1:N_a
                     for i3=1:N_a
-                        Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals,ParamCell{:});
+                        tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals]);
+                        Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(tempcell{:},ParamCell{:});
+%                         Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals,ParamCell{:});
                     end
                 end
             end
