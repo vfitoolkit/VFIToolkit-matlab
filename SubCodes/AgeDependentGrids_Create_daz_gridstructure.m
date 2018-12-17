@@ -6,6 +6,11 @@ function daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_
 % e.g., the zprime_grid for age j=20: daz_gridstructure.zprime_grid.j020
 % Also contains the jstr that are used to access them.
 % e.g., the jstr for age j=15: daz_gridstructure.jstr(15)='j015'
+%
+% If you only input (n_d,n_a,n_z,N_j,pi_z) you will get a version of
+% daz_gridstructure that only includes 'these', and does not include the
+% grids themselves. [If unsure, you are unlikely to want this option, it is 
+% intended to speed computation when grids themselves are not needed.]
 
 % Create a structure that contains all of these grids. Can do this once and for all on first run. Seems likely to
 % be a good idea. Will only use a little extra memory, and will save a lot
@@ -91,19 +96,21 @@ if nargin>5
         daz_gridstructure.jstr{jj}=jstr;
         
         % Store all the grids (and transition matrices) as a structure
-        if options.parallel==2
+        if options.parallel>=2
             % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
             pi_z_j=gpuArray(pi_z_j);
             d_grid_j=gpuArray(d_grid_j);
             a_grid_j=gpuArray(a_grid_j);
             z_grid_j=gpuArray(z_grid_j);
-            % else
-            %    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-            %    % This may be completely unnecessary.
-            %    pi_z_j=gather(pi_z_j);
-            %    d_grid_j=gather(d_grid_j);
-            %    a_grid_j=gather(a_grid_j);
-            %    z_grid_j=gather(z_grid_j);
+            if options.parallel>2 % Will also need cpu copy of pi_z_j for creating the sparse transition matrix
+                daz_gridstructure.pi_z_cpu.(jstr(:))=gather(pi_z_j);
+            end
+        else
+            % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
+            pi_z_j=gather(pi_z_j);
+            d_grid_j=gather(d_grid_j);
+            a_grid_j=gather(a_grid_j);
+            z_grid_j=gather(z_grid_j);
         end
         daz_gridstructure.d_grid.(jstr(:))=d_grid_j;
         daz_gridstructure.a_grid.(jstr(:))=a_grid_j;
@@ -199,10 +206,9 @@ else % if nargin<=5
         if options.parallel==2
             % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
             pi_z_j=gpuArray(pi_z_j);
-            % else
-            %    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-            %    % This may be completely unnecessary.
-            %    pi_z_j=gather(pi_z_j);
+        else
+            % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
+            pi_z_j=gather(pi_z_j);
         end
         daz_gridstructure.pi_z.(jstr(:))=pi_z_j;
         daz_gridstructure.N_d.(jstr(:))=N_d_j;
