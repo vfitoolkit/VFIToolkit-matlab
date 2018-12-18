@@ -32,7 +32,7 @@ end
 a_gridvals=zeros(N_a,length(n_a));
 for i2=1:N_a
     sub=zeros(1,length(n_a));
-    sub(1)=rem(i2-1,n_a(1)+1);
+    sub(1)=rem(i2-1,n_a(1))+1;
     for ii=2:length(n_a)-1
         sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
     end
@@ -103,24 +103,6 @@ while currdist>Tolerance
     tempcounter=tempcounter+1;
 end
   
-
-
-% if PolIndOrVal==1
 Policy=PolicyIndexes;
-% elseif PolIndOrVal==2
-%     Policy=zeros(N_a,N_z,length(n_a)); %NOTE: this is not actually in Kron form
-%     parfor z_c=1:N_z
-%         Policy_z=zeros(N_a,1,length(n_a));
-%         for a_c=1:N_a
-%             temp_a=ind2grid_homemade(n_a,PolicyIndexes2(a_c,z_c),a_grid);
-%             for ii=1:length(n_a)
-%                 Policy_z(a_c,1,ii)=temp_a(ii);
-%             end
-%         end
-%         Policy(:,z_c,:)=Policy_z;
-%     end
-% end
-
-
 
 end

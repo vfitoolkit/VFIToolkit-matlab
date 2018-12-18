@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamNames, ReturnFnParams, Howards,Tolerance) % Verbose, a_grid, z_grid, 
+function [VKron, Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamsVec, Howards,Tolerance) % Verbose, a_grid, z_grid, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -12,8 +12,6 @@ Ftemp=zeros(N_a,N_z,'gpuArray');
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
-
-CreateCleanedReturnFn(ReturnFn, ReturnFnParamNames, ReturnFnParams);
 
 %%
 l_a=length(n_a);
@@ -45,7 +43,7 @@ end
 a_gridvals=zeros(N_a,length(n_a),'gpuArray');
 for i2=1:N_a
     sub=zeros(1,length(n_a));
-    sub(1)=rem(i2-1,n_a(1)+1);
+    sub(1)=rem(i2-1,n_a(1))+1;
     for ii=2:length(n_a)-1
         sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
     end
@@ -70,34 +68,10 @@ while currdist>Tolerance
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
+        zvals=z_gridvals(z_c,:);
         for a_c=1:N_a            
-            % TempReturnFn.m is created by CreateCleanedReturnFn() as part of ValueFnIter_Case1()
-            if l_a==1 && l_z==1
-                avals=a_gridvals(a_c);
-                zvals=z_gridvals(z_c);
-                ReturnMatrix_az=arrayfun(@TempReturnFn, aprimevals, avals, zvals);
-            elseif l_a==1 && l_z==2
-                avals=a_gridvals(a_c);
-                z1vals=z_gridvals(z_c,1);
-                z2vals=z_gridvals(z_c,1);
-                ReturnMatrix_az=arrayfun(@TempReturnFn, aprimevals, avals, z1vals,z2vals);
-            elseif l_a==2 && l_z==1
-                a1vals=a_gridvals(a_c,1);
-                a2vals=a_gridvals(a_c,2);
-                zvals=z_gridvals(z_c);
-                ReturnMatrix_az=arrayfun(@TempReturnFn, a1primevals,a2primevals, a1vals,a2vals, zvals);
-            elseif l_a==2 && l_z==2
-                a1vals=a_gridvals(a_c,1);
-                a2vals=a_gridvals(a_c,2);
-                z1vals=z_gridvals(z_c,1);
-                z2vals=z_gridvals(z_c,1);
-                ReturnMatrix_az=arrayfun(@TempReturnFn, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals);
-            end
-            if ~(l_a==1)
-                ReturnMatrix_az=reshape(ReturnMatrix_az,[N_a,1]);
-            end
-            
-            
+            avals=a_gridvals(a_c,:);
+            ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn,0, n_a, ones(l_a,1), ones(l_z,1),0, a_grid, avals, zvals,ReturnFnParamsVec);
             
             entireRHS=ReturnMatrix_az+beta*EV_z; %aprime by 1
             

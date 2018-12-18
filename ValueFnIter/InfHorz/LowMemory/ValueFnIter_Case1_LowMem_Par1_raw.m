@@ -2,10 +2,6 @@ function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(VKron, n_d,n_a,n_z, d
 
 disp('WARNING: ValueFnIter_Case1_LowMem_raw is out of date')
 
-% N_d=prod(n_d);
-% N_a=prod(n_a);
-% N_z=prod(n_z);
-% 
 % if Verbose==1
 %     disp('Starting Value Fn Iteration')
 %     tempcounter=1;
@@ -31,7 +27,7 @@ end
 a_gridvals=zeros(N_a,length(n_a));
 for i2=1:N_a
     sub=zeros(1,length(n_a));
-    sub(1)=rem(i2-1,n_a(1)+1);
+    sub(1)=rem(i2-1,n_a(1))+1;
     for ii=2:length(n_a)-1
         sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
     end
@@ -76,12 +72,6 @@ while currdist>Tolerance
         Ftemp_UsedForHowards_z=zeros(n_a,1);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
-%         EV_z=zeros(N_a,1); %aprime
-%         for zprime_c=1:N_z
-%             if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                 EV_z=EV_z+VKronold(:,zprime_c)*pi_z(z_c,zprime_c);
-%             end
-%         end
         EV_z=VKronold.*kron(pi_z_z(1,:),ones(N_a,1));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
@@ -112,14 +102,6 @@ while currdist>Tolerance
     currdist=max(abs(VKrondist));
     
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-%         Ftemp=zeros(N_a,N_z);
-%         for z_c=1:N_z
-%             z=z_gridvals(z_c,:);
-%             for a_c=1:N_a
-%                 a=a_gridvals(a_c,:);
-%                 Ftemp(a_c,z_c)=ReturnFn(d_gridvals(PolicyIndexes1(a_c,z_c)),a_gridvals(PolicyIndexes2(a_c,z_c)),a,z);
-%             end
-%         end
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             for z_c=1:N_z
@@ -141,27 +123,8 @@ while currdist>Tolerance
 
 end
 
-% if PolIndOrVal==1
 Policy=zeros(2,N_a,N_z);
 Policy(1,:,:)=permute(PolicyIndexes1,[3,1,2]);
 Policy(2,:,:)=permute(PolicyIndexes2,[3,1,2]);
-% elseif PolIndOrVal==2
-%     Policy=zeros(N_a,N_z,length(n_d)+length(n_a)); %NOTE: this is not actually in Kron form
-%     parfor z_c=1:N_z
-%         Policy_z=zeros(N_a,1,length(n_d)+length(n_a));
-%         for a_c=1:N_a
-%             temp_d=ind2grid_homemade(n_d,PolicyIndexes1(a_c,z_c),d_grid);
-%             for ii=1:length(n_d)
-%                 Policy_z(a_c,1,ii)=temp_d(ii);
-%             end
-%             temp_a=ind2grid_homemade(n_a,PolicyIndexes2(a_c,z_c),a_grid);
-%             for ii=1:length(n_a)
-%                 Policy_z(a_c,1,length(n_d)+ii)=temp_a(ii);
-%             end
-%         end
-%         Policy(:,z_c,:)=Policy_z;
-%     end
-% end
-
 
 end

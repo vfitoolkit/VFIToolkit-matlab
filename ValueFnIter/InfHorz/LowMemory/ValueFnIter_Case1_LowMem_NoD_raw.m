@@ -31,7 +31,7 @@ end
 a_gridvals=zeros(N_a,length(n_a));
 for i2=1:N_a
     sub=zeros(1,length(n_a));
-    sub(1)=rem(i2-1,n_a(1)+1);
+    sub(1)=rem(i2-1,n_a(1))+1;
     for ii=2:length(n_a)-1
         sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
     end
@@ -52,12 +52,6 @@ while currdist>Tolerance
         z=z_gridvals(z_c,:);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
-%         EV_z=zeros(N_a,1); %aprime
-%         for zprime_c=1:N_z
-%             if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                 EV_z=EV_z+VKronold(:,zprime_c)*pi_z(z_c,zprime_c);
-%             end
-%         end
         EV_z=VKronold.*kron(ones(N_a,1),pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
@@ -101,22 +95,7 @@ while currdist>Tolerance
     tempcounter=tempcounter+1;
 end
   
-
-
-% if PolIndOrVal==1
 Policy=PolicyIndexes;
-% elseif PolIndOrVal==2
-%     Policy=zeros(N_a,N_z,length(n_a)); %NOTE: this is not actually in Kron form
-%     for a_c=1:N_a
-%         for z_c=1:N_z
-%             temp_a=ind2grid_homemade(n_a,PolicyIndexes2(a_c,z_c),a_grid);
-%             for ii=1:length(n_a)
-%                 Policy(a_c,z_c,ii)=temp_a(ii);
-%             end
-%         end
-%     end
-% end
-
 
 
 end
