@@ -71,13 +71,13 @@ if nargin>5
                     %do nothing as pi_z is irrelevant for case of jj==N_j
                 else
                     if size(pi_z_j)~=[N_z_j, prod(n_z_j(:,1))]
-                        fprintf(['ERROR: pi_z is not of size N_z_j-by-N_z_jplus1  for age j=',num2str(jj)'])
+                        fprintf(['ERROR: pi_z is not of size N_z_j-by-N_z_jplus1  for age j=',num2str(jj)])
                         dbstack
                         return
                     end
                 end
             else
-                fprintf(['ERROR: pi_z is not of size N_z_j-by-N_z_jplus1  for age j=',num2str(jj)'])
+                fprintf(['ERROR: pi_z is not of size N_z_j-by-N_z_jplus1  for age j=',num2str(jj)])
                 size(pi_z_j)
                 [N_z_j, N_z_jplus1]
                 dbstack
@@ -131,7 +131,7 @@ if nargin>5
         end
         if jjminus1<10
             jminus1str=['j00',num2str(jjminus1)];
-        elseif minus1>=10 && jjminus1<100
+        elseif jjminus1>=10 && jjminus1<100
             jminus1str=['j0',num2str(jjminus1)];
         else
             jminus1str=['j',num2str(jjminus1)];
