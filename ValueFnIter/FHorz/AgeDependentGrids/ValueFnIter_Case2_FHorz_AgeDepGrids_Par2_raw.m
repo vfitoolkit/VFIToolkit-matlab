@@ -200,7 +200,7 @@ if Case2_Type==1 % phi_a'(d,a,z,z')
         if vfoptions.lowmemory==0
             if vfoptions.phiaprimedependsonage==1
                 PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-                Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
+                Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec,vfoptions.phiaprime_forceintegertype);
             end
             
             ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
@@ -527,8 +527,9 @@ if Case2_Type==12 % phi_a'(d,a,z)
             % Current Case2_Type=12: phi_a'(d,a,z)
             if vfoptions.phiaprimedependsonage==1
                 PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-                Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
+                Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid, PhiaprimeParamsVec);
             end
+            
             aaa=kron(pi_z,ones(N_d*N_a,1,'gpuArray')); % in the case that only the grids for 'a' change this could be skipped but seems unlikely enough that I have not coded for the possibility
             
             zprime_ToMatchPhi=kron((1:1:N_zprime)',ones(N_d*N_a*N_z,1));
@@ -537,6 +538,7 @@ if Case2_Type==12 % phi_a'(d,a,z)
 
             Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d*N_a*N_z,1]);
             aaaPhi_aprimeMatrix=kron(Phi_aprimeMatrix,ones(N_zprime,1));
+
             EV=Vnextj(aaaPhi_aprimeMatrix+N_aprime*(zprime_ToMatchPhi-1)); %(d,z')
             EV=reshape(EV,[N_d*N_a*N_z,N_zprime]);
             EV=EV.*aaa;
