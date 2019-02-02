@@ -32,9 +32,9 @@ for jj=1:N_j
     n_z_j=daz_gridstructure.n_z.(jstr(:));
 
     if simoptions.parallel==2
-        PolicyKron.(jstr)=KronPolicyIndexes_Case2(Policy.(jstr), n_d_j', n_a_j', n_z_j');%,simoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
+        PolicyKron.(jstr)=KronPolicyIndexes_Case2(Policy.(jstr), n_d_j, n_a_j, n_z_j);%,simoptions); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
     else % Often Policy will be on gpu but want to iterate on StationaryDist using sparse matrices on cpu. Hence have taken this approach which allows 'Kron' to be done on gpu, where Policy is, and then moved to cpu. 
-        PolicyKron.(jstr)=gather(KronPolicyIndexes_Case2(Policy.(jstr), n_d_j', n_a_j', n_z_j'));%,simoptions)); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
+        PolicyKron.(jstr)=gather(KronPolicyIndexes_Case2(Policy.(jstr), n_d_j, n_a_j, n_z_j));%,simoptions)); % Note, use Case2 without the FHorz as I have to do this seperately for each age j in any case.
     end
 end
 

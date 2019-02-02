@@ -133,7 +133,7 @@ elseif simoptions.parallel==2 % GPU
             n_z=daz_gridstructure.n_z.(jstr(:));
             pi_z=daz_gridstructure.pi_z.(jstr(:));
             z_grid=daz_gridstructure.z_grid.(jstr(:));
-            N_zprime=daz_gridstructure.N_z.(jstr(:));
+            N_zprime=daz_gridstructure.N_zprime.(jstr(:));
         end
 
         if simoptions.phiaprimedependsonage==1
@@ -173,13 +173,6 @@ elseif simoptions.parallel==2 % GPU
             Phi_of_Policy=zeros(N_a*N_z,1,'gpuArray'); %a'(a,z)
             aindexes=kron((1:1:N_a)',ones(N_z,1));
             zindexes=kron(ones(N_a,1),(1:1:N_z)');
-            size(PolicyKron_j)
-            size(PolicyKron_j(:))
-            size(aindexes)
-            size(zindexes)
-            max(PolicyKron_j(:))
-            max(aindexes)
-            max(zindexes)
             Phi_of_Policy=Phi_aprimeMatrix(PolicyKron_j(:)+N_d*(aindexes-1)+N_d*N_a*(zindexes-1));
             Ptemp=zeros(N_a,N_aprime*N_z*N_zprime,'gpuArray');
             Ptemp(reshape(Phi_of_Policy,[1,N_a*N_z])+N_aprime*N_zprime*(gpuArray(0:1:N_a*N_z-1)))=1;
