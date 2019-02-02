@@ -1,16 +1,13 @@
-function Fmatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParams)
+function Fmatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParams)
 %If there is no d variable, just input n_d=0 and d_grid=0
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
     if size(ReturnFnParams(ii))~=[1,1]
-        disp('ERROR: Using GPU for the return fn does not allow for and of ReturnFnParams to be anything but a scalar')
+        disp('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
     end
     ParamCell(ii,1)={ReturnFnParams(ii)};
 end
-
-% No need to input ReturnFn as it has been created as an m-file called
-% TempReturnFn.m
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -20,13 +17,13 @@ l_d=length(n_d);
 l_a=length(n_a); 
 l_z=length(n_z);
 if l_d>4
-    disp('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    disp('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4): (in CreateReturnFnMatrix_Case2_Disc_Par2)')
 end
 if l_a>4
-    disp('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    disp('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case2_Disc_Par2)')
 end
 if l_z>4
-    disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case2_Disc_Par2)')
 end
 
 if nargin(ReturnFn)~=l_d+l_a+l_z+length(ReturnFnParams)
