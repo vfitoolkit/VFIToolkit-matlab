@@ -1,4 +1,4 @@
-function  [GeneralEqmConditionsVec]=GeneralEqmConditions(StatsFromDist_AggVars,p, GeneralEqmEqns, Parameters, GeneralEqmEqnParamNames)
+function  [GeneralEqmConditionsVec]=GeneralEqmConditionsFn(StatsFromDist_AggVars,p, GeneralEqmEqns, Parameters, GeneralEqmEqnParamNames)
 % Both the Case1 and Case2 codes are identical anyway
 
 GeneralEqmConditionsVec=ones(1,length(GeneralEqmEqns),'gpuArray')*Inf;
