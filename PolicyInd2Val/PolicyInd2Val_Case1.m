@@ -63,6 +63,7 @@ if Parallel==2
     end
 end
 
+% FOLLOWING COULD BE MADE MUCH FASTER BY VECTORIZATION
 if Parallel~=2
     if n_d(1)==0
         PolicyValues=zeros(length(n_a),N_a,N_z); %NOTE: this is not actually in Kron form

@@ -1,26 +1,35 @@
 function SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters, FnsToEvaluateFnParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluateFn
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-l_a=length(n_a);
-l_z=length(n_z);
+if Parallel==2
+    StationaryDist=gpuArray(StationaryDist);
+    PolicyIndexes=gpuArray(PolicyIndexes);
+    n_d=gpuArray(n_d);
+    n_a=gpuArray(n_a);
+    n_z=gpuArray(n_z);
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+    z_grid=gpuArray(z_grid);
+    
+    if n_d(1)==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    l_z=length(n_z);
+    
+    N_a=prod(n_a);
+    N_z=prod(n_z);
+    
+    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
-N_a=prod(n_a);
-N_z=prod(n_z);
-
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-
-try % if Parallel==2
     SSvalues_AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');
     
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid, Parallel);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
-
+    
     for i=1:length(FnsToEvaluateFn)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateFnParamNames(i).Names)  % check for 'SSvalueParamNames={}'
@@ -36,7 +45,21 @@ try % if Parallel==2
         temp=Values.*StationaryDistVec;
         SSvalues_AggVars(i)=sum(temp(~isnan(temp)));
     end
-catch % else
+    
+else
+    if n_d(1)==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    l_a=length(n_a);
+    l_z=length(n_z);
+    
+    N_a=prod(n_a);
+    N_z=prod(n_z);
+    
+    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+    
     StationaryDistVec=gather(StationaryDistVec);
     
     PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
