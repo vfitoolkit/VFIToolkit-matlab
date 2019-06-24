@@ -70,20 +70,27 @@ if simoptions.parallel==2
         for jj=1:N_j
             [~,seeds_age_summary(jj)]=max((seeds_age_sorted-jj>=0));
         end
-        seeds_age_summary(N_j+1)=simoptions.numbersims; % ie. =length(seeds_age_sorted)
+        seeds_age_summary(N_j+1)=simoptions.numbersims+1; % ie. =length(seeds_age_sorted)
         
 %         seedpointvec=zeros(simoptions.numbersims,1,'gpuArray');
         AgeWeightsAdjustment=cumsum(InitialDist.AgeWeights)-InitialDist.AgeWeights(1);
         for jj=1:N_j
+%             if jj<N_j
+            seeds_rand_sorted_jj=seeds_rand_sorted(seeds_age_summary(jj):(seeds_age_summary(jj+1)-1))-AgeWeightsAdjustment(jj); % Get the seeds for the current age
+%             else % No longer do the '-1'
+%                 seeds_rand_sorted_jj=seeds_rand_sorted(seeds_age_summary(jj):seeds_age_summary(jj+1))-AgeWeightsAdjustment(jj); 
+%             end
             jstr=daz_gridstructure.jstr{jj};
             N_a_j=daz_gridstructure.N_a.(jstr(:));
             N_z_j=daz_gridstructure.N_z.(jstr(:));
-            cumsumInitialDistVec=cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1]));
-            [~,seedpointvectemp]=max(cumsumInitialDistVec>(seeds_rand_sorted-AgeWeightsAdjustment));
-%             seedpointvec(seeds_age_summary(jj):seeds_age_summary(jj+1))=seedpointvectemp;
-            for ii=1:(seeds_age_summary(jj+1)-1-seeds_age_summary(jj))
-               seedpoints(seeds_age_summary(jj)+ii,1:end-1)=ind2sub_homemade_gpu([N_a_j,N_z_j],seedpointvectemp(ii));
-               seedpoints(seeds_age_summary(jj)+ii,end)=jj;
+            cumsumInitialDistVec=cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1]));            
+%            [~,seedpointvectemp]=max(cumsumInitialDistVec>seeds_rand_sorted_jj,'first');
+            % Use of max was creating an out-of-memory bottleneck
+            for ii=1:(seeds_age_summary(jj+1)-seeds_age_summary(jj))
+                [~,seedpointtemp]=max(cumsumInitialDistVec>seeds_rand_sorted_jj(ii));
+                seedpoints(seeds_age_summary(jj)-1+ii,1:end-1)=ind2sub_homemade_gpu([N_a_j,N_z_j],seedpointtemp); % Just going through the 'max' for each ii one at a time. Slower, but avoids what was otherwise a potential memory bottleneck.
+%                 seedpoints(seeds_age_summary(jj)-1+ii,1:end-1)=ind2sub_homemade_gpu([N_a_j,N_z_j],seedpointvectemp(ii)); % NEED TO CREATE A VECTOR VERSION OF ind2sub_homemade to speed this up (would be able to get rid of the for-loop over ii)
+                seedpoints(seeds_age_summary(jj)-1+ii,end)=jj;
             end
         end
         % Now unsort the ages (technically no need for this, just 'nicer' if the resulting panel data set is not sorted by age at birth)

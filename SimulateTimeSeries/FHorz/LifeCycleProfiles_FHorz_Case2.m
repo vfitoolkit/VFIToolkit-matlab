@@ -6,6 +6,8 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy
 % options.npoints can be used to determine how many points are used for the lorenz curve
 % options.nquantiles can be used to change from reporting (age conditional) ventiles, to quartiles/deciles/percentiles/etc.
 %
+% options.crosssectioncorrelation can be used to create additional output
+%
 % Note that the quantile are what are typically reported as life-cycle profiles (or more precisely, the quantile cutoffs).
 %
 % Output takes following form
@@ -20,9 +22,12 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(ngroups,options.nquantiles+1); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(ngroups,options.nquantiles);
 %
+% When options.crosssectioncorrelation=1, there is additional output:
+% AgeConditionalStats(length(FnsToEvaluate),length(FnsToEvaluate)).CrossSectionalCorrelation=nan(1,ngroups);
+%
 % AgeDependentGridParamNames is an optional input, and only used if prod(options.agedependentgrids)~=0
 
-%% Check which simoptions have been declared, set all others to defaults 
+%% Check which option have been declared, set all others to defaults 
 if exist('options','var')==1
     %Check options for missing fields, if there are some fill them with the defaults
     if isfield(options,'parallel')==0
@@ -65,7 +70,7 @@ if prod(options.agedependentgrids)~=0
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_AgeDepGrids(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,options, AgeDependentGridParamNames);
     return
 end
-    
+
 l_d=length(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
@@ -99,6 +104,10 @@ AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngrou
 AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
 AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
 AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups,'gpuArray');
+
+if options.crosssectioncorrelation==1
+    AgeConditionalStats(length(FnsToEvaluate),length(FnsToEvaluate)).CrossSectionalCorrelation=nan(1,ngroups,'gpuArray');
+end
 
 PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]); % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
 for kk=1:length(options.agegroupings)
@@ -171,7 +180,51 @@ for kk=1:length(options.agegroupings)
         AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue, QuantileCutoffs, maxvalue]';
         AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans';
 
+        
+        if options.crosssectioncorrelation==1 % Not coded the fastest way, but will use less memory than keeping round all of the older 'Values'
+            for aa=(ii+1):length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
+                Values2=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
+                for jj=j1:jend
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(FnsToEvaluateParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
+                        FnsToEvaluateParamsVec=[];
+                    else
+                        FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(aa).Names,jj);
+                    end
+                    Values2(:,jj-j1+1)=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
+                end
+                
+                Values2=reshape(Values2,[N_a*N_z*(jend-j1+1),1]);
+                
+                SSvalues_Mean1=sum(Values.*StationaryDistVec_kk);
+                SSvalues_Mean2=sum(Values2.*StationaryDistVec_kk);
+                SSvalues_StdDev1=sqrt(sum(StationaryDistVec_kk.*((Values-SSvalues_Mean1.*ones(N_a*N_z*(jend-j1+1),1)).^2)));
+                SSvalues_StdDev2=sqrt(sum(StationaryDistVec_kk.*((Values2-SSvalues_Mean2.*ones(N_a*N_z*(jend-j1+1),1)).^2)));
+                
+                Numerator=sum((Values-SSvalues_Mean1*ones(N_a*N_z*(jend-j1+1),1,'gpuArray')).*(Values2-SSvalues_Mean2*ones(N_a*N_z*(jend-j1+1),1,'gpuArray')).*StationaryDistVec_kk);
+                
+                AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk)=Numerator/(SSvalues_StdDev1*SSvalues_StdDev2);
+            end
+        end
+        
     end
 end
 
+
+if options.crosssectioncorrelation==1
+    % Just to make it easier to call the output later (turns upper triangular matrix into a full matrix)
+    for kk=1:length(options.agegroupings)
+        for ii=1:length(FnsToEvaluate)
+            for aa=ii:length(FnsToEvaluate)
+                if aa==ii
+                    AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk)=1;
+                else
+                    AgeConditionalStats(aa,ii).CrossSectionalCorrelation(kk)=AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk); % Note, set (aa,ii) to (ii,aa)
+                end
+            end
+        end
+    end
+end
+
+end
 
