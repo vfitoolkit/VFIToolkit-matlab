@@ -74,15 +74,15 @@ N_z=prod(n_z);
 %% Check the sizes of some of the inputs
 if strcmp(vfoptions.solnmethod,'purediscretization')
     if size(d_grid)~=[sum(n_d), 1]
-        disp('ERROR: d_grid is not the correct shape (should be  of size sum(n_d)-by-1)')
+        disp('ERROR: d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
         dbstack
         return
     elseif size(a_grid)~=[sum(n_a), 1]
-        disp('ERROR: a_grid is not the correct shape (should be  of size sum(n_a)-by-1)')
+        disp('ERROR: a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
         dbstack
         return
     elseif size(z_grid)~=[sum(n_z), 1]
-        disp('ERROR: z_grid is not the correct shape (should be  of size sum(n_z)-by-1)')
+        disp('ERROR: z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
         dbstack
         return
     elseif size(pi_z)~=[N_z, N_z]
@@ -151,6 +151,26 @@ elseif vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
 elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
     [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
     return
+elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.
+    % To implement this, can actually just replace the discount factor by 1, and adjust pi_z appropriately.
+    % Note that distinguishing the discount rate and pi_z is important in almost all other contexts. Just not in this one.
+    
+    % Create a matrix containing the DiscountFactorParams,
+    nDiscFactors=length(DiscountFactorParamNames);
+    DiscountFactorParamsMatrix=Parameters.(DiscountFactorParamNames{1});
+    if nDiscFactors>1
+        for ii=2:nDiscFactors
+            DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*(Parameters.(DiscountFactorParamNames{ii}));
+        end
+    end
+    DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*ones(N_z,N_z); % Make it of size z-by-zprime, so that I can later just assume that it takes this shape
+    if vfoptions.parallel==2 
+        DiscountFactorParamsMatrix=gpuArray(DiscountFactorParamsMatrix);
+    end
+    % Set the 'fake discount factor to one.
+    DiscountFactorParamsVec=1;
+    % Set pi_z to include the state-dependent discount factors
+    pi_z=pi_z.*DiscountFactorParamsMatrix;
 end
 
 if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
@@ -162,7 +182,9 @@ end
 %%
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
-DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+if vfoptions.exoticpreferences~=3
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+end
 
 %%
 if vfoptions.lowmemory==0

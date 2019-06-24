@@ -113,6 +113,7 @@ end
 V.(jstr)=V_j;
 Policy.(jstr)=Policy_j;
 
+
 %%
 if Case2_Type==1 % phi_a'(d,a,z,z')
     if vfoptions.phiaprimedependsonage==0
@@ -528,6 +529,9 @@ if Case2_Type==12 % phi_a'(d,a,z)
             if vfoptions.phiaprimedependsonage==1
                 PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
                 Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid, PhiaprimeParamsVec);
+                % Might want to add a line in here to check that all the
+                % elements of Phi_aprime are strictly positive integers
+                % (maybe an isfinite() and a >0)
             end
             
             aaa=kron(pi_z,ones(N_d*N_a,1,'gpuArray')); % in the case that only the grids for 'a' change this could be skipped but seems unlikely enough that I have not coded for the possibility
@@ -538,7 +542,7 @@ if Case2_Type==12 % phi_a'(d,a,z)
 
             Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d*N_a*N_z,1]);
             aaaPhi_aprimeMatrix=kron(Phi_aprimeMatrix,ones(N_zprime,1));
-
+            
             EV=Vnextj(aaaPhi_aprimeMatrix+N_aprime*(zprime_ToMatchPhi-1)); %(d,z')
             EV=reshape(EV,[N_d*N_a*N_z,N_zprime]);
             EV=EV.*aaa;
