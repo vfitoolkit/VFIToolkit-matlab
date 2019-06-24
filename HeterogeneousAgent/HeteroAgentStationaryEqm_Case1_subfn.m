@@ -1,4 +1,4 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -13,14 +13,14 @@ end
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
 StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_s,pi_s,simoptions);
-SSvalues_AggVars=SSvalues_AggVars_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid,2); % The 2 is for Parallel (use GPU)
+AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid,2); % The 2 is for Parallel (use GPU)
 
 % The following line is often a useful double-check if something is going wrong.
-%    SSvalues_AggVars
+%    AggVars
 
 % use of real() is a hack that could disguise errors, but I couldn't
 % find why matlab was treating output as complex
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
 if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
     GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
@@ -32,7 +32,7 @@ GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
     fprintf('Current Aggregates: \n')
-    SSvalues_AggVars
+    AggVars
     fprintf('Current GE prices and GeneralEqmConditionsVec: \n')
     p
     GeneralEqmConditionsVec

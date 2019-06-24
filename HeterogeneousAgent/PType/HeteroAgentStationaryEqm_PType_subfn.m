@@ -5,6 +5,7 @@ for pp=1:length(GEPriceParamNames) % Not sure this is needed, have it just in ca
     Parameters.(GEPriceParamNames{pp})=gather(p(pp));
 end
 
+StatsFromDist_AggVars=zeros(PTypeStructure.ptype001.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate should be independent of the ptype so just take it from the first.
 
 for ii=1:PTypeStructure.N_i
     
@@ -82,7 +83,7 @@ for ii=1:PTypeStructure.N_i
 %     SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid, simoptions, pi_z); % If using Age Dependent Variables then 'pi_z' is actually AgeDependentGridParamNames. If not then it will anyway be ignored.
 
     
-    StatsFromDist_AggVars=zeros(PTypeStructure.(iistr).numFnsToEvaluate,1,'gpuArray');
+%     StatsFromDist_AggVars=zeros(PTypeStructure.(iistr).numFnsToEvaluate,1,'gpuArray');     % MOVED OUTSIDE THE ii loop
     for kk=1:PTypeStructure.(iistr).numFnsToEvaluate
         jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
         if jj>0
