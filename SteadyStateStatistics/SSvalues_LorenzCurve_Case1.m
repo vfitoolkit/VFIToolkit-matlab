@@ -1,4 +1,4 @@
-function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(StationaryDist, PolicyIndexes, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,npoints)
+function [SSvalues_LorenzCurve]=SSvalues_LorenzCurve_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,npoints)
 %Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-1.
@@ -29,18 +29,18 @@ if Parallel==2
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    SSvalues_AggVars=zeros(length(SSvaluesFn),1,'gpuArray');
-    SSvalues_LorenzCurve=zeros(length(SSvaluesFn),npoints,'gpuArray');
+    SSvalues_AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+    SSvalues_LorenzCurve=zeros(length(FnsToEvaluate),npoints,'gpuArray');
     
-    for i=1:length(SSvaluesFn)
+    for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(SSvalueParamNames(i).Names) % check for 'SSvalueParamNames={}'
+        if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
             SSvalueParamsVec=[];
         else
-            SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names);
+            SSvalueParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
         end
         
-        Values=ValuesOnSSGrid_Case1(SSvaluesFn{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        Values=ValuesOnSSGrid_Case1(FnsToEvaluate{i}, SSvalueParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
         
         WeightedValues=Values.*StationaryDistVec;
@@ -92,8 +92,8 @@ if Parallel==2
     end
     
 else
-    SSvalues_AggVars=zeros(length(SSvaluesFn),1);
-    SSvalues_LorenzCurve=zeros(length(SSvaluesFn),npoints);
+    SSvalues_AggVars=zeros(length(FnsToEvaluate),1);
+    SSvalues_LorenzCurve=zeros(length(FnsToEvaluate),npoints);
     if l_d>0
         d_val=zeros(l_d,1);
     end
@@ -101,9 +101,9 @@ else
     a_val=zeros(l_a,1);
     s_val=zeros(l_z,1);
     
-    for i=1:length(SSvaluesFn)
+    for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(SSvalueParamNames(i).Names) % check for 'SSvalueParamNames={}'
+        if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
             Values=zeros(N_a,N_z);
             if l_d==0
                 for j1=1:N_a
@@ -133,7 +133,7 @@ else
                                 aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
                             end
                         end
-                        Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,z_val);
+                        Values(j1,j2)=FnsToEvaluate{i}(aprime_val,a_val,z_val);
                         
                     end
                 end
@@ -172,13 +172,13 @@ else
                                 aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
                             end
                         end
-                        Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val);
+                        Values(j1,j2)=FnsToEvaluate{i}(d_val,aprime_val,a_val,z_val);
                     end
                 end
             end
             Values=reshape(Values,[N_a*N_z,1]);
         else
-            SSvalueParamsVec=CreateVectorFromParams(Parameters,SSvalueParamNames(i).Names);
+            SSvalueParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
             Values=zeros(N_a,N_z);
             if l_d==0
                 for j1=1:N_a
@@ -207,7 +207,7 @@ else
                                 aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
                             end
                         end
-                        Values(j1,j2)=SSvaluesFn{i}(aprime_val,a_val,z_val,SSvalueParamsVec);
+                        Values(j1,j2)=FnsToEvaluate{i}(aprime_val,a_val,z_val,SSvalueParamsVec);
                     end
                 end
             else
@@ -245,7 +245,7 @@ else
                                 aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
                             end
                         end
-                        Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,SSvalueParamsVec(:));
+                        Values(j1,j2)=FnsToEvaluate{i}(d_val,aprime_val,a_val,z_val,SSvalueParamsVec(:));
                     end
                 end
             end
