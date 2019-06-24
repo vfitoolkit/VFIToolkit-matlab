@@ -28,13 +28,7 @@ if simoptions.parallel<2
         jstr=daz_gridstructure.jstr{jj};
         jjplus1=jj+1;
         % Make a three digit number out of jjplus1
-        if jjplus1<10
-            jplus1str=['j00',num2str(jjplus1)];
-        elseif jjplus1>=10 && jjplus1<100
-            jplus1str=['j0',num2str(jjplus1)];
-        else
-            jplus1str=['j',num2str(jjplus1)];
-        end
+        jplus1str=daz_gridstructure.jstr{jjplus1};
         % Get the relevant grid and transition matrix
         if simoptions.agedependentgrids(1)==1
             N_d=daz_gridstructure.N_d.(jstr(:));
@@ -109,13 +103,7 @@ elseif simoptions.parallel==2 % GPU
         jstr=daz_gridstructure.jstr{jj};
         jjplus1=jj+1;
         % Make a three digit number out of jjplus1
-        if jjplus1<10
-            jplus1str=['j00',num2str(jjplus1)];
-        elseif jjplus1>=10 && jjplus1<100
-            jplus1str=['j0',num2str(jjplus1)];
-        else
-            jplus1str=['j',num2str(jjplus1)];
-        end
+        jplus1str=daz_gridstructure.jstr{jjplus1};
         % Get the relevant grid and transition matrix
         if simoptions.agedependentgrids(1)==1
             N_d=daz_gridstructure.N_d.(jstr(:));
@@ -174,9 +162,41 @@ elseif simoptions.parallel==2 % GPU
             aindexes=kron((1:1:N_a)',ones(N_z,1));
             zindexes=kron(ones(N_a,1),(1:1:N_z)');
             Phi_of_Policy=Phi_aprimeMatrix(PolicyKron_j(:)+N_d*(aindexes-1)+N_d*N_a*(zindexes-1));
+%             if simoptions.verbose==1 && jj<5 % Phi_of_Policy seems
+%             exactly as expected. Namely an aprime index (a strictly positive integer) for each (a,z)
+%                 fprintf('Info on Phi_of_Policy \n')
+%                 size(Phi_of_Policy)
+%                 [N_a,N_z]
+%                 [min(Phi_of_Policy), max(Phi_of_Policy)]
+%                 sum(isfinite(Phi_of_Policy))
+%                 sum(abs(Phi_of_Policy-round(Phi_of_Policy))>10^(-10))
+%             end
             Ptemp=zeros(N_a,N_aprime*N_z*N_zprime,'gpuArray');
-            Ptemp(reshape(Phi_of_Policy,[1,N_a*N_z])+N_aprime*N_zprime*(gpuArray(0:1:N_a*N_z-1)))=1;
-            Ptran=kron(pi_z',ones(N_aprime,N_a,'gpuArray')).*reshape(Ptemp,[N_aprime*N_zprime,N_a*N_z]);            
+            Ptemp(kron(reshape(Phi_of_Policy,[1,N_a*N_z]),ones(1,N_zprime))+N_aprime*(gpuArray(0:1:N_a*N_z*N_zprime-1)))=1;
+%             Ptemp(reshape(Phi_of_Policy,[1,N_a*N_z])+N_aprime*N_zprime*(gpuArray(0:1:N_a*N_z-1)))=1;
+%             if simoptions.verbose==1 && jj<5
+%                 fprintf('Info on Ptemp \n')
+%                 size(reshape(Phi_of_Policy,[1,N_a*N_z])+N_aprime*N_zprime*(gpuArray(0:1:N_a*N_z-1)))
+%                 size(Ptemp)
+%                 % There should be one aprime value for each (a,z,zprime)
+%                 temp=sum(Ptemp,1); 
+%                 [min(temp), max(temp)] % These should both be equal to one
+%                 % Appears that the problem is that for some (a,z,zprime) it does not tell you to go anywhere
+%                 [sum(sum(Ptemp)), N_a*N_z*N_zprime]
+%             end
+            Ptran=kron(pi_z',ones(N_aprime,N_a,'gpuArray')).*reshape(Ptemp,[N_aprime*N_zprime,N_a*N_z]);
+%             if simoptions.verbose==1 && jj<5
+%                 fprintf('Following should both be equal to one \n')
+%                 [min(sum(Ptran)), max(sum(Ptran))] % Tranposed, so it is the column that should sum to one (take sum across the row dimension).
+%                 temp=kron(pi_z',ones(N_aprime,N_a,'gpuArray'));
+%                 [min(sum(pi_z')), max(sum(pi_z'))]
+%                 [min(sum(temp)), max(sum(temp))]
+%                 temp2=reshape(Ptemp,[N_aprime*N_zprime,N_a*N_z]); % There should be one aprime value for each (a,z,zprime).
+%                 % So for each (a,z) there should be zprime values.
+%                 [min(sum(Ptemp,1)), max(sum(Ptemp,1))]
+%                 
+%                 
+%             end
         elseif Case2_Type==2  % phi(d,z',z)
             % Phi_of_policy: a'(a,z',z)
             Phi_of_Policy=zeros(N_a,N_zprime,N_z,'gpuArray'); %a'(d,z',z)
@@ -213,13 +233,7 @@ elseif simoptions.parallel>2 % Same as <2, but using sparse matrices. To make it
         jstr=daz_gridstructure.jstr{jj};
         jjplus1=jj+1;
         % Make a three digit number out of jjplus1
-        if jjplus1<10
-            jplus1str=['j00',num2str(jjplus1)];
-        elseif jjplus1>=10 && jjplus1<100
-            jplus1str=['j0',num2str(jjplus1)];
-        else
-            jplus1str=['j',num2str(jjplus1)];
-        end
+        jplus1str=daz_gridstructure.jstr{jjplus1};
         % Get the relevant grid and transition matrix
         if simoptions.agedependentgrids(1)==1
             N_d=daz_gridstructure.N_d.(jstr(:));
@@ -237,12 +251,13 @@ elseif simoptions.parallel>2 % Same as <2, but using sparse matrices. To make it
             n_z=daz_gridstructure.n_z.(jstr(:));
             z_grid=daz_gridstructure.z_grid.(jstr(:));
             pi_z=daz_gridstructure.pi_z.(jstr(:));
+            pi_z_cpu=daz_gridstructure.pi_z_cpu.(jstr(:));
             N_zprime=daz_gridstructure.N_zprime.(jstr(:));
         end
                 
         if simoptions.phiaprimedependsonage==1
             PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
-            Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
+            Phi_aprimeMatrix=gather(CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec));
         end
         
         PolicyKron_j=PolicyKron.(jstr);
@@ -258,18 +273,16 @@ elseif simoptions.parallel>2 % Same as <2, but using sparse matrices. To make it
             Phi_of_Policy=Phi_aprimeMatrix(PolicyKron_j(:)+N_d*(aindexesvec-1)+N_d*N_a*(zindexesvec-1)); % Size az-by-1
             % The following lines of code are just about creating the sparse matrix in a fast way: https://au.mathworks.com/matlabcentral/answers/203734-most-efficient-way-to-add-multiple-sparse-matrices-in-a-loop-in-matlab            
             % Calculate number of non-zero entries in P. It will be
-            % N_a*(number of non-zero entries in pi_z) 
+            % N_a*(number of non-zero entries in pi_z)
             % Notice that the roles of both z and zprime are captured by pi_z
             
-            binary_pi_z=pi_z;
+            binary_pi_z=pi_z_cpu;
             binary_pi_z(binary_pi_z>0)=1;
             
             % Create a version of Phi_of_Policy which has a'(a,z,z'), but only for the z' which are non-zero transition probabilities.
 %             tic;
             PaprimeIndex=Phi_of_Policy.*kron(binary_pi_z,ones(N_a,1)); % There should be a better way to do this and the next step
-%             whos PaprimeIndex
             PaprimeIndex=PaprimeIndex(PaprimeIndex>0);
-%             whos PaprimeIndex
 %             time1=toc
             
             % SLOWER LOWER MEMORY VERSION THAT TAKES GREATER ADVANTAGE OF SPARSENESS
@@ -286,17 +299,18 @@ elseif simoptions.parallel>2 % Same as <2, but using sparse matrices. To make it
             % Really should work on the gpu till here and only go to cpu when switching to sparse.
             
             % The transition probabilities themselves can be gotten from kron(ones(N_a,1),pi_z)
-            Pvalues=kron(ones(N_a,1),pi_z);
+%             Pvalues=kron(ones(N_a,1),pi_z_cpu); % THIS WAS INCORRECT
+            Pvalues=kron(pi_z_cpu,ones(N_a,1));
             Pvalues=Pvalues(Pvalues>0);
             
             PzprimeIndex=kron(ones(N_a,1),(binary_pi_z.*(ones(N_z,1)*1:1:N_zprime)));
             PzprimeIndex=PzprimeIndex(PzprimeIndex>0);
             
             PaprimezprimeIndex=PaprimeIndex+N_aprime*(PzprimeIndex-1);
-            PaprimezprimeIndex=PaprimezprimeIndex(PaprimezprimeIndex>0);
-
+            PaprimezprimeIndex=PaprimezprimeIndex(PaprimezprimeIndex>0); %Is this line actually of any purpose? PaprimeIndex is already just the non-zeros, so won't PaprimeIndex also be by construction (on previous line)?
+                        
             % Phi_of_Policy gives me the aprime indexes
-            % kron(ones(N_a,1),binary_pi_z) gives me the zprime indexes (once I remove the zeros
+            % kron(ones(N_a,1),binary_pi_z) gives me the zprime indexes (once I remove the zeros)
             % And kron(ones(N_a,1),pi_z) gives me the transition probabilities (once I remove the zeros)
             Paz1=(kron(ones(N_z,1),(1:1:N_a)')+N_a*kron(((1:1:N_z)'-1),ones(N_a,1)));
             PazIndex=Paz1.*kron(binary_pi_z,ones(N_a,1));
@@ -304,6 +318,25 @@ elseif simoptions.parallel>2 % Same as <2, but using sparse matrices. To make it
             
             % So now it is just a matter of putting them together as a sparse matrix
             Ptranspose=sparse(PaprimezprimeIndex,PazIndex,Pvalues,N_aprime*N_zprime,N_a*N_z); % I is the (aprime-by-zprime)-index, J is the (a-by-z)-index.
+
+            % FOLLOWING LINES ARE LEFTOVERS FROM A DEBUG. TO BE DELETED.
+%             if jj==37 || jj==38 || jj==39
+%                 jj
+%                 [N_a, N_z]
+%                 fprintf('Phi_of_Policy stuff')
+%                 size(Phi_of_Policy)
+%                 [min(Phi_of_Policy),max(Phi_of_Policy)]
+%                 fprintf('Pvalues stuff')
+%                 size(Pvalues)
+%                 [N_a, sum(sum(pi_z_cpu>0))]
+%                 sum(Pvalues)
+%                 fprintf('pi_z_cpu stuff that should both evaluate to one \n')
+%                 [min(sum(pi_z_cpu,2)), max(sum(pi_z_cpu,2))]
+%                 fprintf('Ptranspose stuff that should both evaluate to one \n')
+%                 [min(sum(Ptranspose)), max(sum(Ptranspose))]
+%                 [min(sum(Ptranspose,2)), max(sum(Ptranspose,2))]
+%                 size(Ptranspose)
+%             end
             
         elseif Case2_Type==2 % phi(d,z',z)
             

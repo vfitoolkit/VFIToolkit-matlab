@@ -78,17 +78,11 @@ while currdist>simoptions.tolerance
             % Make a three digit number out of jj
             jstr=daz_gridstructure.jstr{jj};
             jjplus1=jj+1;
-            if jjplus1==N_j+1
+            if jj==N_j
                 jjplus1=1;
             end
             % Make a three digit number out of jjplus1
-            if jjplus1<10
-                jplus1str=['j00',num2str(jjplus1)];
-            elseif jjplus1>=10 && jjplus1<100
-                jplus1str=['j0',num2str(jjplus1)];
-            else
-                jplus1str=['j',num2str(jjplus1)];
-            end
+            jplus1str=daz_gridstructure.jstr{jjplus1};
             % Get the relevant grid and transition matrix
             if simoptions.agedependentgrids(1)==1
                 N_d_j=daz_gridstructure.N_d.(jstr(:));
@@ -166,13 +160,7 @@ while currdist>simoptions.tolerance
                 jjplus1=1;
             end
             % Make a three digit number out of jjplus1
-            if jjplus1<10
-                jplus1str=['j00',num2str(jjplus1)];
-            elseif jjplus1>=10 && jjplus1<100
-                jplus1str=['j0',num2str(jjplus1)];
-            else
-                jplus1str=['j',num2str(jjplus1)];
-            end
+            jplus1str=daz_gridstructure.jstr{jjplus1};
             % Get the relevant grid and transition matrix
             if simoptions.agedependentgrids(1)==1
                 N_d_j=daz_gridstructure.N_d.(jstr(:));
@@ -280,13 +268,7 @@ while currdist>simoptions.tolerance
                 jjplus1=1;
             end
             % Make a three digit number out of jjplus1
-            if jjplus1<10
-                jplus1str=['j00',num2str(jjplus1)];
-            elseif jjplus1>=10 && jjplus1<100
-                jplus1str=['j0',num2str(jjplus1)];
-            else
-                jplus1str=['j',num2str(jjplus1)];
-            end
+            jplus1str=daz_gridstructure.jstr{jjplus1};
             % Get the relevant grid and transition matrix
             if simoptions.agedependentgrids(1)==1
                 N_d_j=daz_gridstructure.N_d.(jstr(:));
@@ -356,7 +338,8 @@ while currdist>simoptions.tolerance
                 % Really should work on the gpu till here and only go to cpu when switching to sparse.
                 
                 % The transition probabilities themselves can be gotten from kron(ones(N_a,1),pi_z)
-                Pvalues=kron(ones(N_a_j,1),pi_z_j_cpu);
+%                 Pvalues=kron(ones(N_a_j,1),pi_z_j_cpu); % THIS WAS INCORRECT
+                Pvalues=kron(pi_z_j_cpu,ones(N_a_j,1));
                 Pvalues=Pvalues(Pvalues>0);
                 
                 PzprimeIndex=kron(ones(N_a_j,1),(binary_pi_z.*(ones(N_z_j,1)*1:1:N_zprime_j)));
@@ -374,6 +357,9 @@ while currdist>simoptions.tolerance
                 
                 % So now it is just a matter of putting them together as a sparse matrix
                 Ptranspose=sparse(PaprimezprimeIndex,PazIndex,Pvalues,N_aprime_j*N_zprime_j,N_a_j*N_z_j); % I is the (aprime-by-zprime)-index, J is the (a-by-z)-index.
+                
+%                 fprintf('Ptranspose stuff that should both evaluate to one \n')
+%                 [min(sum(Ptranspose)), max(sum(Ptranspose))]
                 
             elseif Case2_Type==2 % phi(d,z',z)
                 

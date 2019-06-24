@@ -377,6 +377,7 @@ for ii=1:N_i
             end
         elseif Case1orCase2==2
             if exist('simoptions','var')
+                sum(sum(sum(sum(jequaloneDist_temp))))
                 StationaryDist_ii=StationaryDist_FHorz_Case2(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp,pi_z_temp,Phi_aprime_temp,Case2_Type_temp,Parameters_temp,PhiaprimeParamNames_temp,simoptions_temp);
             else
                 StationaryDist_ii=StationaryDist_FHorz_Case2(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp,pi_z_temp,Phi_aprime_temp,Case2_Type_temp,Parameters_temp,PhiaprimeParamNames_temp);

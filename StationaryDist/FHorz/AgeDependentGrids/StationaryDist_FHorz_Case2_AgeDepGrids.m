@@ -20,13 +20,15 @@ jequaloneDistKron=reshape(jequaloneDist,[daz_gridstructure.N_a.j001*daz_gridstru
 PolicyKron=struct();
 for jj=1:N_j
     % Make a three digit number out of jj
-    if jj<10
-        jstr=['j00',num2str(jj)];
-    elseif jj>=10 && jj<100
-        jstr=['j0',num2str(jj)];
-    else
-        jstr=['j',num2str(jj)];
-    end
+%     if jj<10
+%         jstr=['j00',num2str(jj)];
+%     elseif jj>=10 && jj<100
+%         jstr=['j0',num2str(jj)];
+%     else
+%         jstr=['j',num2str(jj)];
+%     end
+    jstr=daz_gridstructure.jstr{jj}; % Make a three digit number out of jj
+
     n_d_j=daz_gridstructure.n_d.(jstr(:));
     n_a_j=daz_gridstructure.n_a.(jstr(:));
     n_z_j=daz_gridstructure.n_z.(jstr(:));
