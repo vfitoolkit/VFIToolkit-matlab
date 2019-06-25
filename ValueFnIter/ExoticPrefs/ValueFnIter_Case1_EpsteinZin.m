@@ -111,8 +111,8 @@ end
 % end
 
 if vfoptions.exoticpreferences==2
-    if length(DiscountFactorParamNames)~=3
-        disp('ERROR: There should be three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
+    if length(DiscountFactorParamNames)<3
+        disp('ERROR: There should be at least three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
         dbstack
     end
 else
@@ -125,6 +125,9 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+if length(DiscountFactorParamsVec)>3
+    DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
+end
 
 %%
 if vfoptions.lowmemory==0

@@ -5,7 +5,7 @@ function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_NoD_Par2_raw(VKron, n_a, n
 % DiscountFactorParamsVec contains the three parameters relating to
 % Epstein-Zin preferences. Calling them beta, gamma, and psi,
 % respectively the Epstein-Zin preferences are given by
-% U_t= [(1-beta) u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
+% U_t= [ (1-beta)*u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
 % where
 %  u_t is per-period utility function
 % See eg., Caldara, Fernandez-Villaverde, Rubio-Ramirez, and Yao (2012)

@@ -7,7 +7,8 @@ Policy=nan;
 if nargin<13
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences=0;
+    vfoptions.exoticpreferences=0;
+    vfoptions.dynasty=0;
     vfoptions.parallel=2;
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
@@ -16,6 +17,12 @@ if nargin<13
     vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
+    if isfield(vfoptions,'exoticpreferences')==0
+        vfoptions.exoticpreferences=0;
+    end
+    if isfield(vfoptions,'dynasty')==0
+        vfoptions.dynasty=0;
+    end
     if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=2;
     end
@@ -92,15 +99,20 @@ end
 %         disp('WARNING: There should only be a single Discount Factor (in DiscountFactorParamNames) when using standard VFI')
 %         dbstack
 %     end
-% elseif vfoptions.exoticpreferences==1 % Multiple discount factors. It is assumed that the product
+% elseif vfoptions.exoticpreferences==1 % Quasi-hyperbolic
 %     %NOT YET IMPLEMENTED
-% %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+% %    [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
 % %    return
-% elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
-%     %NOT YET IMPLEMENTED
-% %     [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-% %     return
-% end
+if vfoptions.exoticpreferences==2 % Epstein-Zin preferences
+    if isfield(vfoptions,'dynasty')==0
+        [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        return
+    else
+        disp('ERROR: CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
+        dbstack
+        return
+    end
+end
 
 %% Deal with StateDependentVariables_z if need to do that.
 if isfield(vfoptions,'StateDependentVariables_z')==1
@@ -146,10 +158,10 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     return
 end
 
-%% Deal with Dynasty_CareAboutDecendents if need to do that.
-if isfield(vfoptions,'Dynasty_CareAboutDecendents')==1
+%% Deal with dynasty if need to do that.
+if isfield(vfoptions,'dynasty')==1
     if vfoptions.verbose==1
-        fprintf('Dynasty_CareAboutDecendents option is being used \n')
+        fprintf('dynasty option is being used \n')
     end
     if isfield(vfoptions,'tolerance')==0
         vfoptions.tolerance=10^(-9);

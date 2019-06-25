@@ -2,7 +2,7 @@ function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_Par2_raw(VKron, n_d,n_a,n_
 % DiscountFactorParamsVec contains the three parameters relating to
 % Epstein-Zin preferences. Calling them beta, gamma, and psi,
 % respectively the Epstein-Zin preferences are given by
-% U_t= [(1-beta) u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
+% U_t= [ (1-beta)*u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
 % where
 %  u_t is per-period utility function
 % See eg., Caldara, Fernandez-Villaverde, Rubio-Ramirez, and Yao (2012)
@@ -61,11 +61,11 @@ while currdist>Tolerance
         entireEV_z=kron(EV_z,ones(N_d,1));
 %         temp2=ReturnMatrix_z;
 %         temp2(isfinite(ReturnMatrix_z))=ReturnMatrix_z(isfinite(ReturnMatrix_z)).^(1-1/DiscountFactorParamsVec(3));
-        temp3=entireEV_z*ones(1,N_a,1); 
+        temp3=entireEV_z; 
         temp4=temp3;
         temp4(isfinite(temp4))=temp4(isfinite(temp4)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
         temp4(temp3==0)=0;
-        entireRHS=temp2_z+DiscountFactorParamsVec(1)*temp4;
+        entireRHS=temp2_z+DiscountFactorParamsVec(1)*temp4*ones(1,N_a,1);
 %        entireRHS=( (1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec(1)*temp4 );
         % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
         % the whole entireRHS. This will be a monotone function, so just find the max, and
@@ -76,7 +76,6 @@ while currdist>Tolerance
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         VKron(:,z_c)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
-%         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
              
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
