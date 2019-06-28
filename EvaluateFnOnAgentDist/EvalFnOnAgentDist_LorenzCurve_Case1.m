@@ -98,7 +98,7 @@ else
     end
     aprime_val=zeros(l_a,1);
     a_val=zeros(l_a,1);
-    s_val=zeros(l_z,1);
+    z_val=zeros(l_z,1);
     
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
@@ -106,7 +106,7 @@ else
             Values=zeros(N_a,N_z);
             if l_d==0
                 for j1=1:N_a
-                    a_ind=ind2sub_homemade_gpu([n_a],j1);
+                    a_ind=ind2sub_homemade([n_a],j1);
                     for jj1=1:l_a
                         if jj1==1
                             a_val(jj1)=a_grid(a_ind(jj1));
@@ -115,7 +115,7 @@ else
                         end
                     end
                     for j2=1:N_z
-                        z_ind=ind2sub_homemade_gpu([n_z],j2);
+                        z_ind=ind2sub_homemade([n_z],j2);
                         for jj2=1:l_z
                             if jj2==1
                                 z_val(jj2)=z_grid(z_ind(jj2));
@@ -138,7 +138,7 @@ else
                 end
             else
                 for j1=1:N_a
-                    a_ind=ind2sub_homemade_gpu([n_a],j1);
+                    a_ind=ind2sub_homemade([n_a],j1);
                     for jj1=1:l_a
                         if jj1==1
                             a_val(jj1)=a_grid(a_ind(jj1));
@@ -147,7 +147,7 @@ else
                         end
                     end
                     for j2=1:N_z
-                        z_ind=ind2sub_homemade_gpu([n_z],j2);
+                        z_ind=ind2sub_homemade([n_z],j2);
                         for jj2=1:l_z
                             if jj2==1
                                 z_val(jj2)=z_grid(z_ind(jj2));
@@ -181,7 +181,7 @@ else
             Values=zeros(N_a,N_z);
             if l_d==0
                 for j1=1:N_a
-                    a_ind=ind2sub_homemade_gpu([n_a],j1);
+                    a_ind=ind2sub_homemade([n_a],j1);
                     for jj1=1:l_a
                         if jj1==1
                             a_val(jj1)=a_grid(a_ind(jj1));
@@ -189,8 +189,8 @@ else
                             a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
                         end
                     end
-                    for j2=1:N_s
-                        z_ind=ind2sub_homemade_gpu([n_z],j2);
+                    for j2=1:N_z
+                        z_ind=ind2sub_homemade([n_z],j2);
                         for jj2=1:l_z
                             if jj2==1
                                 z_val(jj2)=z_grid(z_ind(jj2));
@@ -211,7 +211,7 @@ else
                 end
             else
                 for j1=1:N_a
-                    a_ind=ind2sub_homemade_gpu([n_a],j1);
+                    a_ind=ind2sub_homemade([n_a],j1);
                     for jj1=1:l_a
                         if jj1==1
                             a_val(jj1)=a_grid(a_ind(jj1));
@@ -220,7 +220,7 @@ else
                         end
                     end
                     for j2=1:N_z
-                        z_ind=ind2sub_homemade_gpu([n_z],j2);
+                        z_ind=ind2sub_homemade([n_z],j2);
                         for jj2=1:l_z
                             if jj2==1
                                 z_val(jj2)=z_grid(z_ind(jj2));
