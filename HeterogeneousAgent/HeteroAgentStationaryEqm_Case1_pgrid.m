@@ -11,7 +11,7 @@ p_grid=heteroagentoptions.pgrid;
 
 %% 
 
-if vfoptions.parallel==2
+if simoptions.parallel==2
     GeneralEqmConditionsKron=ones(N_p,l_p,'gpuArray');
 else
     GeneralEqmConditionsKron=ones(N_p,l_p);
@@ -43,7 +43,7 @@ for p_c=1:N_p
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_s,pi_s,simoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, simoptions.parallel); % The 2 is for Parallel (use GPU)
+    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, simoptions.parallel);
     
     % The following line is often a useful double-check if something is going wrong.
 %    SSvalues_AggVars
@@ -51,7 +51,7 @@ for p_c=1:N_p
     % use of real() is a hack that could disguise errors, but I couldn't
     % find why matlab was treating output as complex
 %     MarketClearanceKron(p_c,:)=real(MarketClearance_Case1_pgrid(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters,MarketPriceParamNames));
-    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 end
 
 if heteroagentoptions.multiGEcriterion==0 %the measure of market clearance is to take the sum of squares of clearance in each market 
@@ -63,7 +63,11 @@ end
 %p_eqm_index=zeros(num_p,1);
 p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
 if l_p>1
-    GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');
+    if simoptions.parallel==2
+        GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');
+    else
+        GeneralEqmConditions=nan(N_p,1+l_p);
+    end
     if heteroagentoptions.multiGEcriterion==0
         GeneralEqmConditions(:,1)=sum(abs(GeneralEqmConditionsKron),2);
     elseif heteroagentoptions.multiGEcriterion==1 %the measure of general eqm is to take the sum of squares of each of the general eqm conditions holding 
