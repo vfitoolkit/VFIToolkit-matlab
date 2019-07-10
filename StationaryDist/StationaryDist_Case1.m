@@ -72,6 +72,9 @@ end
 
 PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);%,simoptions);
 
+if simoptions.parallel~=2 % To cover the case when using gpu to solve value fn, but cpu to solve agent dist
+    PolicyKron=gather(PolicyKron);
+end
 
 StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
 

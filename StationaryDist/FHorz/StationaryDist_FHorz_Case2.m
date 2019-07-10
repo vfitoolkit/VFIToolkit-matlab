@@ -64,6 +64,10 @@ jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
 
 PolicyKron=KronPolicyIndexes_FHorz_Case2(Policy, n_d, n_a, n_z,N_j);%,simoptions);
 
+if simoptions.parallel~=2 % To cover the case when using gpu to solve value fn, but cpu to solve agent dist
+    PolicyKron=gather(PolicyKron);
+end
+
 if simoptions.iterate==0
     fprintf('Simulating the stationary agents distribution has not yet been implemented for Case2 of FHorz, \n please email me if you have a need for it, otherwise use simoptions.iterate=1 to iterate the stationary distribution \n')
 %     StationaryDistKron=StationaryDist_FHorz_Case2_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Params,PhiaprimeParamNames,simoptions);
