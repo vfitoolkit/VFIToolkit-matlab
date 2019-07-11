@@ -79,162 +79,221 @@ if Parallel==2
 else
     QuantileCutOffs=zeros(length(FnsToEvaluate),NumQuantiles+1); %Includes min and max
     QuantileMeans=zeros(length(FnsToEvaluate),NumQuantiles);
-    d_val=zeros(l_d,1);
-    aprime_val=zeros(l_a,1);
-    a_val=zeros(l_a,1);
-    s_val=zeros(l_z,1);
+%     d_val=zeros(l_d,1);
+%     aprime_val=zeros(l_a,1);
+%     a_val=zeros(l_a,1);
+%     s_val=zeros(l_z,1);
+%     
+%     PolicyIndexesKron=reshape(PolicyIndexes,[l_d+l_a,N_a,N_z]);
     
-    PolicyIndexesKron=reshape(PolicyIndexes,[l_d+l_a,N_a,N_z]);
+    [d_gridvals, aprime_gridvals, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,1,2);
     
     for i=1:length(FnsToEvaluate)
-        Values=zeros(N_a,N_z);
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames) % check for 'SSvalueParamNames={}'
+%         Values=zeros(N_a,N_z);
+%         % Includes check for cases in which no parameters are actually required
+%         if isempty(FnsToEvaluateParamNames) % check for 'SSvalueParamNames={}'
+%             if l_d==0
+%                 for j1=1:N_a
+%                     a_ind=ind2sub_homemade([n_a],j1);
+%                     for jj1=1:l_a
+%                         if jj1==1
+%                             a_val(jj1)=a_grid(a_ind(jj1));
+%                         else
+%                             a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
+%                         end
+%                     end
+%                     for j2=1:N_z
+%                         s_ind=ind2sub_homemade([n_z],j2);
+%                         for jj2=1:l_z
+%                             if jj2==1
+%                                 s_val(jj2)=z_grid(s_ind(jj2));
+%                             else
+%                                 s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
+%                             end
+%                         end
+%                         d_val=0;
+%                         aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
+%                         for kk=1:l_a
+%                             if kk==1
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk));
+%                             else
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
+%                             end
+%                         end
+%                         Values(j1,j2)=FnsToEvaluate{i}(aprime_val,a_val,s_val);
+%                     end
+%                 end
+%             else
+%                 for j1=1:N_a
+%                     a_ind=ind2sub_homemade([n_a],j1);
+%                     for jj1=1:l_a
+%                         if jj1==1
+%                             a_val(jj1)=a_grid(a_ind(jj1));
+%                         else
+%                             a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
+%                         end
+%                     end
+%                     for j2=1:N_z
+%                         s_ind=ind2sub_homemade([n_z],j2);
+%                         for jj2=1:l_z
+%                             if jj2==1
+%                                 s_val(jj2)=z_grid(s_ind(jj2));
+%                             else
+%                                 s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
+%                             end
+%                         end
+%                         d_ind=PolicyIndexesKron(1:l_d,j1,j2);
+%                         for kk=1:l_d
+%                             if kk==1
+%                                 d_val(kk)=d_grid(d_ind(kk));
+%                             else
+%                                 d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
+%                             end
+%                         end
+%                         aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
+%                         for kk=1:l_a
+%                             if kk==1
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk));
+%                             else
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
+%                             end
+%                         end
+%                         Values(j1,j2)=FnsToEvaluate{i}(d_val,aprime_val,a_val,s_val);
+%                     end
+%                 end
+%             end
+%         else
+%             FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+%             if l_d==0
+%                 for j1=1:N_a
+%                     a_ind=ind2sub_homemade([n_a],j1);
+%                     for jj1=1:l_a
+%                         if jj1==1
+%                             a_val(jj1)=a_grid(a_ind(jj1));
+%                         else
+%                             a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
+%                         end
+%                     end
+%                     for j2=1:N_z
+%                         s_ind=ind2sub_homemade([n_z],j2);
+%                         for jj2=1:l_z
+%                             if jj2==1
+%                                 s_val(jj2)=z_grid(s_ind(jj2));
+%                             else
+%                                 s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
+%                             end
+%                         end
+%                         d_val=0;
+%                         aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
+%                         for kk=1:l_a
+%                             if kk==1
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk));
+%                             else
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
+%                             end
+%                         end
+%                         Values(j1,j2)=FnsToEvaluate{i}(aprime_val,a_val,s_val,FnToEvaluateParamsVec);
+%                     end
+%                 end
+%             else
+%                 for j1=1:N_a
+%                     a_ind=ind2sub_homemade([n_a],j1);
+%                     for jj1=1:l_a
+%                         if jj1==1
+%                             a_val(jj1)=a_grid(a_ind(jj1));
+%                         else
+%                             a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
+%                         end
+%                     end
+%                     for j2=1:N_z
+%                         s_ind=ind2sub_homemade([n_z],j2);
+%                         for jj2=1:l_z
+%                             if jj2==1
+%                                 s_val(jj2)=z_grid(s_ind(jj2));
+%                             else
+%                                 s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
+%                             end
+%                         end
+%                         d_ind=PolicyIndexesKron(1:l_d,j1,j2);
+%                         for kk=1:l_d
+%                             if kk==1
+%                                 d_val(kk)=d_grid(d_ind(kk));
+%                             else
+%                                 d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
+%                             end
+%                         end
+%                         aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
+%                         for kk=1:l_a
+%                             if kk==1
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk));
+%                             else
+%                                 aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
+%                             end
+%                         end
+%                         Values(j1,j2)=FnsToEvaluate{i}(d_val,aprime_val,a_val,s_val,FnToEvaluateParamsVec);
+%                     end
+%                 end
+%             end
+%         end
+%         
+%         Values=reshape(Values,[N_a*N_z,1]);
+% Includes check for cases in which no parameters are actually required
+        if isempty(FnsToEvaluateParamNames(i).Names) % check for 'FnsToEvaluateParamNames={}'
+            Values=zeros(N_a*N_z,1);
             if l_d==0
-                for j1=1:N_a
-                    a_ind=ind2sub_homemade([n_a],j1);
-                    for jj1=1:l_a
-                        if jj1==1
-                            a_val(jj1)=a_grid(a_ind(jj1));
-                        else
-                            a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-                        end
-                    end
-                    for j2=1:N_z
-                        s_ind=ind2sub_homemade([n_z],j2);
-                        for jj2=1:l_z
-                            if jj2==1
-                                s_val(jj2)=z_grid(s_ind(jj2));
-                            else
-                                s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-                            end
-                        end
-                        d_val=0;
-                        aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
-                        for kk=1:l_a
-                            if kk==1
-                                aprime_val(kk)=a_grid(aprime_ind(kk));
-                            else
-                                aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
-                            end
-                        end
-                        Values(j1,j2)=FnsToEvaluate{i}(aprime_val,a_val,s_val);
-                    end
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+%                     a_val=a_gridvals{j1,:};
+%                     z_val=z_gridvals{j2,:};
+%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
+%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val);
+                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-            else
-                for j1=1:N_a
-                    a_ind=ind2sub_homemade([n_a],j1);
-                    for jj1=1:l_a
-                        if jj1==1
-                            a_val(jj1)=a_grid(a_ind(jj1));
-                        else
-                            a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-                        end
-                    end
-                    for j2=1:N_z
-                        s_ind=ind2sub_homemade([n_z],j2);
-                        for jj2=1:l_z
-                            if jj2==1
-                                s_val(jj2)=z_grid(s_ind(jj2));
-                            else
-                                s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-                            end
-                        end
-                        d_ind=PolicyIndexesKron(1:l_d,j1,j2);
-                        for kk=1:l_d
-                            if kk==1
-                                d_val(kk)=d_grid(d_ind(kk));
-                            else
-                                d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
-                            end
-                        end
-                        aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
-                        for kk=1:l_a
-                            if kk==1
-                                aprime_val(kk)=a_grid(aprime_ind(kk));
-                            else
-                                aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
-                            end
-                        end
-                        Values(j1,j2)=FnsToEvaluate{i}(d_val,aprime_val,a_val,s_val);
-                    end
+            else % l_d>0
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+                    %                     a_val=a_gridvals{j1,:};
+                    %                     z_val=z_gridvals{j2,:};
+                    %                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
+                    %                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
+                    %                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val);
+                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             end
         else
-            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+            Values=zeros(N_a*N_z,1);
             if l_d==0
-                for j1=1:N_a
-                    a_ind=ind2sub_homemade([n_a],j1);
-                    for jj1=1:l_a
-                        if jj1==1
-                            a_val(jj1)=a_grid(a_ind(jj1));
-                        else
-                            a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-                        end
-                    end
-                    for j2=1:N_z
-                        s_ind=ind2sub_homemade([n_z],j2);
-                        for jj2=1:l_z
-                            if jj2==1
-                                s_val(jj2)=z_grid(s_ind(jj2));
-                            else
-                                s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-                            end
-                        end
-                        d_val=0;
-                        aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
-                        for kk=1:l_a
-                            if kk==1
-                                aprime_val(kk)=a_grid(aprime_ind(kk));
-                            else
-                                aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
-                            end
-                        end
-                        Values(j1,j2)=FnsToEvaluate{i}(aprime_val,a_val,s_val,FnToEvaluateParamsVec);
-                    end
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                Values=zeros(N_a*N_z,1);
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+%                     a_val=a_gridvals{j1,:};
+%                     z_val=z_gridvals{j2,:};
+%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
+%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val,SSvalueParamsVec);
+                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-            else
-                for j1=1:N_a
-                    a_ind=ind2sub_homemade([n_a],j1);
-                    for jj1=1:l_a
-                        if jj1==1
-                            a_val(jj1)=a_grid(a_ind(jj1));
-                        else
-                            a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-                        end
-                    end
-                    for j2=1:N_z
-                        s_ind=ind2sub_homemade([n_z],j2);
-                        for jj2=1:l_z
-                            if jj2==1
-                                s_val(jj2)=z_grid(s_ind(jj2));
-                            else
-                                s_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-                            end
-                        end
-                        d_ind=PolicyIndexesKron(1:l_d,j1,j2);
-                        for kk=1:l_d
-                            if kk==1
-                                d_val(kk)=d_grid(d_ind(kk));
-                            else
-                                d_val(kk)=d_grid(d_ind(kk)+sum(n_d(1:kk-1)));
-                            end
-                        end
-                        aprime_ind=PolicyIndexesKron(l_d+1:l_d+l_a,j1,j2);
-                        for kk=1:l_a
-                            if kk==1
-                                aprime_val(kk)=a_grid(aprime_ind(kk));
-                            else
-                                aprime_val(kk)=a_grid(aprime_ind(kk)+sum(n_a(1:kk-1)));
-                            end
-                        end
-                        Values(j1,j2)=FnsToEvaluate{i}(d_val,aprime_val,a_val,s_val,FnToEvaluateParamsVec);
-                    end
+            else % l_d>0
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+%                     a_val=a_gridvals{j1,:};
+%                     z_val=z_gridvals{j2,:};
+%                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
+%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
+%                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,SSvalueParamsVec);
+                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             end
         end
-        
-        Values=reshape(Values,[N_a*N_z,1]);
         
         [SortedValues,SortedValues_index] = sort(Values);
         SortedWeights = StationaryDistVec(SortedValues_index);

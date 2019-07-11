@@ -37,10 +37,6 @@ disp('THIS CODE (EvalFnOnAgentDist_InvertedParetoCoeff_Case1) IS INCOMPLETE. DO 
 x_m=zeros(length(FnsToEvaluate),1);
 alpha=zeros(length(FnsToEvaluate),1);
 
-
-
-%SSvalues_InvertedParetoCoeff
-
 l_d=length(n_d);
 l_a=length(n_a);
 l_s=length(n_s);

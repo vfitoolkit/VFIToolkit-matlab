@@ -11,11 +11,7 @@ if Parallel==2
     a_grid=gpuArray(a_grid);
     z_grid=gpuArray(z_grid);
     
-    if n_d(1)==0
-        l_d=0;
-    else
-        l_d=length(n_d);
-    end
+    % l_d not needed with Parallel=2 implementation
     l_a=length(n_a);
     l_z=length(n_z);
     
@@ -52,80 +48,19 @@ else
     else
         l_d=length(n_d);
     end
-    l_a=length(n_a);
-    l_z=length(n_z);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
+    
+    [d_gridvals, aprime_gridvals, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,1,2);
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
     
     StationaryDistVec=gather(StationaryDistVec);
     
-    PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
-
     AggVars=zeros(length(FnsToEvaluate),1);
-    if l_d>0
-        d_val=zeros(l_d,1);
-    end
-    aprime_val=zeros(l_a,1);
-    
-    z_gridvals=cell(N_z,length(n_z));
-    for i1=1:N_z
-        sub=zeros(1,length(n_z));
-        sub(1)=rem(i1-1,n_z(1))+1;
-        for ii=2:length(n_z)-1
-            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-        end
-        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-        
-        if length(n_z)>1
-            sub=sub+[0,cumsum(n_z(1:end-1))];
-        end
-        z_gridvals(i1,:)=num2cell(z_grid(sub));
-    end
-    a_gridvals=cell(N_a,length(n_a));
-    for i2=1:N_a
-        sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1))+1;
-        for ii=2:length(n_a)-1
-            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-        end
-        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-        
-        if length(n_a)>1
-            sub=sub+[0,cumsum(n_a(1:end-1))];
-        end
-        a_gridvals(i2,:)=num2cell(a_grid(sub));
-    end  
     
     if l_d>0
-        d_gridvals=cell(N_a*N_z,l_d);
-        aprime_gridvals=cell(N_a*N_z,l_a);
-        for ii=1:N_a*N_z
-            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-            j1=rem(ii-1,N_a)+1;
-            j2=ceil(ii/N_a);
-            daprime_ind=PolicyIndexes(:,j1,j2);
-            d_ind=daprime_ind(1:l_d);
-            aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
-            for kk1=1:l_d
-                if kk1==1
-                    d_val(kk1)=d_grid(d_ind(kk1));
-                else
-                    d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-                end
-            end
-            for kk2=1:l_a
-                if kk2==1
-                    aprime_val(kk2)=a_grid(aprime_ind(kk2));
-                else
-                    aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-                end
-            end
-            d_gridvals(ii,:)=num2cell(d_val);
-            aprime_gridvals(ii,:)=num2cell(aprime_val);
-        end
         
         for i=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
@@ -170,21 +105,6 @@ else
         end
     
     else %l_d=0
-        aprime_gridvals=cell(N_a*N_z,l_a);
-        for ii=1:N_a*N_z
-            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-            j1=rem(ii-1,N_a)+1;
-            j2=ceil(ii/N_a);
-            aprime_ind=PolicyIndexes(:,j1,j2);
-            for kk2=1:l_a
-                if kk2==1
-                    aprime_val(kk2)=a_grid(aprime_ind(kk2));
-                else
-                    aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-                end
-            end
-            aprime_gridvals(ii,:)=num2cell(aprime_val);
-        end
         
         for i=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
@@ -228,207 +148,6 @@ else
     end
     
 end
-
-
-
-% % % if Parallel==2 % This Parallel==2 case is only used if there is pi_s
-% % %     SSvalues_AggVars=zeros(length(SSvaluesFn),1,'gpuArray');
-% % %     d_val=zeros(l_d,1,'gpuArray');
-% % %     aprime_val=zeros(l_a,1,'gpuArray');
-% % %     a_val=zeros(l_a,1,'gpuArray');
-% % %     z_val=zeros(l_z,1,'gpuArray');
-% % %     
-% % %     SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_z,1]);
-% % % 
-% % %     for i=1:length(SSvaluesFn)
-% % %     
-% % % % %      % HOW CAN I DEAL WITH pi_s when using arrayfun????
-% % %                 
-% % %         Values=zeros(N_a,N_z,'gpuArray');
-% % %         for j1=1:N_a
-% % %             a_ind=ind2sub_homemade_gpu([n_a],j1);
-% % %             for jj1=1:l_a
-% % %                 if jj1==1
-% % %                     a_val(jj1)=a_grid(a_ind(jj1));
-% % %                 else
-% % %                     a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-% % %                 end
-% % %             end
-% % %             for j2=1:N_z
-% % %                 s_ind=ind2sub_homemade_gpu([n_z],j2);
-% % %                 for jj2=1:l_z
-% % %                     if jj2==1
-% % %                         z_val(jj2)=z_grid(s_ind(jj2));
-% % %                     else
-% % %                         z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-% % %                     end
-% % %                 end
-% % %                 if l_d==0
-% % %                     [aprime_ind]=PolicyIndexes(:,j1,j2);
-% % %                 else
-% % %                     d_ind=PolicyIndexes(1:l_d,j1,j2);
-% % %                     aprime_ind=PolicyIndexes(l_d+1:l_d+l_a,j1,j2);
-% % %                     for kk1=1:l_d
-% % %                         if kk1==1
-% % %                             d_val(kk1)=d_grid(d_ind(kk1));
-% % %                         else
-% % %                             d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-% % %                         end
-% % %                     end
-% % %                 end
-% % %                 for kk2=1:l_a
-% % %                     if kk2==1
-% % %                         aprime_val(kk2)=a_grid(aprime_ind(kk2));
-% % %                     else
-% % %                         aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-% % %                     end
-% % %                 end
-% % %                 Values(j1,j2)=SSvaluesFn{i}(d_val(:),aprime_val(:),a_val(:),z_val(:),pi_z,p_val);
-% % %             end
-% % %         end
-% % %         Values=reshape(Values,[N_a*N_z,1]);
-% % %         
-% % %         SSvalues_AggVars(i)=sum(Values.*SteadyStateDistVec);
-% % %     end
-% % %     
-% % % else
-% % %     SSvalues_AggVars=zeros(length(SSvaluesFn),1);
-% % %     d_val=zeros(l_d,1);
-% % %     aprime_val=zeros(l_a,1);
-% % %     a_val=zeros(l_a,1);
-% % %     z_val=zeros(l_z,1);
-% % %     SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_z,1]);
-% % %     
-% % %     z_gridvals=zeros(N_z,length(n_z));
-% % %     for i1=1:N_z
-% % %         sub=zeros(1,length(n_z));
-% % %         sub(1)=rem(i1-1,n_z(1))+1;
-% % %         for ii=2:length(n_z)-1
-% % %             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-% % %         end
-% % %         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-% % %         
-% % %         if length(n_z)>1
-% % %             sub=sub+[0,cumsum(n_z(1:end-1))];
-% % %         end
-% % %         z_gridvals(i1,:)=z_grid(sub);
-% % %     end
-% % %     a_gridvals=zeros(N_a,length(n_a));
-% % %     for i2=1:N_a
-% % %         sub=zeros(1,length(n_a));
-% % %         sub(1)=rem(i2-1,n_a(1)+1);
-% % %         for ii=2:length(n_a)-1
-% % %             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-% % %         end
-% % %         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-% % %         
-% % %         if length(n_a)>1
-% % %             sub=sub+[0,cumsum(n_a(1:end-1))];
-% % %         end
-% % %         a_gridvals(i2,:)=a_grid(sub);
-% % %     end  
-% % %     
-% % %     for i=1:length(SSvaluesFn)
-% % %         Values=zeros(N_a,N_z);
-% % %         for j1=1:N_a
-% % %             a_val=a_gridvals(j1);
-% % %             for j2=1:N_z
-% % %                 s_ind=ind2sub_homemade_gpu([n_z],j2);
-% % %                 for jj2=1:l_z
-% % %                     if jj2==1
-% % %                         z_val(jj2)=z_grid(s_ind(jj2));
-% % %                     else
-% % %                         z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-% % %                     end
-% % %                 end
-% % %                 if l_d==0
-% % %                     [aprime_ind]=PolicyIndexes(:,j1,j2);
-% % %                 else
-% % %                     d_ind=PolicyIndexes(1:l_d,j1,j2);
-% % %                     aprime_ind=PolicyIndexes(l_d+1:l_d+l_a,j1,j2);
-% % %                     for kk1=1:l_d
-% % %                         if kk1==1
-% % %                             d_val(kk1)=d_grid(d_ind(kk1));
-% % %                         else
-% % %                             d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-% % %                         end
-% % %                     end
-% % %                 end
-% % %                 for kk2=1:l_a
-% % %                     if kk2==1
-% % %                         aprime_val(kk2)=a_grid(aprime_ind(kk2));
-% % %                     else
-% % %                         aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-% % %                     end
-% % %                 end
-% % %                 Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,pi_z,p_val);
-% % %             end
-% % %         end
-% % %         Values=reshape(Values,[N_a*N_z,1]);
-% % %         
-% % %         SSvalues_AggVars(i)=sum(Values.*SteadyStateDistVec);
-% % %     end
-% % % 
-% % % end
-    
-
-% else
-%     SSvalues_AggVars=zeros(length(SSvaluesFn),1);
-%     d_val=zeros(l_d,1);
-%     aprime_val=zeros(l_a,1);
-%     a_val=zeros(l_a,1);
-%     z_val=zeros(l_z,1);
-%     SteadyStateDistVec=reshape(SteadyStateDist,[N_a*N_s,1]);
-%     
-%     for i=1:length(SSvaluesFn)
-%         Values=zeros(N_a,N_s);
-%         for j1=1:N_a
-%             a_ind=ind2sub_homemade_gpu([n_a],j1);
-%             for jj1=1:l_a
-%                 if jj1==1
-%                     a_val(jj1)=a_grid(a_ind(jj1));
-%                 else
-%                     a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-%                 end
-%             end
-%             for j2=1:N_s
-%                 s_ind=ind2sub_homemade_gpu([n_z],j2);
-%                 for jj2=1:l_z
-%                     if jj2==1
-%                         z_val(jj2)=z_grid(s_ind(jj2));
-%                     else
-%                         z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-%                     end
-%                 end
-%                 if l_d==0
-%                     [aprime_ind]=PolicyIndexes(:,j1,j2);
-%                 else
-%                     d_ind=PolicyIndexes(1:l_d,j1,j2);
-%                     aprime_ind=PolicyIndexes(l_d+1:l_d+l_a,j1,j2);
-%                     for kk1=1:l_d
-%                         if kk1==1
-%                             d_val(kk1)=d_grid(d_ind(kk1));
-%                         else
-%                             d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-%                         end
-%                     end
-%                 end
-%                 for kk2=1:l_a
-%                     if kk2==1
-%                         aprime_val(kk2)=a_grid(aprime_ind(kk2));
-%                     else
-%                         aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-%                     end
-%                 end
-%                 Values(j1,j2)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,pi_z,p_val);
-%             end
-%         end
-%         Values=reshape(Values,[N_a*N_s,1]);
-%         
-%         SSvalues_AggVars(i)=sum(Values.*SteadyStateDistVec);
-%     end
-% 
-% end
 
 
 end
