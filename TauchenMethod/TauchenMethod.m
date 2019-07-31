@@ -14,6 +14,9 @@ function [states, transmatrix]=TauchenMethod(mew,sigmasq,rho,znum,q, tauchenopti
 %   states         - column vector containing the znum states of the discrete approximation of z
 %   transmatrix    - transition matrix of the discrete approximation of z;
 %                    transmatrix(i,j) is the probability of transitioning from state i to state j
+%
+% Helpful info:
+%   Var(z)=sigmasq/(1-rho^2); note that if mew=0, then sigmasqz=sigmasq/(1-rho^2).
 %%%%%%%%%%%%%%%
 
 if nargin<6

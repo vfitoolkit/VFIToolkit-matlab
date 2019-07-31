@@ -1,19 +1,24 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a,z,ReturnFn, n_a, a_gridvals, Parallel)
+function Fmatrix=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a,z,ReturnFn, ReturnFnParamsVec, n_a, a_gridvals, Parallel)
 %If there is no d variable, just input n_d=0 and d_grid=0
 
 N_a=prod(n_a);
 
-if Parallel==0
+if Parallel==0 || Parallel==1 % Essentially just ignoring the Parallel=1, as can't see it being likely you would want to parallelize at this level.
     Fmatrix=zeros(N_a,1);
     for i1=1:N_a
-        Fmatrix(i1)=ReturnFn(a_gridvals(i1,:),a,z);
+        temp=[a_gridvals(i1,:),a_val,z_val, ReturnFnParamsVec];
+        TempCell=cell(length(temp),1);
+        for ii=1:length(temp)
+            TempCell(ii,1)={temp(ii)};
+        end
+        Fmatrix(i1)=ReturnFn(TempCell{:});
     end
     
-elseif Parallel==1
-    Fmatrix=zeros(N_a,1);
-    parfor i1=1:N_a
-        Fmatrix(i1)=ReturnFn(a_gridvals(i1,:),a,z);
-    end
+% elseif Parallel==1
+%     Fmatrix=zeros(N_a,1);
+%     parfor i1=1:N_a
+%         Fmatrix(i1)=ReturnFn(a_gridvals(i1,:),a,z, ReturnFnParamsVec);
+%     end
 
 elseif Parallel==2
     disp('WARNING: CreateReturnFnMatrix_Case1_Disc does not really suppport Parallel=2 yet')

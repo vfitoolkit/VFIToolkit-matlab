@@ -5,7 +5,7 @@ function VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames,index1
 % VectorOfParamValues=CreateVectorFromParams(Parameters,ParamNames,index1,index2)
 %
 % CreateVectorFromParams looks in structure called 'Parameters' and 
-% then creates a vector containing the values of it's fields that
+% then creates a row vector containing the values of it's fields that
 % correspond to those field names in ParamNames (and in the order
 % given by CalibParamNames)
 %
