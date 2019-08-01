@@ -40,7 +40,11 @@ else
         simoptions.iterate=0;
     end
     if ~isfield(simoptions,'dynasty')
-            simoptions.dynasty=0;
+        simoptions.dynasty=0;
+    elseif simoptions.dynasty==1
+        if ~isfield(simoptions,'dynasty_storeP')
+            simoptions.dynasty_storeP=1; % Implents a more memory intensive but faster approach to iterating stationary agent distribution with dynasty
+        end
     end
     if ~isfield(simoptions,'agedependentgrids')
         simoptions.agedependentgrids=0;

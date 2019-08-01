@@ -5,6 +5,7 @@ function StationaryDistKron=StationaryDist_FHorz_Case2_AgeDepGrids_Dynasty_Itera
 %  simoptions.maxit
 %  simoptions.tolerance
 %  simoptions.parallel
+%  simoptions.lowmemory
 
 if simoptions.verbose==1
     fprintf('StationaryDist_Case2_FHorz_AgeDepGrids_Dynasty_Iteration_raw() \n')

@@ -49,7 +49,11 @@ if simoptions.dynasty==1
         fprintf('Simulating the stationary agents distribution has not yet been implemented for Case2 of FHorz, \n please email me if you have a need for it, otherwise use simoptions.iterate=1 to iterate the stationary distribution \n')
         % StationaryDistKron=StationaryDist_FHorz_Case2_AgeDependentGrids_Dynasty_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Params,PhiaprimeParamNames,simoptions);
     elseif simoptions.iterate==1
-        StationaryDistKron=StationaryDist_FHorz_Case2_AgeDepGrids_Dynasty_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,daz_gridstructure,N_j,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
+        if simoptions.dynasty_storeP==0
+            StationaryDistKron=StationaryDist_FHorz_Case2_AgeDepGrids_Dynasty_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,daz_gridstructure,N_j,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
+        elseif simoptions.dynasty_storeP==1
+            StationaryDistKron=StationaryDist_FHorz_Case2_AgeDepGrids_DynastyStoreP_Iter_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,daz_gridstructure,N_j,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
+        end
     end
 else
     if simoptions.iterate==0
