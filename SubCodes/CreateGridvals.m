@@ -35,7 +35,11 @@ aprime_val=zeros(l_a,1);
 
 % First, create a_gridvals and z_gridvals, as these are always needed.
 if MatrixOrCell==1
-    z_gridvals=zeros(N_z,l_z);
+    if isa(z_grid, 'gpuArray')
+        z_gridvals=zeros(N_z,l_z,'gpuArray');
+    else
+        z_gridvals=zeros(N_z,l_z);
+    end
     for i1=1:N_z
         sub=zeros(1,l_z);
         sub(1)=rem(i1-1,n_z(1))+1;
@@ -49,7 +53,11 @@ if MatrixOrCell==1
         end
         z_gridvals(i1,:)=z_grid(sub);
     end
-    a_gridvals=zeros(N_a,l_a);
+    if isa(a_grid, 'gpuArray')
+        a_gridvals=zeros(N_a,l_a,'gpuArray');
+    else
+        a_gridvals=zeros(N_a,l_a);
+    end
     for i2=1:N_a
         sub=zeros(1,l_a);
         sub(1)=rem(i2-1,n_a(1))+1;
@@ -91,16 +99,26 @@ elseif MatrixOrCell==2
             sub=sub+[0,cumsum(n_a(1:end-1))];
         end
         a_gridvals(i2,:)=num2cell(a_grid(sub));
-    end   
+    end
 end
+
 
 % Now create those of d_gridvals and aprime_gridvals that are needed
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1
     if l_d>0
         if MatrixOrCell==1
-            d_gridvals=zeros(N_a*N_z,l_d);
-            aprime_gridvals=zeros(N_a*N_z,l_a);
+            if isa(d_grid, 'gpuArray')
+                d_gridvals=zeros(N_a*N_z,l_d,'gpuArray');
+            else
+                d_gridvals=zeros(N_a*N_z,l_d);
+            end
+            if isa(a_grid, 'gpuArray')
+                aprime_gridvals=zeros(N_a*N_z,l_a,'gpuArray');
+            else
+                aprime_gridvals=zeros(N_a*N_z,l_a);
+            end
+
             for ii=1:N_a*N_z
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
@@ -156,7 +174,11 @@ if Case1orCase2==1
     else % l_d==0
         if MatrixOrCell==1
             d_gridvals=nan;
-            aprime_gridvals=zeros(N_a*N_z,l_a);
+            if isa(a_grid, 'gpuArray')
+                aprime_gridvals=zeros(N_a*N_z,l_a,'gpuArray');
+            else
+                aprime_gridvals=zeros(N_a*N_z,l_a);
+            end
             for ii=1:N_a*N_z
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
@@ -194,7 +216,11 @@ if Case1orCase2==1
     end
 elseif Case1orCase2==2
     if MatrixOrCell==1
-        d_gridvals=zeros(N_a*N_z,l_d);
+        if isa(d_grid, 'gpuArray')
+            d_gridvals=zeros(N_a*N_z,l_d,'gpuArray');
+        else
+            d_gridvals=zeros(N_a*N_z,l_d);
+        end
         aprime_gridvals=nan;
         for ii=1:N_a*N_z
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
