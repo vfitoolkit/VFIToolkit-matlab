@@ -5,18 +5,16 @@ Policy=struct(); %indexes the optimal choice for d given rest of dimensions a,z
 
 fprintf('ValueFnIter_Case2_FHorz_AgeDependentGrids_Par2_Dynasty_raw() \n')
 
-%%
-% Precompute some things for speed.
-jj=N_j;
-%Make a three digit number out of jj
-if jj<10
-    jstrN_j=['j00',num2str(jj)];
-elseif jj>=10 && jj<100
-    jstrN_j=['j0',num2str(jj)];
-else
-    jstrN_j=['j',num2str(jj)];
+%% Precompute some things for speed. (precomputing these makes sense when using dynasty, normally is pointless for finite-horizon problems)
+jstrN_j=daz_gridstructure.jstr{N_j}; % Note, all the other jstr are in daz_gridstructure.
+
+ReturnFnParamsMatrix=zeros(N_j,length(ReturnFnParamNames));
+DiscountFactorParamsMatrix=zeros(N_j,length(DiscountFactorParamNames));
+for jj=1:N_j
+    % Create a vector containing all the return function parameters (in order)
+    ReturnFnParamsMatrix(jj,:)=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsMatrix(jj,:)=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
 end
-% Actually I could precompute all the jstr for each different jj and store the resulting strings in a cell.
 
 %%
 V.j001=zeros(daz_gridstructure.N_a.('j001'),daz_gridstructure.N_z.('j001')); % Initial guess for j==1 (dynasty means this is essentially the starting point)
@@ -46,17 +44,18 @@ while currdist>vfoptions.tolerance
             Vnextj=V.(jstr); % Note that it is important that this is done before updating 'jstr'
             
             % Create a vector containing all the return function parameters (in order)
-            ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-            DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+            ReturnFnParamsVec=ReturnFnParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
             
-            % Make a three digit number out of jj
-            if jj<10
-                jstr=['00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['0',num2str(jj)];
-            else
-                jstr=num2str(jj);
-            end
+%             % Make a three digit number out of jj
+%             if jj<10
+%                 jstr=['00',num2str(jj)];
+%             elseif jj>=10 && jj<100
+%                 jstr=['0',num2str(jj)];
+%             else
+%                 jstr=num2str(jj);
+%             end
+            jstr=daz_gridstructure.jstr{jj};
             % Get the relevant grid and transition matrix
             if vfoptions.agedependentgrids(1)==1
                 N_d=daz_gridstructure.N_d.(jstr(:));
@@ -70,21 +69,21 @@ while currdist>vfoptions.tolerance
                 N_aprime=daz_gridstructure.N_aprime.(jstr(:));
                 if vfoptions.lowmemory==2
                     special_n_a=ones(1,length(n_a));
-                    
-                    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-                    for i2=1:N_a
-                        sub=zeros(1,length(n_a));
-                        sub(1)=rem(i2-1,n_a(1))+1;
-                        for ii=2:length(n_a)-1
-                            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                        end
-                        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-                        
-                        if length(n_a)>1
-                            sub=sub+[0,cumsum(n_a(1:end-1))];
-                        end
-                        a_gridvals(i2,:)=a_grid(sub);
-                    end
+                    a_gridvals=daz_gridstructure.a_gridvals.(jstr(:));
+%                     a_gridvals=zeros(N_a,length(n_a),'gpuArray');
+%                     for i2=1:N_a
+%                         sub=zeros(1,length(n_a));
+%                         sub(1)=rem(i2-1,n_a(1))+1;
+%                         for ii=2:length(n_a)-1
+%                             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+%                         end
+%                         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+%                         
+%                         if length(n_a)>1
+%                             sub=sub+[0,cumsum(n_a(1:end-1))];
+%                         end
+%                         a_gridvals(i2,:)=a_grid(sub);
+%                     end
                 end
             end
             if vfoptions.agedependentgrids(3)==1
@@ -94,20 +93,21 @@ while currdist>vfoptions.tolerance
                 pi_z=daz_gridstructure.pi_z.(jstr(:));
                 if vfoptions.lowmemory==1
                     special_n_z=ones(1,length(n_z));
-                    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-                    for i1=1:N_z
-                        sub=zeros(1,length(n_z));
-                        sub(1)=rem(i1-1,n_z(1))+1;
-                        for ii=2:length(n_z)-1
-                            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-                        end
-                        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-                        
-                        if length(n_z)>1
-                            sub=sub+[0,cumsum(n_z(1:end-1))];
-                        end
-                        z_gridvals(i1,:)=z_grid(sub);
-                    end
+                    z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
+%                     z_gridvals=zeros(N_z,length(n_z),'gpuArray');
+%                     for i1=1:N_z
+%                         sub=zeros(1,length(n_z));
+%                         sub(1)=rem(i1-1,n_z(1))+1;
+%                         for ii=2:length(n_z)-1
+%                             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+%                         end
+%                         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
+%                         
+%                         if length(n_z)>1
+%                             sub=sub+[0,cumsum(n_z(1:end-1))];
+%                         end
+%                         z_gridvals(i1,:)=z_grid(sub);
+%                     end
                 end
             end
             
@@ -205,17 +205,10 @@ while currdist>vfoptions.tolerance
             Vnextj=V.(jstr); % Note that it is important that this is done before updating 'jstr'
             
             % Create a vector containing all the return function parameters (in order)
-            ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-            DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
-            
-            % Make a three digit number out of jj
-            if jj<10
-                jstr=['00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['0',num2str(jj)];
-            else
-                jstr=num2str(jj);
-            end
+            ReturnFnParamsVec=ReturnFnParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+           
+            jstr=daz_gridstructure.jstr{jj};
             % Get the relevant grid and transition matrix
             if vfoptions.agedependentgrids(1)==1
                 N_d=daz_gridstructure.N_d.(jstr(:));
@@ -229,21 +222,22 @@ while currdist>vfoptions.tolerance
                 N_aprime=daz_gridstructure.N_aprime.(jstr(:));
                 if vfoptions.lowmemory==2
                     special_n_a=ones(1,length(n_a));
-                    
-                    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-                    for i2=1:N_a
-                        sub=zeros(1,length(n_a));
-                        sub(1)=rem(i2-1,n_a(1))+1;
-                        for ii=2:length(n_a)-1
-                            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                        end
-                        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-                        
-                        if length(n_a)>1
-                            sub=sub+[0,cumsum(n_a(1:end-1))];
-                        end
-                        a_gridvals(i2,:)=a_grid(sub);
-                    end
+                    a_gridvals=daz_gridstructure.a_gridvals.(jstr(:));
+%                     
+%                     a_gridvals=zeros(N_a,length(n_a),'gpuArray');
+%                     for i2=1:N_a
+%                         sub=zeros(1,length(n_a));
+%                         sub(1)=rem(i2-1,n_a(1))+1;
+%                         for ii=2:length(n_a)-1
+%                             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+%                         end
+%                         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+%                         
+%                         if length(n_a)>1
+%                             sub=sub+[0,cumsum(n_a(1:end-1))];
+%                         end
+%                         a_gridvals(i2,:)=a_grid(sub);
+%                     end
                 end
             end
             if vfoptions.agedependentgrids(3)==1
@@ -254,20 +248,21 @@ while currdist>vfoptions.tolerance
                 pi_z=daz_gridstructure.pi_z.(jstr(:));
                 if vfoptions.lowmemory==1
                     special_n_z=ones(1,length(n_z));
-                    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-                    for i1=1:N_z
-                        sub=zeros(1,length(n_z));
-                        sub(1)=rem(i1-1,n_z(1))+1;
-                        for ii=2:length(n_z)-1
-                            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-                        end
-                        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-                        
-                        if length(n_z)>1
-                            sub=sub+[0,cumsum(n_z(1:end-1))];
-                        end
-                        z_gridvals(i1,:)=z_grid(sub);
-                    end
+                    z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
+%                     z_gridvals=zeros(N_z,length(n_z),'gpuArray');
+%                     for i1=1:N_z
+%                         sub=zeros(1,length(n_z));
+%                         sub(1)=rem(i1-1,n_z(1))+1;
+%                         for ii=2:length(n_z)-1
+%                             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+%                         end
+%                         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
+%                         
+%                         if length(n_z)>1
+%                             sub=sub+[0,cumsum(n_z(1:end-1))];
+%                         end
+%                         z_gridvals(i1,:)=z_grid(sub);
+%                     end
                 end
             end
             
@@ -368,18 +363,11 @@ while currdist>vfoptions.tolerance
             Vnextj=V.(jstr); % Note that it is important that this is done before updating 'jstr' (is next periods value fn and used to compute the expectations)
             
             % Create a vector containing all the return function parameters (in order)
-            ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-            DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+            ReturnFnParamsVec=ReturnFnParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
             DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
             
-            % Make a three digit number out of jj
-            if jj<10
-                jstr=['j00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['j0',num2str(jj)];
-            else
-                jstr=['j',num2str(jj)];
-            end
+            jstr=daz_gridstructure.jstr{jj};
             % Get the relevant grid and transition matrix
             if vfoptions.agedependentgrids(1)==1
                 N_d=daz_gridstructure.N_d.(jstr(:));
@@ -393,21 +381,22 @@ while currdist>vfoptions.tolerance
                 N_aprime=daz_gridstructure.N_aprime.(jstr(:));
                 if vfoptions.lowmemory==2
                     special_n_a=ones(1,length(n_a));
-                    
-                    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-                    for i2=1:N_a
-                        sub=zeros(1,length(n_a));
-                        sub(1)=rem(i2-1,n_a(1))+1;
-                        for ii=2:length(n_a)-1
-                            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                        end
-                        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-                        
-                        if length(n_a)>1
-                            sub=sub+[0,cumsum(n_a(1:end-1))];
-                        end
-                        a_gridvals(i2,:)=a_grid(sub);
-                    end
+                    a_gridvals=daz_gridstructure.a_gridvals.(jstr(:));
+%                     
+%                     a_gridvals=zeros(N_a,length(n_a),'gpuArray');
+%                     for i2=1:N_a
+%                         sub=zeros(1,length(n_a));
+%                         sub(1)=rem(i2-1,n_a(1))+1;
+%                         for ii=2:length(n_a)-1
+%                             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+%                         end
+%                         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+%                         
+%                         if length(n_a)>1
+%                             sub=sub+[0,cumsum(n_a(1:end-1))];
+%                         end
+%                         a_gridvals(i2,:)=a_grid(sub);
+%                     end
                 end
             end
             if vfoptions.agedependentgrids(3)==1
@@ -420,23 +409,25 @@ while currdist>vfoptions.tolerance
                 pi_z=daz_gridstructure.pi_z.(jstr(:));
                 if vfoptions.lowmemory==1
                     special_n_z=ones(1,length(n_z));
-                    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-                    for i1=1:N_z
-                        sub=zeros(1,length(n_z));
-                        sub(1)=rem(i1-1,n_z(1))+1;
-                        for ii=2:length(n_z)-1
-                            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-                        end
-                        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-                        
-                        if length(n_z)>1
-                            sub=sub+[0,cumsum(n_z(1:end-1))];
-                        end
-                        z_gridvals(i1,:)=z_grid(sub);
-                    end
+                    z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
+%                     z_gridvals=zeros(N_z,length(n_z),'gpuArray');
+%                     for i1=1:N_z
+%                         sub=zeros(1,length(n_z));
+%                         sub(1)=rem(i1-1,n_z(1))+1;
+%                         for ii=2:length(n_z)-1
+%                             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+%                         end
+%                         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
+%                         
+%                         if length(n_z)>1
+%                             sub=sub+[0,cumsum(n_z(1:end-1))];
+%                         end
+%                         z_gridvals(i1,:)=z_grid(sub);
+%                     end
                 end
             end
             
+            % Predeclare a few variables.
             V_j=zeros(N_a,N_z,'gpuArray');
             Policy_j=zeros(N_a,N_z,'gpuArray');
             
@@ -467,6 +458,12 @@ while currdist>vfoptions.tolerance
                 [V_j,Policy_j]=max(entireRHS,[],1);
                 V_j=shiftdim(V_j,1);
                 Policy_j=shiftdim(Policy_j,1);
+                if vfoptions.dynasty_howards>0 % For Howards, store
+                    a_ToMatchPolicy=kron((0:1:N_a-1)'*N_d,ones(N_z,1));
+                    z_ToMatchPolicy=kron((0:1:N_z-1)'*N_d*N_a,ones(N_a,1));
+                    Ftemp.(jstr(:))=ReturnMatrix(Policy_j(:),a_ToMatchPolicy,z_ToMatchPolicy);
+                    Phi_of_Policy.(jstr(:))= Phi_aprimeMatrix(Policy_j(:)+a_ToMatchPolicy+z_ToMatchPolicy); % Phi_aprime is N_d*N_a*N_z, combine it with Policy (which tells d in terms of N_a*N_z) to get aprime in terms of N_a*N_z
+                end
                 
             elseif vfoptions.lowmemory==1
                 % Current Case2_Type=12: phi_a'(d,a,z)
@@ -474,6 +471,11 @@ while currdist>vfoptions.tolerance
                     PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj); % This line could be done outsize the z_c for loop
                 end
                 zprime_ToMatchPhi=kron((1:1:N_zprime)',ones(N_d*N_a,1));
+                if vfoptions.dynasty_howards>0 % Predeclare some variables.
+                    Ftemp_j=zeros(N_a,N_z,'gpuArray');
+                    Phi_of_Policy_j=zeros(N_a,N_z,'gpuArray'); % Current Case2_Type=12: phi_a'(d,a,z). So Phi_of_Policy gives index of a' in terms of (a,z)
+                end
+                
                 for z_c=1:N_z
                     % Vnextj is aprime-by-zprime
                     z_val=z_gridvals(z_c,:);
@@ -486,7 +488,7 @@ while currdist>vfoptions.tolerance
                     aaaPhi_aprimeMatrix_z=kron(ones(N_zprime,1),Phi_aprimeMatrix_z);
                     ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
                                         
-                    EV_z=Vnextj(aaaPhi_aprimeMatrix_z+N_aprime*(zprime_ToMatchPhi-1)); % (d,aaprime,zprime) % SHOULD IT JUST BE N_aprime?
+                    EV_z=Vnextj(aaaPhi_aprimeMatrix_z+N_aprime*(zprime_ToMatchPhi-1)); % (d,aprime,zprime) % SHOULD IT JUST BE N_aprime?
                     EV_z=reshape(EV_z,[N_d*N_a,N_zprime]);
                     EV_z=EV_z.*aaa;
                     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -496,6 +498,28 @@ while currdist>vfoptions.tolerance
                     
                     %calculate in order, the maximizing aprime indexes
                     [V_j(:,z_c),Policy_j(:,z_c)]=max(entireRHS,[],1);
+                    if vfoptions.dynasty_howards>0 % For Howards, store
+                        a_ToMatchPolicy=(0:1:N_a-1)'*N_d;
+%                         size(Policy_j(:,z_c))
+%                         size(a_ToMatchPolicy)
+%                         size(ReturnMatrix_z)
+%                         size(Phi_aprimeMatrix_z)
+%                         [z_c, N_d, N_a]
+%                         [min(Policy_j(:,z_c)+a_ToMatchPolicy), max(Policy_j(:,z_c)+a_ToMatchPolicy)]
+%                         prod(isfinite(Policy_j(:,z_c)+a_ToMatchPolicy))
+%                         if N_d==1
+%                             Ftemp_j(:,z_c)=ReturnMatrix_z(Policy_j(:,z_c)+a_ToMatchPolicy);
+%                         else
+%                             size(ReturnMatrix_z(Policy_j(:,z_c)+a_ToMatchPolicy))
+%                             size(Ftemp_j)
+%                         end
+                        Ftemp_j(:,z_c)=ReturnMatrix_z(Policy_j(:,z_c)+a_ToMatchPolicy);
+                        Phi_of_Policy_j(:,z_c)= Phi_aprimeMatrix_z(Policy_j(:,z_c)+a_ToMatchPolicy); % Phi_aprime_z is N_d*N_a, combine it with Policy_ (which tells d in terms of N_a) to get aprime in terms of N_a
+                    end
+                end
+                if vfoptions.dynasty_howards>0
+                    Ftemp.(jstr(:))=Ftemp_j;
+                    Phi_of_Policy.(jstr(:))=Phi_of_Policy_j;
                 end
             elseif vfoptions.lowmemory==2
                 for a_c=1:N_a
@@ -517,7 +541,15 @@ while currdist>vfoptions.tolerance
                         
                         %calculate in order, the maximizing aprime indexes
                         [V_j(a_c,z_c),Policy_j(a_c,z_c)]=max(entireRHS,[],1);
+                        if vfoptions.dynasty_howards>0
+                            Ftemp_j(a_c,z_c)=ReturnMatrix_a(Policy_j(a_c,z_c),1,z_c);
+                            Phi_of_Policy_j(a_c,z_c)=Phi_aprimematrix_a(Policy_j(a_c,z_c),1,z_c);
+                        end
                     end
+                end
+                if vfoptions.dynasty_howards>0
+                    Ftemp.(jstr(:))=Ftemp_j;
+                    Phi_of_Policy.(jstr(:))=Phi_of_Policy_j;
                 end
             end
             
@@ -542,17 +574,10 @@ while currdist>vfoptions.tolerance
             Vnextj=V.(jstr); % Note that it is important that this is done before updating 'jstr'
             
             % Create a vector containing all the return function parameters (in order)
-            ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-            DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+            ReturnFnParamsVec=ReturnFnParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
             
-            % Make a three digit number out of jj
-            if jj<10
-                jstr=['00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['0',num2str(jj)];
-            else
-                jstr=num2str(jj);
-            end
+            jstr=daz_gridstructure.jstr{jj};
             % Get the relevant grid and transition matrix
             if vfoptions.agedependentgrids(1)==1
                 N_d=daz_gridstructure.N_d.(jstr(:));
@@ -566,21 +591,22 @@ while currdist>vfoptions.tolerance
                 a_grid=daz_gridstructure.a_grid.(jstr(:));
                 if vfoptions.lowmemory==2
                     special_n_a=ones(1,length(n_a));
+                    a_gridvals=daz_gridstructure.a_gridvals.(jstr(:));
                     
-                    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-                    for i2=1:N_a
-                        sub=zeros(1,length(n_a));
-                        sub(1)=rem(i2-1,n_a(1))+1;
-                        for ii=2:length(n_a)-1
-                            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                        end
-                        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-                        
-                        if length(n_a)>1
-                            sub=sub+[0,cumsum(n_a(1:end-1))];
-                        end
-                        a_gridvals(i2,:)=a_grid(sub);
-                    end
+%                     a_gridvals=zeros(N_a,length(n_a),'gpuArray');
+%                     for i2=1:N_a
+%                         sub=zeros(1,length(n_a));
+%                         sub(1)=rem(i2-1,n_a(1))+1;
+%                         for ii=2:length(n_a)-1
+%                             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+%                         end
+%                         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+%                         
+%                         if length(n_a)>1
+%                             sub=sub+[0,cumsum(n_a(1:end-1))];
+%                         end
+%                         a_gridvals(i2,:)=a_grid(sub);
+%                     end
                 end
             end
             if vfoptions.agedependentgrids(3)==1
@@ -590,20 +616,21 @@ while currdist>vfoptions.tolerance
                 pi_z=daz_gridstructure.pi_z.(jstr(:));
                 if vfoptions.lowmemory==1
                     special_n_z=ones(1,length(n_z));
-                    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-                    for i1=1:N_z
-                        sub=zeros(1,length(n_z));
-                        sub(1)=rem(i1-1,n_z(1))+1;
-                        for ii=2:length(n_z)-1
-                            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-                        end
-                        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-                        
-                        if length(n_z)>1
-                            sub=sub+[0,cumsum(n_z(1:end-1))];
-                        end
-                        z_gridvals(i1,:)=z_grid(sub);
-                    end
+                    z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
+%                     z_gridvals=zeros(N_z,length(n_z),'gpuArray');
+%                     for i1=1:N_z
+%                         sub=zeros(1,length(n_z));
+%                         sub(1)=rem(i1-1,n_z(1))+1;
+%                         for ii=2:length(n_z)-1
+%                             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+%                         end
+%                         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
+%                         
+%                         if length(n_z)>1
+%                             sub=sub+[0,cumsum(n_z(1:end-1))];
+%                         end
+%                         z_gridvals(i1,:)=z_grid(sub);
+%                     end
                 end
             end
             aaa=kron(pi_z,ones(N_d,1,'gpuArray')); % in the case that only the grids for 'a' change this could be skipped but seems unlikely enough that I have not coded for the possibility
@@ -650,18 +677,10 @@ while currdist>vfoptions.tolerance
             Vnextj=V.(jstr); % Note that it is important that this is done before updating 'jstr'
             
             % Create a vector containing all the return function parameters (in order)
-            ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
-            DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+            ReturnFnParamsVec=ReturnFnParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);            
             
-            
-            % Make a three digit number out of jj
-            if jj<10
-                jstr=['00',num2str(jj)];
-            elseif jj>=10 && jj<100
-                jstr=['0',num2str(jj)];
-            else
-                jstr=num2str(jj);
-            end
+            jstr=daz_gridstructure.jstr{jj};
             % Get the relevant grid and transition matrix
             if vfoptions.agedependentgrids(1)==1
                 N_d=daz_gridstructure.N_d.(jstr(:));
@@ -675,21 +694,21 @@ while currdist>vfoptions.tolerance
                 a_grid=daz_gridstructure.a_grid.(jstr(:));
                 if vfoptions.lowmemory==2
                     special_n_a=ones(1,length(n_a));
-                    
-                    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-                    for i2=1:N_a
-                        sub=zeros(1,length(n_a));
-                        sub(1)=rem(i2-1,n_a(1))+1;
-                        for ii=2:length(n_a)-1
-                            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                        end
-                        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-                        
-                        if length(n_a)>1
-                            sub=sub+[0,cumsum(n_a(1:end-1))];
-                        end
-                        a_gridvals(i2,:)=a_grid(sub);
-                    end
+                    a_gridvals=daz_gridstructure.a_gridvals.(jstr(:));
+%                     a_gridvals=zeros(N_a,length(n_a),'gpuArray');
+%                     for i2=1:N_a
+%                         sub=zeros(1,length(n_a));
+%                         sub(1)=rem(i2-1,n_a(1))+1;
+%                         for ii=2:length(n_a)-1
+%                             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+%                         end
+%                         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
+%                         
+%                         if length(n_a)>1
+%                             sub=sub+[0,cumsum(n_a(1:end-1))];
+%                         end
+%                         a_gridvals(i2,:)=a_grid(sub);
+%                     end
                 end
             end
             if vfoptions.agedependentgrids(3)==1
@@ -699,20 +718,21 @@ while currdist>vfoptions.tolerance
                 pi_z=daz_gridstructure.pi_z.(jstr(:));
                 if vfoptions.lowmemory==1
                     special_n_z=ones(1,length(n_z));
-                    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-                    for i1=1:N_z
-                        sub=zeros(1,length(n_z));
-                        sub(1)=rem(i1-1,n_z(1))+1;
-                        for ii=2:length(n_z)-1
-                            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-                        end
-                        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-                        
-                        if length(n_z)>1
-                            sub=sub+[0,cumsum(n_z(1:end-1))];
-                        end
-                        z_gridvals(i1,:)=z_grid(sub);
-                    end
+                    z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
+%                     z_gridvals=zeros(N_z,length(n_z),'gpuArray');
+%                     for i1=1:N_z
+%                         sub=zeros(1,length(n_z));
+%                         sub(1)=rem(i1-1,n_z(1))+1;
+%                         for ii=2:length(n_z)-1
+%                             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+%                         end
+%                         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
+%                         
+%                         if length(n_z)>1
+%                             sub=sub+[0,cumsum(n_z(1:end-1))];
+%                         end
+%                         z_gridvals(i1,:)=z_grid(sub);
+%                     end
                 end
             end
             
@@ -781,6 +801,8 @@ while currdist>vfoptions.tolerance
                         
                         %calculate in order, the maximizing aprime indexes
                         [V_j(a_c,z_c),Policy_j(a_c,z_c)]=max(entireRHS,[],1);
+%                         % For howards improvement algorithm we want to keep
+%                         Ftemp(a_c,z_c)=ReturnMatrix_az(Policy_j(a_c,z_c));
                     end
                 end
             end
@@ -790,7 +812,7 @@ while currdist>vfoptions.tolerance
         end
     end
     
-    if tempcounter>=2 % I simply assume you won't converge on the first try when using dynasty
+    if tempcounter>=5 % I simply assume you won't converge on the first try when using dynasty
         % No need to check convergence for the whole value function, if the
         % 'oldest', N_j, has converged then necessarily so have all the others.
         % Since I anyway want this jj=N_j for storing Vold (where only the
@@ -800,6 +822,107 @@ while currdist>vfoptions.tolerance
         N_z=daz_gridstructure.N_z.(jstrN_j);
         Vdist=reshape(V.(jstrN_j)-Vold,[N_a*N_z,1]); Vdist(isnan(Vdist))=0;
         currdist=max(abs(Vdist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
+        
+        if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.dynasty_maxhowards % Howards iteration method, adapted for dynasty
+            % isfinite(currdist): ensures do not contaminate value function with -Infs
+            % tempcounter>=2: just because there is probably not much point
+            % tempcounter<vfoptions.dynasty_maxhowards: to guarantee that Howards cannot break convergence
+            % currdist>(vfoptions.tolerance*10): to ensure eventual solution is not driven by Howards
+            
+            V_j=V.j001; % the first thing will be using N_j, and so will want to base it on the dynasty
+            
+            if Case2_Type==12  % phi_a'(d,a,z)
+                % Ftemp and Phi_of_Policy have been saved (from every j)
+                if vfoptions.lowmemory==0
+                    for howards_c=1:vfoptions.dynasty_howards
+                        for reverse_j=0:N_j-1
+                            jj=N_j-reverse_j;
+                            jstr=daz_gridstructure.jstr{jj};
+                            
+                            N_a=daz_gridstructure.N_a.(jstr(:));
+                            N_aprime=daz_gridstructure.N_aprime.(jstr(:));
+                            N_z=daz_gridstructure.N_z.(jstr(:));
+                            N_zprime=daz_gridstructure.N_zprime.(jstr(:));
+                            pi_z=daz_gridstructure.pi_z.(jstr(:));
+                            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+                            DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+                            
+                            aaa=kron(pi_z,ones(N_a,1,'gpuArray'));
+                            aaaPhi_of_Policy=kron(Phi_of_Policy.(jstr(:)),ones(N_zprime,1));
+%                             Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d*N_a*N_z,1]);
+%                             aaaPhi_aprimeMatrix=kron(Phi_aprimeMatrix,ones(N_zprime,1));
+                            zprime_ToMatchPhiOfPolicy=kron((1:1:N_zprime)',ones(N_a*N_z,1));
+
+                            EV=V_j(aaaPhi_of_Policy+(N_aprime)*(zprime_ToMatchPhiOfPolicy-1)); % (1,z')
+%                             EV=V_j(aaaPhi_aprimeMatrix+(N_aprime)*(zprime_ToMatchPhi-1)); %(d,z')
+                            EV=reshape(EV,[N_a*N_a,N_zprime]);
+                            EV=EV.*aaa;
+%                             EV=reshape(EV,[N_d*N_a*N_z,N_zprime]);
+%                             EV=EV.*aaa;
+%                             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+%                             EV=sum(EV,2); % reshape(sum(EV_az,2),[N_d,1,1]);
+%                             EV=reshape(EV,[N_d,N_a,N_z]);
+                            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                            EV=sum(EV,2);
+                            EV=reshape(EV,[N_a,N_z]);
+                            V_j=Ftemp.(jstr(:))+DiscountFactorParamsVec*EV; % d by a by z
+                            if howards_c==vfoptions.dynasty_howards % If on last iteration, then store them.
+                                V.(jstr(:))=V_j;
+                            end
+                        end
+                    end
+                elseif vfoptions.lowmemory==1
+                    for howards_c=1:vfoptions.dynasty_howards
+                        for reverse_j=0:N_j-1
+                            jj=N_j-reverse_j;
+                            jstr=daz_gridstructure.jstr{jj};
+                            
+                            N_a=daz_gridstructure.N_a.(jstr(:));
+                            N_aprime=daz_gridstructure.N_aprime.(jstr(:));
+                            N_z=daz_gridstructure.N_z.(jstr(:));
+                            N_zprime=daz_gridstructure.N_zprime.(jstr(:));
+                            pi_z=daz_gridstructure.pi_z.(jstr(:));
+                            z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
+                            DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
+                            DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+                            Phi_of_Policy_j=Phi_of_Policy.(jstr(:));
+                            Ftemp_j=Ftemp.(jstr(:));
+                            V_jplus1=V_j;
+                            V_j=zeros(N_a,N_z,'gpuArray'); % Am going to overwrite, but need this to be the right size.
+                            
+                            zprime_ToMatchPhi=kron((1:1:N_zprime)',ones(N_a,1));
+                            for z_c=1:N_z
+                                % Vnextj is aprime-by-zprime
+                                z_val=z_gridvals(z_c,:);
+                                Phi_of_Policy_z=Phi_of_Policy_j(:,z_c);
+                                Ftemp_z=Ftemp_j(:,z_c);
+                                aaa=kron(pi_z(z_c,:),ones(N_a,1,'gpuArray'));
+                                aaaPhi_aprimeMatrix_z=kron(ones(N_zprime,1),Phi_of_Policy_z);
+                                
+                                EV_z=V_jplus1(aaaPhi_aprimeMatrix_z+N_aprime*(zprime_ToMatchPhi-1)); % (d,aaprime,zprime) % SHOULD IT JUST BE N_aprime?
+                                EV_z=reshape(EV_z,[N_a,N_zprime]);
+                                EV_z=EV_z.*aaa;
+                                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+%                                 EV_z=reshape(sum(EV_z,2),[N_d,N_a]);
+                                EV_z=sum(EV_z,2);
+                                
+                                V_j(:,z_c)=Ftemp_z+DiscountFactorParamsVec*EV_z; % d by a
+                                
+                            end
+                            if howards_c==vfoptions.dynasty_howards % If on last iteration, then store them.
+                                jstr=daz_gridstructure.jstr{jj};
+                                V.(jstr(:))=V_j;
+                            end
+                        end
+                    end
+                elseif lowmemory==2
+                    fprintf('WARNING: Have not yet implemented combo of Howards>0 and lowmemory=2 for Dynasty in Case2_FHorz_AgeDepGrids')
+                    dbstack
+                end
+                
+            end
+
+        end
     end
     Vold=V.(jstrN_j); % Only the final period one is ever needed
     
