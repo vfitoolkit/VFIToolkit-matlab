@@ -26,12 +26,9 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
-
 if l_d>0
     d_val=zeros(l_d,1);
 end
-aprime_val=zeros(l_a,1);
 
 % First, create a_gridvals and z_gridvals, as these are always needed.
 if MatrixOrCell==1
@@ -102,57 +99,158 @@ elseif MatrixOrCell==2
     end
 end
 
-
-% Now create those of d_gridvals and aprime_gridvals that are needed
-% Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
-if Case1orCase2==1
-    if l_d>0
+% If PolicyIndexes is also passed as an input then also return d_gridvals
+% and aprime_gridvals as appropriate.
+if isempty(PolicyIndexes)
+    d_gridvals=[];
+    aprime_gridvals=[];
+else
+    PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
+    aprime_val=zeros(l_a,1);
+    
+    % Now create those of d_gridvals and aprime_gridvals that are needed
+    % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
+    if Case1orCase2==1
+        if l_d>0
+            if MatrixOrCell==1
+                if isa(d_grid, 'gpuArray')
+                    d_gridvals=zeros(N_a*N_z,l_d,'gpuArray');
+                else
+                    d_gridvals=zeros(N_a*N_z,l_d);
+                end
+                if isa(a_grid, 'gpuArray')
+                    aprime_gridvals=zeros(N_a*N_z,l_a,'gpuArray');
+                else
+                    aprime_gridvals=zeros(N_a*N_z,l_a);
+                end
+                
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+                    daprime_ind=PolicyIndexes(:,j1,j2);
+                    d_ind=daprime_ind(1:l_d);
+                    aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
+                    for kk1=1:l_d
+                        if kk1==1
+                            d_val(kk1)=d_grid(d_ind(kk1));
+                        else
+                            d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                        end
+                    end
+                    for kk2=1:l_a
+                        if kk2==1
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2));
+                        else
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
+                        end
+                    end
+                    d_gridvals(ii,:)=d_val;
+                    aprime_gridvals(ii,:)=aprime_val;
+                end
+            elseif MatrixOrCell==2
+                d_gridvals=cell(N_a*N_z,l_d);
+                aprime_gridvals=cell(N_a*N_z,l_a);
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+                    daprime_ind=PolicyIndexes(:,j1,j2);
+                    d_ind=daprime_ind(1:l_d);
+                    aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
+                    for kk1=1:l_d
+                        if kk1==1
+                            d_val(kk1)=d_grid(d_ind(kk1));
+                        else
+                            d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                        end
+                    end
+                    for kk2=1:l_a
+                        if kk2==1
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2));
+                        else
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
+                        end
+                    end
+                    d_gridvals(ii,:)=num2cell(d_val);
+                    aprime_gridvals(ii,:)=num2cell(aprime_val);
+                end
+            end
+        else % l_d==0
+            if MatrixOrCell==1
+                d_gridvals=nan;
+                if isa(a_grid, 'gpuArray')
+                    aprime_gridvals=zeros(N_a*N_z,l_a,'gpuArray');
+                else
+                    aprime_gridvals=zeros(N_a*N_z,l_a);
+                end
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+                    daprime_ind=PolicyIndexes(:,j1,j2);
+                    aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
+                    for kk2=1:l_a
+                        if kk2==1
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2));
+                        else
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
+                        end
+                    end
+                    aprime_gridvals(ii,:)=aprime_val;
+                end
+            elseif MatrixOrCell==2
+                d_gridvals=nan;
+                aprime_gridvals=cell(N_a*N_z,l_a);
+                for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                    j1=rem(ii-1,N_a)+1;
+                    j2=ceil(ii/N_a);
+                    daprime_ind=PolicyIndexes(:,j1,j2);
+                    aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
+                    for kk2=1:l_a
+                        if kk2==1
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2));
+                        else
+                            aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
+                        end
+                    end
+                    aprime_gridvals(ii,:)=num2cell(aprime_val);
+                end
+            end
+        end
+    elseif Case1orCase2==2
         if MatrixOrCell==1
             if isa(d_grid, 'gpuArray')
                 d_gridvals=zeros(N_a*N_z,l_d,'gpuArray');
             else
                 d_gridvals=zeros(N_a*N_z,l_d);
             end
-            if isa(a_grid, 'gpuArray')
-                aprime_gridvals=zeros(N_a*N_z,l_a,'gpuArray');
-            else
-                aprime_gridvals=zeros(N_a*N_z,l_a);
-            end
-
+            aprime_gridvals=nan;
             for ii=1:N_a*N_z
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
                 daprime_ind=PolicyIndexes(:,j1,j2);
                 d_ind=daprime_ind(1:l_d);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
                 for kk1=1:l_d
                     if kk1==1
                         d_val(kk1)=d_grid(d_ind(kk1));
                     else
                         d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-                    end
-                end
-                for kk2=1:l_a
-                    if kk2==1
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2));
-                    else
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
                     end
                 end
                 d_gridvals(ii,:)=d_val;
-                aprime_gridvals(ii,:)=aprime_val;
             end
         elseif MatrixOrCell==2
             d_gridvals=cell(N_a*N_z,l_d);
-            aprime_gridvals=cell(N_a*N_z,l_a);
+            aprime_gridvals=nan;
             for ii=1:N_a*N_z
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
                 daprime_ind=PolicyIndexes(:,j1,j2);
                 d_ind=daprime_ind(1:l_d);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
                 for kk1=1:l_d
                     if kk1==1
                         d_val(kk1)=d_grid(d_ind(kk1));
@@ -160,102 +258,11 @@ if Case1orCase2==1
                         d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
                     end
                 end
-                for kk2=1:l_a
-                    if kk2==1
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2));
-                    else
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-                    end
-                end
                 d_gridvals(ii,:)=num2cell(d_val);
-                aprime_gridvals(ii,:)=num2cell(aprime_val);
-            end
-        end
-    else % l_d==0
-        if MatrixOrCell==1
-            d_gridvals=nan;
-            if isa(a_grid, 'gpuArray')
-                aprime_gridvals=zeros(N_a*N_z,l_a,'gpuArray');
-            else
-                aprime_gridvals=zeros(N_a*N_z,l_a);
-            end
-            for ii=1:N_a*N_z
-                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-                j1=rem(ii-1,N_a)+1;
-                j2=ceil(ii/N_a);
-                daprime_ind=PolicyIndexes(:,j1,j2);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
-                for kk2=1:l_a
-                    if kk2==1
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2));
-                    else
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-                    end
-                end
-                aprime_gridvals(ii,:)=aprime_val;
-            end
-        elseif MatrixOrCell==2
-            d_gridvals=nan;
-            aprime_gridvals=cell(N_a*N_z,l_a);
-            for ii=1:N_a*N_z
-                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-                j1=rem(ii-1,N_a)+1;
-                j2=ceil(ii/N_a);
-                daprime_ind=PolicyIndexes(:,j1,j2);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_a));
-                for kk2=1:l_a
-                    if kk2==1
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2));
-                    else
-                        aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-                    end
-                end
-                aprime_gridvals(ii,:)=num2cell(aprime_val);
             end
         end
     end
-elseif Case1orCase2==2
-    if MatrixOrCell==1
-        if isa(d_grid, 'gpuArray')
-            d_gridvals=zeros(N_a*N_z,l_d,'gpuArray');
-        else
-            d_gridvals=zeros(N_a*N_z,l_d);
-        end
-        aprime_gridvals=nan;
-        for ii=1:N_a*N_z
-            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-            j1=rem(ii-1,N_a)+1;
-            j2=ceil(ii/N_a);
-            daprime_ind=PolicyIndexes(:,j1,j2);
-            d_ind=daprime_ind(1:l_d);
-            for kk1=1:l_d
-                if kk1==1
-                    d_val(kk1)=d_grid(d_ind(kk1));
-                else
-                    d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-                end
-            end
-            d_gridvals(ii,:)=d_val;
-        end
-    elseif MatrixOrCell==2
-        d_gridvals=cell(N_a*N_z,l_d);
-        aprime_gridvals=nan;
-        for ii=1:N_a*N_z
-            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-            j1=rem(ii-1,N_a)+1;
-            j2=ceil(ii/N_a);
-            daprime_ind=PolicyIndexes(:,j1,j2);
-            d_ind=daprime_ind(1:l_d);
-            for kk1=1:l_d
-                if kk1==1
-                    d_val(kk1)=d_grid(d_ind(kk1));
-                else
-                    d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-                end
-            end
-            d_gridvals(ii,:)=num2cell(d_val);
-        end
-    end
+    
 end
 
 

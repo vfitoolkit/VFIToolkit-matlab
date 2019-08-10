@@ -144,8 +144,8 @@ if nargin>5
         if isfield(options,'lowmemory')
             if options.lowmemory>0
                 % Also create the gridvals, as these will be useful.
-                [d_gridvals_j, ~, a_gridvals_j, z_gridvals_j]=CreateGridvals(PolicyIndexes,n_d_j,n_a_j,n_z_j,d_grid_j,a_grid_j,z_grid_j,2,1); % The 2,1 at end are that this is for Case2 problem, and want output in form of matrix.
-                daz_gridstructure.d_gridvals.(jstr(:))=d_gridvals_j;
+                [~, ~, a_gridvals_j, z_gridvals_j]=CreateGridvals([],n_d_j,n_a_j,n_z_j,d_grid_j,a_grid_j,z_grid_j,2,1); % The 2,1 at end are that this is for Case2 problem, and want output in form of matrix.
+%                 daz_gridstructure.d_gridvals.(jstr(:))=d_gridvals_j;
                 daz_gridstructure.a_gridvals.(jstr(:))=a_gridvals_j;
                 daz_gridstructure.z_gridvals.(jstr(:))=z_gridvals_j;
             end
