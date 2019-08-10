@@ -84,43 +84,61 @@ PolicyIndexesKron=gather(PolicyIndexesKron);
 SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
 
 %% Precompute the gridvals vectors.
-z_gridvals=-Inf*ones(N_z,l_z);
-for i1=1:N_z
-    sub=zeros(1,l_z);
-    sub(1)=rem(i1-1,n_z(1))+1;
-    for ii=2:length(n_z)-1
-        sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
+z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+dPolicy_gridvals=struct();
+for jj=1:N_j
+    % Make a three digit number out of jj
+    if jj<10
+        jstr=['j00',num2str(jj)];
+    elseif jj>=10 && jj<100
+        jstr=['j0',num2str(jj)];
+    else
+        jstr=['j',num2str(jj)];
     end
-    sub(l_z)=ceil(i1/prod(n_z(1:l_z-1)));
-    
-    if l_z>1
-        sub=sub+[0,cumsum(n_z(1:end-1))];
-    end
-    z_gridvals(i1,:)=z_grid(sub);
-end
-a_gridvals=-Inf*ones(N_a,l_a);
-for i2=1:N_a
-    sub=zeros(1,l_a);
-    sub(1)=rem(i2-1,n_a(1))+1;
-    for ii=2:length(n_a)-1
-        sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-    end
-    sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
-    
-    if l_a>1
-        sub=sub+[0,cumsum(n_a(1:end-1))];
-    end
-    a_gridvals(i2,:)=a_grid(sub);
+    [dPolicy_gridvals_j,~]=CreateGridvals_Policy(PolicyIndexesKron,n_d,[],n_a,n_z,d_grid,[],2,1);
+    dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
 end
 
-d_val=zeros(1,l_d);
-aprime_val=zeros(1,l_a);
-a_val=zeros(1,l_a);
-z_val=zeros(1,l_z);
+% z_gridvals=-Inf*ones(N_z,l_z);
+% for i1=1:N_z
+%     sub=zeros(1,l_z);
+%     sub(1)=rem(i1-1,n_z(1))+1;
+%     for ii=2:length(n_z)-1
+%         sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
+%     end
+%     sub(l_z)=ceil(i1/prod(n_z(1:l_z-1)));
+%     
+%     if l_z>1
+%         sub=sub+[0,cumsum(n_z(1:end-1))];
+%     end
+%     z_gridvals(i1,:)=z_grid(sub);
+% end
+% a_gridvals=-Inf*ones(N_a,l_a);
+% for i2=1:N_a
+%     sub=zeros(1,l_a);
+%     sub(1)=rem(i2-1,n_a(1))+1;
+%     for ii=2:length(n_a)-1
+%         sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+%     end
+%     sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
+%     
+%     if l_a>1
+%         sub=sub+[0,cumsum(n_a(1:end-1))];
+%     end
+%     a_gridvals(i2,:)=a_grid(sub);
+% end
+% 
+% d_val=zeros(1,l_d);
+% aprime_val=zeros(1,l_a);
+% a_val=zeros(1,l_a);
+% z_val=zeros(1,l_z);
 
 %%
 SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan for unobserved (when finite time-horizon is reached, so after than agent is 'dead')
 %% For sure the following could be made faster by parallelizing some stuff.
+% Intelligent would be to sort everything by j value, then do all this,
+% then unsort. (as dPolicy_gridvals depends on j value)
 for ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
     for t=1:simoptions.simperiods
@@ -133,16 +151,28 @@ for ii=1:simoptions.numbersims
         z_val=z_gridvals(z_ind,:);
         
         j_ind=SimPanel_ii(end,t);
-        
-        d_ind=PolicyIndexesKron(a_ind,z_ind,t);
-        d_sub=ind2sub_homemade(n_d,d_ind);
-        for kk1=1:l_d
-            if kk1==1
-                d_val(kk1)=d_grid(d_sub(kk1));
-            else
-                d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-            end
+
+        % Make a three digit number out of j_ind
+        if j_ind<10
+            jstr=['j00',num2str(j_ind)];
+        elseif j_ind>=10 && j_ind<100
+            jstr=['j0',num2str(j_ind)];
+        else
+            jstr=['j',num2str(j_ind)];
         end
+        
+        az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
+        dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
+        d_val=dPolicy_gridvals_j(az_ind,:);
+%         d_ind=PolicyIndexesKron(a_ind,z_ind,t);
+%         d_sub=ind2sub_homemade(n_d,d_ind);
+%         for kk1=1:l_d
+%             if kk1==1
+%                 d_val(kk1)=d_grid(d_sub(kk1));
+%             else
+%                 d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+%             end
+%         end
         
         for vv=1:length(FnsToEvaluate)
             if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'

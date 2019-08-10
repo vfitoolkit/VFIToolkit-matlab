@@ -40,58 +40,64 @@ SimPanelIndexes=SimPanelIndexes_FHorz_Case2_AgeDepGrids(InitialDist,PolicyIndexe
 SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
 
 %% Precompute the gridvals vectors.
-daz_gridvals=struct();
-l_d=length(n_d_j); % Note that l_d cannot vary with j
-l_a=length(n_a_j); % Note that l_a cannot vary with j
-l_z=length(n_z_j); % Note that l_z cannot vary with j
+% No longer needed, as these are now already contained in, e.g.,
+%     daz_gridstructure.a_gridvals.(jstr(:))
+
+dPolicy_gridvals=struct();
+% l_d=length(n_d_j); % Note that l_d cannot vary with j
+% l_a=length(n_a_j); % Note that l_a cannot vary with j
+% l_z=length(n_z_j); % Note that l_z cannot vary with j
 for jj=1:N_j
     jstr=daz_gridstructure.jstr{jj};
+    n_d_j=daz_gridstructure.n_d.(jstr(:));
+    n_aprime_j=daz_gridstructure.n_aprime.(jstr(:));
     n_a_j=daz_gridstructure.n_a.(jstr(:));
     n_z_j=daz_gridstructure.n_z.(jstr(:));
-    N_a_j=daz_gridstructure.N_a.(jstr(:));
-    N_z_j=daz_gridstructure.N_z.(jstr(:));
-    a_grid_j=gather(daz_gridstructure.a_grid.(jstr(:)));
-    z_grid_j=gather(daz_gridstructure.z_grid.(jstr(:)));
-    
-    z_gridvals=-Inf*ones(N_z_j,l_z);
-    for i1=1:N_z_j
-        sub=zeros(1,l_z);
-        sub(1)=rem(i1-1,n_z_j(1))+1;
-        for ii=2:length(n_z_j)-1
-            sub(ii)=rem(ceil(i1/prod(n_z_j(1:ii-1)))-1,n_z_j(ii))+1;
-        end
-        sub(l_z)=ceil(i1/prod(n_z_j(1:l_z-1)));
-        
-        if l_z>1
-            sub=sub+[0,cumsum(n_z_j(1:end-1))];
-        end
-        z_gridvals(i1,:)=z_grid_j(sub);
-    end
-    daz_gridvals(jj).z_gridvals_j=z_gridvals;
-    a_gridvals=-Inf*ones(N_a_j,l_a);
-    for i2=1:N_a_j
-        sub=zeros(1,l_a);
-        sub(1)=rem(i2-1,n_a_j(1))+1;
-        for ii=2:length(n_a_j)-1
-            sub(ii)=rem(ceil(i2/prod(n_a_j(1:ii-1)))-1,n_a_j(ii))+1;
-        end
-        sub(l_a)=ceil(i2/prod(n_a_j(1:l_a-1)));
-        
-        if l_a>1
-            sub=sub+[0,cumsum(n_a_j(1:end-1))];
-        end
-        a_gridvals(i2,:)=a_grid_j(sub);
-    end
-    daz_gridvals(jj).a_gridvals_j=a_gridvals;
+    d_grid_j=gather(daz_gridstructure.a_grid.(jstr(:)));
+    aprime_grid_j=gather(daz_gridstructure.z_grid.(jstr(:)));
+
+    [dPolicy_gridvals_j, ~]=CreateGridvals_Policy(PolicyIndexesKron.(jstr),n_d_j,n_aprime_j,n_a_j,n_z_j,d_grid_j,aprime_grid_j,2, 1);
+    dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
     
     daz_gridstructure.d_grid.(jstr(:))=gather(daz_gridstructure.d_grid.(jstr(:)));
-    PolicyIndexesKron.(jstr)=gather(PolicyIndexesKron.(jstr));
+    
+%     z_gridvals=-Inf*ones(N_z_j,l_z);
+%     for i1=1:N_z_j
+%         sub=zeros(1,l_z);
+%         sub(1)=rem(i1-1,n_z_j(1))+1;
+%         for ii=2:length(n_z_j)-1
+%             sub(ii)=rem(ceil(i1/prod(n_z_j(1:ii-1)))-1,n_z_j(ii))+1;
+%         end
+%         sub(l_z)=ceil(i1/prod(n_z_j(1:l_z-1)));
+%         
+%         if l_z>1
+%             sub=sub+[0,cumsum(n_z_j(1:end-1))];
+%         end
+%         z_gridvals(i1,:)=z_grid_j(sub);
+%     end
+%     daz_gridvals(jj).z_gridvals_j=z_gridvals;
+%     a_gridvals=-Inf*ones(N_a_j,l_a);
+%     for i2=1:N_a_j
+%         sub=zeros(1,l_a);
+%         sub(1)=rem(i2-1,n_a_j(1))+1;
+%         for ii=2:length(n_a_j)-1
+%             sub(ii)=rem(ceil(i2/prod(n_a_j(1:ii-1)))-1,n_a_j(ii))+1;
+%         end
+%         sub(l_a)=ceil(i2/prod(n_a_j(1:l_a-1)));
+%         
+%         if l_a>1
+%             sub=sub+[0,cumsum(n_a_j(1:end-1))];
+%         end
+%         a_gridvals(i2,:)=a_grid_j(sub);
+%     end
+%     daz_gridvals(jj).a_gridvals_j=a_gridvals;
+
 end
 
-d_val=zeros(1,l_d);
-aprime_val=zeros(1,l_a);
-a_val=zeros(1,l_a);
-z_val=zeros(1,l_z);
+% d_val=zeros(1,l_d);
+% aprime_val=zeros(1,l_a);
+% a_val=zeros(1,l_a);
+% z_val=zeros(1,l_z);
 
 %%
 SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
@@ -111,29 +117,37 @@ for ii=1:simoptions.numbersims
 
         if ~isnan(j_ind) % isnan(j_ind) means that the agent reached the end of their finite lifetime and has 'died'
             jstr=daz_gridstructure.jstr{j_ind};
-            n_d_j=daz_gridstructure.n_d.(jstr(:));
+%             n_d_j=daz_gridstructure.n_d.(jstr(:));
             n_a_j=daz_gridstructure.n_a.(jstr(:));
             n_z_j=daz_gridstructure.n_z.(jstr(:));
             
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a_j,a_sub);
-            a_val=daz_gridvals(j_ind).a_gridvals_j(a_ind,:);
+            a_gridvals_j=daz_gridstructure.a_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).a_gridvals_j(a_ind,:);
+            a_val=a_gridvals_j(a_ind,:);
             
             z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
             z_ind=sub2ind_homemade(n_z_j,z_sub);
-            z_val=daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
+            z_gridvals_j=daz_gridstructure.z_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
+            z_val=z_gridvals_j(a_ind,:);            
             
-            PolicyIndexesKron_j=PolicyIndexesKron.(jstr(:));
-            d_ind=PolicyIndexesKron_j(a_ind,z_ind);
-            d_sub=ind2sub_homemade(n_d_j,d_ind);
-            d_grid_j=daz_gridstructure.d_grid.(jstr(:));
-            for kk1=1:l_d % This for loop could probably be replaced with what follows
-                if kk1==1
-                    d_val(kk1)=d_grid_j(d_sub(kk1));
-                else
-                    d_val(kk1)=d_grid_j(d_sub(kk1)+sum(n_d_j(1:kk1-1)));
-                end
-            end
+            % The following lines are just doing d_gridvals. So may as well
+            % precreate this instead.
+%             PolicyIndexesKron_j=PolicyIndexesKron.(jstr(:));
+%             d_ind=PolicyIndexesKron_j(a_ind,z_ind);
+%             d_gridvals_j=daz_gridstructure.d_gridvals.(jstr(:));
+%             d_val=d_gridvals_j(d_ind,:);
+            az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
+            dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
+            d_val=dPolicy_gridvals_j(az_ind,:);
+%             d_grid_j=daz_gridstructure.d_grid.(jstr(:));
+%             for kk1=1:l_d % This for loop could probably be replaced with what follows
+%                 if kk1==1
+%                     d_val(kk1)=d_grid_j(d_sub(kk1));
+%                 else
+%                     d_val(kk1)=d_grid_j(d_sub(kk1)+sum(n_d_j(1:kk1-1)));
+%                 end
+%             end
             % Can probably replace with
 %             if l_d>1
 %                 d_sub=d_sub+[0,cumsum(n_d_j(1:end-1))];
