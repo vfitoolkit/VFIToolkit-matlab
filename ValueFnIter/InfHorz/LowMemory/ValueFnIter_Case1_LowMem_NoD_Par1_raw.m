@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(VKron, n_a, n_z, a_grid,z_grid, pi_z, beta, ReturnFn, Howards, Howards2,Tolerance)%Verbose)
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(VKron, n_a, n_z, a_grid,z_grid, pi_z, beta, ReturnFn, ReturnFnParamsVec, Howards, Howards2,Tolerance, Verbose)
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -15,34 +15,7 @@ end
 PolicyIndexes=zeros(N_a,N_z);
 currdist=Inf;
 
-z_gridvals=zeros(N_z,length(n_z));
-for i1=1:N_z
-    sub=zeros(1,length(n_z));
-    sub(1)=rem(i1-1,n_z(1))+1;
-    for ii=2:length(n_z)-1
-        sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-    end
-    sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-    
-    if length(n_z)>1
-        sub=sub+[0,cumsum(n_z(1:end-1))];
-    end
-    z_gridvals(i1,:)=z_grid(sub);
-end
-a_gridvals=zeros(N_a,length(n_a));
-for i2=1:N_a
-    sub=zeros(1,length(n_a));
-    sub(1)=rem(i2-1,n_a(1))+1;
-    for ii=2:length(n_a)-1
-        sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-    end
-    sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-    
-    if length(n_a)>1
-        sub=sub+[0,cumsum(n_a(1:end-1))];
-    end
-    a_gridvals(i2,:)=a_grid(sub);
-end
+[~, a_gridvals, z_gridvals]=CreateGridvals_BasicVersion(0,n_a,n_z,0,a_grid,z_grid,1); % No d variables
 
 tempcounter=1;
 while currdist>Tolerance
@@ -50,7 +23,7 @@ while currdist>Tolerance
     VKronold=VKron;
 
     parfor z_c=1:N_z
-        z=z_gridvals(z_c,:);
+        z_val=z_gridvals(z_c,:);
         
         pi_z_z=pi_z(z_c,:);
         VKron_z=zeros(N_a,1);
@@ -61,7 +34,7 @@ while currdist>Tolerance
         EV_z=sum(EV_z,2);
         
         for a_c=1:N_a
-            entireRHS=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a_gridvals(a_c,:),z,ReturnFn, n_a, a_gridvals, 1)+beta*EV_z; %aprime by 1
+            entireRHS=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a_gridvals(a_c,:),z_val,ReturnFn, ReturnFnParamsVec, n_a, a_gridvals, 0)+beta*EV_z; %aprime by 1
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS);
@@ -78,9 +51,9 @@ while currdist>Tolerance
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=zeros(N_a,N_z);
         for z_c=1:N_z
-            z=z_gridvals(z_c,:);
+            z_val=z_gridvals(z_c,:);
             for a_c=1:N_a
-                Ftemp(a_c,z_c)=ReturnFn(a_gridvals(PolicyIndexes(a_c,z_c),:),a_gridvals(a_c,:),z);%FmatrixKron(PolicyIndexes1(a_c,z_c),PolicyIndexes2(a_c,z_c),a_c,z_c);
+                Ftemp(a_c,z_c)=ReturnFn(a_gridvals(PolicyIndexes(a_c,z_c),:),a_gridvals(a_c,:),z_val);%FmatrixKron(PolicyIndexes1(a_c,z_c),PolicyIndexes2(a_c,z_c),a_c,z_c);
             end
         end
         for Howards_counter=1:Howards

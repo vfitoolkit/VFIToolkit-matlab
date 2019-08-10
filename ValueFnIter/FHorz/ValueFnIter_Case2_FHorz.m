@@ -61,6 +61,13 @@ else
     end
     if ~isfield(vfoptions,'dynasty')
         vfoptions.dynasty=0;
+    elseif vfoptions.dynasty==1
+        if ~isfield(vfoptions,'dynasty_howards')
+            vfoptions.dynasty_howards=10;
+        end
+        if ~isfield(vfoptions,'dynasty_maxhowards')
+            vfoptions.dynasty_maxhowards=100;
+        end
     end
     if ~isfield(vfoptions,'agedependentgrids')
         vfoptions.agedependentgrids=0;
