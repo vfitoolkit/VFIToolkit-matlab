@@ -9,7 +9,9 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-[d_gridvals, a_gridvals, z_gridvals]=CreateGridvals_BasicVersion(n_d,n_a,n_z,d_grid,a_grid,z_grid,1);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+z_gridvals=CreateGridvals(n_z,z_grid,1);
 
 PolicyIndexes1=zeros(N_a,N_z);
 PolicyIndexes2=zeros(N_a,N_z);

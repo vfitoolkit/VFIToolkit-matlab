@@ -15,7 +15,9 @@ end
 PolicyIndexes=zeros(N_a,N_z);
 currdist=Inf;
 
-[~, a_gridvals, z_gridvals]=CreateGridvals_BasicVersion(0,n_a,n_z,0,a_grid,z_grid,1); % No d variables
+d_gridvals=CreateGridvals(n_d,d_grid,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+z_gridvals=CreateGridvals(n_z,z_grid,1);
 
 tempcounter=1;
 while currdist>Tolerance
