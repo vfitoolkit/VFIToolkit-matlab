@@ -17,8 +17,6 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy
 % AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
 % AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
-% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
-% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(ngroups,options.nquantiles+1); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(ngroups,options.nquantiles);
 %
@@ -50,7 +48,10 @@ if exist('options','var')==1
     end
     if isfield(options,'agedependentgrids')==0
         options.agedependentgrids=0;
-    end 
+    end
+    if isfield(options,'crosssectioncorrelation')==0
+        options.crosssectioncorrelation=0;
+    end    
 else
     %If options is not given, just use all the defaults
     options.parallel=2;
@@ -60,6 +61,7 @@ else
     options.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     options.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     options.agedependentgrids=0;
+    options.crosssectioncorrelation=0;
 end
 
 if prod(options.agedependentgrids)~=0
@@ -87,7 +89,7 @@ N_z=prod(n_z);
 
 
 %% Create a different 'Values' for each of the variable to be evaluated
-PolicyValues=PolicyInd2Val_FHorz_Case2(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid, options.parallel);
+PolicyValues=PolicyInd2Val_FHorz_Case2(Policy,n_d,n_a,n_z,N_j,d_grid,options.parallel);
 permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
 
@@ -100,8 +102,6 @@ AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups,'gpuArray');
 AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups,'gpuArray');
 AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints,'gpuArray');
 AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
 AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
 AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups,'gpuArray');
 
@@ -109,7 +109,7 @@ if options.crosssectioncorrelation==1
     AgeConditionalStats(length(FnsToEvaluate),length(FnsToEvaluate)).CrossSectionalCorrelation=nan(1,ngroups,'gpuArray');
 end
 
-PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]); % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
+PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*l_d,N_j]); % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
 for kk=1:length(options.agegroupings)
     j1=options.agegroupings(kk);
     if kk<length(options.agegroupings)
@@ -129,7 +129,7 @@ for kk=1:length(options.agegroupings)
             else
                 FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
             end            
-            Values(:,jj-j1+1)=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
+            Values(:,jj-j1+1)=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
         end
         
         Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
@@ -148,10 +148,12 @@ for kk=1:length(options.agegroupings)
         AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
         % Calculate the 'age conditional' variance
         
-        % Calculate the 'age conditional' lorenz curve
-        AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints);                
-        % Calculate the 'age conditional' gini
-        AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
+        if options.npoints>1
+            % Calculate the 'age conditional' lorenz curve
+            AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints);
+            % Calculate the 'age conditional' gini
+            AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
+        end
         
         % Calculate the 'age conditional' quantile means (ventiles by default)
         % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
