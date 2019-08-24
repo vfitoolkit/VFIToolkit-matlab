@@ -42,40 +42,51 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
     
 else
     AggVars=zeros(length(FnsToEvaluateFn),1);
-    d_val=zeros(l_d,1);
-    a_val=zeros(l_a,1);
-    z_val=zeros(l_z,1);
+%     d_val=zeros(l_d,1);
+%     a_val=zeros(l_a,1);
+%     z_val=zeros(l_z,1);
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
+    
+    a_gridvals=CreateGridvals(n_a,a_grid,1);
+    z_gridvals=CreateGridvals(n_z,z_grid,1);
+    dPolicy_gridvals=zeros(N_a*N_z,N_j);
+    for jj=1:N_j
+        dPolicy_gridvals(:,jj)=CreateGridvals_Policy(PolicyIndexes(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
+    end
     
     for i=1:length(FnsToEvaluateFn)
         Values=zeros(N_a,N_z,N_j);
-        for j1=1:N_a
-            a_ind=ind2sub_homemade_gpu([n_a],j1);
-            for jj1=1:l_a
-                if jj1==1
-                    a_val(jj1)=a_grid(a_ind(jj1));
-                else
-                    a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-                end
-            end
-            for j2=1:N_z
-                s_ind=ind2sub_homemade_gpu([n_z],j2);
-                for jj2=1:l_z
-                    if jj2==1
-                        z_val(jj2)=z_grid(s_ind(jj2));
-                    else
-                        z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-                    end
-                end
-                d_ind=PolicyIndexes(1:l_d,j1,j2);
-                for kk1=1:l_d
-                    if kk1==1
-                        d_val(kk1)=d_grid(d_ind(kk1));
-                    else
-                        d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-                    end
-                end
+        for a_c=1:N_a
+            a_val=a_gridvals(a_c,:);
+%             a_ind=ind2sub_homemade_gpu([n_a],j1);
+%             for jj1=1:l_a
+%                 if jj1==1
+%                     a_val(jj1)=a_grid(a_ind(jj1));
+%                 else
+%                     a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
+%                 end
+%             end
+            for z_c=1:N_z
+                z_val=z_gridvals(z_c,:);
+%                 s_ind=ind2sub_homemade_gpu([n_z],j2);
+%                 for jj2=1:l_z
+%                     if jj2==1
+%                         z_val(jj2)=z_grid(s_ind(jj2));
+%                     else
+%                         z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
+%                     end
+%                 end
+%                 d_ind=PolicyIndexes(1:l_d,j1,j2);
+%                 for kk1=1:l_d
+%                     if kk1==1
+%                         d_val(kk1)=d_grid(d_ind(kk1));
+%                     else
+%                         d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+%                     end
+%                 end
+                az_c=sub2ind_homemade([N_a,N_z],[a_c,z_c]);
                 for jj=1:N_j
+                    d_val=dPolicy_gridvals(az_c,jj);
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames(i).Names)
                         tempv=[d_val,a_val,z_val];
@@ -91,7 +102,7 @@ else
                             tempcell{temp_c}=tempv(temp_c);
                         end
                     end
-                    Values(j1,j2,jj)=FnsToEvaluateFn{i}(tempcell{:});
+                    Values(a_c,z_c,jj)=FnsToEvaluateFn{i}(tempcell{:});
                 end
             end
         end
