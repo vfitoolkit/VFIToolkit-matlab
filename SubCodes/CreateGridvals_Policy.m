@@ -26,12 +26,12 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 % Create d_gridvals and aprime_gridvals as appropriate.
-PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
 aprime_val=zeros(l_aprime,1);
 
 % Now create those of d_gridvals and aprime_gridvals that are needed
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1
+    PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
     if l_d>0
         d_val=zeros(l_d,1);
         if MatrixOrCell==1
@@ -50,21 +50,21 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_ind=PolicyIndexes(:,j1,j2);
-                d_ind=daprime_ind(1:l_d);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_aprime));
+                daprime_sub=PolicyIndexes(:,j1,j2);
+                d_sub=daprime_sub(1:l_d);
+                aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk1=1:l_d
                     if kk1==1
-                        d_val(kk1)=d_grid(d_ind(kk1));
+                        d_val(kk1)=d_grid(d_sub(kk1));
                     else
-                        d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
                     end
                 end
                 for kk2=1:l_aprime
                     if kk2==1
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2));
                     else
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2)+sum(n_aprime(1:kk2-1)));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2)+sum(n_aprime(1:kk2-1)));
                     end
                 end
                 dPolicy_gridvals(ii,:)=d_val;
@@ -77,21 +77,21 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_ind=PolicyIndexes(:,j1,j2);
-                d_ind=daprime_ind(1:l_d);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_aprime));
+                daprime_sub=PolicyIndexes(:,j1,j2);
+                d_sub=daprime_sub(1:l_d);
+                aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk1=1:l_d
                     if kk1==1
-                        d_val(kk1)=d_grid(d_ind(kk1));
+                        d_val(kk1)=d_grid(d_sub(kk1));
                     else
-                        d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
                     end
                 end
                 for kk2=1:l_aprime
                     if kk2==1
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2));
                     else
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2)+sum(n_aprime(1:kk2-1)));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2)+sum(n_aprime(1:kk2-1)));
                     end
                 end
                 dPolicy_gridvals(ii,:)=num2cell(d_val);
@@ -110,13 +110,13 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_ind=PolicyIndexes(:,j1,j2);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_aprime));
+                daprime_sub=PolicyIndexes(:,j1,j2);
+                aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk2=1:l_aprime
                     if kk2==1
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2));
                     else
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2)+sum(n_aprime(1:kk2-1)));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2)+sum(n_aprime(1:kk2-1)));
                     end
                 end
                 aprimePolicy_gridvals(ii,:)=aprime_val;
@@ -128,13 +128,13 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_ind=PolicyIndexes(:,j1,j2);
-                aprime_ind=daprime_ind((l_d+1):(l_d+l_aprime));
+                daprime_sub=PolicyIndexes(:,j1,j2);
+                aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk2=1:l_aprime
                     if kk2==1
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2));
                     else
-                        aprime_val(kk2)=aprime_grid(aprime_ind(kk2)+sum(n_aprime(1:kk2-1)));
+                        aprime_val(kk2)=aprime_grid(aprime_sub(kk2)+sum(n_aprime(1:kk2-1)));
                     end
                 end
                 aprimePolicy_gridvals(ii,:)=num2cell(aprime_val);
@@ -142,6 +142,7 @@ if Case1orCase2==1
         end
     end
 elseif Case1orCase2==2
+%     PolicyIndexes=reshape(PolicyIndexes,[N_a,N_z]);
     d_val=zeros(l_d,1);
     if MatrixOrCell==1
         if isa(d_grid, 'gpuArray')
@@ -154,13 +155,13 @@ elseif Case1orCase2==2
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
             j1=rem(ii-1,N_a)+1;
             j2=ceil(ii/N_a);
-            daprime_ind=PolicyIndexes(:,j1,j2);
-            d_ind=daprime_ind(1:l_d);
+            d_ind=PolicyIndexes(j1,j2);
+            d_sub=ind2sub_homemade_gpu(n_d,d_ind);
             for kk1=1:l_d
                 if kk1==1
-                    d_val(kk1)=d_grid(d_ind(kk1));
+                    d_val(kk1)=d_grid(d_sub(kk1));
                 else
-                    d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                    d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
                 end
             end
             dPolicy_gridvals(ii,:)=d_val;
@@ -172,13 +173,13 @@ elseif Case1orCase2==2
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
             j1=rem(ii-1,N_a)+1;
             j2=ceil(ii/N_a);
-            daprime_ind=PolicyIndexes(:,j1,j2);
-            d_ind=daprime_ind(1:l_d);
+            d_ind=PolicyIndexes(j1,j2);
+            d_sub=ind2sub_homemade_gpu(n_d,d_ind);
             for kk1=1:l_d
                 if kk1==1
-                    d_val(kk1)=d_grid(d_ind(kk1));
+                    d_val(kk1)=d_grid(d_sub(kk1));
                 else
-                    d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                    d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
                 end
             end
             dPolicy_gridvals(ii,:)=num2cell(d_val);

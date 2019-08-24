@@ -137,17 +137,35 @@ if nargin>5
             jminus1str=['j',num2str(jjminus1)];
         end
         daz_gridstructure.N_aprime.(jminus1str(:))=N_a_j;
+        daz_gridstructure.n_aprime.(jminus1str(:))=n_a_j;
         daz_gridstructure.N_zprime.(jminus1str(:))=N_z_j;
         daz_gridstructure.n_zprime.(jminus1str(:))=n_z_j;
         daz_gridstructure.zprime_grid.(jminus1str(:))=z_grid_j;
         
-        if isfield(options,'lowmemory')
+        if isfield(options,'lowmemory') % Value fn iteration with lowmemory requires '_gridvals'.
             if options.lowmemory>0
                 % Also create the gridvals, as these will be useful.
                 a_gridvals_j=CreateGridvals(n_a_j,a_grid_j,1); % The 1 at end indicates want output in form of matrix.
-                daz_gridstructure.a_gridvals.(jstr(:))=a_gridvals_j;
                 z_gridvals_j=CreateGridvals(n_z_j,z_grid_j,1); % The 1 at end indicates want output in form of matrix.
-                daz_gridstructure.z_gridvals.(jstr(:))=z_gridvals_j;
+                if options.parallel==2 % Make sure we store as gpuArray where appropriate
+                    daz_gridstructure.a_gridvals.(jstr(:))=gpuArray(a_gridvals_j);
+                    daz_gridstructure.z_gridvals.(jstr(:))=gpuArray(z_gridvals_j);
+                else
+                    daz_gridstructure.a_gridvals.(jstr(:))=gather(a_gridvals_j);
+                    daz_gridstructure.z_gridvals.(jstr(:))=gather(z_gridvals_j);
+                end
+            end
+        elseif isfield(options,'numbersims') % Simulation commands also require '_gridvals', they always use the numbersims option, so check for this.
+            % Also create the gridvals, as these will be useful. (just a
+            % copy of lines above)
+            a_gridvals_j=CreateGridvals(n_a_j,a_grid_j,1); % The 1 at end indicates want output in form of matrix.
+            z_gridvals_j=CreateGridvals(n_z_j,z_grid_j,1); % The 1 at end indicates want output in form of matrix.
+            if options.parallel==2 % Make sure we store as gpuArray where appropriate
+                daz_gridstructure.a_gridvals.(jstr(:))=gpuArray(a_gridvals_j);
+                daz_gridstructure.z_gridvals.(jstr(:))=gpuArray(z_gridvals_j);
+            else
+                daz_gridstructure.a_gridvals.(jstr(:))=gather(a_gridvals_j);
+                daz_gridstructure.z_gridvals.(jstr(:))=gather(z_gridvals_j);
             end
         end
     end
@@ -242,6 +260,7 @@ else % if nargin<=5
             jminus1str=['j',num2str(jjminus1)];
         end
         daz_gridstructure.N_aprime.(jminus1str(:))=N_a_j;
+        daz_gridstructure.n_aprime.(jminus1str(:))=n_a_j;
         daz_gridstructure.N_zprime.(jminus1str(:))=N_z_j;
         daz_gridstructure.n_zprime.(jminus1str(:))=n_z_j;
     end  
