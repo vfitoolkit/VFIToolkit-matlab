@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_FHorz_Case2(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_Case2(InitialDist,Policy,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. (If you use the
 % newbirths option you will get more than 'numbersims', due to the extra births)
@@ -6,6 +6,9 @@ function SimPanel=SimPanelIndexes_FHorz_Case2(InitialDist,Policy,n_d,n_a,n_z,N_j
 % InitialDist can be inputed as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
+%
+% The grids (d_grid) etc are not really needed for the simulation, just for
+% evaluating Phi_aprimeFn.
 
 N_d=prod(n_d);
 N_a=prod(n_a);

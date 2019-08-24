@@ -48,13 +48,14 @@ l_z=length(n_z_j); % Note that l_z cannot vary with j
 for jj=1:N_j
     jstr=daz_gridstructure.jstr{jj};
     n_d_j=daz_gridstructure.n_d.(jstr(:));
-    n_aprime_j=daz_gridstructure.n_aprime.(jstr(:));
+%     n_aprime_j=daz_gridstructure.n_aprime.(jstr(:));
     n_a_j=daz_gridstructure.n_a.(jstr(:));
     n_z_j=daz_gridstructure.n_z.(jstr(:));
-    d_grid_j=gather(daz_gridstructure.a_grid.(jstr(:)));
-    aprime_grid_j=gather(daz_gridstructure.z_grid.(jstr(:)));
+    d_grid_j=gather(daz_gridstructure.d_grid.(jstr(:)));
+    
+%     aprime_grid_j=gather(daz_gridstructure.aprime_grid.(jstr(:)));
 
-    [dPolicy_gridvals_j, ~]=CreateGridvals_Policy(PolicyIndexesKron.(jstr),n_d_j,n_aprime_j,n_a_j,n_z_j,d_grid_j,aprime_grid_j,2, 1);
+    [dPolicy_gridvals_j, ~]=CreateGridvals_Policy(PolicyIndexesKron.(jstr),n_d_j,[],n_a_j,n_z_j,d_grid_j,[],2,1);
     dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
     
     daz_gridstructure.d_grid.(jstr(:))=gather(daz_gridstructure.d_grid.(jstr(:)));
@@ -124,6 +125,8 @@ for ii=1:simoptions.numbersims
         if ~isnan(j_ind) % isnan(j_ind) means that the agent reached the end of their finite lifetime and has 'died'
             jstr=daz_gridstructure.jstr{j_ind};
 %             n_d_j=daz_gridstructure.n_d.(jstr(:));
+            N_a_j=daz_gridstructure.N_a.(jstr(:));
+            N_z_j=daz_gridstructure.N_z.(jstr(:));
             n_a_j=daz_gridstructure.n_a.(jstr(:));
             n_z_j=daz_gridstructure.n_z.(jstr(:));
             
@@ -137,7 +140,7 @@ for ii=1:simoptions.numbersims
             z_ind=sub2ind_homemade(n_z_j,z_sub);
 %             z_val=daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
             z_gridvals_j=daz_gridstructure.z_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
-            z_val=z_gridvals_j(a_ind,:);            
+            z_val=z_gridvals_j(z_ind,:);            
             
 %             PolicyIndexesKron_j=PolicyIndexesKron.(jstr(:));
 %             d_ind=PolicyIndexesKron_j(a_ind,z_ind);
@@ -150,7 +153,7 @@ for ii=1:simoptions.numbersims
 %                     d_val(kk1)=d_grid_j(d_sub(kk1)+sum(n_d_j(1:kk1-1)));
 %                 end
 %             end
-            az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
+            az_ind=sub2ind_homemade([N_a_j,N_z_j],[a_ind,z_ind]);
             dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
             d_val=dPolicy_gridvals_j(az_ind,:);
             

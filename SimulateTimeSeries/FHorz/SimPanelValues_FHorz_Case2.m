@@ -3,7 +3,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case2(InitialDist,Policy,FnsToEvalu
 % 'simperiods' beginning from randomly drawn InitialDist.
 % SimPanelValues is a 3-dimensional matrix with first dimension being the
 % number of 'variables' to be simulated, second dimension is FHorz, and
-% third dimension is the number-of-simulations
+% third dimension is the number-of-simulations.
 %
 % InitialDist can be inputed as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
@@ -70,7 +70,7 @@ end
 PolicyIndexesKron=KronPolicyIndexes_FHorz_Case2(Policy, n_d, n_a, n_z, N_j);%,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case2 (which will recognise that it is already in this form)
 
 if simoptions.dynasty==0
-    SimPanelIndexes=SimPanelIndexes_FHorz_Case2(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions);
+    SimPanelIndexes=SimPanelIndexes_FHorz_Case2(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames, simoptions);
 else % if simoptions.dynasty==1
     fprintf('ERROR: SimPanelValues with Dynasty is currently only implemented for age dependent grids (simoptions.agedependentgrids) \n')
     fprintf('ERROR: If you get this error and would have a use for these codes email me robertdkirkby@gmail.com and I will look at implementing them. \n')
@@ -142,48 +142,49 @@ SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan f
 for ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
     for t=1:simoptions.simperiods
-        a_sub=SimPanel_ii(1:l_a,t);
-        a_ind=sub2ind_homemade(n_a,a_sub);
-        a_val=a_gridvals(a_ind,:);
-         
-        z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
-        z_ind=sub2ind_homemade(n_z,z_sub);
-        z_val=z_gridvals(z_ind,:);
-        
         j_ind=SimPanel_ii(end,t);
-
-        % Make a three digit number out of j_ind
-        if j_ind<10
-            jstr=['j00',num2str(j_ind)];
-        elseif j_ind>=10 && j_ind<100
-            jstr=['j0',num2str(j_ind)];
-        else
-            jstr=['j',num2str(j_ind)];
-        end
-        
-        az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
-        dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
-        d_val=dPolicy_gridvals_j(az_ind,:);
-%         d_ind=PolicyIndexesKron(a_ind,z_ind,t);
-%         d_sub=ind2sub_homemade(n_d,d_ind);
-%         for kk1=1:l_d
-%             if kk1==1
-%                 d_val(kk1)=d_grid(d_sub(kk1));
-%             else
-%                 d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-%             end
-%         end
-        
-        for vv=1:length(FnsToEvaluate)
-            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                tempcell=num2cell([d_val,a_val,z_val]');
+        if isnan(j_ind)==0 % If the agent is still alive (j_ind=nan once agent dies)
+            
+            a_sub=SimPanel_ii(1:l_a,t);
+            a_ind=sub2ind_homemade(n_a,a_sub);
+            a_val=a_gridvals(a_ind,:);
+            
+            z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
+            z_ind=sub2ind_homemade(n_z,z_sub);
+            z_val=z_gridvals(z_ind,:);
+            
+            % Make a three digit number out of j_ind
+            if j_ind<10
+                jstr=['j00',num2str(j_ind)];
+            elseif j_ind>=10 && j_ind<100
+                jstr=['j0',num2str(j_ind)];
             else
-                ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                tempcell=num2cell([d_val,a_val,z_val,ValuesFnParamsVec]');
+                jstr=['j',num2str(j_ind)];
             end
-            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
+            
+            az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
+            dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
+            d_val=dPolicy_gridvals_j(az_ind,:);
+            %         d_ind=PolicyIndexesKron(a_ind,z_ind,t);
+            %         d_sub=ind2sub_homemade(n_d,d_ind);
+            %         for kk1=1:l_d
+            %             if kk1==1
+            %                 d_val(kk1)=d_grid(d_sub(kk1));
+            %             else
+            %                 d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+            %             end
+            %         end
+            
+            for vv=1:length(FnsToEvaluate)
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+                    tempcell=num2cell([d_val,a_val,z_val]');
+                else
+                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
+                    tempcell=num2cell([d_val,a_val,z_val,ValuesFnParamsVec]');
+                end
+                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
+            end
         end
-        
     end
     SimPanelValues(:,:,ii)=SimPanelValues_ii;
 end

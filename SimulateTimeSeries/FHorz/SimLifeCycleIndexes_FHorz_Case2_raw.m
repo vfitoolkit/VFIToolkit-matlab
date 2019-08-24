@@ -25,7 +25,7 @@ if fieldexists_ExogShockFn==0
         SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); %a_c
         SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); %z_c
         
-        [~,zprimestate]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
+        [~,zprimestate]=max(cumsumpi_z(currstate(2),:)>rand(1,1)); %max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
         if Case2_Type==1 % phi(d,a,z,z')
             disp('ERROR: StationaryDist_FHorz_Case2_Iteration_raw() not yet implemented for Case2_Type==1 (nor SimLifeCycleIndexes_FHorz_Case2_raw)')
             % Create P matrix
