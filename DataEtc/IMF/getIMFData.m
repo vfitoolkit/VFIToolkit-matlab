@@ -1,8 +1,9 @@
-function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end)
+function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end, counterpartycountrycode2L, sector_id, counterpartysector_id)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% database_id: currently supports 'BOP', 'IFS', 'DOT'
-% [IMF datasets Balance of Payments (BOP), International Fiscal Statistics (IFS), and Direction of Trade Statistics (DOT)]
+% database_id: currently supports 'BOP', 'IFS', 'DOT', 'CPIS'
+% [IMF datasets Balance of Payments (BOP), International Fiscal Statistics (IFS), 
+% Direction of Trade Statistics (DOT), and Coordinated Portfolio Investment Survey (CPIS).]
 %
 % If the only input is the database_id, then output will return a
 % dictionary of 'series_id' and their names. This can then be searched to
@@ -12,9 +13,23 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 % series_id: the code for the variable you want
 %
 % frequency: for example monthly M, quarterly Q, or annually A;
+%
+% If you do not input observation_start and observation_end you will be
+% given data for all available dates. Equivalently, set
+% observation_start=[], and similarly for observation_end=[].
+%
+% For BOP and IFS no further inputs are required. 
+%
+% Using CPIS you will need three further inputs:
+%   sector_id: see CPIS database for an explanation of Sectors
+%   counterpartycountrycode2L: same format as countrycode2L, is the counterpart country
+%   counterpartysector_id: same format as sector_id, is the counterpart sector
+%
 % 
 % I have deliberately made it so that the actual output is similar to that
 % from getFredData(). Especially that the dates and data are in output.Data
+%
+% Some examples of usage can be found on my website, or on my github.
 %
 % 2019
 % Robert Kirkby
@@ -77,24 +92,63 @@ if nargin==1 % Just return a dictionary for that database
         output.Variables{ii,1}=temp(ii).x_value;
         output.Variables{ii,2}=temp(ii).Description.x_text;
     end
-%     temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
-%     for ii=1:length(temp) % No idea why, but this just seems to be a second copy of Frequency.
-%         output.IMFcodes.Frequency2{ii,1}=temp(ii).x_value;
-%         output.IMFcodes.Frequency2{ii,2}=temp(ii).Description.x_text;
-%     end
+    % The above first four appear to always be the same, at least for BOP,
+    % IFS and CPIS. After the first four things are specific to the database being queried.
+    if strcmp(database_id,'IFS')
+        temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
+        for ii=1:length(temp)
+            output.TimeFormat{ii,1}=temp(ii).x_value;
+            output.TimeFormat{ii,2}=temp(ii).Description.x_text;
+        end
+    end
+    if strcmp(database_id,'CPIS')
+        temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
+        for ii=1:length(temp)
+            output.Sector{ii,1}=temp(ii).x_value;
+            output.Sector{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{6}.Code;
+        for ii=1:length(temp)
+            output.TimeFormat{ii,1}=temp(ii).x_value;
+            output.TimeFormat{ii,2}=temp(ii).Description.x_text;
+        end
+    end
+    if strcmp(database_id,'DOT')
+        temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
+        for ii=1:length(temp)
+            output.CouterpartCountry{ii,1}=temp(ii).x_value;
+            output.CouterpartCountry{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{6}.Code;
+        for ii=1:length(temp)
+            output.TimeFormat{ii,1}=temp(ii).x_value;
+            output.TimeFormat{ii,2}=temp(ii).Description.x_text;
+        end
+    end
     return
 end
 
 
 % Not just database_id, so an actual data 'series_id' has been requested
-
-optionstring=[frequency,'.',countrycode2L,'.',series_id];
+if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP')
+    optionstring=[frequency,'.',countrycode2L,'.',series_id];
+    if nargin==7
+        optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',timeformat];
+    end
+elseif strcmp(database_id,'CPIS')
+    optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',sector_id,'.',counterpartysector_id,'.',counterpartycountrycode2L];
+elseif strcmp(database_id,'DOT')
+    optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',counterpartycountrycode2L];
+end
 
 if nargin>4 % if specific start and end dates are given
     if ~isempty(observation_start)
         longoptionstring=[optionstring,'?startPeriod=',observation_start,'&endPeriod=',observation_end];
     end
+else
+    longoptionstring=optionstring;
 end
+
 
 % /CompactData/
 JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id,'/',longoptionstring]);
@@ -112,17 +166,27 @@ else % otherwise it is a structure
         output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs(ii).x_OBS_VALUE);
     end
 end
-output.IMFcodes.info='These codes are how IMF decribe the data series'; % To do this for more than just the BOP & IFS I really need to just do a read of the field names and then index through them
-output.IMFcodes.x_FREQ=JSONdata.CompactData.DataSet.Series.x_FREQ;
-output.IMFcodes.x_REF_AREA=JSONdata.CompactData.DataSet.Series.x_REF_AREA;
-output.IMFcodes.x_INDICATOR=JSONdata.CompactData.DataSet.Series.x_INDICATOR;
-output.IMFcodes.x_UNIT_MULT=JSONdata.CompactData.DataSet.Series.x_UNIT_MULT;
-output.IMFcodes.x_TIME_FORMAT=JSONdata.CompactData.DataSet.Series.x_TIME_FORMAT;
+output.IMFcodes.info='These codes are how IMF decribe the data series. (Contents of Obs are just another copy of the data)'; % To do this for more than just the BOP & IFS I really need to just do a read of the field names and then index through them
+FullInfoNames=fieldnames(JSONdata.CompactData.DataSet.Series);
+nFields=length(FullInfoNames);
+for ii=1:nFields
+    output.IMFcodes.(FullInfoNames{ii})=JSONdata.CompactData.DataSet.Series.(FullInfoNames{ii});
+end
+
+
 
 % %GenericMetadata/
 JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id,'/',longoptionstring]);
 output.country=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(2).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
 output.series_id=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
 output.description=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+if strcmp(database_id,'CPIS')
+    output.sector=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(4).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+    output.counterpartsector=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(5).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+    output.counterpartcountry=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(6).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+end
+if strcmp(database_id,'DOT')
+    output.counterpartcountry=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(4).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+end
 
 end
