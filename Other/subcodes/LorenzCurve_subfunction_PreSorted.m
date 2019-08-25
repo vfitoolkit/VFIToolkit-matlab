@@ -15,7 +15,11 @@ SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
 CumSumSortedWeightedValues_NoDuplicates=cumsum(SortedWeightedValues_NoDuplicates);
 InverseCDF_xgrid=gpuArray(1/npoints:1/npoints:1);
 
-InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
+if numel(CumSumSortedStationaryDistVec_NoDuplicates)==1 % Have to treat the case of Lorenz curve for perfect equality (so just one unique element) seperately as otherwise causes interp1 to error
+    InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1,'gpuArray'); %0:(1/npoints):1;
+else
+    InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
+end
 % interp1 cannot work for the point of InverseCDF_xgrid=1 (gives NaN). Since we have already sorted and removed duplicates this will just be the last
 % point so we can just grab it directly.
 InverseCDF_SSvalues(npoints)=CumSumSortedWeightedValues_NoDuplicates(end);
