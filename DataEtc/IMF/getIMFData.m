@@ -157,14 +157,26 @@ temp=JSONdata.CompactData.DataSet.Series.Obs;
 % for unknown reason 'temp' is sometimes a cell and sometimes a structure
 if iscell(temp)
     for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
-        output.Data(ii,1)=str2num(JSONdata.CompactData.DataSet.Series.Obs{ii}.x_TIME_PERIOD); % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
         output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs{ii}.x_OBS_VALUE);
+        tempstr=JSONdata.CompactData.DataSet.Series.Obs{ii}.x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
     end
 else % otherwise it is a structure
     for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
-        output.Data(ii,1)=str2num(JSONdata.CompactData.DataSet.Series.Obs(ii).x_TIME_PERIOD); % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
         output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs(ii).x_OBS_VALUE);
+        tempstr=JSONdata.CompactData.DataSet.Series.Obs(ii).x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
     end
+end
+tempstr
+if strcmp(frequency,'A')
+    output.Data(ii,1)=datenum(str2num(tempstr),1,1);
+elseif strcmp(frequency,'B')
+    output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+6*(str2num(tempstr(7))-1),1);
+elseif strcmp(frequency,'Q')
+    output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+3*(str2num(tempstr(7))-1),1);
+elseif strcmp(frequency,'M')
+    output.Data(ii,1)=datenum(str2num(tempstr(1:4)),str2num(tempstr(7)),1);
+else
+    fprinf('ERROR: I HAVE NOT CODED getIMFData FOR ANYTHING HIGHER THAN MONTHLY FREQUENCY, IF YOU NEED THIS THEN PLEASE JUST SEND ME AN EMAIL robertdkirkby@gmail.com AND I WILL IMPLEMENT IT')
 end
 output.IMFcodes.info='These codes are how IMF decribe the data series. (Contents of Obs are just another copy of the data)'; % To do this for more than just the BOP & IFS I really need to just do a read of the field names and then index through them
 FullInfoNames=fieldnames(JSONdata.CompactData.DataSet.Series);
