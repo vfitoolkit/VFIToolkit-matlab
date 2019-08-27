@@ -166,7 +166,6 @@ else % otherwise it is a structure
         tempstr=JSONdata.CompactData.DataSet.Series.Obs(ii).x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
     end
 end
-tempstr
 if strcmp(frequency,'A')
     output.Data(ii,1)=datenum(str2num(tempstr),1,1);
 elseif strcmp(frequency,'B')
