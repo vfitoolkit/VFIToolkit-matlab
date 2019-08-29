@@ -166,16 +166,18 @@ else % otherwise it is a structure
         tempstr=JSONdata.CompactData.DataSet.Series.Obs(ii).x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
     end
 end
-if strcmp(frequency,'A')
-    output.Data(ii,1)=datenum(str2num(tempstr),1,1);
-elseif strcmp(frequency,'B')
-    output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+6*(str2num(tempstr(7))-1),1);
-elseif strcmp(frequency,'Q')
-    output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+3*(str2num(tempstr(7))-1),1);
-elseif strcmp(frequency,'M')
-    output.Data(ii,1)=datenum(str2num(tempstr(1:4)),str2num(tempstr(7)),1);
-else
-    fprinf('ERROR: I HAVE NOT CODED getIMFData FOR ANYTHING HIGHER THAN MONTHLY FREQUENCY, IF YOU NEED THIS THEN PLEASE JUST SEND ME AN EMAIL robertdkirkby@gmail.com AND I WILL IMPLEMENT IT')
+for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
+    if strcmp(frequency,'A')
+        output.Data(ii,1)=datenum(str2num(tempstr),1,1);
+    elseif strcmp(frequency,'B')
+        output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+6*(str2num(tempstr(7))-1),1);
+    elseif strcmp(frequency,'Q')
+        output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+3*(str2num(tempstr(7))-1),1);
+    elseif strcmp(frequency,'M')
+        output.Data(ii,1)=datenum(str2num(tempstr(1:4)),str2num(tempstr(7)),1);
+    else
+        fprinf('ERROR: I HAVE NOT CODED getIMFData FOR ANYTHING HIGHER THAN MONTHLY FREQUENCY, IF YOU NEED THIS THEN PLEASE JUST SEND ME AN EMAIL robertdkirkby@gmail.com AND I WILL IMPLEMENT IT')
+    end
 end
 output.IMFcodes.info='These codes are how IMF decribe the data series. (Contents of Obs are just another copy of the data)'; % To do this for more than just the BOP & IFS I really need to just do a read of the field names and then index through them
 FullInfoNames=fieldnames(JSONdata.CompactData.DataSet.Series);
@@ -187,6 +189,11 @@ end
 
 
 % %GenericMetadata/
+% For some reason known only to IMF, it appears you can only request
+% metadata for the 'annual frequency' code. So next line just imposes this
+% on the metadata request (the frequency is not part of the metadata anyway).
+longoptionstring(1)='A';
+% Now request the metadata
 JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id,'/',longoptionstring]);
 output.country=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(2).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
 output.series_id=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
