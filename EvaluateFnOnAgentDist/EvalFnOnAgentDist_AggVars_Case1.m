@@ -1,7 +1,8 @@
 function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
-if Parallel==2
+if Parallel==2 || Parallel==4
+    Parallel=2;
     StationaryDist=gpuArray(StationaryDist);
     PolicyIndexes=gpuArray(PolicyIndexes);
     n_d=gpuArray(n_d);
