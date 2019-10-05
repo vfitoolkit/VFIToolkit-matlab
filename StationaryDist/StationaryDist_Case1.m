@@ -7,7 +7,7 @@ N_z=prod(n_z);
 if nargin<6
 %     simoptions.nagents=0;
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    simoptions.simperiods=10^4;
+    simoptions.simperiods=10^6;
     simoptions.burnin=10^3;
     simoptions.parallel=2;
     simoptions.verbose=0;
@@ -41,7 +41,7 @@ else
     end
     eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
     if fieldexists==0
-        simoptions.simperiods=10^4;
+        simoptions.simperiods=10^6;
     end
     eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
     if fieldexists==0

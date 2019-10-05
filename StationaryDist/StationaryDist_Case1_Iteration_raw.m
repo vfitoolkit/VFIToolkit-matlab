@@ -15,23 +15,37 @@ function StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKro
 %did not work well.
 
 if simoptions.parallel<2
-    %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-    P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
-    for a_c=1:N_a
-        for z_c=1:N_z
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime=PolicyIndexesKron(a_c,z_c);
-            else
-                optaprime=PolicyIndexesKron(2,a_c,z_c);
-            end
-            for zprime_c=1:N_z
-                P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
-            end
-        end
-    end
-    P=reshape(P,[N_a*N_z,N_a*N_z]);
-    Ptranspose=P';
+%     % The following commented out version was producing machine precision
+%     % level errors in Ptranspose that lead to machine precision level
+%     % errors in the individual points of the StationaryDist, but that
+%     % summed up accross the StationaryDist this errors were numerically
+%     % important and causing problems.
+%     %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+%     P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
+%     for a_c=1:N_a
+%         for z_c=1:N_z
+%             if N_d==0 %length(n_d)==1 && n_d(1)==0
+%                 optaprime=PolicyIndexesKron(a_c,z_c);
+%             else
+%                 optaprime=PolicyIndexesKron(2,a_c,z_c);
+%             end
+%             for zprime_c=1:N_z
+%                 P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
+%             end
+%         end
+%     end
+%     P=reshape(P,[N_a*N_z,N_a*N_z]);
+%     Ptranspose=P';
 
+    if N_d==0 %length(n_d)==1 && n_d(1)==0
+        optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
+    else
+        optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
+    end
+    Ptranspose=zeros(N_a,N_a*N_z);
+    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+    Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+    
 elseif simoptions.parallel==2 % Using the GPU
     % First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
 
@@ -45,27 +59,42 @@ elseif simoptions.parallel==2 % Using the GPU
     Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptranspose));
     
 if simoptions.parallel>2
-    %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-    Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]
+%     % The following commented out version was producing machine precision
+%     % level errors in Ptranspose that lead to machine precision level
+%     % errors in the individual points of the StationaryDist, but that
+%     % summed up accross the StationaryDist this errors were numerically
+%     % important and causing problems.
+%     tic;
+%     %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+%     Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]
+%     if N_d==0 %length(n_d)==1 && n_d(1)==0
+%         PolicyIndexesKron=reshape(PolicyIndexesKron(:,:),[N_a*N_z,1]);
+%     else
+%         PolicyIndexesKron=reshape(PolicyIndexesKron(2,:,:),[N_a*N_z,1]);
+%     end
+%     
+%     parfor az_c=1:N_a*N_z
+%         Ptranspose_az=sparse(N_a*N_z,1);
+%         optaprime=PolicyIndexesKron(az_c);
+%         az_sub=ind2sub_homemade([N_a,N_z],az_c);
+%         pi_z_temp=pi_z(az_sub(2),:);
+%         sum_pi_z_temp=sum(pi_z_temp); % COULD PRECOMPUTE THIS OUTSIDE THE PARFOR-LOOP (other than rounding error this will be 1, but just to be sure; I added this line as the rounding error turned out to matter for larger models)
+%         for zprime_c=1:N_z % THIS COULD BE DONE AS MATRIX OPERATION, would be faster than this for-loop.
+%             optaprimezprime=sub2ind_homemade([N_a,N_z],[optaprime,zprime_c]);
+%             Ptranspose_az(optaprimezprime)=pi_z_temp(zprime_c)/sum_pi_z_temp;
+%         end
+%         Ptranspose(:,az_c)=Ptranspose_az;
+%     end
+%     toc
+    
     if N_d==0 %length(n_d)==1 && n_d(1)==0
-        PolicyIndexesKron=reshape(PolicyIndexesKron(:,:),[N_a*N_z,1]);
+        optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
     else
-        PolicyIndexesKron=reshape(PolicyIndexesKron(2,:,:),[N_a*N_z,1]);
+        optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
     end
-    
-    parfor az_c=1:N_a*N_z
-        Ptranspose_az=sparse(N_a*N_z,1);
-        optaprime=PolicyIndexesKron(az_c);
-        az_sub=ind2sub_homemade([N_a,N_z],az_c);
-        pi_z_temp=pi_z(az_sub(2),:);
-        sum_pi_z_temp=sum(pi_z_temp); % COULD PRECOMPUTE THIS OUTSIDE THE PARFOR-LOOP (other than rounding error this will be 1, but just to be sure; I added this line as the rounding error turned out to matter for larger models)
-        for zprime_c=1:N_z % THIS COULD BE DONE AS MATRIX OPERATION, would be faster than this for-loop.
-            optaprimezprime=sub2ind_homemade([N_a,N_z],[optaprime,zprime_c]);
-            Ptranspose_az(optaprimezprime)=pi_z_temp(zprime_c)/sum_pi_z_temp;
-        end
-        Ptranspose(:,az_c)=Ptranspose_az;
-    end
-    
+    Ptranspose=sparse(N_a,N_a*N_z);
+    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+    Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
 end
 
 
@@ -83,9 +112,8 @@ while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
     for jj=1:100
         StationaryDistKron=Ptranspose*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
     end
-    
     SteadyStateDistKronOld=StationaryDistKron;
-    StationaryDistKron=Ptranspose*StationaryDistKron;
+    StationaryDistKron=Ptranspose*StationaryDistKron; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
     SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
     
     SScounter=SScounter+1;
