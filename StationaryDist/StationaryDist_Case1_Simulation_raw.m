@@ -2,7 +2,7 @@ function StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyIndexesKro
 %Simulates path based on PolicyIndexes of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)
-
+% 
 % Options needed
 %    simoptions.seedpoint
 %    simoptions.simperiods
@@ -10,52 +10,8 @@ function StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyIndexesKro
 %    simoptions.parallel
 %    simoptions.verbose
 %    simoptions.ncores
-
-% TRIED GENERATING P AND SIMULATING FROM THIS. TOO SLOW
-%N_a=prod(n_a);
-%N_z=prod(n_z);
-%num_a_vars=length(n_a);
 %
-% %First, generate the transition matrix P=phi of Q (in the notation of SLP)
-% P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
-% for a_c=1:N_a
-%     for z_c=1:N_z
-%         if N_d==0 %length(n_d)==1 && n_d(1)==0
-%                 optaprime=PolicyIndexesKron(a_c,z_c);
-%             else
-%                 optaprime=PolicyIndexesKron(2,a_c,z_c);
-%         end
-%         for zprime_c=1:N_z
-% %             if N_d==0 %length(n_d)==1 && n_d(1)==0
-% %                 optaprime=PolicyIndexesKron(1,a_c,z_c);
-% %             else
-% %                 optaprime=PolicyIndexesKron(2,a_c,z_c);
-% %             end
-%             P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
-%         end
-%     end
-% end
-% P=reshape(P,[N_a*N_z,N_a*N_z]);
-% %Now turn P into a cumulative distn
-% P=cumsum(P,2);
-%
-% SteadyStateDistKron=zeros(N_a*N_z,1);
-% currstate=ceil(rand(1,1)*N_a*N_z); %Pick a random start point on the (vectorized) (a,z) grid
-% for i=1:burnin
-%     [trash,currstate]=max(P(currstate,:)>rand(1,1));
-% end
-% for i=1:periods
-%     SteadyStateDistKron(currstate)=SteadyStateDistKron(currstate)+1;
-%     [trash,currstate]=max(P(currstate,:)>rand(1,1));
-% end
-% SteadyStateDistKron=SteadyStateDistKron./periods;
-
-
-% if N_d==0 %length(n_d)==1 && n_d(1)==0
-%     optaprime=1;
-% else
-%     optaprime=2;
-% end
+%%
 
 MoveSSDKtoGPU=0;
 if simoptions.parallel==2
@@ -73,7 +29,13 @@ if simoptions.parallel==2
     MoveSSDKtoGPU=1;
 end
 
-if simoptions.parallel==1
+if simoptions.parallel>=3
+    PolicyIndexesKron=gather(PolicyIndexesKron);
+    pi_z=gather(pi_z);
+    simoptions.parallel=1;
+end
+
+if simoptions.parallel==1 
     eachsimperiods=ceil(simoptions.simperiods/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
     StationaryDistKron=zeros(N_a*N_z,simoptions.ncores);
@@ -85,13 +47,13 @@ if simoptions.parallel==1
             currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
             for i=1:simoptions.burnin
                 currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
-                currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             end
             for i=1:eachsimperiods
                 SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)+1;
                 
                 currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
-                currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             end
             StationaryDistKron(:,seed_c)=SteadyStateDistKron_seed_c;
         end
@@ -104,13 +66,13 @@ if simoptions.parallel==1
             currstate=simoptions.seedpoint; %Pick a random start point on the (vectorized) (a,z) grid
             for i=1:simoptions.burnin
                 currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
-                currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             end
             for i=1:eachsimperiods
                 SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron_seed_c(currstate(1)+(currstate(2)-1)*N_a)+1;
                 
                 currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
-                currstate(2)=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
+                [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
             end
             StationaryDistKron(:,seed_c)=SteadyStateDistKron_seed_c;
         end
