@@ -1,6 +1,6 @@
 function  [GeneralEqmConditionsVec]=GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters, GeneralEqmEqnParamNames, Parallel)
 
-if nargin<6 || Parallel==2 % nargin<6 makes this the default when Parallel is not inputted
+if nargin<6 || Parallel==2 || Parallel==4 % nargin<6 makes this the default when Parallel is not inputted
     GeneralEqmConditionsVec=ones(1,length(GeneralEqmEqns),'gpuArray')*Inf;
     for i=1:length(GeneralEqmEqns)
         if isempty(GeneralEqmEqnParamNames(i).Names)  % check for 'GeneralEqmEqnParamNames(i).Names={}'

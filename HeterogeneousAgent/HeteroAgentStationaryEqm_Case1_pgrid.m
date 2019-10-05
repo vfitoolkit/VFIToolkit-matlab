@@ -1,8 +1,8 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_pgrid(V0Kron, n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
-N_s=prod(n_s);
+N_z=prod(n_z);
 N_p=prod(n_p);
 
 l_p=length(n_p);
@@ -11,7 +11,7 @@ p_grid=heteroagentoptions.pgrid;
 
 %% 
 
-if simoptions.parallel==2
+if simoptions.parallel==2 || simoptions.parallel==4
     GeneralEqmConditionsKron=ones(N_p,l_p,'gpuArray');
 else
     GeneralEqmConditionsKron=ones(N_p,l_p);
@@ -39,11 +39,12 @@ for p_c=1:N_p
     end
     
     %     ReturnFnParams(IndexesForPricesInReturnFnParams)=p;
-    [~,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_s,d_grid,a_grid,s_grid, pi_s, ReturnFn,Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
+    [~,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn,Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-    StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_s,pi_s,simoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_s, d_grid, a_grid, s_grid, simoptions.parallel);
+    StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions);
+    
+    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel);
     
     % The following line is often a useful double-check if something is going wrong.
 %    SSvalues_AggVars

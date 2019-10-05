@@ -31,6 +31,11 @@ if exist('simoptions','var')==0
     simoptions.fakeoption=0; % create a 'placeholder' simoptions that can be passed to subcodes
     %Note that the defaults will be set when we call 'StationaryDist...'
     %commands and the like, so no need to set them here except for a few.
+else
+    %Check simoptions for missing fields, if there are some fill them with the defaults
+    if isfield(simoptions,'parallel')==0
+        simoptions.parallel=2;
+    end
 end
 
 if exist('heteroagentoptions','var')==0
