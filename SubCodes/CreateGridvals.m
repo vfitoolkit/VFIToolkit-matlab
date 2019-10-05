@@ -29,7 +29,9 @@ if MatrixOrCell==1
         for ii=2:l_x-1 % This could be vectorized to improve speed.
             sub(ii)=rem(ceil(i1/n_x_cumprod(ii-1))-1,n_x(ii))+1;
         end
-        sub(l_x)=ceil(i1/n_x_cumprod(l_x-1));
+        if l_x>1
+            sub(l_x)=ceil(i1/n_x_cumprod(l_x-1));
+        end
         
         if l_x>1
             sub=sub+[0,cumsum(n_x(1:end-1))];
@@ -45,7 +47,9 @@ elseif MatrixOrCell==2
         for ii=2:l_x-1
             sub(ii)=rem(ceil(i1/n_x_cumprod(ii-1))-1,n_x(ii))+1;
         end
-        sub(l_x)=ceil(i1/n_x_cumprod(l_x-1));
+        if l_x>1
+            sub(l_x)=ceil(i1/n_x_cumprod(l_x-1));
+        end
         
         if l_x>1
             sub=sub+[0,cumsum(n_x(1:end-1))];
