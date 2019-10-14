@@ -1,4 +1,4 @@
-function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end, counterpartycountrycode2L, sector_id, counterpartysector_id)
+function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end, counterpartycountrycode2L, sector_id, counterpartysector_id, vintage_id)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % database_id: currently supports 'BOP', 'IFS', 'DOT', 'CPIS'
@@ -25,6 +25,10 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 %   counterpartycountrycode2L: same format as countrycode2L, is the counterpart country
 %   counterpartysector_id: same format as sector_id, is the counterpart sector
 %
+% To access vintage data you need to include a 'vintage_id'. This will be a
+% string that contains the year and, where relevant, either quarter or month for the vintage
+% you want, e.g., '2017', '2017Q1' or '2017M07'. Note, some databases are just
+% annual, some quarterly, and some monthly. 
 % 
 % I have deliberately made it so that the actual output is similar to that
 % from getFredData(). Especially that the dates and data are in output.Data
@@ -68,6 +72,10 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 % Use regular IMF website to find the name of the database, and then use above link to find the relevant database ID code.
 %
 %%%%%
+
+if exists('vintage_id', 'var')==1
+   database_id=[database_id,'_',vintage_id];
+end
 
 if nargin==1 % Just return a dictionary for that database
     % /DataStructure/
