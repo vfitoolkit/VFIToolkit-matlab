@@ -73,13 +73,13 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 %
 %%%%%
 
-if exists('vintage_id', 'var')==1
-   database_id=[database_id,'_',vintage_id];
+if exist('vintage_id', 'var')==1
+   database_id_full=[database_id,'_',vintage_id]
 end
 
 if nargin==1 % Just return a dictionary for that database
     % /DataStructure/
-    JSONdata2 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/',database_id]);
+    JSONdata2 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/',database_id_full]);
     temp=JSONdata2.Structure.CodeLists.CodeList{1}.Code;
     for ii=1:length(temp)
         output.Scale{ii,1}=temp(ii).x_value;
@@ -149,7 +149,7 @@ elseif strcmp(database_id,'DOT')
     optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',counterpartycountrycode2L];
 end
 
-if nargin>4 % if specific start and end dates are given
+if exist('observation_start','var')==1 && exist('observation_end','var')==1 % if specific start and end dates are given
     if ~isempty(observation_start)
         longoptionstring=[optionstring,'?startPeriod=',observation_start,'&endPeriod=',observation_end];
     end
@@ -159,7 +159,7 @@ end
 
 
 % /CompactData/
-JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id,'/',longoptionstring]);
+JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id_full,'/',longoptionstring]);
 output.Data=nan(length(JSONdata.CompactData.DataSet.Series.Obs),2);
 temp=JSONdata.CompactData.DataSet.Series.Obs;
 % for unknown reason 'temp' is sometimes a cell and sometimes a structure
@@ -202,7 +202,7 @@ end
 % on the metadata request (the frequency is not part of the metadata anyway).
 longoptionstring(1)='A';
 % Now request the metadata
-JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id,'/',longoptionstring]);
+JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id_full,'/',longoptionstring]);
 output.country=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(2).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
 output.series_id=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
 output.description=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
