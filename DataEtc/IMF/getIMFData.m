@@ -74,7 +74,21 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 %%%%%
 
 if exist('vintage_id', 'var')==1
-   database_id_full=[database_id,'_',vintage_id]
+   database_id_full=[database_id,'_',vintage_id];
+   % Awkwardly some datasets use 'M07' for July while others use 'M7', the
+   % following lines deal with this for the user who always just puts in
+   % 'M07'
+   try str2num(vintage_id(end-1)) % If the second last is a number
+      if str2num(vintage_id(end-1))==0 % And that number is a zero
+        try webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/',database_id_full])
+            % If it works, do nothing
+        catch % If it does not work, then remove the zero.
+            vintage_id=[vintage_id(1:end-2),vintage_id(end)];
+        end
+      end 
+   catch
+       % If it second last is not a number then there is nothing to worry about (hopefully!!!)
+   end       
 end
 
 if nargin==1 % Just return a dictionary for that database
