@@ -73,6 +73,7 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 %
 %%%%%
 
+database_id_full=database_id;
 if exist('vintage_id', 'var')==1
    database_id_full=[database_id,'_',vintage_id];
    % Awkwardly some datasets use 'M07' for July while others use 'M7', the
