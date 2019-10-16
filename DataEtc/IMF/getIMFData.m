@@ -175,38 +175,60 @@ end
 
 % /CompactData/
 JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id_full,'/',longoptionstring]);
-output.Data=nan(length(JSONdata.CompactData.DataSet.Series.Obs),2);
-temp=JSONdata.CompactData.DataSet.Series.Obs;
-% for unknown reason 'temp' is sometimes a cell and sometimes a structure
-if iscell(temp)
+if isfield(JSONdata.CompactData.DataSet,'Series')
+    output.Data=nan(length(JSONdata.CompactData.DataSet.Series.Obs),2);
+    temp=JSONdata.CompactData.DataSet.Series.Obs;
+    % for unknown reason 'temp' is sometimes a cell and sometimes a structure
+    if iscell(temp)
+        for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
+            if isfield(JSONdata.CompactData.DataSet.Series.Obs{ii},'x_OBS_VALUE')
+                output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs{ii}.x_OBS_VALUE);
+            else
+                % Just leave it as nan
+                fprintf('getIMFDATA Warning: One of the time periods you requested is missing data, have returned a nan value. \n');
+            end
+            tempstr=JSONdata.CompactData.DataSet.Series.Obs{ii}.x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
+        end
+    else % otherwise it is a structure
+        for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
+            if isfield(JSONdata.CompactData.DataSet.Series.Obs(ii),'x_OBS_VALUE')
+                output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs(ii).x_OBS_VALUE);
+            else
+                % Just leave it as nan
+                fprintf('getIMFDATA Warning: One of the time periods you requested is missing data, have returned a nan value. \n');
+            end
+            tempstr=JSONdata.CompactData.DataSet.Series.Obs(ii).x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
+        end
+    end
     for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
-        output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs{ii}.x_OBS_VALUE);
-        tempstr=JSONdata.CompactData.DataSet.Series.Obs{ii}.x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
+        if strcmp(frequency,'A')
+            output.Data(ii,1)=datenum(str2num(tempstr),1,1);
+        elseif strcmp(frequency,'B')
+            output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+6*(str2num(tempstr(7))-1),1);
+        elseif strcmp(frequency,'Q')
+            output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+3*(str2num(tempstr(7))-1),1);
+        elseif strcmp(frequency,'M')
+            output.Data(ii,1)=datenum(str2num(tempstr(1:4)),str2num(tempstr(7)),1);
+        else
+            fprinf('ERROR: I HAVE NOT CODED getIMFData FOR ANYTHING HIGHER THAN MONTHLY FREQUENCY, IF YOU NEED THIS THEN PLEASE JUST SEND ME AN EMAIL robertdkirkby@gmail.com AND I WILL IMPLEMENT IT')
+        end
     end
-else % otherwise it is a structure
-    for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
-        output.Data(ii,2)=str2num(JSONdata.CompactData.DataSet.Series.Obs(ii).x_OBS_VALUE);
-        tempstr=JSONdata.CompactData.DataSet.Series.Obs(ii).x_TIME_PERIOD; % I have deliberately chosen a format for the .Data that is like the output of getFREDdata()
+    output.IMFcodes.info='These codes are how IMF decribe the data series. (Contents of Obs are just another copy of the data)'; % To do this for more than just the BOP & IFS I really need to just do a read of the field names and then index through them
+    FullInfoNames=fieldnames(JSONdata.CompactData.DataSet.Series);
+    nFields=length(FullInfoNames);
+    for ii=1:nFields
+        output.IMFcodes.(FullInfoNames{ii})=JSONdata.CompactData.DataSet.Series.(FullInfoNames{ii});
     end
-end
-for ii=1:length(JSONdata.CompactData.DataSet.Series.Obs)
-    if strcmp(frequency,'A')
-        output.Data(ii,1)=datenum(str2num(tempstr),1,1);
-    elseif strcmp(frequency,'B')
-        output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+6*(str2num(tempstr(7))-1),1);
-    elseif strcmp(frequency,'Q')
-        output.Data(ii,1)=datenum(str2num(tempstr(1:4)),1+3*(str2num(tempstr(7))-1),1);
-    elseif strcmp(frequency,'M')
-        output.Data(ii,1)=datenum(str2num(tempstr(1:4)),str2num(tempstr(7)),1);
-    else
-        fprinf('ERROR: I HAVE NOT CODED getIMFData FOR ANYTHING HIGHER THAN MONTHLY FREQUENCY, IF YOU NEED THIS THEN PLEASE JUST SEND ME AN EMAIL robertdkirkby@gmail.com AND I WILL IMPLEMENT IT')
+else
+    fprintf('getIMFDATA Warning: You requested some missing data, have returned a nan value. \n')
+    if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP')
+        fprintf('    Missing: Database: %s , Series: %s , Country: %s \n', database_id_full, series_id, countrycode2L);
+    elseif strcmp(database_id,'CPIS')
+        fprintf('    Missing: Database: %s , Series: %s , Countries: %s and %s , Sectors: %s and %s \n', database_id_full, series_id, countrycode2L, counterpartycountrycode2L,sector_id,counterpartysector_id);
+    elseif strcmp(database_id,'DOT')
+        fprintf('    Missing: Database: %s , Series: %s , Countries: %s and %s \n', database_id_full, series_id, countrycode2L, counterpartycountrycode2L);
     end
-end
-output.IMFcodes.info='These codes are how IMF decribe the data series. (Contents of Obs are just another copy of the data)'; % To do this for more than just the BOP & IFS I really need to just do a read of the field names and then index through them
-FullInfoNames=fieldnames(JSONdata.CompactData.DataSet.Series);
-nFields=length(FullInfoNames);
-for ii=1:nFields
-    output.IMFcodes.(FullInfoNames{ii})=JSONdata.CompactData.DataSet.Series.(FullInfoNames{ii});
+    output.Data=nan(1,2);
 end
 
 
