@@ -1,5 +1,6 @@
-function [V, Policy]=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function varargout=ValueFnIter_Case1(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Solves infinite-horizon 'Case 1' value function problems.
+% Typically, varargoutput={V,Policy};
 
 V=nan; % Matlab was complaining that V was not assigned
 
@@ -16,6 +17,8 @@ if exist('vfoptions','var')==0
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
     vfoptions.exoticpreferences=0;
+    vfoptions.endogenousexit=0;
+    vfoptions.endofperiodexit=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
@@ -55,6 +58,12 @@ else
     if isfield(vfoptions,'exoticpreferences')==0
         vfoptions.exoticpreferences=0;
     end  
+    if isfield(vfoptions,'endogenousexit')==0
+        vfoptions.endogenousexit=0;
+    end  
+    if isfield(vfoptions,'endofperiodexit')==0
+        vfoptions.endofperiodexit=0;
+    end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
@@ -139,17 +148,20 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-if vfoptions.exoticpreferences==0
-    if length(DiscountFactorParamNames)~=1
-        disp('WARNING: There should only be a single Discount Factor (in DiscountFactorParamNames) when using standard VFI')
-        dbstack
-    end
-elseif vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
+if vfoptions.endogenousexit==1
+    % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
+    [V, Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy,ExitPolicy};
+    return
+end
+
+if vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
     %NOT YET IMPLEMENTED
 %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
 %    return
 elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
     [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+    varargout={V,Policy};
     return
 elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.
     % To implement this, can actually just replace the discount factor by 1, and adjust pi_z appropriately.
@@ -176,6 +188,7 @@ end
 if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
     % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
     [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy};
     return
 end
 
@@ -197,10 +210,12 @@ if vfoptions.lowmemory==0
     if vfoptions.verbose==1
         disp('Creating return fn matrix')
         tic;
+        if vfoptions.returnmatrix==0
+            fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
+        end
     end
     
     if vfoptions.returnmatrix==0
-        fprintf('NOTE: You are not using GPU parallelization. \n NOTE: Your codes will run slowly unless you use vfoptions.returnmatrix=1 \n NOTE: (rather than current vfoptions.returnmatrix=0). \n NOTE: See documentation on vfoptions.returnmatrix option for more.')
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
@@ -216,7 +231,7 @@ if vfoptions.lowmemory==0
     end
         
     %%
-    V0Kron=reshape(V0,[N_a,N_z]);
+    V0Kron=reshape(V0,[N_a,N_z]);    
     
     if n_d(1)==0
         if vfoptions.parallel==0     % On CPU
@@ -309,5 +324,7 @@ if vfoptions.policy_forceintegertype==1
     Policy=uint64(Policy);
     Policy=double(Policy);
 end
+
+varargout={V,Policy};
 
 end
