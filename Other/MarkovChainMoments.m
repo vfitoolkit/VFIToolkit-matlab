@@ -68,7 +68,7 @@ variance=secondmoment-mean^2;
 % THIS FUNCTION FROM HERE DOWN IS IN NEED OF A REWRITE TO WORK FASTER 
 % (is it possible to calculate correlation directly from transition matrix and stationary distribution rather than simulating?)
 % tic;
-if Parallel==2 || Parallel==2 % Use GPU (assumes z_grid & pi_z are gpu arrays)
+if Parallel==2 || Parallel==4 % Use GPU (assumes z_grid & pi_z are gpu arrays)
     %Simulate Markov chain with transition state pi_z
     A=gpuArray(ones(T,1)*floor(length(z_grid)/2)); %A contains the time series of states
     shocks_raw=rand(T,1);
