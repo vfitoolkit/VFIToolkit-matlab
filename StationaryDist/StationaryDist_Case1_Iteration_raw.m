@@ -58,7 +58,7 @@ elseif simoptions.parallel==2 % Using the GPU
     Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
     Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptranspose));
     
-if simoptions.parallel>2
+elseif simoptions.parallel>2
 %     % The following commented out version was producing machine precision
 %     % level errors in Ptranspose that lead to machine precision level
 %     % errors in the individual points of the StationaryDist, but that
