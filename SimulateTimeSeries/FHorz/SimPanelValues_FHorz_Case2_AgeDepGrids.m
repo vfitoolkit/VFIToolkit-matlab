@@ -60,44 +60,9 @@ for jj=1:N_j
     dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
     
     daz_gridstructure.d_grid.(jstr(:))=gather(daz_gridstructure.d_grid.(jstr(:)));
-    
-%     z_gridvals=-Inf*ones(N_z_j,l_z);
-%     for i1=1:N_z_j
-%         sub=zeros(1,l_z);
-%         sub(1)=rem(i1-1,n_z_j(1))+1;
-%         for ii=2:length(n_z_j)-1
-%             sub(ii)=rem(ceil(i1/prod(n_z_j(1:ii-1)))-1,n_z_j(ii))+1;
-%         end
-%         sub(l_z)=ceil(i1/prod(n_z_j(1:l_z-1)));
-%         
-%         if l_z>1
-%             sub=sub+[0,cumsum(n_z_j(1:end-1))];
-%         end
-%         z_gridvals(i1,:)=z_grid_j(sub);
-%     end
-%     daz_gridvals(jj).z_gridvals_j=z_gridvals;
-%     a_gridvals=-Inf*ones(N_a_j,l_a);
-%     for i2=1:N_a_j
-%         sub=zeros(1,l_a);
-%         sub(1)=rem(i2-1,n_a_j(1))+1;
-%         for ii=2:length(n_a_j)-1
-%             sub(ii)=rem(ceil(i2/prod(n_a_j(1:ii-1)))-1,n_a_j(ii))+1;
-%         end
-%         sub(l_a)=ceil(i2/prod(n_a_j(1:l_a-1)));
-%         
-%         if l_a>1
-%             sub=sub+[0,cumsum(n_a_j(1:end-1))];
-%         end
-%         a_gridvals(i2,:)=a_grid_j(sub);
-%     end
-%     daz_gridvals(jj).a_gridvals_j=a_gridvals;
 
 end
 
-% d_val=zeros(1,l_d);
-% aprime_val=zeros(1,l_a);
-% a_val=zeros(1,l_a);
-% z_val=zeros(1,l_z);
 
 %%
 SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
