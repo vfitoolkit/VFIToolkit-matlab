@@ -16,9 +16,8 @@ if exist('vfoptions','var')==0
     vfoptions.tolerance=10^(-9);
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
-    vfoptions.exoticpreferences=0;
     vfoptions.endogenousexit=0;
-    vfoptions.endofperiodexit=0;
+    vfoptions.exoticpreferences=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
@@ -55,15 +54,12 @@ else
     if isfield(vfoptions,'maxhowards')==0
         vfoptions.maxhowards=500;
     end  
+    if isfield(vfoptions,'endogenousexit')==0
+        vfoptions.endogenousexit=0;
+    end
     if isfield(vfoptions,'exoticpreferences')==0
         vfoptions.exoticpreferences=0;
     end  
-    if isfield(vfoptions,'endogenousexit')==0
-        vfoptions.endogenousexit=0;
-    end  
-    if isfield(vfoptions,'endofperiodexit')==0
-        vfoptions.endofperiodexit=0;
-    end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
