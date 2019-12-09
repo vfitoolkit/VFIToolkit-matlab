@@ -86,7 +86,10 @@ else
 %     
 %     PolicyIndexesKron=reshape(PolicyIndexes,[l_d+l_a,N_a,N_z]);
     
-    [d_gridvals, aprime_gridvals, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,1,2);
+%     [d_gridvals, aprime_gridvals, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,1,2);
+    [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
+    z_gridvals=CreateGridvals(n_z,z_grid,2);
     
     for i=1:length(FnsToEvaluate)
 %         Values=zeros(N_a,N_z);

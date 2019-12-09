@@ -37,7 +37,10 @@ catch % else % Use the CPU
         
     AggVars=zeros(length(FnsToEvaluate),1);
     
-    [d_gridvals, ~, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,2,2);
+%     [d_gridvals, ~, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,2,2);
+    [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
+    z_gridvals=CreateGridvals(n_z,z_grid,2);
 %     d_val=zeros(l_d,1);
     
 %     z_gridvals=cell(N_z,l_z);

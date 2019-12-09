@@ -44,7 +44,10 @@ else
 %     z_val=zeros(l_z,1);
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
     
-    [d_gridvals, ~, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,2,2);
+%     [d_gridvals, ~, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,2,2);
+    [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
+    z_gridvals=CreateGridvals(n_z,z_grid,2);
     
     for i=1:length(FnsToEvaluate)
 %         % Includes check for cases in which no parameters are actually required
