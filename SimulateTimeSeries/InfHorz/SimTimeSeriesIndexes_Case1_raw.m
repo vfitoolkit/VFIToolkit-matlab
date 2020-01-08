@@ -1,4 +1,4 @@
-function SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,burnin,seedpoint,simperiods,parallel)
+function SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsum_pi_z,burnin,seedpoint,simperiods,parallel)
 
 % burnin=simoptions.burnin;
 % seedpoint=simoptions.seedpoint;
@@ -17,14 +17,14 @@ if parallel==2
     % back. For anything but ridiculously short simulations it is more than
     % worth the overhead.
     PolicyIndexesKron=gather(PolicyIndexesKron);
-    pi_z=gather(pi_z);
+    cumsum_pi_z=gather(cumsum_pi_z);
     MoveSTSKtoGPU=1;
 end
 
 SimTimeSeriesKron=zeros(2,simperiods);
 
 currstate=seedpoint;
-cumsum_pi_z=cumsum(pi_z,2);
+% cumsum_pi_z=cumsum(pi_z,2);
 
 if N_d==0
 %     optaprime=1;

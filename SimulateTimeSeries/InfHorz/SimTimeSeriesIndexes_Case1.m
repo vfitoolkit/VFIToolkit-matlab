@@ -57,7 +57,8 @@ PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
 seedtemp=sub2ind_homemade([n_a,n_z],simoptions.seedpoint);
 seedpoint_sub=ind2sub_homemade([N_a,N_z],seedtemp);
 
-SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N_a,N_z,gather(pi_z), simoptions.burnin, seedpoint_sub, simoptions.simperiods,0);
+cumsum_pi_z=gather(cumsum(pi_z,2));
+SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N_a,N_z,cumsum_pi_z, simoptions.burnin, seedpoint_sub, simoptions.simperiods,0);
 % SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N_a,N_z,gather(pi_z), simoptions.burnin, simoptions.seedpoint, simoptions.simperiods,0);
 
 SimTimeSeries=zeros(l_a+l_z,simoptions.simperiods);
