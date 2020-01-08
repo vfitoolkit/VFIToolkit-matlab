@@ -1,4 +1,4 @@
-function [PricePathNew]=TransitionPath_Case1_FHorz_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions)
+function [PricePathOld]=TransitionPath_Case1_FHorz_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions)
 
 
 %%
@@ -38,26 +38,12 @@ end
     
 beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-IndexesForDiscountFactorInPathParams=CreateParamVectorIndexes(ParamPathNames,DiscountFactorParamNames);
+% IndexesForDiscountFactorInPathParams=CreateParamVectorIndexes(ParamPathNames,DiscountFactorParamNames);
 ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
 IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PricePathNames, ReturnFnParamNames);
+% IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PricePathNames, ReturnFnParamNames);
 IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
-IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,ReturnFnParamNames);
-% for ii=1:length(SSvaluesFn)
-%     SSvalueParamsVec=gpuArray(CreateVectorFromParams(Parameters, SSvalueParamNames));
-%     IndexesForPricePathInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, PricePathNames);
-%     IndexesForSSvalueParamsInPricePath=CreateParamVectorIndexes(PricePathNames,SSvalueParamNames);
-%     IndexesForPathParamsInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, ParamPathNames);
-%     IndexesForSSvalueParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,SSvalueParamNames);
-% end
-% for ii=1:length(length(MarketPriceEqns))
-%     MarketPriceParamsVec=gpuArray(CreateVectorFromParams(Parameters, MarketPriceParamNames));
-%     IndexesForPricePathInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, PricePathNames);
-%     IndexesForMarketPriceParamsInPricePath=CreateParamVectorIndexes(PricePathNames, MarketPriceParamNames);
-%     IndexesForPathParamsInMarketPriceParams=CreateParamVectorIndexes(MarketPriceParamNames, ParamPathNames);
-%     IndexesForMarketPriceParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,MarketPriceParamNames);
-% end
+% IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,ReturnFnParamNames);
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
@@ -70,13 +56,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     for i=1:T-1 %so t=T-i
         
         if ~isnan(IndexesForPathParamsInDiscountFactor)
-            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,IndexesForDiscountFactorInPathParams); % This step could be moved outside all the loops
+%             beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,IndexesForDiscountFactorInPathParams); % This step could be moved outside all the loops
+            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
         end
         if ~isnan(IndexesForPricePathInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-i,IndexesForReturnFnParamsInPricePath);
+%             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-i,IndexesForReturnFnParamsInPricePath);
+            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-i,:);
         end
         if ~isnan(IndexesForPathParamsInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+%             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
         
@@ -128,13 +117,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         for nn=1:length(PricePathNames)
             Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
         end
-        
-%         if ~isnan(IndexesForPricePathInSSvalueParams)
-%             SSvalueParamsVec(IndexesForPricePathInSSvalueParams)=PricePathOld(i,IndexesForSSvalueParamsInPricePath);
-%         end
-%         if ~isnan(IndexesForPathParamsInSSvalueParams)
-%             SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(i,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-%         end
         
         PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
 %         SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
