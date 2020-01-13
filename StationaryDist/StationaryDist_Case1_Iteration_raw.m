@@ -86,6 +86,7 @@ elseif simoptions.parallel>2
 %         Ptranspose(:,az_c)=Ptranspose_az;
 %     end
 %     toc
+    pi_z=sparse(gather(pi_z));
     
     if N_d==0 %length(n_d)==1 && n_d(1)==0
         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
@@ -94,6 +95,8 @@ elseif simoptions.parallel>2
     end
     Ptranspose=sparse(N_a,N_a*N_z);
     Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+    
+%     whos PolicyIndexesKron optaprime Ptranspose pi_z
     Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
 end
 
