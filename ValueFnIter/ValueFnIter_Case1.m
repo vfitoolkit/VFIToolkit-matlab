@@ -178,7 +178,7 @@ elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on t
     % Set the 'fake discount factor to one.
     DiscountFactorParamsVec=1;
     % Set pi_z to include the state-dependent discount factors
-    pi_z=pi_z.*DiscountFactorParamsMatrix;
+    pi_z=pi_z.*DiscountFactorParamsMatrix;    
 end
 
 if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
@@ -193,7 +193,11 @@ end
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 if vfoptions.exoticpreferences~=3
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+    if vfoptions.exoticpreferences==0
+        DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+    end
 end
+
 
 %%
 if vfoptions.lowmemory==0

@@ -10,7 +10,6 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if nargin<6
-%     simoptions.nagents=0;
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^6;
     simoptions.burnin=10^3;
@@ -25,44 +24,32 @@ if nargin<6
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.iterate=1;
     simoptions.agententryandexit=0;
+    % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
     simoptions.tolerance=10^(-9);
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-%     eval('fieldexists=1;simoptions.nagents;','fieldexists=0;')
-%     if fieldexists==0
-%         simoptions.nagents=0;
-%     end
-    eval('fieldexists=1;simoptions.maxit;','fieldexists=0;')
-    if fieldexists==0
+    %Check simoptions for missing fields, if there are some fill them with the defaults
+    if isfield(simoptions, 'maxit')==0
         simoptions.maxit=5*10^4;
     end
-    eval('fieldexists=1;simoptions.tolerance;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'tolerance')==0
         simoptions.tolerance=10^(-9);
     end
-    eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'seedpoint')==0
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     end
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'simperiods')==0
         simoptions.simperiods=10^6;
     end
-    eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'burnin')==0
         simoptions.burnin=10^3;
     end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'parallel')==0
         simoptions.parallel=2;
     end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'verbose')==0
         simoptions.verbose=0;
     end
-    eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'ncores')==0
         try
             PoolDetails=gcp;
             simoptions.ncores=PoolDetails.NumWorkers;
@@ -70,12 +57,16 @@ else
             simoptions.ncores=1;
         end
     end
-    eval('fieldexists=1;simoptions.agententryandexit;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'agententryandexit')==0
         simoptions.agententryandexit=0;
+    else
+        if simoptions.agententryandexit==1
+            if isfield(simoptions, 'endogenousexit')==0
+                simoptions.endogenousexit=0;
+            end
+        end
     end
-    eval('fieldexists=1;simoptions.iterate;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'iterate')==0
         simoptions.iterate=1;
     end
 end
@@ -90,15 +81,16 @@ end
 if simoptions.agententryandexit==1 % If there is entry and exit use the command for that, otherwise just continue as usual.
     % It is assumed that the 'entry' distribution is suitable initial guess
     % for stationary distribution (rather than usual approach of simulating a few agents)
+    if isfield(EntryExitParamNames,'CondlEntryDecisions')==1
+        % Temporarily modify the 'DistOfNewAgents' value in Parameters to be that conditional on entry decisions.
+        Parameters.(EntryExitParamNames.DistOfNewAgents{1})=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a*N_z,1]);
+        % Can then just do the rest of the computing the agents distribution exactly as normal.
+    end
+    
     StationaryDistKron.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     StationaryDistKron.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
     [StationaryDist]=StationaryDist_Case1_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
-%     varargout={StationaryDist,MassOfExistingAgents};% %     StationaryDistKron=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
-% %     Parameters.(EntryExitParamNames.MassOfExistingAgents{1})=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
-% %     [StationaryDistKron,MassOfExistingAgents]=StationaryDist_Case1_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
-% %     StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
-% %     varargout={StationaryDist,MassOfExistingAgents};
     return
 end
 

@@ -12,7 +12,7 @@ N_p=prod(n_p);
 
 l_p=length(n_p);
 
-p_eqm=nan; p_eqm_index=nan; GeneralEqmCondition=nan;
+p_eqm=struct(); p_eqm_index=nan; GeneralEqmCondition=nan;
 
 %% Check which options have been used, set all others to defaults 
 if exist('vfoptions','var')==0
@@ -31,10 +31,18 @@ if exist('simoptions','var')==0
     simoptions.fakeoption=0; % create a 'placeholder' simoptions that can be passed to subcodes
     %Note that the defaults will be set when we call 'StationaryDist...'
     %commands and the like, so no need to set them here except for a few.
+    simoptions.agententryandexit=1;
+    simoptions.endogenousexit=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if isfield(simoptions,'parallel')==0
         simoptions.parallel=2;
+    end
+    if isfield(simoptions,'agententryandexit')==0
+        simoptions.agententryandexit=1;
+    end
+    if isfield(simoptions,'endogenousexit')==0
+        simoptions.endogenousexit=0;
     end
 end
 
@@ -87,14 +95,42 @@ end
 
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multiGEcriterion=0;
-    [p_eqm,GeneralEqmCondition]=fzero(GeneralEqmConditionsFn,p0);    
+    [p_eqm_vec,GeneralEqmCondition]=fzero(GeneralEqmConditionsFn,p0);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm,GeneralEqmCondition]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmCondition]=fminsearch(GeneralEqmConditionsFn,p0);
 else
-    [p_eqm,GeneralEqmCondition]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmCondition]=fminsearch(GeneralEqmConditionsFn,p0);
 end
 
-p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
+for ii=1:length(GEPriceParamNames)
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
+end
+
+% Check for use of conditional entry condition.
+specialgeneqmcondnsused=0;
+condlentrycondnexists=0;
+if isfield(heteroagentoptions,'specialgeneqmcondn')
+    for ii=1:length(GeneralEqmEqns)
+        if isnumeric(heteroagentoptions.specialgeneqmcondn{ii}) % numeric means equal to zero and is a standard GEqm
+            % nothing
+        elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'entry')
+            specialgeneqmcondnsused=1;
+        elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
+            specialgeneqmcondnsused=1;
+            condlentrycondnexists=1;
+        end
+    end
+end
+if specialgeneqmcondnsused==1
+    if condlentrycondnexists==1
+        % Need to compute this (is calculated inside subfn, but then lost (not kept)
+        % To keep things clean and tidy I am using a function call to do
+        % this, it is essentially a copy-paste of the _subfn command.
+        p_eqm.(EntryExitParamNames.CondlEntryDecisions{1})=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p_eqm_vec, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+    end
+end
+% p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless.
+% Is already initalised as p_eqm_index=nan; so just leave it as is.
 
 
 

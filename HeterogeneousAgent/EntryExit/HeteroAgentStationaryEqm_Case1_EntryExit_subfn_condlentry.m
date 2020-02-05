@@ -1,4 +1,9 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_EntryExit_subfn(p, V0Kron, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+function CondlEntryDecision=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p, V0Kron, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+% Is just a copy-pase of HeteroAgentStationaryEqm_Case1_EntryExit_subfn(),
+% which just outputs
+% Parameters.(EntryExitParamNames.CondlEntryDecisions{1}) instead of usual
+% output of p_eqm. Have commented out a bunch of lines of code that are not
+% required as a result.
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -74,8 +79,8 @@ if standardgeneqmcondnsused==1
     GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 end
 % Now fill in the 'non-standard' cases
-if specialgeneqmcondnsused==1
-    if condlentrycondnexists==1
+% if specialgeneqmcondnsused==1
+%     if condlentrycondnexists==1
         % Evaluate the conditional equilibrium condition on the (potential entrants) grid,
         % and where it is >=0 use this to set new values for the
         % EntryExitParamNames.CondlEntryDecisions parameter.
@@ -85,47 +90,49 @@ if specialgeneqmcondnsused==1
             CondlEntryCondnEqnParamsCell(jj,1)={CondlEntryCondnEqnParamsVec(jj)};
         end
         
-        Parameters.(EntryExitParamNames.CondlEntryDecisions{1})=(CondlEntryCondnEqn{1}(V,p,CondlEntryCondnEqnParamsCell{:}) >=0);
-        GeneralEqmConditionsVec(condlentrygeneqmcondnindex)=0; % Because the EntryExitParamNames.CondlEntryDecisions is set to hold exactly we can consider this as contributing 0
-        if entrycondnexists==1
-            % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
-            EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
-            % @(EValueFn,ce)
-            % And use entrants distribution, not the stationary distn
-            GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
-        end
-    else
-        if entrycondnexists==1
-            % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
-            EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
-            % @(EValueFn,ce)
-            % And use entrants distribution, not the stationary distn
-            GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
-        end
-    end
-%     if entrycondnexists==1
-%         % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
-%         EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
-%         % @(EValueFn,ce)
-%         % And use entrants distribution, not the stationary distn
-%         GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+%         Parameters.(EntryExitParamNames.CondlEntryDecisions{1})=(CondlEntryCondnEqn{1}(V,p,CondlEntryCondnEqnParamsCell{:}) >=0);
+        CondlEntryDecision=(CondlEntryCondnEqn{1}(V,p,CondlEntryCondnEqnParamsCell{:}) >=0);
+
+%         GeneralEqmConditionsVec(condlentrygeneqmcondnindex)=0; % Because the EntryExitParamNames.CondlEntryDecisions is set to hold exactly we can consider this as contributing 0
+%         if entrycondnexists==1
+%             % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
+%             EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
+%             % @(EValueFn,ce)
+%             % And use entrants distribution, not the stationary distn
+%             GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+%         end
+%     else
+%         if entrycondnexists==1
+%             % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
+%             EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
+%             % @(EValueFn,ce)
+%             % And use entrants distribution, not the stationary distn
+%             GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+%         end
 %     end
-end
+% %     if entrycondnexists==1
+% %         % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
+% %         EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
+% %         % @(EValueFn,ce)
+% %         % And use entrants distribution, not the stationary distn
+% %         GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+% %     end
+% end
 
-if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
-    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
-elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sqrt(sum(GeneralEqmConditionsVec.^2));                                                                                                         
-end
-
-GeneralEqmConditions=gather(GeneralEqmConditions);
-
-if heteroagentoptions.verbose==1
-    fprintf('Current Aggregates: \n')
-    AggVars
-    fprintf('Current GE prices and GeneralEqmConditionsVec: \n')
-    p
-    GeneralEqmConditionsVec
-end
+% if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
+%     GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
+% elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
+%     GeneralEqmConditions=sqrt(sum(GeneralEqmConditionsVec.^2));                                                                                                         
+% end
+% 
+% GeneralEqmConditions=gather(GeneralEqmConditions);
+% 
+% if heteroagentoptions.verbose==1
+%     fprintf('Current Aggregates: \n')
+%     AggVars
+%     fprintf('Current GE prices and GeneralEqmConditionsVec: \n')
+%     p
+%     GeneralEqmConditionsVec
+% end
 
 end
