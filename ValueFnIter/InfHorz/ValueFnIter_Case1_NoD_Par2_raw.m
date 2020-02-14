@@ -28,7 +28,7 @@ while currdist>Tolerance
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
                 
-        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by 1
+        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

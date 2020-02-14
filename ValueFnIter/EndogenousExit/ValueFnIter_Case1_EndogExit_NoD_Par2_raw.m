@@ -12,7 +12,6 @@ bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
 
-
 %%
 tempcounter=1;
 currdist=Inf;
@@ -21,20 +20,20 @@ while currdist>Tolerance
     
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-        ReturnToExitMatrix_z=ReturnToExitMatrix(:,:,z_c);
+        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
                 
-        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by 1
+        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         % Exit decision
-        ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp)>0); % Assumes that when indifferent you do not exit.
-        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp;
+        ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp')>0); % Assumes that when indifferent you do not exit.
+        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp';
         PolicyIndexes(:,z_c)=maxindex; % Note that this includes the policy that would be chosen if you did 
                 % not exit, even when choose exit. This is because it makes it much easier to then implement 
                 % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this 

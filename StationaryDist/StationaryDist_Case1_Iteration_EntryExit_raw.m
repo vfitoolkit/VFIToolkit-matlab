@@ -27,12 +27,12 @@ MassOfNewAgents=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
 %     CondlProbOfSurvival=arrayfun(simoptions.CondlProbOfSurvival, Values);
 %     CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
 % Check whether CondlProbOfSurvival is a matrix, or scalar, and act accordingly.
-if isscalar(CondlProbOfSurvival)
+if isscalar(gather(CondlProbOfSurvival))
     % No need to do anything
-elseif isa(CondlProbOfSurvival,'numeric')
+elseif isa(gather(CondlProbOfSurvival),'numeric')
     CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
 else % Does not appear to have been inputted correctly
-    fprintf('ERROR: CondlProbOfSurvival parameter does not appear to have been inputted with correct format')
+    fprintf('ERROR: CondlProbOfSurvival parameter does not appear to have been inputted with correct format \n')
     dbstack
     return
 end

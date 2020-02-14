@@ -40,11 +40,16 @@ if Parallel==2 || Parallel==4
     % stationary dist to eliminate the 'decisions' there.
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
+            if n_d(1)==0
+                l_d=0;
+            else
+                l_d=length(n_d);
+            end
             % Add one to PolicyIndexes
             PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
             % And make the corresponding StationaryDistpdfVec entries zero,
             % so the values are anyway ignored.
-            ExitPolicy=1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]);
+            ExitPolicy=logical(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
             StationaryDistpdfVec(ExitPolicy)=0;
         end
     end

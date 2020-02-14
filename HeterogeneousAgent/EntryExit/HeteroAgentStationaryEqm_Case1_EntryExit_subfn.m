@@ -51,7 +51,7 @@ end
 if simoptions.endogenousexit==1
     [V,Policy,ExitPolicy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % With entry-exit will need to keep the value function to be able to evaluate entry condition.
-    Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=1-ExitPolicy;
+    Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=1-gather(ExitPolicy);
 else
     [V,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % With entry-exit will need to keep the value function to be able to evaluate entry condition.
@@ -71,7 +71,7 @@ AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluat
 % GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 if standardgeneqmcondnsused==1
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+    GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
 end
 % Now fill in the 'non-standard' cases
 if specialgeneqmcondnsused==1
@@ -92,7 +92,7 @@ if specialgeneqmcondnsused==1
             EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
             % @(EValueFn,ce)
             % And use entrants distribution, not the stationary distn
-            GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+            GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel)));
         end
     else
         if entrycondnexists==1
@@ -100,7 +100,7 @@ if specialgeneqmcondnsused==1
             EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
             % @(EValueFn,ce)
             % And use entrants distribution, not the stationary distn
-            GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
+            GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel)));
         end
     end
 %     if entrycondnexists==1

@@ -24,6 +24,7 @@ while currdist>Tolerance
     parfor z_c=1:N_z
         pi_z_z=pi_z(z_c,:);
         VKron_z=zeros(N_a,1);
+        Ftemp_z=zeros(N_a,1);
         PolicyIndexes_z=zeros(N_a,1);
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c)

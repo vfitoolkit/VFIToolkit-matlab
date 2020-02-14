@@ -39,6 +39,8 @@ else
             EntryCondnEqn=GeneralEqmEqns(ii);
             EntryCondnEqnParamNames(1).Names=GeneralEqmEqnParamNames_Full(ii).Names;
         elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
+            fprintf('ERROR: Cannot use heteroagents.pgrid together with heteroagentoptions.specialgeneqmcondn of condlentry \n (code runs, but no reason it should give correct answer as conditional entry condition is not updated) \n')
+            break
             specialgeneqmcondnsused=1;
             condlentrycondnexists=1;
             condlentrygeneqmcondnindex=ii;
