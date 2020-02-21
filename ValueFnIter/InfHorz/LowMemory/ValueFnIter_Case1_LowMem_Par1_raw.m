@@ -68,7 +68,7 @@ while currdist>Tolerance
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             VKrontemp=VKron;
-            for z_c=1:N_z
+            for z_c=1:N_z % WHY NOT USE parfor HERE?
                 EVKrontemp_z=VKrontemp(PolicyIndexes2(:,z_c),:).*kron(pi_z(z_c,:),ones(N_a,1)); %kron(pi_z(z_c,:),ones(nquad,1))
                 EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
                 VKron(:,z_c)=Ftemp_UsedForHowards(:,z_c)+beta*sum(EVKrontemp_z,2);
