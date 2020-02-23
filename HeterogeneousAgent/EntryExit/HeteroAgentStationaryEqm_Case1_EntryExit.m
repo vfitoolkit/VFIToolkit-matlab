@@ -79,7 +79,11 @@ V0Kron=V0;
 
 %% If solving on p_grid
 if N_p~=0
+    fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')
+    fprintf('         It remains possible to use p_grid with Entry/Exit solely because it can be useful for exploratory purposes. It should not be used for solving models. \n')
     [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+    fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')
+    fprintf('         It remains possible to use p_grid with Entry/Exit solely because it can be useful for exploratory purposes. It should not be used for solving models. \n')
     return
 end
 
