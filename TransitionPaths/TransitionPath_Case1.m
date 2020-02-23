@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions)
+function PricePathOld=TransitionPath_Case1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -22,6 +22,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
     transpathoptions.GEnewprice=0;
+    transpathoptions.weightsforpath=ones(size(PricePathOld)); % Won't actually be used under the defaults, but am still setting it.
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
@@ -54,9 +55,21 @@ else
     if isfield(transpathoptions,'GEnewprice')==0
         transpathoptions.GEnewprice=0;
     end
+    if isfield(transpathoptions,'weightsforpath')==0
+        transpathoptions.weightsforpath=ones(ones(T,length(GeneralEqmEqns)));
+    end
 end
 
 %%
+
+% If there is entry and exit, then send to relevant command
+if isfield(transpathoptions,'agententryandexit')==1
+    if transpathoptions.agententryandexit==1
+        PricePathOld=TransitionPath_Case1_EntryExit(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
+        return
+    end
+end
+
 if transpathoptions.exoticpreferences~=0
     disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
     dbstack
@@ -127,6 +140,7 @@ IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames,
 IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+    
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -210,7 +224,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
         PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
-        SSvalues_AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
+%         AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
         
         %An easy way to get the new prices is just to call MarketClearance
         %and then adjust it for the current prices
@@ -219,7 +234,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
         if transpathoptions.GEnewprice==1
-            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
             return
