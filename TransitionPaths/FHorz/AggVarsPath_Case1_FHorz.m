@@ -1,6 +1,6 @@
-function AggVarsPath=AggVarsPath_Case1_FHorz(SSvaluesFn, SSvalueParamNames,PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
+function AggVarsPath=AggVarsPath_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames,PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
 %AggVarsPath is T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
-AggVarsPath=nan(T-1,length(SSvaluesFn),'gpuArray');
+AggVarsPath=nan(T-1,length(FnsToEvaluate),'gpuArray');
 
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
@@ -238,9 +238,9 @@ for i=1:T-1
     end
     
     PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
-    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(StationaryDist, PolicyUnKron, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
     
-    AggVarsPath(i,:)=SSvalues_AggVars;
+    AggVarsPath(i,:)=AggVars;
     
     StationaryDist=StationaryDist_FHorz_Case1_TPath_SingleStep(StationaryDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
 end

@@ -1,4 +1,4 @@
-function AggVarsPath=AggVarsPath_Case1_FHorz_no_d(SSvaluesFn, SSvalueParamNames,PricePath,PriceParamNames, ParamPath, PathParamNames, Parameters, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, T, V_final, AgentDist_initial, ReturnFn, ReturnFnParamNames,SSvalues_AggVars_final)
+function AggVarsPath=AggVarsPath_Case1_FHorz_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PriceParamNames, ParamPath, PathParamNames, Parameters, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, T, V_final, AgentDist_initial, ReturnFn, ReturnFnParamNames,SSvalues_AggVars_final)
 %AggVarsPath is T periods long (period 0 would be before the reforms are announced). Period 1 is thus once the whole reforms 
 % path (prices and params) is know, but with the agents distribution still being it's inital value. T is imposed as the final values.
 
@@ -20,11 +20,11 @@ IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames,
 IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PriceParamNames, ReturnFnParamNames);
 IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PathParamNames);
 IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(PathParamNames,ReturnFnParamNames);
-SSvalueParamsVec=gpuArray(CreateVectorFromParams(Parameters, SSvalueParamNames));
-IndexesForPricePathInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, PriceParamNames);
-IndexesForSSvalueParamsInPricePath=CreateParamVectorIndexes(PriceParamNames,SSvalueParamNames);
-IndexesForPathParamsInSSvalueParams=CreateParamVectorIndexes(SSvalueParamNames, PathParamNames);
-IndexesForSSvalueParamsInPathParams=CreateParamVectorIndexes(PathParamNames,SSvalueParamNames);
+SSvalueParamsVec=gpuArray(CreateVectorFromParams(Parameters, FnsToEvaluateParamNames));
+IndexesForPricePathInSSvalueParams=CreateParamVectorIndexes(FnsToEvaluateParamNames, PriceParamNames);
+IndexesForSSvalueParamsInPricePath=CreateParamVectorIndexes(PriceParamNames,FnsToEvaluateParamNames);
+IndexesForPathParamsInSSvalueParams=CreateParamVectorIndexes(FnsToEvaluateParamNames, PathParamNames);
+IndexesForSSvalueParamsInPathParams=CreateParamVectorIndexes(PathParamNames,FnsToEvaluateParamNames);
 
 PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -70,7 +70,7 @@ end
 %Now we have the full PolicyIndexesPath, we go forward in time from 1
 %to T using the policies to generate the AggVarsPath. First though we
 %put in it's initial and final values.
-AggVarsPath=zeros(T,length(SSvaluesFn),'gpuArray');
+AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
 AggVarsPath(T,:)=SSvalues_AggVars_final;
 %Call AgentDist the current periods distn and SteadyStateDistnext
 %the next periods distn which we must calculate
@@ -98,9 +98,9 @@ for ii=1:T-1
         SSvalueParamsVec(IndexesForPathParamsInSSvalueParams)=ParamPath(ii,IndexesForSSvalueParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
     end
     PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-    SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
+    AggVars=EvaluateFnOnAgentDist_AggVars_Case1_vec(AgentDist, PolicyTemp, FnsToEvaluate, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
     
-    AggVarsPath(ii,:)=SSvalues_AggVars;
+    AggVarsPath(ii,:)=AggVars;
     
     AgentDist=AgentDistnext;
 end
