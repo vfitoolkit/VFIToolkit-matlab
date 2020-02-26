@@ -1,4 +1,4 @@
-function AggVarsPath=AggVarsPath_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames,PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
+function AggVarsPath=EvalFnOnTransPath_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames,PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
 %AggVarsPath is T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
 AggVarsPath=nan(T-1,length(FnsToEvaluate),'gpuArray');
 
