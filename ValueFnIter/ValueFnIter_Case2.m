@@ -123,7 +123,7 @@ if vfoptions.lowmemory==0
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
     if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec, vfoptions.parallel);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
     elseif vfoptions.returnmatrix==2 % GPU
