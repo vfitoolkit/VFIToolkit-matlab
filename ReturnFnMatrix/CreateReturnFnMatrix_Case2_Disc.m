@@ -26,7 +26,8 @@ elseif Parallel==1
         Fmatrix_z=zeros(N_d,N_a);
         for i1=1:N_d
             for i2=1:N_a
-                Fmatrix_z(i1,i2)=ReturnFn(d_gridvals(i1,:),a_gridvals(i2,:),z_gridvals_temp,ReturnFnParamsVec);
+                temp=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),z_gridvals_temp,ReturnFnParamsVec]);
+                Fmatrix_z(i1,i2)=ReturnFn(temp{:});
             end
         end
         Fmatrix(:,:,i3)=Fmatrix_z;
