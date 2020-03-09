@@ -37,57 +37,10 @@ catch % else % Use the CPU
         
     AggVars=zeros(length(FnsToEvaluate),1);
     
-%     [d_gridvals, ~, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,2,2);
     [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
-%     d_val=zeros(l_d,1);
-    
-%     z_gridvals=cell(N_z,l_z);
-%     for i1=1:N_z
-%         sub=zeros(1,l_z);
-%         sub(1)=rem(i1-1,n_z(1))+1;
-%         for ii=2:l_z-1
-%             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-%         end
-%         sub(l_z)=ceil(i1/prod(n_z(1:l_z-1)));
-%         
-%         if l_z>1
-%             sub=sub+[0,cumsum(n_z(1:end-1))];
-%         end
-%         z_gridvals(i1,:)=num2cell(z_grid(sub));
-%     end
-%     a_gridvals=cell(N_a,l_a);
-%     for i2=1:N_a
-%         sub=zeros(1,l_a);
-%         sub(1)=rem(i2-1,n_a(1))+1;
-%         for ii=2:l_a-1
-%             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-%         end
-%         sub(l_a)=ceil(i2/prod(n_a(1:l_a-1)));
-%         
-%         if l_a>1
-%             sub=sub+[0,cumsum(n_a(1:end-1))];
-%         end
-%         a_gridvals(i2,:)=num2cell(a_grid(sub));
-%     end
-%     
-%     PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
-%     d_gridvals=cell(N_a*N_z,l_d);
-%     for ii=1:N_a*N_z
-% %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-%         j1=rem(ii-1,N_a)+1;
-%         j2=ceil(ii/N_a);
-%         d_ind=PolicyIndexes(:,j1,j2);
-%         for kk1=1:l_d
-%             if kk1==1
-%                 d_val(kk1)=d_grid(d_ind(kk1));
-%             else
-%                 d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
-%             end
-%         end
-%         d_gridvals(ii,:)=num2cell(d_val);
-%     end
+
     
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required

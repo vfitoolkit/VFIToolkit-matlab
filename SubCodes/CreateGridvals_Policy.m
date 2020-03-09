@@ -15,6 +15,8 @@ function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy(PolicyI
 %
 % If either of d or aprime is not relevant, then a value of nan will be returned for the corresponding gridvals output.
 
+% NOTE TO SELF: THE CPU VERSION COULD CERTAINLY BE SPED UP BY BETTER USE OF VECTORIZATION.
+
 if n_d(1)==0
     l_d=0;
 else
@@ -147,42 +149,92 @@ elseif Case1orCase2==2
     if MatrixOrCell==1
         if isa(d_grid, 'gpuArray')
             dPolicy_gridvals=zeros(N_a*N_z,l_d,'gpuArray');
+            aprimePolicy_gridvals=nan;
+            for ii=1:N_a*N_z
+                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                j1=rem(ii-1,N_a)+1;
+                j2=ceil(ii/N_a);
+                d_ind=PolicyIndexes(j1,j2);
+                d_sub=ind2sub_homemade_gpu(n_d,d_ind);
+                for kk1=1:l_d
+                    if kk1==1
+                        d_val(kk1)=d_grid(d_sub(kk1));
+                    else
+                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+                    end
+                end
+                dPolicy_gridvals(ii,:)=d_val;
+            end
         else
             dPolicy_gridvals=zeros(N_a*N_z,l_d);
-        end
-        aprimePolicy_gridvals=nan;
-        for ii=1:N_a*N_z
-            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-            j1=rem(ii-1,N_a)+1;
-            j2=ceil(ii/N_a);
-            d_ind=PolicyIndexes(j1,j2);
-            d_sub=ind2sub_homemade_gpu(n_d,d_ind);
-            for kk1=1:l_d
-                if kk1==1
-                    d_val(kk1)=d_grid(d_sub(kk1));
-                else
-                    d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+            aprimePolicy_gridvals=nan;
+            for ii=1:N_a*N_z
+                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                j1=rem(ii-1,N_a)+1;
+                j2=ceil(ii/N_a);
+                d_ind=PolicyIndexes(j1,j2);
+                d_sub=ind2sub_homemade(n_d,d_ind);
+                for kk1=1:l_d
+                    if kk1==1
+                        d_val(kk1)=d_grid(d_sub(kk1));
+                    else
+                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+                    end
                 end
+                dPolicy_gridvals(ii,:)=d_val;
             end
-            dPolicy_gridvals(ii,:)=d_val;
         end
+%         aprimePolicy_gridvals=nan;
+%         for ii=1:N_a*N_z
+%             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+%             j1=rem(ii-1,N_a)+1;
+%             j2=ceil(ii/N_a);
+%             d_ind=PolicyIndexes(j1,j2);
+%             d_sub=ind2sub_homemade_gpu(n_d,d_ind);
+%             for kk1=1:l_d
+%                 if kk1==1
+%                     d_val(kk1)=d_grid(d_sub(kk1));
+%                 else
+%                     d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+%                 end
+%             end
+%             dPolicy_gridvals(ii,:)=d_val;
+%         end
     elseif MatrixOrCell==2
         dPolicy_gridvals=cell(N_a*N_z,l_d);
         aprimePolicy_gridvals=nan;
-        for ii=1:N_a*N_z
-            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-            j1=rem(ii-1,N_a)+1;
-            j2=ceil(ii/N_a);
-            d_ind=PolicyIndexes(j1,j2);
-            d_sub=ind2sub_homemade_gpu(n_d,d_ind);
-            for kk1=1:l_d
-                if kk1==1
-                    d_val(kk1)=d_grid(d_sub(kk1));
-                else
-                    d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+        if isa(d_grid, 'gpuArray')
+            for ii=1:N_a*N_z
+                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                j1=rem(ii-1,N_a)+1;
+                j2=ceil(ii/N_a);
+                d_ind=PolicyIndexes(j1,j2);
+                d_sub=ind2sub_homemade_gpu(n_d,d_ind);
+                for kk1=1:l_d
+                    if kk1==1
+                        d_val(kk1)=d_grid(d_sub(kk1));
+                    else
+                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+                    end
                 end
+                dPolicy_gridvals(ii,:)=num2cell(d_val);
             end
-            dPolicy_gridvals(ii,:)=num2cell(d_val);
+        else
+            for ii=1:N_a*N_z
+                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                j1=rem(ii-1,N_a)+1;
+                j2=ceil(ii/N_a);
+                d_ind=PolicyIndexes(j1,j2);
+                d_sub=ind2sub_homemade(n_d,d_ind);
+                for kk1=1:l_d
+                    if kk1==1
+                        d_val(kk1)=d_grid(d_sub(kk1));
+                    else
+                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+                    end
+                end
+                dPolicy_gridvals(ii,:)=num2cell(d_val);
+            end
         end
     end
 end
