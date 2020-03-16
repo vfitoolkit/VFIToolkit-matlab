@@ -21,6 +21,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
     transpathoptions.GEnewprice=0;
+    transpathoptions.historyofpricepath=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
@@ -49,6 +50,9 @@ else
     end
     if isfield(transpathoptions,'GEnewprice')==0
         transpathoptions.GEnewprice=0;
+    end
+    if isfield(transpathoptions,'historyofpricepath')==0
+        transpathoptions.historyofpricepath=0;
     end
 end
 

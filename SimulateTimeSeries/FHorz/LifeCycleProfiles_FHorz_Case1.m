@@ -123,6 +123,8 @@ for kk=1:length(options.agegroupings)
         % Calculate the 'age conditional' median
         AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
         % Calculate the 'age conditional' variance
+        AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
+        
         
         if options.npoints>0
             % Calculate the 'age conditional' lorenz curve
