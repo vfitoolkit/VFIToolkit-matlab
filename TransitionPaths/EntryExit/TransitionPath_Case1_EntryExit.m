@@ -173,6 +173,6 @@ end
 
 % LOOK INTO USING 'SURROGATE OPTIMIZATION'
 
-PricePath=gpuArray(reshape(PricePathNew,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
+PricePath=gpuArray(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
 
 end
