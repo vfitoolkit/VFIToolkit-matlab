@@ -56,7 +56,7 @@ else
         transpathoptions.GEnewprice=0;
     end
     if isfield(transpathoptions,'weightsforpath')==0
-        transpathoptions.weightsforpath=ones(ones(T,length(GeneralEqmEqns)));
+        transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
     end
 end
 

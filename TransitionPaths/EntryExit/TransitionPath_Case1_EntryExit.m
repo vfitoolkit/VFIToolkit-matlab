@@ -102,15 +102,16 @@ else
 end
 
 % Make sure that the inputs specifically required for endogenous exit have been included.
-if isfield(vfoptions,'ReturnToExitFn')==0
-    fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFn \n');
-    return
+if vfoptions.endogenousexit==1
+    if isfield(vfoptions,'ReturnToExitFn')==0
+        fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFn \n');
+        return
+    end
+    if isfield(vfoptions,'ReturnToExitFnParamNames')==0
+        fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFnParamNames \n');
+        return
+    end
 end
-if isfield(vfoptions,'ReturnToExitFnParamNames')==0
-    fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFnParamNames \n');
-    return
-end
-
 
 %%
 
