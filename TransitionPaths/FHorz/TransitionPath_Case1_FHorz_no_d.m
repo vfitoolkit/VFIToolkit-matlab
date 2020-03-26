@@ -1,5 +1,5 @@
 function [PricePathOld]=TransitionPath_Case1_FHorz_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
-
+% THIS CODE IS LEGACY AND NEVER ACTUALLY CALLED BY ANY OF THE VFI TOOLKIT COMMANDS.
 
 %%
 if transpathoptions.verbose==1

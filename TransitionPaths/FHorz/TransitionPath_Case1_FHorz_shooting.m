@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_Fhorz(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
+function PricePathOld=TransitionPath_Case1_Fhorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -7,162 +7,6 @@ function PricePathOld=TransitionPath_Case1_Fhorz(PricePathOld, PricePathNames, P
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
-
-%% Check which transpathoptions have been used, set all others to defaults 
-if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
-    transpathoptions.tolerance=10^(-5);
-    transpathoptions.parallel=2;
-    transpathoptions.exoticpreferences=0;
-    transpathoptions.oldpathweight=0.9; % default =0.9
-    transpathoptions.weightscheme=1; % default =1
-    transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=1000;
-    transpathoptions.verbose=0;
-    transpathoptions.GEnewprice=0;
-    transpathoptions.historyofpricepath=0;
-else
-    %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
-        transpathoptions.tolerance=10^(-5);
-    end
-    if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=2;
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
-    end
-    if isfield(transpathoptions,'oldpathweight')==0
-        transpathoptions.oldpathweight=0.9;
-    end
-    if isfield(transpathoptions,'weightscheme')==0
-        transpathoptions.weightscheme=1;
-    end
-    if isfield(transpathoptions,'Ttheta')==0
-        transpathoptions.Ttheta=1;
-    end
-    if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=1000;
-    end
-    if isfield(transpathoptions,'verbose')==0
-        transpathoptions.verbose=0;
-    end
-    if isfield(transpathoptions,'GEnewprice')==0
-        transpathoptions.GEnewprice=0;
-    end
-    if isfield(transpathoptions,'historyofpricepath')==0
-        transpathoptions.historyofpricepath=0;
-    end
-end
-
-%% Check which vfoptions have been used, set all others to defaults 
-if isfield(transpathoptions,'vfoptions')==1
-    vfoptions=transpathoptions.vfoptions;
-end
-
-if exist('vfoptions','var')==0
-    disp('No vfoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences=0;
-    vfoptions.parallel=2;
-    vfoptions.returnmatrix=2;
-    vfoptions.verbose=0;
-    vfoptions.lowmemory=0;
-    vfoptions.polindorval=1;
-    vfoptions.policy_forceintegertype=0;
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=2;
-    end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if isfield(vfoptions,'lowmemory')==0
-        vfoptions.lowmemory=0;
-    end
-    if isfield(vfoptions,'verbose')==0
-        vfoptions.verbose=0;
-    end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    if isfield(vfoptions,'polindorval')==0
-        vfoptions.polindorval=1;
-    end
-    if isfield(vfoptions,'policy_forceintegertype')==0
-        vfoptions.policy_forceintegertype=0;
-    end
-end
-
-%% Check which simoptions have been used, set all others to defaults 
-if isfield(transpathoptions,'simoptions')==1
-    simoptions=transpathoptions.simoptions;
-end
-if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
-    simoptions.parallel=2;
-    simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
-    simoptions.iterate=1;
-    simoptions.tolerance=10^(-9);
-else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    if isfield(simoptions,'tolerance')==0
-        simoptions.tolerance=10^(-9);
-    end
-        if isfield(simoptions,'nsims')==0
-        simoptions.nsims=10^4;
-    end
-        if isfield(simoptions,'parallel')==0
-        simoptions.parallel=2;
-    end
-        if isfield(simoptions,'verbose')==0
-        simoptions.verbose=0;
-    end
-    if isfield(simoptions,'ncores')==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
-    end
-    if isfield(simoptions,'iterate')==0
-        simoptions.iterate=1;
-    end
-end
-
-%%
-if transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
-    dbstack
-% else % HAVE NOW IMPLEMENTED THIS
-%     if length(DiscountFactorParamNames)~=1
-%         disp('WARNING: DiscountFactorParamNames should be of length one')
-%         dbstack
-%     end
-end
-
-if transpathoptions.parallel~=2
-    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1')
-    dbstack
-else
-    d_grid=gpuArray(d_grid); a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    PricePathOld=gpuArray(PricePathOld);
-end
-unkronoptions.parallel=2;
 
 N_d=prod(n_d);
 N_z=prod(n_z);
@@ -177,12 +21,6 @@ if transpathoptions.parallel==2
     a_grid=gather(a_grid);
     z_grid=gather(z_grid);
 end
-
-
-% if N_d==0
-%     PricePathOld=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, N_j, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions);
-%     return
-% end
 
 if transpathoptions.verbose==1
     transpathoptions
