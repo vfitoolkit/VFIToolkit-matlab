@@ -149,21 +149,25 @@ if transpathoptions.lowmemory==1
 end
 
 %% Shooting algorithm
-if n_d(1)==0 && transpathoptions.GEnewprice==1 % Shooting algorithm
-    PricePath=TransitionPath_Case1_EntryExit_no_d_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
-    return
-elseif n_d(1)==1 && transpathoptions.GEnewprice==1 % Shooting algorithm
-    PricePath=TransitionPath_Case1_EntryExit_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
-    return
+if transpathoptions.GEnewprice==1  % Shooting algorithm
+    if n_d(1)==0
+        PricePath=TransitionPath_Case1_EntryExit_no_d_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+        return
+    else
+        PricePath=TransitionPath_Case1_EntryExit_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+        return
+    end
 end
 
 %% Set up transition path as minimization of a function (default is to use as objective the weighted sum of squares of the general eqm conditions)
 PricePathVec=gather(reshape(PricePathOld,[T*length(PricePathNames),1])); % Has to be vector of fminsearch. Additionally, provides a double check on sizes.
 
-if n_d(1)==0 && transpathoptions.GEnewprice==2 % Function minimization
-    GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_no_d_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
-elseif n_d(1)==1 && transpathoptions.GEnewprice==2 % Function minimization
-    GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+if transpathoptions.GEnewprice==2 % Function minimization
+    if n_d(1)==0
+        GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_no_d_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+    else
+        GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+    end
 end
 
 % if transpathoptions.GEnewprice2algo==0

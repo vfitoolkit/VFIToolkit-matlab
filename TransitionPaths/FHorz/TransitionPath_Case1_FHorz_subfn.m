@@ -1,4 +1,4 @@
-function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_Fhorz_subfn(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
+function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_FHorz_subfn(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -7,6 +7,8 @@ function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_Fhorz_subfn(Pric
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
+
+PricePathOld=reshape(PricePathOld,[T,length(PricePathNames)]); % Had to be inputed as a vector to allow use of fminsearch.
 
 N_d=prod(n_d);
 N_z=prod(n_z);
