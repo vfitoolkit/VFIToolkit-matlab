@@ -17,7 +17,8 @@ for iCalibParam = 1:nCalibParams
     for iField=1:nFields
         if strcmp(ParamNames{iCalibParam},FullParamNames{iField})
             if iCalibParam==1
-                VectorOfParamValues(iCalibParam)=gather(Parameters.(FullParamNames{iField}));
+                VectorOfParamValues=gather(Parameters.(FullParamNames{iField}));
+                VectorOfParamValues=reshape(VectorOfParamValues,[1,numel(VectorOfParamValues)]); % make it a row vector
             else
                 temp=gather(Parameters.(FullParamNames{iField}));
                 if isrow(temp)
