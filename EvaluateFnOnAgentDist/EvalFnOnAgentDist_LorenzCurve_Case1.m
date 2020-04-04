@@ -90,7 +90,7 @@ if Parallel==2
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(i,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints)';
+        LorenzCurve(i,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,2)';
     end
     
 else
@@ -100,7 +100,6 @@ else
     AggVars=zeros(length(FnsToEvaluate),1);
     LorenzCurve=zeros(length(FnsToEvaluate),npoints);
     
-%     [d_gridvals, aprime_gridvals, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,1,2);
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
@@ -114,10 +113,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             else % l_d>0
@@ -125,11 +120,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    %                     a_val=a_gridvals{j1,:};
-                    %                     z_val=z_gridvals{j2,:};
-                    %                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
-                    %                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-                    %                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             end
@@ -142,10 +132,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val,SSvalueParamsVec);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             else % l_d>0
@@ -154,11 +140,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,SSvalueParamsVec);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             end
@@ -205,7 +186,7 @@ else
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(i,:)=gather(LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints)');
+        LorenzCurve(i,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,1)';
     end
 end
 

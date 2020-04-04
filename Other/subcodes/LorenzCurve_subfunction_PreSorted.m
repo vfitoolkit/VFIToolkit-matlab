@@ -1,4 +1,4 @@
-function LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,npoints)
+function LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,npoints,Parallel)
 
 % I have considered making this an option to be set but for now is just hardcoded.
 % Order to round to avoid numerical error
@@ -13,10 +13,18 @@ options.ordertoroundtoavoidnumericalerror=10;
 CumSumSortedStationaryDistVec_NoDuplicates=CumSumSortedWeights(sort(UniqueIndex));
 SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
 CumSumSortedWeightedValues_NoDuplicates=cumsum(SortedWeightedValues_NoDuplicates);
-InverseCDF_xgrid=gpuArray(1/npoints:1/npoints:1);
+if Parallel==2
+    InverseCDF_xgrid=gpuArray(1/npoints:1/npoints:1);
+else
+    InverseCDF_xgrid=1/npoints:1/npoints:1;
+end
 
 if numel(CumSumSortedStationaryDistVec_NoDuplicates)==1 % Have to treat the case of Lorenz curve for perfect equality (so just one unique element) seperately as otherwise causes interp1 to error
-    InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1,'gpuArray'); %0:(1/npoints):1;
+    if Parallel==2
+        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1,'gpuArray'); %0:(1/npoints):1;
+    else
+        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1); %0:(1/npoints):1;        
+    end
 else
     InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
 end
