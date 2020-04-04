@@ -1,10 +1,4 @@
-function [PricePathOld]=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
-
-%% 
-if transpathoptions.lowmemory==1
-    PricePathOld=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
-    return
-end
+function PricePathOld=TransitionPath_Case1_par1_no_d_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames,transpathoptions)
 
 
 %%
@@ -12,18 +6,11 @@ if transpathoptions.verbose==1
     transpathoptions
 end
 
-
-if transpathoptions.parallel~=2
-    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case2')
-    dbstack
-else
-    a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    PricePathOld=gpuArray(PricePathOld);
-end
-unkronoptions.parallel=2;
+unkronoptions.parallel=1;
 
 N_z=prod(n_z);
 N_a=prod(n_a);
+l_z=length(n_z);
 l_p=size(PricePathOld,2);
 
 PricePathDist=Inf;
@@ -31,9 +18,9 @@ pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
-V=zeros(size(V_final),'gpuArray');
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-Policy=zeros(N_a,N_z,'gpuArray');
+V=zeros(size(V_final));
+PricePathNew=zeros(size(PricePathOld)); PricePathNew(T,:)=PricePathOld(T,:);
+Policy=zeros(N_a,N_z);
 
 if transpathoptions.verbose==1
     DiscountFactorParamNames
@@ -44,12 +31,14 @@ end
     
 beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
+ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
 IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
+z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 is to create z_gridvals as matrix
+
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
-    PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath=zeros(N_a,N_z,T-1); %Periods 1 to T-1
         
     %First, go from T-1 to 1 calculating the Value function and Optimal
     %policy function at each step. Since we won't need to keep the value
@@ -67,13 +56,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         if ~isnan(IndexesForPathParamsInReturnFnParams)
             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
         
-        for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+        parfor z_c=1:N_z
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, ones(l_z,1), 0, a_grid, z_gridvals(z_c,:),0,ReturnFnParamsVec);
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
+            EV_z=Vnext.*(ones(N_a,1)*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
@@ -83,7 +71,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             [Vtemp,maxindex]=max(entireRHS,[],1);
             V(:,z_c)=Vtemp;
             Policy(:,z_c)=maxindex;
-            
         end
         
         PolicyIndexesPath(:,:,T-i)=Policy;
@@ -104,9 +91,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         optaprime=reshape(Policy,[1,N_a*N_z]);
         
-        Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
-        Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+        Ptemp=zeros(N_a,N_a*N_z);
+        Ptemp(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+        Ptran=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptemp));
         AgentDistnext=Ptran*AgentDist;
         
         p=PricePathOld(i,:);
@@ -119,15 +106,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2);
-%         AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2);   
-            
-            % When using negative powers matlab will often return complex
-            % numbers, even if the solution is actually a real number. I
-            % force converting these to real, albeit at the risk of missing problems
-            % created by actual complex numbers.
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
+
+        % When using negative powers matlab will often return complex
+        % numbers, even if the solution is actually a real number. I
+        % force converting these to real, albeit at the risk of missing problems
+        % created by actual complex numbers.
         if transpathoptions.GEnewprice==1
-            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames,1));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
             return
@@ -141,7 +127,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     end
     % Free up space on GPU by deleting things no longer needed
     clear Ptemp Ptran AgentDistnext AgentDist
-        
+
     %See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     %Notice that the distance is always calculated ignoring the time t=1 &
