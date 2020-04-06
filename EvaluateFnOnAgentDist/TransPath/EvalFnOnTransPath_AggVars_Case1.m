@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,ParamPath, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions)
 %AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
 
 if exist('transpathoptions','var')==0
@@ -19,6 +19,21 @@ end
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
+
+% Internally PricePathOld is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+PricePathNames=fieldnames(PricePathOld);
+PricePathStruct=PricePathOld; 
+PricePathOld=zeros(T,length(PricePathNames));
+for ii=1:length(PricePathNames)
+    PricePathOld(:,ii)=PricePath.(PricePathNames{ii});
+end
+ParamPathNames=fieldnames(ParamPath);
+ParamPathStruct=ParamPath; 
+ParamPath=zeros(T,length(ParamPathNames));
+for ii=1:length(ParamPathNames)
+    ParamPath(:,ii)=ParamPath.(PricePathNames{ii});
+end
 
 if N_d==0
     AggVarsPath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames);

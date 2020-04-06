@@ -1,4 +1,4 @@
-function SimPanelValues=SimPanelValues_TransPath_Case1(PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, transpathoptions,simoptions)
+function SimPanelValues=SimPanelValues_TransPath_Case1(PricePath, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, transpathoptions,simoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -19,6 +19,22 @@ function SimPanelValues=SimPanelValues_TransPath_Case1(PricePath, PricePathNames
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
+
+% Internally PricePathOld is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+PricePathNames=fieldnames(PricePath);
+PricePathStruct=PricePath;
+PricePath=zeros(T,length(PricePathNames));
+for ii=1:length(PricePathNames)
+    PricePath(:,ii)=PricePathStruct.(PricePathNames{ii});
+end
+ParamPathNames=fieldnames(ParamPath);
+ParamPathStruct=ParamPath; 
+ParamPath=zeros(T,length(ParamPathNames));
+for ii=1:length(ParamPathNames)
+    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
+end
+
 
 %% Check which transpathoptions and simoptions have been declared, set all others to defaults 
 if exist('transpathoptions','var')==0

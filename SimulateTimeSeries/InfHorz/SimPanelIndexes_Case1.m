@@ -13,8 +13,7 @@ N_d=prod(n_d);
 
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
+    %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions, 'polindorval')
         simoptions.polindorval=1;
     end
@@ -25,7 +24,7 @@ if exist('simoptions','var')==1
         simoptions.numbersims=10^3;
     end
     if ~isfield(simoptions, 'parallel')
-        simoptions.parallel=2;
+        simoptions.parallel=1+(gpuDeviceCount>0);
     end
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
@@ -41,7 +40,7 @@ else
     simoptions.polindorval=1;
     simoptions.simperiods=50;
     simoptions.numbersims=10^3;
-    simoptions.parallel=2;
+    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
     simoptions.exitinpanel=0;
 end

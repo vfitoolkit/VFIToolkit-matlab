@@ -1,4 +1,9 @@
 function PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,Parallel)
+% Parallel is an optional input
+
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 l_d=length(n_d);
 % l_a=length(n_a);

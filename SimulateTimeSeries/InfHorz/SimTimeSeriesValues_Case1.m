@@ -4,42 +4,35 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
-%% Check which vfoptions have been used, set all others to defaults 
-if nargin<6
+%% Check which simoptions have been used, set all others to defaults 
+if exist('simoptions','var')==0
     %If simoptions is not given, just use all the defaults
     simoptions.polindorval=1; % Which form is Policy inputted as?
     simoptions.burnin=1000;
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10000;
-    simoptions.parallel=2;
+    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
     simoptions.pi_z=1; % 1: z is discrete and pi_z is transition matrix, 
                        % 2: pi_z is a function that takes last period state vector as input, and returns current state vector as output 
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    eval('fieldexists=1;simoptions.polindorval;','fieldexists=0;')
-    if fieldexists==0
+    %Check simoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(simoptions, 'polindorval')
         simoptions.polindorval=1;
     end
-    eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
-    if fieldexists==0
+    if ~isfield(simoptions, 'burnin')
         simoptions.burnin=1000;
     end
-    eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
-    if fieldexists==0
+    if ~isfield(simoptions, 'seedpoint')
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     end
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
+    if ~isfield(simoptions, 'simperiods')
         simoptions.simperiods=10^4;
     end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.parallel=2;
+    if ~isfield(simoptions, 'parallel')
+        simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
     end
 end

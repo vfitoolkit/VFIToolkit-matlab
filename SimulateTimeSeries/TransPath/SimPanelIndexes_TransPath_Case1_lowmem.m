@@ -1,4 +1,6 @@
 function [SimPanel,PolicyIndexesKron]=SimPanelIndexes_TransPath_Case1_lowmem(PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,simoptions)
+% Intended for internal use, not by user.
+%
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn AgentDist_initial. (If you use the
 % newbirths option you will get more than 'numbersims', due to the extra births)

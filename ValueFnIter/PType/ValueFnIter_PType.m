@@ -309,7 +309,7 @@ for ii=1:N_i
                 if isfield(vfoptions.parallel, Names_i{ii})
                     vfoptions_temp.parallel=vfoptions.parallel.(Names_i{ii});
                 else
-                    vfoptions_temp.parallel=2; % the default value
+                    vfoptions_temp.parallel=1+(gpuDeviceCount>0); % the default value
                 end
             elseif prod(size(vfoptions.parallel))~=1
                 vfoptions_temp.parallel=vfoptions.parallel(ii);

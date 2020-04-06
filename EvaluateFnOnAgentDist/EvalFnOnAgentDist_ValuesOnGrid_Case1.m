@@ -1,7 +1,13 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,EntryExitParamNames)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
+%
+% Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
 
-% simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 if isstruct(StationaryDist)
     % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.

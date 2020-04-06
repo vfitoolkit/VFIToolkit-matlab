@@ -1,21 +1,18 @@
 function [mean,variance,corr,statdist]=MarkovChainMoments(z_grid,pi_z,mcmomentsoptions)
 
 % mcmomentsoptions is a bit of a hack
-if nargin<3
-    mcmomentsoptions.parallel=2;
+if exist('mcmomentsoptions','var')==0
+    mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
     mcmomentsoptions.T=10^6;
     mcmomentsoptions.Tolerance=10^(-9);
 else
-    eval('fieldexists=1;mcmomentsoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        mcmomentsoptions.parallel=2;
+    if isfield(mcmomentsoptions,'parallel')==0
+        mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
     end
-    eval('fieldexists=1;mcmomentsoptions.Tolerance;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(mcmomentsoptions,'Tolerance')==0
         mcmomentsoptions.Tolerance=10^(-9);
     end
-    eval('fieldexists=1;mcmomentsoptions.T;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(mcmomentsoptions,'T')==0
         mcmomentsoptions.T=10^6;
     end
 end

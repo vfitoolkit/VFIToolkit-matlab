@@ -1,19 +1,36 @@
-function PricePathOld=TransitionPath_Case1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
+function PricePath=TransitionPath_Case1(PricePathOld, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
-
-% PricePathOld is matrix of size T-by-'number of prices'
-% ParamPath is matrix of size T-by-'number of parameters that change over path'
-
+%
+% PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
+% ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
+%
 % transpathoptions is not a required input.
+
+% Internally PricePathOld is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+PricePathNames=fieldnames(PricePathOld);
+PricePathStruct=PricePathOld;
+PricePathOld=zeros(T,length(PricePathNames));
+for ii=1:length(PricePathNames)
+    PricePathOld(:,ii)=PricePathStruct.(PricePathNames{ii});
+end
+ParamPathNames=fieldnames(ParamPath);
+ParamPathStruct=ParamPath; 
+ParamPath=zeros(T,length(ParamPathNames));
+for ii=1:length(ParamPathNames)
+    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
+end
+
+PricePath=struct();
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
-    transpathoptions.parallel=2;
+    transpathoptions.parallel=1+(gpuDeviceCount>0);
     transpathoptions.lowmemory=0;
     transpathoptions.exoticpreferences=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
@@ -22,14 +39,14 @@ if exist('transpathoptions','var')==0
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
     transpathoptions.GEnewprice=0;
-    transpathoptions.weightsforpath=ones(size(PricePathOld)); % Won't actually be used under the defaults, but am still setting it.
+    transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
         transpathoptions.tolerance=10^(-5);
     end
     if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=2;
+        transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
     if isfield(transpathoptions,'lowmemory')==0
         transpathoptions.lowmemory=0;
@@ -58,6 +75,15 @@ else
     if isfield(transpathoptions,'weightsforpath')==0
         transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
     end
+end
+
+% If vfoptions and simoptions are not given, then just create placeholders
+% (simplifies calling subcommands for the different TransitionPath variants)
+if exist('vfoptions','var')==0
+    vfoptions=struct();
+end
+if exist('simoptions','var')==0
+    simoptions=struct();
 end
 
 %%
@@ -303,5 +329,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
 end
 
+for ii=1:length(PricePathNames)
+    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+end
 
 end

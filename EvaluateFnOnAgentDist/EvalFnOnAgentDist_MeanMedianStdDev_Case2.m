@@ -1,5 +1,13 @@
 function MeanMedianStdDev=EvalFnOnAgentDist_MeanMedianStdDev_Case2(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel)
 % Evaluates the mean value (weighted sum/integral), median value, and standard deviation for each element of FnsToEvaluate
+%
+% Parallel is an optional input
+
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 l_d=length(n_d);
 l_a=length(n_a);

@@ -1,4 +1,4 @@
-function CondlEntryDecision=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p, V0Kron, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+function CondlEntryDecision=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
 % Is just a copy-pase of HeteroAgentStationaryEqm_Case1_EntryExit_subfn(),
 % which just outputs
 % Parameters.(EntryExitParamNames.CondlEntryDecisions{1}) instead of usual
@@ -54,11 +54,11 @@ end
 
 % [~,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
 if simoptions.endogenousexit==1
-    [V,Policy,ExitPolicy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy,ExitPolicy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % With entry-exit will need to keep the value function to be able to evaluate entry condition.
     Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=1-ExitPolicy;
 else
-    [V,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % With entry-exit will need to keep the value function to be able to evaluate entry condition.
 end
 

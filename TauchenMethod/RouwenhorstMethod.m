@@ -22,14 +22,13 @@ function [states,transmatrix,s]=RouwenhorstMethod(rho,sigmasq,znum,rouwenhorstop
 % Review of Economic Dynamics 13 (2010), pp. 701-714.
 % URL: http://www.karenkopecky.net/RouwenhorstPaperFinal.pdf
 
-if nargin<4
+if exist('rouwenhorstoptions','var')==0
     % Recommended choice for Parallel is 2 (on GPU). It is substantially faster (albeit only for very large grids; for small grids cpu is just as fast)
-    rouwenhorstoptions.parallel=2;
+    rouwenhorstoptions.parallel=1+(gpuDeviceCount>0);
 else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1; rouwenhorst.parallel;','fieldexists=0;')
-    if fieldexists==0
-        rouwenhorstoptions.parallel=2;
+    %Check rouwenhorstoptions for missing fields, if there are some fill them with the defaults
+    if isfield(rouwenhorstoptions,'parallel')==0
+        rouwenhorstoptions.parallel=1+(gpuDeviceCount>0);
     end
 end
 

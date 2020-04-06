@@ -9,8 +9,17 @@ if nargin<13
     %If vfoptions is not given, just use all the defaults
     vfoptions.exoticpreferences=0;
     vfoptions.dynasty=0;
-    vfoptions.parallel=2;
-    vfoptions.returnmatrix=2;
+    vfoptions.parallel=1+(gpuDeviceCount>0);
+    if vfoptions.parallel==2
+        vfoptions.returnmatrix=2; % On GPU, must use this option
+    end
+    if isfield(vfoptions,'returnmatrix')==0
+        if isa(ReturnFn,'function_handle')==1
+            vfoptions.returnmatrix=0;
+        else
+            vfoptions.returnmatrix=1;
+        end
+    end
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
@@ -24,16 +33,10 @@ else
         vfoptions.dynasty=0;
     end
     if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=2;
+        vfoptions.parallel=1+(gpuDeviceCount>0);
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if isfield(vfoptions,'lowmemory')==0
-        vfoptions.lowmemory=0;
-    end
-    if isfield(vfoptions,'verbose')==0
-        vfoptions.verbose=0;
     end
     if isfield(vfoptions,'returnmatrix')==0
         if isa(ReturnFn,'function_handle')==1
@@ -41,6 +44,12 @@ else
         else
             vfoptions.returnmatrix=1;
         end
+    end
+    if isfield(vfoptions,'lowmemory')==0
+        vfoptions.lowmemory=0;
+    end
+    if isfield(vfoptions,'verbose')==0
+        vfoptions.verbose=0;
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;

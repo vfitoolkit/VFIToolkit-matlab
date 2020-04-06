@@ -1,17 +1,26 @@
-function [V, Policy]=ValueFnIter_Case2(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case2(n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
 
 %% Check which vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     vfoptions.lowmemory=0;
-    vfoptions.returnmatrix=2;
+    vfoptions.parallel=1+(gpuDeviceCount>0);
+    if vfoptions.parallel==2
+        vfoptions.returnmatrix=2; % On GPU, must use this option
+    end
+    if isfield(vfoptions,'returnmatrix')==0
+        if isa(ReturnFn,'function_handle')==1
+            vfoptions.returnmatrix=0;
+        else
+            vfoptions.returnmatrix=1;
+        end
+    end
     vfoptions.phiaprimematrix=2;
     vfoptions.polindorval=1;
     vfoptions.howards=60;
     vfoptions.maxhowards=500;
     vfoptions.exoticpreferences=0;
-    vfoptions.parallel=2;
     vfoptions.verbose=0;
     vfoptions.tolerance=10^(-9);
     vfoptions.policy_forceintegertype=0;
@@ -21,8 +30,20 @@ else
     if isfield(vfoptions,'lowmemory')==0
         vfoptions.lowmemory=0;
     end
+    if isfield(vfoptions,'parallel')==0
+        vfoptions.parallel=1+(gpuDeviceCount>0);
+    end
     if isfield(vfoptions,'returnmatrix')==0
-        vfoptions.returnmatrix=2;
+        if vfoptions.parallel==2
+            vfoptions.returnmatrix=2; % On GPU, must use this option
+        end
+        if isfield(vfoptions,'returnmatrix')==0
+            if isa(ReturnFn,'function_handle')==1
+                vfoptions.returnmatrix=0;
+            else
+                vfoptions.returnmatrix=1;
+            end
+        end
     end
     if isfield(vfoptions,'phiaprimematrix')==0
         vfoptions.phiaprimematrix=2;
@@ -39,9 +60,6 @@ else
     if isfield(vfoptions,'exoticpreferences')==0
         vfoptions.exoticpreferences=0;
     end  
-    if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=2;
-    end
     if isfield(vfoptions,'verbose')==0
         vfoptions.verbose=0;
     end
@@ -53,6 +71,16 @@ else
     end
     if isfield(vfoptions,'piz_strictonrowsaddingtoone')==0
         vfoptions.piz_strictonrowsaddingtoone=0;
+    end
+end
+
+if isfield(vfoptions,'V0')
+    V0=reshape(vfoptions.V0,[n_a,n_z]);
+else
+    if vfoptions.parallel==2
+        V0=zeros([n_a,n_z], 'gpuArray');
+    else
+        V0=zeros([n_a,n_z]);        
     end
 end
 

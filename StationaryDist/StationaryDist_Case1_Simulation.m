@@ -7,40 +7,43 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
-if nargin<6
+if exist('simoptions','var')==0
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^4;
     simoptions.burnin=10^3;
-    simoptions.parallel=2;
+    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
-%    simoptions.ncores=1; not needed as using simoptions.parallel=2
+    if simoptions.parallel>0
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
+    end
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    eval('fieldexists=1;simoptions.seedpoint;','fieldexists=0;')
-    if fieldexists==0
+    %Check simoptions for missing fields, if there are some fill them with the defaults
+    if isfield(simoptions, 'seedpoint')==0
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     end
-    eval('fieldexists=1;simoptions.simperiods;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'simperiods')==0
         simoptions.simperiods=10^4;
     end
-    eval('fieldexists=1;simoptions.burnin;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'burnin')==0
         simoptions.burnin=10^3;
     end
-    eval('fieldexists=1;simoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        simoptions.parallel=2;
+    if isfield(simoptions, 'parallel')==0
+        simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    eval('fieldexists=1;simoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(simoptions, 'verbose')==0
         simoptions.verbose=0;
     end
-    if simoptions.parallel>0
-        eval('fieldexists=1;simoptions.ncores;','fieldexists=0;')
-        if fieldexists==0
-            simoptions.ncores=NCores;
+    if simoptions.parallel>0 && isfield(simoptions,'ncores')==0
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
         end
     end
 end

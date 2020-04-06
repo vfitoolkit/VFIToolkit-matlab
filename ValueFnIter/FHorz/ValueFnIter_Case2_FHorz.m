@@ -5,10 +5,18 @@ function [V, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_g
 if ~exist('vfoptions','var')
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.tolerance=10^(-9);
 %     vfoptions.exoticpreferences=0;
-    vfoptions.parallel=2;
-    vfoptions.returnmatrix=2;
+    vfoptions.parallel=1+(gpuDeviceCount>0);
+    if vfoptions.parallel==2
+        vfoptions.returnmatrix=2; % On GPU, must use this option
+    end
+    if isfield(vfoptions,'returnmatrix')==0
+        if isa(ReturnFn,'function_handle')==1
+            vfoptions.returnmatrix=0;
+        else
+            vfoptions.returnmatrix=1;
+        end
+    end
     vfoptions.phiaprimematrix=2;
     vfoptions.phiaprimedependsonage=0;
     vfoptions.verbose=0;
@@ -20,10 +28,17 @@ if ~exist('vfoptions','var')
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=2;
+        vfoptions.parallel=1+(gpuDeviceCount>0);
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
+    end
+    if isfield(vfoptions,'returnmatrix')==0
+        if isa(ReturnFn,'function_handle')==1
+            vfoptions.returnmatrix=0;
+        else
+            vfoptions.returnmatrix=1;
+        end
     end
     if ~isfield(vfoptions,'phiaprimematrix')
         vfoptions.phiaprimematrix=2;
@@ -42,13 +57,6 @@ else
 %     end  
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
-    end
-    if ~isfield(vfoptions,'returnmatrix')
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
     end
     if ~isfield(vfoptions,'tolerance')
         vfoptions.tolerance=10^(-9);

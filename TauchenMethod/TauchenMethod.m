@@ -19,14 +19,13 @@ function [states, transmatrix]=TauchenMethod(mew,sigmasq,rho,znum,q, tauchenopti
 %   Var(z)=sigmasq/(1-rho^2); note that if mew=0, then sigmasqz=sigmasq/(1-rho^2).
 %%%%%%%%%%%%%%%
 
-if nargin<6
+if exist('tauchenoptions','var')==0
     % Recommended choice for Parallel is 2 (on GPU). It is substantially faster (albeit only for very large grids; for small grids cpu is just as fast)
-    tauchenoptions.parallel=2;
+    tauchenoptions.parallel=1+(gpuDeviceCount>0);
 else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1;tauchenoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        tauchenoptions.parallel=2;
+    %Check tauchenoptions for missing fields, if there are some fill them with the defaults
+    if isfield(tauchenoptions,'parallel')==0
+        tauchenoptions.parallel=1+(gpuDeviceCount>0);
     end
 end
 

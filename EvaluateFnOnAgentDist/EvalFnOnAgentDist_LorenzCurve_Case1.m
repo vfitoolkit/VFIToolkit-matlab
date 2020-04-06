@@ -1,10 +1,19 @@
-function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,npoints)
+function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, npoints)
 % Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
 % to 100. Unless the optional npoints input is used in which case it will be
 % npoints-by-1.
 %
 % Note that to unnormalize the Lorenz Curve you can just multiply it be the
 % AggVars for the same variable. This will give you the inverse cdf.
+%
+%
+% Parallel and npoints are optional inputs
+
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 if exist('npoints','var')==0
     npoints=100;

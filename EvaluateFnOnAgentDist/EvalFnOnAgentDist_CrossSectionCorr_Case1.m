@@ -3,6 +3,15 @@ function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCorr_Case1(StationaryDis
 % eg. if you give a FnsToEvaluate which is 2x3 (functions) then you will get
 % three correlation coefficients (one for the pair of functions that
 % constitute each column).
+%
+%
+% Parallel is an optional input
+
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 if n_d(1)==0
     l_d=0;

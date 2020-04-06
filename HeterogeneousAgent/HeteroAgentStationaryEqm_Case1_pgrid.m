@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_pgrid(V0Kron, n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_pgrid(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -16,14 +16,13 @@ if simoptions.parallel==2 || simoptions.parallel==4
 else
     GeneralEqmConditionsKron=ones(N_p,l_p);
 end
-% V0Kron=reshape(V0Kron,[N_a,N_s]);
 
 for p_c=1:N_p
     if heteroagentoptions.verbose==1
         p_c
     end
     
-    V0Kron(~isfinite(V0Kron))=0; %Since we loop through with V0Kron from previous p_c this is necessary to avoid contamination by -Inf's
+%     V0Kron(~isfinite(V0Kron))=0; %Since we loop through with V0Kron from previous p_c this is necessary to avoid contamination by -Inf's
     
     %Step 1: Solve the value fn iteration problem (given this price, indexed by p_c)
     %Calculate the price vector associated with p_c
@@ -38,8 +37,7 @@ for p_c=1:N_p
         Parameters.(GEPriceParamNames{ii})=p(ii);
     end
     
-    %     ReturnFnParams(IndexesForPricesInReturnFnParams)=p;
-    [~,Policy]=ValueFnIter_Case1(V0Kron, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn,Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
+    [~,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn,Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions);
@@ -47,11 +45,10 @@ for p_c=1:N_p
     AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel);
     
     % The following line is often a useful double-check if something is going wrong.
-%    SSvalues_AggVars
+%    AggVars
     
     % use of real() is a hack that could disguise errors, but I couldn't
     % find why matlab was treating output as complex
-%     MarketClearanceKron(p_c,:)=real(MarketClearance_Case1_pgrid(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters,MarketPriceParamNames));
     GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 end
 
@@ -62,7 +59,11 @@ elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance i
 end
 
 %p_eqm_index=zeros(num_p,1);
-p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
+if simoptions.parallel==2
+    p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
+else
+    p_eqm_index=ind2sub_homemade(n_p,p_eqm_indexKron);
+end
 if l_p>1
     if simoptions.parallel==2
         GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');

@@ -1,10 +1,16 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,EntryExitParamNames)
+function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
+%
+% Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
 
-% simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 if isstruct(StationaryDist)
-    AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
     return
 end
 
@@ -60,7 +66,6 @@ else
     N_a=prod(n_a);
     N_z=prod(n_z);
     
-%     [d_gridvals, aprime_gridvals, a_gridvals, z_gridvals]=CreateGridvals(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid,1,2);
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
@@ -81,11 +86,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
                 % When evaluating value function (which may sometimes give -Inf
@@ -100,11 +100,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,SSvalueParamsVec);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
                 % When evaluating value function (which may sometimes give -Inf
@@ -125,10 +120,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
                 % When evaluating value function (which may sometimes give -Inf
@@ -143,10 +134,6 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val,SSvalueParamsVec);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
                 % When evaluating value function (which may sometimes give -Inf

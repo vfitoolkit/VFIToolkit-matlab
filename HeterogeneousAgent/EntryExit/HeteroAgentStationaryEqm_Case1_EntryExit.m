@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit(V0, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit(n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
 % If n_p=0 then will use fminsearch to find the general equilibrium (find
 % price vector that corresponds to GeneralEqmCondition=0). By setting n_p to
 % nonzero it is assumed you want to use a grid on prices, which must then
@@ -72,16 +72,22 @@ else
 end
 
 %%
-% I should do implement this and then make the subfunctions _pgrid and
-% _subfn use the 'raw' valuefniter_case1 codes, but have not yet done so.
-% V0Kron=reshape(V0,[N_a,N_s]);
-V0Kron=V0;
+% Check if gthere is an initial guess for V0
+if isfield(vfoptions,'V0')
+    vfoptions.V0=reshape(vfoptions.V0,[N_a,N_s]);
+else
+    if vfoptions.parallel==2
+        vfoptions.V0=zeros([N_a,N_s], 'gpuArray');
+    else
+        vfoptions.V0=zeros([N_a,N_s]);
+    end
+end
 
 %% If solving on p_grid
 if N_p~=0
     fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')
     fprintf('         It remains possible to use p_grid with Entry/Exit solely because it can be useful for exploratory purposes. It should not be used for solving models. \n')
-    [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit_pgrid(V0Kron, n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+    [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit_pgrid(n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
     fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')
     fprintf('         It remains possible to use p_grid with Entry/Exit solely because it can be useful for exploratory purposes. It should not be used for solving models. \n')
     return
@@ -90,7 +96,7 @@ end
 %% Otherwise, use fminsearch to find the general equilibrium
 
 % I SHOULD IMPLEMENT A BETTER V0Kron HERE
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_EntryExit_subfn(p, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_EntryExit_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
 
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)

@@ -1,4 +1,22 @@
-function [PricePathOld]=TransitionPath_Case2(PricePathOld, PriceParamNames, ParamPath, PathParamNames, Parameters, DiscountFactorParamNames, Phi_aprimeKron_final, Case2_Type, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParamNames, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
+function PricePath=TransitionPath_Case2(PricePathOld, ParamPath, Parameters, DiscountFactorParamNames, Phi_aprimeKron_final, Case2_Type, T, V_final, StationaryDist_init, ReturnFn, ReturnFnParamNames, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, SSvaluesFn,SSvalueParamNames, MarketPriceEqns, MarketPriceParamNames,transpathoptions)
+
+% Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+PricePathNames=fieldnames(PricePathOld);
+PricePathStruct=PricePathOld; 
+PricePathOld=zeros(T,length(PricePathNames));
+for ii=1:length(PricePathNames)
+    PricePathOld(:,ii)=PricePathStruct.(PricePathNames{ii});
+end
+ParamPathNames=fieldnames(ParamPath);
+ParamPathStruct=ParamPath; 
+ParamPath=zeros(T,length(ParamPathNames));
+for ii=1:length(ParamPathNames)
+    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
+end
+
+PricePath=struct();
+
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if nargin<25
@@ -456,5 +474,10 @@ end
 %         save ./SavedOutput/TransPathConv.mat PricePathOld TransPathConvergence pathcounter
 %     end
 % end
+
+for ii=1:length(PricePathNames)
+    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+end
+
 
 end

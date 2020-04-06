@@ -1,8 +1,14 @@
 function OtherPolicies=OtherPolicyFunctions_FHorz_Case1(PolicyIndexes, ValuesFn, ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel)
 % Creates OtherPolicies, which is the same thing as Policy but rather than being for the underlying policies it evaluates those in ValuesFn.
+%
+% Is doing essentially the same thing as EvalFnOnAgentDist_AggVars_Case1 but now it just returns the whole grid rather than taking weighted sum.
+%
+% Parallel is an optional input
 
-% Is doing essentially the same thing as SSaggVars but now it just returns
-% the whole grid rather than taking weighted sum.
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+end
+
 
 if n_d(1)==0
     l_d=0;

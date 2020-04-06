@@ -1,6 +1,14 @@
 function [QuantileCutOffs, QuantileMeans]=EvalFnOnAgentDist_Quantiles_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel)
 %Returns the cut-off values and the within percentile means from dividing
 %the StationaryDist into NumPercentiles percentiles.
+%
+% Parallel is an optional input
+
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
 
 Tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
 

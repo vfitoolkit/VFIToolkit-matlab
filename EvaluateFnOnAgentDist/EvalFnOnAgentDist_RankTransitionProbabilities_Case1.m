@@ -3,8 +3,16 @@ function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-npoints. (third dimension is the different FnsToEvaluate that this
 %matrix is calculated for)
+%
+% Parallel and npoints are optional inputs
 
-if nargin<14
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
+
+if exist('npoints','var')==0
     npoints=100;
 end
 

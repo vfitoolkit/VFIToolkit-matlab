@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames,PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
+function AggVarsPath=EvalFnOnTransPath_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames,PricePath, ParamPath, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
 %AggVarsPath is T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
 AggVarsPath=nan(T-1,length(FnsToEvaluate),'gpuArray');
 
@@ -10,6 +10,21 @@ AggVarsPath=nan(T-1,length(FnsToEvaluate),'gpuArray');
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
+
+% Internally PricePathOld is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+PricePathNames=fieldnames(PricePathOld);
+PricePathStruct=PricePathOld; 
+PricePathOld=zeros(T,length(PricePathNames));
+for ii=1:length(PricePathNames)
+    PricePathOld(:,ii)=PricePath.(PricePathNames{ii});
+end
+ParamPathNames=fieldnames(ParamPath);
+ParamPathStruct=ParamPath; 
+ParamPath=zeros(T,length(ParamPathNames));
+for ii=1:length(ParamPathNames)
+    ParamPath(:,ii)=ParamPath.(PricePathNames{ii});
+end
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
