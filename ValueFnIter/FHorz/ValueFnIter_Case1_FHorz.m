@@ -4,7 +4,7 @@ V=nan;
 Policy=nan;
 
 %% Check which vfoptions have been used, set all others to defaults 
-if nargin<13
+if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     vfoptions.exoticpreferences=0;
@@ -168,7 +168,7 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
 end
 
 %% Deal with dynasty if need to do that.
-if isfield(vfoptions,'dynasty')==1
+if vfoptions.dynasty==1
     if vfoptions.verbose==1
         fprintf('dynasty option is being used \n')
     end

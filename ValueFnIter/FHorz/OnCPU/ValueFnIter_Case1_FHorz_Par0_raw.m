@@ -8,46 +8,18 @@ V=zeros(N_a,N_z,N_j);
 Policy=zeros(N_a,N_z,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-a_grid=gpuArray(a_grid);
-z_grid=gpuArray(z_grid);
+a_grid=gather(a_grid);
+z_grid=gather(z_grid);
 
 eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
     z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-%     z_gridvals=zeros(N_z,length(n_z));
-%     for i1=1:N_z
-%         sub=zeros(1,length(n_z));
-%         sub(1)=rem(i1-1,n_z(1))+1;
-%         for ii=2:length(n_z)-1
-%             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-%         end
-%         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-%         
-%         if length(n_z)>1
-%             sub=sub+[0,cumsum(n_z(1:end-1))];
-%         end
-%         z_gridvals(i1,:)=z_grid(sub);
-%     end
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
     a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
-%     a_gridvals=zeros(N_a,length(n_a));
-%     for i2=1:N_a
-%         sub=zeros(1,length(n_a));
-%         sub(1)=rem(i2-1,n_a(1))+1;
-%         for ii=2:length(n_a)-1
-%             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-%         end
-%         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-%         
-%         if length(n_a)>1
-%             sub=sub+[0,cumsum(n_a(1:end-1))];
-%         end
-%         a_gridvals(i2,:)=a_grid(sub);
-%     end
 end
 
 
@@ -60,10 +32,10 @@ if fieldexists_ExogShockFn==1
     if fieldexists_ExogShockFnParamNames==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
         [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=gather(z_grid); pi_z=gather(pi_z);
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=gather(z_grid); pi_z=gather(pi_z);
     end
 end
 
@@ -125,10 +97,10 @@ for reverse_j=1:N_j-1
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,j);
             [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+            z_grid=gather(z_grid); pi_z=gather(pi_z);
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(j);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+            z_grid=gather(z_grid); pi_z=gather(pi_z);
         end
     end
     
@@ -219,7 +191,7 @@ for reverse_j=1:N_j-1
 end
 
 %%
-Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
+Policy2=zeros(2,N_a,N_z,N_j); %NOTE: this is not actually in Kron form
 Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
 Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
