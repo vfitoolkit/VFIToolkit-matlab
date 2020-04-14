@@ -92,6 +92,21 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
     [StationaryDist]=StationaryDist_Case1_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
+elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
+    % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
+    EntryDist=reshape(Params.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
+    [~,seedpoint_index]=max(abs(cumsum(EntryDist)-0.5));
+    simoptions.seedpoint=ind2sub_homemade([N_a,N_z],seedpoint_index); % Would obviously be better initial guess to do a bunch of different simulations for variety of points in the 'EntryDist'.
+    simoptions.simperiods=10^3;
+    simoptions.burnin=0;
+    StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+    if simoptions.verbose==1
+        fprintf('Note: simoptions.iterate=1 is imposed/required when using simoptions.agententryandexit=2 \n')
+    end
+    ExitProb=Params.(EntryExitParamNames.ProbOfDeath{1});
+    StationaryDist=StationaryDist_Case1_Iteration_EntryExit2_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
+    StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+    return
 end
 
 StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
@@ -105,6 +120,6 @@ end
 
 StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
 
-varargout={StationaryDistKron};
+% varargout={StationaryDistKron};
 
 end
