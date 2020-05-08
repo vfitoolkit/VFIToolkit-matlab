@@ -90,7 +90,7 @@ end
         beta=prod(DiscountFactorParamsVec);
         % Create a vector containing all the return function parameters (in order)
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
-        
+                
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
         
         if vfoptions.endogenousexit==1

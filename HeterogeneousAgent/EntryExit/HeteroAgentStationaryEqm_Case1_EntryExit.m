@@ -136,7 +136,7 @@ if specialgeneqmcondnsused==1
         % Need to compute this (is calculated inside subfn, but then lost (not kept)
         % To keep things clean and tidy I am using a function call to do
         % this, it is essentially a copy-paste of the _subfn command.
-        p_eqm.(EntryExitParamNames.CondlEntryDecisions{1})=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p_eqm_vec, V0Kron, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+        p_eqm.(EntryExitParamNames.CondlEntryDecisions{1})=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p_eqm_vec, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
     end
 end
 % p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless.
