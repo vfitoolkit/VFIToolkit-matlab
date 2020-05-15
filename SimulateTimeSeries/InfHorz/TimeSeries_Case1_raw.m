@@ -63,11 +63,13 @@ for t=1:periods
         end
     end
     if l_d==0
-    for i=1:length(TimeSeriesFn)        
-        TimeSeriesKron(i,t)=TimeSeriesFn{i}(aprime_vals,a_val,z_val);
-    end
+        for i=1:length(TimeSeriesFn)
+            TimeSeriesKron(i,t)=TimeSeriesFn{i}(aprime_vals,a_val,z_val);
+        end
     else
-        TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_vals,aprime_vals,a_val,z_val);        
+        for i=1:length(TimeSeriesFn)
+            TimeSeriesKron(i,t)=TimeSeriesFn{i}(d_vals,aprime_vals,a_val,z_val);
+        end
     end
 end
 
