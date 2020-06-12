@@ -1,4 +1,4 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDistpdf,StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
 eval('fieldexists=1;simoptions.endogenousexit;','fieldexists=0;')
@@ -31,7 +31,7 @@ if Parallel==2 || Parallel==4
     
     N_a=prod(n_a);
     N_z=prod(n_z);
-    
+        
     % When there is endogenous exit, add exit to the policy (to avoid what
     % would otherwise be zeros) and instead multiply the exiting by the
     % stationary dist to eliminate the 'decisions' there.
@@ -115,7 +115,7 @@ else
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                 end
-                ValuesOnGrid(:,i)=Values.*StationaryDistpdfVec;
+                ValuesOnGrid(:,i)=Values;
             else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
                 Values=zeros(N_a*N_z,1);
@@ -143,7 +143,7 @@ else
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                 end
-                ValuesOnGrid(:,i)=Values.*StationaryDistpdfVec;
+                ValuesOnGrid(:,i)=Values;
             else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
                 Values=zeros(N_a*N_z,1);
