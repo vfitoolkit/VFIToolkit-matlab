@@ -115,7 +115,7 @@ else
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                 end
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,i)=Values; 
             else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
                 Values=zeros(N_a*N_z,1);
