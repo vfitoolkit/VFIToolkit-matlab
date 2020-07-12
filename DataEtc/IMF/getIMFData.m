@@ -1,9 +1,10 @@
 function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end, counterpartycountrycode2L, sector_id, counterpartysector_id, vintage_id)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% database_id: currently supports 'BOP', 'IFS', 'DOT', 'CPIS'
+% database_id: currently supports 'BOP', 'IFS', 'DOT', 'CPIS', 'FSI'
 % [IMF datasets Balance of Payments (BOP), International Fiscal Statistics (IFS), 
-% Direction of Trade Statistics (DOT), and Coordinated Portfolio Investment Survey (CPIS).]
+% Direction of Trade Statistics (DOT), Coordinated Portfolio Investment Survey (CPIS),
+% and Financial Soundness Indicators (FSI).]
 %
 % If the only input is the database_id, then output will return a
 % dictionary of 'series_id' and their names. This can then be searched to
@@ -18,7 +19,7 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 % given data for all available dates. Equivalently, set
 % observation_start=[], and similarly for observation_end=[].
 %
-% For BOP and IFS no further inputs are required. 
+% For BOP, FSI, IFS no further inputs are required. 
 %
 % Using CPIS you will need three further inputs:
 %   sector_id: see CPIS database for an explanation of Sectors
@@ -116,8 +117,8 @@ if nargin==1 % Just return a dictionary for that database
         output.Variables{ii,2}=temp(ii).Description.x_text;
     end
     % The above first four appear to always be the same, at least for BOP,
-    % IFS and CPIS. After the first four things are specific to the database being queried.
-    if strcmp(database_id,'IFS')
+    % IFS, CPIS and FSI. After the first four things are specific to the database being queried.
+    if strcmp(database_id,'IFS') || strcmp(database_id,'FSI')
         temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
         for ii=1:length(temp)
             output.TimeFormat{ii,1}=temp(ii).x_value;
@@ -153,7 +154,7 @@ end
 
 
 % Not just database_id, so an actual data 'series_id' has been requested
-if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP')
+if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP') || strcmp(database_id, 'FSI')
     optionstring=[frequency,'.',countrycode2L,'.',series_id];
     if nargin==7
         optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',timeformat];
@@ -221,7 +222,7 @@ if isfield(JSONdata.CompactData.DataSet,'Series')
     end
 else
     fprintf('getIMFDATA Warning: You requested some missing data, have returned a nan value. \n')
-    if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP')
+    if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP') || strcmp(database_id, 'FSI')
         fprintf('    Missing: Database: %s , Series: %s , Country: %s \n', database_id_full, series_id, countrycode2L);
     elseif strcmp(database_id,'CPIS')
         fprintf('    Missing: Database: %s , Series: %s , Countries: %s and %s , Sectors: %s and %s \n', database_id_full, series_id, countrycode2L, counterpartycountrycode2L,sector_id,counterpartysector_id);
