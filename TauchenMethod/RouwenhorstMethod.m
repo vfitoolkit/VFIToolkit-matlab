@@ -1,4 +1,4 @@
-function [states,transmatrix,s]=RouwenhorstMethod(rho,sigmasq,znum,rouwenhorstoptions)
+function [states,transmatrix]=RouwenhorstMethod(mew,rho,sigmasq,znum,rouwenhorstoptions)
 % Create states vector and transition matrix for the discrete markov process approximation of AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq), by Rouwenhorst method
 % Rouwenhorst method outperforms the Tauchen method when rho is close to 1.
 % Inputs
@@ -32,11 +32,12 @@ else
     end
 end
 
-
 zbar=sqrt((znum-1)/(1-rho^2))*sqrt(sigmasq);
-z=linspace(-zbar,zbar,znum);
+z_grid=linspace(-zbar,zbar,znum)';
 p=(1+rho)/2; q=p;
+
 P=rouwenhorst(znum,p,q);
+% [z_grid,P]=rouwenhorst(znum,mew/(1-rho),rho,sqrt(sigmasq));
 
 % Following is an faster-than-usual shortcut to calculate the stationary
 % distribution for Rouwenhorst quadrature.
@@ -45,12 +46,13 @@ P=rouwenhorst(znum,p,q);
 %     s(j)=nchoosek(znum-1,j-1);
 % end
 % s=s/2^(znum-1);
+% % I do not actually include this in the outputs. It is just left here for reference.
 
 if rouwenhorstoptions.parallel==2 
-    states=gpuArray(z');
+    states=gpuArray(z_grid);
     transmatrix=gpuArray(P); %(z,zprime)
 else
-    states=z';
+    states=z_grid;
     transmatrix=P; %(z,zprime)    
 end
 
