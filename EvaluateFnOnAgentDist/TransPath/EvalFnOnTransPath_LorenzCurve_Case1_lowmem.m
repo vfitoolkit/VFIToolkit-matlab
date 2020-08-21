@@ -1,49 +1,13 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,ParamPath, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions)
+function LorenzCurvePath=EvalFnOnTransPath_LorenzCurve_Case1_lowmem(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions,npoints)
 %AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
-
-if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
-    transpathoptions.parallel=2;
-    transpathoptions.lowmemory=0;
-else
-    %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=2;
-    end
-    if isfield(transpathoptions,'lowmemory')==0
-        transpathoptions.lowmemory=0;
-    end
-end
 
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
-
-% Internally PricePathOld is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-PricePathNames=fieldnames(PricePath);
-PricePathStruct=PricePath; 
-PricePath=zeros(T,length(PricePathNames),'gpuArray');
-for ii=1:length(PricePathNames)
-    PricePath(:,ii)=PricePathStruct.(PricePathNames{ii});
-end
-ParamPathNames=fieldnames(ParamPath);
-ParamPathStruct=ParamPath; 
-ParamPath=zeros(T,length(ParamPathNames),'gpuArray');
-for ii=1:length(ParamPathNames)
-    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
-end
+l_z=length(n_z);
 
 if N_d==0
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames);
-    return
-end
-
-if transpathoptions.lowmemory==1
-    % The lowmemory option is going to use gpu (but loop over z instead of
-    % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_lowmem(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions);
+    LorenzCurvePath=EvalFnOnTransPath_LorenzCurve_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, transpathoptions.parallel, npoints);
     return
 end
 
@@ -63,6 +27,8 @@ IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PricePathNames, Ret
 IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,ReturnFnParamNames);
 
+z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 is to create z_gridvals as matrix
+
 PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 %First, go from T-1 to 1 calculating the Value function and Optimal
 %policy function at each step. Since we won't need to keep the value
@@ -79,11 +45,11 @@ for ii=0:T-1 %so t=T-i
     end
     if ~isnan(IndexesForPathParamsInReturnFnParams)
         ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ii,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-    end    
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+    end
     
     for z_c=1:N_z
-        ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, ones(l_z,1), d_grid, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec);
+
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
@@ -104,11 +70,14 @@ for ii=0:T-1 %so t=T-i
     Vnext=V;
 end
 
+% Free up space on GPU by deleting things no longer needed
+clear ReturnMatrix_z entireRHS entireEV_z EV_z Vtemp maxindex V Vnext
+
 
 %Now we have the full PolicyIndexesPath, we go forward in time from 1
 %to T using the policies to generate the AggVarsPath. First though we
 %put in it's initial and final values.
-AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
+LorenzCurvePath=zeros(T,length(FnsToEvaluate),npoints,'gpuArray');
 % AggVarsPath(T,:)=SSvalues_AggVars_final;
 %Call AgentDist the current periods distn and AgentDistnext
 %the next periods distn which we must calculate
@@ -128,15 +97,6 @@ for ii=1:T%-1
     Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
     AgentDistnext=Ptran*AgentDist;
     
-%     p=PricePath(ii,:);
-%     
-%     if ~isnan(IndexesForPricePathInFnsToEvaluateParams)
-%         FnsToEvaluateParamsVec(IndexesForPricePathInFnsToEvaluateParams)=PricePath(ii,IndexesForFnsToEvaluateParamsInPricePath);
-%     end
-%     if ~isnan(IndexesForPathParamsInFnsToEvaluateParams)
-%         FnsToEvaluateParamsVec(IndexesForPathParamsInFnsToEvaluateParams)=ParamPath(ii,IndexesForFnsToEvaluateParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-%     end
-%     
 %     % The next five lines should really be replaced with a custom
 %     % alternative version of SSvalues_AggVars_Case1_vec that can
 %     % operate directly on Policy, rather than present messing around
@@ -147,8 +107,6 @@ for ii=1:T%-1
     PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
     PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
     
-%     SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, FnsToEvaluateParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p, 2);
-
     for jj=1:size(PricePath,2)
         Parameters.(PricePathNames{jj})=PricePath(ii,jj);
     end
@@ -157,9 +115,10 @@ for ii=1:T%-1
     end
     
     PolicyTemp=UnKronPolicyIndexes_Case1(PolicyTemp, n_d, n_a, n_z,unkronoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
+    LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, transpathoptions.parallel, npoints);
+%     AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
 
-    AggVarsPath(ii,:)=AggVars;
+    LorenzCurvePath(ii,:,:)=LorenzCurve;
     
     AgentDist=AgentDistnext;
 end

@@ -32,8 +32,8 @@ else
     end
 end
 
-zbar=sqrt((znum-1)/(1-rho^2))*sqrt(sigmasq);
-z_grid=linspace(-zbar,zbar,znum)';
+zbar=sqrt((znum-1))*(sqrt(sigmasq)/sqrt((1-rho^2)));
+z_grid=mew+linspace(-zbar,zbar,znum)';
 p=(1+rho)/2; q=p;
 
 P=rouwenhorst(znum,p,q);
@@ -48,6 +48,9 @@ P=rouwenhorst(znum,p,q);
 % s=s/2^(znum-1);
 % % I do not actually include this in the outputs. It is just left here for reference.
 
+% HAVE DONE THE LAZY OPTION. THIS SHOULD REALLY BE REWRITTEN SO THAT JUST
+% CREATE ON GPU OR CPU AS APPROPRIATE. (AVOID THE OVERHEAD OF MOVING TO
+% GPU)
 if rouwenhorstoptions.parallel==2 
     states=gpuArray(z_grid);
     transmatrix=gpuArray(P); %(z,zprime)

@@ -69,50 +69,63 @@ if simoptions.endogenousexit==1
     % use optaprime as an index.
     % (Need to use transpose of CondlProbOfSurvival because it is being
     % kept in the 'transposed' form as usually is used to multiply Ptranspose.)
+    
+    % Note: not an issue when using simoptions.endogenousexit==2
 end
 
-
-if simoptions.parallel<2
-%     if N_d==0 %length(n_d)==1 && n_d(1)==0
-%         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-%     else
-%         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-%     end
-    Ptranspose=zeros(N_a,N_a*N_z);
-    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
-    if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
-        Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose));
-    else
-%         size(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z]))
-%         size(Ptranspose)
-%         size((ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)
-        Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z 
+if simoptions.endogenousexit~=2
+    if simoptions.parallel<2
+        Ptranspose=zeros(N_a,N_a*N_z);
+        Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+        if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
+            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose));
+        else
+            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+        end
+    elseif simoptions.parallel==2 % Using the GPU
+        Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
+        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+        if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
+            Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(CondlProbOfSurvival*ones(N_z,1,'gpuArray'),Ptranspose));
+        else
+            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+        end
+    elseif simoptions.parallel>2
+        Ptranspose=sparse(N_a,N_a*N_z);
+        Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+        if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
+            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose));
+        else
+            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+        end
     end
-elseif simoptions.parallel==2 % Using the GPU
-%     if N_d==0 %length(n_d)==1 && n_d(1)==0
-%         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-%     else
-%         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-%     end
-    Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
-    Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-    if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
-        Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(CondlProbOfSurvival*ones(N_z,1,'gpuArray'),Ptranspose));
-    else
-        Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z 
-    end
-elseif simoptions.parallel>2
-%     if N_d==0 %length(n_d)==1 && n_d(1)==0
-%         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-%     else
-%         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-%     end
-    Ptranspose=sparse(N_a,N_a*N_z);
-    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
-    if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
-        Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose));
-    else
-        Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z 
+elseif simoptions.endogenousexit==2
+    exitprob=simoptions.exitprobabilities;
+    % Mixed exit (endogenous and exogenous), so we know that CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
+    if simoptions.parallel<2
+        Ptranspose=zeros(N_a,N_a*N_z);
+        Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+%         Ptranspose1=(kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)); % No exit, and remove exog exit
+%         Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+%         Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
+        % Following line does (in one line) what the above three commented
+        % out lines do (doing it in one presumably reduces memory usage of Ptranspose1 and Ptranspose2)
+        Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)))+exitprob(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
+    elseif simoptions.parallel==2 % Using the GPU
+        exitprob=gpuArray(exitprob);
+        Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
+        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+%         Ptranspose1=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(exitprob(1)*ones(N_z,1,'gpuArray'),Ptranspose)); % No exit, and remove exog exit
+%         Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+%         Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
+        Ptranspose=((kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(exitprob(1)*ones(N_z,1,'gpuArray'),Ptranspose)))+exitprob(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
+    elseif simoptions.parallel>2
+        Ptranspose=sparse(N_a,N_a*N_z);
+        Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+%         Ptranspose1=(kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)); % No exit, and remove exog exit
+%         Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+%         Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
+        Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)))+exitprob(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
     end
 end
 

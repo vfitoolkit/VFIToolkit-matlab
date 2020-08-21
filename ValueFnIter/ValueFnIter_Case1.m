@@ -168,6 +168,13 @@ if vfoptions.endogenousexit==1
     [V, Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V,Policy,ExitPolicy};
     return
+elseif vfoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit.
+    % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
+    % Policy is for those who remain.
+    % PolicyWhenExit is current period decisions of those who will exit at end of period.
+    [V, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy, PolicyWhenExit,ExitPolicy};
+    return
 end
 
 if vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting

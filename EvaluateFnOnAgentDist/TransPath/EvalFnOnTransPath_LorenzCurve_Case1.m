@@ -1,5 +1,6 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,ParamPath, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions)
-%AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
+function LorenzCurvePath=EvalFnOnTransPath_LorenzCurve_Case1(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,ParamPath, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions,npoints)
+% LorenzCurvePath is T periods long, the columns are length(FnsToEvaluate), and each lorenz curve is 'npoints' (default=100).
+% transpathoptions and npoints are optional inputs.
 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
@@ -14,6 +15,10 @@ else
     if isfield(transpathoptions,'lowmemory')==0
         transpathoptions.lowmemory=0;
     end
+end
+
+if exist('npoints','var')==0
+    npoints=100; % Number of points to use for the Lorenz curve
 end
 
 N_d=prod(n_d);
@@ -36,14 +41,14 @@ for ii=1:length(ParamPathNames)
 end
 
 if N_d==0
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames);
+    LorenzCurvePath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions.parallel,npoints);
     return
 end
 
 if transpathoptions.lowmemory==1
     % The lowmemory option is going to use gpu (but loop over z instead of
     % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_lowmem(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions);
+    LorenzCurvePath=EvalFnOnTransPath_AggVars_Case1_lowmem(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions, npoints);
     return
 end
 
@@ -108,7 +113,7 @@ end
 %Now we have the full PolicyIndexesPath, we go forward in time from 1
 %to T using the policies to generate the AggVarsPath. First though we
 %put in it's initial and final values.
-AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
+LorenzCurvePath=zeros(T,length(FnsToEvaluate),npoints,'gpuArray');
 % AggVarsPath(T,:)=SSvalues_AggVars_final;
 %Call AgentDist the current periods distn and AgentDistnext
 %the next periods distn which we must calculate
@@ -157,9 +162,10 @@ for ii=1:T%-1
     end
     
     PolicyTemp=UnKronPolicyIndexes_Case1(PolicyTemp, n_d, n_a, n_z,unkronoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
+    LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, transpathoptions.parallel, npoints);
+    %AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
 
-    AggVarsPath(ii,:)=AggVars;
+    LorenzCurvePath(ii,:,:)=LorenzCurve;
     
     AgentDist=AgentDistnext;
 end
