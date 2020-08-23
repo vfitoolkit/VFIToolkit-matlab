@@ -40,14 +40,14 @@ for p_c=1:N_p
     
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDist=StationaryDist_FHorz_Case2(jequaloneDist,AgeWeights,Policy,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprimeFn,Case2_Type,Parameters,PhiaprimeParamNames,simoptions);
-    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case2(StationaryDist, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid, simoptions, pi_z); % If using Age Dependent Variables then 'pi_z' is actually AgeDependentGridParamNames. If not then it will anyway be ignored.
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid, simoptions, pi_z); % If using Age Dependent Variables then 'pi_z' is actually AgeDependentGridParamNames. If not then it will anyway be ignored.
 
     % The following line is often a useful double-check if something is going wrong.
-%    SSvalues_AggVars
+%    AggVars
     
     % use of real() is a hack that could disguise errors, but I couldn't
     % find why matlab was treating output as complex
-    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case2(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case2(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
 
 

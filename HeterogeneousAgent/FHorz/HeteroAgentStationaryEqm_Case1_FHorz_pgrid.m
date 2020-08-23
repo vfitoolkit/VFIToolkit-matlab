@@ -39,15 +39,15 @@ for p_c=1:N_p
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist, AgeWeights, Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
-    SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
     
     % The following line is often a useful double-check if something is going wrong.
-%    SSvalues_AggVars
+%    AggVars
     
     % use of real() is a hack that could disguise errors, but I couldn't
     % find why matlab was treating output as complex
 %     MarketClearanceKron(p_c,:)=real(MarketClearance_Case1_pgrid(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters,MarketPriceParamNames));
-    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
 
 if heteroagentoptions.multiGEcriterion==0 % the measure of market clearance is to take the sum of absolute distance in each market 

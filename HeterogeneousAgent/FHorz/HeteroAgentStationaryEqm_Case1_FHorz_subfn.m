@@ -16,14 +16,14 @@ end
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
 StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeights,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
-SSvalues_AggVars=SSvalues_AggVars_FHorz_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid,2); % The 2 is for Parallel (use GPU)
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid,2); % The 2 is for Parallel (use GPU)
 
 % The following line is often a useful double-check if something is going wrong.
-%    SSvalues_AggVars
+%    AggVars
 
 % use of real() is a hack that could disguise errors, but I couldn't
 % find why matlab was treating output as complex
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(SSvalues_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
 if heteroagentoptions.multiGEcriterion==0  
     GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
