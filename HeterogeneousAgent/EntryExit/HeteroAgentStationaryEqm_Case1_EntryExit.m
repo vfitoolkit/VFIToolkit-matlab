@@ -83,6 +83,11 @@ else
     end
 end
 
+%% Sometimes, verbose needs a figure that it updates each step
+if heteroagentoptions.verbose==1
+    heteroagentoptions.verbosefighandle=figure;
+end
+
 %% If solving on p_grid
 if N_p~=0
     fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')

@@ -137,6 +137,11 @@ if condlentrycondnexists==1
     % wait for actual convergence I also add a limit of
     % 'heteroagentoptions.condlentrycondniterations' iterations.
     jj=1;
+    if heteroagentoptions.verbose==1
+        figure(heteroagentoptions.verbosefighandle)
+        surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
+        title('Conditional Entry decision')
+    end
     while CondlEntryDecisionsdist~=0 && jj<heteroagentoptions.condlentrycondniterations
         jj=jj+1;
         % Contents of this while loop are essentially just a copy paste of the above value fn---staty
@@ -203,6 +208,12 @@ if condlentrycondnexists==1
             end
         end        
         % END OF THE COPY-PASTE
+        if heteroagentoptions.verbose==1
+            % THIS IS NOT A GREAT IMPLEMENTATION OF CONDITIONAL ENTRY
+            % DECISION FOR VERBOSE. BUT WILL DO FOR NOW.
+            figure(heteroagentoptions.verbosefighandle)
+            surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
+        end
     end
     if jj==heteroagentoptions.condlentrycondniterations
         fprintf('Warning: for present gen eqm prices the inner loop on conditional entry condition is not yet converging (heteroagentoptions.condlentrycondniterations reached; default is 5) \n')
