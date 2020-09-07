@@ -59,7 +59,7 @@ if simoptions.endogenousexit==1
 elseif simoptions.endogenousexit==2 % Mixture of both endog and exog exit (which occurs at end of period)
     [V,Policy,PolicyWhenExiting,ExitPolicy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % With entry-exit will need to keep the value function to be able to evaluate entry condition.
-    Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=1-gather(ExitPolicy);
+    Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=vfoptions.exitprobabilities(1)+vfoptions.exitprobabilities(2)*(1-gather(ExitPolicy)); %1-gather(ExitPolicy);
 else
     [V,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % With entry-exit will need to keep the value function to be able to evaluate entry condition.
