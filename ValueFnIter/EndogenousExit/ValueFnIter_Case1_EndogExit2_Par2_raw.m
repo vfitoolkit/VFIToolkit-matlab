@@ -40,7 +40,7 @@ while currdist>Tolerance
         % Calc the max and it's index when exiting
         [FtempWhenExit,maxindexWhenExit]=max(ReturnToExitMatrix_z,[],1); % MOVE THIS OUTSIDE OF THE while loop
         % Endogenous Exit decision
-        ExitPolicy(:,z_c)=((FtempWhenExit-(Vtemp-continuationcost))>0); % Assumes that when indifferent you do not exit.
+        ExitPolicy_z=((FtempWhenExit-(Vtemp-continuationcost))>0); % Assumes that when indifferent you do not exit.
         
         % % The following line is implementing in a single line what is commented out here.
         % V_z_noexit=Vtemp;
@@ -48,9 +48,10 @@ while currdist>Tolerance
         % V_z_exoexit=ReturnToExitMatrix_z;
         % VKron(:,z_c)=exitprobabilities(1)*V_z_noexit+exitprobabilities(2)*V_z_endoexit+exitprobabilities(3)*V_z_exoexit
         
-        VKron(:,z_c)=exitprobabilities(1)*Vtemp+exitprobabilities(2)*(ExitPolicy(:,z_c).*FtempWhenExit+(1-ExitPolicy(:,z_c)).*(Vtemp-continuationcost))+exitprobabilities(3)*FtempWhenExit;
+        VKron(:,z_c)=exitprobabilities(1)*Vtemp+exitprobabilities(2)*(ExitPolicy_z.*FtempWhenExit+(1-ExitPolicy_z).*(Vtemp-continuationcost))+exitprobabilities(3)*FtempWhenExit;
         PolicyIndexes(:,z_c)=maxindex;
         PolicyWhenExitIndexes(:,z_c)=maxindexWhenExit;  % MOVE THIS OUTSIDE OF THE while loop
+        ExitPolicy(:,z_c)=ExitPolicy_z;
              
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);

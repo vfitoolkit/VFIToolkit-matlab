@@ -21,7 +21,7 @@ while currdist>Tolerance
     
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
+        ReturnToExitMatrix_z=ReturnToExitMatrix(:,:,z_c);
         
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
@@ -35,22 +35,22 @@ while currdist>Tolerance
         % Calc the max and it's index when exiting
         [FtempWhenExit,maxindexWhenExit]=max(ReturnToExitMatrix_z,[],1); % MOVE THIS OUTSIDE OF THE while loop
         % Endogenous Exit decision
-        ExitPolicy(:,z_c)=((FtempWhenExit-(Vtemp-continuationcost))>0); % Assumes that when indifferent you do not exit.
+        ExitPolicy_z=((FtempWhenExit-(Vtemp-continuationcost))>0); % Assumes that when indifferent you do not exit.
 
         % % The following line is implementing in a single line what is commented out here.
         % V_z_noexit=Vtemp;
         % V_z_endogexit=ExitPolicy(:,z_c).*FtempWhenExit+(1-ExitPolicy(:,z_c)).*(Vtemp-continuationcost);
         % V_z_exoexit=ReturnToExitMatrix_z;
         % VKron(:,z_c)=exitprobabilities(1)*V_z_noexit+exitprobabilities(2)*V_z_endoexit+exitprobabilities(3)*V_z_exoexit
-
-        VKron(:,z_c)=exitprobabilities(1)*Vtemp+exitprobabilities(2)*(ExitPolicy(:,z_c).*FtempWhenExit+(1-ExitPolicy(:,z_c)).*(Vtemp-continuationcost))+exitprobabilities(3)*FtempWhenExit;
+        
+        VKron(:,z_c)=exitprobabilities(1)*Vtemp+exitprobabilities(2)*(ExitPolicy_z.*FtempWhenExit+(1-ExitPolicy_z).*(Vtemp-continuationcost))+exitprobabilities(3)*FtempWhenExit;
+        FWhenExit(:,z_c)=FtempWhenExit;
         PolicyIndexes(:,z_c)=maxindex;
         PolicyWhenExitIndexes(:,z_c)=maxindexWhenExit;  % MOVE THIS OUTSIDE OF THE while loop
-
+        ExitPolicy(:,z_c)=ExitPolicy_z;        
+        
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex);
-%         tempmaxindexWhenExit=maxindexWhenExit+(0:1:N_a-1)*N_a;
-        FWhenExit(:,z_c)=FtempWhenExit; %ReturnToExitMatrix_z(tempmaxindexWhenExit);
     end
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
@@ -67,6 +67,7 @@ while currdist>Tolerance
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            
             
             VKron=exitprobabilities(1)*(Ftemp+beta*EVKrontemp)+exitprobabilities(2)*(Ftemp2+beta*(1-ExitPolicy).*EVKrontemp)+exitprobabilities(3)*FWhenExit;
         end
