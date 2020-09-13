@@ -24,7 +24,7 @@ while currdist>Tolerance
 %     tic;
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
-        ReturnToExitMatrix_z=ReturnToExitMatrix(:,:,z_c);     
+        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);     
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));

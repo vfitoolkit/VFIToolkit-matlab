@@ -226,5 +226,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     pathcounter=pathcounter+1;
 end
 
+for ii=1:length(PricePathNames)
+    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+end
 
 end

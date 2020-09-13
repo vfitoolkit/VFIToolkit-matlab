@@ -1,9 +1,12 @@
-function SimPanelValues=SimPanelValues_Case1(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions, EntryExitParamNames)
+function SimPanelValues=SimPanelValues_Case1(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions, EntryExitParamNames,PolicyWhenExiting)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist.
-% SimPanelValues is a 3-dimensional matrix with first dimension being the
-% number of 'variables' to be simulated, second dimension is FHorz, and
-% third dimension is the number-of-simulations
+% SimPanelValues is a 2-dimensional matrix with first dimension being the
+% number of 'variables' to be simulated, second dimension is J, and
+% third dimension is the number-of-simulations.
+%
+% Note that when there is entry of new agents the number-of-simulations
+% will be larger than simoptions.numbersims.
 %
 % InitialDist can be inputed as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
@@ -71,11 +74,19 @@ end
 
 % NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
 PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);%,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+% if exists(PolicyWhenExiting,'var')
+%     PolicyWhenExitingKron=KronPolicyIndexes_Case1(PolicyWhenExiting, n_d, n_a, n_z);
+% end
 
 if simoptions.agententryandexit==1
+    % Do everything for an extra period, and then delete this at the end
+    % (this is needed as lot's of info about exit decisions gets encoded
+    % into the next period as a way to minimize memory usage)
+    simoptions.simperiods=simoptions.simperiods+1;
+    
     DistOfNewAgents=gather(Parameters.(EntryExitParamNames.DistOfNewAgents{1}));
     CondlProbOfSurvival=gather(Parameters.(EntryExitParamNames.CondlProbOfSurvival{1}));
-    RelativeMassOfEntrants=InitialDist.mass/Parameters.(EntryExitParamNames.MassOfNewAgents{1});
+    RelativeMassOfEntrants=Parameters.(EntryExitParamNames.MassOfNewAgents{1})/InitialDist.mass;
 
     % Rather than create a whole new function for Entry, just deal with it
     % by making repeated use of SimPanelIndexes_Case1(). This could be sped
@@ -100,7 +111,7 @@ if simoptions.agententryandexit==1
     end
     simoptions.numbersims=numbersims; % Restore.
     simoptions.simperiods=simperiods;% Retore.
-else
+else % simoptions.agententryandexit==0
     SimPanelIndexes=SimPanelIndexes_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions);
 end
 
@@ -108,16 +119,29 @@ end
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
 z_grid=gather(z_grid);
-PolicyIndexesKron=gather(PolicyIndexesKron);
+% PolicyIndexesKron=gather(PolicyIndexesKron);
 
-SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
+SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, size(SimPanelIndexes,3)); % Normally size(SimPanelIndexes,3) will equal simoptions.numbersims, but not when there is entry.
 
 %% Precompute the gridvals vectors.
-a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
-z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+if simoptions.agententryandexit==1 && simoptions.endogenousexit==1
+    % Policy contains zeros relating to aprime_ind endogenous exit
+    % These zeros would cause problem for CreateGridvals_Policy(), but are
+    % not needed for anything here. So can just replace with nan.
+    Policy(Policy==0)=nan;
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy_IgnoringNan(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+else
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+end
+a_gridvals=CreateGridvals(n_a,a_grid,2); % 1 at end indicates output as matrices.
+z_gridvals=CreateGridvals(n_z,z_grid,2); % 1 at end indicates output as matrices.
 
-d_val=zeros(1,l_d);
-aprime_val=zeros(1,l_a);
+if exist('PolicyWhenExiting','var')
+    [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+end
+
+% d_val=zeros(1,l_d);
+% aprime_val=zeros(1,l_a);
 % a_val=zeros(1,l_a);
 % z_val=zeros(1,l_z);
 
@@ -130,57 +154,28 @@ if simoptions.agententryandexit==0
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
             
-            a_val=a_gridvals(a_ind,:);
-            
             z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
             z_ind=sub2ind_homemade(n_z,z_sub);
-            z_val=z_gridvals(z_ind,:);
             
-            j_ind=SimPanel_ii(end,t);
-            
-            if l_d==0
-                aprime_ind=PolicyIndexesKron(a_ind,z_ind);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-                aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-            else
-                temp=PolicyIndexesKron(:,a_ind,z_ind);
-                d_ind=temp(1); aprime_ind=temp(2);
-                d_sub=ind2sub_homemade(n_d,d_ind);
-                aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                for kk1=1:l_d
-                    if kk1==1
-                        d_val(kk1)=d_grid(d_sub(kk1));
-                    else
-                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-                    end
-                end
-            end
-            for kk2=1:l_a
-                if kk2==1
-                    aprime_val(kk2)=a_grid(aprime_sub(kk2));
-                else
-                    aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-                end
-            end
+            j_ind=SimPanel_ii(end,t); % DO I ACTUALLY WANT THIS HERE? (PRETTY SURE THAT IT IS JUST ACTING AS AN EXTRA INPUT LATER WHICH IS BEING IGNORED AS NOT RELEVANT)
             
             if l_d==0
                 for vv=1:length(FnsToEvaluate)
-                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                        tempcell=num2cell([aprime_val,a_val,z_val]');
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
                     else
-                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                        tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                        ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
                     end
-                    SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                 end
             else
                 for vv=1:length(FnsToEvaluate)
-                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                        tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
                     else
-                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                        tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                        ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
                     end
-                    SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                 end
             end
             SimPanelValues(:,:,ii)=SimPanelValues_ii;
@@ -188,64 +183,36 @@ if simoptions.agententryandexit==0
     end
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
     % Need to add check for nan relating to a_ind and z_ind around entry/exit
-    for ii=1:simoptions.numbersims
+    for ii=1:size(SimPanelIndexes,3) % simoptions.numbersims
         SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die/exit' before end of panel
         SimPanel_ii=SimPanelIndexes(:,:,ii);
         for t=1:simoptions.simperiods
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
             if ~isnan(a_ind)
-                a_val=a_gridvals(a_ind,:);
                 
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
-                z_val=z_gridvals(z_ind,:);
                 
                 j_ind=SimPanel_ii(end,t);
                 
                 if l_d==0
-                    aprime_ind=PolicyIndexesKron(a_ind,z_ind);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-                    aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                else
-                    temp=PolicyIndexesKron(:,a_ind,z_ind);
-                    d_ind=temp(1); aprime_ind=temp(2);
-                    d_sub=ind2sub_homemade(n_d,d_ind);
-                    aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                    for kk1=1:l_d
-                        if kk1==1
-                            d_val(kk1)=d_grid(d_sub(kk1));
-                        else
-                            d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-                        end
-                    end
-                end
-                for kk2=1:l_a
-                    if kk2==1
-                        aprime_val(kk2)=a_grid(aprime_sub(kk2));
-                    else
-                        aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-                    end
-                end
-                
-                if l_d==0
                     for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                            tempcell=num2cell([aprime_val,a_val,z_val]');
+                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
                         else
-                            ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                            tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                            ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
                         end
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                     end
                 else
                     for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                            tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
+                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
                         else
-                            ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                            tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                            ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
                         end
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                     end
                 end
             end
@@ -255,69 +222,109 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
     % Need to add check for nan relating to a_ind and z_ind around entry/exit
     % Need to add check for zeros relating to aprime_ind endogenous exit
-    for ii=1:simoptions.numbersims
+    % (don't actually need to do so as these will be nan, have been changed
+    % earlier in the current script as is not important here)
+    for ii=1:size(SimPanelIndexes,3) % simoptions.numbersims
         SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die/exit' before end of panel
         SimPanel_ii=SimPanelIndexes(:,:,ii);
         for t=1:simoptions.simperiods
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
             if ~isnan(a_ind)
-                a_val=a_gridvals(a_ind,:);
                 
                 z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
                 z_ind=sub2ind_homemade(n_z,z_sub);
-                z_val=z_gridvals(z_ind,:);
                 
                 j_ind=SimPanel_ii(end,t);
                 
                 if l_d==0
-                    aprime_ind=PolicyIndexesKron(a_ind,z_ind);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-                    aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                else
-                    temp=PolicyIndexesKron(:,a_ind,z_ind);
-                    d_ind=temp(1); aprime_ind=temp(2);
-                    d_sub=ind2sub_homemade(n_d,d_ind);
-                    aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                    if d_ind~=0 % Not exiting (that or using 'keeppolicy' option)
-                        for kk1=1:l_d
-                            if kk1==1
-                                d_val(kk1)=d_grid(d_sub(kk1));
-                            else
-                                d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-                            end
-                        end
-                    end
-                end
-                if aprime_ind~=0 % Not exiting (that or using 'keeppolicy' option)
-                    for kk2=1:l_a
-                        if kk2==1
-                            aprime_val(kk2)=a_grid(aprime_sub(kk2));
-                        else
-                            aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-                        end
-                    end
-                end
-                
-                if aprime_ind~=0 % Not exiting (that or using 'keeppolicy' option) % (can only get d_val=0 in same situation as aprime=0, so no need to check both of them)
-                    if l_d==0
                         for vv=1:length(FnsToEvaluate)
-                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                                tempcell=num2cell([aprime_val,a_val,z_val]');
+                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
                             else
-                                ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                                tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                                ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
                             end
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                         end
                     else
                         for vv=1:length(FnsToEvaluate)
-                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-                                tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
+                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
                             else
-                                ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                                tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                                ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
                             end
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
+                        end
+                    end
+            end
+            SimPanelValues(:,:,ii)=SimPanelValues_ii;
+        end
+    end
+elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
+    % NEED TO FILL THIS PART OUT!!!
+    % The kind of exit that occurs at time t is recorded in the time t+1 exogenous state as a value of 0 for endog exit.
+    % (Note: so exogenous just leaves nan from then on, endog exit leaves 0 in
+    % next period exogenous state and otherwise just leaves nan from then on. Notice that a zero value will throw an error if just treated as a standard index.)
+
+    % Need to add check for nan relating to a_ind and z_ind around entry/exit
+    for ii=1:size(SimPanelIndexes,3) % simoptions.numbersims
+        SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die/exit' before end of panel
+        SimPanel_ii=SimPanelIndexes(:,:,ii);
+        for t=1:simoptions.simperiods
+            a_sub=SimPanel_ii(1:l_a,t);
+            a_ind=sub2ind_homemade(n_a,a_sub);
+            if ~isnan(a_ind)                
+                z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
+                z_ind=sub2ind_homemade(n_z,z_sub);
+                
+                j_ind=SimPanel_ii(end,t); 
+                
+                % Make sure that firm is not currently about to exit (includes where firm faces exogenous exit, even though this is not a decision).
+                if t<simoptions.simperiods % Note that with exit the last period will be thrown out anyway, so no need to get it correct.
+                    if SimPanel_ii(1:l_a,t+1)~=0 && ~isnan(SimPanel_ii(1:l_a,t+1))
+                        exiting=0;
+                    else
+                        exiting=1;
+                    end
+                end
+                if exiting==0
+                    if l_d==0
+                        for vv=1:length(FnsToEvaluate)
+                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
+                            else
+                                ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
+                            end
+                        end
+                    else
+                        for vv=1:length(FnsToEvaluate)
+                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
+                            else
+                                ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
+                            end
+                        end
+                    end
+                elseif exiting==1
+                    if l_d==0
+                        for vv=1:length(FnsToEvaluate)
+                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvalsWhenExiting{a_ind,:},z_gridvals{z_ind,:});
+                            else
+                                ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvalsWhenExiting{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
+                            end
+                        end
+                    else
+                        for vv=1:length(FnsToEvaluate)
+                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
+                            else
+                                ValuesFnParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},ValuesFnParamsCell{:});
+                            end
                         end
                     end
                 end
@@ -325,6 +332,13 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
             SimPanelValues(:,:,ii)=SimPanelValues_ii;
         end
     end
+end
+
+if simoptions.agententryandexit==1
+    % Have done everything for an extra period, and now delete this at the end.
+    % (this is needed as lot's of info about exit decisions gets encoded
+    % into the next period as a way to minimize memory usage)
+    SimPanelValues=SimPanelValues(:,1:end-1,:); % Deletes the extra period
 end
 
 end

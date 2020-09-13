@@ -180,4 +180,8 @@ end
 
 PricePath=gpuArray(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
 
+for ii=1:length(PricePathNames)
+    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+end
+
 end

@@ -1,7 +1,7 @@
 function SimPanel=SimPanelIndexes_Case1(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. 
-% CondlProbOfSurvival is an optional input.
+% CondlProbOfSurvival is an optional input. (only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both)
 %
 % InitialDist can be inputed as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
@@ -47,6 +47,10 @@ end
 
 if exist('CondlProbOfSurvival','var')==1
     simoptions.exitinpanel=1;
+    CondlProbOfSurvivalKron=reshape(CondlProbOfSurvival,[N_a,N_z]);
+    if ~isfield(simoptions, 'endogenousexit')
+        simoptions.endogenousexit=0;  % Note: this will only be relevant if exitinpanel=1
+    end
 end
 
 if n_d(1)==0
@@ -105,8 +109,6 @@ if simoptions.parallel==2
     simoptions.simperiods=gather(simoptions.simperiods);
 end
 
-CondlProbOfSurvivalKron=reshape(CondlProbOfSurvival,[N_a,N_z]);
-
 SimPanel=nan(l_a+l_z,simoptions.simperiods,simoptions.numbersims); % (a,z)
 if simoptions.parallel==0
     for ii=1:simoptions.numbersims
@@ -115,7 +117,11 @@ if simoptions.parallel==0
         if simoptions.exitinpanel==0
             SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
         else
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU        
+            if simoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit
+                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,simoptions.exitprobabilities,0); % 0: burnin, 0: use single CPU
+            else % Otherwise (either one of endogenous or exogenous exit; but not mixture)
+                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
+            end
         end
         
         SimPanel_ii=nan(l_a+l_z,simoptions.simperiods);
@@ -138,12 +144,22 @@ if simoptions.parallel==0
 else
     exitinpanel=simoptions.exitinpanel; % reduce overhead with parfor
     simperiods=simoptions.simperiods; % reduce overhead with parfor
+    endogenousexit=simoptions.endogenousexit; % reduce overhead with parfor
+    if endogenousexit==2
+        exitprobabilities=simoptions.exitprobabilities; % reduce overhead with parfor
+    else
+        exitprobabilities=0; % Not sure why, but Matlab was throwing error if this did not exist even when endogenousexit~=2, presumably something to do with figuring out the parallelization for parfor???
+    end
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
         if exitinpanel==0
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
+            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
         else
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU        
+            if endogenousexit==2 % Mixture of endogenous and exogenous exit
+                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simperiods,exitprobabilities,0); % 0: burnin, 0: use single CPU
+            else % Otherwise (either one of endogenous or exogenous exit; but not mixture)
+                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
+            end
         end
         
         SimPanel_ii=nan(l_a+l_z,simperiods);

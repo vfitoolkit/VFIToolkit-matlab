@@ -13,6 +13,7 @@ while currdist>Tolerance
     VKronold=VKron;
     parfor z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
         pi_z_z=pi_z(z_c,:);
 
         EV_z=VKronold.*kron(pi_z_z(1,:),ones(N_a,1));

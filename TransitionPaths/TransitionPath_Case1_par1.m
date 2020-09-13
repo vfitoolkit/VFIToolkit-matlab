@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_par1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions)
+function PricePath=TransitionPath_Case1_par1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -214,5 +214,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
 end
 
+for ii=1:length(PricePathNames)
+    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+end
 
 end

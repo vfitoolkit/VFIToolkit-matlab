@@ -84,6 +84,8 @@ if simoptions.endogenousexit~=2
         end
     elseif simoptions.parallel==2 % Using the GPU
         Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
+        numel(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))
+        length(unique(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1))))
         Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
         if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
             Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(CondlProbOfSurvival*ones(N_z,1,'gpuArray'),Ptranspose));
