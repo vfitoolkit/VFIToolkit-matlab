@@ -39,7 +39,7 @@ while currdist>Tolerance
         % Exit decision
         ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp)>0); % Assumes that when indifferent you do not exit.
         
-        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c).*Vtemp);
+        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
              
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
