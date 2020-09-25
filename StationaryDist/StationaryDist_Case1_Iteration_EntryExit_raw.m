@@ -176,11 +176,11 @@ end
 %% The rest is essentially the same regardless of which simoption.parallel is being used
 %SteadyStateDistKron=ones(N_a*N_z,1)/(N_a*N_z); % This line was handy when checking/debugging. Have left it here.
 if simoptions.parallel==2
-    SteadyStateDistKronOld=zeros(N_a*N_z,1,'gpuArray');
+    StationaryDistKronOld=zeros(N_a*N_z,1,'gpuArray');
 else
-    SteadyStateDistKronOld=zeros(N_a*N_z,1);
+    StationaryDistKronOld=zeros(N_a*N_z,1);
 end
-SScurrdist=sum(abs(StationaryDistKron.pdf-SteadyStateDistKronOld));
+SScurrdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
 SScounter=0;
 
 % Switch into 'mass times pdf' form, and work with that until get
@@ -205,10 +205,10 @@ while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
 %     StationaryDistKron.mass=sum(sum(StationaryDistKron.pdf));
 %     StationaryDistKron.pdf=StationaryDistKron.pdf/StationaryDistKron.mass; % Make it the pdf
 
-    SteadyStateDistKronOld=StationaryDistKron.pdf;
+    StationaryDistKronOld=StationaryDistKron.pdf;
 %     StationaryDistKron.pdf=Ptranspose*StationaryDistKron.pdf; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
     StationaryDistKron.pdf=MassOfNewAgents*DistOfNewAgentsKron+Ptranspose*StationaryDistKron.pdf; %No point checking distance every single iteration. Do 100, then check.
-    SScurrdist=sum(abs(StationaryDistKron.pdf-SteadyStateDistKronOld));
+    SScurrdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
     % Note: I just look for convergence in the pdf and 'assume' the mass
     % will also have converged by then. I should probably correct this.
     
