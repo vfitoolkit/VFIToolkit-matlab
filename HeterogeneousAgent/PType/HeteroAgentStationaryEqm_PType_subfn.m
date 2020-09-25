@@ -100,10 +100,12 @@ end
 % find why matlab was treating output as complex
 GeneralEqmConditionsVec=real(GeneralEqmConditionsFn(StatsFromDist_AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
+
+
 if heteroagentoptions.multiGEcriterion==0 
-    GeneralEqmCondition=sum(abs(GeneralEqmConditionsVec));
+    GeneralEqmCondition=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmCondition=sum(GeneralEqmConditionsVec.^2);                                                                                                         
+    GeneralEqmCondition=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));                                                                                                         
 end
 
 GeneralEqmCondition=gather(GeneralEqmCondition);

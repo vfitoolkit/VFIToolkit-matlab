@@ -1,8 +1,8 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_Case2_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_s=prod(n_s);
+% N_d=prod(n_d);
+% N_a=prod(n_a);
+% N_s=prod(n_s);
 
 %% 
 for ii=1:length(GEPriceParamNames)
@@ -24,9 +24,9 @@ AggVars=EvalFnOnAgentDist_AggVars_Case2(StationaryDistKron, Policy, FnsToEvaluat
 GeneralEqmConditionsVec=real(GeneralEqmConditions_Case2(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 
 if heteroagentoptions.multiGEcriterion==0 
-    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
+    GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of general eqm is to take the sum of squares of each of the general eqm conditions being satisfied 
-    GeneralEqmConditions=sum(GeneralEqmConditionsVec.^2);                                                                                                         
+    GeneralEqmConditions=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));                                                                                                         
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);

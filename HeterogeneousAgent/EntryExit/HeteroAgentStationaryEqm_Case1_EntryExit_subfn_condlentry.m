@@ -5,18 +5,18 @@ function CondlEntryDecision=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condl
 % output of p_eqm. Have commented out a bunch of lines of code that are not
 % required as a result.
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
+% N_d=prod(n_d);
+% N_a=prod(n_a);
+% N_z=prod(n_z);
 
 %% I'm being lazy, this should be outside the subfn, and just the needed parts passed to the subfunction (would be faster that way)
 % Figure out which general eqm conditions are normal
-GeneralEqmConditionsVec=zeros(1,length(GeneralEqmEqns));
-standardgeneqmcondnsused=0;
-specialgeneqmcondnsused=0;
-entrycondnexists=0; condlentrycondnexists=0;
+% GeneralEqmConditionsVec=zeros(1,length(GeneralEqmEqns));
+% standardgeneqmcondnsused=0;
+% specialgeneqmcondnsused=0;
+% entrycondnexists=0; condlentrycondnexists=0;
 if ~isfield(heteroagentoptions,'specialgeneqmcondn')
-    standardgeneqmcondnindex=1:1:length(GeneralEqmEqns);
+%     standardgeneqmcondnindex=1:1:length(GeneralEqmEqns);
 else
     standardgeneqmcondnindex=zeros(1,length(GeneralEqmEqns));
     jj=1;
@@ -24,27 +24,27 @@ else
     clear GeneralEqmEqnParamNames
     for ii=1:length(GeneralEqmEqns)
         if isnumeric(heteroagentoptions.specialgeneqmcondn{ii}) % numeric means equal to zero and is a standard GEqm
-            standardgeneqmcondnsused=1;
+%             standardgeneqmcondnsused=1;
             standardgeneqmcondnindex(jj)=ii;
             GeneralEqmEqnParamNames(jj).Names=GeneralEqmEqnParamNames_Full(ii).Names;
             jj=jj+1;
         elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'entry')
-            specialgeneqmcondnsused=1;
-            entrycondnexists=1;
-            % currently 'entry' is the only kind of specialgeneqmcondn
-            entrygeneqmcondnindex=ii;
-            EntryCondnEqn=GeneralEqmEqns(ii);
-            EntryCondnEqnParamNames(1).Names=GeneralEqmEqnParamNames_Full(ii).Names;
+%             specialgeneqmcondnsused=1;
+%             entrycondnexists=1;
+%             % currently 'entry' is the only kind of specialgeneqmcondn
+%             entrygeneqmcondnindex=ii;
+%             EntryCondnEqn=GeneralEqmEqns(ii);
+%             EntryCondnEqnParamNames(1).Names=GeneralEqmEqnParamNames_Full(ii).Names;
         elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
-            specialgeneqmcondnsused=1;
-            condlentrycondnexists=1;
-            condlentrygeneqmcondnindex=ii;
+%             specialgeneqmcondnsused=1;
+%             condlentrycondnexists=1;
+%             condlentrygeneqmcondnindex=ii;
             CondlEntryCondnEqn=GeneralEqmEqns(ii);
             CondlEntryCondnEqnParamNames(1).Names=GeneralEqmEqnParamNames_Full(ii).Names;
         end
     end
-    standardgeneqmcondnindex=standardgeneqmcondnindex(standardgeneqmcondnindex>0); % get rid of zeros at the end
-    GeneralEqmEqns=GeneralEqmEqns(standardgeneqmcondnindex);
+%     standardgeneqmcondnindex=standardgeneqmcondnindex(standardgeneqmcondnindex>0); % get rid of zeros at the end
+%     GeneralEqmEqns=GeneralEqmEqns(standardgeneqmcondnindex);
 end
 
 %% 
@@ -68,24 +68,24 @@ end
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
 % StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions);
-StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions,Parameters,EntryExitParamNames);
+% StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions,Parameters,EntryExitParamNames);
 % Parameters.(EntryExitParamNames.MassOfExistingAgents{1})=MassOfExistingAgents;
 
-if simoptions.endogenousexit==2
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames, PolicyWhenExiting);
-else
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel,simoptions,EntryExitParamNames);
-end
+% if simoptions.endogenousexit==2
+%     AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames, PolicyWhenExiting);
+% else
+%     AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel,simoptions,EntryExitParamNames);
+% end
 
 % The following line is often a useful double-check if something is going wrong.
 %    AggVars
 
-% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-% GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
-if standardgeneqmcondnsused==1
-    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
-end
+% % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+% % GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+% if standardgeneqmcondnsused==1
+%     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+%     GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
+% end
 % Now fill in the 'non-standard' cases
 % if specialgeneqmcondnsused==1
 %     if condlentrycondnexists==1

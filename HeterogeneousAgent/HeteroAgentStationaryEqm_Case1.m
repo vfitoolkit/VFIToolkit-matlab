@@ -43,12 +43,16 @@ end
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
+    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
+    end
+    if isfield(heteroagentoptions,'multiGEweights')==0
+        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     end
     if N_p~=0
         if isfield(heteroagentoptions,'pgrid')==0

@@ -223,9 +223,9 @@ end
 
 %%
 if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
-    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
+    GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sqrt(sum(GeneralEqmConditionsVec.^2));                                                                                                         
+    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));                                                                                                         
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);

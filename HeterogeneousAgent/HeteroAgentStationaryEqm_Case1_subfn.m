@@ -1,8 +1,8 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_s=prod(n_s);
+% N_d=prod(n_d);
+% N_a=prod(n_a);
+% N_s=prod(n_s);
 
 %% 
 for ii=1:length(GEPriceParamNames)
@@ -23,9 +23,9 @@ AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluat
 GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 
 if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
-    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
+    GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sqrt(sum(GeneralEqmConditionsVec.^2));                                                                                                         
+    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));                                                                                                         
 end
 
 GeneralEqmConditions=gather(GeneralEqmConditions);

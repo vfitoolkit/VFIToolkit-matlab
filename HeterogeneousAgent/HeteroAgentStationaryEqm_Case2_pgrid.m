@@ -1,8 +1,8 @@
 function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_pgrid(n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_s=prod(n_s);
+% N_d=prod(n_d);
+% N_a=prod(n_a);
+% N_s=prod(n_s);
 N_p=prod(n_p);
 
 l_p=length(n_p);
@@ -52,10 +52,15 @@ for p_c=1:N_p
     GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case2(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
 end
 
+multiGEweightsKron=ones(N_p,1)*heteroagentoptions.multiGEweights;
+if simoptions.parallel==2 || simoptions.parallel==4
+    multiGEweightsKron=gpuArray(multiGEweightsKron);
+end
+
 if heteroagentoptions.multiGEcriterion==0 
-    [~,p_eqm_indexKron]=min(sum(abs(GeneralEqmConditionsKron),2));
+    [~,p_eqm_indexKron]=min(sum(abs(multiGEweightsKron.*GeneralEqmConditionsKron),2));
 elseif heteroagentoptions.multiGEcriterion==1 % general eqm is to take the sum of squares for each of the general eqm conditions holding 
-    [~,p_eqm_indexKron]=min(sum(GeneralEqmConditionsKron.^2,2));                                                                                                         
+    [~,p_eqm_indexKron]=min(sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2));                                                                                                         
 end
 
 %p_eqm_index=zeros(num_p,1);
@@ -67,14 +72,14 @@ if l_p>1
         GeneralEqmConditions=nan(N_p,1+l_p);
     end
     if heteroagentoptions.multiGEcriterion==0
-        GeneralEqmConditions(:,1)=sum(abs(GeneralEqmConditionsKron),2);
+        GeneralEqmConditions(:,1)=sum(abs(multiGEweightsKron.*GeneralEqmConditionsKron),2);
     elseif heteroagentoptions.multiGEcriterion==1 % general eqm is to take the sum of squares for each of the general eqm conditions holding 
-        GeneralEqmConditions(:,1)=sum(GeneralEqmConditionsKron.^2,2);
+        GeneralEqmConditions(:,1)=sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2);
     end
-    GeneralEqmConditions(:,2:end)=GeneralEqmConditionsKron;
+    GeneralEqmConditions(:,2:end)=multiGEweightsKron.*GeneralEqmConditionsKron;
     GeneralEqmConditions=reshape(GeneralEqmConditions,[n_p,1+l_p]);
 else
-    GeneralEqmConditions=reshape(GeneralEqmConditionsKron,[n_p,1]);
+    GeneralEqmConditions=reshape(multiGEweightsKron.*GeneralEqmConditionsKron,[n_p,1]);
 end
 
 

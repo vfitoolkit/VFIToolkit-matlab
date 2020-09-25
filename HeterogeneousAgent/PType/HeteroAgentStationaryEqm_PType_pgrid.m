@@ -118,21 +118,25 @@ for p_c=1:N_p
 
 end
 
+multiGEweightsKron=ones(N_p,1)*heteroagentoptions.multiGEweights;
+if simoptions.parallel==2 || simoptions.parallel==4
+    multiGEweightsKron=gpuArray(multiGEweightsKron);
+end
 
 if heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    [~,p_eqm_indexKron]=min(sum(GeneralEqmConditionsKron.^2,2));                                                                                                         
+    [~,p_eqm_indexKron]=min(sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2));                                                                                                         
 end
 
 p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
 if l_p>1
     GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');
     if heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-        GeneralEqmConditions(:,1)=sum(GeneralEqmConditionsKron.^2,2);
+        GeneralEqmConditions(:,1)=sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2);
     end
-    GeneralEqmConditions(:,2:end)=GeneralEqmConditionsKron;
+    GeneralEqmConditions(:,2:end)=multiGEweightsKron.*GeneralEqmConditionsKron;
     GeneralEqmConditions=reshape(GeneralEqmConditions,[n_p,1+l_p]);
 else
-    GeneralEqmConditions=reshape(GeneralEqmConditionsKron,[n_p,1]);
+    GeneralEqmConditions=reshape(multiGEweightsKron.*GeneralEqmConditionsKron,[n_p,1]);
 end
 
 %Calculate the price associated with p_eqm_index
