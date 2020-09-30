@@ -1,7 +1,7 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDistpdf,StationaryDistmass, PolicyIndexes, PolicyIndexesWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDistpdf,StationaryDistmass, PolicyIndexes, PolicyIndexesWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,exitprobs)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
-exitprobs=simoptions.exitprobabilities;
+% exitprobs=simoptions.exitprobabilities;
 
 if ~isfield(FnsToEvaluateParamNames,'ExitStatus')
     FnsToEvaluateParamNames(1).ExitStatus=[1,1,1,1];

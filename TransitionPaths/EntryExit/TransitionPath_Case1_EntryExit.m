@@ -154,7 +154,7 @@ if transpathoptions.GEnewprice==1  % Shooting algorithm
         PricePath=TransitionPath_Case1_EntryExit_no_d_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
         return
     else
-        PricePath=TransitionPath_Case1_EntryExit_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+        PricePath=TransitionPath_Case1_EntryExit_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
         return
     end
 end
@@ -166,7 +166,7 @@ if transpathoptions.GEnewprice==2 % Function minimization
     if n_d(1)==0
         GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_no_d_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
     else
-        GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
+        GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_EntryExit_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,EntryExitParamNames,transpathoptions,vfoptions,simoptions);
     end
 end
 

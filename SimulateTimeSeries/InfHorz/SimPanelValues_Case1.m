@@ -100,13 +100,13 @@ if simoptions.agententryandexit==1
     TotalNumberSims=simoptions.numbersims+simoptions.simperiods*NumberOfNewAgentsPerPeriod;
     SimPanelIndexes=nan(l_a+l_z,simoptions.simperiods,TotalNumberSims); % (a,z)
     % Start with those based on the initial distribution
-    SimPanelIndexes(:,:,1:simoptions.numbersims)=gather(SimPanelIndexes_Case1(InitialDist.pdf,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival));
+    SimPanelIndexes(:,:,1:simoptions.numbersims)=gather(SimPanelIndexes_Case1(InitialDist.pdf,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters));
     % Now do those for the entrants each period
     numbersims=simoptions.numbersims; % Store this, so can restore it after following loop
     simperiods=simoptions.simperiods;% Store this, so can restore it after following loop
     simoptions.numbersims=NumberOfNewAgentsPerPeriod;
     for t=1:simperiods
-        SimPanelIndexes(:,t:end,numbersims+1+NumberOfNewAgentsPerPeriod*(t-1):numbersims+NumberOfNewAgentsPerPeriod*t)=gather(SimPanelIndexes_Case1(DistOfNewAgents,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival));
+        SimPanelIndexes(:,t:end,numbersims+1+NumberOfNewAgentsPerPeriod*(t-1):numbersims+NumberOfNewAgentsPerPeriod*t)=gather(SimPanelIndexes_Case1(DistOfNewAgents,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters));
         simoptions.simperiods=simoptions.simperiods-1;
     end
     simoptions.numbersims=numbersims; % Restore.

@@ -144,7 +144,9 @@ elseif simoptions.endogenousexit==1
         end
     end
 elseif simoptions.endogenousexit==2
-    exitprob=simoptions.exitprobabilities;
+    exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
+    exitprobs=[1-sum(exitprobabilities),exitprobabilities];
+%     exitprob=simoptions.exitprobabilities;
     % Mixed exit (endogenous and exogenous), so we know that CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
     if simoptions.parallel<2
         Ptranspose=zeros(N_a,N_a*N_z);
@@ -154,22 +156,22 @@ elseif simoptions.endogenousexit==2
 %         Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
         % Following line does (in one line) what the above three commented
         % out lines do (doing it in one presumably reduces memory usage of Ptranspose1 and Ptranspose2)
-        Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)))+exitprob(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
+        Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprobs(1)*ones(N_z,1),Ptranspose)))+exitprobs(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
     elseif simoptions.parallel==2 % Using the GPU
-        exitprob=gpuArray(exitprob);
+        exitprobs=gpuArray(exitprobs);
         Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
         Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
 %         Ptranspose1=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(exitprob(1)*ones(N_z,1,'gpuArray'),Ptranspose)); % No exit, and remove exog exit
 %         Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
 %         Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
-        Ptranspose=((kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(exitprob(1)*ones(N_z,1,'gpuArray'),Ptranspose)))+exitprob(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
+        Ptranspose=((kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(exitprobs(1)*ones(N_z,1,'gpuArray'),Ptranspose)))+exitprobs(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
     elseif simoptions.parallel>2
         Ptranspose=sparse(N_a,N_a*N_z);
         Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
 %         Ptranspose1=(kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)); % No exit, and remove exog exit
 %         Ptranspose2=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
 %         Ptranspose=Ptranspose1+exitprob(2)*Ptranspose2; % Add the appropriate for endogenous exit
-        Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)))+exitprob(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
+        Ptranspose=((kron(pi_z',ones(N_a,N_a))).*(kron(exitprobs(1)*ones(N_z,1),Ptranspose)))+exitprobs(2)*((kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose)); % Add the appropriate for endogenous exit
     end
 end
 

@@ -38,7 +38,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
-    transpathoptions.GEnewprice=0;
+    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
@@ -70,7 +70,7 @@ else
         transpathoptions.verbose=0;
     end
     if isfield(transpathoptions,'GEnewprice')==0
-        transpathoptions.GEnewprice=0;
+        transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
     end
     if isfield(transpathoptions,'weightsforpath')==0
         transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
@@ -83,24 +83,28 @@ if exist('vfoptions','var')==0
     vfoptions=struct();
 end
 if exist('simoptions','var')==0
-    simoptions=struct();
+    simoptions.parallel=1+(gpuDeviceCount>0);
+else
+    if isfield(simoptions,'parallel')==0
+        simoptions.parallel=1+(gpuDeviceCount>0);
+    end
 end
 
 %%
 
 % If there is entry and exit, then send to relevant command
-if isfield(transpathoptions,'agententryandexit')==1
+if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
     if ~exist('EntryExitParamNames','var')
         fprintf('ERROR: need to input EntryExitParamNames to TransitionPath_Case1() \n')
         PricePath=[];
         return
     end
-    if transpathoptions.agententryandexit==1
+    if simoptions.agententryandexit==1% transpathoptions.agententryandexit==1
         PricePath=TransitionPath_Case1_EntryExit(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
         return
-    elseif transpathoptions.agententryandexit==2
-        PricePath=TransitionPath_Case1_EntryExit2(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-        return
+%     elseif transpathoptions.agententryandexit==2
+%         PricePath=TransitionPath_Case1_EntryExit2(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
+%         return
     end
 end
 
@@ -263,6 +267,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
         PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
+        PolicyTemp=UnKronPolicyIndexes_Case1(PolicyTemp, n_d, n_a, n_z,unkronoptions);
         AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
 %         AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
         

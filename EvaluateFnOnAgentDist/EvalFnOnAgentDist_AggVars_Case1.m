@@ -13,11 +13,12 @@ if isstruct(StationaryDist)
     if ~isfield(simoptions,'endogenousexit')
         simoptions.endogenousexit=0;
     end
-    simoptions
     if simoptions.endogenousexit~=2
         AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
     elseif simoptions.endogenousexit==2
-        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
+        exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
+        exitprobs=[1-sum(exitprobabilities),exitprobabilities];
+        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, exitprobs);
     end
     return
 end

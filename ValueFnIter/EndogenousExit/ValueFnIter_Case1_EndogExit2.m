@@ -49,6 +49,11 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 % The 'return to exit function' parameters (in order)
 ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ReturnToExitFnParamNames);
+% Parameters relating to 'mixed' exit.
+exitprobabilities=CreateVectorFromParams(Parameters, vfoptions.exitprobabilities);
+exitprobabilities=[1-sum(exitprobabilities),exitprobabilities];
+endogenousexitcontinuationcost=CreateVectorFromParams(Parameters, vfoptions.endogenousexitcontinuationcost);
+
 
 %%
 if vfoptions.lowmemory==0
@@ -94,7 +99,7 @@ if vfoptions.lowmemory==0
 %         elseif vfoptions.parallel==1 % On Parallel CPU
 %             [VKron,Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2_NoD_Par1_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit, vfoptions.exitprobabilities, vfoptions.endogenousexitcontinuationcost);
         if vfoptions.parallel==2 % On GPU
-            [VKron,Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit, vfoptions.exitprobabilities, vfoptions.endogenousexitcontinuationcost); %  a_grid, z_grid,
+            [VKron,Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit, exitprobabilities, endogenousexitcontinuationcost); %  a_grid, z_grid,
         end
     else
 %         if vfoptions.parallel==0 % On CPU
@@ -103,7 +108,7 @@ if vfoptions.lowmemory==0
 %             [VKron, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2_Par1_raw(V0Kron, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.keeppolicyonexit, vfoptions.exitprobabilities, vfoptions.endogenousexitcontinuationcost);
 %         elseif vfoptions.parallel==2 % On GPU
         if vfoptions.parallel==2 % On GPU
-            [VKron, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.keeppolicyonexit, vfoptions.exitprobabilities, vfoptions.endogenousexitcontinuationcost);
+            [VKron, Policy, PolicyWhenExit, ExitPolicy]=ValueFnIter_Case1_EndogExit2_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.keeppolicyonexit, exitprobabilities, endogenousexitcontinuationcost);
         end
     end
     

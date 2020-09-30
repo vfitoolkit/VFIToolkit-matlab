@@ -93,6 +93,7 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
 elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
+    % I DON'T THINK THIS ACTUALLY GETS USED FOR ANYTHING EVER???
     % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
     EntryDist=reshape(Params.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     [~,seedpoint_index]=max(abs(cumsum(EntryDist)-0.5));
