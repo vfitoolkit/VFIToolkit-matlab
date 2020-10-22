@@ -6,7 +6,7 @@ N_z=prod(n_z);
 
 if exist('simoptions','var')==0
     simoptions.nsims=10^4;
-    simoptions.parallel=2;
+    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
     try 
         PoolDetails=gcp;
@@ -26,7 +26,7 @@ else
         simoptions.nsims=10^4;
     end
         if isfield(simoptions,'parallel')==0
-        simoptions.parallel=2;
+        simoptions.parallel=1+(gpuDeviceCount>0);
     end
         if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;

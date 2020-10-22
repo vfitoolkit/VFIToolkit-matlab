@@ -2,7 +2,7 @@ function StationaryDist=StationaryDist_FHorz_Case2(jequaloneDist,AgeWeightParamN
 
 if ~exist('simoptions','var')
     simoptions.nsims=10^4;
-    simoptions.parallel=2;
+    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
     try 
         PoolDetails=gcp;
@@ -23,7 +23,7 @@ else
         simoptions.nsims=10^4;
     end
     if ~isfield(simoptions,'parallel')
-            simoptions.parallel=2;
+            simoptions.parallel=1+(gpuDeviceCount>0);
     end
     if ~isfield(simoptions,'verbose')
             simoptions.verbose=0;
