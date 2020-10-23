@@ -92,7 +92,7 @@ end
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
 for ii=1:length(GEPriceParamNames)
-    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
 end
 
 end
