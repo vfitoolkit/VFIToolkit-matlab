@@ -13,7 +13,7 @@ N_p=prod(n_p);
 l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
 %l_p=length(n_p);
 
-p_eqm=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
+p_eqm_vec=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 
 %% Check which options have been used, set all others to defaults 
 if exist('vfoptions','var')==0
@@ -64,7 +64,7 @@ end
 %%
 
 if N_p~=0
-    [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
+    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
     return
 end
 
@@ -82,11 +82,11 @@ p0
 
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multiGEcriterion=0;
-    [p_eqm,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 else
-    [p_eqm,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
