@@ -16,49 +16,47 @@ l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
 p_eqm=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 
 %% Check which options have been used, set all others to defaults 
-if nargin<22
-    vfoptions.parallel=2;
+if exist('vfoptions','var')==0
+    vfoptions.parallel=1+(gpuDeviceCount>0);
     %If vfoptions is not given, just use all the defaults
     %Note that the defaults will be set when we call 'ValueFnIter...'
     %commands and the like, so no need to set them here except for a few.
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    eval('fieldexists=1;vfoptions.parallel;','fieldexists=0;')
-    if fieldexists==0
-        vfoptions.parallel=2;
+    if isfield(vfoptions,'parallel')==0
+        vfoptions.parallel=1+(gpuDeviceCount>0);
     end
 end
 
-if nargin<21
-    simoptions.fakeoption=0; % create a 'placeholder' simoptions that can be passed to subcodes
+if exist('simoptions','var')==0
+    simoptions=struct(); % create a 'placeholder' simoptions that can be passed to subcodes
 end
 
-if nargin<20
+if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
+    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
 else
-    eval('fieldexists=1;heteroagentoptions.multiGEcriterion;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
     end
+    if isfield(heteroagentoptions,'multiGEweights')==0
+        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    end
     if N_p~=0
-        eval('fieldexists=1;heteroagentoptions.pgrid;','fieldexists=0;')
-        if fieldexists==0
+        if isfield(heteroagentoptions,'pgrid')==0
             disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
     end
-    eval('fieldexists=1;heteroagentoptions.verbose;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
     end
-    eval('fieldexists=1;heteroagentoptions.fminalgo;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(heteroagentoptions,'fminalgo')==0
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
-    eval('fieldexists=1;heteroagentoptions.maxiter;','fieldexists=0;')
-    if fieldexists==0
+    if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
 end
@@ -93,7 +91,8 @@ end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
-
-
+for ii=1:length(GEPriceParamNames)
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+end
 
 end

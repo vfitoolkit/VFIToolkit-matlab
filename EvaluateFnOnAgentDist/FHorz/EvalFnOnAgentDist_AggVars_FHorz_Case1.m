@@ -1,5 +1,5 @@
 function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluateFn,Parameters,FnsToEvaluateFnParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel)
-
+% Parallel is an optional input. If not given, will guess based on where StationaryDist
 
 if n_d(1)==0
     l_d=0;
@@ -10,6 +10,14 @@ l_a=length(n_a);
 l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
+
+if exist('Parallel','var')==0
+    if isa(StationaryDist, 'gpuArray')
+        Parallel=2;
+    else
+        Parallel=1;
+    end
+end
 
 if Parallel==2
     AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');
@@ -102,7 +110,7 @@ else
             end
         else
             for j1=1:N_a
-                a_ind=ind2sub_homemade_gpu([n_a],j1);
+                a_ind=ind2sub_homemade([n_a],j1);
                 for jj1=1:l_a
                     if jj1==1
                         a_val(jj1)=a_grid(a_ind(jj1));
@@ -111,7 +119,7 @@ else
                     end
                 end
                 for j2=1:N_z
-                    s_ind=ind2sub_homemade_gpu([n_z],j2);
+                    s_ind=ind2sub_homemade([n_z],j2);
                     for jj2=1:l_z
                         if jj2==1
                             z_val(jj2)=z_grid(s_ind(jj2));
