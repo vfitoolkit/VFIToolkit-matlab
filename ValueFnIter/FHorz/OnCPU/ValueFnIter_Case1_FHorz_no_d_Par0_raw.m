@@ -10,10 +10,6 @@ Policy=zeros(N_a,N_z,N_j); %first dim indexes the optimal choice for aprime rest
 a_grid=gather(a_grid);
 z_grid=gather(z_grid);
 
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-
-
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
     z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
@@ -28,8 +24,8 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
-if fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
+if isfield(vfoptions,'ExogShockFn')==1
+    if isfield(vfoptions,'ExogShockFnParamNames')==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
         [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
         z_grid=gather(z_grid); pi_z=gather(pi_z);
@@ -41,7 +37,6 @@ end
 
 if vfoptions.lowmemory==0
     
-    %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -50,7 +45,6 @@ if vfoptions.lowmemory==0
 
 elseif vfoptions.lowmemory==1
     
-    %if vfoptions.returnmatrix==2 % GPU
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, vfoptions.parallel, ReturnFnParamsVec);
@@ -62,11 +56,10 @@ elseif vfoptions.lowmemory==1
     
 elseif vfoptions.lowmemory==2
 
-    %if vfoptions.returnmatrix==2 % GPU
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         for a_c=1:N_a
-            a_val=a_gridvals(z_c,:);
+            a_val=a_gridvals(a_c,:);
             ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_az);
@@ -93,8 +86,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    if fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
+    if isfield(vfoptions,'ExogShockFn')==1
+        if isfield(vfoptions,'ExogShockFnParamNames')==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
             [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
             z_grid=gather(z_grid); pi_z=gather(pi_z);
@@ -171,8 +164,8 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
                         
             z_val=z_gridvals(z_c,:);
-            for a_c=1:N_z
-                a_val=a_gridvals(z_c,:);
+            for a_c=1:N_a
+                a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                 
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z;

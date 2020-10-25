@@ -226,18 +226,28 @@ end
 
 
 %% Just do the standard case
-if vfoptions.parallel==2
-    if N_d==0
+if N_d==0
+    if vfoptions.parallel==2
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    else
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    end
-elseif vfoptions.parallel==0 || vfoptions.parallel==1
-    if N_d==0
-        % Following command is somewhat misnamed, as actually does Par0 and Par1
+    elseif vfoptions.parallel==1
+        if N_z==0 || N_z==1 % Would normally just parallel cpu over z, but if there is not z then treat this as 'special case'
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_dorz_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else % Normal...
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    elseif vfoptions.parallel==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_Par0_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    else
-        % Following command is somewhat misnamed, as actually does Par0 and Par1
+    end
+else
+    if vfoptions.parallel==2
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    elseif vfoptions.parallel==1
+        if N_z==0 || N_z==1 % Would normally just parallel cpu over z, but if there is not z then treat this as 'special case'
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_no_z_Par1_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);            
+        else % Normal...
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Par1_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    elseif vfoptions.parallel==0
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Par0_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 end

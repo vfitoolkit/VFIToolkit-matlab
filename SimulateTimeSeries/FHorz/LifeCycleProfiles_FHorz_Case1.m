@@ -26,7 +26,7 @@ N_z=prod(n_z);
 if exist('options','var')==1
     %Check options for missing fields, if there are some fill them with the defaults
     if isfield(options,'parallel')==0
-        options.parallel=2;
+        options.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if isfield(options,'verbose')==0
         options.verbose=0;
@@ -46,7 +46,7 @@ if exist('options','var')==1
     
 else
     %If options is not given, just use all the defaults
-    options.parallel=2;
+    options.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     options.verbose=0;
     options.nquantiles=20; % by default gives ventiles
     options.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
@@ -62,104 +62,243 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-if options.parallel~=2 % Just make sure
-    d_grid=gather(d_grid);
-    a_grid=gather(a_grid);
-    z_grid=gather(z_grid);
-end
-
 %% Create a different 'Values' for each of the variable to be evaluated
-PolicyValues=PolicyInd2Val_FHorz_Case1(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid, options.parallel);
-permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
-PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
 
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
 
-% Do some preallocation of the output structure
 ngroups=length(options.agegroupings);
-AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups,'gpuArray');
-AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups,'gpuArray');
+if options.parallel==2
+    PolicyValues=PolicyInd2Val_FHorz_Case1(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid, options.parallel);
+    permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
 
-PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
-for kk=1:length(options.agegroupings)
-    j1=options.agegroupings(kk);
-    if kk<length(options.agegroupings)
-        jend=options.agegroupings(kk+1)-1;
-    else
-        jend=N_j;
-    end
-    StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
-    StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
-        
-    for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
-        Values=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
-        for jj=j1:jend
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
-                FnsToEvaluateParamsVec=[];
-            else
-                FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
-            end            
-            Values(:,jj-j1+1)=reshape(ValuesOnSSGrid_Case1(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
+    % Do some preallocation of the output structure
+    AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
+    AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups,'gpuArray');
+    
+    PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
+    for kk=1:length(options.agegroupings)
+        j1=options.agegroupings(kk);
+        if kk<length(options.agegroupings)
+            jend=options.agegroupings(kk+1)-1;
+        else
+            jend=N_j;
         end
+        StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
+        StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
         
-        Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
-
-        [SortedValues,SortedValues_index] = sort(Values);
-        
-        SortedWeights = StationaryDistVec_kk(SortedValues_index);
-        CumSumSortedWeights=cumsum(SortedWeights);
-        
-        WeightedValues=Values.*StationaryDistVec_kk;
-        SortedWeightedValues=WeightedValues(SortedValues_index);
-        
-        % Calculate the 'age conditional' mean
-        AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
-        % Calculate the 'age conditional' median
-        AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
-        % Calculate the 'age conditional' variance
-        AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
-        
-        
-        if options.npoints>0
-            % Calculate the 'age conditional' lorenz curve
-            AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints);
-            % Calculate the 'age conditional' gini
-            AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
-        end
-        
-        % Calculate the 'age conditional' quantile means (ventiles by default)
-        % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-        QuantileIndexes=zeros(1,options.nquantiles-1,'gpuArray');
-        QuantileCutoffs=zeros(1,options.nquantiles-1,'gpuArray');
-        QuantileMeans=zeros(1,options.nquantiles,'gpuArray');
-        for ll=1:options.nquantiles-1
-            tempindex=find(CumSumSortedWeights>=ll/options.nquantiles,1,'first');
-            QuantileIndexes(ll)=tempindex;
-            QuantileCutoffs(ll)=SortedValues(tempindex);
-            if ll==1
-                QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-            elseif ll<(options.nquantiles-1) % (1<ll) && 
-                QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-            else %if ll==(options.nquantiles-1)
-                QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+        for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
+            Values=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
+            for jj=j1:jend
+                % Includes check for cases in which no parameters are actually required
+                if isempty(FnsToEvaluateParamNames)% check for 'FnsToEvaluateParamNames={}'
+                    FnsToEvaluateParamsVec=[];
+                else
+                    FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
+                end
+                Values(:,jj-j1+1)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
             end
+            
+            Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
+            
+            [SortedValues,SortedValues_index] = sort(Values);
+            
+            SortedWeights = StationaryDistVec_kk(SortedValues_index);
+            CumSumSortedWeights=cumsum(SortedWeights);
+            
+            WeightedValues=Values.*StationaryDistVec_kk;
+            SortedWeightedValues=WeightedValues(SortedValues_index);
+            
+            % Calculate the 'age conditional' mean
+            AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
+            % Calculate the 'age conditional' median
+            AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
+            % Calculate the 'age conditional' variance
+            AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
+            
+            
+            if options.npoints>0
+                % Calculate the 'age conditional' lorenz curve
+                AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints);
+                % Calculate the 'age conditional' gini
+                AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
+            end
+            
+            % Calculate the 'age conditional' quantile means (ventiles by default)
+            % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
+            QuantileIndexes=zeros(1,options.nquantiles-1,'gpuArray');
+            QuantileCutoffs=zeros(1,options.nquantiles-1,'gpuArray');
+            QuantileMeans=zeros(1,options.nquantiles,'gpuArray');
+            
+            for ll=1:options.nquantiles-1
+                tempindex=find(CumSumSortedWeights>=ll/options.nquantiles,1,'first');
+                QuantileIndexes(ll)=tempindex;
+                QuantileCutoffs(ll)=SortedValues(tempindex);
+                if ll==1
+                    QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+                elseif ll<(options.nquantiles-1) % (1<ll) &&
+                    QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
+                else %if ll==(options.nquantiles-1)
+                    QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
+                    QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+                end
+            end
+            % Min value
+            tempindex=find(CumSumSortedWeights>=options.tolerance,1,'first');
+            minvalue=SortedValues(tempindex);
+            % Max value
+            tempindex=find(CumSumSortedWeights>=(1-options.tolerance),1,'first');
+            maxvalue=SortedValues(tempindex);
+            AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue, QuantileCutoffs, maxvalue]';
+            AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans';
+            
         end
-        % Min value
-        tempindex=find(CumSumSortedWeights>=options.tolerance,1,'first');
-        minvalue=SortedValues(tempindex);
-        % Max value
-        tempindex=find(CumSumSortedWeights>=(1-options.tolerance),1,'first');
-        maxvalue=SortedValues(tempindex);
-        AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue, QuantileCutoffs, maxvalue]';
-        AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans';
+    end
 
+else % options.parallel~=2
+    % Do some preallocation of the output structure
+    AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups); % Includes the min and max values
+    AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups);
+    
+    d_grid=gather(d_grid);
+    a_grid=gather(a_grid);
+    z_grid=gather(z_grid);
+    
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
+    z_gridvals=CreateGridvals(n_z,z_grid,2);
+
+%     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
+    for kk=1:length(options.agegroupings)
+        j1=options.agegroupings(kk);
+        if kk<length(options.agegroupings)
+            jend=options.agegroupings(kk+1)-1;
+        else
+            jend=N_j;
+        end
+        StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
+        StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
+        
+        clear gridvalsFull
+        for jj=j1:jend
+            PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
+            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj-j1+1),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+            gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
+            gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
+        end
+        
+        for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
+            Values=nan(N_a*N_z,jend-j1+1); % Preallocate
+            if l_d>0
+                for jj=j1:jend
+                    d_gridvals=gridvalsFull(jj-j1+1).d_gridvals;
+                    aprime_gridvals=gridvalsFull(jj-j1+1).aprime_gridvals;
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
+                        for ll=1:N_a*N_z
+                            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                            l1=rem(ll-1,N_a)+1;
+                            l2=ceil(ll/N_a);
+                            Values(ll,jj-j1+1)=FnsToEvaluate{ii}(d_gridvals{l1+(l2-1)*N_a,:},aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
+                        end
+                    else
+                        FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                        for ll=1:N_a*N_z
+                            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                            l1=rem(ll-1,N_a)+1;
+                            l2=ceil(ll/N_a);
+                            Values(ll,jj-j1+1)=FnsToEvaluate{ii}(d_gridvals{l1+(l2-1)*N_a,:},aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:},FnToEvaluateParamsCell{:});
+                        end
+                    end
+                end
+            else % l_d==0
+                for jj=j1:jend
+                    d_gridvals=gridvalsFull(jj-j1+1).d_gridvals;
+                    aprime_gridvals=gridvalsFull(jj-j1+1).aprime_gridvals;
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
+                        for ll=1:N_a*N_z
+                            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                            l1=rem(ll-1,N_a)+1;
+                            l2=ceil(ll/N_a);
+                            Values(ll,jj-j1+1)=FnsToEvaluate{ii}(aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
+                        end
+                    else
+                        FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                        for ll=1:N_a*N_z
+                            %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                            l1=rem(ll-1,N_a)+1;
+                            l2=ceil(ll/N_a);
+                            Values(ll,jj-j1+1)=FnsToEvaluate{ii}(aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:},FnToEvaluateParamsCell{:});
+                        end
+                    end
+                end                   
+            end
+            
+            % From here on is essentially identical to the 'with gpu' case.
+            Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
+            
+            [SortedValues,SortedValues_index] = sort(Values);
+            
+            SortedWeights = StationaryDistVec_kk(SortedValues_index);
+            CumSumSortedWeights=cumsum(SortedWeights);
+            
+            WeightedValues=Values.*StationaryDistVec_kk;
+            SortedWeightedValues=WeightedValues(SortedValues_index);
+            
+            % Calculate the 'age conditional' mean
+            AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
+            % Calculate the 'age conditional' median
+            AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
+            % Calculate the 'age conditional' variance
+            AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
+            
+            
+            if options.npoints>0
+                % Calculate the 'age conditional' lorenz curve
+                AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints,1);
+                % Calculate the 'age conditional' gini
+                AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
+            end
+            
+            % Calculate the 'age conditional' quantile means (ventiles by default)
+            % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
+            QuantileIndexes=zeros(1,options.nquantiles-1);
+            QuantileCutoffs=zeros(1,options.nquantiles-1);
+            QuantileMeans=zeros(1,options.nquantiles);
+            
+            for ll=1:options.nquantiles-1
+                tempindex=find(CumSumSortedWeights>=ll/options.nquantiles,1,'first');
+                QuantileIndexes(ll)=tempindex;
+                QuantileCutoffs(ll)=SortedValues(tempindex);
+                if ll==1
+                    QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+                elseif ll<(options.nquantiles-1) % (1<ll) &&
+                    QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
+                else %if ll==(options.nquantiles-1)
+                    QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
+                    QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+                end
+            end
+            % Min value
+            tempindex=find(CumSumSortedWeights>=options.tolerance,1,'first');
+            minvalue=SortedValues(tempindex);
+            % Max value
+            tempindex=find(CumSumSortedWeights>=(1-options.tolerance),1,'first');
+            maxvalue=SortedValues(tempindex);
+            AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue, QuantileCutoffs, maxvalue]';
+            AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans';
+            
+        end
     end
 end
 
