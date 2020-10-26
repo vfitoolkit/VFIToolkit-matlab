@@ -9,7 +9,7 @@ if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
 %     vfoptions.exoticpreferences=0;
-    vfoptions.parallel=2;
+    vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
@@ -18,7 +18,7 @@ if exist('vfoptions','var')==0
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=2;
+        vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
@@ -75,13 +75,13 @@ if vfoptions.parallel==2
    d_grid=gpuArray(d_grid);
    a_grid=gpuArray(a_grid);
    z_grid=gpuArray(z_grid);
-% else
-%    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-%    % This may be completely unnecessary.
-%    pi_z=gather(pi_z);
-%    d_grid=gather(d_grid);
-%    a_grid=gather(a_grid);
-%    z_grid=gather(z_grid);
+else
+   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
+   % This may be completely unnecessary.
+   pi_z=gather(pi_z);
+   d_grid=gather(d_grid);
+   a_grid=gather(a_grid);
+   z_grid=gather(z_grid);
 end
 
 if vfoptions.verbose==1

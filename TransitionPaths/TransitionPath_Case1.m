@@ -38,6 +38,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
+    transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
 else
@@ -68,6 +69,9 @@ else
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
+    end
+    if isfield(transpathoptions,'graphpricepath')==0
+        transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     end
     if isfield(transpathoptions,'GEnewprice')==0
         transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'

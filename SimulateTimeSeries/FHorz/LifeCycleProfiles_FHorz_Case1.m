@@ -258,7 +258,7 @@ else % options.parallel~=2
             % Calculate the 'age conditional' mean
             AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
             % Calculate the 'age conditional' median
-            AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
+            AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(max(1,floor(0.5*length(SortedWeightedValues)))); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
             % Calculate the 'age conditional' variance
             AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
             

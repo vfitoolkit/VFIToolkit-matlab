@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_Par1_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -13,6 +13,8 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 l_p=size(PricePathOld,2);
 
+% Commented out the following lines as figured you would only use
+% TransitionPath with parallel cpu because you do not have gpu anyway.
 % % Make sure things are on cpu where appropriate.
 % if N_d>0
 %     d_grid=gather(d_grid);
@@ -29,12 +31,12 @@ pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z,N_j]);
 AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,N_j]);
-V=zeros(size(V_final),'gpuArray'); %preallocate space
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+V=zeros(size(V_final)); %preallocate space
+PricePathNew=zeros(size(PricePathOld)); PricePathNew(T,:)=PricePathOld(T,:);
 if N_d>0
-    Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
+    Policy=zeros(2,N_a,N_z,N_j);
 else
-    Policy=zeros(N_a,N_z,N_j,'gpuArray');
+    Policy=zeros(N_a,N_z,N_j);
 end
 if transpathoptions.verbose==1
     DiscountFactorParamNames
@@ -45,9 +47,9 @@ end
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     if N_d>0
-        PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1); %Periods 1 to T-1
     else
-        PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1); %Periods 1 to T-1
     end
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -64,7 +66,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.(ParamPathNames{kk})=ParamPath(T-i,kk);
         end
         
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_Par1(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -75,7 +77,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         Vnext=V;
     end
-    % Free up space on GPU by deleting things no longer needed
+    % Free up memory by deleting things no longer needed
     clear V Vnext    
     
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
@@ -102,7 +104,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 1); % The 1 is for Parallel (use CPU)
       
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
