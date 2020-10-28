@@ -1,10 +1,12 @@
-function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_EntryExit_no_d_subfn(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions)
+function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_EntryExit_no_d_subfn(PricePathVec, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions)
 
 unkronoptions.parallel=2;
 
 N_z=prod(n_z);
 N_a=prod(n_a);
-l_p=size(PricePathOld,2);
+
+l_p=length(PricePathNames);
+PricePathOld=reshape(PricePathVec,[T,l_p]);
 
 PricePathDist=Inf;
 pathcounter=1;
@@ -12,7 +14,8 @@ pathcounter=1;
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial.pdf=reshape(AgentDist_initial.pdf,[N_a*N_z,1]);
 V=zeros(size(V_final),'gpuArray');
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+% GeneralEqmCondnPath=zeros(size(PricePathOld),'gpuArray'); GeneralEqmCondnPath(T,:)=PricePathOld(T,:);
+GeneralEqmCondnPath=ones(T,length(GeneralEqmEqns),'gpuArray'); GeneralEqmCondnPath(T,:)=zeros(1,length(GeneralEqmEqns),'gpuArray');
 Policy=zeros(N_a,N_z,'gpuArray');
 PolicyWhenExit=zeros(N_a,N_z,'gpuArray');  % Will only be used when vfoptions.endogenousexit==2
 
@@ -506,30 +509,30 @@ for i=1:T-1
         %     end
     end
     
-    % When using negative powers matlab will often return complex
-    % numbers, even if the solution is actually a real number. I
-    % force converting these to real, albeit at the risk of missing problems
-    % created by actual complex numbers.
-    if transpathoptions.GEnewprice==1
-        %             PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+%     % When using negative powers matlab will often return complex
+%     % numbers, even if the solution is actually a real number. I
+%     % force converting these to real, albeit at the risk of missing problems
+%     % created by actual complex numbers.
+%     if transpathoptions.GEnewprice==1
+%         %             PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
         if condlentrycondnexists==0
-            PricePathNew(i,:)=GeneralEqmConditionsVec;
+            GeneralEqmCondnPath(i,:)=GeneralEqmConditionsVec;
         elseif condlentrycondnexists==1
-            PricePathNew(i,:)=GeneralEqmConditionsVec(1:end-1); % The conditional entry condition is required to be last when doing transition paths
+            GeneralEqmCondnPath(i,:)=GeneralEqmConditionsVec(1:end-1); % The conditional entry condition is required to be last when doing transition paths
         end
-    elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-        fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
-        return
-        for j=1:length(GeneralEqmEqns)
-            GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-            PricePathNew(i,j)=fzero(GEeqn_temp,p);
-        end
-    end
+%     elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+%         fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
+%         return
+%         for j=1:length(GeneralEqmEqns)
+%             GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+%             PricePathNew(i,j)=fzero(GEeqn_temp,p);
+%         end
+%     end
     
     AgentDist=AgentDistnext;
 end
 
-GeneralEqmCondnPath=PricePathNew;
+% GeneralEqmCondnPath=GeneralEqmCondnPath;
 
 WeightedSumSq_GeneralEqmCondnPath=sum(sum(transpathoptions.weightsforpath.*(GeneralEqmCondnPath).^2));
 
@@ -542,6 +545,12 @@ if transpathoptions.verbose==1
     GeneralEqmCondnPath
     fprintf('Current WeightedSumSq_GeneralEqmCondnPath: \n')
     WeightedSumSq_GeneralEqmCondnPath
+end
+
+if transpathoptions.graphpricepath==1
+    figure(transpathoptions.pricepathfig);
+    plot(PricePathOld)
+%     label(PricePathNames)
 end
 
 

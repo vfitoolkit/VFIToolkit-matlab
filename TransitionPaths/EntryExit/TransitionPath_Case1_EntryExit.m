@@ -160,7 +160,13 @@ if transpathoptions.GEnewprice==1  % Shooting algorithm
 end
 
 %% Set up transition path as minimization of a function (default is to use as objective the weighted sum of squares of the general eqm conditions)
-PricePathVec=gather(reshape(PricePathOld,[T*length(PricePathNames),1])); % Has to be vector of fminsearch. Additionally, provides a double check on sizes.
+PricePathVec=gather(reshape(PricePathOld,[T*length(PricePathNames),1])); % Has to be vector for fminsearch. Additionally, provides a double check on sizes.
+
+if transpathoptions.graphpricepath==1
+    transpathoptions.pricepathfig=figure;
+    plot(PricePathOld)
+    legend(PricePathNames{:})
+end
 
 if transpathoptions.GEnewprice==2 % Function minimization
     if n_d(1)==0
@@ -171,17 +177,17 @@ if transpathoptions.GEnewprice==2 % Function minimization
 end
 
 % if transpathoptions.GEnewprice2algo==0
-[PricePath,~]=fminsearch(GeneralEqmConditionsPathFn,PricePathVec);
+[PricePathVec,~]=fminsearch(GeneralEqmConditionsPathFn,PricePathVec);
 % else
 %     [PricePath,~]=fminsearch(GeneralEqmConditionsPathFn,PricePathOld);
 % end
 
 % LOOK INTO USING 'SURROGATE OPTIMIZATION'
 
-PricePath=gpuArray(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
+PricePathMatrix=gpuArray(reshape(PricePathVec,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
 
 for ii=1:length(PricePathNames)
-    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+    PricePath.(PricePathNames{ii})=PricePathMatrix(:,ii);
 end
 
 end

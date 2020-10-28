@@ -1,4 +1,4 @@
-function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_EntryExit_subfn(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions)
+function WeightedSumSq_GeneralEqmCondnPath=TransitionPath_Case1_EntryExit_subfn(PricePathVec, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -17,7 +17,9 @@ unkronoptions.parallel=2;
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
-l_p=size(PricePathOld,2);
+
+l_p=length(PricePathNames);
+PricePathOld=reshape(PricePathVec,[T,l_p]);
 
 if transpathoptions.lowmemory==1
     fprintf('transpathoptions.lowmemory=1 is not yet implemented for entry/exit, please contact robertdkirkby@gmail.com if you want it \n')
@@ -35,7 +37,7 @@ pathcounter=0;
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial.pdf=reshape(AgentDist_initial.pdf,[N_a*N_z,1]);
 V=zeros(size(V_final),'gpuArray');
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+GeneralEqmCondnPath=ones(T,length(GeneralEqmEqns),'gpuArray'); GeneralEqmCondnPath(T,:)=zeros(1,length(GeneralEqmEqns),'gpuArray');
 Policy=zeros(N_a,N_z,'gpuArray');
 PolicyWhenExit=zeros(N_a,N_z,'gpuArray'); % Will only be used when vfoptions.endogenousexit==2
 
@@ -514,6 +516,7 @@ end
                 % Evaluate all the general eqm conditions for the current period
         % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
         % GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+        
         if standardgeneqmcondnsused==1
             % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
             GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
@@ -561,20 +564,21 @@ end
             % numbers, even if the solution is actually a real number. I
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
-        if transpathoptions.GEnewprice==1
-            if condlentrycondnexists==0
-                PricePathNew(i,:)=GeneralEqmConditionsVec;
-            elseif condlentrycondnexists==1
-                PricePathNew(i,:)=GeneralEqmConditionsVec(1:end-1); % The conditional entry condition is required to be last when doing transition paths
-            end
-        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-            fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
-            return
-            for j=1:length(MarketPriceEqns)
-                GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-                PricePathNew(i,j)=fzero(GEeqn_temp,p);
-            end
-        end
+%         if transpathoptions.GEnewprice==1
+%             if condlentrycondnexists==0
+%                 GeneralEqmCondnPath(i,:)=GeneralEqmConditionsVec;
+%             elseif condlentrycondnexists==1
+%                 GeneralEqmCondnPath(i,:)=GeneralEqmConditionsVec(1:end-1); % The conditional entry condition is required to be last when doing transition paths
+%             end
+%         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+%             fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
+%             return
+%             for j=1:length(MarketPriceEqns)
+%                 GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+%                 PricePathNew(i,j)=fzero(GEeqn_temp,p);
+%             end
+%         end
+        GeneralEqmCondnPath(i,:)=GeneralEqmConditionsVec;
         
         AgentDist=AgentDistnext;
     end
@@ -582,7 +586,7 @@ end
 % The following is about how we now interpret PricePathNew as instead it is
 % just the general eqm conditions which will add to zero once we solve the
 % transition path.
-GeneralEqmCondnPath=PricePathNew;
+% GeneralEqmCondnPath=GeneralEqmCondnPath;
 
 WeightedSumSq_GeneralEqmCondnPath=sum(sum(transpathoptions.weightsforpath.*(GeneralEqmCondnPath).^2));
 
@@ -595,6 +599,11 @@ if transpathoptions.verbose==1
     GeneralEqmCondnPath
     fprintf('Current WeightedSumSq_GeneralEqmCondnPath: \n')
     WeightedSumSq_GeneralEqmCondnPath
+end
+if transpathoptions.graphpricepath==1
+    figure(transpathoptions.pricepathfig);
+    plot(PricePathOld)
+%     label(PricePathNames)
 end
 
 

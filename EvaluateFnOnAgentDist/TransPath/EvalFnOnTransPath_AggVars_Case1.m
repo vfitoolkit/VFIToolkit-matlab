@@ -4,12 +4,12 @@ function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate, FnsToEvaluat
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
-    transpathoptions.parallel=2;
+    transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     transpathoptions.lowmemory=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=2;
+        transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if isfield(transpathoptions,'lowmemory')==0
         transpathoptions.lowmemory=0;
