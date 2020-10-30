@@ -33,12 +33,16 @@ l_p=length(n_p);
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcritereon=1;
+    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.verbose=0;
-    heteroagentoptions.parallel=2;
+    heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
+    end
+    if isfield(heteroagentoptions,'multiGEweights')==0
+        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     end
     if N_p~=0
         if isfield(heteroagentoptions,'p_grid')==0
@@ -53,7 +57,7 @@ else
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
     if isfield(heteroagentoptions,'parallel')==0
-        heteroagentoptions.parallel=2;
+        heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
 end
 
@@ -103,11 +107,11 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions=vfoptions; % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
         if length(vfoptions.verbose)==1
             if vfoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
             end
         else
             if vfoptions.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
                 PTypeStructure.(iistr).vfoptions.verbose=vfoptions.verbose(ii);
             end
         end
@@ -116,14 +120,16 @@ for ii=1:PTypeStructure.N_i
     end
     if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).simoptions=simoptions; % some simoptions will differ by permanent type, will clean these up as we go before they are passed
-        if length(simoptions.verbose)==1
-            if simoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
-            end
-        else
-            if simoptions.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
-                PTypeStructure.(iistr).simoptions.verbose=simoptions.verbose(ii);
+        if isfield(simoptions,'verbose')==1
+            if length(simoptions.verbose)==1
+                if simoptions.verbose==1
+                    sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
+                end
+            else
+                if simoptions.verbose(ii)==1
+                    sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
+                    PTypeStructure.(iistr).simoptions.verbose=simoptions.verbose(ii);
+                end
             end
         end
     else
@@ -133,11 +139,11 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions=options; % some options will differ by permanent type, will clean these up as we go before they are passed
         if length(options.verbose)==1
             if options.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
             end
         else
             if options.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
                 PTypeStructure.(iistr).vfoptions.verbose=options.verbose(ii);
             end
         end
@@ -175,18 +181,20 @@ for ii=1:PTypeStructure.N_i
             % else
                 % % do nothing: PTypeStructure.(iistr).finitehorz=0
         end
-    else
+    elseif ~isempty(N_j)
         if isfinite(N_j(ii))
             PTypeStructure.(iistr).finitehorz=1;
             PTypeStructure.(iistr).N_j=N_j(ii);
 %         else
 %             % do nothing: PTypeStructure.(iistr).finitehorz=0
         end
+    % else % in situtation of isempty(N_j)
+        % do nothing: PTypeStructure.(iistr).finitehorz=0
     end
     
     % Case 1 or Case 2 is determined via Phi_aprime
     if exist('Phi_aprime','var') % If all the Permanent Types are 'Case 1' then there will be no Phi_aprime
-         if isa(Phi_aprime,'struct')
+        if isa(Phi_aprime,'struct')
             if isfield(Phi_aprime,Names_i{ii})==1 % Check if it exists for the current permanent type
                 %         names=fieldnames(Phi_aprime);
                 PTypeStructure.(iistr).Case1orCase2=2;
@@ -197,6 +205,8 @@ for ii=1:PTypeStructure.N_i
                 PTypeStructure.(iistr).Case2_Type=Case2_Type;
                 PTypeStructure.(iistr).Phi_aprime=Phi_aprime;
             end
+        elseif isempty(Phi_aprime)
+            PTypeStructure.(iistr).Case1orCase2=1;
         else
             % if Phi_aprime is not a structure then it must be relevant for all permanent types
             PTypeStructure.(iistr).Case1orCase2=2;
@@ -216,7 +226,7 @@ for ii=1:PTypeStructure.N_i
         temp=size(n_d);
         if temp(1)>1 % n_d depends on fixed type
             PTypeStructure.(iistr).n_d=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
             sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
         end
     end
@@ -227,7 +237,7 @@ for ii=1:PTypeStructure.N_i
         temp=size(n_a);
         if temp(1)>1 % n_a depends on fixed type
             PTypeStructure.(iistr).n_a=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
+        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
             sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
             dbstack
         end
@@ -239,7 +249,7 @@ for ii=1:PTypeStructure.N_i
         temp=size(n_z);
         if temp(1)>1 % n_z depends on fixed type
             PTypeStructure.(iistr).n_z=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
             sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
             dbstack
         end
@@ -459,6 +469,8 @@ for ii=1:PTypeStructure.N_i
             elseif prod(size(simoptions.parallel))~=1
                 PTypeStructure.(iistr).simoptions.parallel=simoptions.parallel(ii);
             end
+        else
+            PTypeStructure.(iistr).simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
         end
         if isfield(simoptions,'nsims')
             if isa(simoptions.nsims, 'struct')
@@ -619,7 +631,9 @@ end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
-
+for ii=1:length(GEPriceParamNames)
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+end
     
 %     PolicyIndexes_temp=Policy.(Names_i{ii});
 %     StationaryDist_temp=StationaryDist.(Names_i{ii});

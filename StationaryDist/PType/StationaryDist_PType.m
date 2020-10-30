@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_PType(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid,pi_z,Phi_aprime,Case2_Type,Parameters,PhiaprimeParamNames,simoptions)
+function StationaryDist=StationaryDist_PType(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid,pi_z,Phi_aprime,Case2_Type,Parameters,PhiaprimeParamNames,PTypeDistNames,simoptions)
 % Allows for different permanent (fixed) types of agent. 
 % See ValueFnIter_PType for general idea.
 %
@@ -36,19 +36,22 @@ for ii=1:N_i
 
     if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
         simoptions_temp=simoptions; % some simoptions will differ by permanent type, will clean these up as we go before they are passed
-        if length(simoptions.verbose)==1
-            if simoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+        if isfield(simoptions,'verbose')==1
+            if length(simoptions.verbose)==1
+                if simoptions.verbose==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
+                end
+            else
+                if simoptions.verbose(ii)==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
+                    simoptions_temp.verbose=simoptions.verbose(ii);
+                end
             end
         else
-            if simoptions.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
-                simoptions_temp.verbose=simoptions.verbose(ii);
-            end
+            simoptions_temp.verbose=0;
         end
-    else
-        simoptions_temp.verbose=0;
     end
+           
     
     Policy_temp=Policy.(Names_i{ii});
     
@@ -80,18 +83,20 @@ for ii=1:N_i
             % else
                 % % do nothing: finitehorz=0
         end
-    else
+    elseif ~isempty(N_j)
         if isfinite(N_j(ii))
             finitehorz=1;
             N_j_temp=N_j(ii);
 %         else
 %             % do nothing: finitehorz=0
         end
+    % else % in situtation of isempty(N_j)
+        % do nothing: finitehorz=0
     end
     
     % Case 1 or Case 2 is determined via Phi_aprime
     if exist('Phi_aprime','var') % If all the Permanent Types are 'Case 1' then there will be no Phi_aprime
-         if isa(Phi_aprime,'struct')
+        if isa(Phi_aprime,'struct')
             if isfield(Phi_aprime,Names_i{ii})==1 % Check if it exists for the current permanent type
                 %         names=fieldnames(Phi_aprime);
                 Case1orCase2=2;
@@ -102,6 +107,8 @@ for ii=1:N_i
                 Case2_Type_temp=Case2_Type;
                 Phi_aprime_temp=Phi_aprime;
             end
+        elseif isempty(Phi_aprime)
+            Case1orCase2=1;
         else
             % if Phi_aprime is not a structure then it must be relevant for all permanent types
             Case1orCase2=2;
@@ -389,5 +396,6 @@ for ii=1:N_i
 
 end
 
+StationaryDist.ftweights=Parameters.(PTypeDistNames{:});
 
 end

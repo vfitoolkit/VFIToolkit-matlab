@@ -1,4 +1,4 @@
-function StatsFromDist_AggVars=EvalFnOnAgentDist_AggVars_PType(StationaryDist, Policy,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid,Phi_aprime,FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, PTypeDistNames, options, AgeDependentGridParamNames)
+function AggVars=EvalFnOnAgentDist_AggVars_PType(StationaryDist, Policy,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid,Phi_aprime, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, options, AgeDependentGridParamNames)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -33,22 +33,31 @@ else
     end
 end
 
-numFnsToEvaluate=length(FnsToEvaluateFn);
-StatsFromDist_AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
+numFnsToEvaluate=length(FnsToEvaluate);
+
+if isa(StationaryDist.(Names_i{1}), 'gpuArray')
+    AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
+else
+    AggVars=zeros(numFnsToEvaluate,1);
+end
 
 for ii=1:N_i
     
     if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
-        if length(options.verbose)==1
-            if options.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+        if ~isempty(options)
+            options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
+            if length(options.verbose)==1
+                if options.verbose==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
+                end
+            else
+                if options.verbose(ii)==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
+                    options_temp.verbose=options.verbose(ii);
+                end
             end
-        else
-            if options.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
-                options_temp.verbose=options.verbose(ii);
-            end
+        else % isempty(options)
+            options_temp.verbose=0;
         end
     else
         options_temp.verbose=0;
@@ -90,13 +99,16 @@ for ii=1:N_i
             % else
             % % do nothing: finitehorz=0
         end
-    else
+    elseif ~isempty(N_j)
         if isfinite(N_j(ii))
             finitehorz=1;
             N_j_temp=N_j(ii);
             %         else
             %             % do nothing: finitehorz=0
         end
+    % else % in situtation of isempty(N_j)
+        % do nothing: finitehorz=0
+
     end
     
     % Case 1 or Case 2 is determined via Phi_aprime
@@ -111,6 +123,8 @@ for ii=1:N_i
             % if Phi_aprime is not a structure then it must be relevant for all permanent types
             Case1orCase2=2;
         end
+    elseif isempty(Phi_aprime)
+        Case1orCase2=1;
     else
         Case1orCase2=1;
     end
@@ -170,42 +184,39 @@ for ii=1:N_i
         z_grid_temp=z_grid;
     end
     
-    if finitehorz==1 % Only needed for simulation in this case
-        
-        % Parameters are allowed to be given as structure, or as vector/matrix
-        % (in terms of their dependence on permanent type). So go through each of
-        % these in term.
-        % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-        Parameters_temp=Parameters;
-        FullParamNames=fieldnames(Parameters); % all the different parameters
-        nFields=length(FullParamNames);
-        for kField=1:nFields
-            if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-                % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-                if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-                end
-            elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
-                temp=Parameters.(FullParamNames{kField});
-                [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
-                if ptypedim==1
-                    Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-                elseif ptypedim==2
-                    sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                    sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                    sprintf('(it is possible this is just a coincidence of number of columns) \n')
-                    dbstack
-                end
+    % Parameters are allowed to be given as structure, or as vector/matrix
+    % (in terms of their dependence on permanent type). So go through each of
+    % these in term.
+    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
+    Parameters_temp=Parameters;
+    FullParamNames=fieldnames(Parameters); % all the different parameters
+    nFields=length(FullParamNames);
+    for kField=1:nFields
+        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
+            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
+                Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+            end
+        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
+            temp=Parameters.(FullParamNames{kField});
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
+            if ptypedim==1
+                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
+            elseif ptypedim==2
+                sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
+                sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
+                sprintf('(it is possible this is just a coincidence of number of columns) \n')
+                dbstack
             end
         end
-        % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-        
-        if options_temp.verbose==1
-            sprintf('Parameter values for the current permanent type')
-            Parameters_temp
-        end
-        
     end
+    % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
+    
+    if options_temp.verbose==1
+        sprintf('Parameter values for the current permanent type')
+        Parameters_temp
+    end
+    
     
     % Check for some options that may depend on permanent type (already
     % dealt with verbose and agedependentgrids)
@@ -285,9 +296,9 @@ for ii=1:N_i
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for kk=1:numFnsToEvaluate
-        if isa(FnsToEvaluateFn{kk},'struct')
-            if isfield(FnsToEvaluateFn{kk}, Names_i{ii})
-                FnsToEvaluate_temp{jj}=FnsToEvaluateFn{kk}.(Names_i{ii});
+        if isa(FnsToEvaluate{kk},'struct')
+            if isfield(FnsToEvaluate{kk}, Names_i{ii})
+                FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
                 if isa(FnsToEvaluateParamNames(kk).Names,'struct')
                     FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
                 else
@@ -300,7 +311,7 @@ for ii=1:N_i
             end
         else
             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            FnsToEvaluate_temp{jj}=FnsToEvaluateFn{kk};
+            FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
             FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
             WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
         end
@@ -308,32 +319,33 @@ for ii=1:N_i
     
     if finitehorz==0  % Infinite horizon
         if Case1orCase2==1
-            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         elseif Case1orCase2==2
-            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         end
     elseif finitehorz==1 % Finite horizon
         if Case1orCase2==1
-            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         elseif Case1orCase2==2
             if exist('options','var')
-                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
+                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
             else
-                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
+                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
             end
         end
     end
         
-    if isa(PTypeDistNames, 'array')
-        PTypeWeight_ii=PTypeDistNames(ii);
-    else
-        PTypeWeight_ii=Parameters.(PTypeDistNames{1}).(Names_i{ii});
-    end
+%     if isa(PTypeDistNames, 'array')
+%         PTypeWeight_ii=PTypeDistNames(ii);
+%     else
+%         PTypeWeight_ii=Parameters.(PTypeDistNames{1}).(Names_i{ii});
+%     end
+    PTypeWeight_ii=StationaryDist.ftweights(ii);
     
     for kk=1:numFnsToEvaluate
         jj=WhichFnsForCurrentPType(kk);
         if jj>0
-            StatsFromDist_AggVars(kk,:)=StatsFromDist_AggVars(kk,:)+PTypeWeight_ii*StatsFromDist_AggVars_ii(jj,:);
+            AggVars(kk,:)=AggVars(kk,:)+PTypeWeight_ii*StatsFromDist_AggVars_ii(jj,:);
         end
     end
     

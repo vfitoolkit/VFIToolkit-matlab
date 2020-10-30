@@ -104,13 +104,15 @@ for ii=1:N_i
             % else
                 % % do nothing: finitehorz=0
         end
-    else
+    elseif ~isempty(N_j)
         if isfinite(N_j(ii))
             finitehorz=1;
             N_j_temp=N_j(ii);
 %         else
 %             % do nothing: finitehorz=0
         end
+    % else % in situtation of isempty(N_j)
+        % do nothing: finitehorz=0
     end
     
     % Case 1 or Case 2 is determined via Phi_aprime
@@ -126,6 +128,8 @@ for ii=1:N_i
                 Case2_Type_temp=Case2_Type;
                 Phi_aprime_temp=Phi_aprime;
             end
+        elseif isempty(Phi_aprime)
+            Case1orCase2=1;
         else
             % if Phi_aprime is not a structure then it must be relevant for all permanent types
             Case1orCase2=2;
@@ -332,12 +336,12 @@ for ii=1:N_i
         % Infinite Horizon requires an initial guess of value function. For
         % the present I simply don't let this feature be used when using
         % permanent types. WOULD BE GOOD TO CHANGE THIS IN FUTURE SOMEHOW.
-        V_ii=zeros(prod(n_a_temp),prod(n_z_temp)); % The initial guess (note that its value is 'irrelevant' in the sense that global uniform convergence is anyway known to occour for VFI).
+%         V_ii=zeros(prod(n_a_temp),prod(n_z_temp)); % The initial guess (note that its value is 'irrelevant' in the sense that global uniform convergence is anyway known to occour for VFI).
         if Case1orCase2==1
             if exist('vfoptions','var')
-                [V_ii, Policy_ii]=ValueFnIter_Case1(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions_temp);
             else
-                [V_ii, Policy_ii]=ValueFnIter_Case1(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
             end
         elseif Case1orCase2==2
             if exist('vfoptions','var')

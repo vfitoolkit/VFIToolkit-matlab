@@ -52,11 +52,11 @@ if Parallel==2 || Parallel==4
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'SSvalueParamNames={}'
-            FnToEvaluateParamsCell=[];
+            FnToEvaluateParamsVec=[];
         else
-            FnToEvaluateParamsCell=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+            FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
         end
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
         % When evaluating value function (which may sometimes give -Inf
         % values) on StationaryDistVec (which at those points will be
