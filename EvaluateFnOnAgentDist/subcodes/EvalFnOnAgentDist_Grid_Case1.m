@@ -1,7 +1,9 @@
 function Values=EvalFnOnAgentDist_Grid_Case1(FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel)
 
 if Parallel~=2
-    disp('EvalFnOnAgentDist_Grid_Case1() only works for Parallel==2')
+    fprintf('Need to use EvalFnOnAgentDist_Grid_Case1_cpu instead of EvalFnOnAgentDist_Grid_Case1 \n')
+    dbstack
+    return
 end
 
 if n_d(1)==0

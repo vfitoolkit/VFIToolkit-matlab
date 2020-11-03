@@ -41,15 +41,26 @@ N_a=prod(n_a);
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
 PricePathStruct=PricePath; % I do this here just to make it easier for the user to read and understand the inputs.
 PricePathNames=fieldnames(PricePathStruct);
-PricePath=zeros(T,length(PricePathNames));
-for ii=1:length(PricePathNames)
-    PricePath(:,ii)=PricePathStruct.(PricePathNames{ii});
-end
 ParamPathStruct=ParamPath; % I do this here just to make it easier for the user to read and understand the inputs.
 ParamPathNames=fieldnames(ParamPathStruct);
-ParamPath=zeros(T,length(ParamPathNames));
-for ii=1:length(ParamPathNames)
-    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
+if transpathoptions.parallel==2 
+    PricePath=zeros(T,length(PricePathNames),'gpuArray');
+    for ii=1:length(PricePathNames)
+        PricePath(:,ii)=gpuArray(PricePathStruct.(PricePathNames{ii}));
+    end
+    ParamPath=zeros(T,length(ParamPathNames),'gpuArray');
+    for ii=1:length(ParamPathNames)
+        ParamPath(:,ii)=gpuArray(ParamPathStruct.(ParamPathNames{ii}));
+    end
+else
+    PricePath=zeros(T,length(PricePathNames));
+    for ii=1:length(PricePathNames)
+        PricePath(:,ii)=gather(PricePathStruct.(PricePathNames{ii}));
+    end
+    ParamPath=zeros(T,length(ParamPathNames));
+    for ii=1:length(ParamPathNames)
+        ParamPath(:,ii)=gather(ParamPathStruct.(ParamPathNames{ii}));
+    end
 end
 
 %%
@@ -163,7 +174,7 @@ if transpathoptions.parallel==2
    end
    a_grid=gpuArray(a_grid);
    z_grid=gpuArray(z_grid);
-   PricePath=gpuArray(PricePath);
+%    PricePath=gpuArray(PricePath);
 else
    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
    % This may be completely unnecessary.
@@ -173,7 +184,7 @@ else
    end
    a_grid=gather(a_grid);
    z_grid=gather(z_grid);
-   PricePath=gather(PricePath);
+%    PricePath=gather(PricePath);
 end
 
 if transpathoptions.exoticpreferences~=0

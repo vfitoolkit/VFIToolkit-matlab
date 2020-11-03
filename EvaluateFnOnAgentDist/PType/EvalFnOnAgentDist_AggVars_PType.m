@@ -27,9 +27,9 @@ if iscell(Names_i)
     N_i=length(Names_i);
 else
     N_i=Names_i;
-    Names_i={'ft1'};
+    Names_i={'pt1'};
     for ii=2:N_i
-        Names_i{ii}=['ft',num2str(ii)];
+        Names_i{ii}=['pt',num2str(ii)];
     end
 end
 
@@ -319,18 +319,18 @@ for ii=1:N_i
     
     if finitehorz==0  % Infinite horizon
         if Case1orCase2==1
-            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         elseif Case1orCase2==2
-            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         end
     elseif finitehorz==1 % Finite horizon
         if Case1orCase2==1
-            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         elseif Case1orCase2==2
             if exist('options','var')
-                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
+                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
             else
-                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
+                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
             end
         end
     end
@@ -340,7 +340,7 @@ for ii=1:N_i
 %     else
 %         PTypeWeight_ii=Parameters.(PTypeDistNames{1}).(Names_i{ii});
 %     end
-    PTypeWeight_ii=StationaryDist.ftweights(ii);
+    PTypeWeight_ii=StationaryDist.ptweights(ii);
     
     for kk=1:numFnsToEvaluate
         jj=WhichFnsForCurrentPType(kk);

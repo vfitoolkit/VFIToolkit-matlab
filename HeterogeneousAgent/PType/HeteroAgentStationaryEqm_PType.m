@@ -607,7 +607,10 @@ end
 
 %%
 if N_p~=0
-    [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
+    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
+    for ii=1:length(GEPriceParamNames)
+        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+    end
     return
 end
 
@@ -622,11 +625,11 @@ end
 
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
-    [p_eqm,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 else
-    [p_eqm,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless

@@ -52,9 +52,9 @@ if iscell(Names_i)
     N_i=length(Names_i);
 else
     N_i=Names_i;
-    Names_i={'ft1'};
+    Names_i={'pt1'};
     for ii=2:N_i
-       Names_i{ii}=['ft',num2str(ii)];
+       Names_i{ii}=['pt',num2str(ii)];
     end
 end
 

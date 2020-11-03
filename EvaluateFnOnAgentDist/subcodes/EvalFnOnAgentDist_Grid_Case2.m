@@ -1,7 +1,7 @@
 function Values=EvalFnOnAgentDist_Grid_Case2(FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel)
 
 if Parallel~=2
-    disp('ValuesOnSSGrid_Case2() only works for Parallel==2')
+    disp('EvalFnOnAgentDist_Grid_Case2() only works for Parallel==2')
 end
 
 l_d=length(n_d);
