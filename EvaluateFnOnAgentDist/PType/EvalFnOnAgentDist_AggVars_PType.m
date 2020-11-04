@@ -119,12 +119,12 @@ for ii=1:N_i
             else
                 Case1orCase2=1;
             end
+        elseif isempty(Phi_aprime)
+            Case1orCase2=1;
         else
             % if Phi_aprime is not a structure then it must be relevant for all permanent types
             Case1orCase2=2;
         end
-    elseif isempty(Phi_aprime)
-        Case1orCase2=1;
     else
         Case1orCase2=1;
     end
