@@ -31,6 +31,7 @@ T=mcmomentsoptions.T;
 % (SURELY THERE IS SOME SMARTER WAY TO CALCULATE THE THEORETICAL ONE
 % DIRECTLY USING z_grid & pi_z)
 
+% tic;
 
 new=pi_z;
 currdist=1;
@@ -44,53 +45,64 @@ statdist=((ones(1,length(z_grid))/length(z_grid))*new)'; %A column vector
 % statdist=((ones(1,prod(n_z))/prod(n_z))*new)'; %A column vector
 % mean_zr=sum(kron(z_grid(1:5),ones(7,1)).*statdist)
 % mean_ze=sum(kron(ones(5,1),z_grid(6:end)).*statdist)
+% time1=toc
 
 % % Eigenvalues approach to stationary distriubtion 
 % % (see https://en.wikipedia.org/wiki/Markov_chain#Stationary_distribution_relation_to_eigenvectors_and_simplices )
 % % does not appear to be any faster (in fact marginally
 % % slower) (It also appears to be less accurate, although this may be a
 % % coding error on my part)
+% tic;
 % [statdist2,~]=eigs(gather(pi_z),1,1);
 % if sum(statdist2)<0; 
 %     statdist2=-statdist2; 
 % end; 
 % statdist2(statdist2<0)=0; 
 % statdist2=statdist2./sum(statdist2);
+% time2=toc
 
 mean=z_grid'*statdist;
+
 
 secondmoment=(z_grid.^2)'*statdist;
 variance=secondmoment-mean^2;
 
-% THIS FUNCTION FROM HERE DOWN IS IN NEED OF A REWRITE TO WORK FASTER 
-% (is it possible to calculate correlation directly from transition matrix and stationary distribution rather than simulating?)
-% tic;
-if Parallel==2 || Parallel==4 % Use GPU (assumes z_grid & pi_z are gpu arrays)
-    %Simulate Markov chain with transition state pi_z
-    A=gpuArray(ones(T,1)*floor(length(z_grid)/2)); %A contains the time series of states
-    shocks_raw=rand(T,1);
-    cumsum_pi_z=cumsum(pi_z,2);
-    for t=2:T
-        temp_cumsum_pi_z=cumsum_pi_z(A(t-1),:);
-        temp_cumsum_pi_z(temp_cumsum_pi_z<=shocks_raw(t))=2;
-        [~,A(t)]=min(temp_cumsum_pi_z);
-    end
-    corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
-    corr=corr_temp(2,1);
-else % On CPU
-    %Simulate Markov chain with transition state pi_z
-    A=ones(T,1)*floor(length(z_grid)/2); %A contains the time series of states
-    shocks_raw=rand(T,1);
-    cumsum_pi_z=cumsum(pi_z,2);
-    for t=2:T
-        temp_cumsum_pi_z=cumsum_pi_z(A(t-1),:);
-        temp_cumsum_pi_z(temp_cumsum_pi_z<=shocks_raw(t))=2;
-        [~,A(t)]=min(temp_cumsum_pi_z);
-    end
-    corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
-    corr=corr_temp(2,1);
-end    
-% time3=toc
+%% Now for the (first-order auto-) correlation
+
+if Parallel==2 || Parallel==4 % Move to cpu for simulation. Is just much faster.
+    z_grid=gather(z_grid);
+%     pi_z=gather(pi_z); % Done directly below when creating cumsum_pi_z (which is anyway the only use of pi_z in what remains)
+end
+
+
+% if Parallel==2 || Parallel==4 % Use GPU (assumes z_grid & pi_z are gpu arrays). Doing this on gpu takes ages and is just a bad idea.
+%     %Simulate Markov chain with transition state pi_z
+%     A=gpuArray(ones(T,1)*floor(length(z_grid)/2)); %A contains the time series of states
+%     shocks_raw=rand(T,1);
+%     cumsum_pi_z=cumsum(pi_z,2);
+%     for t=2:T
+%         temp_cumsum_pi_z=cumsum_pi_z(A(t-1),:);
+%         temp_cumsum_pi_z(temp_cumsum_pi_z<=shocks_raw(t))=2;
+%         [~,A(t)]=min(temp_cumsum_pi_z);
+%     end
+%     corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
+%     corr=corr_temp(2,1);
+% else % On CPU
+
+%Simulate Markov chain with transition state pi_z
+A=ones(T,1)*floor(length(z_grid)/2); %A contains the time series of states
+shocks_raw=rand(T,1);
+cumsum_pi_z=cumsum(gather(pi_z),2);
+for t=2:T
+    temp_cumsum_pi_z=cumsum_pi_z(A(t-1),:);
+    temp_cumsum_pi_z(temp_cumsum_pi_z<=shocks_raw(t))=2;
+    [~,A(t)]=min(temp_cumsum_pi_z);
+end
+corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
+corr=corr_temp(2,1);
+
+% end    
+% time4=toc
     
     
 end

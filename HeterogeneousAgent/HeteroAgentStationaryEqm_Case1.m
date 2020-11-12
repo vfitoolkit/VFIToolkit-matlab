@@ -11,6 +11,9 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_p=prod(n_p);
+if isempty(n_p)
+    N_p=0;
+end
 
 l_p=length(n_p);
 

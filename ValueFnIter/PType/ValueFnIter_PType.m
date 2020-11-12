@@ -62,15 +62,19 @@ for ii=1:N_i
 
     if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         vfoptions_temp=vfoptions; % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
-        if length(vfoptions.verbose)==1
-            if vfoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
+        if isfield(vfoptions,'verbose')==1
+            if length(vfoptions.verbose)==1
+                if vfoptions.verbose==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
+                end
+            else
+                if vfoptions.verbose(ii)==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
+                    vfoptions_temp.verbose=vfoptions.verbose(ii);
+                end
             end
         else
-            if vfoptions.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
-                vfoptions_temp.verbose=vfoptions.verbose(ii);
-            end
+            vfoptions_temp.verbose=0;
         end
     else
         vfoptions_temp.verbose=0;
