@@ -23,6 +23,23 @@ l_p=size(PricePathOld,2);
 if transpathoptions.verbose==1
     transpathoptions
 end
+if transpathoptions.verbosegraphs==1
+    valuefnfig=figure;
+    title('Value Function')
+    
+    pricepathfig=figure;
+    title('Price Path') 
+    plot(PricePathOld)
+%     PricePathNames
+%     PricePathNames{:}
+    legend(PricePathNames{:})
+
+    agentdistfig=figure;
+    title('Agent Dist')
+    
+    timeperiodstoplot=[1,2,3,round(T/3),round(T/2),round(2*T/3),T-2,T-1,T];
+    agestoplot=[1,floor(N_j/5),floor(2*N_j/5),floor(3*N_j/5),floor(4*N_j/5),N_j]; % When plotting agent distribution
+end
 
 PricePathDist=Inf;
 pathcounter=1;
@@ -68,12 +85,32 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
 
+        % Following just does a little bit of graphing Value function over
+        % the transition path (for median value of a variables and z variables)
+        if transpathoptions.verbosegraphs==1 && ismember(T-i,timeperiodstoplot)
+            [~,subplotindex] = ismember(T-i,timeperiodstoplot);
+            figure(valuefnfig)
+            subplot(3,3,subplotindex);  plot(reshape(V(max(1,floor(N_a/2)),max(1,floor(N_z/2)),:),[1,N_j])) % I am not sure why this is subplotindex-1, but the -1 seems needed
+            
+            if subplotindex==8
+                subplot(3,3,9); plot(reshape(V_final(max(1,floor(N_a/2)),max(1,floor(N_z/2)),:),[1,N_j]))
+            end
+        end
+        
         if N_d>0
             PolicyIndexesPath(:,:,:,:,T-i)=Policy;
         else
             PolicyIndexesPath(:,:,:,T-i)=Policy;
         end
         Vnext=V;
+
+        % Temporary for debugging
+%         if i==1 || i==T-1
+            fprintf('For pathcounter %i: time period %i \n',pathcounter,T-i)
+            fprintf('Value fn dist: %8.4f \n', max(max(max(abs(V-V_final)))))
+            fprintf('Policy fn dist: %8.4f \n', max(max(max(max(abs(Policy-PolicyIndexesPath(:,:,:,:,T-1)))))))
+%         end
+        
     end
     % Free up space on GPU by deleting things no longer needed
     clear V Vnext    
@@ -120,7 +157,37 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
         
+        
+
         AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+        
+        % Temporary for debugging
+        fprintf('For pathcounter %i: time period %i \n',pathcounter,i)
+        fprintf('AggVars: ')
+        disp(AggVars)
+        
+        if transpathoptions.verbosegraphs==1 && ismember(i,timeperiodstoplot)
+            [~,subplotindex] = ismember(i,timeperiodstoplot);
+            figure(agentdistfig)
+            
+            if subplotindex==3 % Don't actually want this one
+                AgentDistPlot=reshape(AgentDist_initial,[N_a,N_z,N_j]);
+                subplot(6,3,1); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+                subplot(6,3,4); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+            elseif subplotindex==1 || subplotindex==2
+                AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
+                subplot(6,3,1+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+                subplot(6,3,4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+            elseif subplotindex==4 || subplotindex==5 || subplotindex==6
+                AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
+                subplot(6,3,7-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+                subplot(6,3,10-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+            elseif subplotindex==7 || subplotindex==8 || subplotindex==9
+                AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
+                subplot(6,3,13-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+                subplot(6,3,16-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+            end
+        end
     end
 %     % Free up space on GPU by deleting things no longer needed
 %     clear AgentDist
@@ -133,6 +200,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         pathcounter
         disp('Old, New')
         [PricePathOld,PricePathNew]
+    end
+    if transpathoptions.verbosegraphs==1
+        figure(pricepathfig)
+        plot(PricePathNew)
     end
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but

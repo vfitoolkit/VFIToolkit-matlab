@@ -35,6 +35,7 @@ end
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.tolerance=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
@@ -49,6 +50,9 @@ else
         if isfield(heteroagentoptions,'pgrid')==0
             disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
+    end
+    if isfield(heteroagentoptions,'tolerance')==0
+        heteroagentoptions.tolerance=10^(-4); % Accuracy of general eqm prices
     end
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
@@ -80,13 +84,14 @@ end
 fprintf('p0 is: \n')
 p0
 
+minoptions = optimset('TolX',heteroagentoptions.tolerance);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multiGEcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0,minoptions);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0,minoptions);
 else
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0,minoptions);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless

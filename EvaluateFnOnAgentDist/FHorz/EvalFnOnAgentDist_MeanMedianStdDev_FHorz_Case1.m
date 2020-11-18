@@ -21,29 +21,35 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
     
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
-    for i=1:length(FnsToEvaluate)
+    for ii=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
                 FnToEvaluateParamsVec=[];
             else
-                FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end
-            Values(:,jj)=reshape(ValuesOnSSGrid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+%             % Includes check for cases in which no parameters are actually required
+%             if isempty(FnsToEvaluateParamNames(ii).Names)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
+%                 FnToEvaluateParamsVec=[];
+%             else
+%                 FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
+%             end
+            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
         end
         Values=reshape(Values,[N_a*N_z*N_j,1]);
 %         StationaryDistVec=reshape(StationaryDistVec,[N_a*N_z*N_j,1]);
         % Mean
-        MeanMedianStdDev(i,1)=sum(Values.*StationaryDistVec);
+        MeanMedianStdDev(ii,1)=sum(Values.*StationaryDistVec);
         % Median
         [SortedValues,SortedValues_index] = sort(Values);
         SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
         median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
-        MeanMedianStdDev(i,2)=SortedValues(median_index);
+        MeanMedianStdDev(ii,2)=SortedValues(median_index);
         % SSvalues_MeanMedianStdDev(i,2)=min(SortedValues(cumsum(SortedStationaryDistVec)>0.5));
         % Standard Deviation
-        MeanMedianStdDev(i,3)=sqrt(sum(StationaryDistVec.*((Values-MeanMedianStdDev(i,1).*ones(N_a*N_z*N_j,1)).^2)));
+        MeanMedianStdDev(ii,3)=sqrt(sum(StationaryDistVec.*((Values-MeanMedianStdDev(ii,1).*ones(N_a*N_z*N_j,1)).^2)));
     end
     
 else
@@ -61,7 +67,7 @@ else
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     
-    for i=1:length(FnsToEvaluate)
+    for ii=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
         if l_d==0
             for j1=1:N_a
@@ -92,21 +98,21 @@ else
                             end
                         end
                         % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(i).Names)
+                        if isempty(FnsToEvaluateParamNames(ii).Names)
                             tempv=[aprime_val,a_val,z_val];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         else
-                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
                             tempv=[aprime_val,a_val,z_val,FnToEvaluateParamsVec];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         end
-                        Values(j1,j2,jj)=FnsToEvaluate{i}(tempcell{:});
+                        Values(j1,j2,jj)=FnsToEvaluate{ii}(tempcell{:});
                     end
                 end
             end
@@ -147,21 +153,21 @@ else
                             end
                         end
                         % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(i).Names)
+                        if isempty(FnsToEvaluateParamNames(ii).Names)
                             tempv=[d_val,aprime_val,a_val,z_val];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         else
-                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
                             tempv=[d_val,aprime_val,a_val,z_val,FnToEvaluateParamsVec];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         end
-                        Values(j1,j2,jj)=FnsToEvaluate{i}(tempcell{:});
+                        Values(j1,j2,jj)=FnsToEvaluate{ii}(tempcell{:});
                     end
                 end
             end
@@ -169,15 +175,15 @@ else
         Values=reshape(Values,[N_a*N_z*N_j,1]);
 %         StationaryDistVec=reshape(StationaryDistVec,[N_a*N_z*N_j,1]);
         % Mean
-        MeanMedianStdDev(i,1)=sum(Values.*StationaryDistVec);
+        MeanMedianStdDev(ii,1)=sum(Values.*StationaryDistVec);
         % Median
         [SortedValues,SortedValues_index] = sort(Values);
         SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
         median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
-        MeanMedianStdDev(i,2)=SortedValues(median_index);
+        MeanMedianStdDev(ii,2)=SortedValues(median_index);
         % SSvalues_MeanMedianStdDev(i,2)=min(SortedValues(cumsum(SortedStationaryDistVec)>0.5));
         % Standard Deviation
-        MeanMedianStdDev(i,3)=sqrt(sum(StationaryDistVec.*((Values-MeanMedianStdDev(i,1).*ones(N_a*N_z*N_j,1)).^2)));
+        MeanMedianStdDev(ii,3)=sqrt(sum(StationaryDistVec.*((Values-MeanMedianStdDev(ii,1).*ones(N_a*N_z*N_j,1)).^2)));
     end
     
 end

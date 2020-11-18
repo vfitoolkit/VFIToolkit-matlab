@@ -37,6 +37,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
+    transpathoptions.verbosegraphs=0;
     transpathoptions.GEnewprice=2;
     transpathoptions.historyofpricepath=0;
 else
@@ -64,6 +65,9 @@ else
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
+    end
+    if isfield(transpathoptions,'verbosegraphs')==0
+        transpathoptions.verbosegraphs=0;
     end
     if isfield(transpathoptions,'GEnewprice')==0
         transpathoptions.GEnewprice=2;

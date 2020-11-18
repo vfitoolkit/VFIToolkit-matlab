@@ -110,8 +110,11 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
     return
 end
 
-StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
-
+if isfield(simoptions, 'initialdist')==0
+    StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+else
+    StationaryDistKron=reshape(simoptions.initialdist,[N_a,N_z]);
+end
 %%
 % tic;
 if simoptions.iterate==1
