@@ -129,7 +129,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Policy=PolicyIndexesPath(:,:,:,i);
         end
         
-        p=PricePathOld(i,:);
+        GEprices=PricePathOld(i,:);
         
         for nn=1:length(ParamPathNames)
             Parameters.(ParamPathNames{nn})=ParamPath(i,nn);
@@ -148,12 +148,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars, GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
             for j=1:length(GeneralEqmEqns)
-                GEeqn_temp=@(p) sum(real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames)).^2);
-                PricePathNew(i,j)=fminsearch(GEeqn_temp,p);
+                GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1(AggVars, GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames)).^2);
+                PricePathNew(i,j)=fminsearch(GEeqn_temp,GEprices);
             end
         end
         
@@ -164,7 +164,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Temporary for debugging
         fprintf('For pathcounter %i: time period %i \n',pathcounter,i)
         fprintf('AggVars: ')
-        disp(AggVars)
+        disp(AggVars')
+        fprintf('PricePathNew: ')
+        disp(PricePathNew(i,:))
+        fprintf('Gap')
+        disp(-2*(PricePathNew(i,:)-PricePathOld(i,:)))
         
         if transpathoptions.verbosegraphs==1 && ismember(i,timeperiodstoplot)
             [~,subplotindex] = ismember(i,timeperiodstoplot);

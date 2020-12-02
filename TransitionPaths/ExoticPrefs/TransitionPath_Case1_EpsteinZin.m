@@ -1,4 +1,13 @@
-function PricePath=TransitionPath_Case1(PricePathOld, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
+function PricePath=TransitionPath_Case1_EpsteinZin(PricePathOld, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions)
+% DiscountFactorParamsVec contains the three parameters relating to
+% Epstein-Zin preferences. Calling them beta, gamma, and psi,
+% respectively the Epstein-Zin preferences are given by
+% U_t= [ (1-beta)*u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
+% where
+%  u_t is per-period utility function
+% See eg., Caldara, Fernandez-Villaverde, Rubio-Ramirez, and Yao (2012)
+%
+%
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -8,130 +17,30 @@ function PricePath=TransitionPath_Case1(PricePathOld, ParamPath, T, V_final, Age
 %
 % transpathoptions is not a required input.
 
-% Internally PricePathOld is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-PricePathNames=fieldnames(PricePathOld);
-PricePathStruct=PricePathOld;
-PricePathOld=zeros(T,length(PricePathNames));
-for ii=1:length(PricePathNames)
-    PricePathOld(:,ii)=PricePathStruct.(PricePathNames{ii});
-end
-ParamPathNames=fieldnames(ParamPath);
-ParamPathStruct=ParamPath; 
-ParamPath=zeros(T,length(ParamPathNames));
-for ii=1:length(ParamPathNames)
-    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
-end
+% % Internally PricePathOld is matrix of size T-by-'number of prices'.
+% % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% PricePathNames=fieldnames(PricePathOld);
+% PricePathStruct=PricePathOld;
+% PricePathOld=zeros(T,length(PricePathNames));
+% for ii=1:length(PricePathNames)
+%     PricePathOld(:,ii)=PricePathStruct.(PricePathNames{ii});
+% end
+% ParamPathNames=fieldnames(ParamPath);
+% ParamPathStruct=ParamPath; 
+% ParamPath=zeros(T,length(ParamPathNames));
+% for ii=1:length(ParamPathNames)
+%     ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
+% end
+% 
+% PricePath=struct();
 
-PricePath=struct();
-
-%% Check which transpathoptions have been used, set all others to defaults 
-if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
-    transpathoptions.tolerance=10^(-5);
-    transpathoptions.parallel=1+(gpuDeviceCount>0);
-    transpathoptions.lowmemory=0;
-    transpathoptions.exoticpreferences=0;
-    transpathoptions.oldpathweight=0.9; % default =0.9
-    transpathoptions.weightscheme=1; % default =1
-    transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=1000;
-    transpathoptions.verbose=0;
-    transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
-    transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
-else
-    %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
-        transpathoptions.tolerance=10^(-5);
-    end
-    if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if isfield(transpathoptions,'lowmemory')==0
-        transpathoptions.lowmemory=0;
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
-    end
-    if isfield(transpathoptions,'oldpathweight')==0
-        transpathoptions.oldpathweight=0.9;
-    end
-    if isfield(transpathoptions,'weightscheme')==0
-        transpathoptions.weightscheme=1;
-    end
-    if isfield(transpathoptions,'Ttheta')==0
-        transpathoptions.Ttheta=1;
-    end
-    if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=1000;
-    end
-    if isfield(transpathoptions,'verbose')==0
-        transpathoptions.verbose=0;
-    end
-    if isfield(transpathoptions,'graphpricepath')==0
-        transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
-    end
-    if isfield(transpathoptions,'GEnewprice')==0
-        transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
-    end
-    if isfield(transpathoptions,'weightsforpath')==0
-        transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
-    end
-end
-
-% If vfoptions and simoptions are not given, then just create placeholders
-% (simplifies calling subcommands for the different TransitionPath variants)
-if exist('vfoptions','var')==0
-    vfoptions=struct();
-end
-if exist('simoptions','var')==0
-    simoptions.parallel=1+(gpuDeviceCount>0);
-else
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=1+(gpuDeviceCount>0);
-    end
-end
-
-%%
-
-% If there is entry and exit, then send to relevant command
-if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
-    if ~exist('EntryExitParamNames','var')
-        fprintf('ERROR: need to input EntryExitParamNames to TransitionPath_Case1() \n')
-        PricePath=[];
-        return
-    end
-    if simoptions.agententryandexit==1% transpathoptions.agententryandexit==1
-        PricePath=TransitionPath_Case1_EntryExit(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-        return
-%     elseif transpathoptions.agententryandexit==2
-%         PricePath=TransitionPath_Case1_EntryExit2(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-%         return
-    end
-end
-
-if transpathoptions.exoticpreferences==2 % Epstein-Zin preferences
-    PricePath=TransitionPath_Case1_EpsteinZin(PricePathOld, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions);
-    return
-elseif transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 or 2 is supported by TransitionPath_Case1')
-    dbstack
-else
-    if length(DiscountFactorParamNames)~=1
-        disp('WARNING: DiscountFactorParamNames should be of length one')
-        dbstack
-    end
-end
-
-if transpathoptions.parallel==1
-    PricePath=TransitionPath_Case1_par1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions);
-    return
-end
+% if transpathoptions.parallel==1
+%     PricePath=TransitionPath_Case1_EpsteinZin_par1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions);
+%     return
+% end
 
 if transpathoptions.parallel~=2
-    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1')
+    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1 with Epstein-Zin preferences')
 else
     d_grid=gpuArray(d_grid); a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     PricePathOld=gpuArray(PricePathOld);
@@ -154,16 +63,16 @@ end
 
 
 if N_d==0
-    PricePath=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
+    PricePath=TransitionPath_Case1_EpsteinZin_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
     return
 end
 
-if transpathoptions.lowmemory==1
-    % The lowmemory option is going to use gpu (but loop over z instead of
-    % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
-    PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
-    return
-end
+% if transpathoptions.lowmemory==1
+%     % The lowmemory option is going to use gpu (but loop over z instead of
+%     % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
+%     PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
+%     return
+% end
 
 PricePathDist=Inf;
 pathcounter=0;
@@ -182,8 +91,8 @@ if transpathoptions.verbose==1
     PricePathNames
 end
 
-    
-beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+
+DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
 ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
 IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
@@ -198,10 +107,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %functions for anything later we just store the next period one in
     %Vnext, and the current period one to be calculated in V
     Vnext=V_final;
+    Vtemp(isfinite(Vnext))=Vnext(isfinite(Vnext)).^(1-DiscountFactorParamsVec(2));
+    Vtemp(Vnext==0)=0;
+    % When using GPU matlab objects to switching between real and
+    % complex numbers when evaluating powers. Using Vtemp avoids this issue.
     for i=1:T-1 %so t=T-i
         
         if ~isnan(IndexesForPathParamsInDiscountFactor)
-            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
+            DiscountFactorParamsVec(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
         end
         if ~isnan(IndexesForPricePathInReturnFnParams)
             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-i,:);
@@ -213,19 +126,26 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+            % Modify the Return Function appropriately for Epstein-Zin Preferences
+            ReturnMatrix_z(isfinite(ReturnMatrix_z))=ReturnMatrix_z(isfinite(ReturnMatrix_z)).^(1-1/DiscountFactorParamsVec(3));
+            ReturnMatrix_z=(1-DiscountFactorParamsVec(1))*ReturnMatrix_z;
 %             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+
+            %Calc the condl expectation term (except beta), which depends on z but not on control variables
+            EV_z=Vtemp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
             entireEV_z=kron(EV_z,ones(N_d,1));
-            entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
+            temp3=entireEV_z;
+            temp4=temp3;
+            temp4(isfinite(temp4))=temp4(isfinite(temp4)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
+            temp4(temp3==0)=0;
+            entireRHS=ReturnMatrix_z+DiscountFactorParamsVec(1)*temp4*ones(1,N_a,1);
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            V(:,z_c)=Vtemp;
+            [Vmax,maxindex]=max(entireRHS,[],1);
+            V(:,z_c)=Vmax.^(1/(1-1/DiscountFactorParamsVec(3)));
             Policy(:,z_c)=maxindex;
         end
         

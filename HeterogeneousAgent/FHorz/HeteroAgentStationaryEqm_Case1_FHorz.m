@@ -35,7 +35,8 @@ end
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
-    heteroagentoptions.tolerance=10^(-4); % Accuracy of general eqm prices
+    heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
@@ -51,8 +52,11 @@ else
             disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
     end
-    if isfield(heteroagentoptions,'tolerance')==0
-        heteroagentoptions.tolerance=10^(-4); % Accuracy of general eqm prices
+    if isfield(heteroagentoptions,'toleranceGEprices')==0
+        heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    end
+    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+        heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
@@ -74,24 +78,24 @@ end
 
 %% Otherwise, use fminsearch to find the general equilibrium
 
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+GeneralEqmConditionsFn=@(GEprices) HeteroAgentStationaryEqm_Case1_FHorz_subfn(GEprices, jequaloneDist,AgeWeights, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, SSvaluesFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, SSvalueParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
-p0=nan(length(GEPriceParamNames),1);
+GEprices0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)
-    p0(ii)=Parameters.(GEPriceParamNames{ii});
+    GEprices0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 
-fprintf('p0 is: \n')
-p0
+fprintf('GEprices0 is: \n')
+GEprices0
 
-minoptions = optimset('TolX',heteroagentoptions.tolerance);
+minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multiGEcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0,minoptions);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,GEprices0,minoptions);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0,minoptions);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,GEprices0,minoptions);
 else
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0,minoptions);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,GEprices0,minoptions);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
