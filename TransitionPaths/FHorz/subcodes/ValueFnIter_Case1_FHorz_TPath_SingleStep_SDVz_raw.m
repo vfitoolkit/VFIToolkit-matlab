@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_SDVz_raw(V,n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_SDVz_raw(V,n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -12,39 +12,11 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 
 if vfoptions.lowmemory>0
 %     special_n_z=ones(1,length(n_z));
-    
-    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-    for i1=1:N_z
-        sub=zeros(1,length(n_z));
-        sub(1)=rem(i1-1,n_z(1))+1;
-        for ii=2:length(n_z)-1
-            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-        end
-        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-        
-        if length(n_z)>1
-            sub=sub+[0,cumsum(n_z(1:end-1))];
-        end
-        z_gridvals(i1,:)=z_grid(sub);
-    end
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
-    
-    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-    for i2=1:N_a
-        sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1))+1;
-        for ii=2:length(n_a)-1
-            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-        end
-        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-        
-        if length(n_a)>1
-            sub=sub+[0,cumsum(n_a(1:end-1))];
-        end
-        a_gridvals(i2,:)=a_grid(sub);
-    end
+    a_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
 end
 
 %% Get the parameter values that depend on the z_state.
