@@ -29,25 +29,26 @@ PricePath=struct();
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
-    transpathoptions.tolerance=10^(-5);
+    transpathoptions.tolerance=10^(-4);
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     transpathoptions.fastOLG=0;
     transpathoptions.exoticpreferences=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=1000;
+    transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
     transpathoptions.verbosegraphs=0;
     transpathoptions.GEnewprice=2;
     transpathoptions.historyofpricepath=0;
+    transpathoptions.stockvars=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
-        transpathoptions.tolerance=10^(-5);
+        transpathoptions.tolerance=10^(-4);
     end
     if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+        transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
     if isfield(transpathoptions,'fastOLG')==0
         transpathoptions.fastOLG=0;
@@ -65,7 +66,7 @@ else
         transpathoptions.Ttheta=1;
     end
     if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=1000;
+        transpathoptions.maxiterations=500;
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
@@ -78,6 +79,24 @@ else
     end
     if isfield(transpathoptions,'historyofpricepath')==0
         transpathoptions.historyofpricepath=0;
+    end
+    if isfield(transpathoptions,'usestockvars')==0 % usestockvars is solely for internal use, the user does not need to set it
+        if isfield(transpathoptions,'stockvarinit')==0 && isfield(transpathoptions,'usestockvars')==0 && isfield(transpathoptions,'usestockvars')==0
+            transpathoptions.usestockvars=0;
+        end
+    end
+    if isfield(transpathoptions,'usestockvars')==1 || isfield(transpathoptions,'stockvarinit')==1 || isfield(transpathoptions,'stockvarpath0')==1 || isfield(transpathoptions,'stockvareqns')==1
+        transpathoptions.usestockvars=1;
+        if isfield(transpathoptions,'stockvarinit')==0
+            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarinit')
+            return
+        elseif isfield(transpathoptions,'stockvarpath0')==0
+            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarpath0')
+            return
+        elseif isfield(transpathoptions,'stockvareqns')==0
+            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvareqns')
+            return
+        end
     end
 end
 
@@ -178,21 +197,26 @@ N_a=prod(n_a);
 
 if N_d>0
     if size(d_grid)~=[N_d, 1]
-        disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
+        disp('ERROR: d_grid is not the correct shape (should be of size N_d-by-1)')
         dbstack
         return
     end
 end
 if size(a_grid)~=[N_a, 1]
-    disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
+    disp('ERROR: a_grid is not the correct shape (should be of size N_a-by-1)')
     dbstack
     return
 elseif size(z_grid)~=[N_z, 1]
-    disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
+    disp('ERROR: z_grid is not the correct shape (should be of size N_z-by-1)')
     dbstack
     return
 elseif size(pi_z)~=[N_z, N_z]
     disp('ERROR: pi is not of size N_z-by-N_z')
+    dbstack
+    return
+end
+if length(PricePathNames)~=length(GeneralEqmEqns)
+    disp('ERROR: Initial PricePath contains less variables than GeneralEqmEqns')
     dbstack
     return
 end
@@ -221,6 +245,23 @@ end
 
 
 %%
+if transpathoptions.usestockvars==1 
+    % Get the stock variable objects out of transpathoptions.
+    StockVariable_init=transpathoptions.stockvarinit;
+%     StockVariableEqns=transpathoptions.stockvareqns.lawofmotion;
+    % and switch from structure/names to matrix for VFI Toolkit internals.
+    StockVarsPathNames=fieldnames(transpathoptions.stockvarpath0);
+    StockVarsStruct=transpathoptions.stockvarpath0;
+    StockVarsPathOld=zeros(T,length(StockVarsPathNames));
+    StockVariableEqns=cell(1,length(StockVarsPathNames));
+    for ii=1:length(StockVarsPathNames)
+        StockVarsPathOld(:,ii)=StockVarsStruct.(StockVarsPathNames{ii});
+        StockVariableEqnParamNames(ii).Names=transpathoptions.stockvareqns.Names.(StockVarsPathNames{ii}); % Really, what I should do is redesign the way the GeneralEqm equations and names work so they are in a structure, and then just leave this in it's structure form as well.
+        StockVariableEqns{ii}=transpathoptions.stockvareqns.lawofmotion.(StockVarsPathNames{ii});
+    end
+end
+
+%%
 if transpathoptions.exoticpreferences~=0
     disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
     dbstack
@@ -228,10 +269,19 @@ end
 
 if transpathoptions.GEnewprice==1
     if transpathoptions.parallel==2
-        if transpathoptions.fastOLG==0
-            PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
-        else % use fastOLG setting
-            PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);            
+        if transpathoptions.usestockvars==0
+            if transpathoptions.fastOLG==0
+                PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
+            else % use fastOLG setting
+                PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
+            end
+        else % transpathoptions.usestockvars==1
+            if transpathoptions.fastOLG==0
+                % NOT YET IMPLEMENTED
+%                 PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
+            else % use fastOLG setting
+                PricePathOld=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, StockVarsPathOld, StockVarsPathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, StockVariableEqnParamNames, vfoptions, simoptions, transpathoptions);
+            end
         end
     else
         PricePathOld=TransitionPath_Case1_FHorz_Par1_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
