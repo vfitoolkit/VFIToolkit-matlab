@@ -7,9 +7,10 @@ function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDi
 %  simoptions.parallel
 
 
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
+% eval('fieldexists_ImposeExogShockDist=1;simoptions.ImposeExogShockDist;','fieldexists_ImposeExogShockDist=0;')
 
 if simoptions.parallel<2
     
@@ -25,7 +26,12 @@ if simoptions.parallel<2
                 [~,pi_z]=vfoptions.ExogShockFn(jj);
             end
         end
-        
+%         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
+%             if simoptions.ImposeExogShockDistWhen(jj+1)>0 % Next period is a period in which a distribution on the exogenous shock is imposed.
+%                 pi_z=ones(N_z,1)*(simoptions.ImposeExogShockDist(:,simoptions.ImposeExogShockDistWhen(jj+1)))';
+%             end
+%         end
+           
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
         for a_c=1:N_a
@@ -64,6 +70,11 @@ elseif simoptions.parallel==2 % Using the GPU
                 pi_z=gpuArray(pi_z);
             end
         end
+%         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
+%             if simoptions.ImposeExogShockDistWhen(jj+1)>0 % Next period is a period in which a distribution on the exogenous shock is imposed.
+%                 pi_z=ones(N_z,1,'gpuArray')*(gpuArray(simoptions.ImposeExogShockDist(:,simoptions.ImposeExogShockDistWhen(jj+1))))';
+%             end
+%         end
         
         if N_d==0 %length(n_d)==1 && n_d(1)==0
             optaprime=reshape(PolicyIndexesKron(:,:,jj),[1,N_a*N_z]);
@@ -91,7 +102,11 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
                 [~,pi_z]=vfoptions.ExogShockFn(jj);
             end
         end
-
+%         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
+%             if simoptions.ImposeExogShockDistWhen(jj+1)>0 % Next period is a period in which a distribution on the exogenous shock is imposed.
+%                 pi_z=ones(N_z,1)*(simoptions.ImposeExogShockDist(:,simoptions.ImposeExogShockDistWhen(jj+1)))';
+%             end
+%         end
         
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]

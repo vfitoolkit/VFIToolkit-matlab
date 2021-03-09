@@ -7,9 +7,11 @@ function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,N_i,d_grid, 
 % N_i=prod(n_i);
 
 for ii=1:N_i
-    try
-        if vfoptions.verbose==1
-            sprintf('Fixed type: %i of %i',ii, N_i)
+    if exist('vfoptions','var')==1
+        if isfield(vfoptions,'verbose')==1
+            if vfoptions.verbose==1
+                sprintf('Permanent type: %i of %i',ii, N_i)
+            end
         end
     end
     
@@ -72,16 +74,16 @@ for ii=1:N_i
     end
         
     
-    try vfoptions % check whether vfoptions was inputted
+    if exist('vfoptions','var')==1 % check whether vfoptions was inputted
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    catch
+    else
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
     end
     
-    ftstring=['ft',num2str(ii)];
+    ptstring=['pt',num2str(ii)];
     
-    V.(ftstring)=V_ii;
-    Policy.(ftstring)=Policy_ii;    
+    V.(ptstring)=V_ii;
+    Policy.(ptstring)=Policy_ii;    
 
 end
 

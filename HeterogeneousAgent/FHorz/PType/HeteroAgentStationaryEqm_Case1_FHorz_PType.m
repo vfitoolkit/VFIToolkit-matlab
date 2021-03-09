@@ -1,11 +1,11 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, Phi_aprime, Case2_Type, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, AgeWeightParamNames, PTypeDistNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, PTypeDistParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 % Inputting vfoptions and simoptions is optional (they are not required inputs)
 %
 % Allows for different permanent (fixed) types of agent. 
-% See ValueFnIter_PType for general idea.
+% See ValueFnIter_Case1_FHorz_PType for general idea.
 %
 % Rest of this description describes how those inputs not used for
-% ValueFnIter_PType should be set up.
+% ValueFnIter_Case1_FHorz_PType should be set up.
 %
 % jequaloneDist can either be same for all permanent types, or must be passed as a structure.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
@@ -28,11 +28,15 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType
 
 
 %%
-N_p=prod(n_p);
+if ~isempty(n_p)
+    N_p=prod(n_p);
+else
+    N_p=0;
+end
 l_p=length(n_p);
 
 if exist('heteroagentoptions','var')==0
-    heteroagentoptions.multiGEcritereon=1;
+    heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
@@ -138,6 +142,7 @@ for ii=1:PTypeStructure.N_i
         end
     else
         PTypeStructure.(iistr).simoptions.verbose=0;
+        PTypeStructure.(iistr).simoptions.parallel=1+(gpuDeviceCount>0);
     end
     if exist('options','var') % options.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).vfoptions=options; % some options will differ by permanent type, will clean these up as we go before they are passed
@@ -173,56 +178,14 @@ for ii=1:PTypeStructure.N_i
     % relevant value.
     
     % Horizon is determined via N_j
-    PTypeStructure.(iistr).finitehorz=0;
     if isstruct(N_j)
-        if isfield(N_j, Names_i{ii})
-            if isfinite(N_j.(Names_i{ii}))
-                PTypeStructure.(iistr).finitehorz=1;
-                PTypeStructure.(iistr).N_j=N_j.(Names_i{ii});
-                % else
-                % % do nothing: PTypeStructure.(iistr).finitehorz=0
-            end
-            % else
-                % % do nothing: PTypeStructure.(iistr).finitehorz=0
-        end
-    elseif ~isempty(N_j)
-        if isfinite(N_j(ii))
-            PTypeStructure.(iistr).finitehorz=1;
-            PTypeStructure.(iistr).N_j=N_j(ii);
-%         else
-%             % do nothing: PTypeStructure.(iistr).finitehorz=0
-        end
-    % else % in situtation of isempty(N_j)
-        % do nothing: PTypeStructure.(iistr).finitehorz=0
-    end
-    
-    % Case 1 or Case 2 is determined via Phi_aprime
-    if exist('Phi_aprime','var') % If all the Permanent Types are 'Case 1' then there will be no Phi_aprime
-        if isa(Phi_aprime,'struct')
-            if isfield(Phi_aprime,Names_i{ii})==1 % Check if it exists for the current permanent type
-                %         names=fieldnames(Phi_aprime);
-                PTypeStructure.(iistr).Case1orCase2=2;
-                PTypeStructure.(iistr).Case2_Type=Case2_Type.(Names_i{ii});
-                PTypeStructure.(iistr).Phi_aprime=Phi_aprime.(Names_i{ii});
-            else
-                PTypeStructure.(iistr).Case1orCase2=1;
-                PTypeStructure.(iistr).Case2_Type=Case2_Type;
-                PTypeStructure.(iistr).Phi_aprime=Phi_aprime;
-            end
-        elseif isempty(Phi_aprime)
-            PTypeStructure.(iistr).Case1orCase2=1;
-        else
-            % if Phi_aprime is not a structure then it must be relevant for all permanent types
-            PTypeStructure.(iistr).Case1orCase2=2;
-            PTypeStructure.(iistr).Case2_Type=Case2_Type;
-            PTypeStructure.(iistr).Phi_aprime=Phi_aprime;
-        end
+        PTypeStructure.(iistr).N_j=N_j.(Names_i{ii});
+    elseif isscalar(N_j)
+        PTypeStructure.(iistr).N_j=N_j;
     else
-        PTypeStructure.(iistr).Case1orCase2=1;
+        PTypeStructure.(iistr).N_j=N_j(ii);
     end
     
-    % Now that we have PTypeStructure.(iistr).finitehorz and PTypeStructure.(iistr).Case1orCase2, do everything else for the current permanent type.
-
     PTypeStructure.(iistr).n_d=n_d;
     if isa(n_d,'struct')
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
@@ -347,16 +310,14 @@ for ii=1:PTypeStructure.N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
-    if PTypeStructure.(iistr).finitehorz==1
-        PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
-        if isa(jequaloneDist,'struct')
-            if isfield(jequaloneDist,Names_i{ii})
-                PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(Names_i{ii});
-            else
-                if isfinite(PTypeStructure.(iistr).N_j)
-                    sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
-                    dbstack
-                end
+    PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
+    if isa(jequaloneDist,'struct')
+        if isfield(jequaloneDist,Names_i{ii})
+            PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(Names_i{ii});
+        else
+            if isfinite(PTypeStructure.(iistr).N_j)
+                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
+                dbstack
             end
         end
     end
@@ -370,16 +331,10 @@ for ii=1:PTypeStructure.N_i
     if isa(ReturnFnParamNames,'struct')
         PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames.(Names_i{ii});
     end
-    if PTypeStructure.(iistr).Case1orCase2==2
-        PTypeStructure.(iistr).PhiaprimeParamNames=PhiaprimeParamNames;
-        if isa(PhiaprimeParamNames,'struct')
-            PTypeStructure.(iistr).PhiaprimeParamNames=PhiaprimeParamNames.(Names_i{ii});
-        end
-    end
-    PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightParamNames;
-    if isa(AgeWeightParamNames,'struct')
-        if isfield(AgeWeightParamNames,Names_i{ii})
-            PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightParamNames.(Names_i{ii});
+    PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames;
+    if isa(AgeWeightsParamNames,'struct')
+        if isfield(AgeWeightsParamNames,Names_i{ii})
+            PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames.(Names_i{ii});
         else
             if isfinite(PTypeStructure.(iistr).N_j)
                 sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
@@ -522,42 +477,19 @@ for ii=1:PTypeStructure.N_i
         end
     end
     
-    % AgeDependentGridParamNames will be inputted in place of pi_z, so deal
-    % with this when dealing with pi_z
-%     % Now that we have figured out if we are using agedependentgrids
-%     % and stored this in PTypeStructure.(iistr).vfoptions we can use this to figure out if
-%     % we need PTypeStructure.(iistr).AgeDependentGridParamNames
-%     if isfield(PTypeStructure.(iistr).vfoptions,'agedependentgrids')
-%         if isa(AgeDependentGridParamNames.d_grid,'struct')
-%             PTypeStructure.(iistr).AgeDependentGridParamNames.d_grid=AgeDependentGridParamNames.d_grid.(Names_i{ii}); % Different grids by permanent type
-%         else
-%             PTypeStructure.(iistr).AgeDependentGridParamNames.d_grid=AgeDependentGridParamNames.d_grid;
-%         end
-%         if isa(AgeDependentGridParamNames.a_grid,'struct')
-%             PTypeStructure.(iistr).AgeDependentGridParamNames.a_grid=AgeDependentGridParamNames.a_grid.(Names_i{ii}); % Different grids by permanent type
-%         else
-%             PTypeStructure.(iistr).AgeDependentGridParamNames.a_grid=AgeDependentGridParamNames.a_grid;
-%         end
-%         if isa(AgeDependentGridParamNames.z_grid,'struct')
-%             PTypeStructure.(iistr).AgeDependentGridParamNames.z_grid=AgeDependentGridParamNames.z_grid.(Names_i{ii}); % Different grids by permanent type
-%         else
-%             PTypeStructure.(iistr).AgeDependentGridParamNames.z_grid=AgeDependentGridParamNames.z_grid;
-%         end
-%     end
-    
     % Figure out which functions are actually relevant to the present
     % PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
     % necessarily the same.
     PTypeStructure.(iistr).FnsToEvaluateFn={};
     PTypeStructure.(iistr).FnsToEvaluateParamNames=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-    PTypeStructure.(iistr).numFnsToEvaluate=length(FnsToEvaluateFn);
+    PTypeStructure.(iistr).numFnsToEvaluate=length(FnsToEvaluate);
     PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.(iistr).numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for kk=1:PTypeStructure.(iistr).numFnsToEvaluate
-        if isa(FnsToEvaluateFn{kk},'struct')
-            if isfield(FnsToEvaluateFn{kk}, Names_i{ii})
-                PTypeStructure.(iistr).FnsToEvaluateFn{jj}=FnsToEvaluateFn{kk}.(Names_i{ii});
+        if isa(FnsToEvaluate{kk},'struct')
+            if isfield(FnsToEvaluate{kk}, Names_i{ii})
+                PTypeStructure.(iistr).FnsToEvaluateFn{jj}=FnsToEvaluate{kk}.(Names_i{ii});
                 if isa(FnsToEvaluateParamNames(kk).Names,'struct')
                     PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
                 else
@@ -570,25 +502,16 @@ for ii=1:PTypeStructure.N_i
             end
         else
             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            PTypeStructure.(iistr).FnsToEvaluateFn{jj}=FnsToEvaluateFn{kk};
+            PTypeStructure.(iistr).FnsToEvaluateFn{jj}=FnsToEvaluate{kk};
             PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
             PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
         end
     end
     
-    
-%     PTypeStructure.(iistr).PTypeWeight=nan;
-    if isa(PTypeDistNames, 'array')
-        PTypeStructure.(iistr).PTypeWeight=PTypeDistNames(ii);
+    if isa(PTypeDistParamNames, 'array')
+        PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
     else
-%         PTypeStructure.(iistr).PTypeWeight;
-%         PTypeStructure.(iistr).Parameters
-%         iistr
-%         PTypeDistNames{1}
-%         PTypeStructure.(iistr).Parameters.(PTypeDistNames{1}); % {1} as I simply assume there is only a single parameter (name) that contains the distribution (weights) of the PTypes.
-%         PTypeStructure.(iistr).Parameters.(PTypeDistNames{1})
-%         PTypeStructure.(iistr).Parameters.(PTypeDistNames{1}).(Names_i{ii});
-        PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
+        PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
     end
 end
 
@@ -611,7 +534,9 @@ end
 
 %%
 if N_p~=0
-    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
+%     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
+    fprintf('NOTE: Following does not yet exist so will throw an error. Contact robertdkirkby@gmail.com if you actually want to use it and I will set it up. \n')
+    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
     for ii=1:length(GEPriceParamNames)
         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
     end
@@ -620,7 +545,8 @@ end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
 
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
+% GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
 
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)

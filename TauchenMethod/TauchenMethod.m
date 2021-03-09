@@ -30,7 +30,7 @@ else
 end
 
 % Check for a deterministic shifter
-if nargin<7
+if exist('dshift','var')==0 %nargin<7
     dshift=0;
 end
 

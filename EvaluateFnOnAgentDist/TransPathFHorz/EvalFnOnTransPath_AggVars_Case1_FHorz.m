@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames, PricePath, ParamPath, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames, PricePath, ParamPath, Parameters, T, V_final, Policy_final, AgentDist_initial, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
 %AggVarsPath is T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
 % To fix idea of the size/shape: AggVarsPath=nan(T,length(FnsToEvaluate));
 
@@ -220,9 +220,11 @@ if transpathoptions.parallel==2
     %%
     
     if N_d>0
-        PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1 will be calculated
+        PolicyIndexesPath(:,:,:,:,T)=KronPolicyIndexes_FHorz_Case1(Policy_final, n_d, n_a, n_z,N_j);
     else
-        PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1 will be calculated
+        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_FHorz_Case1(Policy_final, n_d, n_a, n_z,N_j);
     end
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -259,7 +261,7 @@ if transpathoptions.parallel==2
     AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
     %Call AgentDist the current periods distn
     AgentDist=AgentDist_initial;
-    for ii=1:T-1
+    for ii=1:T%-1
                 
         %Get the current optimal policy
         if N_d>0
@@ -296,9 +298,11 @@ else
         Policy=zeros(N_a,N_z,N_j);
     end
     if N_d>0
-        PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T); %Periods 1 to T-1 will be calculated
+        PolicyIndexesPath(:,:,:,:,T)=KronPolicyIndexes_FHorz_Case1(Policy_final, n_d, n_a, n_z,N_j);
     else
-        PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1); %Periods 1 to T-1
+        PolicyIndexesPath=zeros(N_a,N_z,N_j,T); %Periods 1 to T-1 will be calculated
+        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_FHorz_Case1(Policy_final, n_d, n_a, n_z,N_j);
     end
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -335,7 +339,7 @@ else
     AggVarsPath=zeros(T,length(FnsToEvaluate));
     %Call AgentDist the current periods distn
     AgentDist=AgentDist_initial;
-    for ii=1:T-1
+    for ii=1:T%-1
                 
         %Get the current optimal policy
         if N_d>0
