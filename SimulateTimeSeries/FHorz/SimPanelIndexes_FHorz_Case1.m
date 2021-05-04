@@ -25,7 +25,7 @@ if exist('simoptions','var')==1
         simoptions.numbersims=10^3;
     end
     if ~isfield(simoptions, 'parallel')
-        simoptions.parallel=2;
+        vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
@@ -44,7 +44,7 @@ else
     simoptions.polindorval=1;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;
-    simoptions.parallel=2;
+    vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     simoptions.verbose=0;
     simoptions.newbirths=0;
 end

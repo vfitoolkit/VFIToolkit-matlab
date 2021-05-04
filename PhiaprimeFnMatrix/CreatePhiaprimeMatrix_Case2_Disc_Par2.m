@@ -510,6 +510,31 @@ elseif Case2_Type==3 % (d,z')
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, zp1vals,zp2vals,zp3vals,zp4vals,ParamCell{:});
     end
     Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_zprime]);
+elseif Case2_Type==6 % (d)
+    if l_d>=1
+        d1vals=d_grid(1:n_d(1));
+        if l_d>=2
+            d2vals=shiftdim(d_grid(n_d(1)+1:sum(n_d(1:2))),-1);
+            if l_d>=3
+                d3vals=shiftdim(d_grid(sum(n_d(1:2))+1:sum(n_d(1:3))),-2);
+                if l_d>=4
+                    d4vals=shiftdim(d_grid(sum(n_d(1:3))+1:sum(n_d(1:4))),-3);
+                end
+            end
+        end
+    end
+    
+    if l_d==1
+        d1vals(1,1,1)=d_grid(1); % Requires special treatment
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals, ParamCell{:});
+    elseif l_d==2
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,ParamCell{:});
+    elseif l_d==3
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,ParamCell{:});
+    elseif l_d==4
+        Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals,ParamCell{:});
+    end
+    Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,1]);
 end
 
 % if option_forceintegertype==1

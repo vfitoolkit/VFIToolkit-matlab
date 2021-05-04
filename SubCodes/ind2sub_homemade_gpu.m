@@ -1,7 +1,7 @@
 function sub=ind2sub_homemade_gpu(sizeA, index)
-
 %Does much the same as ind2sub, but by default returns the vector of
 %subscripts that one expects
+% ind2sub_homemade_gpu(sizeA,index)
 
 % The following three lines are the old version of the code. Abandoned as
 % it uses cells and so had problems with "codegen". Actually the new code

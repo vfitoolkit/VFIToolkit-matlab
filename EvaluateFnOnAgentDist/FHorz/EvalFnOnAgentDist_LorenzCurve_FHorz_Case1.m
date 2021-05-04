@@ -6,6 +6,13 @@ function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist,Po
 % Note that to unnormalize the Lorenz Curve you can just multiply it be the
 % AggVars for the same variable. This will give you the inverse cdf.
 
+if exist('Parallel','var')==0
+    if isa(StationaryDist, 'gpuArray')
+        Parallel=2;
+    else
+        Parallel=1;
+    end
+end
 if exist('npoints','var')==0
     npoints=100;
 end
@@ -21,7 +28,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if Parallel==2
-    SSvalues_AggVars=zeros(1,length(FnsToEvaluate),'gpuArray');
+    AggVars=zeros(1,length(FnsToEvaluate),'gpuArray');
     LorenzCurve=zeros(npoints,length(FnsToEvaluate),'gpuArray');
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
@@ -31,23 +38,24 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
     
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
-    for i=1:length(FnsToEvaluate)
+    for ii=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames)% || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
                 FnToEvaluateParamsVec=[];
             else
-                FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end
-            Values(:,jj)=reshape(ValuesOnSSGrid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+%             Values(:,jj)=reshape(ValuesOnSSGrid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
         end
         
         Values=reshape(Values,[N_a*N_z*N_j,1]);
         
         WeightedValues=Values.*StationaryDistVec;
         WeightedValues(isnan(WeightedValues))=0; % Values of -Inf times weight of zero give nan, we want them to be zeros.
-        SSvalues_AggVars(i)=sum(WeightedValues);
+        AggVars(ii)=sum(WeightedValues);
         
         [~,SortedValues_index] = sort(Values);
         
@@ -97,11 +105,11 @@ if Parallel==2
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-    LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints); 
+    LorenzCurve(:,ii)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,2); 
     end
     
 else
-    SSvalues_AggVars=zeros(1,length(FnsToEvaluate));
+    AggVars=zeros(1,length(FnsToEvaluate));
     LorenzCurve=zeros(npoints,length(FnsToEvaluate));
     if l_d>0
         d_val=zeros(1,l_d);
@@ -116,7 +124,7 @@ else
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     
-    for i=1:length(FnsToEvaluate)
+    for ii=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
         if l_d==0
             for j1=1:N_a
@@ -147,21 +155,21 @@ else
                             end
                         end
                         % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(i).Names)
+                        if isempty(FnsToEvaluateParamNames(ii).Names)
                             tempv=[aprime_val,a_val,z_val];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         else
-                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
                             tempv=[aprime_val,a_val,z_val,FnToEvaluateParamsVec];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         end
-                        Values(j1,j2,jj)=FnsToEvaluate{i}(tempcell{:});
+                        Values(j1,j2,jj)=FnsToEvaluate{ii}(tempcell{:});
                     end
                 end
             end
@@ -202,21 +210,21 @@ else
                             end
                         end
                         % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(i).Names)
+                        if isempty(FnsToEvaluateParamNames(ii).Names)
                             tempv=[d_val,aprime_val,a_val,z_val];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         else
-                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
+                            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
                             tempv=[d_val,aprime_val,a_val,z_val,FnToEvaluateParamsVec];
                             tempcell=cell(1,length(tempv));
                             for temp_c=1:length(tempv)
                                 tempcell{temp_c}=tempv(temp_c);
                             end
                         end
-                        Values(j1,j2,jj)=FnsToEvaluate{i}(tempcell{:});
+                        Values(j1,j2,jj)=FnsToEvaluate{ii}(tempcell{:});
                     end
                 end
             end
@@ -224,7 +232,7 @@ else
         Values=reshape(Values,[N_a*N_z*N_j,1]);
         
         WeightedValues=Values.*StationaryDistVec;
-        SSvalues_AggVars(i)=sum(WeightedValues);
+        AggVars(ii)=sum(WeightedValues);
         
         
         [~,SortedValues_index] = sort(Values);
@@ -264,7 +272,7 @@ else
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints);
+        LorenzCurve(:,ii)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,1);
     end
     
 end

@@ -133,6 +133,10 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
         StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
     end
     StationaryDistKron=full(StationaryDistKron);
+    
+    if simoptions.parallel==4
+        StationaryDistKron=gpuArray(StationaryDistKron);
+    end
 end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is

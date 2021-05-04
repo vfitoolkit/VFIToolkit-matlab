@@ -14,6 +14,7 @@ if exist('vfoptions','var')==0
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
+    vfoptions.exoticpreferences=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -36,6 +37,9 @@ else
         else
             vfoptions.returnmatrix=1;
         end
+    end
+    if isfield(vfoptions,'exoticpreferences')==0
+        vfoptions.exoticpreferences=0;
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
@@ -89,20 +93,24 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-% if vfoptions.exoticpreferences==0
-%     if length(DiscountFactorParamNames)~=1
-%         disp('WARNING: There should only be a single Discount Factor (in DiscountFactorParamNames) when using standard VFI')
-%         dbstack
-%     end
-% elseif vfoptions.exoticpreferences==1 % Multiple discount factors. It is assumed that the product
-%     %NOT YET IMPLEMENTED
-% %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-% %    return
-% elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
-%     %NOT YET IMPLEMENTED
-% %     [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-% %     return
-% end
+if vfoptions.exoticpreferences==0
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
+elseif vfoptions.exoticpreferences==1 % Multiple discount factors. It is assumed that the product
+    %NOT YET IMPLEMENTED
+%    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+%    return
+elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
+    return
+end
 
 %% % NOT YET IMPLEMENTED
 % if isfield(vfoptions,'StateDependentVariables_z')==1
@@ -132,12 +140,6 @@ end
 %     return
 % end
 
-%% 
-if N_d==0
-    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-else
-    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-end
 
 % %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 % V=reshape(VKron,[n_a,n_z,N_j]);

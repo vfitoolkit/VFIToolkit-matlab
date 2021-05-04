@@ -17,7 +17,7 @@ N_d=prod(n_d);
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if isfield(simoptions,'parallel')==0
-        simoptions.parallel=2;
+        simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
@@ -33,7 +33,7 @@ if exist('simoptions','var')==1
     end
 else
     %If simoptions is not given, just use all the defaults
-    simoptions.parallel=2;
+    simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     simoptions.verbose=0;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^4; % Given that aim is to calculate ventiles of life-cycle profiles 10^4 seems appropriate

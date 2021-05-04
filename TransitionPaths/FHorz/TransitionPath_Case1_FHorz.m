@@ -83,18 +83,22 @@ else
     if isfield(transpathoptions,'usestockvars')==0 % usestockvars is solely for internal use, the user does not need to set it
         if isfield(transpathoptions,'stockvarinit')==0 && isfield(transpathoptions,'usestockvars')==0 && isfield(transpathoptions,'usestockvars')==0
             transpathoptions.usestockvars=0;
+        else
+            transpathoptions.usestockvars=1; % If usestockvars has not itself been declared, but at least one of the stock variable options has then set usestockvars to 1.
         end
     end
-    if isfield(transpathoptions,'usestockvars')==1 || isfield(transpathoptions,'stockvarinit')==1 || isfield(transpathoptions,'stockvarpath0')==1 || isfield(transpathoptions,'stockvareqns')==1
-        transpathoptions.usestockvars=1;
+    if transpathoptions.usestockvars==1 % Note: If this is not inputted then it is created by the above lines.
         if isfield(transpathoptions,'stockvarinit')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarinit')
+            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
+            dbstack
             return
         elseif isfield(transpathoptions,'stockvarpath0')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarpath0')
+            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
+            dbstack
             return
         elseif isfield(transpathoptions,'stockvareqns')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvareqns')
+            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
+            dbstack
             return
         end
     end
@@ -115,6 +119,7 @@ if exist('vfoptions','var')==0
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
+    vfoptions.exoticpreferences=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -137,6 +142,9 @@ else
         else
             vfoptions.returnmatrix=1;
         end
+    end
+    if isfield(vfoptions,'exoticpreferences')==0
+        vfoptions.exoticpreferences=0;
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
@@ -259,6 +267,9 @@ if transpathoptions.usestockvars==1
         StockVariableEqnParamNames(ii).Names=transpathoptions.stockvareqns.Names.(StockVarsPathNames{ii}); % Really, what I should do is redesign the way the GeneralEqm equations and names work so they are in a structure, and then just leave this in it's structure form as well.
         StockVariableEqns{ii}=transpathoptions.stockvareqns.lawofmotion.(StockVarsPathNames{ii});
     end
+    if transpathoptions.parallel==2
+        StockVarsPathOld=gpuArray(StockVarsPathOld);
+    end
 end
 
 %%
@@ -280,14 +291,20 @@ if transpathoptions.GEnewprice==1
                 % NOT YET IMPLEMENTED
 %                 PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
             else % use fastOLG setting
-                PricePathOld=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, StockVarsPathOld, StockVarsPathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, StockVariableEqnParamNames, vfoptions, simoptions, transpathoptions);
+                [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, StockVarsPathOld, StockVarsPathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, StockVariableEqnParamNames, vfoptions, simoptions, transpathoptions);
             end
         end
     else
         PricePathOld=TransitionPath_Case1_FHorz_Par1_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
     end
+    % Switch the solution into structure for output.
     for ii=1:length(PricePathNames)
         PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+    end
+    if transpathoptions.usestockvars==1
+        for ii=1:length(StockVarsPathNames)
+            PricePath.(StockVarsPathNames{ii})=StockVarsPathOld(:,ii);
+        end
     end
     return
 end

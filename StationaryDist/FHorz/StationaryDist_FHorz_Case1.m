@@ -22,13 +22,13 @@ else
     if isfield(simoptions,'tolerance')==0
         simoptions.tolerance=10^(-9);
     end
-        if isfield(simoptions,'nsims')==0
+    if isfield(simoptions,'nsims')==0
         simoptions.nsims=10^4;
     end
-        if isfield(simoptions,'parallel')==0
+    if isfield(simoptions,'parallel')==0
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-        if isfield(simoptions,'verbose')==0
+    if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
     end
     if isfield(simoptions,'ncores')==0
