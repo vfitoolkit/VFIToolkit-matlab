@@ -134,7 +134,11 @@ end
 % /fred/release
 xDoc1=xmlread(['https://api.stlouisfed.org/fred/series/release?series_id=',series_id,optionstring,'&api_key=',api_key]);
 release=xDoc1.getElementsByTagName('release');
-output.Source=cellstr(char(getValue(release,'link')));
+try
+    output.Source=cellstr(char(getValue(release,'link')));
+catch
+    fprintf(['Source unavailable from FRED for series ',series_id],' \n')
+end
 output.Release=cellstr(char(getValue(release,'name')));
 
 %['http://api.stlouisfed.org/fred/series/observations?series_id=',series_id,optionstring,'&api_key=',api_key]
