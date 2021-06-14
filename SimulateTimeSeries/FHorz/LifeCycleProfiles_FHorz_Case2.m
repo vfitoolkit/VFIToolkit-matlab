@@ -129,7 +129,7 @@ for kk=1:length(options.agegroupings)
             else
                 FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
             end            
-            Values(:,jj-j1+1)=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
+            Values(:,jj-j1+1)=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
         end
         
         Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
@@ -193,7 +193,7 @@ for kk=1:length(options.agegroupings)
                     else
                         FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(aa).Names,jj);
                     end
-                    Values2(:,jj-j1+1)=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
+                    Values2(:,jj-j1+1)=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,options.parallel),[N_a*N_z,1]);
                 end
                 
                 Values2=reshape(Values2,[N_a*N_z*(jend-j1+1),1]);

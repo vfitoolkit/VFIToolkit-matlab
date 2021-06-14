@@ -28,7 +28,7 @@ end
 
 %%
 
-if simoptions.parallel==1
+if simoptions.parallel==1 || simoptions.parallel==3
     eachsimperiods=ceil(simoptions.simperiods/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
     StationaryDistKron=zeros(N_a*N_z,simoptions.ncores);

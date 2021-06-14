@@ -63,20 +63,20 @@ if l_a>=1
         end
     end
 end
-if l_z>=1 % Add an extra -1 for the return function params
-    z1vals=shiftdim(z_grid(1:n_z(1)),-l_d-l_a-l_a-1);
+if l_z>=1 % Note that z_grid is an abnormal shape due to fastOLG so the z dimension is after the j dimension (for the return function params, and possibly to allow z_grid to also depend on j)
+    z1vals=shiftdim(z_grid(:,1:n_z(1)),-l_d-l_a-l_a);
     if l_z>=2
-        z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-l_d-l_a-l_a-1-1);
+        z2vals=shiftdim(z_grid(:,n_z(1)+1:n_z(1)+n_z(2)),-l_d-l_a-l_a-1);
         if l_z>=3
-            z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a-l_a-2-1);
+            z3vals=shiftdim(z_grid(:,sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a-l_a-2);
             if l_z>=4
-                z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a-l_a-3-1);
+                z4vals=shiftdim(z_grid(:,sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a-l_a-3);
             end
         end
     end
 end
 
-
+% Note that the dimensions of the following are d-aprime-a-j-z
 
 if l_d==0 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, aprime1vals, a1vals, z1vals, ParamCell{:});
@@ -242,9 +242,9 @@ elseif l_d==4 && l_a==4 && l_z==4
 end
 
 if l_d==0
-    Fmatrix=reshape(Fmatrix,[N_a,N_a,N_z,N_j]);
+    Fmatrix=reshape(Fmatrix,[N_a,N_a,N_j,N_z]);
 else
-    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_z,N_j]);
+    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_j,N_z]);
 end
 
 

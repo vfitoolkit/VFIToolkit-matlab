@@ -89,6 +89,7 @@ if exist('vfoptions','var')==0
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
+    vfoptions.exoticpreferences=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -111,6 +112,9 @@ else
         else
             vfoptions.returnmatrix=1;
         end
+    end
+    if isfield(vfoptions,'exoticpreferences')==0
+        vfoptions.exoticpreferences=0;
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;

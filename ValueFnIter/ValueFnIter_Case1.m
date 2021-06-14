@@ -30,6 +30,7 @@ if exist('vfoptions','var')==0
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
+    vfoptions.outputkron=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'solnmethod')==0
@@ -77,6 +78,9 @@ else
     end
     if isfield(vfoptions,'piz_strictonrowsaddingtoone')==0
         vfoptions.piz_strictonrowsaddingtoone=0;
+    end
+    if isfield(vfoptions,'outputkron')==0
+        vfoptions.outputkron=0;
     end
 end
 
@@ -163,6 +167,7 @@ if vfoptions.verbose==1
     vfoptions
 end
 
+%% Entry and Exit
 if vfoptions.endogenousexit==1
     % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
     [V, Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -177,6 +182,7 @@ elseif vfoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit.
     return
 end
 
+%% Exotic Preferences
 if vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
     %NOT YET IMPLEMENTED
 %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
@@ -207,6 +213,7 @@ elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on t
     pi_z=pi_z.*DiscountFactorParamsMatrix;    
 end
 
+%% fVFI
 if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
     % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
     [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
@@ -214,8 +221,81 @@ if strcmp(vfoptions.solnmethod,'smolyak_chebyshev')
     return
 end
 
-%%
-% Create a vector containing all the return function parameters (in order)
+%% State Dependent Parameters
+if isfield(vfoptions,'statedependentparams')
+    % Remove the statedependentparams from ReturnFnParamNames
+    ReturnFnParamNames=setdiff(ReturnFnParamNames,vfoptions.statedependentparams.names);
+    % Note that the codes assume that the statedependentparams are the first elements in ReturnFnParamNames
+    % Codes currently allow up to three state dependent parameters
+    n_SDP=length(vfoptions.statedependentparams.names);
+    if N_d>1
+        l_d=length(n_d);
+        n_full=[n_d,n_a,n_a,n_z];
+    else
+        l_d=0;
+        n_full=[n_a,n_a,n_z];
+    end
+    l_a=length(n_a);
+    l_z=length(n_z);
+    
+    % First state dependent parameter, get into form needed for the valuefn
+    SDP1=Params.(vfoptions.statedependentparams.names{1});
+    SDP1_dims=vfoptions.statedependentparams.dimensions.(vfoptions.statedependentparams.names{1});
+%     vfoptions.statedependentparams.dimensions.kmax=[3,4,5,6,7]; % The d,a & z variables (in VFI toolkit notation)
+    temp=ones(1,l_d+l_a+l_a+l_z);
+    for jj=1:max(SDP1_dims)
+        [v,ind]=max(SDP1_dims==jj);
+        if v==1
+            temp(jj)=n_full(ind);
+        end
+    end
+    if isscalar(SDP1)
+        SDP1=SDP1*ones(temp);
+    else
+        SDP1=reshape(SDP1,temp);
+    end
+    if n_SDP>=2
+        % Second state dependent parameter, get into form needed for the valuefn
+        SDP2=Params.(vfoptions.statedependentparams.names{2});
+        SDP2_dims=vfoptions.statedependentparams.dimensions.(vfoptions.statedependentparams.names{2});
+        temp=ones(1,l_d+l_a+l_a+l_z);
+        for jj=1:max(SDP2_dims)
+            [v,ind]=max(SDP2_dims==jj);
+            if v==1
+                temp(jj)=n_full(ind);
+            end
+        end
+        if isscalar(SDP2)
+            SDP2=SDP2*ones(temp);
+        else
+            SDP2=reshape(SDP2,temp);
+        end
+    end
+    if n_SDP>=3
+        % Third state dependent parameter, get into form needed for the valuefn
+        SDP3=Params.(vfoptions.statedependentparams.names{3});
+        SDP3_dims=vfoptions.statedependentparams.dimensions.(vfoptions.statedependentparams.names{3});
+        temp=ones(1,l_d+l_a+l_a+l_z);
+        for jj=1:max(SDP3_dims)
+            [v,ind]=max(SDP3_dims==jj);
+            if v==1
+                temp(jj)=n_full(ind);
+            end
+        end
+        if isscalar(SDP3)
+            SDP3=SDP3*ones(temp);
+        else
+            SDP3=reshape(SDP3,temp);
+        end
+    end
+    if n_SDP>3
+        fprintf('WARNING: currently only three state dependent parameters are allowed. If you have a need for more please email robertdkirkby@gmail.com and let me know (I can easily implement more if needed) \n')
+        dbstack
+        return
+    end
+end
+
+%% Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 if vfoptions.exoticpreferences~=3
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
@@ -241,12 +321,27 @@ if vfoptions.lowmemory==0
         end
     end
     
-    if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-    elseif vfoptions.returnmatrix==1
-        ReturnMatrix=ReturnFn;
-    elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+    if isfield(vfoptions,'statedependentparams')
+        if vfoptions.returnmatrix==2 % GPU
+            if n_SDP==3
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+            elseif n_SDP==2
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+            elseif n_SDP==1
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+            end
+        else
+            fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
+            dbstack
+        end
+    else % Following is the normal/standard behavior
+        if vfoptions.returnmatrix==0
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+        elseif vfoptions.returnmatrix==1
+            ReturnMatrix=ReturnFn;
+        elseif vfoptions.returnmatrix==2 % GPU
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+        end
     end
     
     if vfoptions.verbose==1
@@ -322,6 +417,24 @@ elseif vfoptions.lowmemory==2
             [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance);
         end
     end
+    
+elseif vfoptions.lowmemory==3 % Specifically for the Hayek method where we include prices
+    V0=reshape(V0,[N_a,N_z]);
+    
+    if vfoptions.verbose==1
+        disp('Starting Value Function')
+        tic;
+    end
+    
+    if n_d(1)==0
+        if vfoptions.parallel==2
+            [VKron,Policy]=ValueFnIter_Case1_LowMem3_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.lowmemorydimensions);
+        end
+    else
+        if vfoptions.parallel==2 % On GPU
+            [VKron, Policy]=ValueFnIter_Case1_LowMem3_Par2_raw(V0,   n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec , vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.lowmemorydimensions);
+        end
+    end
 end
 
 if vfoptions.verbose==1
@@ -331,11 +444,16 @@ if vfoptions.verbose==1
     tic;
 end
 %% Cleaning up the output
-V=reshape(VKron,[n_a,n_z]);
-Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
+if vfoptions.outputkron==0
+    V=reshape(VKron,[n_a,n_z]);
+    Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
+    if vfoptions.verbose==1
+        time=toc;
+        fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
+    end
+else
+    varargout={VKron,Policy};
+    return
 end
 
 if vfoptions.polindorval==2

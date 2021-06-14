@@ -11,6 +11,7 @@ standardgeneqmcondnsused=0;
 specialgeneqmcondnsused=0;
 entrycondnexists=0; condlentrycondnexists=0;
 if ~isfield(heteroagentoptions,'specialgeneqmcondn')
+    standardgeneqmcondnsused=1;
     standardgeneqmcondnindex=1:1:length(GeneralEqmEqns);
 else
     standardgeneqmcondnindex=zeros(1,length(GeneralEqmEqns));
@@ -98,7 +99,7 @@ StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions,Paramete
 
 % StationaryDistKron.pdf(1:10,1:2,1)
 % StationaryDistKron.pdf(1:10,1:2,2)
-StationaryDist.mass
+% StationaryDist.mass
 
 % Step 4.1: Evaluate the AggVars.
 if simoptions.endogenousexit==2
@@ -161,123 +162,10 @@ if specialgeneqmcondnsused==1
 %         % And use entrants distribution, not the stationary distn
 %         GeneralEqmConditionsVec(entrygeneqmcondnindex)=real(GeneralEqmConditions_Case1(EValueFn,p, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel));
 %     end
+    end
 end
 
-% %%
-% if condlentrycondnexists==1
-%     %% If there is conditional entry then thing get complex, as this essentially necessitates a nested-loop approach.
-%     % One option would be to do this as a while. I do this but rather than
-%     % wait for actual convergence I also add a limit of
-%     % 'heteroagentoptions.condlentrycondniterations' iterations.
-%     kk=1;
-%     if heteroagentoptions.verbose==1
-%         figure(heteroagentoptions.verbosefighandle)
-%         if N_a>1 && N_z>1
-%             surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
-%         else
-%             plot(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
-%         end
-%         title('Conditional Entry decision')
-%     end
-%     while CondlEntryDecisionsdist~=0 && kk<heteroagentoptions.condlentrycondniterations
-%         kk=kk+1;
-%         % Contents of this while loop are essentially just a copy paste of the above value fn---staty
-%         % dist---agg vars---gen eqm condn commands, but with updated
-%         % version of the conditional eqm conditions. It is "hoped" that heteroagentoptions.condlentrycondniterations
-%         % is enough to get the condtional eqm conditions to 'settle' (a
-%         % while loop would be able to guarantee this, but prefer the present approach)
-%         
-%         % Because what follows is copy-past of the above most comments have been deleted.
-%         if simoptions.endogenousexit==1
-%             [V,Policy,ExitPolicy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%             Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=1-gather(ExitPolicy);
-%         elseif simoptions.endogenousexit==2 % Mixture of both endog and exog exit (which occurs at end of period)
-%             [V,Policy,PolicyWhenExiting,ExitPolicy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%             Parameters.(EntryExitParamNames.CondlProbOfSurvival{1})=1-gather(ExitPolicy);
-%         else
-%             [V,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%         end
-%         %Step 1.5: Update the conditional entry decision (as needed for Stationary distribution)
-%         if specialgeneqmcondnsused==1
-%             if condlentrycondnexists==1
-%                 OldCondlEntryDecisions=Parameters.(EntryExitParamNames.CondlEntryDecisions{1});
-%                 % Evaluate the conditional equilibrium condition on the (potential entrants) grid,
-%                 % and where it is >=0 use this to set new values for the
-%                 % EntryExitParamNames.CondlEntryDecisions parameter.
-%                 CondlEntryCondnEqnParamsVec=CreateVectorFromParams(Parameters, CondlEntryCondnEqnParamNames(1).Names);
-%                 CondlEntryCondnEqnParamsCell=cell(length(CondlEntryCondnEqnParamsVec),1);
-%                 for jj=1:length(CondlEntryCondnEqnParamsVec)
-%                     CondlEntryCondnEqnParamsCell(jj,1)={CondlEntryCondnEqnParamsVec(jj)};
-%                 end
-%                 Parameters.(EntryExitParamNames.CondlEntryDecisions{1})=(CondlEntryCondnEqn{1}(V,GEprices,CondlEntryCondnEqnParamsCell{:}) >=0);
-%             end
-%         end
-%         %Step 2: Calculate the Stationary distn (given this price) and use it to assess market clearance
-%         StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions,Parameters,EntryExitParamNames);
-%         if simoptions.endogenousexit==2
-%             AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames, PolicyWhenExiting);
-%         else
-%             AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames);
-%         end
-%         if standardgeneqmcondnsused==1
-%             % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-%             GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel)));
-%         end
-%         % Now fill in the 'non-standard' cases
-%         if specialgeneqmcondnsused==1
-%             if condlentrycondnexists==1
-%                 % Following commented out lines are done above as needed for StationaryDist calculation
-% %                 OldCondlEntryDecisions=Parameters.(EntryExitParamNames.CondlEntryDecisions{1});
-% %                 % Evaluate the conditional equilibrium condition on the (potential entrants) grid,
-% %                 % and where it is >=0 use this to set new values for the
-% %                 % EntryExitParamNames.CondlEntryDecisions parameter.
-% %                 CondlEntryCondnEqnParamsVec=CreateVectorFromParams(Parameters, CondlEntryCondnEqnParamNames(1).Names);
-% %                 CondlEntryCondnEqnParamsCell=cell(length(CondlEntryCondnEqnParamsVec),1);
-% %                 for jj=1:length(CondlEntryCondnEqnParamsVec)
-% %                     CondlEntryCondnEqnParamsCell(jj,1)={CondlEntryCondnEqnParamsVec(jj)};
-% %                 end
-% %                 
-% %                 Parameters.(EntryExitParamNames.CondlEntryDecisions{1})=(CondlEntryCondnEqn{1}(V,GEprices,CondlEntryCondnEqnParamsCell{:}) >=0);
-%                 
-%                 temp=abs(OldCondlEntryDecisions-Parameters.(EntryExitParamNames.CondlEntryDecisions{1}));
-%                 CondlEntryDecisionsdist=sum(reshape(temp,[numel(temp),1]));
-%                 
-%                 GeneralEqmConditionsVec(condlentrygeneqmcondnindex)=0; % Because the EntryExitParamNames.CondlEntryDecisions dealt with elsewhere (below, as loop nested inside) we can set this to zero here.
-%                 if entrycondnexists==1
-%                     % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
-%                     EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
-%                     % @(EValueFn,ce)
-%                     % And use entrants distribution, not the stationary distn
-%                     GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel)));
-%                 end
-%             else
-%                 if entrycondnexists==1
-%                     % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
-%                     EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
-%                     % @(EValueFn,ce)
-%                     % And use entrants distribution, not the stationary distn
-%                     GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel)));
-%                 end
-%             end
-%         end        
-%         % END OF THE COPY-PASTE
-%         if heteroagentoptions.verbose==1
-%             % THIS IS NOT A GREAT IMPLEMENTATION OF CONDITIONAL ENTRY DECISION FOR VERBOSE. BUT WILL DO FOR NOW.
-%             figure(heteroagentoptions.verbosefighandle)
-%             if N_a>1 && N_z>1
-%                 surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
-%             else
-%                 plot(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
-%             end
-%         end
-%     end
-%     if kk==heteroagentoptions.condlentrycondniterations
-%         fprintf('Warning: for present gen eqm prices the inner loop on conditional entry condition is not yet converging (heteroagentoptions.condlentrycondniterations reached; default is 5) \n')
-%         fprintf('         (CondlEntryDecisionsdist remains equal to %i ) \n',CondlEntryDecisionsdist)
-%     end
-% end
-
-if heteroagentoptions.verbose==1 && condlentrycondnexists==1
+if heteroagentoptions.showfigures==1 && condlentrycondnexists==1
     % THIS IS NOT A GREAT IMPLEMENTATION OF CONDITIONAL ENTRY DECISION FOR VERBOSE. BUT WILL DO FOR NOW.
     figure(heteroagentoptions.verbosefighandle)
     if N_a>1 && N_z>1
@@ -288,6 +176,7 @@ if heteroagentoptions.verbose==1 && condlentrycondnexists==1
 end
 
 %%
+
 if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 

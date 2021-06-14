@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, options, AgeDependentGridParamNames) %pi_z,p_val
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, options, AgeDependentGridParamNames) %pi_z,p_val
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
 
 % Note: n_d,n_a,n_z are used once here at beginning and then overwritten with their age-conditional equivalents for all further usage.
@@ -11,7 +11,7 @@ daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_g
 
 
 if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
-    AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');    
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');    
 
     % Seems likely that outer loop over age jj and inner loop over
     % SSvaluesFn i is the faster option. But I have not actually checked
@@ -37,7 +37,7 @@ if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
         permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
         PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
         
-        for i=1:length(FnsToEvaluateFn)
+        for i=1:length(FnsToEvaluate)
 %             Values=zeros(N_a*N_z,'gpuArray');
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames) %|| strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={} or SSvalueParamNames={''}'
@@ -45,13 +45,13 @@ if isa(StationaryDist.j001, 'gpuArray')%Parallel==2
             else
                 FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
             end
-            Values=reshape(ValuesOnSSGrid_Case2(FnsToEvaluateFn{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
+            Values=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
             AggVars(i)=AggVars(i)+sum(sum(Values.*StationaryDistVec)); % Since just summing them up can do the sum for each jj seperately.
         end
         % Would adding 'clear Values' decrease runtime?? (given that Values will likely be a different size for each jj)
     end    
 else
-    AggVars=zeros(length(FnsToEvaluateFn),1);
+    AggVars=zeros(length(FnsToEvaluate),1);
     % Seems likely that outer loop over age jj and inner loop over
     % SSvaluesFn i is the faster option. But I have not actually checked
     % this.
@@ -77,7 +77,7 @@ else
 
         StationaryDistVec=reshape(StationaryDist.(jstr),[N_a*N_z,1]);
 
-        for i=1:length(FnsToEvaluateFn)
+        for i=1:length(FnsToEvaluate)
             Values=zeros(N_a,N_z);
             for j1=1:N_a
                 a_ind=ind2sub_homemade_gpu([n_a],j1);
@@ -121,7 +121,7 @@ else
                             tempcell{temp_c}=tempv(temp_c);
                         end
                     end
-                    Values(j1,j2)=FnsToEvaluateFn{i}(tempcell{:});
+                    Values(j1,j2)=FnsToEvaluate{i}(tempcell{:});
                 end
             end
             AggVars(i)=AggVars(i)+sum(Values.*StationaryDistVec);

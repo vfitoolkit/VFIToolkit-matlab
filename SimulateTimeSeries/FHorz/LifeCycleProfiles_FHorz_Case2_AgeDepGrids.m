@@ -14,10 +14,8 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_AgeDepGrids(Stationar
 % AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).StdDeviation=nan(1,ngroups);
-% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
+% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
-% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
-% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(ngroups,options.nquantiles+1); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(ngroups,options.nquantiles);
 
@@ -66,7 +64,7 @@ for jj=1:N_j
     StationaryDistVec.(jstr(:))=reshape(StationaryDist.(jstr(:)),[N_a_j*N_z_j,1]);
 end
 
-% Both parallel==2 and parallel==3 run the ValuesOnSSGrid_Case2() command
+% Both parallel==2 and parallel==3 run the EvalFnOnAgentDist_Grid_Case2() command
 % on the gpu. The parallel==3 command then switches to cpu for doing
 % various sort() commands which are very memory intensive. This was
 % otherwise creating out-of-memory (or more precisely 'merge_sort: failed
@@ -79,10 +77,8 @@ if options.parallel==2
     AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups,'gpuArray');
     AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups,'gpuArray');
     AgeConditionalStats(length(FnsToEvaluate)).StdDeviation=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
     AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups,'gpuArray');
     AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
     AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups,'gpuArray');
     
@@ -138,7 +134,7 @@ if options.parallel==2
                 else
                     FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
                 end
-                Values((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,options.parallel),[N_a_j*N_z_j,1]);
+                Values((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,options.parallel),[N_a_j*N_z_j,1]);
                 N_az_c=N_az_c+N_a_j*N_z_j;
             end
             
@@ -160,7 +156,7 @@ if options.parallel==2
             AgeConditionalStats(ii).StdDeviation(kk)=sqrt(AgeConditionalStats(ii).Variance(kk));
             
             % Calculate the 'age conditional' lorenz curve
-            AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints);
+            AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints,2);
             % Calculate the 'age conditional' gini
             AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
             
@@ -210,7 +206,7 @@ if options.parallel==2
                         else
                             FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(aa).Names,jj);
                         end
-                        Values2((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,options.parallel),[N_a_j*N_z_j,1]);
+                        Values2((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,options.parallel),[N_a_j*N_z_j,1]);
                         N_az_c=N_az_c+N_a_j*N_z_j;
                     end
                     
@@ -245,17 +241,15 @@ if options.parallel==2
     end
     
 elseif options.parallel==3
-   % Pretty much just a copy-paste of parallel==2, but which uses gpu only for ValuesOnSSGrid_Case2() command and then gets everything on the cpu from then on.
+   % Pretty much just a copy-paste of parallel==2, but which uses gpu only for EvalFnOnAgentDist_Grid_Case2() command and then gets everything on the cpu from then on.
     % Do some preallocation of the output structure
     ngroups=length(options.agegroupings);
     AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
     AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups);
     AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
     AgeConditionalStats(length(FnsToEvaluate)).StdDeviation=nan(1,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
+    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups);
     AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups);
     AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups); % Includes the min and max values
     AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups);
     
@@ -312,7 +306,7 @@ elseif options.parallel==3
                 else
                     FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj);
                 end
-                Values((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,2),[N_a_j*N_z_j,1]); % The '2' is in place of options.parallel
+                Values((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,2),[N_a_j*N_z_j,1]); % The '2' is in place of options.parallel
                 N_az_c=N_az_c+N_a_j*N_z_j;
             end            
             Values=gather(Values);
@@ -335,7 +329,7 @@ elseif options.parallel==3
             AgeConditionalStats(ii).StdDeviation(kk)=sqrt(AgeConditionalStats(ii).Variance(kk));
             
             % Calculate the 'age conditional' lorenz curve
-            AgeConditionalStats(ii).LorenzCurve(:,kk)=gather(LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints)); % Unsure why this requires a 'gather' but would very occasionally otherwise throw an error.
+            AgeConditionalStats(ii).LorenzCurve(:,kk)=gather(LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,options.npoints,2)); % Unsure why this requires a 'gather' but would very occasionally otherwise throw an error.
             % Calculate the 'age conditional' gini
             AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
             
@@ -385,7 +379,7 @@ elseif options.parallel==3
                         else
                             FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(aa).Names,jj);
                         end
-                        Values2((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,2),[N_a_j*N_z_j,1]); % The '2' is in place of options.parallel
+                        Values2((N_az_c+1):(N_az_c+N_a_j*N_z_j))=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{aa}, FnsToEvaluateParamsVec,PolicyValuesPermute.(jstr(:)),n_d_j,n_a_j,n_z_j,a_grid_j,z_grid_j,2),[N_a_j*N_z_j,1]); % The '2' is in place of options.parallel
                         N_az_c=N_az_c+N_a_j*N_z_j;
                     end
                     Values2=gather(Values2);

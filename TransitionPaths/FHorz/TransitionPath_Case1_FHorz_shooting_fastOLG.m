@@ -3,7 +3,7 @@ function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, 
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes)
 
-fprintf('Using fastOLG \n')
+fprintf('Using fastOLG with lowmemory=1 \n')
 
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'

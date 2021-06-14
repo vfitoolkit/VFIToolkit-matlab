@@ -51,6 +51,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
+    heteroagentoptions.showfigures=1;
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
@@ -69,6 +70,9 @@ else
     if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
+    if isfield(heteroagentoptions,'showfigures')==0
+        heteroagentoptions.showfigures=1;
+    end
 end
 
 %%
@@ -84,7 +88,7 @@ else
 end
 
 %% Sometimes, verbose needs a figure that it updates each step
-if heteroagentoptions.verbose==1
+if heteroagentoptions.showfigures==1
     heteroagentoptions.verbosefighandle=figure;
 end
 

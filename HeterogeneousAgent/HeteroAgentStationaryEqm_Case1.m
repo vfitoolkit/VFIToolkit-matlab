@@ -85,10 +85,9 @@ else
     end
 end
 
-
 %% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1
-    if simoptions.agententryandexit==1
+    if simoptions.agententryandexit>=1
         [p_eqm,p_eqm_index, GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
         % The EntryExit codes already set p_eqm as a structure.
         return

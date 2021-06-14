@@ -51,6 +51,9 @@ for p_c=1:N_p
 end
 
 multiGEweightsKron=ones(N_p,1)*heteroagentoptions.multiGEweights;
+if isfield(simoptions,'parallel')==0
+    simoptions.parallel=1+(gpuDeviceCount>0);
+end
 if simoptions.parallel==2 || simoptions.parallel==4
     multiGEweightsKron=gpuArray(multiGEweightsKron);
 end

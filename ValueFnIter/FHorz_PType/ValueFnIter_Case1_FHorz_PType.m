@@ -82,8 +82,9 @@ for ii=1:N_i
     
     ptstring=['pt',num2str(ii)];
     
-    V.(ptstring)=V_ii;
-    Policy.(ptstring)=Policy_ii;    
+    V.(ptstring)=gather(V_ii); % GPU memory is limited, so switch solutions to the cpu
+    Policy.(ptstring)=gather(Policy_ii);  % GPU memory is limited, so switch solutions to the cpu
+    clear V_ii Policy_ii
 
 end
 

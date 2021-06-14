@@ -70,12 +70,12 @@ end
 
 StationaryDistKron=StationaryDist_Case2_Simulation_raw(PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z, simoptions);
 
-fprintf('DEBUG of StationaryDist_Case2, before iterate: sum(sum(StationaryDistKron))=%8.2f \n', sum(sum(StationaryDistKron)))
+% fprintf('DEBUG of StationaryDist_Case2, before iterate: sum(sum(StationaryDistKron))=%8.2f \n', sum(sum(StationaryDistKron)))
 
 if simoptions.iterate==1
     StationaryDistKron=StationaryDist_Case2_Iteration_raw(StationaryDistKron,PolicyKron,Phi_aprimeKron,Case2_Type,N_d,N_a,N_z,pi_z,simoptions);
 end
-fprintf('DEBUG of StationaryDist_Case2, after iterate: sum(sum(StationaryDistKron))=%8.2f \n', sum(sum(StationaryDistKron)))
+% fprintf('DEBUG of StationaryDist_Case2, after iterate: sum(sum(StationaryDistKron))=%8.2f \n', sum(sum(StationaryDistKron)))
 
 StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
 

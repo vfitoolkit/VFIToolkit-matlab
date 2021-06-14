@@ -33,9 +33,11 @@ if fieldexists_ExogShockFn==1
             z_grid_AllAges(:,jj)=gpuArray(z_grid); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
         end
     end
-    temp=1:1:(l_d+l_a+l_a+l_z+1);
-    temp(2)=l_d+l_a+l_a+l_z+1; temp(end)=2;
-    z_grid_AllAges=permute(z_grid_AllAges,temp); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG()
+%     temp=1:1:(l_d+l_a+l_a+l_z+1);
+%     temp(2)=l_d+l_a+l_a+l_z+1; temp(end)=2;
+%     z_grid_AllAges=permute(z_grid_AllAges,temp); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG()
+    z_grid_AllAges=z_grid_AllAges'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
+    pi_z_AllAges=permute(pi_z_AllAges,[3,2,1]); % Give it the size best for the loop below (j,z',z)
 end
 
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_AllAges, ReturnFnParamsAgeMatrix);
@@ -58,7 +60,8 @@ for z_c=1:N_z
     ReturnMatrix_z=ReturnMatrix(:,:,z_c);
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
-    EV_z=VKronNext.*(ones(N_a*N_j,1,'gpuArray')*pi_z(z_c,:));
+%     EV_z=VKronNext.*(ones(N_a*N_j,1,'gpuArray')*pi_z(z_c,:));
+    EV_z=VKronNext.*kron(pi_z_AllAges(jj,:,z_c),ones(N_a,1,'gpuArray'));
     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV_z=sum(EV_z,2);
     

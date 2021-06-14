@@ -1,4 +1,4 @@
-function VectorOfIndexes=CreateParamVectorIndexes(ParamNames,ParamNamesToGetIndexesOf)
+function varargout=CreateParamVectorIndexes(ParamNames,ParamNamesToGetIndexesOf)
 
 % CreateParamVectorIndexes creates VectorOfIndexes which gives the indexes
 % for the parameters named in ParamNamesToGetIndexesOf in the vector of
@@ -15,8 +15,14 @@ for iIndexParam=1:nIndexParams
 %             VectorOfIndexes(iIndexParam)=iCalibParam;
             GotOne=GotOne+1;
             VectorOfIndexes(GotOne)=iCalibParam;
+            VectorOfUsed(GotOne)=iIndexParam;
         end
     end
+end
+
+varargout{1}=VectorOfIndexes;
+if nargout==2 % If the second output is requested
+    varargout{2}=VectorOfUsed;
 end
 
 end

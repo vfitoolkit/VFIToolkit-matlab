@@ -89,7 +89,7 @@ else % simoptions.parallel==2
     SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
     SScounter=0;
     
-    fprintf('DEBUG StationaryDist_Case2_Iteration_raw: SScurrdist=%d (should be 1 prior to starting) \n',SScurrdist )
+%     fprintf('DEBUG StationaryDist_Case2_Iteration_raw: SScurrdist=%d (should be 1 prior to starting) \n',SScurrdist )
     
     while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
     

@@ -93,9 +93,9 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
 elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
-    % I DON'T THINK THIS ACTUALLY GETS USED FOR ANYTHING EVER???
+    % (This is used in some infinite horizon models to control the distribution; avoid, e.g., some people/firms saving 'too much')
     % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
-    EntryDist=reshape(Params.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
+    EntryDist=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     [~,seedpoint_index]=max(abs(cumsum(EntryDist)-0.5));
     simoptions.seedpoint=ind2sub_homemade([N_a,N_z],seedpoint_index); % Would obviously be better initial guess to do a bunch of different simulations for variety of points in the 'EntryDist'.
     simoptions.simperiods=10^3;
@@ -104,7 +104,7 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
     if simoptions.verbose==1
         fprintf('Note: simoptions.iterate=1 is imposed/required when using simoptions.agententryandexit=2 \n')
     end
-    ExitProb=Params.(EntryExitParamNames.ProbOfDeath{1});
+    ExitProb=Parameters.(EntryExitParamNames.ProbOfDeath{1});
     StationaryDist=StationaryDist_Case1_Iteration_EntryExit2_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return

@@ -22,7 +22,7 @@ if ~exist('vfoptions','var')
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.polindorval=1;
-    vfoptions.nphi=1;
+    vfoptions.nphi=0;
     vfoptions.policy_forceintegertype=0;
     vfoptions.dynasty=0;
 else
@@ -47,7 +47,7 @@ else
         vfoptions.phiaprimedependsonage=0;
     end
     if ~isfield(vfoptions,'nphi')
-        vfoptions.nphi=1;
+        vfoptions.nphi=0;
     end
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
@@ -156,20 +156,22 @@ if vfoptions.dynasty==1
         vfoptions.tolerance=10^(-9);
     end
     
-    if vfoptions.nphi==1
+    if vfoptions.nphi==0
         if vfoptions.parallel==0
             disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
             [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Dynasty_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
         elseif vfoptions.parallel==2
             [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Dynasty_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
         end
-    else
-        if vfoptions.parallel==0
-            disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
-            [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Dynasty_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
-        elseif vfoptions.parallel==2
-            [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Dynasty_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
-        end
+    elseif vfoptions.nphi==1
+        disp('WARNING: FINITE HORZ VALUEFNITER CODES DONT YET WORK WITH nphi \n')
+        dbstack
+%         if vfoptions.parallel==0
+%             disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2) \n')
+%             [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Dynasty_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+%         elseif vfoptions.parallel==2
+%             [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Dynasty_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+%         end
     end
     
     % Transform V & PolicyIndexes out of kroneckered form
@@ -189,7 +191,7 @@ if vfoptions.dynasty==1
 end
 
 %% 
-if vfoptions.nphi==1
+if vfoptions.nphi==0
     if vfoptions.parallel==0
         disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
         [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
@@ -197,12 +199,14 @@ if vfoptions.nphi==1
         [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
     end
 else
-    if vfoptions.parallel==0
-        disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
-        [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
-    elseif vfoptions.parallel==2
-        [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
-    end
+    disp('WARNING: FINITE HORZ VALUEFNITER CODES DONT YET WORK WITH nphi \n')
+    dbstack
+%     if vfoptions.parallel==0
+%         disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
+%         [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+%     elseif vfoptions.parallel==2
+%         [VKron,PolicyKron]=ValueFnIter_Case2_FHorz_nphi_Par2_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
+%     end
 end
 
 % Transform V & PolicyIndexes out of kroneckered form

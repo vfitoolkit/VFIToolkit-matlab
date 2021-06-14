@@ -37,21 +37,38 @@ end
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcritereon=1;
+    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
+    heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
+    heteroagentoptions.maxiter=1000;
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
     end
+    if isfield(heteroagentoptions,'multiGEweights')==0
+        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    end
     if N_p~=0
-        if isfield(heteroagentoptions,'p_grid')==0
+        if isfield(heteroagentoptions,'pgrid')==0
             disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
+    end
+    if isfield(heteroagentoptions,'toleranceGEprices')==0
+        heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    end
+    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+        heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
     end
     if isfield(heteroagentoptions,'fminalgo')==0
         heteroagentoptions.fminalgo=1; % use fminsearch
+    end
+    if isfield(heteroagentoptions,'maxiter')==0
+        heteroagentoptions.maxiter=1000; % use fminsearch
     end
 end
 
@@ -64,7 +81,10 @@ end
 
 %%
 if N_p~=0
-    [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_FHorz_pgrid(jequaloneDist,AgeWeightParamNames,n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
+    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_FHorz_pgrid(jequaloneDist,AgeWeightParamNames,n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
+    for ii=1:length(GEPriceParamNames)
+        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
+    end
     return
 end
 
@@ -78,14 +98,18 @@ end
 
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
-    [p_eqm,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 else
-    [p_eqm,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
+
+for ii=1:length(GEPriceParamNames)
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
+end
 
 
 end

@@ -55,7 +55,7 @@ for jj=1:N_j
     
 %     aprime_grid_j=gather(daz_gridstructure.aprime_grid.(jstr(:)));
 
-    [dPolicy_gridvals_j, ~]=CreateGridvals_Policy(PolicyIndexesKron.(jstr),n_d_j,[],n_a_j,n_z_j,d_grid_j,[],2,1);
+    [dPolicy_gridvals_j, ~]=CreateGridvals_PolicyKron(PolicyIndexesKron.(jstr),n_d_j,[],n_a_j,n_z_j,d_grid_j,[],2,1);
     dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
     
     daz_gridstructure.d_grid.(jstr(:))=gather(daz_gridstructure.d_grid.(jstr(:)));

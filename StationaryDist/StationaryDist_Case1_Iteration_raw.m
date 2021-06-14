@@ -93,11 +93,34 @@ elseif simoptions.parallel>2
     else
         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
     end
-    Ptranspose=sparse(N_a,N_a*N_z);
-    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+    PtransposeA=sparse(N_a,N_a*N_z);
+    PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
     
-%     whos PolicyIndexesKron optaprime Ptranspose pi_z
-    Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+    
+%     whos PolicyIndexesKron optaprime PtransposeA pi_z
+    
+    try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
+        Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
+    catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
+        Ptranspose=kron(ones(N_z,1),PtransposeA);
+        for ii=1:N_z
+            Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
+        end
+    end
+
+% 
+%         Ptranspose1=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
+%         Ptranspose2=kron(ones(N_z,1),PtransposeA);
+%         for ii=1:N_z
+%             Ptranspose2(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose2(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
+%         end
+% 
+%         Ptranspose1(1:20,1:20)
+%         Ptranspose2(1:20,1:20)
+%         
+%         max(max(abs(Ptranspose1-Ptranspose2)))
+%     whos PtransposeB Ptranspose
+    
 end
 
 

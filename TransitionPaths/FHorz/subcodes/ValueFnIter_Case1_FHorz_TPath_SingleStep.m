@@ -8,11 +8,11 @@ PolicyKron=nan;
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences=0;
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
+    vfoptions.exoticpreferences=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else

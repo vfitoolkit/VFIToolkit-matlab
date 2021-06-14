@@ -39,11 +39,15 @@ end
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
+    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.verbose=0;
     heteroagentoptions.fminalgo=1; % use fminsearch
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
+    end
+    if isfield(heteroagentoptions,'multiGEweights')==0
+        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     end
     if N_p~=0
         if isfield(heteroagentoptions,'pgrid')==0
@@ -79,7 +83,7 @@ end
 if N_p~=0
     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_pgrid(n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
     for ii=1:length(GEPriceParamNames)
-        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
     end
     return
 end
@@ -104,7 +108,7 @@ end
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
 for ii=1:length(GEPriceParamNames)
-    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
 end
 
 end
