@@ -22,14 +22,17 @@ if vfoptions.dynasty==1
         fprintf('dynasty option is being used \n')
     end
     
-    if vfoptions.nphi==1
+    if vfoptions.nphi==0
         if vfoptions.parallel==0
             disp('WARNING: FINITE HORZ VALUEFNITER CODES ONLY REALLY WORK ON GPU (PARALLEL=2)')
+            dbstack
 %             [V,Policy]=ValueFnIter_Case2_FHorz_AgeDepGrids_Dynasty_raw(daz_gridstructure,N_j,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
         elseif vfoptions.parallel==2
             [V,Policy]=ValueFnIter_Case2_FHorz_AgeDepGrids_Dynasty_Par2_raw(daz_gridstructure,N_j,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
         end
-%     else
+    else
+        disp('WARNING: FINITE HORZ VALUEFNITER CODES DONT YET WORK WITH nphi \n')
+        dbstack
     end
     
     % Transform V & PolicyIndexes out of kroneckered form

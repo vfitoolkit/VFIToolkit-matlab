@@ -66,11 +66,11 @@ for ii=1:N_i
     end
     pi_z_temp=pi_z;
     % If using 'agedependentgrids' then pi_z will actually be the  AgeDependentGridParamNames, which is a structure. 
-    % But in this case it is necessary to pass the entire structure.
+    % But in this case it is necessary to pass the entire structure.    
     if exist('vfoptions','var')
         if isfield(vfoptions,'agedependentgrids')
             % Do nothing.
-        else isa(pi_z,'struct')
+        elseif isa(pi_z,'struct')
             names=fieldnames(pi_z);
             pi_z_temp=pi_z.(names{ii});
         end

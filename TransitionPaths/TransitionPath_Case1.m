@@ -120,7 +120,7 @@ elseif transpathoptions.exoticpreferences~=0
     dbstack
 else
     if length(DiscountFactorParamNames)~=1
-        disp('WARNING: DiscountFactorParamNames should be of length one')
+        disp('WARNING: DiscountFactorParamNames is not of length one (this is unusual for infinite horizon problems)')
         dbstack
     end
 end
@@ -183,7 +183,7 @@ if transpathoptions.verbose==1
 end
 
     
-beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
 ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
 [IndexesForPricePathInReturnFnParams, IndexesPricePathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);

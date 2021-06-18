@@ -2,6 +2,9 @@ function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(VK
 % The VKron input is next period value fn, the VKron output is this period.
 % 'fastOLG' just means parallelizing across all of the "ages" (j) at once.
 
+% DEBUGGING
+vfoptions
+
 % VKron=reshape(VKron,[prod(n_a),prod(n_z),N_j]);
 PolicyKron=nan;
 

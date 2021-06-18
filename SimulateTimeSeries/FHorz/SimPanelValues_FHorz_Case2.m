@@ -13,7 +13,7 @@ function SimPanelValues=SimPanelValues_FHorz_Case2(InitialDist,Policy,FnsToEvalu
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if isfield(simoptions,'parallel')==0
-        simoptions.parallel=2;
+        simoptions.parallel=1;
     end
     if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
@@ -32,7 +32,7 @@ if exist('simoptions','var')==1
     end 
 else
     %If simoptions is not given, just use all the defaults
-    simoptions.parallel=2;
+    simoptions.parallel=1;
     simoptions.verbose=0;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;

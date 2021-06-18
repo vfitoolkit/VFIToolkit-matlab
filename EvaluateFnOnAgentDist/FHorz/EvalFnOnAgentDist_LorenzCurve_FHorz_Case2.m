@@ -47,7 +47,7 @@ if Parallel==2
             else
                 FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
             end
-            Values(:,jj)=reshape(ValuesOnSSGrid_Case2(FnsToEvaluate{i}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d]),n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
+            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{i}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d]),n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
         end
 
         Values=reshape(Values,[N_a*N_z*N_j,1]);
@@ -104,7 +104,7 @@ if Parallel==2
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints); 
+        LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,Parallel); 
     end
 else
 %     AggVars=zeros(1,length(FnsToEvaluate));
@@ -129,35 +129,11 @@ else
         
         for a_c=1:N_a
             a_val=a_gridvals(a_c,:);
-            %                 a_ind=ind2sub_homemade_gpu([n_a],a_c);
-            %                 for jj1=1:l_a
-            %                     if jj1==1
-            %                         a_val(jj1)=a_grid(a_ind(jj1));
-            %                     else
-            %                         a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
-            %                     end
-            %                 end
             for z_c=1:N_z
                 z_val=z_gridvals(z_c,:);
-                %                     s_ind=ind2sub_homemade_gpu([n_z],z_c);
-                %                     for jj2=1:l_z
-                %                         if jj2==1
-                %                             z_val(jj2)=z_grid(s_ind(jj2));
-                %                         else
-                %                             z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
-                %                         end
-                %                     end
                 az_c=sub2ind_homemade([N_a,N_z],[a_c,z_c]);
                 for jj=1:N_j
                     d_val=dPolicy_gridvals(az_c,jj);
-%                     [aprime_ind]=PolicyIndexes(:,a_c,z_c,jj);
-%                     for kk2=1:l_a
-%                         if kk2==1
-%                             aprime_val(kk2)=a_grid(aprime_ind(kk2));
-%                         else
-%                             aprime_val(kk2)=a_grid(aprime_ind(kk2)+sum(n_a(1:kk2-1)));
-%                         end
-%                     end
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames(i).Names)
                         tempv=[d_val,a_val,z_val];
@@ -221,7 +197,7 @@ else
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints);
+        LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,Parallel);
     end
     
 end
