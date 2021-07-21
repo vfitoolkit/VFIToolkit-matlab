@@ -19,6 +19,9 @@ if exist('Parallel','var')==0
     end
 end
 
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
 if Parallel==2
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
@@ -32,13 +35,20 @@ if Parallel==2
     for ii=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
+            if fieldexists_ExogShockFn==1
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                else
+                    [z_grid,~]=simoptions.ExogShockFn(jj);
+                end
+            end
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
                 FnToEvaluateParamsVec=[];
             else
                 FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end
-%             Values(:,jj)=reshape(ValuesOnSSGrid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
             Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
         end
         AggVars(ii)=sum(sum(Values.*StationaryDistVec));
@@ -48,6 +58,15 @@ else
     AggVars=zeros(length(FnsToEvaluate),1);
 
     a_gridvals=CreateGridvals(n_a,a_grid,2);
+    if fieldexists_ExogShockFn==1
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+    end
+
     z_gridvals=CreateGridvals(n_z,z_grid,2);
 
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
@@ -61,6 +80,16 @@ else
         Values=zeros(N_a,N_z,N_j);
         if l_d==0
             for jj=1:N_j
+                if fieldexists_ExogShockFn==1
+                    if fieldexists_ExogShockFnParamNames==1
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    else
+                        [z_grid,~]=simoptions.ExogShockFn(jj);
+                    end
+                    z_gridvals=CreateGridvals(n_z,z_grid,2);
+                end
+                
                 [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ii).Names)
                     FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
@@ -78,6 +107,16 @@ else
             end
         else
             for jj=1:N_j
+                if fieldexists_ExogShockFn==1
+                    if fieldexists_ExogShockFnParamNames==1
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    else
+                        [z_grid,~]=simoptions.ExogShockFn(jj);
+                    end
+                    z_gridvals=CreateGridvals(n_z,z_grid,2);
+                end
+
                 [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ii).Names)
                     FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));

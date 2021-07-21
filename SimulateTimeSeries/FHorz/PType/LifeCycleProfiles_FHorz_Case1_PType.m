@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, options)
+function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, FnsToEvaluateParamNames, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, options)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -35,49 +35,25 @@ else
 end
 
 numFnsToEvaluate=length(FnsToEvaluate);
-
-if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-    AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
-else
-    AggVars=zeros(numFnsToEvaluate,1);
-end
+AgeConditionalStats=struct();
 
 for ii=1:N_i
-    sprintf('Permanent type: %i of %i',ii, N_i)
     
     if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(options,'verbose')
+        if ~isempty(options)
+            options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
             if length(options.verbose)==1
                 if options.verbose==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
                 end
             else
                 if options.verbose(ii)==1
+                    sprintf('Permanent type: %i of %i',ii, N_i)
                     options_temp.verbose=options.verbose(ii);
                 end
             end
         else % isempty(options)
             options_temp.verbose=0;
-        end
-        if isfield(options,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
-            if length(options.ExogShockFn)==1
-                if options.ExogShockFn==1
-                end
-            else
-                if options.ExogShockFn(ii)==1
-                    options_temp.ExogShockFn=options.ExogShockFn(ii);
-                end
-            end
-        end
-        if isfield(options,'ExogShockFnParamNames')
-            if length(options.ExogShockFnParamNames)==1
-                if options.ExogShockFnParamNames==1
-                end
-            else
-                if options.ExogShockFnParamNames(ii)==1
-                    options_temp.ExogShockFnParamNames=options.ExogShockFnParamNames(ii);
-                end
-            end
         end
     else
         options_temp.verbose=0;
@@ -85,10 +61,51 @@ for ii=1:N_i
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
     StationaryDist_temp=StationaryDist.(Names_i{ii});
-    if isa(StationaryDist_temp, 'gpuArray')
-        Parallel_temp=2;
-    else
-        Parallel_temp=1;
+    
+    if exist('options','var')==1
+        options_temp=struct();
+        if isfield('options','parallel')==1
+            if isscalar(options.parallel)==1
+                options_temp=options.parallel;
+            else
+                options_temp=options.parallel.(Names_i{ii});
+            end
+        end
+        if isfield('options','verbose')==1
+            if isscalar(options.verbose)==1
+                options_temp=options.verbose;
+            else
+                options_temp=options.verbose.(Names_i{ii});
+            end
+        end
+        if isfield('options','nquantiles')==1
+            if isscalar(options.nquantiles)==1
+                options_temp=options.nquantiles;
+            else
+                options_temp=options.nquantiles.(Names_i{ii});
+            end
+        end
+        if isfield('options','agegroupings')==1
+            if isscalar(options.agegroupings)==1
+                options_temp=options.agegroupings;
+            else
+                options_temp=options.agegroupings.(Names_i{ii});
+            end
+        end
+        if isfield('options','npoints')==1
+            if isscalar(options.npoints)==1
+                options_temp=options.npoints;
+            else
+                options_temp=options.npoints.(Names_i{ii});
+            end
+        end
+        if isfield('options','tolerance')==1
+            if isscalar(options.tolerance)==1
+                options_temp=options.tolerance;
+            else
+                options_temp=options.tolerance.(Names_i{ii});
+            end
+        end
     end
     
     % Go through everything which might be dependent on permanent type (PType)
@@ -260,18 +277,17 @@ for ii=1:N_i
         end
     end
     
-    StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-    
-    PTypeWeight_ii=StationaryDist.ptweights(ii);
+%     ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+    AgeConditionalStats_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,options_temp)
+%     PTypeWeight_ii=StationaryDist.ptweights(ii);
     
     for kk=1:numFnsToEvaluate
         jj=WhichFnsForCurrentPType(kk);
         if jj>0
-            AggVars(kk,:)=AggVars(kk,:)+PTypeWeight_ii*StatsFromDist_AggVars_ii(jj,:);
+            AgeConditionalStats.(Names_i{ii})(kk)=AgeConditionalStats_ii(jj);
         end
     end
     
 end
-
 
 end

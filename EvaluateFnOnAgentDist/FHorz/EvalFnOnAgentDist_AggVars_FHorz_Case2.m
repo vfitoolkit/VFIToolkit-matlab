@@ -16,6 +16,9 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
 if isa(StationaryDist,'gpuArray')% Parallel==2
     AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');
     
@@ -28,6 +31,15 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
     for i=1:length(FnsToEvaluateFn)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
+            if fieldexists_ExogShockFn==1
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                else
+                    [z_grid,~]=simoptions.ExogShockFn(jj);
+                end
+            end
+            
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames) %|| strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={} or SSvalueParamNames={''}'
                 FnToEvaluateParamsVec=[];
@@ -56,12 +68,22 @@ else
     
     for i=1:length(FnsToEvaluateFn)
         Values=zeros(N_a,N_z,N_j);
-        for a_c=1:N_a
-            a_val=a_gridvals(a_c,:);
-            for z_c=1:N_z
-                z_val=z_gridvals(z_c,:);
-                az_c=sub2ind_homemade([N_a,N_z],[a_c,z_c]);
-                for jj=1:N_j
+        for jj=1:N_j
+            if fieldexists_ExogShockFn==1
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                else
+                    [z_grid,~]=simoptions.ExogShockFn(jj);
+                end
+                z_gridvals=CreateGridvals(n_z,z_grid,2);
+            end
+            
+            for a_c=1:N_a
+                a_val=a_gridvals(a_c,:);
+                for z_c=1:N_z
+                    z_val=z_gridvals(z_c,:);
+                    az_c=sub2ind_homemade([N_a,N_z],[a_c,z_c]);
                     d_val=dPolicy_gridvals(az_c,jj);
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames(i).Names)

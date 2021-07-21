@@ -1,4 +1,9 @@
-function SimPanelValues=SimPanelValues_FHorz_Case2_AgeDepGrids(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_gridfn,a_gridfn,z_gridfn,AgeDependentGridParamNames, Phi_aprimeFn,Case2_Type,PhiaprimeParamNames, simoptions)
+function SimPanelValues=SimPanelValues_FHorz_PType_Case1_Dynasty(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_gridfn,a_gridfn,z_gridfn,AgeDependentGridParamNames, Phi_aprimeFn,Case2_Type,PhiaprimeParamNames, simoptions)
+fprintf('ERROR: SimPanelValues_FHorz_PType_Case1_Dynasty not yet implemented!!! \n')
+fprintf('ERROR: Please email robertdkirkby@gmail.com if you want to be able to use this. \n')
+dbstack
+return
+
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist.
 % SimPanelValues is a 3-dimensional matrix with first dimension being the

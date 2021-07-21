@@ -14,7 +14,7 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-9);
     simoptions.dynasty=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
+    %Check simoptions for missing fields, if there are some fill them with
     %the defaults
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);

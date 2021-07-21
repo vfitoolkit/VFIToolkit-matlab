@@ -48,26 +48,46 @@ else
 end
 
 for ii=1:N_i
+    sprintf('Permanent type: %i of %i',ii, N_i)
     
     if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        if ~isempty(options)
-            options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
+        options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
+        if isfield(options,'verbose')
             if length(options.verbose)==1
                 if options.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
                 end
             else
                 if options.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
                     options_temp.verbose=options.verbose(ii);
                 end
             end
         else % isempty(options)
             options_temp.verbose=0;
         end
+        if isfield(options,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
+            if length(options.ExogShockFn)==1
+                if options.ExogShockFn==1
+                end
+            else
+                if options.ExogShockFn(ii)==1
+                    options_temp.ExogShockFn=options.ExogShockFn(ii);
+                end
+            end
+        end
+        if isfield(options,'ExogShockFnParamNames')
+            if length(options.ExogShockFnParamNames)==1
+                if options.ExogShockFnParamNames==1
+                end
+            else
+                if options.ExogShockFnParamNames(ii)==1
+                    options_temp.ExogShockFnParamNames=options.ExogShockFnParamNames(ii);
+                end
+            end
+        end
     else
         options_temp.verbose=0;
     end
+
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
     StationaryDist_temp=StationaryDist.(Names_i{ii});

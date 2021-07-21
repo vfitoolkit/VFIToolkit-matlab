@@ -62,11 +62,31 @@ PType_numbersims=round(PType_mass*simoptions.numbersims);
 
 
 for ii=1:N_i
-    if simoptions.verbose==1
-        fprintf('Fixed type: %i of %i \n',ii, N_i)
+    simoptions_ii=simoptions;
+    if simoptions_ii.verbose==1
+        sprintf('Fixed type: %i of %i',ii, N_i)
     end
-    
-    simoptions.numbersims=PType_numbersims(ii);
+    simoptions_ii.numbersims=PType_numbersims(ii);
+    if isfield(simoptions,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
+        if length(simoptions.ExogShockFn)==1
+            if simoptions_ii.ExogShockFn==1
+            end
+        else
+            if simoptions.ExogShockFn(ii)==1
+                simoptions_ii.ExogShockFn=simoptions.ExogShockFn(ii);
+            end
+        end
+    end
+    if isfield(simoptions,'ExogShockFnParamNames')
+        if length(simoptions.ExogShockFnParamNames)==1
+            if simoptions.ExogShockFnParamNames==1
+            end
+        else
+            if simoptions.ExogShockFnParamNames(ii)==1
+                simoptions_ii.ExogShockFnParamNames=simoptions.ExogShockFnParamNames(ii);
+            end
+        end
+    end
     
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
@@ -127,7 +147,7 @@ for ii=1:N_i
         end
     end
     
-    SimLifeCycleProfiles.(names{ii})=SimLifeCycleProfiles_FHorz_Case1(InitialDist_temp,Policy_temp,ValuesFns,ValuesFnsParamNames,Parameters_temp,n_d,n_a,n_z,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions);   
+    SimLifeCycleProfiles.(names{ii})=SimLifeCycleProfiles_FHorz_Case1(InitialDist_temp,Policy_temp,ValuesFns,ValuesFnsParamNames,Parameters_temp,n_d,n_a,n_z,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_ii);   
     
 end
 

@@ -20,17 +20,19 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
 if fieldexists_ExogShockFn==0
-    z_grid_AllAges=z_grid.*ones(1,N_j);
+    z_gridvals_AllAges=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j);
+%     z_grid_AllAges=z_grid.*ones(1,N_j);
     pi_z_AllAges=pi_z.*ones(1,1,N_j);
 elseif fieldexists_ExogShockFn==1
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
             [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-            z_grid_AllAges(:,jj)=gpuArray(z_grid); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
+            z_gridvals_AllAges(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1)); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
+%             z_grid_AllAges(:,jj)=gpuArray(z_grid); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid_AllAges(:,jj)=gpuArray(z_grid); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
+            z_gridvals_AllAges(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1)); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
         end
     end
     size(pi_z_AllAges)
@@ -38,7 +40,8 @@ elseif fieldexists_ExogShockFn==1
 %     temp(2)=l_d+l_a+l_a+l_z+1; temp(end)=2;
 %     z_grid_AllAges=permute(z_grid_AllAges,temp); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG()
 end
-z_grid_AllAges=z_grid_AllAges'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-sum(n_z)
+z_gridvals_AllAges=permute(z_gridvals_AllAges,[3,2,1]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-l_z-by-N_z
+% z_grid_AllAges=z_grid_AllAges'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-sum(n_z)
 pi_z_AllAges=permute(pi_z_AllAges,[3,2,1]); % Give it the size best for the loop below, namely (j,z',z)
 
 % ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_AllAges(:,z_c), ReturnFnParamsAgeMatrix);
@@ -58,7 +61,10 @@ VKronNext(:,1:N_j-1,:)=permute(V(:,:,2:end),[1 3 2]); % Swap j and z
 VKronNext=reshape(VKronNext,[N_a*N_j,N_z]);
 
 for z_c=1:N_z
-    ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, ones(l_z,1), N_j, d_grid, a_grid, z_grid_AllAges(:,z_c), ReturnFnParamsAgeMatrix);
+    z_vals_AllAges=z_gridvals_AllAges(:,:,z_c);
+    ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, ones(l_z,1), N_j, d_grid, a_grid, z_vals_AllAges, ReturnFnParamsAgeMatrix);
+        
+%     ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, ones(l_z,1), N_j, d_grid, a_grid, z_grid_AllAges(:,z_c), ReturnFnParamsAgeMatrix);
     
     % ReturnMatrix=permute(ReturnMatrix,[1 2 4 3]); % Swap j and z (so that z
     % is last) % Modified CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG to

@@ -13,7 +13,7 @@ if nargin<6
     simoptions.verbose=0;
 %    simoptions.ncores=1; not needed as using simoptions.parallel=2
 else
-    %Check vfoptions for missing fields, if there are some fill them with
+    %Check simoptions for missing fields, if there are some fill them with
     %the defaults
     eval('fieldexists=1;simoptions.nsims;','fieldexists=0;')
     if fieldexists==0

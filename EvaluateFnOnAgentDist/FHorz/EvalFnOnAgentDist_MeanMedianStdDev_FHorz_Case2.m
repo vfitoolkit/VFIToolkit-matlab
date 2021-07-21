@@ -16,6 +16,9 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
 if isa(StationaryDist,'gpuArray')% Parallel==2
 %     SSvalues_AggVars=zeros(length(SSvaluesFn),1,'gpuArray');
     MeanMedianStdDev=zeros(length(FnsToEvaluate),3,'gpuArray');
@@ -29,6 +32,15 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
     for i=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
+            if fieldexists_ExogShockFn==1
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                else
+                    [z_grid,~]=simoptions.ExogShockFn(jj);
+                end
+            end
+            
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames) %|| strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={} or SSvalueParamNames={''}'
                 FnToEvaluateParamsVec=[];
@@ -71,24 +83,34 @@ else
                     a_val(jj1)=a_grid(a_ind(jj1)+sum(n_a(1:jj1-1)));
                 end
             end
-            for j2=1:N_z
-                s_ind=ind2sub_homemade_gpu([n_z],j2);
-                for jj2=1:l_z
-                    if jj2==1
-                        z_val(jj2)=z_grid(s_ind(jj2));
+            
+            for jj=1:N_j
+                if fieldexists_ExogShockFn==1
+                    if fieldexists_ExogShockFnParamNames==1
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
                     else
-                        z_val(jj2)=z_grid(s_ind(jj2)+sum(n_z(1:jj2-1)));
+                        [z_grid,~]=simoptions.ExogShockFn(jj);
                     end
                 end
-                d_ind=PolicyIndexes(1:l_d,j1,j2);
-                for kk1=1:l_d
-                    if kk1==1
-                        d_val(kk1)=d_grid(d_ind(kk1));
-                    else
-                        d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                
+                for j2=1:N_z
+                    z_ind=ind2sub_homemade_gpu([n_z],j2);
+                    for jj2=1:l_z
+                        if jj2==1
+                            z_val(jj2)=z_grid(z_ind(jj2));
+                        else
+                            z_val(jj2)=z_grid(z_ind(jj2)+sum(n_z(1:jj2-1)));
+                        end
                     end
-                end
-                for jj=1:N_j
+                    d_ind=PolicyIndexes(1:l_d,j1,j2);
+                    for kk1=1:l_d
+                        if kk1==1
+                            d_val(kk1)=d_grid(d_ind(kk1));
+                        else
+                            d_val(kk1)=d_grid(d_ind(kk1)+sum(n_d(1:kk1-1)));
+                        end
+                    end
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames(i).Names)
                         tempv=[d_val,a_val,z_val];

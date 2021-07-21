@@ -102,7 +102,7 @@ end
 %         end
         parfor ii=1:simoptions.numbersims
             [~,seedpoint_ii]=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointvec_ii),1];
+            seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpoint_ii),1];
         end
     else % Distribution across ages as well
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_j,1]));
@@ -112,7 +112,7 @@ end
 %         end
         [~,seedpoint_ii]=max(cumsumInitialDistVec>rand(1));
         parfor ii=1:simoptions.numbersims
-            seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointvec_ii);
+            seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpoint_ii);
         end
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.

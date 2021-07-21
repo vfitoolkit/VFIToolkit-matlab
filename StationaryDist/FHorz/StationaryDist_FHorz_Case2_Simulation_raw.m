@@ -29,18 +29,18 @@ end
 
 % This implementation is slightly inefficient when shocks are not age
 % dependent, but speed loss is fairly trivial
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 if fieldexists_ExogShockFn==1
     pi_z_J=zeros(N_z,N_z,N_j);
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
         else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
+            [~,pi_z]=simoptions.ExogShockFn(jj);
         end
-        pi_z_J(:,:,jj);
+        pi_z_J(:,:,jj)=pi_z;
     end
 else
     pi_z_J=repmat(pi_z,1,1,N_j);

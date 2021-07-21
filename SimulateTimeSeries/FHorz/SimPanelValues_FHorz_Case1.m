@@ -72,6 +72,26 @@ aprime_val=zeros(1,l_a);
 % a_val=zeros(1,l_a);
 % z_val=zeros(1,l_z);
 
+
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
+if fieldexists_ExogShockFn==1
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
+    end
+else
+    for jj=1:N_j
+        fullgridvals(jj).z_gridvals=z_gridvals;
+    end
+end
+
 %%
 SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die' (reach N_j) before end of panel
 %% For sure the following could be made faster by parallelizing some stuff.
@@ -82,11 +102,12 @@ for ii=1:simoptions.numbersims
         a_ind=sub2ind_homemade(n_a,a_sub);
         a_val=a_gridvals(a_ind,:);
          
+        j_ind=SimPanel_ii(end,t);
+
         z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
         z_ind=sub2ind_homemade(n_z,z_sub);
-        z_val=z_gridvals(z_ind,:);
+        z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
         
-        j_ind=SimPanel_ii(end,t);
         
         if l_d==0
             aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile

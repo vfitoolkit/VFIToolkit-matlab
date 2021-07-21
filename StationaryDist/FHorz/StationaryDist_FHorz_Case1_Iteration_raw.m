@@ -20,10 +20,10 @@ if simoptions.parallel<2
     for jj=1:(N_j-1)
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
             else
-                [~,pi_z]=vfoptions.ExogShockFn(jj);
+                [~,pi_z]=simoptions.ExogShockFn(jj);
             end
         end
 %         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
@@ -62,11 +62,11 @@ elseif simoptions.parallel==2 % Using the GPU
     for jj=1:(N_j-1)
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
                 pi_z=gpuArray(pi_z);
             else
-                [~,pi_z]=vfoptions.ExogShockFn(jj);
+                [~,pi_z]=simoptions.ExogShockFn(jj);
                 pi_z=gpuArray(pi_z);
             end
         end
@@ -96,10 +96,10 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
     for jj=1:(N_j-1)
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
             else
-                [~,pi_z]=vfoptions.ExogShockFn(jj);
+                [~,pi_z]=simoptions.ExogShockFn(jj);
             end
         end
 %         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)

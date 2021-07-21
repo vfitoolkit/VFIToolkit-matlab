@@ -1,5 +1,5 @@
 function Fmatrix=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a_val,z_val,ReturnFn, ReturnFnParamsVec, n_a, a_gridvals, Parallel)
-%If there is no d variable, just input n_d=0 and d_grid=0
+% Gives the return function as a matrix conditional on current values of a and z
 
 N_a=prod(n_a);
 

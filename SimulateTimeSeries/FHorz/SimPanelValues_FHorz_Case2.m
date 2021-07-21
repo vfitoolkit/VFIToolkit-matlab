@@ -60,11 +60,11 @@ l_d=length(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
 
-if simoptions.parallel~=2
-    d_grid=gather(d_grid);
-    a_grid=gather(a_grid);
-    z_grid=gather(z_grid);
-end
+% if simoptions.parallel~=2 % Keep the grid on the gpu for the SimPanelIndexes_FHorz_Case2
+%     d_grid=gather(d_grid);
+%     a_grid=gather(a_grid);
+%     z_grid=gather(z_grid);
+% end
 
 % NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
 PolicyIndexesKron=KronPolicyIndexes_FHorz_Case2(Policy, n_d, n_a, n_z, N_j);%,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case2 (which will recognise that it is already in this form)
@@ -96,8 +96,27 @@ for jj=1:N_j
     else
         jstr=['j',num2str(jj)];
     end
-    [dPolicy_gridvals_j,~]=CreateGridvals_Policy(PolicyIndexesKron,n_d,[],n_a,n_z,d_grid,[],2,1);
+    [dPolicy_gridvals_j,~]=CreateGridvals_Policy(PolicyIndexesKron(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
     dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
+end
+
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
+if fieldexists_ExogShockFn==1
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
+    end
+else
+    for jj=1:N_j
+        fullgridvals(jj).z_gridvals=z_gridvals;
+    end
 end
 
 %%
@@ -117,7 +136,7 @@ for ii=1:simoptions.numbersims
             
             z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
             z_ind=sub2ind_homemade(n_z,z_sub);
-            z_val=z_gridvals(z_ind,:);
+            z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
             
             % Make a three digit number out of j_ind
             if j_ind<10

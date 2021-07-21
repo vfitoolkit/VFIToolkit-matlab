@@ -48,11 +48,31 @@ PType_numbersims=round(PType_mass*simoptions.numbersims);
 
 SimPanel=nan(l_a+l_z+2,simoptions.simperiods,simoptions.numbersims); % (a,z,j)
 for ii=1:N_i
-    if simoptions.verbose==1
+    simoptions_ii=simoptions;
+    if simoptions_ii.verbose==1
         sprintf('Fixed type: %i of %i',ii, N_i)
     end
-    
-    simoptions.numbersims=PType_numbersims(ii);
+    simoptions_ii.numbersims=PType_numbersims(ii);
+    if isfield(simoptions,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
+        if length(simoptions.ExogShockFn)==1
+            if simoptions_ii.ExogShockFn==1
+            end
+        else
+            if simoptions.ExogShockFn(ii)==1
+                simoptions_ii.ExogShockFn=simoptions.ExogShockFn(ii);
+            end
+        end
+    end
+    if isfield(simoptions,'ExogShockFnParamNames')
+        if length(simoptions.ExogShockFnParamNames)==1
+            if simoptions.ExogShockFnParamNames==1
+            end
+        else
+            if simoptions.ExogShockFnParamNames(ii)==1
+                simoptions_ii.ExogShockFnParamNames=simoptions.ExogShockFnParamNames(ii);
+            end
+        end
+    end
     
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
@@ -73,17 +93,16 @@ for ii=1:N_i
         InitialDist_temp=InitialDist(:,:,:,ii);
         InitialDist_temp=InitialDist_temp./(sum(sum(sum(InitialDist_temp))));
     end
-    if isfield(simoptions,'ExogShockFnParamNames')==1
-        disp('WARNING: ExogShockFn not yet implemented for PType (in SimPanelIndexes_FHorz_PType_Case1)')
-    end
+
     
-    SimPanel_ii=gather(SimPanelIndexes_FHorz_Case1(InitialDist_temp,Policy_temp,n_d,n_a,n_z,N_j,pi_z_temp, simoptions));
+    
+    SimPanel_ii=gather(SimPanelIndexes_FHorz_Case1(InitialDist_temp,Policy_temp,n_d,n_a,n_z,N_j,pi_z_temp, simoptions_ii));
     if ii==1
         SimPanel(1:(l_a+l_z+1),:,1:sum(PType_numbersims(1:ii)))=SimPanel_ii;
-        SimPanel(l_a+l_z+2,:,1:sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions.simperiods,PType_numbersims(ii));
+        SimPanel(l_a+l_z+2,:,1:sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions_ii.simperiods,PType_numbersims(ii));
     else
         SimPanel(1:(l_a+l_z+1),:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanel_ii;
-        SimPanel(l_a+l_z+2,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions.simperiods,PType_numbersims(ii));
+        SimPanel(l_a+l_z+2,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions_ii.simperiods,PType_numbersims(ii));
     end
 end
 

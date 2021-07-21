@@ -62,6 +62,9 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
 %% Create a different 'Values' for each of the variable to be evaluated
 
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
@@ -95,6 +98,14 @@ if options.parallel==2
         for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
             Values=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
             for jj=j1:jend
+                if fieldexists_ExogShockFn==1
+                    if fieldexists_ExogShockFnParamNames==1
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    else
+                        [z_grid,~]=simoptions.ExogShockFn(jj);
+                    end
+                end
                 % Includes check for cases in which no parameters are actually required
                 if isempty(FnsToEvaluateParamNames)% check for 'FnsToEvaluateParamNames={}'
                     FnsToEvaluateParamsVec=[];
@@ -194,6 +205,17 @@ else % options.parallel~=2
             [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj-j1+1),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
             gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
             gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
+            
+            if fieldexists_ExogShockFn==1
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                else
+                    [z_grid,~]=simoptions.ExogShockFn(jj);
+                end
+                z_gridvals=CreateGridvals(n_z,z_grid,2);
+            end
+            gridvalsFull(jj-j1+1).z_gridvals=z_gridvals;
         end
         
         for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
@@ -202,6 +224,7 @@ else % options.parallel~=2
                 for jj=j1:jend
                     d_gridvals=gridvalsFull(jj-j1+1).d_gridvals;
                     aprime_gridvals=gridvalsFull(jj-j1+1).aprime_gridvals;
+                    z_gridvals=gridvalsFull(jj-j1+1).z_gridvals;
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
                         for ll=1:N_a*N_z
@@ -222,8 +245,8 @@ else % options.parallel~=2
                 end
             else % l_d==0
                 for jj=j1:jend
-                    d_gridvals=gridvalsFull(jj-j1+1).d_gridvals;
                     aprime_gridvals=gridvalsFull(jj-j1+1).aprime_gridvals;
+                    z_gridvals=gridvalsFull(jj-j1+1).z_gridvals;
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
                         for ll=1:N_a*N_z

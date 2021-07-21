@@ -39,11 +39,6 @@ end
 z_grid_AllAges=z_grid_AllAges'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
 pi_z_AllAges=permute(pi_z_AllAges,[3,2,1]); % Give it the size best for the loop below: (j,z',z)
 
-size(z_grid_AllAges)
-size(pi_z_AllAges)
-N_j
-n_z
-
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_AllAges, ReturnFnParamsAgeMatrix);
 
 % ReturnMatrix=permute(ReturnMatrix,[1 2 4 3]); % Swap j and z (so that z

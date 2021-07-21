@@ -231,7 +231,7 @@ elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
     if l_a>=1
         a1vals=shiftdim(a_grid(1:n_a(1)),-l_d);
         if l_a>=2
-            a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-l_d-1);
+            a2vals=shiftdim(a_grid((n_a(1)+1):sum(n_a(1:2))),-l_d-1);
             if l_a>=3
                 a3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-l_d-2);
                 if l_a>=4

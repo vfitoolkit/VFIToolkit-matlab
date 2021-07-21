@@ -19,6 +19,7 @@ end
 ParamPathNames=fieldnames(ParamPath);
 ParamPathStruct=ParamPath; 
 ParamPath=zeros(T,length(ParamPathNames));
+size(ParamPath)
 for ii=1:length(ParamPathNames)
     ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
 end

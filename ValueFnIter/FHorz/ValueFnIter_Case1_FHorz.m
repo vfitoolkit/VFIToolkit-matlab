@@ -7,7 +7,7 @@ Policy=nan;
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-    vfoptions.exoticpreferences=0;
+%     vfoptions.exoticpreferences=0;
     vfoptions.dynasty=0;
     vfoptions.parallel=1+(gpuDeviceCount>0);
     if vfoptions.parallel==2
@@ -26,9 +26,9 @@ if exist('vfoptions','var')==0
     vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences=0;
-    end
+%     if isfield(vfoptions,'exoticpreferences')==0
+%         vfoptions.exoticpreferences=0;
+%     end
     if isfield(vfoptions,'dynasty')==0
         vfoptions.dynasty=0;
     end
@@ -103,23 +103,21 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-% if vfoptions.exoticpreferences==0
-%     if length(DiscountFactorParamNames)~=1
-%         disp('WARNING: There should only be a single Discount Factor (in DiscountFactorParamNames) when using standard VFI')
-%         dbstack
-%     end
-% elseif vfoptions.exoticpreferences==1 % Quasi-hyperbolic
-%     %NOT YET IMPLEMENTED
-% %    [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-% %    return
-if vfoptions.exoticpreferences==2 % Epstein-Zin preferences
-    if isfield(vfoptions,'dynasty')==0
-        [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        return
-    else
-        disp('ERROR: CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
-        dbstack
-        return
+if isfield(vfoptions,'exoticpreferences')
+    if strcmp(vfoptions.exoticpreferences,'None')
+        % Just ignore and will then continue on.
+    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+       [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+       return
+    elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+        if isfield(vfoptions,'dynasty')==0
+            [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            return
+        else
+            disp('ERROR: CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
+            dbstack
+            return
+        end
     end
 end
 

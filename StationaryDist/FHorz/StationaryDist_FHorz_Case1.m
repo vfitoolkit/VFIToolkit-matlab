@@ -17,7 +17,7 @@ if exist('simoptions','var')==0
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
 else
-    %Check vfoptions for missing fields, if there are some fill them with
+    %Check simoptions for missing fields, if there are some fill them with
     %the defaults
     if isfield(simoptions,'tolerance')==0
         simoptions.tolerance=10^(-9);

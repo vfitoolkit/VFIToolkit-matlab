@@ -84,23 +84,22 @@ else
     end
 end
 
-if isfield(vfoptions,'V0')
-    V0=reshape(vfoptions.V0,[n_a,n_z]);
-else
-    if vfoptions.parallel==2
-        V0=zeros([n_a,n_z], 'gpuArray');
-    else
-        V0=zeros([n_a,n_z]);        
-    end
-end
-
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+if isfield(vfoptions,'V0')
+    V0=reshape(vfoptions.V0,[N_a,N_z]);
+else
+    if vfoptions.parallel==2
+        V0=zeros([N_a,N_z], 'gpuArray');
+    else
+        V0=zeros([N_a,N_z]);        
+    end
+end
 
 %% Check the sizes of some of the inputs
-if strcmp(vfoptions.solnmethod,'purediscretization')
+if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'localpolicysearch')
     if size(d_grid)~=[sum(n_d), 1]
         disp('ERROR: d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
         dbstack
@@ -118,7 +117,13 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         dbstack
         return
     elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
-        if size(V0)~=[n_a,n_z] % Allow for input to be already transformed into Kronecker form
+        if ndims(V0)>2
+            if size(V0)~=[n_a,n_z] % Allow for input to be already transformed into Kronecker form
+                disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
+                dbstack
+                return
+            end
+        elseif size(V0)~=[N_a,N_z] % Allows for possiblity that V0 is already in kronecker form
             disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
             dbstack
             return
@@ -167,6 +172,22 @@ if vfoptions.verbose==1
     vfoptions
 end
 
+%% Alternative solution methods
+if strcmp(vfoptions.solnmethod,'localpolicysearch') 
+    % Solve value function using 'local policy search' method.
+    [V, Policy]=ValueFnIter_Case1_LPS(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy};
+    return
+end
+
+% % fVFI using Chebyshev policynomials and smolyak grids
+% if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
+%     % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
+%     [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
+%     varargout={V,Policy};
+%     return
+% end
+
 %% Entry and Exit
 if vfoptions.endogenousexit==1
     % ExitPolicy is binary decision to exit (1 is exit, 0 is 'not exit').
@@ -211,14 +232,6 @@ elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on t
     DiscountFactorParamsVec=1;
     % Set pi_z to include the state-dependent discount factors
     pi_z=pi_z.*DiscountFactorParamsMatrix;    
-end
-
-%% fVFI
-if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
-    % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
-    [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
-    varargout={V,Policy};
-    return
 end
 
 %% State Dependent Parameters
@@ -352,7 +365,7 @@ if vfoptions.lowmemory==0
     end
         
     %%
-    V0=reshape(V0,[N_a,N_z]);    
+%     V0=reshape(V0,[N_a,N_z]);    
     
     if n_d(1)==0
         if vfoptions.parallel==0     % On CPU
