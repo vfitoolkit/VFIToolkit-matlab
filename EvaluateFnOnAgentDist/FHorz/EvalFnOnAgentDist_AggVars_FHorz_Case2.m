@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, options, AgeDependentGridParamNames) %pi_z,p_val
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions, AgeDependentGridParamNames) %pi_z,p_val
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluateFn
 % options and AgeDependentGridParamNames is only needed when you are using Age Dependent Grids, otherwise this is not a required input.
 
@@ -6,7 +6,7 @@ if isa(StationaryDist,'struct')
     % Using Age Dependent Grids so send there
     % Note that in this case: d_grid is d_gridfn, a_grid is a_gridfn,
     % z_grid is z_gridfn. Parallel is options. AgeDependentGridParamNames is also needed. 
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, options, AgeDependentGridParamNames);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions, AgeDependentGridParamNames);
     return
 end
 
@@ -34,7 +34,11 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
             if fieldexists_ExogShockFn==1
                 if fieldexists_ExogShockFnParamNames==1
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for kk=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    end
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 else
                     [z_grid,~]=simoptions.ExogShockFn(jj);
                 end
@@ -72,7 +76,11 @@ else
             if fieldexists_ExogShockFn==1
                 if fieldexists_ExogShockFnParamNames==1
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for kk=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    end
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 else
                     [z_grid,~]=simoptions.ExogShockFn(jj);
                 end

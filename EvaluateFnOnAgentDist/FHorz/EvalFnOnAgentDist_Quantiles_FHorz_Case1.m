@@ -1,4 +1,4 @@
-function  [QuantileCutOffs, QuantileMeans]=EvalFnOnAgentDist_Quantiles_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel)
+function  [QuantileCutOffs, QuantileMeans]=EvalFnOnAgentDist_Quantiles_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
 %Returns the cut-off values and the within percentile means from dividing
 %the StationaryDist into NumPercentiles percentiles.
 
@@ -38,7 +38,11 @@ if Parallel==2
             if fieldexists_ExogShockFn==1
                 if fieldexists_ExogShockFnParamNames==1
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for kk=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    end
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 else
                     [z_grid,~]=simoptions.ExogShockFn(jj);
                 end
@@ -123,7 +127,11 @@ else
                     if fieldexists_ExogShockFn==1
                         if fieldexists_ExogShockFnParamNames==1
                             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                            for kk=1:length(ExogShockFnParamsVec)
+                                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                            end
+                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                         else
                             [z_grid,~]=simoptions.ExogShockFn(jj);
                         end
@@ -180,7 +188,11 @@ else
                     if fieldexists_ExogShockFn==1
                         if fieldexists_ExogShockFnParamNames==1
                             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                            for kk=1:length(ExogShockFnParamsVec)
+                                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                            end
+                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                         else
                             [z_grid,~]=simoptions.ExogShockFn(jj);
                         end

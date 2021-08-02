@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
 % Parallel is an optional input. If not given, will guess based on where StationaryDist
 
 if n_d(1)==0
@@ -38,7 +38,11 @@ if Parallel==2
             if fieldexists_ExogShockFn==1
                 if fieldexists_ExogShockFnParamNames==1
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for kk=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    end
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 else
                     [z_grid,~]=simoptions.ExogShockFn(jj);
                 end
@@ -58,21 +62,14 @@ else
     AggVars=zeros(length(FnsToEvaluate),1);
 
     a_gridvals=CreateGridvals(n_a,a_grid,2);
-    if fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
-        else
-            [z_grid,~]=simoptions.ExogShockFn(jj);
-        end
-    end
-
     z_gridvals=CreateGridvals(n_z,z_grid,2);
 
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
     sizePolicyIndexes=size(PolicyIndexes);
-    if sizePolicyIndexes(2:end)~=[N_a,N_z,N_j] % If not in vectorized form
+%     size(PolicyIndexes)
+    if length(PolicyIndexes)>4 % If not in vectorized form
+%     if sizePolicyIndexes(2:end)~=[N_a,N_z,N_j] % If not in vectorized form
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     
@@ -83,7 +80,11 @@ else
                 if fieldexists_ExogShockFn==1
                     if fieldexists_ExogShockFnParamNames==1
                         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for kk=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                        end
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     else
                         [z_grid,~]=simoptions.ExogShockFn(jj);
                     end
@@ -110,7 +111,11 @@ else
                 if fieldexists_ExogShockFn==1
                     if fieldexists_ExogShockFnParamNames==1
                         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for kk=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                        end
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     else
                         [z_grid,~]=simoptions.ExogShockFn(jj);
                     end

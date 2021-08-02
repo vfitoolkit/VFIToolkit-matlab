@@ -1,8 +1,8 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, options, AgeDependentGridParamNames) %pi_z,p_val
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_gridfn, a_gridfn, z_gridfn, simoptions, AgeDependentGridParamNames) %pi_z,p_val
 % Evaluates the aggregate value (weighted sum/integral) for each element of SSvaluesFn
 
 % Note: n_d,n_a,n_z are used once here at beginning and then overwritten with their age-conditional equivalents for all further usage.
-daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_gridfn, a_gridfn, z_gridfn, AgeDependentGridParamNames, Parameters, options);
+daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_gridfn, a_gridfn, z_gridfn, AgeDependentGridParamNames, Parameters, simoptions);
 % Creates daz_gridstructure which contains both the grids themselves and a
 % bunch of info about the grids in an easy to access way.
 % e.g., the d_grid for age j=10: daz_gridstructure.d_grid.j010

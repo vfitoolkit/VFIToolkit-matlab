@@ -1,4 +1,4 @@
-function ValuesOnDist=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, options)
+function ValuesOnDist=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -51,41 +51,41 @@ for ii=1:N_i
     sprintf('Permanent type: %i of %i',ii, N_i)
     
     if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(options,'verbose')
-            if length(options.verbose)==1
-                if options.verbose==1
+        simoptions_temp=simoptions; % some options will differ by permanent type, will clean these up as we go before they are passed
+        if isfield(simoptions,'verbose')
+            if length(simoptions.verbose)==1
+                if simoptions.verbose==1
                 end
             else
-                if options.verbose(ii)==1
-                    options_temp.verbose=options.verbose(ii);
+                if simoptions.verbose(ii)==1
+                    simoptions_temp.verbose=simoptions.verbose(ii);
                 end
             end
         else % isempty(options)
-            options_temp.verbose=0;
+            simoptions_temp.verbose=0;
         end
-        if isfield(options,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
-            if length(options.ExogShockFn)==1
-                if options.ExogShockFn==1
+        if isfield(simoptions,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
+            if length(simoptions.ExogShockFn)==1
+                if simoptions.ExogShockFn==1
                 end
             else
-                if options.ExogShockFn(ii)==1
-                    options_temp.ExogShockFn=options.ExogShockFn(ii);
+                if simoptions.ExogShockFn(ii)==1
+                    simoptions_temp.ExogShockFn=simoptions.ExogShockFn(ii);
                 end
             end
         end
-        if isfield(options,'ExogShockFnParamNames')
-            if length(options.ExogShockFnParamNames)==1
-                if options.ExogShockFnParamNames==1
+        if isfield(simoptions,'ExogShockFnParamNames')
+            if length(simoptions.ExogShockFnParamNames)==1
+                if simoptions.ExogShockFnParamNames==1
                 end
             else
-                if options.ExogShockFnParamNames(ii)==1
-                    options_temp.ExogShockFnParamNames=options.ExogShockFnParamNames(ii);
+                if simoptions.ExogShockFnParamNames(ii)==1
+                    simoptions_temp.ExogShockFnParamNames=simoptions.ExogShockFnParamNames(ii);
                 end
             end
         end
     else
-        options_temp.verbose=0;
+        simoptions_temp.verbose=0;
     end
 
     
@@ -202,7 +202,7 @@ for ii=1:N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
-    if options_temp.verbose==1
+    if simoptions_temp.verbose==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
@@ -211,26 +211,26 @@ for ii=1:N_i
     % Check for some options that may depend on permanent type (already
     % dealt with verbose and agedependentgrids)
     if exist('options','var')
-        if isfield(options,'dynasty')
-            if isa(options.dynasty,'struct')
-                if isfield(options.dynasty, Names_i{ii})
-                    options_temp.dynasty=options.dynasty.(Names_i{ii});
+        if isfield(simoptions,'dynasty')
+            if isa(simoptions.dynasty,'struct')
+                if isfield(simoptions.dynasty, Names_i{ii})
+                    simoptions_temp.dynasty=simoptions.dynasty.(Names_i{ii});
                 else
-                    options_temp.dynasty=0; % the default value
+                    simoptions_temp.dynasty=0; % the default value
                 end
-            elseif prod(size(options.dynasty))~=1
-                options_temp.dynasty=options.dynasty(ii);
+            elseif prod(size(simoptions.dynasty))~=1
+                simoptions_temp.dynasty=simoptions.dynasty(ii);
             end
         end
-        if isfield(options,'parallel')
-            if isa(options.parallel, 'struct')
-                if isfield(options.parallel, Names_i{ii})
-                    options_temp.parallel=options.parallel.(Names_i{ii});
+        if isfield(simoptions,'parallel')
+            if isa(simoptions.parallel, 'struct')
+                if isfield(simoptions.parallel, Names_i{ii})
+                    simoptions_temp.parallel=simoptions.parallel.(Names_i{ii});
                 else
-                    options_temp.parallel=2; % the default value
+                    simoptions_temp.parallel=2; % the default value
                 end
-            elseif prod(size(options.parallel))~=1
-                options_temp.parallel=options.parallel(ii);
+            elseif prod(size(simoptions.parallel))~=1
+                simoptions_temp.parallel=simoptions.parallel(ii);
             end
         end
     end
@@ -266,7 +266,7 @@ for ii=1:N_i
         end
     end
     
-    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
+    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
     
 %     PTypeWeight_ii=StationaryDist.ptweights(ii);
     

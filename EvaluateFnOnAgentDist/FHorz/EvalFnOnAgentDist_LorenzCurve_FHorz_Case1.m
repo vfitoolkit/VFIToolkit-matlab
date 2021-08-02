@@ -1,4 +1,4 @@
-function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,npoints)
+function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,npoints,simoptions)
 % Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
 % to 100. Unless the optional npoints input is used in which case it will be
 % npoints-by-1.
@@ -47,7 +47,11 @@ if Parallel==2
             if fieldexists_ExogShockFn==1
                 if fieldexists_ExogShockFnParamNames==1
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for kk=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    end
+                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 else
                     [z_grid,~]=simoptions.ExogShockFn(jj);
                 end
@@ -143,7 +147,11 @@ else
                 if fieldexists_ExogShockFn==1
                     if fieldexists_ExogShockFnParamNames==1
                         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for kk=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                        end
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     else
                         [z_grid,~]=simoptions.ExogShockFn(jj);
                     end
@@ -200,7 +208,11 @@ else
                 if fieldexists_ExogShockFn==1
                     if fieldexists_ExogShockFnParamNames==1
                         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for kk=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                        end
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     else
                         [z_grid,~]=simoptions.ExogShockFn(jj);
                     end
