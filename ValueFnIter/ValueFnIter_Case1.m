@@ -387,7 +387,7 @@ if vfoptions.lowmemory==0
     
 elseif vfoptions.lowmemory==1    
     
-    V0=reshape(V0,[N_a,N_z]);
+%     V0=reshape(V0,[N_a,N_z]);
     
     if vfoptions.verbose==1
         disp('Starting Value Function')
@@ -414,7 +414,7 @@ elseif vfoptions.lowmemory==1
     
 elseif vfoptions.lowmemory==2
     
-    V0=reshape(V0,[N_a,N_z]);
+%     V0=reshape(V0,[N_a,N_z]);
     
     if vfoptions.verbose==1
         disp('Starting Value Function')
@@ -423,11 +423,11 @@ elseif vfoptions.lowmemory==2
     
     if n_d(1)==0
         if vfoptions.parallel==2
-            [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.tolerance);
+            [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.tolerance, vfoptions.verbose);
         end
     else
         if vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance);
+            [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance,vfoptions.verbose);
         end
     end
     

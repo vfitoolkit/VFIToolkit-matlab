@@ -13,39 +13,11 @@ Policy=zeros(N_a,N_z,N_j,'gpuArray'); %indexes the optimal choice for d given re
 %%
 if vfoptions.lowmemory>0 || Case2_Type==11
     special_n_z=ones(1,length(n_z));
-    
-    z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-    for i1=1:N_z
-        sub=zeros(1,length(n_z));
-        sub(1)=rem(i1-1,n_z(1))+1;
-        for ii=2:length(n_z)-1
-            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-        end
-        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-        
-        if length(n_z)>1
-            sub=sub+[0,cumsum(n_z(1:end-1))];
-        end
-        z_gridvals(i1,:)=z_grid(sub);
-    end
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
-    
-    a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-    for i2=1:N_a
-        sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1))+1;
-        for ii=2:length(n_a)-1
-            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-        end
-        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-        
-        if length(n_a)>1
-            sub=sub+[0,cumsum(n_a(1:end-1))];
-        end
-        a_gridvals(i2,:)=a_grid(sub);
-    end
+    a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
 end
 
 %%
@@ -63,7 +35,11 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if fieldexists_ExogShockFn==1
     if fieldexists_ExogShockFnParamNames==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        end
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
         z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
@@ -136,7 +112,11 @@ if Case2_Type==1 % phi_a'(d,a,z,z')
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});              
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
@@ -244,7 +224,11 @@ if Case2_Type==11 % phi_a'(d,a,z')
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
@@ -398,7 +382,11 @@ if Case2_Type==12 % phi_a'(d,a,z)
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
@@ -513,7 +501,11 @@ if Case2_Type==2  % phi_a'(d,z,z')
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
@@ -588,7 +580,11 @@ if Case2_Type==3  % phi_a'(d,z')
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
@@ -698,7 +694,11 @@ if Case2_Type==4  % phi_a'(d,a)
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);

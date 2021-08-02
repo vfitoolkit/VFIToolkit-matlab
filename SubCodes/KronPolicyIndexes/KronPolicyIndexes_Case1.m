@@ -60,7 +60,6 @@ else
             PolicyKron(2,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_z]);
         end
     else
-%     if options.parallel~=2
         PolicyTemp=zeros(2,N_a,N_z);
         for i=1:N_a
             for j=1:N_z

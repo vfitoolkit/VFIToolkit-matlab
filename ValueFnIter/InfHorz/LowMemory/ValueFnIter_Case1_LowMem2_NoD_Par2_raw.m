@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamsVec, Howards,Tolerance) % Verbose, a_grid, z_grid, 
+function [VKron, Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParamsVec, Howards,Tolerance,Verbose)
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -24,39 +24,11 @@ elseif l_a==2
 end
 
 %%
-z_gridvals=zeros(N_z,length(n_z),'gpuArray'); 
-for i1=1:N_z
-    sub=zeros(1,length(n_z));
-    sub(1)=rem(i1-1,n_z(1))+1;
-    for ii=2:length(n_z)-1
-        sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-    end
-    sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-    
-    if length(n_z)>1
-        sub=sub+[0,cumsum(n_z(1:end-1))];
-    end
-    z_gridvals(i1,:)=z_grid(sub);
-end
-% Somewhere in my codes I have a better way of implementing this z_gridvals when using gpu.
-% But this will do for now.
-a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-for i2=1:N_a
-    sub=zeros(1,length(n_a));
-    sub(1)=rem(i2-1,n_a(1))+1;
-    for ii=2:length(n_a)-1
-        sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-    end
-    sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-    
-    if length(n_a)>1
-        sub=sub+[0,cumsum(n_a(1:end-1))];
-    end
-    a_gridvals(i2,:)=a_grid(sub);
-end
-
+z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 is to create z_gridvals as matrix
+a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 is to create a_gridvals as matrix
 
 %%
+tempcounter=0;
 currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
@@ -98,13 +70,13 @@ while currdist>Tolerance
         end
     end
 
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
+    if Verbose==1
+        if rem(tempcounter,100)==0
+            disp(tempcounter)
+            disp(currdist)
+        end
+        tempcounter=tempcounter+1;
+    end
 
 end
 

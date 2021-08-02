@@ -30,7 +30,11 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 if isfield(vfoptions,'ExogShockFn')==1
     if isfield(vfoptions,'ExogShockFnParamNames')==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        end
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
         z_grid=gather(z_grid); pi_z=gather(pi_z);
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
@@ -95,7 +99,11 @@ for reverse_j=1:N_j-1
     if isfield(vfoptions,'ExogShockFn')==1
         if isfield(vfoptions,'ExogShockFnParamNames')==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
             z_grid=gather(z_grid); pi_z=gather(pi_z);
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
