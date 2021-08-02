@@ -56,9 +56,13 @@ if isfield(simoptions,'ExogShockFn')==1
     for jj=1:N_j
         if isfield(simoptions,'ExogShockFnParamNames')==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            [~,pi_z_jj]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for kk=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+            end
+            [~,pi_z_jj]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
         else
-            [~,pi_z_jj]=vfoptions.ExogShockFn(jj);
+            [~,pi_z_jj]=simoptions.ExogShockFn(jj);
         end
         cumsumpi_z(:,:,jj)=cumsum(pi_z_jj,2);
     end

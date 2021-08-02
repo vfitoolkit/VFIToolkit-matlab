@@ -34,9 +34,13 @@ if fieldexists_ExogShockFn==1
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});        
         else
-            [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+            [~,pi_z]=simoptions.ExogShockFn(jj);
         end
         pi_z_J(:,:,jj)=gather(pi_z);
     end

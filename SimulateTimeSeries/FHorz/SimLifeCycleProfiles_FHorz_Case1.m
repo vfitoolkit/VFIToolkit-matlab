@@ -101,7 +101,11 @@ if fieldexists_ExogShockFn==1
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for kk=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+            end
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
         else
             [z_grid,~]=simoptions.ExogShockFn(jj);
         end

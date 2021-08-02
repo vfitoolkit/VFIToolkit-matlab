@@ -99,43 +99,64 @@ elseif simoptions.parallel>2
 %         Ptranspose(:,az_c)=Ptranspose_az;
 %     end
 %     toc
+    fprintf('Here1 \n')
     pi_z=sparse(gather(pi_z));
     
+    fprintf('Here2 \n')
     if N_d==0 %length(n_d)==1 && n_d(1)==0
         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
     else
         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
     end
-    Ptranspose=sparse(N_a,N_a*N_z);
-    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+    PtransposeA=sparse(N_a,N_a*N_z);
+    PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
     
+    fprintf('Here3 \n')
 %     whos PolicyIndexesKron optaprime Ptranspose pi_z
-    Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+    try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
+        Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
+    catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
+        Ptranspose=kron(ones(N_z,1),PtransposeA);
+        for ii=1:N_z
+            Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
+        end
+    end
     
+    fprintf('Here4 \n')
     % Now add the part relating to EntryExit2, namely remove the ExitProb
     % share, and add them in based on EntryDist.
-    Ptranspose=(1-ExitProb)*Ptranspose+ExitProb*(sparse(EntryDist)*ones(1,N_a*N_z));
+    
+    Ptranspose=(1-ExitProb)*Ptranspose+ExitProb*(sparse(EntryDist)*sparse(1,N_a*N_z));
     % Note that ExitProb is also the mass of the entrants.
+    
+    fprintf('Here5 \n')
+    
 end
 
 
 %% The rest is essentially the same regardless of which simoption.parallel is being used
 %SteadyStateDistKron=ones(N_a*N_z,1)/(N_a*N_z); % This line was handy when checking/debugging. Have left it here.
-if simoptions.parallel==2
-    SteadyStateDistKronOld=zeros(N_a*N_z,1,'gpuArray');
-else
-    SteadyStateDistKronOld=zeros(N_a*N_z,1);
+if simoptions.parallel<2
+    StationaryDistKronOld=zeros(N_a*N_z,1);
+elseif simoptions.parallel==2
+    StationaryDistKronOld=zeros(N_a*N_z,1,'gpuArray');
+elseif simoptions.parallel>2
+    StationaryDistKronOld=sparse(N_a*N_z,1);
 end
-SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
+
+whos StationaryDistKron
+whos StationaryDistKronOld
+
+SScurrdist=sum(abs(StationaryDistKron-StationaryDistKronOld));
 SScounter=0;
 while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
     
     for jj=1:100
         StationaryDistKron=Ptranspose*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
     end
-    SteadyStateDistKronOld=StationaryDistKron;
+    StationaryDistKronOld=StationaryDistKron;
     StationaryDistKron=Ptranspose*StationaryDistKron; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
-    SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
+    SScurrdist=sum(abs(StationaryDistKron-StationaryDistKronOld));
     
     SScounter=SScounter+1;
     if simoptions.verbose==1
@@ -145,6 +166,7 @@ while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
     end
 end
 
+% Note to self. I have to do this as cannot use reshape() on sparse matrices
 if simoptions.parallel>=3 % Solve with sparse matrix
     StationaryDistKron=full(StationaryDistKron);
     if simoptions.parallel==4 % Solve with sparse matrix, but return answer on gpu.

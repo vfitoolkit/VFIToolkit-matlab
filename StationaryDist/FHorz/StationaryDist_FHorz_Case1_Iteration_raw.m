@@ -21,7 +21,11 @@ if simoptions.parallel<2
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
                 [~,pi_z]=simoptions.ExogShockFn(jj);
             end
@@ -63,7 +67,11 @@ elseif simoptions.parallel==2 % Using the GPU
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});                
                 pi_z=gpuArray(pi_z);
             else
                 [~,pi_z]=simoptions.ExogShockFn(jj);
@@ -97,7 +105,11 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
         if fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
                 [~,pi_z]=simoptions.ExogShockFn(jj);
             end

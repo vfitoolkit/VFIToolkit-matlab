@@ -96,7 +96,6 @@ elseif simoptions.parallel>2
     PtransposeA=sparse(N_a,N_a*N_z);
     PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
     
-    
 %     whos PolicyIndexesKron optaprime PtransposeA pi_z
     
     try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.

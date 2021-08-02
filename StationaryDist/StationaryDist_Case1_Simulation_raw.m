@@ -190,4 +190,8 @@ if MoveSSDKtoGPU==1
     StationaryDistKron=gpuArray(StationaryDistKron);
 end
 
+if simoptions.parallel>3
+    StationaryDistKron=sparse(StationaryDistKron);
+end
+
 end

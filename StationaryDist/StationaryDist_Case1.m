@@ -100,7 +100,12 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
     simoptions.seedpoint=ind2sub_homemade([N_a,N_z],seedpoint_index); % Would obviously be better initial guess to do a bunch of different simulations for variety of points in the 'EntryDist'.
     simoptions.simperiods=10^3;
     simoptions.burnin=0;
-    StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+    if simoptions.parallel<=2
+        StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+    elseif simoptions.parallel>2
+        StationaryDistKron=sparse(StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions));
+    end
+%     whos StationaryDistKron
     if simoptions.verbose==1
         fprintf('Note: simoptions.iterate=1 is imposed/required when using simoptions.agententryandexit=2 \n')
     end
