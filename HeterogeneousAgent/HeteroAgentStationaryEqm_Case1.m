@@ -91,13 +91,6 @@ if isfield(simoptions,'agententryandexit')==1
         [p_eqm,p_eqm_index, GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
         % The EntryExit codes already set p_eqm as a structure.
         return
-        % FOLLOWING IS NOT ACTUALLY USED. 'Mixture of both endogenous and
-        % exogenous exit.' is dealt with as agententryandexit==1 and
-        % endogenousexit==2.
-%     elseif simoptions.agententryandexit==2 % Mixture of both endogenous and exogenous exit.
-%         [p_eqm,p_eqm_index, GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit2(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
-%         % The EntryExit codes already set p_eqm as a structure.
-%         return
     end
 end
 

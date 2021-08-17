@@ -11,6 +11,22 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+if exist('Parallel','var')==0
+    if isa(StationaryDist, 'gpuArray')
+        Parallel=2;
+    else
+        Parallel=1;
+    end
+else
+    if isempty(Parallel)
+        if isa(StationaryDist, 'gpuArray')
+            Parallel=2;
+        else
+            Parallel=1;
+        end
+    end
+end
+
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 

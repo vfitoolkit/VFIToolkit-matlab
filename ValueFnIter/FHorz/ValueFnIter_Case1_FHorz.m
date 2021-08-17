@@ -107,7 +107,7 @@ if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'None')
         % Just ignore and will then continue on.
     elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-       [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+       [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
        return
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
         if isfield(vfoptions,'dynasty')==0

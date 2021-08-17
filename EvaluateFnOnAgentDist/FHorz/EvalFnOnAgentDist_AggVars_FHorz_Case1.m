@@ -17,10 +17,19 @@ if exist('Parallel','var')==0
     else
         Parallel=1;
     end
+else
+    if isempty(Parallel)
+        if isa(StationaryDist, 'gpuArray')
+            Parallel=2;
+        else
+            Parallel=1;
+        end
+    end
 end
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if Parallel==2
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
@@ -32,19 +41,24 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
     
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
+    tic;
     for ii=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
             if fieldexists_ExogShockFn==1
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for kk=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                if fieldexists_pi_z_J==0
+                    if fieldexists_ExogShockFnParamNames==1
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for kk=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                        end
+                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                    else
+                        [z_grid,~]=simoptions.ExogShockFn(jj);
                     end
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 else
-                    [z_grid,~]=simoptions.ExogShockFn(jj);
+                    z_grid=simoptions.z_grid_J(:,jj);
                 end
             end
             % Includes check for cases in which no parameters are actually required
@@ -78,15 +92,19 @@ else
         if l_d==0
             for jj=1:N_j
                 if fieldexists_ExogShockFn==1
-                    if fieldexists_ExogShockFnParamNames==1
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for kk=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    if fieldexists_pi_z_J==0
+                        if fieldexists_ExogShockFnParamNames==1
+                            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                            for kk=1:length(ExogShockFnParamsVec)
+                                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                            end
+                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                        else
+                            [z_grid,~]=simoptions.ExogShockFn(jj);
                         end
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     else
-                        [z_grid,~]=simoptions.ExogShockFn(jj);
+                        z_grid=simoptions.z_grid_J(:,jj);
                     end
                     z_gridvals=CreateGridvals(n_z,z_grid,2);
                 end
@@ -109,15 +127,19 @@ else
         else
             for jj=1:N_j
                 if fieldexists_ExogShockFn==1
-                    if fieldexists_ExogShockFnParamNames==1
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for kk=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                    if fieldexists_pi_z_J==0
+                        if fieldexists_ExogShockFnParamNames==1
+                            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                            for kk=1:length(ExogShockFnParamsVec)
+                                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+                            end
+                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                        else
+                            [z_grid,~]=simoptions.ExogShockFn(jj);
                         end
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     else
-                        [z_grid,~]=simoptions.ExogShockFn(jj);
+                        z_grid=simoptions.z_grid_J(:,jj);
                     end
                     z_gridvals=CreateGridvals(n_z,z_grid,2);
                 end

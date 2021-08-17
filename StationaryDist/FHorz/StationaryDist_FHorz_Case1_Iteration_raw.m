@@ -9,8 +9,7 @@ function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDi
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-
-% eval('fieldexists_ImposeExogShockDist=1;simoptions.ImposeExogShockDist;','fieldexists_ImposeExogShockDist=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if simoptions.parallel<2
     
@@ -19,22 +18,21 @@ if simoptions.parallel<2
     
     for jj=1:(N_j-1)
         if fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            if fieldexists_pi_z_J==0
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for ii=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                    end
+                    [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                else
+                    [~,pi_z]=simoptions.ExogShockFn(jj);
                 end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
+                pi_z=simoptions.pi_z_J(:,:,jj);
             end
         end
-%         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
-%             if simoptions.ImposeExogShockDistWhen(jj+1)>0 % Next period is a period in which a distribution on the exogenous shock is imposed.
-%                 pi_z=ones(N_z,1)*(simoptions.ImposeExogShockDist(:,simoptions.ImposeExogShockDistWhen(jj+1)))';
-%             end
-%         end
            
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
@@ -65,17 +63,21 @@ elseif simoptions.parallel==2 % Using the GPU
     % optimal policy function and the transition fn for exogenous shocks)
     for jj=1:(N_j-1)
         if fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            if fieldexists_pi_z_J==0
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for ii=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                    end
+                    [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                    pi_z=gpuArray(pi_z);
+                else
+                    [~,pi_z]=simoptions.ExogShockFn(jj);
+                    pi_z=gpuArray(pi_z);
                 end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});                
-                pi_z=gpuArray(pi_z);
             else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-                pi_z=gpuArray(pi_z);
+                pi_z=simoptions.pi_z_J(:,:,jj);
             end
         end
 %         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
@@ -103,22 +105,21 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
     
     for jj=1:(N_j-1)
         if fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            if fieldexists_pi_z_J==0
+                if fieldexists_ExogShockFnParamNames==1
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for ii=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                    end
+                    [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                else
+                    [~,pi_z]=simoptions.ExogShockFn(jj);
                 end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
+                pi_z=simoptions.pi_z_J(:,:,jj);
             end
         end
-%         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
-%             if simoptions.ImposeExogShockDistWhen(jj+1)>0 % Next period is a period in which a distribution on the exogenous shock is imposed.
-%                 pi_z=ones(N_z,1)*(simoptions.ImposeExogShockDist(:,simoptions.ImposeExogShockDistWhen(jj+1)))';
-%             end
-%         end
         
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]

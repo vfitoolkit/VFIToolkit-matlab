@@ -7,7 +7,7 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
-% N_z=prod(n_z);
+N_z=prod(n_z);
 N_p=prod(n_p);
 
 l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
@@ -67,6 +67,40 @@ else
     if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
+end
+
+%%
+% If 'exogenous shock fn' is used, then precompute it to save evaluating it numerous times
+% Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
+if isfield(vfoptions,'ExogShockFn')
+    overlap=0;
+    for ii=1:length(vfoptions.ExogShockFnParamNames)
+        if strcmp(vfoptions.ExogShockFnParamNames{ii},GEPriceParamNames)
+            overlap=1;
+        end
+    end
+    % If ExogShockFn does not depend on any of the GEPriceParamNames, then
+    % we can simply create it now rather than within each 'subfn' or 'p_grid'
+    pi_z_J=zeros(N_z,N_z,N_j);
+    for jj=1:N_j
+        if isfield(vfoptions,'ExogShockFnParamNames')
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        else
+            [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+        end
+        pi_z_J(:,:,jj)=gather(pi_z);
+        z_grid_J(:,jj)=gather(z_grid);
+    end
+    % Now store them in vfoptions and simoptions
+    vfoptions.pi_z_J=pi_z_J;
+    vfoptions.z_grid_J=z_grid_J;
+    simoptions.pi_z_J=pi_z_J;
+    simoptions.z_grid_J=z_grid_J;
 end
 
 %%

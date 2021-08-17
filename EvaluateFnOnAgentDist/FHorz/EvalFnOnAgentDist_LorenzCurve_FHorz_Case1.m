@@ -12,6 +12,14 @@ if exist('Parallel','var')==0
     else
         Parallel=1;
     end
+else
+    if isempty(Parallel)
+        if isa(StationaryDist, 'gpuArray')
+            Parallel=2;
+        else
+            Parallel=1;
+        end
+    end
 end
 if exist('npoints','var')==0
     npoints=100;

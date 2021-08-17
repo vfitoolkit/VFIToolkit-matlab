@@ -12,6 +12,7 @@ if exist('vfoptions','var')==0
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
+        vfoptions.solnmethod='purediscretization_relativeVFI'; % Has only been implemented on the GPU
     end
     if isfield(vfoptions,'returnmatrix')==0
         if isa(ReturnFn,'function_handle')==1
@@ -319,133 +320,315 @@ end
 
 
 %%
-if vfoptions.lowmemory==0
-    
-    %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
-    % Since the return function is independent of time creating it once and
-    % then using it every iteration is good for speed, but it does use a
-    % lot of memory.
-
-    if vfoptions.verbose==1
-        disp('Creating return fn matrix')
-        tic;
-        if vfoptions.returnmatrix==0
-            fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
+if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
+    % Note: have only implemented Relative VFI on the GPU
+    if vfoptions.lowmemory==0
+        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+        % Since the return function is independent of time creating it once and
+        % then using it every iteration is good for speed, but it does use a
+        % lot of memory.
+        
+        if vfoptions.verbose==1
+            disp('Creating return fn matrix')
+            tic;
+            if vfoptions.returnmatrix==0
+                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
+            end
         end
-    end
-    
-    if isfield(vfoptions,'statedependentparams')
-        if vfoptions.returnmatrix==2 % GPU
-            if n_SDP==3
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-            elseif n_SDP==2
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
-            elseif n_SDP==1
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+        
+        if isfield(vfoptions,'statedependentparams')
+            if vfoptions.returnmatrix==2 % GPU
+                if n_SDP==3
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+                elseif n_SDP==2
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+                elseif n_SDP==1
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+                end
+            else
+                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
+                dbstack
+            end
+        else % Following is the normal/standard behavior
+            if vfoptions.returnmatrix==0
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+            elseif vfoptions.returnmatrix==1
+                ReturnMatrix=ReturnFn;
+            elseif vfoptions.returnmatrix==2 % GPU
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+            end
+        end
+        
+        if vfoptions.verbose==1
+            time=toc;
+            fprintf('Time to create return fn matrix: %8.4f \n', time)
+            disp('Starting Value Function')
+            tic;
+        end
+        
+        %%
+        if n_d(1)==0
+            if vfoptions.parallel==2 % On GPU
+                [VKron,Policy]=ValueFnIterRel_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
             end
         else
-            fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
-            dbstack
-        end
-    else % Following is the normal/standard behavior
-        if vfoptions.returnmatrix==0
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        elseif vfoptions.returnmatrix==1
-            ReturnMatrix=ReturnFn;
-        elseif vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+            if vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=ValueFnIterRel_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            end
         end
     end
-    
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create return fn matrix: %8.4f \n', time)
-        disp('Starting Value Function')
-        tic;
-    end
+end
+
+%%
+if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI') 
+    % Note: have only implemented Endogenous VFI on the GPU
+    if vfoptions.lowmemory==0
+        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+        % Since the return function is independent of time creating it once and
+        % then using it every iteration is good for speed, but it does use a
+        % lot of memory.
         
-    %%
-%     V0=reshape(V0,[N_a,N_z]);    
-    
-    if n_d(1)==0
-        if vfoptions.parallel==0     % On CPU
-            [VKron,Policy]=ValueFnIter_Case1_NoD_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        elseif vfoptions.parallel==1 % On Parallel CPU
-            [VKron,Policy]=ValueFnIter_Case1_NoD_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        elseif vfoptions.parallel==2 % On GPU
-            [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
+        if vfoptions.verbose==1
+            disp('Creating return fn matrix')
+            tic;
+            if vfoptions.returnmatrix==0
+                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
+            end
         end
-    else
-        if vfoptions.parallel==0 % On CPU
-            [VKron, Policy]=ValueFnIter_Case1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-        elseif vfoptions.parallel==1 % On Parallel CPU
-            [VKron, Policy]=ValueFnIter_Case1_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-        elseif vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+        
+        if isfield(vfoptions,'statedependentparams')
+            if vfoptions.returnmatrix==2 % GPU
+                if n_SDP==3
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+                elseif n_SDP==2
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+                elseif n_SDP==1
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+                end
+            else
+                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
+                dbstack
+            end
+        else % Following is the normal/standard behavior
+            if vfoptions.returnmatrix==0
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+            elseif vfoptions.returnmatrix==1
+                ReturnMatrix=ReturnFn;
+            elseif vfoptions.returnmatrix==2 % GPU
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+            end
         end
-    end
-    
-elseif vfoptions.lowmemory==1    
-    
-%     V0=reshape(V0,[N_a,N_z]);
-    
-    if vfoptions.verbose==1
-        disp('Starting Value Function')
-        tic;
-    end
-    
-    if n_d(1)==0
-        if vfoptions.parallel==0
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        elseif vfoptions.parallel==1
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.verbose);
-        elseif vfoptions.parallel==2 % On GPU
-            [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        
+        if vfoptions.verbose==1
+            time=toc;
+            fprintf('Time to create return fn matrix: %8.4f \n', time)
+            disp('Starting Value Function')
+            tic;
         end
-    else
-        if vfoptions.parallel==0
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-        elseif vfoptions.parallel==1
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.verbose);
-        elseif vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-        end
-    end
-    
-elseif vfoptions.lowmemory==2
-    
-%     V0=reshape(V0,[N_a,N_z]);
-    
-    if vfoptions.verbose==1
-        disp('Starting Value Function')
-        tic;
-    end
-    
-    if n_d(1)==0
-        if vfoptions.parallel==2
-            [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.tolerance, vfoptions.verbose);
-        end
-    else
-        if vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance,vfoptions.verbose);
+        
+        %%
+        if n_d(1)==0
+            if vfoptions.parallel==2 % On GPU
+                [VKron,Policy]=ValueFnIterEndo_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
+            end
+        else
+            if vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=ValueFnIterEndo_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            end
         end
     end
-    
-elseif vfoptions.lowmemory==3 % Specifically for the Hayek method where we include prices
-    V0=reshape(V0,[N_a,N_z]);
-    
-    if vfoptions.verbose==1
-        disp('Starting Value Function')
-        tic;
-    end
-    
-    if n_d(1)==0
-        if vfoptions.parallel==2
-            [VKron,Policy]=ValueFnIter_Case1_LowMem3_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.lowmemorydimensions);
+end
+
+%%
+if strcmp(vfoptions.solnmethod,'purediscretization') 
+    if vfoptions.lowmemory==0
+        
+        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+        % Since the return function is independent of time creating it once and
+        % then using it every iteration is good for speed, but it does use a
+        % lot of memory.
+        
+        if vfoptions.verbose==1
+            disp('Creating return fn matrix')
+            tic;
+            if vfoptions.returnmatrix==0
+                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
+            end
         end
-    else
-        if vfoptions.parallel==2 % On GPU
-            [VKron, Policy]=ValueFnIter_Case1_LowMem3_Par2_raw(V0,   n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec , vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.lowmemorydimensions);
+        
+        if isfield(vfoptions,'statedependentparams')
+            if vfoptions.returnmatrix==2 % GPU
+                if n_SDP==3
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+                elseif n_SDP==2
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+                elseif n_SDP==1
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+                end
+            else
+                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
+                dbstack
+            end
+        else % Following is the normal/standard behavior
+            if vfoptions.returnmatrix==0
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+            elseif vfoptions.returnmatrix==1
+                ReturnMatrix=ReturnFn;
+            elseif vfoptions.returnmatrix==2 % GPU
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+            end
+        end
+        
+        if vfoptions.verbose==1
+            time=toc;
+            fprintf('Time to create return fn matrix: %8.4f \n', time)
+            disp('Starting Value Function')
+            tic;
+        end
+        
+        %%
+        %     V0=reshape(V0,[N_a,N_z]);
+        
+        if n_d(1)==0
+            if vfoptions.parallel==0     % On CPU
+                [VKron,Policy]=ValueFnIter_Case1_NoD_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            elseif vfoptions.parallel==1 % On Parallel CPU
+                [VKron,Policy]=ValueFnIter_Case1_NoD_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            elseif vfoptions.parallel==2 % On GPU
+                [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
+            end
+        else
+            if vfoptions.parallel==0 % On CPU
+                [VKron, Policy]=ValueFnIter_Case1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            elseif vfoptions.parallel==1 % On Parallel CPU
+                [VKron, Policy]=ValueFnIter_Case1_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            elseif vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=ValueFnIter_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            end
+        end
+        
+    elseif vfoptions.lowmemory==1
+        
+        %     V0=reshape(V0,[N_a,N_z]);
+        
+        if vfoptions.verbose==1
+            disp('Starting Value Function')
+            tic;
+        end
+        
+        if n_d(1)==0
+            if vfoptions.parallel==0
+                [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            elseif vfoptions.parallel==1
+                [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.verbose);
+            elseif vfoptions.parallel==2 % On GPU
+                [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            end
+        else
+            if vfoptions.parallel==0
+                [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            elseif vfoptions.parallel==1
+                [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.verbose);
+            elseif vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            end
+        end
+        
+    elseif vfoptions.lowmemory==2
+        
+        %     V0=reshape(V0,[N_a,N_z]);
+        
+        if vfoptions.verbose==1
+            disp('Starting Value Function')
+            tic;
+        end
+        
+        if n_d(1)==0
+            if vfoptions.parallel==2
+                [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.tolerance, vfoptions.verbose);
+            end
+        else
+            if vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance,vfoptions.verbose);
+            end
+        end
+        
+    elseif vfoptions.lowmemory==3 % Specifically for the Hayek method where we include prices
+        V0=reshape(V0,[N_a,N_z]);
+        
+        if vfoptions.verbose==1
+            disp('Starting Value Function')
+            tic;
+        end
+        
+        if n_d(1)==0
+            if vfoptions.parallel==2
+                [VKron,Policy]=ValueFnIter_Case1_LowMem3_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.lowmemorydimensions);
+            end
+        else
+            if vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=ValueFnIter_Case1_LowMem3_Par2_raw(V0,   n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec , vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.lowmemorydimensions);
+            end
+        end
+    end
+end
+
+%%
+if strcmp(vfoptions.solnmethod,'purediscretization_PFI') 
+    % Note: have only implemented PFI on the GPU
+    if vfoptions.lowmemory==0
+        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
+        % Since the return function is independent of time creating it once and
+        % then using it every iteration is good for speed, but it does use a
+        % lot of memory.
+        
+        if vfoptions.verbose==1
+            disp('Creating return fn matrix')
+            tic;
+            if vfoptions.returnmatrix==0
+                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
+            end
+        end
+        
+        if isfield(vfoptions,'statedependentparams')
+            if vfoptions.returnmatrix==2 % GPU
+                if n_SDP==3
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+                elseif n_SDP==2
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+                elseif n_SDP==1
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+                end
+            else
+                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
+                dbstack
+            end
+        else % Following is the normal/standard behavior
+            if vfoptions.returnmatrix==0
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+            elseif vfoptions.returnmatrix==1
+                ReturnMatrix=ReturnFn;
+            elseif vfoptions.returnmatrix==2 % GPU
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+            end
+        end
+        
+        if vfoptions.verbose==1
+            time=toc;
+            fprintf('Time to create return fn matrix: %8.4f \n', time)
+            disp('Starting Value Function')
+            tic;
+        end
+        
+        %%
+        if n_d(1)==0
+            if vfoptions.parallel==2 % On GPU
+                [VKron,Policy]=PolicyFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
+            end
+        else
+            if vfoptions.parallel==2 % On GPU
+                [VKron, Policy]=PolicyFnIter_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            end
         end
     end
 end
