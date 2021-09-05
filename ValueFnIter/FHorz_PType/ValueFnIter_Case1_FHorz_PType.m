@@ -1,18 +1,39 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-%[V, PolicyIndexes]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,n_i,N_j, pi_z, beta_j, FmatrixFn_ij)
+function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
 % N_z=prod(n_z);
 % N_i=prod(n_i);
 
-for ii=1:N_i
-    if exist('vfoptions','var')==1
-        if isfield(vfoptions,'verbose')==1
-            if vfoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, N_i)
-            end
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
+    for ii=2:N_i
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
         end
+    end
+end
+
+for ii=1:N_i
+    % First set up vfoptions
+    if exist('vfoptions','var')
+        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+        if ~isfield(vfoptions_temp,'verbose')
+            vfoptions_temp.verbose=0;
+        end
+    else
+        vfoptions_temp.verbose=0;
+    end 
+    
+    if vfoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i',ii, N_i)
     end
     
     % Go through everything which might be dependent on fixed type (PType)
@@ -73,17 +94,10 @@ for ii=1:N_i
         ReturnFnParamNames_temp=ReturnFnParamNames.(names{ii});
     end
         
-    
-    if exist('vfoptions','var')==1 % check whether vfoptions was inputted
-        [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions);
-    else
-        [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
-    end
-    
-    ptstring=['pt',num2str(ii)];
-    
-    V.(ptstring)=gather(V_ii); % GPU memory is limited, so switch solutions to the cpu
-    Policy.(ptstring)=gather(Policy_ii);  % GPU memory is limited, so switch solutions to the cpu
+    [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions);
+        
+    V.(Names_i{ii})=gather(V_ii); % GPU memory is limited, so switch solutions to the cpu
+    Policy.(Names_i{ii})=gather(Policy_ii);  % GPU memory is limited, so switch solutions to the cpu
     clear V_ii Policy_ii
 
 end

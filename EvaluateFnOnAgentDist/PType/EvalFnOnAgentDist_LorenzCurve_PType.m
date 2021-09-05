@@ -49,24 +49,15 @@ end
 
 for ii=1:N_i
     
-    if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        if ~isempty(options)
-            options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
-            if length(options.verbose)==1
-                if options.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                end
-            else
-                if options.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                    options_temp.verbose=options.verbose(ii);
-                end
-            end
-        else % isempty(options)
-            options_temp.verbose=0;
-        end
+    % First set up simoptions
+    if exist('simoptions','var')
+        simoptions_temp=PType_Options(simoptions,Names_i,ii);
     else
-        options_temp.verbose=0;
+        simoptions_temp.verbose=0;
+    end 
+    
+    if simoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i',ii, N_i)
     end
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
@@ -218,7 +209,7 @@ for ii=1:N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
-    if options_temp.verbose==1
+    if simoptions_temp.verbose==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
@@ -230,40 +221,40 @@ for ii=1:N_i
         if isfield(options,'dynasty')
             if isa(options.dynasty,'struct')
                 if isfield(options.dynasty, Names_i{ii})
-                    options_temp.dynasty=options.dynasty.(Names_i{ii});
+                    simoptions_temp.dynasty=options.dynasty.(Names_i{ii});
                 else
-                    options_temp.dynasty=0; % the default value
+                    simoptions_temp.dynasty=0; % the default value
                 end
             elseif prod(size(options.dynasty))~=1
-                options_temp.dynasty=options.dynasty(ii);
+                simoptions_temp.dynasty=options.dynasty(ii);
             end
         end
         if isfield(options,'parallel')
             if isa(options.parallel, 'struct')
                 if isfield(options.parallel, Names_i{ii})
-                    options_temp.parallel=options.parallel.(Names_i{ii});
+                    simoptions_temp.parallel=options.parallel.(Names_i{ii});
                 else
-                    options_temp.parallel=2; % the default value
+                    simoptions_temp.parallel=2; % the default value
                 end
             elseif prod(size(options.parallel))~=1
-                options_temp.parallel=options.parallel(ii);
+                simoptions_temp.parallel=options.parallel(ii);
             end
         end
         if isfield(options,'agedependentgrids')
             if isa(options.agedependentgrids, 'struct')
                 if isfield(options.agedependentgrids, Names_i{ii})
-                    options_temp.agedependentgrids=options.agedependentgrids.(Names_i{ii});
+                    simoptions_temp.agedependentgrids=options.agedependentgrids.(Names_i{ii});
                 else
                     % The current permanent type does not use age dependent grids.
-                    options_temp=rmfield(options_temp,'agedependentgrids');
+                    simoptions_temp=rmfield(simoptions_temp,'agedependentgrids');
                 end
             else
                 temp=size(options.agedependentgrids);
                 if temp(1)>1 % So different permanent types use different settings for age dependent grids
                     if prod(temp(ii,:))>0
-                        options_temp.agedependentgrids=options.agedependentgrids(ii,:);
+                        simoptions_temp.agedependentgrids=options.agedependentgrids(ii,:);
                     else
-                        options_temp=rmfield(options_temp,'agedependentgrids');
+                        simoptions_temp=rmfield(simoptions_temp,'agedependentgrids');
                     end
                     %                 else
                     %                     % do nothing
@@ -273,7 +264,7 @@ for ii=1:N_i
         % Now that we have figured out if we are using agedependentgrids
         % and stored this in options_temp we can use this to figure out if
         % we need AgeDependentGridParamNames_temp
-        if isfield(options_temp,'agedependentgrids')
+        if isfield(simoptions_temp,'agedependentgrids')
             if isa(AgeDependentGridParamNames.d_grid,'struct')
                 AgeDependentGridParamNames_temp.d_grid=AgeDependentGridParamNames.d_grid.(Names_i{ii}); % Different grids by permanent type
             else

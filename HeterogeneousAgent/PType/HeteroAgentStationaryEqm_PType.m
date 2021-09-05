@@ -103,59 +103,19 @@ for ii=1:PTypeStructure.N_i
     end
     PTypeStructure.iistr{ii}=iistr;
     
-    if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).vfoptions=vfoptions; % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(vfoptions,'verbose')==1
-            if length(vfoptions.verbose)==1
-                if vfoptions.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-                end
-            else
-                if vfoptions.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-                    PTypeStructure.(iistr).vfoptions.verbose=vfoptions.verbose(ii);
-                end
-            end
-        else
-        	PTypeStructure.(iistr).vfoptions.verbose=0;
-        end
-    else
-        PTypeStructure.(iistr).vfoptions.verbose=0;
+    if exist('vfoptions','var')
+        PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii);
     end
-    if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).simoptions=simoptions; % some simoptions will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(simoptions,'verbose')==1
-            if length(simoptions.verbose)==1
-                if simoptions.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-                end
-            else
-                if simoptions.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-                    PTypeStructure.(iistr).simoptions.verbose=simoptions.verbose(ii);
-                end
-            end
-        end
-    else
-        PTypeStructure.(iistr).simoptions.verbose=0;
+    if vfoptions.verbose==1
+        sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
     end
-    if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).vfoptions=options; % some options will differ by permanent type, will clean these up as we go before they are passed
-        if length(options.verbose)==1
-            if options.verbose==1
-                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-            end
-        else
-            if options.verbose(ii)==1
-                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-                PTypeStructure.(iistr).vfoptions.verbose=options.verbose(ii);
-            end
-        end
-    else
-        PTypeStructure.(iistr).vfoptions.verbose=0;
+     
+    if exist('simoptions','var')
+        PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii);
     end
-    
-    
+    if simoptions.verbose==1
+        sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
+    end    
         
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -276,41 +236,8 @@ for ii=1:PTypeStructure.N_i
     % If using 'agedependentgrids' then pi_z will actually be the AgeDependentGridParamNames, which is a structure. 
     % Following gets complicated as pi_z being a structure could be because
     % it depends just on age, or on permanent type, or on both.
-    if exist('vfoptions','var')
-        if isfield(vfoptions,'agedependentgrids')
-            if isa(vfoptions.agedependentgrids, 'struct')
-                if isfield(vfoptions.agedependentgrids, Names_i{ii})
-                    PTypeStructure.(iistr).vfoptions.agedependentgrids=vfoptions.agedependentgrids.(Names_i{ii});
-                    PTypeStructure.(iistr).simoptions.agedependentgrids=simoptions.agedependentgrids.(Names_i{ii});
-                    % In this case AgeDependentGridParamNames must be set up as, e.g., AgeDependentGridParamNames.ptype1.d_grid
-                    PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
-                else
-                    % The current permanent type does not use age dependent grids.
-                    PTypeStructure.(iistr).vfoptions=rmfield(PTypeStructure.(iistr).vfoptions,'agedependentgrids');
-                    PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'agedependentgrids');
-                    % Different grids by permanent type (some of them must be using agedependentgrids even though not the current permanent type), but not depending on age.
-                    PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
-                end
-            else
-                temp=size(vfoptions.agedependentgrids);
-                if temp(1)>1 % So different permanent types use different settings for age dependent grids
-                    if prod(temp(ii,:))>0
-                        PTypeStructure.(iistr).vfoptions.agedependentgrids=vfoptions.agedependentgrids(ii,:);
-                        PTypeStructure.(iistr).simoptions.agedependentgrids=simoptions.agedependentgrids(ii,:);
-                    else
-                        PTypeStructure.(iistr).vfoptions=rmfield(PTypeStructure.(iistr).vfoptions,'agedependentgrids');
-                        PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'agedependentgrids');
-                    end
-                    % In this case AgeDependentGridParamNames must be set up as, e.g., AgeDependentGridParamNames.ptype1.d_grid
-                    PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
-                else % Grids depend on age, but not on permanent type (at least the function does not, you could set it up so that this is handled by the same function but a parameter whose value differs by permanent type
-                    PTypeStructure.(iistr).pi_z=pi_z;
-                end
-            end
-        elseif isa(pi_z,'struct')
-            PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age.
-        end
-    elseif isa(pi_z,'struct')
+
+    if isa(pi_z,'struct')
         PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     end
     
@@ -388,139 +315,6 @@ for ii=1:PTypeStructure.N_i
         end
     end
     
-    
-    % Check for some vfoptions that may depend on permanent type (already
-    % dealt with verbose and agedependentgrids)
-    if exist('vfoptions','var')
-        if isfield(vfoptions,'dynasty')
-            if isa(vfoptions.dynasty,'struct')
-                if isfield(vfoptions.dynasty, Names_i{ii})
-                    PTypeStructure.(iistr).vfoptions.dynasty=vfoptions.dynasty.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).vfoptions.dynasty=0; % the default value
-                end
-            elseif prod(size(vfoptions.dynasty))~=1
-                PTypeStructure.(iistr).vfoptions.dynasty=vfoptions.dynasty(ii);
-            end
-        end
-        if isfield(vfoptions,'lowmemory')
-            if isa(vfoptions.lowmemory, 'struct')
-                if isfield(vfoptions.lowmemory, Names_i{ii})
-                    PTypeStructure.(iistr).vfoptions.lowmemory=vfoptions.lowmemory.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).vfoptions.lowmemory=0; % the default value
-                end
-            elseif prod(size(vfoptions.lowmemory))~=1
-                PTypeStructure.(iistr).vfoptions.lowmemory=vfoptions.lowmemory(ii);
-            end
-        end
-        if isfield(vfoptions,'parallel')
-            if isa(vfoptions.parallel, 'struct')
-                if isfield(vfoptions.parallel, Names_i{ii})
-                    PTypeStructure.(iistr).vfoptions.parallel=vfoptions.parallel.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).vfoptions.parallel=2; % the default value
-                end
-            elseif prod(size(vfoptions.parallel))~=1
-                PTypeStructure.(iistr).vfoptions.parallel=vfoptions.parallel(ii);
-            end
-        end
-        if isfield(vfoptions,'tolerance')
-            if isa(vfoptions.tolerance, 'struct')
-                if isfield(vfoptions.tolerance, Names_i{ii})
-                    PTypeStructure.(iistr).vfoptions.tolerance=vfoptions.tolerance.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).vfoptions.tolerance=1; % the default value
-                end
-            elseif prod(size(vfoptions.tolerance))~=1
-                PTypeStructure.(iistr).vfoptions.nsims=vfoptions.tolerance(ii);
-            end
-        end
-    end
-    
-    % Check for some simoptions that may depend on permanent type (already
-    % dealt with verbose and agedependentgrids)
-    if exist('simoptions','var')
-        if isfield(simoptions,'dynasty')
-            if isa(simoptions.dynasty,'struct')
-                if isfield(simoptions.dynasty, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.dynasty=simoptions.dynasty.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.dynasty=0; % the default value
-                end
-            elseif prod(size(simoptions.dynasty))~=1
-                PTypeStructure.(iistr).simoptions.dynasty=simoptions.dynasty(ii);
-            end
-        end
-        if isfield(simoptions,'lowmemory')
-            if isa(simoptions.lowmemory, 'struct')
-                if isfield(simoptions.lowmemory, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.lowmemory=simoptions.lowmemory.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.lowmemory=0; % the default value
-                end
-            elseif prod(size(simoptions.lowmemory))~=1
-                PTypeStructure.(iistr).simoptions.lowmemory=simoptions.lowmemory(ii);
-            end
-        end
-        if isfield(simoptions,'parallel')
-            if isa(simoptions.parallel, 'struct')
-                if isfield(simoptions.parallel, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.parallel=simoptions.parallel.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.parallel=3; % the default value
-                end
-            elseif prod(size(simoptions.parallel))~=1
-                PTypeStructure.(iistr).simoptions.parallel=simoptions.parallel(ii);
-            end
-        else
-            PTypeStructure.(iistr).simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-        end
-        if isfield(simoptions,'nsims')
-            if isa(simoptions.nsims, 'struct')
-                if isfield(simoptions.nsims, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.nsims=simoptions.nsims.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.nsims=10^4; % the default value
-                end
-            elseif prod(size(simoptions.nsims))~=1
-                PTypeStructure.(iistr).simoptions.nsims=simoptions.nsims(ii);
-            end
-        end
-        if isfield(simoptions,'ncores')
-            if isa(simoptions.ncores, 'struct')
-                if isfield(simoptions.ncores, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.ncores=simoptions.ncores.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.ncores=1; % the default value
-                end
-            elseif prod(size(simoptions.ncores))~=1
-                PTypeStructure.(iistr).simoptions.nsims=simoptions.ncores(ii);
-            end
-        end
-        if isfield(simoptions,'iterate')
-            if isa(simoptions.iterate, 'struct')
-                if isfield(simoptions.iterate, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.iterate=simoptions.iterate.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.iterate=1; % the default value
-                end
-            elseif prod(size(simoptions.iterate))~=1
-                PTypeStructure.(iistr).simoptions.nsims=simoptions.iterate(ii);
-            end
-        end
-        if isfield(simoptions,'tolerance')
-            if isa(simoptions.tolerance, 'struct')
-                if isfield(simoptions.tolerance, Names_i{ii})
-                    PTypeStructure.(iistr).simoptions.tolerance=simoptions.tolerance.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).simoptions.tolerance=1; % the default value
-                end
-            elseif prod(size(simoptions.tolerance))~=1
-                PTypeStructure.(iistr).simoptions.nsims=simoptions.tolerance(ii);
-            end
-        end
-    end
     
     % AgeDependentGridParamNames will be inputted in place of pi_z, so deal
     % with this when dealing with pi_z

@@ -21,31 +21,33 @@ function StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeight
 if iscell(Names_i)
     N_i=length(Names_i);
 else
-    N_i=Names_i;
-    Names_i={'pt1'};
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
     for ii=2:N_i
-       Names_i{ii}=['pt',num2str(ii)];
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
     end
 end
 
 for ii=1:N_i
 
-    if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
-        simoptions_temp=simoptions; % some simoptions will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(simoptions,'verbose')==1
-            if length(simoptions.verbose)==1
-                if simoptions.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                end
-            else
-                if simoptions.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                    simoptions_temp.verbose=simoptions.verbose(ii);
-                end
-            end
-        else
+    % First set up simoptions
+    if exist('simoptions','var')
+        simoptions_temp=PType_Options(simoptions,Names_i,ii);
+        if ~isfield(simoptions_temp,'verbose')
             simoptions_temp.verbose=0;
         end
+    else
+        simoptions_temp.verbose=0;
+    end 
+    
+    if simoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i',ii, N_i)
     end
            
     
@@ -200,97 +202,8 @@ for ii=1:N_i
             end
         end
     end
-    
-    % Check for some simoptions that may depend on permanent type (already
-    % dealt with verbose and agedependentgrids)
-    if exist('simoptions','var')
-        if isfield(simoptions,'dynasty')
-            if isa(simoptions.dynasty,'struct')
-                if isfield(simoptions.dynasty, Names_i{ii})
-                    simoptions_temp.dynasty=simoptions.dynasty.(Names_i{ii});
-                else
-                    simoptions_temp.dynasty=0; % the default value
-                end
-            elseif prod(size(simoptions.dynasty))~=1
-                simoptions_temp.dynasty=simoptions.dynasty(ii);
-            end
-        end
-        if isfield(simoptions,'lowmemory')
-            if isa(simoptions.lowmemory, 'struct')
-                if isfield(simoptions.lowmemory, Names_i{ii})
-                    simoptions_temp.lowmemory=simoptions.lowmemory.(Names_i{ii});
-                else
-                    simoptions_temp.lowmemory=0; % the default value
-                end
-            elseif prod(size(simoptions.lowmemory))~=1
-                simoptions_temp.lowmemory=simoptions.lowmemory(ii);
-            end
-        end
-        if isfield(simoptions,'parallel')
-            if isa(simoptions.parallel, 'struct')
-                if isfield(simoptions.parallel, Names_i{ii})
-                    simoptions_temp.parallel=simoptions.parallel.(Names_i{ii});
-                else
-                    simoptions_temp.parallel=3; % the default value
-                end
-            elseif prod(size(simoptions.parallel))~=1
-                simoptions_temp.parallel=simoptions.parallel(ii);
-            end
-        end
-        if isfield(simoptions,'nsims')
-            if isa(simoptions.nsims, 'struct')
-                if isfield(simoptions.nsims, Names_i{ii})
-                    simoptions_temp.nsims=simoptions.nsims.(Names_i{ii});
-                else
-                    simoptions_temp.nsims=10^4; % the default value
-                end
-            elseif prod(size(simoptions.nsims))~=1
-                simoptions_temp.nsims=simoptions.nsims(ii);
-            end
-        end
-        if isfield(simoptions,'ncores')
-            if isa(simoptions.ncores, 'struct')
-                if isfield(simoptions.ncores, Names_i{ii})
-                    simoptions_temp.ncores=simoptions.ncores.(Names_i{ii});
-                else
-                    simoptions_temp.ncores=1; % the default value
-                end
-            elseif prod(size(simoptions.ncores))~=1
-                simoptions_temp.nsims=simoptions.ncores(ii);
-            end
-        end
-        if isfield(simoptions,'iterate')
-            if isa(simoptions.iterate, 'struct')
-                if isfield(simoptions.iterate, Names_i{ii})
-                    simoptions_temp.iterate=simoptions.iterate.(Names_i{ii});
-                else
-                    simoptions_temp.iterate=1; % the default value
-                end
-            elseif prod(size(simoptions.iterate))~=1
-                simoptions_temp.nsims=simoptions.iterate(ii);
-            end
-        end
-        if isfield(simoptions,'tolerance')
-            if isa(simoptions.tolerance, 'struct')
-                if isfield(simoptions.tolerance, Names_i{ii})
-                    simoptions_temp.tolerance=simoptions.tolerance.(Names_i{ii});
-                else
-                    simoptions_temp.tolerance=1; % the default value
-                end
-            elseif prod(size(simoptions.tolerance))~=1
-                simoptions_temp.nsims=simoptions.tolerance(ii);
-            end
-        end
-    end
 
-
-    % Check for some relevant simoptions that may depend on permanent type
-    % dynasty, agedependentgrids, lowmemory, (parallel??)
-    if exist('simoptions','var')
-        StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
-    else
-        StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp);
-    end
+    StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
     
     StationaryDist.(Names_i{ii})=StationaryDist_ii;
 

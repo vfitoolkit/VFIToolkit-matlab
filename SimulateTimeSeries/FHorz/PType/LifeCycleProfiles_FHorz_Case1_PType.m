@@ -27,10 +27,16 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 if iscell(Names_i)
     N_i=length(Names_i);
 else
-    N_i=Names_i;
-    Names_i={'pt1'};
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
     for ii=2:N_i
-        Names_i{ii}=['pt',num2str(ii)];
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
     end
 end
 
@@ -38,96 +44,22 @@ numFnsToEvaluate=length(FnsToEvaluate);
 AgeConditionalStats=struct();
 
 for ii=1:N_i
-    
-    if exist('simoptions','var') % options.verbose (allowed to depend on permanent type)
-        if ~isempty(simoptions)
-            simoptions_temp=simoptions; % some options will differ by permanent type, will clean these up as we go before they are passed
-            if length(simoptions.verbose)==1
-                if simoptions.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                end
-            else
-                if simoptions.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                    simoptions_temp.verbose=simoptions.verbose(ii);
-                end
-            end
-        else % isempty(options)
+    % First set up simoptions
+    if exist('simoptions','var')
+        simoptions_temp=PType_Options(simoptions,Names_i,ii);
+        if ~isfield(simoptions_temp,'verbose')
             simoptions_temp.verbose=0;
         end
     else
         simoptions_temp.verbose=0;
     end
+    if simoptions_temp.verbose==1
+        sprintf('Permanent type: %i of %i',ii, N_i)
+    end
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
     StationaryDist_temp=StationaryDist.(Names_i{ii});
-    
-    if exist('simoptions','var')==1
-        simoptions_temp=struct();
-        if isfield('simoptions','parallel')==1
-            if isscalar(simoptions.parallel)==1
-                simoptions_temp=simoptions.parallel;
-            else
-                simoptions_temp=simoptions.parallel.(Names_i{ii});
-            end
-        end
-        if isfield('simoptions','verbose')==1
-            if isscalar(simoptions.verbose)==1
-                simoptions_temp=simoptions.verbose;
-            else
-                simoptions_temp=simoptions.verbose.(Names_i{ii});
-            end
-        end
-        if isfield('simoptions','nquantiles')==1
-            if isscalar(simoptions.nquantiles)==1
-                simoptions_temp=simoptions.nquantiles;
-            else
-                simoptions_temp=simoptions.nquantiles.(Names_i{ii});
-            end
-        end
-        if isfield('simoptions','agegroupings')==1
-            if isscalar(simoptions.agegroupings)==1
-                simoptions_temp=simoptions.agegroupings;
-            else
-                simoptions_temp=simoptions.agegroupings.(Names_i{ii});
-            end
-        end
-        if isfield('simoptions','npoints')==1
-            if isscalar(simoptions.npoints)==1
-                simoptions_temp=simoptions.npoints;
-            else
-                simoptions_temp=simoptions.npoints.(Names_i{ii});
-            end
-        end
-        if isfield('simoptions','tolerance')==1
-            if isscalar(simoptions.tolerance)==1
-                simoptions_temp=simoptions.tolerance;
-            else
-                simoptions_temp=simoptions.tolerance.(Names_i{ii});
-            end
-        end
-        if isfield(simoptions,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
-            if length(simoptions.ExogShockFn)==1
-                if simoptions.ExogShockFn==1
-                end
-            else
-                if simoptions.ExogShockFn(ii)==1
-                    simoptions_temp.ExogShockFn=simoptions.ExogShockFn(ii);
-                end
-            end
-        end
-        if isfield(simoptions,'ExogShockFnParamNames')
-            if length(simoptions.ExogShockFnParamNames)==1
-                if simoptions.ExogShockFnParamNames==1
-                end
-            else
-                if simoptions.ExogShockFnParamNames(ii)==1
-                    simoptions_temp.ExogShockFnParamNames=simoptions.ExogShockFnParamNames(ii);
-                end
-            end
-        end
-    end
-    
+        
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent

@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function MeanMedianStdDev=EvalFnOnAgentDist_MeanMedianStdDev_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -42,11 +42,8 @@ end
 
 numFnsToEvaluate=length(FnsToEvaluate);
 
-if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-    AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
-else
-    AggVars=zeros(numFnsToEvaluate,1);
-end
+MeanMedianStdDev=zeros(numFnsToEvaluate,3,'gpuArray'); % The 3 are: mean, median, and standard deviation, respecitively
+FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
 for ii=1:N_i
     
@@ -58,7 +55,7 @@ for ii=1:N_i
         end
     else
         simoptions_temp.verbose=0;
-    end 
+    end
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
     StationaryDist_temp=StationaryDist.(Names_i{ii});
@@ -178,7 +175,6 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    
     % Figure out which functions are actually relevant to the present
     % PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
@@ -201,26 +197,110 @@ for ii=1:N_i
                 % else
                 %  % do nothing as this FnToEvaluate is not relevant for the current PType
                 % % Implicitly, WhichFnsForCurrentPType(kk)=0
+                FnsAndPTypeIndicator(kk,ii)=1;
             end
         else
             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
             FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
             FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
             WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
+            FnsAndPTypeIndicator(kk,ii)=1;
         end
     end
     
-    StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
+    MeanMedianStdDev_ii=EvalFnOnAgentDist_MeanMedianStdDev_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,simoptions_temp);
+    %     MeanMedianStdDev=zeros(length(FnsToEvaluate),3,'gpuArray');
+    % Note that I have no use for the median, but it is calculated anyway
     
     PTypeWeight_ii=StationaryDist.ptweights(ii);
     
+    % Store the means and the std devs of each type so as these can later be used to
+    % calculate the standard deviation
     for kk=1:numFnsToEvaluate
         jj=WhichFnsForCurrentPType(kk);
         if jj>0
-            AggVars(kk,:)=AggVars(kk,:)+PTypeWeight_ii*StatsFromDist_AggVars_ii(jj,:);
+            PTypeMeans(kk,ii)=MeanMedianStdDev_ii(jj,1);
+            PTypeStdDev(kk,ii)=MeanMedianStdDev_ii(jj,3);
         end
     end
     
+    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+        
+    N_a_temp=prod(n_a_temp);     
+    N_z_temp=prod(n_z_temp);
+    ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
+    for kk=1:numFnsToEvaluate
+        jj=WhichFnsForCurrentPType(kk);
+        if jj>0
+            ValuesOnDist_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp*N_j_temp,1]);
+        end
+         ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnDist_Kron;
+    end
+   
+    % I can write over StationaryDist.(Names_i{ii}) as I don't need it
+    % again, but I do need the reshaped and reweighed version in the next
+    % for loop.
+    StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1]);
+    
+    
+%     % Caculating the median is more complicated as it cannot be expressed
+%     % as a combination of the medians for each type.
+%     LorenzCurve_ii=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,npoints,simoptions_temp);
+%     % Returns a Lorenz Curve npoints-by-1.
+%     %
+%     % Note that to unnormalize the Lorenz Curve you can just multiply it be the AggVars for the same variable. This will give you the inverse cdf.
+%     
+%     LorenzCurve(:,:,ii)=LorenzCurve_ii'; % kk by npoints
+    
+end
+
+% Calculate the mean and standard deviation
+% (Formula: https://en.wikipedia.org/wiki/Pooled_variance#Aggregation_of_standard_deviation_data )
+% Calculate the median from the Lorenz curves
+for kk=1:numFnsToEvaluate
+    SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*StationaryDist.ptweights); % The sum of the masses of the relevate types
+    
+    % Mean
+    MeanMedianStdDev(kk,1)=sum(FnsAndPTypeIndicator(kk,:).*StationaryDist.ptweights.*PTypeMeans(kk,:))/SigmaNxi;
+    
+    % Standard Deviation
+    if N_i==1
+        MeanMedianStdDev(kk,3)=PTypeStdDev(kk,:);
+    else
+        temp2=zeros(N_i,1);
+        for ii=2:N_i
+            if FnsAndPTypeIndicator(kk,ii)==1
+                %             temp=StationaryDist.ptweights(ii)*FnsAndPTypeIndicator(kk,1:(ii-1)).*StationaryDist.ptweights(1:(ii-1)).*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2);
+                %             tempA=StationaryDist.ptweights(ii);
+                %             tempB=FnsAndPTypeIndicator(kk,1:(ii-1));
+                %             tempC=StationaryDist.ptweights(1:(ii-1));
+                %             tempD=((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2);
+                %             [kk,ii]
+                %             tempA
+                %             tempB
+                %             tempC
+                %             tempD
+                %             size(temp)
+                temp2(ii)=StationaryDist.ptweights(ii)*FnsAndPTypeIndicator(kk,1:(ii-1)).*StationaryDist.ptweights(1:(ii-1)).*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2);
+            end
+        end
+        MeanMedianStdDev(kk,3)=sqrt(sum(FnsAndPTypeIndicator(kk,:).*StationaryDist.ptweights.*PTypeStdDev(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+    end
+    
+    % Median
+    DistVec=[];
+    ValuesVec=[];    
+    for ii=1:N_i
+        if FnsAndPTypeIndicator(kk,ii)==1
+            DistVec=[DistVec; StationaryDist.(Names_i{ii})/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
+            ValuesVec=[ValuesVec;ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])];
+        end
+        [SortedValues,sortindex]=sort(ValuesVec);
+        SortedDist=DistVec(sortindex);
+        median_index=find(cumsum(SortedDist)>=0.5,1,'first');
+        MeanMedianStdDev(kk,2)=SortedValues(median_index);
+    end
+
 end
 
 

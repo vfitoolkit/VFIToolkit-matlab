@@ -60,24 +60,15 @@ end
 
 for ii=1:N_i
 
-    if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        vfoptions_temp=vfoptions; % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(vfoptions,'verbose')==1
-            if length(vfoptions.verbose)==1
-                if vfoptions.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                end
-            else
-                if vfoptions.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                    vfoptions_temp.verbose=vfoptions.verbose(ii);
-                end
-            end
-        else
-            vfoptions_temp.verbose=0;
-        end
+    % First set up vfoptions
+    if exist('vfoptions','var')
+        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
     else
         vfoptions_temp.verbose=0;
+    end 
+    
+    if vfoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i',ii, N_i)
     end
     
     % Go through everything which might be dependent on permanent type (PType)
@@ -286,56 +277,7 @@ for ii=1:N_i
             PhiaprimeParamNames_temp=PhiaprimeParamNames.(Names_i{ii});
         end
     end
-    
-    % Check for some vfoptions that may depend on permanent type (already
-    % dealt with verbose and agedependentgrids)
-    if exist('vfoptions','var')
-        if isfield(vfoptions,'dynasty')
-            if isa(vfoptions.dynasty,'struct')
-                if isfield(vfoptions.dynasty, Names_i{ii})
-                    vfoptions_temp.dynasty=vfoptions.dynasty.(Names_i{ii});
-                else
-                    vfoptions_temp.dynasty=0; % the default value
-                end
-            elseif prod(size(vfoptions.dynasty))~=1
-                vfoptions_temp.dynasty=vfoptions.dynasty(ii);
-            end
-        end
-        if isfield(vfoptions,'lowmemory')
-            if isa(vfoptions.lowmemory, 'struct')
-                if isfield(vfoptions.lowmemory, Names_i{ii})
-                    vfoptions_temp.lowmemory=vfoptions.lowmemory.(Names_i{ii});
-                else
-                    vfoptions_temp.lowmemory=0; % the default value
-                end
-            elseif prod(size(vfoptions.lowmemory))~=1
-                vfoptions_temp.lowmemory=vfoptions.lowmemory(ii);
-            end
-        end
-        if isfield(vfoptions,'parallel')
-            if isa(vfoptions.parallel, 'struct')
-                if isfield(vfoptions.parallel, Names_i{ii})
-                    vfoptions_temp.parallel=vfoptions.parallel.(Names_i{ii});
-                else
-                    vfoptions_temp.parallel=1+(gpuDeviceCount>0); % the default value
-                end
-            elseif prod(size(vfoptions.parallel))~=1
-                vfoptions_temp.parallel=vfoptions.parallel(ii);
-            end
-        end
-        if isfield(vfoptions,'tolerance')
-            if isa(vfoptions.tolerance, 'struct')
-                if isfield(vfoptions.tolerance, Names_i{ii})
-                    vfoptions_temp.tolerance=vfoptions.tolerance.(Names_i{ii});
-                else
-                    vfoptions_temp.tolerance=1; % the default value
-                end
-            elseif prod(size(vfoptions.tolerance))~=1
-                vfoptions_temp.nsims=vfoptions.tolerance(ii);
-            end
-        end
-    end
-	
+    	
     if finitehorz==0  % Infinite horizon
         % Infinite Horizon requires an initial guess of value function. For
         % the present I simply don't let this feature be used when using

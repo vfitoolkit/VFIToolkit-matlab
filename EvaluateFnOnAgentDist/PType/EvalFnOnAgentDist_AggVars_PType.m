@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_PType(StationaryDist, Policy,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid,Phi_aprime, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, options, AgeDependentGridParamNames)
+function AggVars=EvalFnOnAgentDist_AggVars_PType(StationaryDist, Policy,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid,Phi_aprime, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, simoptions, AgeDependentGridParamNames)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -43,24 +43,15 @@ end
 
 for ii=1:N_i
     
-    if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        if ~isempty(options)
-            options_temp=options; % some options will differ by permanent type, will clean these up as we go before they are passed
-            if length(options.verbose)==1
-                if options.verbose==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                end
-            else
-                if options.verbose(ii)==1
-                    sprintf('Permanent type: %i of %i',ii, N_i)
-                    options_temp.verbose=options.verbose(ii);
-                end
-            end
-        else % isempty(options)
-            options_temp.verbose=0;
-        end
+    % First set up simoptions
+    if exist('simoptions','var')
+        simoptions_temp=PType_Options(simoptions,Names_i,ii);
     else
-        options_temp.verbose=0;
+        simoptions_temp.verbose=0;
+    end 
+    
+    if simoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i',ii, N_i)
     end
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
@@ -217,72 +208,24 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    
-    % Check for some options that may depend on permanent type (already
-    % dealt with verbose and agedependentgrids)
-    if exist('options','var')
-        if isfield(options,'dynasty')
-            if isa(options.dynasty,'struct')
-                if isfield(options.dynasty, Names_i{ii})
-                    options_temp.dynasty=options.dynasty.(Names_i{ii});
-                else
-                    options_temp.dynasty=0; % the default value
-                end
-            elseif prod(size(options.dynasty))~=1
-                options_temp.dynasty=options.dynasty(ii);
-            end
+    % Now that we have figured out if we are using agedependentgrids
+    % and stored this in options_temp we can use this to figure out if
+    % we need AgeDependentGridParamNames_temp
+    if isfield(options_temp,'agedependentgrids')
+        if isa(AgeDependentGridParamNames.d_grid,'struct')
+            AgeDependentGridParamNames_temp.d_grid=AgeDependentGridParamNames.d_grid.(Names_i{ii}); % Different grids by permanent type
+        else
+            AgeDependentGridParamNames_temp.d_grid=AgeDependentGridParamNames.d_grid;
         end
-        if isfield(options,'parallel')
-            if isa(options.parallel, 'struct')
-                if isfield(options.parallel, Names_i{ii})
-                    options_temp.parallel=options.parallel.(Names_i{ii});
-                else
-                    options_temp.parallel=2; % the default value
-                end
-            elseif prod(size(options.parallel))~=1
-                options_temp.parallel=options.parallel(ii);
-            end
+        if isa(AgeDependentGridParamNames.a_grid,'struct')
+            AgeDependentGridParamNames_temp.a_grid=AgeDependentGridParamNames.a_grid.(Names_i{ii}); % Different grids by permanent type
+        else
+            AgeDependentGridParamNames_temp.a_grid=AgeDependentGridParamNames.a_grid;
         end
-        if isfield(options,'agedependentgrids')
-            if isa(options.agedependentgrids, 'struct')
-                if isfield(options.agedependentgrids, Names_i{ii})
-                    options_temp.agedependentgrids=options.agedependentgrids.(Names_i{ii});
-                else
-                    % The current permanent type does not use age dependent grids.
-                    options_temp=rmfield(options_temp,'agedependentgrids');
-                end
-            else
-                temp=size(options.agedependentgrids);
-                if temp(1)>1 % So different permanent types use different settings for age dependent grids
-                    if prod(temp(ii,:))>0
-                        options_temp.agedependentgrids=options.agedependentgrids(ii,:);
-                    else
-                        options_temp=rmfield(options_temp,'agedependentgrids');
-                    end
-                    %                 else
-                    %                     % do nothing
-                end
-            end
-        end
-        % Now that we have figured out if we are using agedependentgrids
-        % and stored this in options_temp we can use this to figure out if
-        % we need AgeDependentGridParamNames_temp
-        if isfield(options_temp,'agedependentgrids')
-            if isa(AgeDependentGridParamNames.d_grid,'struct')
-                AgeDependentGridParamNames_temp.d_grid=AgeDependentGridParamNames.d_grid.(Names_i{ii}); % Different grids by permanent type
-            else
-                AgeDependentGridParamNames_temp.d_grid=AgeDependentGridParamNames.d_grid;
-            end
-            if isa(AgeDependentGridParamNames.a_grid,'struct')
-                AgeDependentGridParamNames_temp.a_grid=AgeDependentGridParamNames.a_grid.(Names_i{ii}); % Different grids by permanent type
-            else
-                AgeDependentGridParamNames_temp.a_grid=AgeDependentGridParamNames.a_grid;
-            end
-            if isa(AgeDependentGridParamNames.z_grid,'struct')
-                AgeDependentGridParamNames_temp.z_grid=AgeDependentGridParamNames.z_grid.(Names_i{ii}); % Different grids by permanent type
-            else
-                AgeDependentGridParamNames_temp.z_grid=AgeDependentGridParamNames.z_grid;
-            end
+        if isa(AgeDependentGridParamNames.z_grid,'struct')
+            AgeDependentGridParamNames_temp.z_grid=AgeDependentGridParamNames.z_grid.(Names_i{ii}); % Different grids by permanent type
+        else
+            AgeDependentGridParamNames_temp.z_grid=AgeDependentGridParamNames.z_grid;
         end
     end
     
@@ -327,19 +270,10 @@ for ii=1:N_i
         if Case1orCase2==1
             StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
         elseif Case1orCase2==2
-            if exist('options','var')
-                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
-            else
-                StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
-            end
+            StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp, AgeDependentGridParamNames_temp);
         end
     end
-        
-%     if isa(PTypeDistNames, 'array')
-%         PTypeWeight_ii=PTypeDistNames(ii);
-%     else
-%         PTypeWeight_ii=Parameters.(PTypeDistNames{1}).(Names_i{ii});
-%     end
+    
     PTypeWeight_ii=StationaryDist.ptweights(ii);
     
     for kk=1:numFnsToEvaluate

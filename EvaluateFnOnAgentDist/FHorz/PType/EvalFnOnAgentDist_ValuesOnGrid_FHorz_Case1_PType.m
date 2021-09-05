@@ -29,10 +29,16 @@ function ValuesOnDist=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(Stationar
 if iscell(Names_i)
     N_i=length(Names_i);
 else
-    N_i=Names_i;
-    Names_i={'pt1'};
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
     for ii=2:N_i
-        Names_i{ii}=['pt',num2str(ii)];
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
     end
 end
 
@@ -50,44 +56,15 @@ end
 for ii=1:N_i
     sprintf('Permanent type: %i of %i',ii, N_i)
     
-    if exist('options','var') % options.verbose (allowed to depend on permanent type)
-        simoptions_temp=simoptions; % some options will differ by permanent type, will clean these up as we go before they are passed
-        if isfield(simoptions,'verbose')
-            if length(simoptions.verbose)==1
-                if simoptions.verbose==1
-                end
-            else
-                if simoptions.verbose(ii)==1
-                    simoptions_temp.verbose=simoptions.verbose(ii);
-                end
-            end
-        else % isempty(options)
+    % First set up simoptions
+    if exist('simoptions','var')
+        simoptions_temp=PType_Options(simoptions,Names_i,ii);
+        if ~isfield(simoptions_temp,'verbose')
             simoptions_temp.verbose=0;
-        end
-        if isfield(simoptions,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
-            if length(simoptions.ExogShockFn)==1
-                if simoptions.ExogShockFn==1
-                end
-            else
-                if simoptions.ExogShockFn(ii)==1
-                    simoptions_temp.ExogShockFn=simoptions.ExogShockFn(ii);
-                end
-            end
-        end
-        if isfield(simoptions,'ExogShockFnParamNames')
-            if length(simoptions.ExogShockFnParamNames)==1
-                if simoptions.ExogShockFnParamNames==1
-                end
-            else
-                if simoptions.ExogShockFnParamNames(ii)==1
-                    simoptions_temp.ExogShockFnParamNames=simoptions.ExogShockFnParamNames(ii);
-                end
-            end
         end
     else
         simoptions_temp.verbose=0;
     end
-
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
     StationaryDist_temp=StationaryDist.(Names_i{ii});

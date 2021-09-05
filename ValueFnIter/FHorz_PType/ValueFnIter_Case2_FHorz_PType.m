@@ -36,10 +36,15 @@ function [V, Policy]=ValueFnIter_Case2_FHorz_PType(n_d,n_a,n_z,N_j,N_i,d_grid, a
 %
 
 for ii=1:N_i
+    % First set up vfoptions
     if exist('vfoptions','var')
-        if vfoptions.verbose==1
-            sprintf('Fixed type: %i of %i',ii, N_i)
-        end
+        vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+    else
+        vfoptions_temp.verbose=0;
+    end 
+    
+    if vfoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i',ii, N_i)
     end
     
     % Go through everything which might be dependent on fixed type (PType)
@@ -127,11 +132,7 @@ for ii=1:N_i
         PhiaprimeParamNames_temp=PhiaprimeParamNames.(names{ii});
     end
     
-    if exist('vfoptions','var')
-        [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfoptions);
-    else
-        [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
-    end
+    [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfoptions_temp);
     
     ftstring=['ft',num2str(ii)];
     
