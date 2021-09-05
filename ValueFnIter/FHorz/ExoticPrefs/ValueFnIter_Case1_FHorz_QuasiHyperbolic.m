@@ -1,7 +1,7 @@
 function [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
-% Let V*_j be the standard (exponential discounting) solution to the value fn problem
+% Let V_j be the standard (exponential discounting) solution to the value fn problem
 % The 'Naive' quasi-hyperbolic solution takes current actions as if the
 % future agent take actions as if having time-consistent (exponential discounting) preferences.
 % V_naive_j= u_t+ beta_0 *E[V_{j+1}]
@@ -17,6 +17,15 @@ Policy=nan; % The value function of the quasi-hyperbolic agent
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+
+if ~isfield(vfoptions,'quasi_hyperbolic')
+    vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
+elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') 
+    % Check that one of the possible options have been used. If not then error.
+    fprintf('ERROR: vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
+    dbstack
+    return
+end
 
 % CANNOT YET DEAL WITH DYNASTY WHEN USING QUASI-HYPERBOLIC
 

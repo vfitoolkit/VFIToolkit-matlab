@@ -1,6 +1,5 @@
 function MeanMedianStdDev=EvalFnOnAgentDist_MeanMedianStdDev_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
 
-
 if n_d(1)==0
     l_d=0;
 else
@@ -245,6 +244,5 @@ else
     end
     
 end
-
 
 end

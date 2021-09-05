@@ -27,7 +27,7 @@ if exist('vfoptions','var')==0
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
     vfoptions.endogenousexit=0;
-    vfoptions.exoticpreferences=0;
+%     vfoptions.exoticpreferences % default is not to declare it
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
@@ -68,9 +68,7 @@ else
     if isfield(vfoptions,'endogenousexit')==0
         vfoptions.endogenousexit=0;
     end
-    if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences=0;
-    end  
+%         vfoptions.exoticpreferences % default is not to declare it
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
     end
@@ -205,34 +203,38 @@ elseif vfoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit.
 end
 
 %% Exotic Preferences
-if vfoptions.exoticpreferences==1 % 'alpha-beta' quasi-geometric discounting
-    %NOT YET IMPLEMENTED
-%    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%    return
-elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
-    [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-    varargout={V,Policy};
-    return
-elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.
-    % To implement this, can actually just replace the discount factor by 1, and adjust pi_z appropriately.
-    % Note that distinguishing the discount rate and pi_z is important in almost all other contexts. Just not in this one.
-    
-    % Create a matrix containing the DiscountFactorParams,
-    nDiscFactors=length(DiscountFactorParamNames);
-    DiscountFactorParamsMatrix=Parameters.(DiscountFactorParamNames{1});
-    if nDiscFactors>1
-        for ii=2:nDiscFactors
-            DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*(Parameters.(DiscountFactorParamNames{ii}));
+if isfield(vfoptions,'exoticpreferences')
+    if strcmp(vfoptions.exoticpreferences,'None')
+        % Just ignore and will then continue on.
+    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+        [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        varargout={V,Policy};
+        return
+    elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+        [V, Policy]=ValueFnIter_Case1_EpsteinZin(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        varargout={V,Policy};
+        return
+    elseif vfoptions.exoticpreferences==3 % Allow the discount factor to depend on the (next period) exogenous state.
+        % To implement this, can actually just replace the discount factor by 1, and adjust pi_z appropriately.
+        % Note that distinguishing the discount rate and pi_z is important in almost all other contexts. Just not in this one.
+        
+        % Create a matrix containing the DiscountFactorParams,
+        nDiscFactors=length(DiscountFactorParamNames);
+        DiscountFactorParamsMatrix=Parameters.(DiscountFactorParamNames{1});
+        if nDiscFactors>1
+            for ii=2:nDiscFactors
+                DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*(Parameters.(DiscountFactorParamNames{ii}));
+            end
         end
+        DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*ones(N_z,N_z); % Make it of size z-by-zprime, so that I can later just assume that it takes this shape
+        if vfoptions.parallel==2
+            DiscountFactorParamsMatrix=gpuArray(DiscountFactorParamsMatrix);
+        end
+        % Set the 'fake discount factor to one.
+        DiscountFactorParamsVec=1;
+        % Set pi_z to include the state-dependent discount factors
+        pi_z=pi_z.*DiscountFactorParamsMatrix;
     end
-    DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*ones(N_z,N_z); % Make it of size z-by-zprime, so that I can later just assume that it takes this shape
-    if vfoptions.parallel==2 
-        DiscountFactorParamsMatrix=gpuArray(DiscountFactorParamsMatrix);
-    end
-    % Set the 'fake discount factor to one.
-    DiscountFactorParamsVec=1;
-    % Set pi_z to include the state-dependent discount factors
-    pi_z=pi_z.*DiscountFactorParamsMatrix;    
 end
 
 %% State Dependent Parameters
@@ -311,13 +313,17 @@ end
 
 %% Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
-if vfoptions.exoticpreferences~=3
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-    if vfoptions.exoticpreferences==0
-        DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+if isfield(vfoptions,'exoticpreferences')
+    if vfoptions.exoticpreferences~=3
+        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+        if vfoptions.exoticpreferences==0
+            DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
+        end
     end
+else
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
 end
-
 
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 

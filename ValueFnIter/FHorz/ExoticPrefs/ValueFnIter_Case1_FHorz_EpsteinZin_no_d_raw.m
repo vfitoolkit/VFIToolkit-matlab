@@ -5,6 +5,10 @@ function [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_no_d_raw(n_a,n_z,N_j, a_
 % U_t= [(1-beta)*u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
 % where
 %  u_t is per-period utility function
+%  psi is the elasticity of intertemporal solution
+%  gamma is a measure of risk aversion, bigger gamma is more risk averse
+%  beta is the standard marginal rate of time preference (discount factor)
+%  When 1/(1-psi)=1-gamma, i.e., we get standard von-Neumann-Morgenstern
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -128,7 +132,6 @@ for reverse_j=1:N_j-1
         DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
     end
 
-
     if fieldexists_ExogShockFn==1
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
@@ -155,21 +158,6 @@ for reverse_j=1:N_j-1
         temp2=ReturnMatrix;
         temp2(isfinite(ReturnMatrix))=ReturnMatrix(isfinite(ReturnMatrix)).^(1-1/DiscountFactorParamsVec(3));
         temp2=(1-DiscountFactorParamsVec(1))*temp2;
-
-        % IN PRINCIPLE, WHY BOTHER TO LOOP OVER z AT ALL TO CALCULATE
-        % entireRHS?? CAN IT BE VECTORIZED DIRECTLY?
-%         %Calc the condl expectation term (except beta), which depends on z but
-%         %not on control variables
-%         EV=VKronNext_j*pi_z'; %THIS LINE IS LIKELY INCORRECT
-%         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%         %EV=sum(EV,2);
-%         
-%         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV*ones(1,N_a,N_z);
-%         
-%         %Calc the max and it's index
-%         [Vtemp,maxindex]=max(entireRHS,[],1);
-%         V(:,:,j)=Vtemp;
-%         Policy(:,:,j)=maxindex;
 
         for z_c=1:N_z
             ReturnMatrix_z=temp2(:,:,z_c);

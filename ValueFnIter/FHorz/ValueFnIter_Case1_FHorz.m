@@ -110,7 +110,7 @@ if isfield(vfoptions,'exoticpreferences')
        [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
        return
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        if isfield(vfoptions,'dynasty')==0
+        if vfoptions.dynasty==0
             [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             return
         else

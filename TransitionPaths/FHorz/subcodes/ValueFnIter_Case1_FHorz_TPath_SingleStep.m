@@ -23,18 +23,21 @@ else
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    if isfield(vfoptions,'lowmemory')==0
-        vfoptions.lowmemory=0;
-    end
-    if isfield(vfoptions,'verbose')==0
-        vfoptions.verbose=0;
-    end
     if isfield(vfoptions,'returnmatrix')==0
         if isa(ReturnFn,'function_handle')==1
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
+    end
+    if isfield(vfoptions,'verbose')==0
+        vfoptions.verbose=0;
+    end
+    if isfield(vfoptions,'lowmemory')==0
+        vfoptions.lowmemory=0;
+    end
+    if isfield(vfoptions,'exoticpreferences')==0
+        vfoptions.exoticpreferences=0;
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
