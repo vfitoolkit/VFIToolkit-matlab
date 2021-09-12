@@ -161,16 +161,14 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
             
             if strcmp(vfoptions.quasi_hyperbolic,'Naive')
-                % For naive, we compue V which is the exponential
-                % discounter case, and then from this we get Vtilde and
-                % Policy (which is Policytilde) that correspond to the
-                % naive quasihyperbolic discounter
+                % For naive, we compute V which is the exponential discounter case, and then from this we get Vtilde and
+                % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
                 % First V
                 entireRHS_z=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); % Use the two-future-periods discount factor                
                 [Vtemp,~]=max(entireRHS_z,[],1);
                 V(:,z_c,jj)=Vtemp;
                 % Now Vtilde and Policy
-                entireRHS_z=ReturnMatrix_z+beta0beta*EV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+beta0beta*EV_z*ones(1,N_a,1); % Use today-to-tomorrow discount factor
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 Vtilde(:,z_c,jj)=Vtemp; % Evaluate what would have done under exponential discounting
                 Policy(:,z_c,jj)=maxindex; % Use the policy from solving the problem of Vtilde
@@ -184,7 +182,8 @@ for reverse_j=1:N_j-1
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS_z=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS_z(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS_z(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
         
@@ -223,7 +222,8 @@ for reverse_j=1:N_j-1
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS_z=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS_z(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS_z(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
         

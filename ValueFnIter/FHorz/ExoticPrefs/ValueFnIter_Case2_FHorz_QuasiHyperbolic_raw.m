@@ -180,7 +180,8 @@ if Case2_Type==1 % phi_a'(d,a,z,z')
                         Policy(a_c,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                         % Now Vstar
                         entireRHS=ReturnMatrix(:,a_c,z_c)+beta*entireEV_z; % Use the two-future-periods discount factor
-                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                        maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                     end
                 end
             end
@@ -227,7 +228,8 @@ if Case2_Type==1 % phi_a'(d,a,z,z')
                         Policy(a_c,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                         % Now Vstar
                         entireRHS=ReturnMatrix_z(:,a_c)+beta*entireEV_z; % Use the two-future-periods discount factor
-                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                        maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                     end
                 end
             end
@@ -353,7 +355,8 @@ if Case2_Type==11 % phi_a'(d,a,z')
                     Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                     % Now Vstar
                     entireRHS=ReturnMatrix_z+beta*EV_z; % Use the two-future-periods discount factor
-                    Vunderbar(:,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                    maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                    Vunderbar(:,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                 end
             end
         elseif vfoptions.lowmemory==1
@@ -403,7 +406,8 @@ if Case2_Type==11 % phi_a'(d,a,z')
                     Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                     % Now Vstar
                     entireRHS=ReturnMatrix_z+beta*EV_z; % Use the two-future-periods discount factor
-                    Vunderbar(:,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                    maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                    Vunderbar(:,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                 end
             end
 %         elseif vfoptions.lowmemory==2 % NOT YET IMPLEMENTED
@@ -521,7 +525,8 @@ if Case2_Type==12 % phi_a'(d,a,z)
                         Policy(a_c,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                         % Now Vstar
                         entireRHS=ReturnMatrix(:,a_c,z_c)+beta*EV_az; % Use the two-future-periods discount factor
-                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                        maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                     end
                 end
             end
@@ -570,7 +575,8 @@ if Case2_Type==12 % phi_a'(d,a,z)
                         Policy(a_c,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                         % Now Vstar
                         entireRHS=ReturnMatrix_z(:,a_c)+beta*entireEV_z; % Use the two-future-periods discount factor
-                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                        maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                        Vunderbar(a_c,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                     end
                 end
             end
@@ -692,7 +698,8 @@ if Case2_Type==2  % phi_a'(d,z,z')
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray'); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
     end
@@ -775,7 +782,8 @@ if Case2_Type==3  % phi_a'(d,z')
                     Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                     % Now Vstar
                     entireRHS_z=ReturnMatrix(:,:,z_c)+beta*EV_z*ones(1,N_a,1,'gpuArray'); % Use the two-future-periods discount factor
-                    Vunderbar(:,z_c,jj)=entireRHS_z(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                    maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                    Vunderbar(:,z_c,jj)=entireRHS_z(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                 end
             end
         elseif vfoptions.lowmemory==1
@@ -815,7 +823,8 @@ if Case2_Type==3  % phi_a'(d,z')
                     Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                     % Now Vstar
                     entireRHS_z=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1,'gpuArray'); % Use the two-future-periods discount factor
-                    Vunderbar(:,z_c,jj)=entireRHS_z(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                    maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                    Vunderbar(:,z_c,jj)=entireRHS_z(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                 end
             end
 %         elseif vfoptions.lowmemory==2 % NOT YET IMPLEMENTED
@@ -914,7 +923,8 @@ if Case2_Type==4  % phi_a'(d,a)
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray'); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
     end
@@ -991,7 +1001,8 @@ if Case2_Type==6 % phi_a'(d)
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray'); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
     end

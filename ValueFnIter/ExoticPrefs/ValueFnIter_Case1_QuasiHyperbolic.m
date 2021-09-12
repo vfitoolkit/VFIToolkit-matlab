@@ -20,6 +20,14 @@ N_z=prod(n_z);
 
 if ~isfield(vfoptions,'quasi_hyperbolic')
     vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
+elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+    vfoptions.maxiter=1000; 
+    % Sophisticated quasihyperbolic in infinite horizon seems to struggle to converge, so end after fixed number of grid points
+    % My impression is that accurate convergence would require insane number of grid points.
+    vfoptions.verbose=1;
+    % I set verbose so you can see if it appears to have gotten as close to
+    % convergence as it can before reaching maxiter (if currdist is cycling
+    % through numbers of the same magnitude for a while before stopping)
 elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') 
     % Check that one of the possible options have been used. If not then error.
     fprintf('ERROR: vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
@@ -80,9 +88,9 @@ if vfoptions.lowmemory==0
             end
         elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % For Naive, just solve the standard value function problem, and then just one step following that.
             if n_d(1)==0
-                [V,Policy]=ValueFnIter_Case1_QuasiHyperbolic_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+                [V,Policy]=ValueFnIter_Case1_QuasiHyperbolic_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             else
-                [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+                [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
             end
         end
     elseif vfoptions.parallel==0 || vfoptions.parallel==1

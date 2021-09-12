@@ -65,7 +65,7 @@ while currdist>Tolerance
         PolicyIndexes(:,z_c)=maxindex;
         
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=temp2_z(tempmaxindex); % note that temp2_z is the EZ ReturnMatrix_z
     end
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;

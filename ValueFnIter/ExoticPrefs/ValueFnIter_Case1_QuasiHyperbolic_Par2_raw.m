@@ -1,4 +1,4 @@
-function [Vhat, Policy]=ValueFnIter_Case1_QuasiHyperbolic_Par2_raw(Vunderbar, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2, Tolerance) %Verbose,
+function [Vhat, Policy]=ValueFnIter_Case1_QuasiHyperbolic_Par2_raw(Vunderbar, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2, Tolerance, maxiter) %Verbose,
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % The 'Sophisticated' quasi-hyperbolic solution takes into account the time-inconsistent behaviour of their future self.
@@ -29,7 +29,7 @@ Vhat=zeros(N_a,N_z,'gpuArray');
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<maxiter
     VKronold=Vunderbar;
     
     for z_c=1:N_z

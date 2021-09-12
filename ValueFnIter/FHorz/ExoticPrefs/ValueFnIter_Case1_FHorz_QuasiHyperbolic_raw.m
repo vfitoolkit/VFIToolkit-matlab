@@ -182,7 +182,8 @@ for reverse_j=1:N_j-1
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS_z=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS_z(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS_z(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
         
@@ -223,7 +224,8 @@ for reverse_j=1:N_j-1
                 Policy(:,z_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                 % Now Vstar
                 entireRHS_z=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1); % Use the two-future-periods discount factor
-                Vunderbar(:,z_c,jj)=entireRHS_z(maxindex); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,z_c,jj)=entireRHS_z(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
         end
         

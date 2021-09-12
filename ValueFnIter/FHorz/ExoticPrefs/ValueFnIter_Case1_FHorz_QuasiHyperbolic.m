@@ -20,6 +20,7 @@ N_z=prod(n_z);
 
 if ~isfield(vfoptions,'quasi_hyperbolic')
     vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
+    fprintf('NOTE: using Naive quasi-hyperbolic as type of quasi-hyperbolic was not specified \n')
 elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') 
     % Check that one of the possible options have been used. If not then error.
     fprintf('ERROR: vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
