@@ -190,7 +190,7 @@ SScounter=0;
 % for output.
 StationaryDistKron.pdf=StationaryDistKron.mass*StationaryDistKron.pdf; % Make it the pdf
 
-while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
+while SScurrdist>simoptions.tolerance && SScounter<simoptions.maxit
 
 %     StationaryDistKron.pdf=StationaryDistKron.mass*StationaryDistKron.pdf; % Actually work with mass*pdf for next few lines. Makes adding in the new agents and removing the dying much easier.
     for jj=1:100

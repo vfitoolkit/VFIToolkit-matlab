@@ -12,53 +12,63 @@ function StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKro
 %THIS does not seem to be a good idea as it uses way to much memory and
 %appears to in fact slow the code down. NOTE: this is no longer used
 %anywhere in code, I leave it here as a reminder that I tried this and it
-%did not work well.
+%did not work well. This is particularly true now that I use sparse
+%matrices.
 
-if simoptions.parallel<2
-%     % The following commented out version was producing machine precision
-%     % level errors in Ptranspose that lead to machine precision level
-%     % errors in the individual points of the StationaryDist, but that
-%     % summed up accross the StationaryDist this errors were numerically
-%     % important and causing problems.
-%     %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-%     P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
-%     for a_c=1:N_a
-%         for z_c=1:N_z
-%             if N_d==0 %length(n_d)==1 && n_d(1)==0
-%                 optaprime=PolicyIndexesKron(a_c,z_c);
-%             else
-%                 optaprime=PolicyIndexesKron(2,a_c,z_c);
-%             end
-%             for zprime_c=1:N_z
-%                 P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
-%             end
-%         end
+%% If the Ptranspose matrix could be stored as a full matrix then it would have used the eigenvector method (StationaryDist_Case1_LeftEigen_raw)
+% So the following only does sparse matrix (or sparse gpu matrix)
+
+%% This commented out section was the full matrix code that is no longer used.
+% if simoptions.parallel<2
+% %     % The following commented out version was producing machine precision
+% %     % level errors in Ptranspose that lead to machine precision level
+% %     % errors in the individual points of the StationaryDist, but that
+% %     % summed up accross the StationaryDist this errors were numerically
+% %     % important and causing problems.
+% %     %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+% %     P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
+% %     for a_c=1:N_a
+% %         for z_c=1:N_z
+% %             if N_d==0 %length(n_d)==1 && n_d(1)==0
+% %                 optaprime=PolicyIndexesKron(a_c,z_c);
+% %             else
+% %                 optaprime=PolicyIndexesKron(2,a_c,z_c);
+% %             end
+% %             for zprime_c=1:N_z
+% %                 P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
+% %             end
+% %         end
+% %     end
+% %     P=reshape(P,[N_a*N_z,N_a*N_z]);
+% %     Ptranspose=P';
+% 
+%     if N_d==0 %length(n_d)==1 && n_d(1)==0
+%         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
+%     else
+%         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
 %     end
-%     P=reshape(P,[N_a*N_z,N_a*N_z]);
-%     Ptranspose=P';
-
-    if N_d==0 %length(n_d)==1 && n_d(1)==0
-        optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-    else
-        optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-    end
-    Ptranspose=zeros(N_a,N_a*N_z);
-    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
-    Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+%     Ptranspose=zeros(N_a,N_a*N_z);
+%     Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+%     Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+%     
+% elseif simoptions.parallel==2 % Using the GPU
+%     % First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+% 
+%     if N_d==0 %length(n_d)==1 && n_d(1)==0
+%         optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
+%     else
+%         optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
+%     end
+%     Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
+%     Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+%     Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptranspose));
     
-elseif simoptions.parallel==2 % Using the GPU
-    % First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+%% Following is the sparse matrix code
+% I create the sparse matrix Ptranspose on the cpu
+% If simoptions.parallel=2 it is then transferred to the gpu
+% Would probably be faster if I rewrote this code to just create Ptranspose
+% on the gpu when appropriate.
 
-    if N_d==0 %length(n_d)==1 && n_d(1)==0
-        optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-    else
-        optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-    end
-    Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
-    Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-    Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptranspose));
-    
-elseif simoptions.parallel>2
 %     % The following commented out version was producing machine precision
 %     % level errors in Ptranspose that lead to machine precision level
 %     % errors in the individual points of the StationaryDist, but that
@@ -86,92 +96,68 @@ elseif simoptions.parallel>2
 %         Ptranspose(:,az_c)=Ptranspose_az;
 %     end
 %     toc
-    pi_z=sparse(gather(pi_z));
-    
-    if N_d==0 %length(n_d)==1 && n_d(1)==0
-        optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-    else
-        optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-    end
-    PtransposeA=sparse(N_a,N_a*N_z);
-    PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
-    
-%     whos PolicyIndexesKron optaprime PtransposeA pi_z
-    
-    try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
-        Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
-    catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-        Ptranspose=kron(ones(N_z,1),PtransposeA);
-        for ii=1:N_z
-            Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
-        end
-    end
 
-% 
-%         Ptranspose1=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
-%         Ptranspose2=kron(ones(N_z,1),PtransposeA);
-%         for ii=1:N_z
-%             Ptranspose2(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose2(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
-%         end
-% 
-%         Ptranspose1(1:20,1:20)
-%         Ptranspose2(1:20,1:20)
-%         
-%         max(max(abs(Ptranspose1-Ptranspose2)))
-%     whos PtransposeB Ptranspose
-    
+
+if N_d==0 %length(n_d)==1 && n_d(1)==0
+    optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
+else
+    optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
 end
+PtransposeA=sparse(N_a,N_a*N_z);
+PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
 
+pi_z=sparse(pi_z);
+try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
+    Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
+catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
+    pi_z=gather(pi_z); % The indexing used can only be donoe on cpu
+    Ptranspose=kron(ones(N_z,1),PtransposeA);
+    for ii=1:N_z
+        Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
+    end
+end
+    
+if simoptions.parallel==2
+    Ptranspose=gpuArray(Ptranspose);
+    pi_z=gpuArray(pi_z);
+end
 
 %% The rest is essentially the same regardless of which simoption.parallel is being used
 %SteadyStateDistKron=ones(N_a*N_z,1)/(N_a*N_z); % This line was handy when checking/debugging. Have left it here.
 if simoptions.parallel==2
-    SteadyStateDistKronOld=zeros(N_a*N_z,1,'gpuArray');
+    StationaryDistKronOld=gpuArray(sparse(N_a*N_z,1)); % sparse() creates a matrix of zeros
 else
-    SteadyStateDistKronOld=zeros(N_a*N_z,1);
+    StationaryDistKronOld=sparse(N_a*N_z,1); % sparse() creates a matrix of zeros
 end
-SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
-SScounter=0;
-while SScurrdist>simoptions.tolerance && (100*SScounter)<simoptions.maxit
+
+StationaryDistKron=sparse(StationaryDistKron);
+
+currdist=full(sum(abs(StationaryDistKron-StationaryDistKronOld)));
+counter=0;
+while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab objects to using currdist here if I don't 'full' it
     
     for jj=1:100
         StationaryDistKron=Ptranspose*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
     end
-    SteadyStateDistKronOld=StationaryDistKron;
+    StationaryDistKronOld=StationaryDistKron;
     StationaryDistKron=Ptranspose*StationaryDistKron; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
-    SScurrdist=sum(abs(StationaryDistKron-SteadyStateDistKronOld));
+    currdist=full(sum(abs(StationaryDistKron-StationaryDistKronOld)));
     
-    SScounter=SScounter+1;
+    counter=counter+1;
     if simoptions.verbose==1
-        if rem(SScounter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', SScounter, SScurrdist, simoptions.tolerance)            
+        if rem(counter,50)==0
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)            
+            maxdist=full(max(gather(abs(StationaryDistKron-StationaryDistKronOld))));
+            fprintf('StationaryDist_Case1: after %i iterations the max distance %8.12f \n', counter, maxdist)
         end
     end
 end
 
-if simoptions.parallel>=3 % Solve with sparse matrix
-    StationaryDistKron=full(StationaryDistKron);
-    if simoptions.parallel==4 % Solve with sparse matrix, but return answer on gpu.
-        StationaryDistKron=gpuArray(StationaryDistKron);
-    end
-end
+%% Turn the resulting agent distribution into a full matrix
+StationaryDistKron=full(StationaryDistKron);
 
-if ~(SScounter<simoptions.maxit)
+if ~(counter<simoptions.maxit)
     disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
 end 
-
-%% Leftovers from a now extinct simoption
-% if simoptions.nagents~=0
-%    SteadyStateDistKronTemp=reshape(SteadyStateDistKron, [N_a*N_z,1]);
-%    SteadyStateDistKronTemp=cumsum(SteadyStateDistKronTemp);
-%    SteadyStateDistKronTemp=SteadyStateDistKronTemp*simoptions.nagents;
-%    SteadyStateDistKronTemp=round(SteadyStateDistKronTemp);
-%    
-%    SteadyStateDistKronTemp2=SteadyStateDistKronTemp;
-%    for i=2:length(SteadyStateDistKronTemp)
-%        SteadyStateDistKronTemp2(i)=SteadyStateDistKronTemp(i)-SteadyStateDistKronTemp(i-1);
-%    end
-%    SteadyStateDistKron=reshape(SteadyStateDistKronTemp2,[N_a,N_z]);
-% end
 
 end

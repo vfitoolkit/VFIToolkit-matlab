@@ -4,7 +4,7 @@ function [states, transmatrix]=TauchenMethod(mew,sigmasq,rho,znum,q, tauchenopti
 %   mew            - AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq)
 %   rho            - AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq)
 %   sigmasq        - AR(1) process z'=mew+rho*z+e, e~N(0,sigmasq)
-%   q              - max number of std devs from mean
+%   q              - max number of std devs from mean (default=3)
 %   znum           - number of states in discretization of z (must be an odd number)
 % Optional Inputs
 %   tauchenoptions - allows user to control internal options
@@ -29,8 +29,14 @@ else
     end
 end
 
+% Check for q (+-q std deviations are the max and min grid points)
+if exist('q','var')==0
+    q=0;
+end
+
+
 % Check for a deterministic shifter
-if exist('dshift','var')==0 %nargin<7
+if exist('dshift','var')==0
     dshift=0;
 end
 

@@ -22,17 +22,11 @@ if simoptions.parallel==2
     PolicyIndexesKron=gather(PolicyIndexesKron);
     pi_z=gather(pi_z);
     if simoptions.iterate==1
-        simoptions.parallel=1;
+        simoptions.parallel=1; % multiple short time series, this is just creating an intial guess of the agent distribution for the iteration so perfectly good way to do things
     else
-        simoptions.parallel=0;
+        simoptions.parallel=0; % For the asymptotic theory to work you have to just use one big time series. (Theory does not cover the 'multiple short time series' approach of parallel cpus with simoptions.parallel=1)
     end
     MoveSSDKtoGPU=1;
-end
-
-if simoptions.parallel>=3
-    PolicyIndexesKron=gather(PolicyIndexesKron);
-    pi_z=gather(pi_z);
-    simoptions.parallel=1;
 end
 
 if simoptions.parallel==1 
@@ -114,84 +108,12 @@ elseif simoptions.parallel==0
         end
         StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron));
     end
-%    SteadyStateDistKron(:,seed_c)=SteadyStateDistKron;
-% % % elseif simoptions.parallel==2 %% WAY TOO SLOW. HAVE CHANGED TO SIMPLY MOVING TO CPU AND THEN MOVING BACK 
-% % %     if N_d==0
-% % %         v1=0
-% % %         if v1==1
-% % %             % THIS IS A BETTER VERSION, BUT WON'T RUN (ON GPU) UNTIL MATLAB
-% % %             % R2014B AT LEAST
-% % %             %Uses gpu to run simoptions.ncores simulations simultaneously
-% % %             simoptions.ncores=100;
-% % %             SteadyStateDistKron=zeros(N_a*N_z,1,'gpuArray');
-% % %             cumsum_pi_z=cumsum(pi_z,2);
-% % %             currstate=ones(simoptions.ncores,2,'gpuArray').*(ones(simoptions.ncores,1,'gpuArray')*simoptions.seedpoint); %Pick a random start point on the (vectorized) (a,z) grid
-% % %             for i=1:simoptions.burnin
-% % %                 currstate(:,1)=PolicyIndexesKron(currstate(:,1)+N_a*(currstate(:,2)-1));
-% % %                 [~,currstate(:,2)]=max((cumsum_pi_z(currstate(:,2),:)>rand(simoptions.ncores,1,'gpuArray')*ones(1,N_z)),[],2);
-% % % %                 [~,currstate(:,2)]=max(cumsum_pi_z(currstate(:,2),:)>(rand(simoptions.ncores,1,'gpuArray')*ones(1,4,'gpuArray')),[],2);
-% % %             end
-% % %             for i=1:simoptions.simperiods
-% % %                 temp=currstate(:,1)+N_a*(currstate(:,2)-1);
-% % % %                 % histcounts does not yet exist in Matlab 2014a, but will in
-% % % %                 % Matlab 2014b (may still not yet exist for GPU)
-% % % %                 temp=gather(temp);
-% % %                 [uniquecurrstate,~,AAA]=unique(temp);
-% % %                 [Ncurrstate,~] = histcounts(AAA,length(uniquecurrstate));
-% % % %                 [Ncurrstate,uniquecurrstate] = histcounts(temp,length(unique(temp)));
-% % %                 % may need to run ceil() or similar on uniquecurrstate
-% % %                 SteadyStateDistKron(uniquecurrstate)=SteadyStateDistKron(uniquecurrstate)+Ncurrstate';
-% % %                 
-% % %                 currstate(:,1)=PolicyIndexesKron(currstate(:,1)+N_a*(currstate(:,2)-1));
-% % %                 [~,currstate(:,2)]=max((cumsum_pi_z(currstate(:,2),:)>rand(simoptions.ncores,1,'gpuArray')*ones(1,N_z)),[],2);
-% % % %                 [~,currstate(:,2)]=max(cumsum_pi_z(currstate(:,2),:)>(rand(simoptions.ncores,1,'gpuArray')*ones(1,4,'gpuArray')),[],2);
-% % %             end
-% % %             SteadyStateDistKron=SteadyStateDistKron./(simoptions.simperiods*simoptions.ncores);
-% % %         else
-% % %             % TEMPORARILY STICKING WITH THIS
-% % %             cumsum_pi_z=cumsum(pi_z,2);
-% % %             SteadyStateDistKron=zeros(N_a*N_z,1,'gpuArray');
-% % %             currstate=gpuArray(simoptions.seedpoint); %Pick a random start point on the (vectorized) (a,z) grid
-% % %             for i=1:simoptions.burnin
-% % %                 currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
-% % %                 [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
-% % %             end
-% % %             for i=1:simoptions.simperiods
-% % %                 SteadyStateDistKron(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron(currstate(1)+(currstate(2)-1)*N_a)+1;
-% % %                 
-% % %                 currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
-% % %                 [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
-% % %                 
-% % %             end
-% % %             SteadyStateDistKron=SteadyStateDistKron./sum(sum(SteadyStateDistKron));
-% % %         end
-% % %     else
-% % %         optaprime=2;
-% % %         cumsum_pi_z=cumsum(pi_z,2);
-% % %         SteadyStateDistKron=zeros(N_a*N_z,1,'gpuArray');
-% % %         currstate=gpuArray(simoptions.seedpoint); %Pick a random start point on the (vectorized) (a,z) grid
-% % %         for i=1:simoptions.burnin
-% % %             currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
-% % %             [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
-% % %         end
-% % %         for i=1:simoptions.simperiods
-% % %             SteadyStateDistKron(currstate(1)+(currstate(2)-1)*N_a)=SteadyStateDistKron(currstate(1)+(currstate(2)-1)*N_a)+1;
-% % %             
-% % %             currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2));
-% % %             [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
-% % %             
-% % %         end
-% % %         SteadyStateDistKron=SteadyStateDistKron./sum(sum(SteadyStateDistKron));
-% % %     end
-    
+    % I did once implement the simulations on gpu, but it is painfully slow. Much
+    % better to switch to cpu, do the simluation, and then switch back.
 end
 
 if MoveSSDKtoGPU==1
     StationaryDistKron=gpuArray(StationaryDistKron);
-end
-
-if simoptions.parallel>3
-    StationaryDistKron=sparse(StationaryDistKron);
 end
 
 end

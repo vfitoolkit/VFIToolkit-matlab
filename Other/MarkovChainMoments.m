@@ -1,16 +1,15 @@
 function [mean,variance,corr,statdist]=MarkovChainMoments(z_grid,pi_z,mcmomentsoptions)
 
-% mcmomentsoptions is a bit of a hack
 if exist('mcmomentsoptions','var')==0
     mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
     mcmomentsoptions.T=10^6;
-    mcmomentsoptions.Tolerance=10^(-9);
+    mcmomentsoptions.Tolerance=10^(-8);
 else
     if isfield(mcmomentsoptions,'parallel')==0
         mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
     end
     if isfield(mcmomentsoptions,'Tolerance')==0
-        mcmomentsoptions.Tolerance=10^(-9);
+        mcmomentsoptions.Tolerance=10^(-8);
     end
     if isfield(mcmomentsoptions,'T')==0
         mcmomentsoptions.T=10^6;
@@ -31,66 +30,46 @@ T=mcmomentsoptions.T;
 % (SURELY THERE IS SOME SMARTER WAY TO CALCULATE THE THEORETICAL ONE
 % DIRECTLY USING z_grid & pi_z)
 
-% tic;
+%% Compute the stationary distribution
+% I tried out both just iterating on the distribution and calculating eigenvectors, seems like iteration is faster (everything is measured in thousand-ths of a second anyway)
 
-new=pi_z;
+pi_z_transpose=pi_z';
+statdist=ones(length(z_grid),1)/length(z_grid);
 currdist=1;
 while currdist>mcmomentsoptions.Tolerance
-    old=new;
-    new=(old^100);
-    currdist=max(max(new-old));
+    statdistold=statdist;
+    statdist=pi_z_transpose*statdist;
+    currdist=sum(abs(statdist-statdistold));
 end
 
-statdist=((ones(1,length(z_grid))/length(z_grid))*new)'; %A column vector
-% statdist=((ones(1,prod(n_z))/prod(n_z))*new)'; %A column vector
-% mean_zr=sum(kron(z_grid(1:5),ones(7,1)).*statdist)
-% mean_ze=sum(kron(ones(5,1),z_grid(6:end)).*statdist)
-% time1=toc
-
-% % Eigenvalues approach to stationary distriubtion 
+% % Eigenvvector approach to stationary distriubtion 
 % % (see https://en.wikipedia.org/wiki/Markov_chain#Stationary_distribution_relation_to_eigenvectors_and_simplices )
-% % does not appear to be any faster (in fact marginally
-% % slower) (It also appears to be less accurate, although this may be a
-% % coding error on my part)
+% % does not appear to be any faster (in fact marginally slower)
 % tic;
-% [statdist2,~]=eigs(gather(pi_z),1,1);
-% if sum(statdist2)<0; 
-%     statdist2=-statdist2; 
-% end; 
-% statdist2(statdist2<0)=0; 
-% statdist2=statdist2./sum(statdist2);
-% time2=toc
+% [statdist,~]=eigs(gather(pi_z)',1);
+% statdist=statdist./sum(statdist);
+% toc
 
+%% Calculate the mean and variance
 mean=z_grid'*statdist;
-
 
 secondmoment=(z_grid.^2)'*statdist;
 variance=secondmoment-mean^2;
 
 %% Now for the (first-order auto-) correlation
+% This takes vast majority of the time of MarkovChainMoments()
+% Might be possible to speed this up by using parallelization? Not sure
+% about computing correlation using parallelization (does it converge, and
+% does it work faster?)
 
 if Parallel==2 || Parallel==4 % Move to cpu for simulation. Is just much faster.
     z_grid=gather(z_grid);
-%     pi_z=gather(pi_z); % Done directly below when creating cumsum_pi_z (which is anyway the only use of pi_z in what remains)
 end
 
-
-% if Parallel==2 || Parallel==4 % Use GPU (assumes z_grid & pi_z are gpu arrays). Doing this on gpu takes ages and is just a bad idea.
-%     %Simulate Markov chain with transition state pi_z
-%     A=gpuArray(ones(T,1)*floor(length(z_grid)/2)); %A contains the time series of states
-%     shocks_raw=rand(T,1);
-%     cumsum_pi_z=cumsum(pi_z,2);
-%     for t=2:T
-%         temp_cumsum_pi_z=cumsum_pi_z(A(t-1),:);
-%         temp_cumsum_pi_z(temp_cumsum_pi_z<=shocks_raw(t))=2;
-%         [~,A(t)]=min(temp_cumsum_pi_z);
-%     end
-%     corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
-%     corr=corr_temp(2,1);
-% else % On CPU
-
-%Simulate Markov chain with transition state pi_z
-A=ones(T,1)*floor(length(z_grid)/2); %A contains the time series of states
+% Simulate Markov chain with transition state pi_z
+% Maybe I should be doing burnin here??
+A=zeros(T,1); % A contains the time series of states
+A(1)=floor(length(z_grid)/2); % Start the simulation in the midpoint
 shocks_raw=rand(T,1);
 cumsum_pi_z=cumsum(gather(pi_z),2);
 for t=2:T
@@ -99,10 +78,6 @@ for t=2:T
     [~,A(t)]=min(temp_cumsum_pi_z);
 end
 corr_temp=corrcoef(z_grid(A(2:T)),z_grid(A(1:T-1)));
-corr=corr_temp(2,1);
-
-% end    
-% time4=toc
-    
+corr=corr_temp(2,1);    
     
 end
