@@ -12,7 +12,7 @@ if exist('vfoptions','var')==0
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
-        vfoptions.solnmethod='purediscretization_relativeVFI'; % Has only been implemented on the GPU
+%         vfoptions.solnmethod='purediscretization_relativeVFI'; % Has only been implemented on the GPU
     end
     if isfield(vfoptions,'returnmatrix')==0
         if isa(ReturnFn,'function_handle')==1

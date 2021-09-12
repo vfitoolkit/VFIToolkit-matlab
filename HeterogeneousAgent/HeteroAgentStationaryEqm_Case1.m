@@ -98,7 +98,7 @@ end
 if N_p~=0
     [p_eqm_vec,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_pgrid(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
     for ii=1:length(GEPriceParamNames)
-        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
     end
     return
 end
@@ -125,7 +125,7 @@ end
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
 for ii=1:length(GEPriceParamNames)
-    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
 end
 
 end

@@ -79,6 +79,7 @@ end
 % to read when you are looking at PTypeStructure (which only ever exists
 % internally to the VFI Toolkit)
 if iscell(Names_i)
+    fprintf('HERE \n')
     PTypeStructure.Names_i=Names_i;
     PTypeStructure.N_i=length(Names_i);
 else
@@ -349,21 +350,21 @@ for ii=1:PTypeStructure.N_i
     end
 end
 
-%%
-% Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
-if heteroagentoptions.verbose==1
-    for ii=1:PTypeStructure.N_i
-        % Create all the things specific for each Permanent type and store them all in PTypeStructure.
-        if ii<10 % one digit
-            iistr=['ptype00',num2str(ii)];
-        elseif ii<100 % two digit
-            iistr=['ptype0',num2str(ii)];
-        elseif ii<1000 % three digit
-            iistr=['ptype',num2str(ii)];
-        end
-        PTypeStructure.(iistr)
-    end
-end
+% % %%
+% % % Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
+% % if heteroagentoptions.verbose==1
+% %     for ii=1:PTypeStructure.N_i
+% %         % Create all the things specific for each Permanent type and store them all in PTypeStructure.
+% %         if ii<10 % one digit
+% %             iistr=['ptype00',num2str(ii)];
+% %         elseif ii<100 % two digit
+% %             iistr=['ptype0',num2str(ii)];
+% %         elseif ii<1000 % three digit
+% %             iistr=['ptype',num2str(ii)];
+% %         end
+% %         PTypeStructure.(iistr)
+% %     end
+% % end
 
 
 %%

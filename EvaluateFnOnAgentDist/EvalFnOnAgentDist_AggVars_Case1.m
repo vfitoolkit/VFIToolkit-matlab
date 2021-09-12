@@ -198,7 +198,7 @@ if Parallel==2 || Parallel==4
     
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'SSvalueParamNames={}'
+        if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'FnsToEvaluateParamNames={}'
             FnToEvaluateParamsVec=[];
         else
             FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));

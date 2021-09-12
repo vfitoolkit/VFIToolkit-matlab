@@ -28,7 +28,6 @@ if vfoptions.verbose==1
     sprintf('Age j is currently %i \n',N_j)
 end
 
-
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
@@ -365,8 +364,6 @@ if Case2_Type==12 % phi_a'(d,a,z)
         end
     end
     
-    aaa=kron(pi_z,ones(N_d,1,'gpuArray'));
-    
     for reverse_j=1:N_j-1
         jj=N_j-reverse_j;
         
@@ -406,6 +403,7 @@ if Case2_Type==12 % phi_a'(d,a,z)
             ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
 
             for z_c=1:N_z
+                aaa=kron(pi_z(z_c,:),ones(N_d,1,'gpuArray'));
                 for a_c=1:N_a
 %                     RHSpart2=zeros(N_d,1,'gpuArray');
 %                     for zprime_c=1:N_z

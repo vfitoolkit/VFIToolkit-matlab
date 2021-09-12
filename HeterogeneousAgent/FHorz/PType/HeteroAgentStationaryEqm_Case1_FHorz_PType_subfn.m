@@ -6,9 +6,9 @@ for pp=1:length(GEPriceParamNames) % Not sure this is needed, have it just in ca
 end
 
 if heteroagentoptions.parallel==2
-    AggVars=zeros(PTypeStructure.ptype001.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate should be independent of the ptype so just take it from the first.
+    AggVars=zeros(PTypeStructure.(PTypeStructure.iistr{1}).numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate should be independent of the ptype so just take it from the first.
 else
-    AggVars=zeros(PTypeStructure.ptype001.numFnsToEvaluate,1); % numFnsToEvaluate should be independent of the ptype so just take it from the first.    
+    AggVars=zeros(PTypeStructure.(PTypeStructure.iistr{1}).numFnsToEvaluate,1); % numFnsToEvaluate should be independent of the ptype so just take it from the first.    
 end
 
 for ii=1:PTypeStructure.N_i

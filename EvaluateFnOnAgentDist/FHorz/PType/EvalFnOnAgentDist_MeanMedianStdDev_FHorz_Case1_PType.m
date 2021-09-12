@@ -181,7 +181,6 @@ for ii=1:N_i
     % necessarily the same.
     FnsToEvaluate_temp={};
     FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-%     numFnsToEvaluate=length(FnsToEvaluateFn); % Now done outside the for-ii-loop
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for kk=1:numFnsToEvaluate

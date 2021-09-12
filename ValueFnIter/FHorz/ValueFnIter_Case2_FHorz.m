@@ -25,6 +25,7 @@ if ~exist('vfoptions','var')
     vfoptions.nphi=0;
     vfoptions.policy_forceintegertype=0;
     vfoptions.dynasty=0;
+    vfoptions.agedependentgrids=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
