@@ -9,10 +9,12 @@ elseif isempty(Parallel)
     Parallel=1+(gpuDeviceCount>0);
 end
 
-if isstruct(StationaryDist)
-    % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
-    ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
-    return
+if exist('StationaryDist','var')
+    if isstruct(StationaryDist)
+        % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
+        ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+        return
+    end
 end
 
 if Parallel==2 || Parallel==4
