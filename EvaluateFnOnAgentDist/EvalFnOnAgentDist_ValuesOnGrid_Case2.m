@@ -1,4 +1,4 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case2(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case2(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames, StationaryDist)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
 % Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry

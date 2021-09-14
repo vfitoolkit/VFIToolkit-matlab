@@ -1,5 +1,5 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel,simoptions)
-% Parallel is an optional input. If not given, will guess based on where StationaryDist
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel,simoptions)
+% Parallel is an optional input.
 
 if n_d(1)==0
     l_d=0;
@@ -12,19 +12,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if exist('Parallel','var')==0
-    if isa(StationaryDist, 'gpuArray')
-        Parallel=2;
-    else
-        Parallel=1;
-    end
-else
-    if isempty(Parallel)
-        if isa(StationaryDist, 'gpuArray')
-            Parallel=2;
-        else
-            Parallel=1;
-        end
-    end
+    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
 end
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
