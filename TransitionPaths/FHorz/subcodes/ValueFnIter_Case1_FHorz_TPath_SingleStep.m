@@ -97,18 +97,18 @@ if vfoptions.exoticpreferences==0
     else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
-elseif vfoptions.exoticpreferences==1 % Multiple discount factors. It is assumed that the product
-%     %NOT YET IMPLEMENTED
-% %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-% %    return
-elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
+elseif vfoptions.exoticpreferences=='QuasiHyperbolic'
+    %     %NOT YET IMPLEMENTED
+    % %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+    % %    return
+elseif vfoptions.exoticpreferences=='EpsteinZin'
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 end
-
+    
 %%
 if isfield(vfoptions,'StateDependentVariables_z')==1
     if vfoptions.verbose==1

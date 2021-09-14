@@ -31,8 +31,6 @@ if exist('transpathoptions','var')==0
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-4);
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.fastOLG=0;
-    transpathoptions.exoticpreferences=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
@@ -49,12 +47,6 @@ else
     end
     if isfield(transpathoptions,'parallel')==0
         transpathoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if isfield(transpathoptions,'fastOLG')==0
-        transpathoptions.fastOLG=0;
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
     end
     if isfield(transpathoptions,'oldpathweight')==0
         transpathoptions.oldpathweight=0.9;
@@ -116,6 +108,7 @@ if exist('vfoptions','var')==0
     vfoptions.exoticpreferences=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
+    vfoptions.fastOLG=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'parallel')==0
@@ -145,6 +138,9 @@ else
     end
     if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
+    end
+    if isfield(vfoptions,'fastOLG')==0
+        vfoptions.fastOLG=0;
     end
 end
 
@@ -275,13 +271,13 @@ end
 if transpathoptions.GEnewprice==1
     if transpathoptions.parallel==2
         if transpathoptions.usestockvars==0
-            if transpathoptions.fastOLG==0
+            if vfoptions.fastOLG==0
                 PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
             else % use fastOLG setting
                 PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
             end
         else % transpathoptions.usestockvars==1
-            if transpathoptions.fastOLG==0
+            if vfoptions.fastOLG==0
                 % NOT YET IMPLEMENTED
 %                 PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
             else % use fastOLG setting

@@ -103,18 +103,18 @@ if vfoptions.exoticpreferences==0
         else
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory==1 % For fastOLG this means don't parallelize over 'z', the exogenous state (loops over z)
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLGlowmem_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLGlowmem_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
-elseif vfoptions.exoticpreferences==1 % Multiple discount factors. It is assumed that the product
+elseif vfoptions.exoticpreferences=='QuasiHyperbolic'
     %NOT YET IMPLEMENTED
-%    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+%    [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
 %    return
-elseif vfoptions.exoticpreferences==2 % Epstein-Zin preferences
+elseif vfoptions.exoticpreferences=='EpsteinZin'
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else

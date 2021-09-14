@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions, vfoptions, simoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions, vfoptions, simoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 %% Check which transpathoptions have been used, set all others to defaults 
@@ -209,9 +209,11 @@ end
 %%
 
 if N_d>0
-    PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath(:,:,:,:,T)=KronPolicyIndexes_FHorz_Case1(Policy_final, n_d, n_a, n_z,N_j);
 else
-    PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath=zeros(N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_FHorz_Case1(Policy_final, n_d, n_a, n_z,N_j);
 end
 
 %First, go from T-1 to 1 calculating the Value function and Optimal
