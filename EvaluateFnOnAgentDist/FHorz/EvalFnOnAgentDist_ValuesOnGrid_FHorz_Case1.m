@@ -15,6 +15,7 @@ if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
 end
 
+
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
