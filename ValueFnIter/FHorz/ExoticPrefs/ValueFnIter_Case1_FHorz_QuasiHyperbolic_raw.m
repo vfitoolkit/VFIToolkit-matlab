@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function varargout=ValueFnIter_Case1_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % Let V_j be the standard (exponential discounting) solution to the value fn problem
@@ -212,7 +212,7 @@ for reverse_j=1:N_j-1
                 % Now Vtilde and Policy
                 entireRHS_z=ReturnMatrix_z+beta0beta*entireEV_z*ones(1,N_a,1);
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                Vtilde(:,z_c,jj)=Vtemp; % Evaluate what would have done under exponential discounting
+                Vtilde(:,z_c,jj)=Vtemp; % Evaluate what would have done under quasi-hyperbolic discounting
                 Policy(:,z_c,jj)=maxindex; % Use the policy from solving the problem of Vtilde
             elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')  
                 % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat) 
@@ -288,5 +288,12 @@ end
 Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
 Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
 Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+
+if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+    varargout={Vtilde,Policy2}; % Policy will be Policytilde
+else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+    varargout={V,Policy2}; % Policy will be Policyhat, V will be Vhat
+end
+
 
 end

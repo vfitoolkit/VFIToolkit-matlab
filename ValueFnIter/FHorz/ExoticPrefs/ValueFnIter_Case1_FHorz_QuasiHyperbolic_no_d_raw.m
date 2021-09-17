@@ -276,7 +276,7 @@ end
 if strcmp(vfoptions.quasi_hyperbolic,'Naive')
     varargout={Vtilde,Policy}; % Policy will be Policytilde
 else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-    varargout={Vunderbar,Policy}; % Policy will be Policyhat
+    varargout={V,Policy}; % Policy will be Policyhat, V will be Vhat
 end
 
 

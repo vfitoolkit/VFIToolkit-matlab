@@ -131,7 +131,16 @@ else
         end
     end
     if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences=0;
+        vfoptions.exoticpreferences='None';
+    end
+    if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+        if ~isfield(vfoptions,'quasi_hyperbolic')
+            vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
+        elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+            fprintf('ERROR: when using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
+            dbstack
+            return
+        end
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
@@ -263,10 +272,6 @@ if transpathoptions.usestockvars==1
 end
 
 %%
-if transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
-    dbstack
-end
 
 if transpathoptions.GEnewprice==1
     if transpathoptions.parallel==2

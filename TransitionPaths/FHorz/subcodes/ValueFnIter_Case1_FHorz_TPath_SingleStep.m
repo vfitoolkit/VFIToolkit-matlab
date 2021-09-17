@@ -12,7 +12,7 @@ if exist('vfoptions','var')==0
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.exoticpreferences=0;
+    vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -98,9 +98,19 @@ if vfoptions.exoticpreferences==0
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 elseif vfoptions.exoticpreferences=='QuasiHyperbolic'
-    %     %NOT YET IMPLEMENTED
-    % %    [V, Policy]=ValueFnIter_Case1_QuasiGeometric(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-    % %    return
+    if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+        if N_d==0
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_NQHyperbolic_SingleStep_no_d_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        else
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_NQHyperbolic_SingleStep_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        end
+    elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+        if N_d==0
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SQHyperbolic_SingleStep_no_d_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        else
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SQHyperbolic_SingleStep_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
+        end
+    end
 elseif vfoptions.exoticpreferences=='EpsteinZin'
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

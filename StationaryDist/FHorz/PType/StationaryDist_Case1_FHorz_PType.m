@@ -209,6 +209,6 @@ for ii=1:N_i
 
 end
 
-StationaryDist.ptweights=Parameters.(PTypeDistParamNames{:});
+StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{:}),[],1); % reshape is to make sure this is a column vector
 
 end

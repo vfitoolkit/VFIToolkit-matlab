@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case2_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
+function varargout=ValueFnIter_Case2_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z,Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -1007,5 +1007,12 @@ if Case2_Type==6 % phi_a'(d)
         end
     end
 end
+
+if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+    varargout={Vtilde,Policy}; % Policy will be Policytilde
+else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+    varargout={V,Policy}; % Policy will be Policyhat, V will be Vhat
+end
+
 
 end

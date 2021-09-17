@@ -223,7 +223,7 @@ for ii=1:N_i
         end
     end
     
-    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
         
     N_a_temp=prod(n_a_temp);     
     N_z_temp=prod(n_z_temp);
@@ -257,10 +257,10 @@ end
 % (Formula: https://en.wikipedia.org/wiki/Pooled_variance#Aggregation_of_standard_deviation_data )
 % Calculate the median from the Lorenz curves
 for kk=1:numFnsToEvaluate
-    SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*StationaryDist.ptweights); % The sum of the masses of the relevate types
+    SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
     
     % Mean
-    MeanMedianStdDev(kk,1)=sum(FnsAndPTypeIndicator(kk,:).*StationaryDist.ptweights.*PTypeMeans(kk,:))/SigmaNxi;
+    MeanMedianStdDev(kk,1)=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*PTypeMeans(kk,:))/SigmaNxi;
     
     % Standard Deviation
     if N_i==1
@@ -280,10 +280,10 @@ for kk=1:numFnsToEvaluate
                 %             tempC
                 %             tempD
                 %             size(temp)
-                temp2(ii)=StationaryDist.ptweights(ii)*FnsAndPTypeIndicator(kk,1:(ii-1)).*StationaryDist.ptweights(1:(ii-1)).*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2);
+                temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2));
             end
         end
-        MeanMedianStdDev(kk,3)=sqrt(sum(FnsAndPTypeIndicator(kk,:).*StationaryDist.ptweights.*PTypeStdDev(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+        MeanMedianStdDev(kk,3)=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*PTypeStdDev(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
     end
     
     % Median
@@ -294,11 +294,12 @@ for kk=1:numFnsToEvaluate
             DistVec=[DistVec; StationaryDist.(Names_i{ii})/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
             ValuesVec=[ValuesVec;ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])];
         end
-        [SortedValues,sortindex]=sort(ValuesVec);
-        SortedDist=DistVec(sortindex);
-        median_index=find(cumsum(SortedDist)>=0.5,1,'first');
-        MeanMedianStdDev(kk,2)=SortedValues(median_index);
     end
+    [SortedValues,sortindex]=sort(ValuesVec);
+    SortedDist=DistVec(sortindex);
+    median_index=find(cumsum(SortedDist)>=0.5,1,'first');
+    
+    MeanMedianStdDev(kk,2)=SortedValues(median_index);
 
 end
 

@@ -22,7 +22,8 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 
 % Names_i can either be a cell containing the 'names' of the different
 % permanent types, or if there are no structures used (just parameters that
-% depend on permanent type and inputted as vectors or matrices as appropriate)
+% depend on permanent type and inputted as vectors or matrices as appropriate; note that this cannot be done for 
+% vfoptions, simoptions, etc as it then becomes impossible to tell that the vector/matrix is because of PType and not something else)
 % then Names_i can just be the number of permanent types (but does not have to be, can still be names).
 if iscell(Names_i)
     N_i=length(Names_i);
@@ -220,7 +221,7 @@ for ii=1:N_i
             end
         end
     else % simoptions.groupptypesforstats==1
-        ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+        ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
         N_a_temp=prod(n_a_temp);
         N_z_temp=prod(n_z_temp);
         ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
