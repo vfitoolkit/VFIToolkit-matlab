@@ -44,7 +44,7 @@ if fieldexists_ExogShockFn==1
         end
     else
         z_grid=vfoptions.z_grid_J(:,N_j);
-        pi_z=vfoptions.pi_z_J(:,N_j);
+        pi_z=vfoptions.pi_z_J(:,:,N_j);
     end
 end
 
@@ -117,8 +117,8 @@ for reverse_j=1:N_j-1
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         else
-            z_grid=vfoptions.z_grid_J(:,N_j);
-            pi_z=vfoptions.pi_z_J(:,N_j);
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
         end
     end
     

@@ -54,17 +54,22 @@ end
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+    if fieldexists_pi_z_J==0
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+        else
+            [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
+            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
     else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=vfoptions.z_grid_J(:,N_j);
+        pi_z=vfoptions.pi_z_J(:,:,N_j);
     end
 end
 
@@ -110,7 +115,7 @@ end
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
-    j=N_j-reverse_j;
+    jj=N_j-reverse_j;
 
     if vfoptions.verbose==1
         sprintf('Finite horizon: %i of %i',reverse_j, N_j)
@@ -118,22 +123,27 @@ for reverse_j=1:N_j-1
     
     
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     if fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,j);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        if fieldexists_pi_z_J==0
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+            else
+                [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
         else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(j);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
         end
     end
     
@@ -141,12 +151,12 @@ for reverse_j=1:N_j-1
         for ii=1:l_SDV_z
             if SDV_z_IndepOfagej(ii)==0
                 temp=SDV_z{ii};
-                SDV_z_gridvals(:,ii)=temp(:,j); % Update SDV_z_gridvals for current age j
+                SDV_z_gridvals(:,ii)=temp(:,jj); % Update SDV_z_gridvals for current age j
             end
         end
     end
     
-    VKronNext_j=V(:,:,j+1);
+    VKronNext_j=V(:,:,jj+1);
     
     if lowmemory==0
         
@@ -181,8 +191,8 @@ for reverse_j=1:N_j-1
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,j)=Vtemp;
-            Policy(:,z_c,j)=maxindex;
+            V(:,z_c,jj)=Vtemp;
+            Policy(:,z_c,jj)=maxindex;
         end
         
     elseif lowmemory==1
@@ -201,8 +211,8 @@ for reverse_j=1:N_j-1
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,j)=Vtemp;
-            Policy(:,z_c,j)=maxindex;
+            V(:,z_c,jj)=Vtemp;
+            Policy(:,z_c,jj)=maxindex;
         end
         
     elseif lowmemory==2
@@ -223,8 +233,8 @@ for reverse_j=1:N_j-1
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,j)=Vtemp;
-                Policy(a_c,z_c,j)=maxindex;
+                V(a_c,z_c,jj)=Vtemp;
+                Policy(a_c,z_c,jj)=maxindex;
             end
         end
         

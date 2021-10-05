@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_no_dorz_Par1_raw(n_a,n_z,N_j, a_grid, z_grid,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_no_dorz_Par1_raw(n_a,n_z,N_j, a_grid, z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -63,21 +63,6 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-
-    if isfield(vfoptions,'ExogShockFn')==1
-        if isfield(vfoptions,'ExogShockFnParamNames')==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gather(z_grid); pi_z=gather(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gather(z_grid); pi_z=gather(pi_z);
-        end
-    end
     
     VKronNext_j=V(:,:,jj+1);
     
