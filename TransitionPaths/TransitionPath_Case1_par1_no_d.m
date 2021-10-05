@@ -2,16 +2,16 @@ function [PricePathOld]=TransitionPath_Case1_par1_no_d(PricePathOld, PricePathNa
 
 %% 
 % % HAVE NOT YET IMPLEMENTED lowmemory with par1
-% if transpathoptions.lowmemory==1
-%     fprintf('ERROR: Have not yet implemented lowmemory with parallel==1 options, contact robertdkirkby@gmail.com if you want to use this')
-%     dbstack
-%     return
-% end
-
 if transpathoptions.lowmemory==1
-    PricePathOld=TransitionPath_Case1_par1_no_d_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
+    fprintf('ERROR: Have not yet implemented lowmemory with parallel==1 options, contact robertdkirkby@gmail.com if you want to use this')
+    dbstack
     return
 end
+
+% if transpathoptions.lowmemory==1
+%     PricePathOld=TransitionPath_Case1_par1_no_d_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
+%     return
+% end
 
 
 %%
@@ -119,21 +119,35 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
         AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 1);
-%         AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2);   
-            
-            % When using negative powers matlab will often return complex
-            % numbers, even if the solution is actually a real number. I
-            % force converting these to real, albeit at the risk of missing problems
-            % created by actual complex numbers.
+        for ii=1:length(transpathoptions.AggVarsNames)
+            Parameters.(transpathoptions.AggVarsNames{ii})=AggVars(ii);
+        end
+
+        % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
+        % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1
-            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames,1));
+            if transpathoptions.oldGE==1
+                PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 1));
+            else
+                PricePathNew(i,:)=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 1));
+            end
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
             return
-            for j=1:length(GeneralEqmEqns)
-                GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-                PricePathNew(i,j)=fzero(GEeqn_temp,p);
+%             for j=1:length(MarketPriceEqns)
+%                 GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+%                 PricePathNew(i,j)=fzero(GEeqn_temp,p);
+%             end
+        % Note there is no GEnewprice==2, I did this to make it harder to make a mistake
+        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
+            if heteroagentoptions.oldGE==1
+                p_i=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 1));
+            else
+                p_i=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 1));
             end
+%             GEcondnspath(i,:)=p_i;
+            p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+            PricePathNew(i,:)=PricePathOld(i,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
         
         AgentDist=AgentDistnext;

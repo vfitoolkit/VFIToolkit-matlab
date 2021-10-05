@@ -33,7 +33,6 @@ if exist('transpathoptions','var')==0
     transpathoptions.tolerance=10^(-5);
     transpathoptions.parallel=1+(gpuDeviceCount>0);
     transpathoptions.lowmemory=0;
-    transpathoptions.exoticpreferences=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
@@ -41,6 +40,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbose=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
+    transpathoptions.oldGE=1;
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
@@ -52,9 +52,6 @@ else
     end
     if isfield(transpathoptions,'lowmemory')==0
         transpathoptions.lowmemory=0;
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
     end
     if isfield(transpathoptions,'oldpathweight')==0
         transpathoptions.oldpathweight=0.9;
@@ -77,6 +74,9 @@ else
     if isfield(transpathoptions,'GEnewprice')==0
         transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 2 is to do optimization routine with 'distance between old and new path'
     end
+    if isfield(transpathoptions,'oldGE')==0
+        transpathoptions.oldGE=1;
+    end
     if isfield(transpathoptions,'weightsforpath')==0
         transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
     end
@@ -96,38 +96,37 @@ else
 end
 
 %%
+if transpathoptions.oldGE==1
+    GeneralEqmEqnInputNames=GeneralEqmEqnParamNames;
+elseif transpathoptions.oldGE==0
+    clear GeneralEqmEqnInputNames
+    for ii=1:length(GeneralEqmEqns)
+        GeneralEqmEqnInputNames(ii).Names=getAnonymousFnInputNames(GeneralEqmEqns{ii});
+    end
+end
+
+%%
 
 % If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
-    if ~exist('EntryExitParamNames','var')
-        fprintf('ERROR: need to input EntryExitParamNames to TransitionPath_Case1() \n')
-        PricePath=[];
-        return
-    end
-    if simoptions.agententryandexit==1% transpathoptions.agententryandexit==1
-        PricePath=TransitionPath_Case1_EntryExit(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-        return
-%     elseif transpathoptions.agententryandexit==2
-%         PricePath=TransitionPath_Case1_EntryExit2(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-%         return
-    end
-end
-
-if transpathoptions.exoticpreferences==2 % Epstein-Zin preferences
-    PricePath=TransitionPath_Case1_EpsteinZin(PricePathOld, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions);
+    fprintf('ERROR: have not yet implemented transition path for models with entry/exit \n')
     return
-elseif transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 or 2 is supported by TransitionPath_Case1')
-    dbstack
-else
-    if length(DiscountFactorParamNames)~=1
-        disp('WARNING: DiscountFactorParamNames is not of length one (this is unusual for infinite horizon problems)')
-        dbstack
-    end
+%     if ~exist('EntryExitParamNames','var')
+%         fprintf('ERROR: need to input EntryExitParamNames to TransitionPath_Case1() \n')
+%         PricePath=[];
+%         return
+%     end
+%     if simoptions.agententryandexit==1% transpathoptions.agententryandexit==1
+%         PricePath=TransitionPath_Case1_EntryExit(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
+%         return
+% %     elseif transpathoptions.agententryandexit==2
+% %         PricePath=TransitionPath_Case1_EntryExit2(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
+% %         return
+%     end
 end
 
 if transpathoptions.parallel==1
-    PricePath=TransitionPath_Case1_par1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, vfoptions, simoptions);
+    PricePath=TransitionPath_Case1_par1(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, transpathoptions, vfoptions, simoptions);
     return
 end
 
@@ -155,14 +154,14 @@ end
 
 
 if N_d==0
-    PricePath=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
+    PricePath=TransitionPath_Case1_no_d(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames,transpathoptions);
     return
 end
 
 if transpathoptions.lowmemory==1
     % The lowmemory option is going to use gpu (but loop over z instead of
     % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
-    PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions);
+    PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames,transpathoptions);
     return
 end
 
@@ -183,12 +182,30 @@ if transpathoptions.verbose==1
     PricePathNames
 end
 
-    
+
 beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
 ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
 [IndexesForPricePathInReturnFnParams, IndexesPricePathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
+[IndexesForPathParamsInReturnFnParams, IndexesParamPathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
+
+if transpathoptions.GEnewprice==3
+    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
+    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
+    if size(transpathoptions.GEnewprice3.howtoupdate,1)==length(GeneralEqmEqns) && length(GeneralEqmEqns)==length(PricePathNames)
+        % do nothing, this is how things should be
+    else
+        fprintf('ERROR: transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+    end
+    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
+    for ii=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for jj=1:length(PricePathNames)
+            if strcmp(transpathoptions.GEnewprice3.howtoupdate{ii,2},PricePathNames{jj})
+                transpathoptions.GEnewprice3.permute(ii)=jj;
+            end
+        end
+    end
+end
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     
@@ -208,7 +225,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-i,IndexesPricePathUsedInReturnFn);
         end
         if ~isnan(IndexesForPathParamsInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
         
@@ -263,7 +280,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         for nn=1:length(PricePathNames)
             Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
+            Parameters.([PricePathNames{nn},'_tplus1'])=PricePathOld(i+1,nn); % Make is so that the time t+1 variables can be used
         end
+        
         
         % The next five lines should really be replaced with a custom
         % alternative version of SSvalues_AggVars_Case1_vec that can
@@ -277,23 +296,35 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         PolicyTemp=UnKronPolicyIndexes_Case1(PolicyTemp, n_d, n_a, n_z,unkronoptions);
         AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
-%         AggVars=SSvalues_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
-        
-        %An easy way to get the new prices is just to call MarketClearance
-        %and then adjust it for the current prices
-            % When using negative powers matlab will often return complex
-            % numbers, even if the solution is actually a real number. I
-            % force converting these to real, albeit at the risk of missing problems
-            % created by actual complex numbers.
+        for ii=1:length(transpathoptions.AggVarsNames)
+            Parameters.(transpathoptions.AggVarsNames{ii})=AggVars(ii);
+        end
+
+        % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
+        % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1
-            PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
-        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-            fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1.m)')
-            return
-            for j=1:length(MarketPriceEqns)
-                GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-                PricePathNew(i,j)=fzero(GEeqn_temp,p);
+            if heteroagentoptions.oldGE==1
+                PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 2));
+            else
+                PricePathNew(i,:)=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 2));
             end
+        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+            fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
+            return
+%             for j=1:length(MarketPriceEqns)
+%                 GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
+%                 PricePathNew(i,j)=fzero(GEeqn_temp,p);
+%             end
+        % Note there is no GEnewprice==2, I did this to make it harder to make a mistake
+        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
+            if transpathoptions.oldGE==1
+                p_i=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 2));
+            else
+                p_i=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 2));
+            end
+%             GEcondnspath(i,:)=p_i;
+            p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+            PricePathNew(i,:)=PricePathOld(i,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
         
         AgentDist=AgentDistnext;
