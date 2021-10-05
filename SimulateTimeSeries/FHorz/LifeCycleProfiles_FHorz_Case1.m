@@ -23,7 +23,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 %% Check which simoptions have been declared, set all others to defaults 
-if exist('options','var')==1
+if exist('simoptions','var')==1
     %Check options for missing fields, if there are some fill them with the defaults
     if isfield(simoptions,'parallel')==0
         simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
@@ -64,6 +64,8 @@ l_z=length(n_z);
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
+simoptions
 
 %% Create a different 'Values' for each of the variable to be evaluated
 
