@@ -9,6 +9,8 @@ elseif isempty(Parallel)
     Parallel=1+(gpuDeviceCount>0);
 end
 
+Parallel
+
 if exist('StationaryDist','var')
     if isstruct(StationaryDist)
         % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
