@@ -50,6 +50,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.fminalgo=1;
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
+    heteroagentoptions.oldGE=1;
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
@@ -71,6 +72,9 @@ else
     if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
+    if isfield(heteroagentoptions,'oldGE')==0
+        heteroagentoptions.oldGE=1; % use fminsearch
+    end
 end
 
 %%
@@ -82,6 +86,15 @@ else
         vfoptions.V0=zeros([N_a,N_z], 'gpuArray');
     else
         vfoptions.V0=zeros([N_a,N_z]);
+    end
+end
+
+if heteroagentoptions.oldGE==1
+%     GeneralEqmEqnInputNames=GeneralEqmEqnParamNames;
+elseif heteroagentoptions.oldGE==0
+    clear GeneralEqmEqnParamNames
+    for ii=1:length(GeneralEqmEqns)
+        GeneralEqmEqnParamNames(ii).Names=getAnonymousFnInputNames(GeneralEqmEqns{ii});
     end
 end
 
@@ -105,10 +118,15 @@ end
 
 %% Otherwise, use fminsearch to find the general equilibrium
 
-% I SHOULD IMPLEMENT A BETTER V0Kron HERE
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
-
-p0=nan(length(GEPriceParamNames),1);
+if heteroagentoptions.fminalgo<3
+    GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+elseif heteroagentoptions.fminalgo==3
+    % Multi-objective verion
+    GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfnMO(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+end
+    
+    
+p0=zeros(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
@@ -118,8 +136,19 @@ if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in 
     [p_eqm_vec,GeneralEqmCondition]=fzero(GeneralEqmConditionsFn,p0);    
 elseif heteroagentoptions.fminalgo==1
     [p_eqm_vec,GeneralEqmCondition]=fminsearch(GeneralEqmConditionsFn,p0);
-else
-    [p_eqm_vec,GeneralEqmCondition]=fminsearch(GeneralEqmConditionsFn,p0);
+elseif heteroagentoptions.fminalgo==2
+    % Use the optimization toolbox so as to take advantage of automatic differentiation
+    z=optimvar('z',length(p0));
+    optimfun=fcn2optimexpr(GeneralEqmConditionsFn, z);
+    prob = optimproblem("Objective",optimfun);
+    z0.z=p0;
+    [sol,GeneralEqmCondition]=solve(prob,z0);
+    p_eqm_vec=sol.z;
+elseif heteroagentoptions.fminalgo==3
+    goal=zeros(length(p0),1);
+    weight=ones(length(p0),1); % I already implement weights via heteroagentoptions
+    [p_eqm_vec,GeneralEqmConditionsVec] = fgoalattain(GeneralEqmConditionsFn,p0,goal,weight);
+    GeneralEqmCondition=sum(abs(GeneralEqmConditionsVec));
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless

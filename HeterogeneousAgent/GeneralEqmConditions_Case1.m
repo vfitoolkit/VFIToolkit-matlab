@@ -16,7 +16,7 @@ if Parallel==2 || Parallel==4
             for jj=1:length(GeneralEqmEqnParamsVec)
                 GeneralEqmEqnParamsCell(jj,1)={GeneralEqmEqnParamsVec(jj)};
             end
-
+            
             GeneralEqmConditionsVec(i)=GeneralEqmEqns{i}(AggVars, p, GeneralEqmEqnParamsCell{:});
         end
     end
@@ -36,6 +36,5 @@ else
         end
     end
 end
-
 
 end

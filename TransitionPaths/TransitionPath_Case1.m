@@ -82,6 +82,13 @@ else
     end
 end
 
+if isfield(transpathoptions,'p_eqm_init')
+    p_eqm_init=transpathoptions.p_eqm_init;
+    use_p_eqm_init=1;
+else
+    use_p_eqm_init=0;
+end
+
 % If vfoptions and simoptions are not given, then just create placeholders
 % (simplifies calling subcommands for the different TransitionPath variants)
 if exist('vfoptions','var')==0
@@ -172,6 +179,8 @@ V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
 V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+GEcondnspath=zeros(T,length(GeneralEqmEqns),'gpuArray');
+AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
 Policy=zeros(N_a,N_z,'gpuArray');
 
 
@@ -281,6 +290,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         for nn=1:length(PricePathNames)
             Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
             Parameters.([PricePathNames{nn},'_tplus1'])=PricePathOld(i+1,nn); % Make is so that the time t+1 variables can be used
+            if i>1
+                Parameters.([PricePathNames{nn},'_tminus1'])=PricePathOld(i-1,nn); % Make is so that the time t+1 variables can be used
+            else
+                if use_p_eqm_init==1
+                    Parameters.([PricePathNames{nn},'_tminus1'])=p_eqm_init.(PricePathNames{nn});
+                else
+                    Parameters.([PricePathNames{nn},'_tminus1'])=0; % I SHOULD MAKE IT SO THERE IS AN ERROR IF YOU TRY TO USE '_tminus1' WITHOUT p_eqm_int; Currently I just ignore
+                end
+            end
         end
         
         
@@ -299,11 +317,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         for ii=1:length(transpathoptions.AggVarsNames)
             Parameters.(transpathoptions.AggVarsNames{ii})=AggVars(ii);
         end
+        AggVarsPath(i,:)=AggVars;
 
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1
-            if heteroagentoptions.oldGE==1
+            if transpathoptions.oldGE==1
                 PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 2));
             else
                 PricePathNew(i,:)=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 2));
@@ -322,7 +341,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             else
                 p_i=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 2));
             end
-%             GEcondnspath(i,:)=p_i;
+            GEcondnspath(i,:)=p_i;
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             PricePathNew(i,:)=PricePathOld(i,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
@@ -337,8 +356,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
-        disp('Old, New')
+%         disp('Old, New')
+%         [PricePathOld,PricePathNew]
+        fprintf('Old, New, price paths \n')
+        PricePathNames'
         [PricePathOld,PricePathNew]
+        fprintf('GE conditions \n')
+        GEcondnspath
+        fprintf('Agg Vars \n')
+        AggVarsPath
     end
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but

@@ -1,4 +1,4 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
@@ -18,11 +18,17 @@ AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluat
 % The following line is often a useful double-check if something is going wrong.
 %    AggVars
 
-% use of real() is a hack that could disguise errors, but I couldn't
-% find why matlab was treating output as complex
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+if heteroagentoptions.oldGE==1
+    GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, simoptions.parallel));
+else
+    for ii=1:length(heteroagentoptions.AggVarsNames)
+        Parameters.(heteroagentoptions.AggVarsNames{ii})=AggVars(ii);
+    end
+    GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, simoptions.parallel));
+end
 
-if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price 
+if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
     GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));                                                                                                         

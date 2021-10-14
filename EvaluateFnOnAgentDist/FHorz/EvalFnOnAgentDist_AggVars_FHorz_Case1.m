@@ -81,9 +81,7 @@ else
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
     sizePolicyIndexes=size(PolicyIndexes);
-%     size(PolicyIndexes)
     if length(PolicyIndexes)>4 % If not in vectorized form
-%     if sizePolicyIndexes(2:end)~=[N_a,N_z,N_j] % If not in vectorized form
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     

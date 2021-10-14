@@ -8,11 +8,17 @@ N_p=prod(n_p);
 l_p=length(n_p);
 
 %% 
+for ii=1:l_p
+    Parameters.(GEPriceParamNames{ii})=GEprices(ii);
+end
+
+%% 
 % If 'exogenous shock fn' is used and depends on GE parameters then
 % precompute it here (otherwise it is already precomputed).
 if isfield(vfoptions,'ExogShockFn')
     if ~isfield(vfoptions,'pi_z_J') % This is implicitly checking that ExogShockFn does depend on GE params (if it doesn't then this field will already exist)
         pi_z_J=zeros(N_z,N_z,N_j);
+        z_grid_J=zeros(N_z,N_j);
         for jj=1:N_j
             if isfield(vfoptions,'ExogShockFnParamNames')
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
@@ -35,12 +41,8 @@ if isfield(vfoptions,'ExogShockFn')
     end
 end
 
-%% 
-for ii=1:l_p
-    Parameters.(GEPriceParamNames{ii})=GEprices(ii);
-end
-
-[~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+%%
+[V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
 StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
@@ -61,6 +63,8 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
+    fprintf('Current aggregate variables. \n')
+    AggVars
     fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
     GEprices
     GeneralEqmConditionsVec
