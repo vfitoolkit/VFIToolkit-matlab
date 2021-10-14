@@ -183,7 +183,7 @@ for reverse_j=1:N_j-1
             entireEV_z=kron(EV_z,ones(N_d,1));
             
             z_val=z_gridvals(z_c,:);
-            for a_c=1:N_z
+            for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                 

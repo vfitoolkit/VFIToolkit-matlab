@@ -259,7 +259,7 @@ for reverse_j=1:N_j-1
             temp4(temp3==0)=0;
 
             z_val=z_gridvals(z_c,:);
-            for a_c=1:N_z
+            for a_c=1:N_a
                 a_val=a_gridvals(z_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
                 

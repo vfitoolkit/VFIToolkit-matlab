@@ -13,39 +13,11 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
-    
-    z_gridvals=zeros(N_z,length(n_z));
-    for i1=1:N_z
-        sub=zeros(1,length(n_z));
-        sub(1)=rem(i1-1,n_z(1))+1;
-        for ii=2:length(n_z)-1
-            sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-        end
-        sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-        
-        if length(n_z)>1
-            sub=sub+[0,cumsum(n_z(1:end-1))];
-        end
-        z_gridvals(i1,:)=z_grid(sub);
-    end
+    z_gridvals=CreateGridvals(n_z,z_grid,1);
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
-    
-    a_gridvals=zeros(N_a,length(n_a));
-    for i2=1:N_a
-        sub=zeros(1,length(n_a));
-        sub(1)=rem(i2-1,n_a(1))+1;
-        for ii=2:length(n_a)-1
-            sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-        end
-        sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-        
-        if length(n_a)>1
-            sub=sub+[0,cumsum(n_a(1:end-1))];
-        end
-        a_gridvals(i2,:)=a_grid(sub);
-    end
+    a_gridvals=CreateGridvals(n_a,a_grid,1);
 end
 
 
@@ -154,7 +126,7 @@ while currdist>vfoptions.tolerance
                 entireEV_z=kron(EV_z,ones(N_d,1));
                 
                 z_val=z_gridvals(z_c,:);
-                for a_c=1:N_z
+                for a_c=1:N_a
                     a_val=a_gridvals(z_c,:);
                     ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                     

@@ -250,7 +250,7 @@ for reverse_j=1:N_j-1
             temp3(EV_z==0)=0;
                         
             z_val=z_gridvals(z_c,:);
-            for a_c=1:N_z
+            for a_c=1:N_a
                 a_val=a_gridvals(z_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, ReturnFnParamsVec);
                 % Modify the Return Function appropriately for Epstein-Zin Preferences

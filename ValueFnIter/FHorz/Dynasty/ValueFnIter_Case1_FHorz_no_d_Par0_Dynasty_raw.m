@@ -123,7 +123,7 @@ while currdist>vfoptions.tolerance
                 EV_z=sum(EV_z,2);
                 
                 z_val=z_gridvals(z_c,:);
-                for a_c=1:N_z
+                for a_c=1:N_a
                     a_val=a_gridvals(z_c,:);
                     ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                     
