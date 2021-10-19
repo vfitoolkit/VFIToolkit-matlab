@@ -10,10 +10,10 @@ if exist('transpathoptions','var')==0
         if isfield(vfoptions,'exoticpreferences')
             transpathoptions.exoticpreferences=vfoptions.exoticpreferences;
         else
-            transpathoptions.exoticpreferences=0;
+            transpathoptions.exoticpreferences='None';
         end
     else
-        transpathoptions.exoticpreferences=0;
+        transpathoptions.exoticpreferences='None';
     end
     transpathoptions.verbose=0;
 else
@@ -22,7 +22,7 @@ else
         transpathoptions.parallel=2;
     end
     if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
+        transpathoptions.exoticpreferences='None';
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
@@ -152,7 +152,7 @@ end
 
 
 %%
-if transpathoptions.exoticpreferences~=0
+if ~strcmp(transpathoptions.exoticpreferences,'None')
     disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
     dbstack
 else

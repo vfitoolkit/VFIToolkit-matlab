@@ -16,8 +16,7 @@ l_a=length(n_a);
 % makes the output back into double as Matlab otherwise cannot use it in
 % any arithmetical expressions.
 if vfoptions.policy_forceintegertype==1
-    Policy=uint64(Policy);
-    Policy=double(Policy);
+    Policy=round(Policy);
 end
 
 if N_d==0
@@ -100,8 +99,7 @@ else
 end
 
 if vfoptions.policy_forceintegertype==1
-    Policy=uint64(Policy);
-    Policy=double(Policy);
+    Policy=round(Policy);
 end
 
 end

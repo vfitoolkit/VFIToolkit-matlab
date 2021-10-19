@@ -1,4 +1,7 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, AgentDist_initial, Parameters, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, FnsToEvaluateParamNames, PricePath, ParamPath, Parameters, T, V_final, Policy_final, AgentDist_initial, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
+%AggVarsPath is T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
+% To fix idea of the size/shape: AggVarsPath=nan(T,length(FnsToEvaluate));
+
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -8,7 +11,7 @@ function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath, Para
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
-
+%%
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
@@ -108,6 +111,8 @@ else
     end
 end
 
+PTypeStructure.FnsAndPTypeIndicator=zeros(length(FnsToEvaluate),PTypeStructure.N_i,'gpuArray');
+
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
@@ -120,7 +125,7 @@ for ii=1:PTypeStructure.N_i
     if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
     end
-    
+
     if isfield(PTypeStructure.(iistr).vfoptions,'verbose')
         if PTypeStructure.(iistr).vfoptions.verbose==1
             sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
@@ -144,8 +149,8 @@ for ii=1:PTypeStructure.N_i
     if ~isfield(PTypeStructure.(iistr).simoptions,'iterate')
         PTypeStructure.(iistr).simoptions.iterate=1;
     end
-
-
+    
+    
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -318,7 +323,39 @@ for ii=1:PTypeStructure.N_i
             end
         end
     end
-    
+        
+    % Figure out which functions are actually relevant to the present
+    % PType. Only the relevant ones need to be evaluated.
+    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
+    % necessarily the same.
+    PTypeStructure.(iistr).FnsToEvaluate={};
+    PTypeStructure.(iistr).FnsToEvaluateParamNames=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
+    PTypeStructure.numFnsToEvaluate=length(FnsToEvaluate);
+    PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.numFnsToEvaluate,1);
+    jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
+    for kk=1:PTypeStructure.numFnsToEvaluate
+        if isa(FnsToEvaluate{kk},'struct')
+            if isfield(FnsToEvaluate{kk}, Names_i{ii})
+                PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate{kk}.(Names_i{ii});
+                if isa(FnsToEvaluateParamNames(kk).Names,'struct')
+                    PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
+                else
+                    PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
+                end
+                PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
+                PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
+                % else
+                %  % do nothing as this FnToEvaluate is not relevant for the current PType
+                % % Implicitly, PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=0
+            end
+        else
+            % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
+            PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate{kk};
+            PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
+            PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
+            PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
+        end
+    end
     
 %     if isa(PTypeDistParamNames, 'array')
 %         PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
@@ -326,6 +363,22 @@ for ii=1:PTypeStructure.N_i
 %         PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
 %     end
 end
+
+
+%%
+% Don't need seperate code for no_d with PType.
+% if N_d==0
+%     AggVarsPath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames);
+%     return
+% end
+
+% Have not implemented yet but if you are using PType, then anything with lowmemory is likely going to be too slow to be useful anyway
+% if transpathoptions.lowmemory==1
+%     % The lowmemory option is going to use gpu (but loop over z instead of
+%     % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
+%     AggVarsPath=EvalFnOnTransPath_AggVars_Case1_lowmem(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions);
+%     return
+% end
 
 
 %%
@@ -383,11 +436,11 @@ if transpathoptions.parallel==2
 %         % V=zeros(size(V_final),'gpuArray'); %preallocate space
 %     end
     
-    PolicyPath=struct();
-    VPath=struct();
+    PolicyIndexesPath=struct();
     
     % For each agent type, first go back through the value & policy fns.
     % Then forwards through agent dist and agg vars.
+    AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T,PTypeStructure.N_i); % Does not include period T
     for ii=1:PTypeStructure.N_i
         iistr=PTypeStructure.Names_i{ii};
         
@@ -406,23 +459,22 @@ if transpathoptions.parallel==2
         ReturnFnParamNames=PTypeStructure.(iistr).ReturnFnParamNames;
         vfoptions=PTypeStructure.(iistr).vfoptions;
         simoptions=PTypeStructure.(iistr).simoptions;
+        FnsToEvaluate=PTypeStructure.(iistr).FnsToEvaluate;
+        FnsToEvaluateParamNames=PTypeStructure.(iistr).FnsToEvaluateParamNames;
         
         V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j]);
         AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,N_j]);
         
         if N_d>0
-            PolicyPath_ii=zeros(2,N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
-            PolicyPath_ii(:,:,:,:,T)=Policy_final.(iistr);
+            PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath(:,:,:,:,T)=Policy_final.(iistr);
 %             PolicyIndexesPath.(iistr)=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         else
-            PolicyPath_ii=zeros(N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
-            PolicyPath_ii(:,:,:,T)=Policy_final.(iistr);
+            PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyIndexesPath(:,:,:,T)=Policy_final.(iistr);
 %             PolicyIndexesPath.(iistr)=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
         
-        VPath_ii=zeros(N_a,N_z,N_j,T,'gpuArray');
-        VPath_ii(:,:,:,T)=V_final.(iistr);
-
         %First, go from T-1 to 1 calculating the Value function and Optimal
         %policy function at each step. Since we won't need to keep the value
         %functions for anything later we just store the next period one in
@@ -442,21 +494,55 @@ if transpathoptions.parallel==2
             % Policy is kept in the form where it is just a single-value in (d,a')
             
             if N_d>0
-                PolicyPath_ii(:,:,:,:,T-tt)=Policy;
+                PolicyIndexesPath(:,:,:,:,T-tt)=Policy;
 %                 PolicyIndexesPath.(iistr)(:,:,:,:,T-tt)=Policy;
             else
-                PolicyPath_ii(:,:,:,T-tt)=Policy;
+                PolicyIndexesPath(:,:,:,T-tt)=Policy;
 %                 PolicyIndexesPath.(iistr)(:,:,:,T-tt)=Policy;
             end
-            VPath_ii(:,:,:,T-tt)=V;
-            
             Vnext=V;
         end
+        % Free up space on GPU by deleting things no longer needed
+        clear V Vnext
+        
+        %Now we have the full PolicyIndexesPath, we go forward in time from 1
+        %to T using the policies to update the agents distribution generating a
+        %new price path
+        %Call AgentDist the current periods distn
+        AgentDist=AgentDist_initial.(iistr);
+        AggVarsPath=zeros(length(FnsToEvaluate),T-1);
+        for tt=1:T
+            
+            %Get the current optimal policy
+            if N_d>0
+                Policy=PolicyIndexesPath(:,:,:,:,tt);
+            else
+                Policy=PolicyIndexesPath(:,:,:,tt);
+            end
+            
+            GEprices=PricePath(tt,:);
+            
+            for nn=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{nn})=ParamPath(tt,nn);
+            end
+            for nn=1:length(PricePathNames)
+                Parameters.(PricePathNames{nn})=PricePath(tt,nn);
+            end
+            
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2, simoptions); % The 2 is for Parallel (use GPU)
+            
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
 
-        VPath.(iistr)=VPath_ii;
-        PolicyPath.(iistr)=PolicyPath_ii;
+            AggVarsPath(:,tt)=AggVars;
+        end
+        AggVarsFullPath(:,:,ii)=AggVarsPath;
     end
     
+    
+    % Note: Cannot do transition paths in which the mass of each agent type changes.
+    AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath(:,:,ii).*shiftdim(AgentDist_initial.ptweights,-2),3); % Weighted sum over agent type dimension
+
 else
     AgentDist_initial.ptweights=AgentDist_initial.ptweights;
 %     for ii=1:PTypeStructure.N_i
@@ -470,9 +556,11 @@ else
 %         % V=zeros(size(V_final),'gpuArray'); %preallocate space
 %     end
     
-    PolicyPath_ii=struct();
+    PolicyIndexesPath=struct();
     
     % For each agent type, first go back through the value & policy fns.
+    % Then forwards through agent dist and agg vars.
+    AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T,PTypeStructure.N_i); % Does not include period T
     for ii=1:PTypeStructure.N_i
         iistr=PTypeStructure.Names_i{ii};
         
@@ -491,21 +579,21 @@ else
         ReturnFnParamNames=PTypeStructure.(iistr).ReturnFnParamNames;
         vfoptions=PTypeStructure.(iistr).vfoptions;
         simoptions=PTypeStructure.(iistr).simoptions;
+        FnsToEvaluate=PTypeStructure.(iistr).FnsToEvaluate;
+        FnsToEvaluateParamNames=PTypeStructure.(iistr).FnsToEvaluateParamNames;
         
         V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j]);
         AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,N_j]);
         
         if N_d>0
-            PolicyPath_ii=zeros(2,N_a,N_z,N_j,T); %Periods 1 to T
-            PolicyPath_ii(:,:,:,:,T)=Policy_final.(iistr);
+            PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T); %Periods 1 to T
+            PolicyIndexesPath(:,:,:,:,T)=Policy_final.(iistr);
 %             PolicyIndexesPath.(iistr)=zeros(2,N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T
         else
-            PolicyPath_ii=zeros(N_a,N_z,N_j,T); %Periods 1 to T
-            PolicyPath_ii(:,:,:,T)=Policy_final.(iistr);
+            PolicyIndexesPath=zeros(N_a,N_z,N_j,T); %Periods 1 to T
+            PolicyIndexesPath(:,:,:,:,T)=Policy_final.(iistr);
 %             PolicyIndexesPath.(iistr)=zeros(N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T
         end
-        VPath_ii=zeros(N_a,N_z,N_j,T,'gpuArray');
-        VPath_ii(:,:,:,T)=V_final.(iistr);
         
         %First, go from T-1 to 1 calculating the Value function and Optimal
         %policy function at each step. Since we won't need to keep the value
@@ -526,22 +614,54 @@ else
             % Policy is kept in the form where it is just a single-value in (d,a')
             
             if N_d>0
-                PolicyPath_ii(:,:,:,:,T-tt)=Policy;
+                PolicyIndexesPath(:,:,:,:,T-tt)=Policy;
 %                 PolicyIndexesPath.(iistr)(:,:,:,:,T-tt)=Policy;
             else
-                PolicyPath_ii(:,:,:,T-tt)=Policy;
+                PolicyIndexesPath(:,:,:,T-tt)=Policy;
 %                 PolicyIndexesPath.(iistr)(:,:,:,T-tt)=Policy;
             end
-            
-            VPath_ii(:,:,:,T-tt)=V;
-
             Vnext=V;
         end
+        % Free up space on GPU by deleting things no longer needed
+        clear V Vnext
         
-        VPath.(iistr)=VPath_ii;
-        PolicyPath.(iistr)=PolicyPath_ii;
-        
+        %Now we have the full PolicyIndexesPath, we go forward in time from 1
+        %to T using the policies to update the agents distribution generating a
+        %new price path
+        %Call AgentDist the current periods distn
+        AgentDist=AgentDist_initial.(iistr);
+        AggVarsPath=zeros(length(FnsToEvaluate),T-1);
+        for tt=1:T
+            
+            %Get the current optimal policy
+            if N_d>0
+                Policy=PolicyIndexesPath(:,:,:,:,tt);
+            else
+                Policy=PolicyIndexesPath(:,:,:,tt);
+            end
+            
+            GEprices=PricePath(tt,:);
+            
+            for nn=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{nn})=ParamPath(tt,nn);
+            end
+            for nn=1:length(PricePathNames)
+                Parameters.(PricePathNames{nn})=PricePath(tt,nn);
+            end
+            
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2, simoptions); % The 2 is for Parallel (use GPU)
+            
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+
+            AggVarsPath(:,tt)=AggVars;
+        end
+        AggVarsFullPath(:,:,ii)=AggVarsPath;
     end
+    
+    
+    % Note: Cannot do transition paths in which the mass of each agent type changes.
+    AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath(:,:,ii).*shiftdim(AgentDist_initial.ptweights,-2),3); % Weighted sum over agent type dimension
 
 end
 

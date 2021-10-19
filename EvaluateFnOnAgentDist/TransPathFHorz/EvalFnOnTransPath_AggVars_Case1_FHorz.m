@@ -16,7 +16,7 @@ if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.exoticpreferences=0;
+    transpathoptions.exoticpreferences='None';
     transpathoptions.lowmemory=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
@@ -24,7 +24,7 @@ else
         transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
+        transpathoptions.exoticpreferences='None';
     end
     if isfield(transpathoptions,'lowmemory')==0
         transpathoptions.lowmemory=0;
@@ -84,12 +84,11 @@ end
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences=0;
     vfoptions.parallel=transpathoptions.parallel;
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.exoticpreferences=0;
+    vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -114,7 +113,7 @@ else
         end
     end
     if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences=0;
+        vfoptions.exoticpreferences='None';
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
@@ -191,8 +190,8 @@ else
 %    PricePath=gather(PricePath);
 end
 
-if transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
+if ~strcmp(transpathoptions.exoticpreferences,'None')
+    disp('ERROR: Only transpathoptions.exoticpreferences==None is supported by TransitionPath_Case1')
     dbstack
 end
 
@@ -209,18 +208,17 @@ if transpathoptions.verbose==1
     PricePathNames
 end
 
-
 if transpathoptions.parallel==2
     
     V_final=reshape(V_final,[N_a,N_z,N_j]);
     AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]);
-    V=zeros(size(V_final),'gpuArray'); %preallocate space
+%     V=zeros(size(V_final),'gpuArray'); %preallocate space
     PricePathNew=zeros(size(PricePath),'gpuArray'); PricePathNew(T,:)=PricePath(T,:);
-    if N_d>0
-        Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
-    else
-        Policy=zeros(N_a,N_z,N_j,'gpuArray');
-    end
+%     if N_d>0
+%         Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
+%     else
+%         Policy=zeros(N_a,N_z,N_j,'gpuArray');
+%     end
     %%
     
     if N_d>0
@@ -248,7 +246,7 @@ if transpathoptions.parallel==2
         [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
-
+                
         if N_d>0
             PolicyIndexesPath(:,:,:,:,T-ii)=Policy;
         else

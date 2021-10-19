@@ -37,7 +37,7 @@ else
         vfoptions.lowmemory=0;
     end
     if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences=0;
+        vfoptions.exoticpreferences='None';
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
@@ -91,13 +91,7 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-if strcmp(vfoptions.exoticpreferences,'None')
-    if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    else
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    end
-elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
         if N_d==0
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_NQHyperbolic_SingleStep_no_d_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
@@ -146,6 +140,15 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     
     return
 end
+
+%% If get to here then not using exoticpreferences nor StateDependentVariables_z
+if N_d==0
+    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+else
+    fprintf('HERE \n')
+    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+end
+
 
 % %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 % V=reshape(VKron,[n_a,n_z,N_j]);

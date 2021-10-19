@@ -100,12 +100,11 @@ end
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences=0;
     vfoptions.parallel=transpathoptions.parallel;
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.exoticpreferences=0;
+    vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.fastOLG=0;
