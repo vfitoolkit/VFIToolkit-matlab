@@ -242,15 +242,17 @@ longoptionstring(1)='A';
 % Now request the metadata
 JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id_full,'/',longoptionstring]);
 output.country=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(2).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
-output.series_id=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
-output.description=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
-if strcmp(database_id,'CPIS')
-    output.sector=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(4).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
-    output.counterpartsector=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(5).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
-    output.counterpartcountry=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(6).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
-end
-if strcmp(database_id,'DOT')
-    output.counterpartcountry=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(4).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+if length(JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet)>2 % If there is no data then the following are sometimes missing
+    output.series_id=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
+    output.description=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+    if strcmp(database_id,'CPIS')
+        output.sector=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(4).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+        output.counterpartsector=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(5).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+        output.counterpartcountry=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(6).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+    end
+    if strcmp(database_id,'DOT')
+        output.counterpartcountry=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(4).ReportedAttribute(2).ReportedAttribute(1).Value.x_text;
+    end
 end
 
 end
