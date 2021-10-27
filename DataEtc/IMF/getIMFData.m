@@ -209,7 +209,7 @@ if isfield(JSONdata.CompactData.DataSet,'Series')
         elseif strcmp(frequency,'Q')
             output.Data(ii,1)=datenum(str2num(tempstr{ii}(1:4)),1+3*(str2num(tempstr{ii}(7))-1),1);
         elseif strcmp(frequency,'M')
-            output.Data(ii,1)=datenum(str2num(tempstr{ii}(1:4)),str2num(tempstr{ii}(7)),1);
+            output.Data(ii,1)=datenum(str2num(tempstr{ii}(1:4)),str2num(tempstr{ii}(6:7)),1);
         else
             fprinf('ERROR: I HAVE NOT CODED getIMFData FOR ANYTHING HIGHER THAN MONTHLY FREQUENCY, IF YOU NEED THIS THEN PLEASE JUST SEND ME AN EMAIL robertdkirkby@gmail.com AND I WILL IMPLEMENT IT')
         end
