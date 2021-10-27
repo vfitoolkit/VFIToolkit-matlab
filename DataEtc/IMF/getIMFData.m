@@ -173,9 +173,22 @@ else
     longoptionstring=optionstring;
 end
 
+% For some reason the JSON sometimes is not read correctly, and is
+% interpreted as text. When this occurs I rerequest the JSON.
+
 
 % /CompactData/
 JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id_full,'/',longoptionstring]);
+attempts=0;
+while ~isstruct(JSONdata) && attempts<=10 % Try a few time to get the data as JSON (rather than text, which for some reason sometimes happens)
+    JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id_full,'/',longoptionstring]);
+    attempts=attempts+1;
+    fprintf('getIMFData: the request to IMF failed to parse, reattempting (this msg is purely FYI, not indicative of eventual error) \n')
+    if attempts==10 && ~isstruct(JSONdata)
+        fprintf('ERROR, getIMFData: The request to IMF keeps failing to parse, typically this is solved by just rerunning (there is no discernable reason for this error)')
+    end
+end
+% Sort the data into output
 if isfield(JSONdata.CompactData.DataSet,'Series')
     output.Data=nan(length(JSONdata.CompactData.DataSet.Series.Obs),2);
     temp=JSONdata.CompactData.DataSet.Series.Obs;
@@ -241,6 +254,16 @@ end
 longoptionstring(1)='A';
 % Now request the metadata
 JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id_full,'/',longoptionstring]);
+attempts=0;
+while ~isstruct(JSONdata3) && attempts<=10 % Try a few time to get the data as JSON (rather than text, which for some reason sometimes happens)
+    JSONdata3 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/GenericMetadata/',database_id_full,'/',longoptionstring]);
+    attempts=attempts+1;
+    fprintf('getIMFData: the request to IMF failed to parse, reattempting (this msg is purely FYI, not indicative of eventual error) \n')
+    if attempts==10 && ~isstruct(JSONdata3)
+        fprintf('ERROR, getIMFData: The request to IMF keeps failing to parse, typically this is solved by just rerunning (there is no discernable reason for this error)')
+    end
+end
+% Sort the metadata into output
 output.country=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(2).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
 if length(JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet)>2 % If there is no data then the following are sometimes missing
     output.series_id=JSONdata3.GenericMetadata.MetadataSet.AttributeValueSet(3).ReportedAttribute(1).ReportedAttribute(1).Value.x_text;
