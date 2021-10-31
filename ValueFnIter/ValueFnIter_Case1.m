@@ -450,15 +450,21 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(vfoptions,'SemiEndogShockFn')
-    if vfoptions.lowmemory~=0 || vfoptions.parallel~=2 || vfoptions.returnmatrix~=2 % GPU
-        fprintf('Only lowmemory=0 and parallel=2 are currently possible when using vfoptions.SemiEndogShockFn \n')
+    if vfoptions.lowmemory~=0 || vfoptions.parallel<1 % GPU or parellel CPU are only things that I have created (email me if you want/need other options)
+        fprintf('Only lowmemory=0 and parallel=1 or 2 are currently possible when using vfoptions.SemiEndogShockFn \n')
         dbstack
         return
     end
     if vfoptions.verbose==1
         fprintf('Creating return fn matrix \n')
     end
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+    if vfoptions.returnmatrix==0
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+    elseif vfoptions.returnmatrix==1
+        ReturnMatrix=ReturnFn;
+    elseif vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+    end
     if vfoptions.verbose==1
         time=toc;
         fprintf('Time to create return fn matrix: %8.4f \n', time)
@@ -481,7 +487,6 @@ if isfield(vfoptions,'SemiEndogShockFn')
         for ii=1:length(SemiEndogParamsVec)
             SemiEndogParamsCell(ii,1)={SemiEndogParamsVec(ii)};
         end
-        disp('HERE')
         parfor ii=1:N_a
             a_ii=a_gridvals(ii,:)';
             a_ii_SemiEndogParamsCell=[a_ii;SemiEndogParamsCell];
@@ -491,7 +496,6 @@ if isfield(vfoptions,'SemiEndogShockFn')
             % z_grid created about 10 lines above, so I don't bother keeping it.
             % I only create it so you can double-check it is same as z_grid
         end
-        disp('Here2')
     end
     if vfoptions.verbose==1
         time=toc;
@@ -500,12 +504,19 @@ if isfield(vfoptions,'SemiEndogShockFn')
         tic;
     end
     
-    if n_d(1)==0
-        [VKron,Policy]=ValueFnIter_Case1_NoD_SemiEndog_Par2_raw(V0, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-    else
-        [VKron, Policy]=ValueFnIter_Case1_SemiEndog_Par2_raw(V0, n_d, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-    end  
-    
+    if vfoptions.parallel==2
+        if n_d(1)==0
+            [VKron,Policy]=ValueFnIter_Case1_NoD_SemiEndog_Par2_raw(V0, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        else
+            [VKron, Policy]=ValueFnIter_Case1_SemiEndog_Par2_raw(V0, n_d, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        end
+    elseif vfoptions.parallel==1
+        if n_d(1)==0
+            [VKron,Policy]=ValueFnIter_Case1_NoD_SemiEndog_Par1_raw(V0, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        else
+            [VKron, Policy]=ValueFnIter_Case1_SemiEndog_Par1_raw(V0, n_d, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        end        
+    end
     if vfoptions.outputkron==0
         V=reshape(VKron,[n_a,n_z]);
         Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
