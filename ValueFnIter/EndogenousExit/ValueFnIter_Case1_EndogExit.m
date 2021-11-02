@@ -29,14 +29,6 @@ if isfield(vfoptions,'ReturnToExitFnParamNames')==0
     return
 end
 
-%if vfoptions.exoticpreferences~=0
-%    fprintf('ERROR: endogenousexit does not yet allow for exotic preferences, please contact robertdkirkby@gmail.com if this is something you want/need \n');
-%    dbstack
-%    return
-%end
-
-
-
 %%
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 % Create a vector containing all the return function parameters (in order)
