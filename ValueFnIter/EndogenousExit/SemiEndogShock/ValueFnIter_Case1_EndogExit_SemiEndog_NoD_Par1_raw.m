@@ -14,9 +14,11 @@ ExitPolicy=zeros(N_a,N_z);
 
 Ftemp=zeros(N_a,N_z);
 
+pi_z_semiendog2=permute(pi_z_semiendog,[1,3,2]);
+
+%%
 tempcounter=1;
 currdist=Inf;
-
 while currdist>Tolerance
 
     VKronold=VKron;
@@ -28,8 +30,9 @@ while currdist>Tolerance
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
         ExitPolicy_z=zeros(N_a,1);
+        pi_z_semiendog_z=pi_z_semiendog2(:,:,z_c);
 
-        EV_z=VKronold.*squeeze(pi_z_semiendog(:,z_c,:));
+        EV_z=VKronold.*pi_z_semiendog_z; %squeeze(pi_z_semiendog(:,z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
@@ -68,7 +71,7 @@ while currdist>Tolerance
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             for z_c=1:N_z
-                EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*squeeze(pi_z_semiendog(:,z_c,:));
+                EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*pi_z_semiendog2(:,:,z_c); %squeeze(pi_z_semiendog(:,z_c,:));
                 EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
                 VKron(:,z_c)=Ftemp(:,z_c)+beta*(1-ExitPolicy(:,z_c)).*sum(EVKrontemp_z,2);
             end

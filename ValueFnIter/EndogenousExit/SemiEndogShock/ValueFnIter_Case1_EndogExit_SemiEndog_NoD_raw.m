@@ -5,6 +5,9 @@ PolicyIndexes=zeros(N_a,N_z);
 ExitPolicy=zeros(N_a,N_z);
 Ftemp=zeros(N_a,N_z);
 
+pi_z_semiendog2=permute(pi_z_semiendog,[1,3,2]);
+
+%%
 tempcounter=1;
 currdist=Inf;
 while currdist>Tolerance
@@ -13,7 +16,7 @@ while currdist>Tolerance
 
     for z_c=1:N_z
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
-        EV_z=VKronold.*squeeze(pi_z_semiendog(:,z_c,:));
+        EV_z=VKronold.*pi_z_semiendog2(:,:,z_c); %squeeze(pi_z_semiendog(:,z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
@@ -37,17 +40,11 @@ while currdist>Tolerance
     VKrondist=reshape(VKron-VKronold,[numel(VKron),1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-%         Ftemp=zeros(N_a,N_z);
-%         for z_c=1:N_z
-%             for a_c=1:N_a
-%                 Ftemp(a_c,z_c)=ReturnMatrix(PolicyIndexes(a_c,z_c),a_c,z_c);%FmatrixKron(PolicyIndexes1(a_c,z_c),PolicyIndexes2(a_c,z_c),a_c,z_c);
-%             end
-%         end
         Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             for z_c=1:N_z
-                EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*squeeze(pi_z_semiendog(:,z_c,:));
+                EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*pi_z_semiendog2(:,:,z_c); %squeeze(pi_z_semiendog(:,z_c,:));
                 EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
                 VKron(:,z_c)=Ftemp(:,z_c)+beta*(1-ExitPolicy(:,z_c)).*sum(EVKrontemp_z,2);
             end
