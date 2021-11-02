@@ -21,7 +21,7 @@ while currdist>Tolerance
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
-        a_z_c=(1:1:N_a)+(z_c-1)*N_z;
+        a_z_c=(1:1:N_a)+(z_c-1)*N_a;
         EV_z=VKronold.*pi_z_semiendog(a_z_c,:);
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);

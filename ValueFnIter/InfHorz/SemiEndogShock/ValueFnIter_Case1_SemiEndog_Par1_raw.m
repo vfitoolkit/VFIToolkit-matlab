@@ -12,7 +12,7 @@ pi_z_semiendog=reshape(pi_z_semiendog,[N_a*N_z,N_z]);
 % Set up a verions that works nicely with parfor to reduce overhead
 pi_z_semiendog_parfor=zeros(N_a,N_z,N_z);
 for z_c=1:N_z
-     a_z_c=(1:1:N_a)+(z_c-1)*N_z;
+     a_z_c=(1:1:N_a)+(z_c-1)*N_a;
      pi_z_semiendog_parfor(:,:,z_c)=pi_z_semiendog(a_z_c,:);
 end
 
