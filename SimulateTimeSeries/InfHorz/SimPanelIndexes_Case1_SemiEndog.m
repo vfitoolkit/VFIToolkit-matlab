@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_Case1(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
+function SimPanel=SimPanelIndexes_Case1_SemiEndog(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. 
 % CondlProbOfSurvival is an optional input. (only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both)
@@ -35,9 +35,7 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
     end
-    if ~isfield(simoptions, 'exitinpanel')
-        simoptions.exitinpanel=0;
-    end
+    % Note: SemiEndogShockFn does not presently allow entry/exit
 else
     %If simoptions is not given, just use all the defaults
     simoptions.polindorval=1;
@@ -45,7 +43,7 @@ else
     simoptions.numbersims=10^3;
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
-    simoptions.exitinpanel=0;
+    % Note: SemiEndogShockFn does not presently allow entry/exit
 end
 
 if exist('CondlProbOfSurvival','var')==1
@@ -70,7 +68,7 @@ l_z=length(n_z);
 % PolicyIndexesKron it saves a lot of run time.
 %Policy is [l_d+l_a,n_a,n_z]
 if (l_d==0 && ndims(Policy)==2) || ndims(Policy)==3
-%     disp('Policy is alread Kron')
+%     fprintf('Policy is alread Kron')
     PolicyIndexesKron=Policy;
 else %    size(Policy)==[l_d+l_a,n_a,n_z]
     PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);%,simoptions);
@@ -98,34 +96,58 @@ else
     seedpoints=round(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 end
 
-% fieldexists_ExogShockFn=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
-cumsumpi_z=cumsum(pi_z,2);
+%% Semi-endogenous state
+% The transition matrix of the exogenous shocks depends on the value of the endogenous state.
+if isa(simoptions.SemiEndogShockFn,'function_handle')==0
+    pi_z_semiendog=simoptions.SemiEndogShockFn;
+else
+    if ~isfield(simoptions,'SemiEndogShockFnParamNames')
+        fprintf('ERROR: simoptions.SemiEndogShockFnParamNames is missing (is needed for simoptions.SemiEndogShockFn) \n')
+        dbstack
+        return
+    end
+    pi_z_semiendog=zeros(N_a,N_z,N_z);
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
+    SemiEndogParamsVec=CreateVectorFromParams(Parameters, simoptions.SemiEndogShockFnParamNames);
+    SemiEndogParamsCell=cell(length(SemiEndogParamsVec),1);
+    for ii=1:length(SemiEndogParamsVec)
+        SemiEndogParamsCell(ii,1)={SemiEndogParamsVec(ii)};
+    end
+    parfor ii=1:N_a
+        a_ii=a_gridvals(ii,:)';
+        a_ii_SemiEndogParamsCell=[a_ii;SemiEndogParamsCell];
+        [~,temp_pi_z]=SemiEndogShockFn(a_ii_SemiEndogParamsCell{:});
+        pi_z_semiendog(ii,:,:)=temp_pi_z;
+        % Note that temp_z_grid is just the same things for all k, and same as
+        % z_grid created about 10 lines above, so I don't bother keeping it.
+        % I only create it so you can double-check it is same as z_grid
+    end
+end
 
+% cumsumpi_z=cumsum(pi_z,2);
+
+cumsumpi_z_semiendog=cumsum(permute(pi_z_semiendog,[2,3,1]),2); % cumulative some over zprime; has dimensions z-zprime-k
+
+%%
 MoveOutputtoGPU=0;
 if simoptions.parallel==2
     % Simulation on GPU is really slow. So instead, switch to parallel CPU, and then switch back. 
     % For anything but ridiculously short simulations it is more than worth the overhead.
     simoptions.parallel=1;
     PolicyIndexesKron=gather(PolicyIndexesKron);
-    cumsumpi_z=gather(cumsumpi_z);
+    cumsumpi_z_semiendog=gather(cumsumpi_z_semiendog);
     seedpoints=gather(seedpoints);
     MoveOutputtoGPU=1;
     simoptions.simperiods=gather(simoptions.simperiods);
 end
 
+
+%%
 SimPanel=nan(l_a+l_z,simoptions.simperiods,simoptions.numbersims); % (a,z)
 if simoptions.parallel==0
     for ii=1:simoptions.numbersims
         seedpoint=seedpoints(ii,:);
-        if simoptions.exitinpanel==0
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
-        else
-            if simoptions.endogenousexit==2 % Mixture of endogenous and exogenous exit
-                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,simoptions.exitprobabilities,0); % 0: burnin, 0: use single CPU
-            else % Otherwise (either one of endogenous or exogenous exit; but not mixture)
-                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
-            end
-        end
+        SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
         
         SimPanel_ii=nan(l_a+l_z,simoptions.simperiods);
         
@@ -145,26 +167,10 @@ if simoptions.parallel==0
         SimPanel(:,:,ii)=SimPanel_ii;
     end
 else
-    exitinpanel=simoptions.exitinpanel; % reduce overhead with parfor
     simperiods=simoptions.simperiods; % reduce overhead with parfor
-    endogenousexit=simoptions.endogenousexit; % reduce overhead with parfor
-    if endogenousexit==2
-        exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
-        exitprobs=[1-sum(exitprobabilities),exitprobabilities];
-    else
-        exitprobs=0; % Not sure why, but Matlab was throwing error if this did not exist even when endogenousexit~=2, presumably something to do with figuring out the parallelization for parfor???
-    end
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
-        if exitinpanel==0
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
-        else
-            if endogenousexit==2 % Mixture of endogenous and exogenous exit
-                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simperiods,exitprobs,0); % 0: burnin, 0: use single CPU
-            else % Otherwise (either one of endogenous or exogenous exit; but not mixture)
-                SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
-            end
-        end
+        SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
         
         SimPanel_ii=nan(l_a+l_z,simperiods);
         

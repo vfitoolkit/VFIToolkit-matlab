@@ -42,7 +42,7 @@ if exist('simoptions','var')==1
     end
     if isfield(simoptions,'exitinpanel')==0
         simoptions.exitinpanel=1; % Note: this will only be relevant if agententryandexit=1
-    end    
+    end
 else
     %If simoptions is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0);
@@ -51,8 +51,8 @@ else
     simoptions.numbersims=10^3;
     simoptions.agententryandexit=0;
     simoptions.endogenousexit=0; % Note: this will only be relevant if agententryandexit=1
-    simoptions.entryinpanel=1; % Note: this will only be relevant if agententryandexit=1
-    simoptions.exitinpanel=1; % Note: this will only be relevant if agententryandexit=1
+    simoptions.entryinpanel=0; % Note: this will only be relevant if agententryandexit=1
+    simoptions.exitinpanel=0; % Note: this will only be relevant if agententryandexit=1
 end
 
 if n_d(1)==0
@@ -71,6 +71,14 @@ if simoptions.parallel~=2
 %     Policy=gather(Policy);
 %     InitialDist.pdf=gather(InitialDist.pdf);
 end
+
+if simoptions.agententryandexit==1 && isfield(simoptions,'SemiEndogShockFn')
+    fprintf('ERROR: Cannot currently use simoptions.agententryandexit==1 SemiEndogShockFn together. Email me if you need this. \n')
+    dbstack
+    return
+end
+
+%% Simulate SimPanelIndexes_Case1
 
 % NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
 PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);%,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
@@ -111,10 +119,13 @@ if simoptions.agententryandexit==1
     end
     simoptions.numbersims=numbersims; % Restore.
     simoptions.simperiods=simperiods;% Retore.
-else % simoptions.agententryandexit==0
+elseif isfield(simoptions,'SemiEndogShockFn')
+    SimPanelIndexes=SimPanelIndexes_Case1_SemiEndog(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions);
+else % simoptions.agententryandexit==0    
     SimPanelIndexes=SimPanelIndexes_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions);
 end
 
+%% From now on is just replacing the indexes with values
 % Move everything to cpu for what remains.
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
