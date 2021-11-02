@@ -27,7 +27,7 @@ while currdist>Tolerance
         Ftemp_z=zeros(N_a,1);
         PolicyIndexes_z=zeros(N_a,1);
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c)
+        ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
         ExitPolicy_z=zeros(N_a,1);
 
         EV_z=VKronold.*kron(ones(N_a,1),pi_z_z(1,:));

@@ -29,11 +29,11 @@ if isfield(vfoptions,'ReturnToExitFnParamNames')==0
     return
 end
 
-if vfoptions.exoticpreferences~=0
-    fprintf('ERROR: endogenousexit does not yet allow for exotic preferences, please contact robertdkirkby@gmail.com if this is something you want/need \n');
-    dbstack
-    return
-end
+%if vfoptions.exoticpreferences~=0
+%    fprintf('ERROR: endogenousexit does not yet allow for exotic preferences, please contact robertdkirkby@gmail.com if this is something you want/need \n');
+%    dbstack
+%    return
+%end
 
 
 
@@ -82,12 +82,24 @@ if vfoptions.lowmemory==0
     V0Kron=reshape(V0,[N_a,N_z]);    
     
     if n_d(1)==0
-        if vfoptions.parallel==0     % On CPU
-            [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit);
-        elseif vfoptions.parallel==1 % On Parallel CPU
-            [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_Par1_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit);
-        elseif vfoptions.parallel==2 % On GPU
-            [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit); %  a_grid, z_grid,
+        if isfield(vfoptions,'SemiEndogShock')
+            pi_z_semiendog=vfoptions.SemiEndogShock;
+            if vfoptions.parallel==0     % On CPU
+                [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_SemiEndog_NoD_raw(V0Kron, N_a, N_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit);
+            elseif vfoptions.parallel==1 % On Parallel CPU
+                [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_SemiEndog_NoD_Par1_raw(V0Kron, N_a, N_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit);
+            elseif vfoptions.parallel==2 % On GPU
+                pi_z_semiendog=gpuArray(pi_z_semiendog);
+                [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_SemiEndog_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit); %  a_grid, z_grid,
+            end
+        else
+            if vfoptions.parallel==0     % On CPU
+                [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit);
+            elseif vfoptions.parallel==1 % On Parallel CPU
+                [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_Par1_raw(V0Kron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit);
+            elseif vfoptions.parallel==2 % On GPU
+                [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit); %  a_grid, z_grid,
+            end
         end
     else
         if vfoptions.parallel==0 % On CPU
@@ -169,7 +181,7 @@ if vfoptions.verbose==1
 end
 
 if vfoptions.polindorval==2
-    Policy=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,vfoptions.parallel);
+    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,vfoptions.parallel);
 end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
