@@ -28,6 +28,7 @@ if exist('simoptions','var')==0
     % By default there is not entry and exit
     simoptions.agententryandexit=0;
     % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
+    % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
     simoptions.policyalreadykron=0; % Can specify that policy is already in kron form, used to speed up general eqm and transition path computations.
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
@@ -82,6 +83,7 @@ else
             end
         end
     end
+    % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
     if isfield(simoptions, 'policyalreadykron')==0
         simoptions.policyalreadykron=0;
     else
@@ -139,6 +141,45 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
 end
 
 %% Now deal with case without entry or exit
+
+%% Semi-endogenous state
+% The transition matrix of the exogenous shocks depends on the value of the endogenous state.
+if isfield(simoptions,'SemiEndogShockFn')
+    if isa(simoptions.SemiEndogShockFn,'function_handle')==0
+        pi_z_semiendog=simoptions.SemiEndogShockFn;
+    else
+        if ~isfield(simoptions,'SemiEndogShockFnParamNames')
+            fprintf('ERROR: simoptions.SemiEndogShockFnParamNames is missing (is needed for simoptions.SemiEndogShockFn) \n')
+            dbstack
+            return
+        end
+        pi_z_semiendog=zeros(N_a,N_z,N_z);
+        a_gridvals=CreateGridvals(n_a,a_grid,2);
+        SemiEndogParamsVec=CreateVectorFromParams(Parameters, simoptions.SemiEndogShockFnParamNames);
+        SemiEndogParamsCell=cell(length(SemiEndogParamsVec),1);
+        for ii=1:length(SemiEndogParamsVec)
+            SemiEndogParamsCell(ii,1)={SemiEndogParamsVec(ii)};
+        end
+        parfor ii=1:N_a
+            a_ii=a_gridvals(ii,:)';
+            a_ii_SemiEndogParamsCell=[a_ii;SemiEndogParamsCell];
+            [~,temp_pi_z]=SemiEndogShockFn(a_ii_SemiEndogParamsCell{:});
+            pi_z_semiendog(ii,:,:)=temp_pi_z;
+            % Note that temp_z_grid is just the same things for all k, and same as
+            % z_grid created about 10 lines above, so I don't bother keeping it.
+            % I only create it so you can double-check it is same as z_grid
+        end
+    end
+    if simoptions.eigenvector==1
+        StationaryDistKron=StationaryDist_Case1_LeftEigen_SemiEndog_raw(PolicyKron,N_d,N_a,N_z,pi_z_semiendog,simoptions);
+        StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
+        return
+    else
+        fprintf('ERROR: Only simoptions.eigenvector=1 is implemented for StationaryDist when using SemiEndogShockFn \n')
+        dbstack
+        return
+    end    
+end
 
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
