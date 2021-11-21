@@ -39,7 +39,7 @@ else
         end
     end
     if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences=0;
+        vfoptions.exoticpreferences='None';
     end
     if isfield(vfoptions,'polindorval')==0
         vfoptions.polindorval=1;
@@ -93,7 +93,7 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-if vfoptions.exoticpreferences==0
+if strcmp(vfoptions.exoticpreferences,'None')
     if vfoptions.lowmemory==0
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -107,7 +107,7 @@ if vfoptions.exoticpreferences==0
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLGlowmem_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
-elseif vfoptions.exoticpreferences=='QuasiHyperbolic'
+elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
         if N_d==0
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_NQHyperbolic_SingleStep_fOLG_nod_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
@@ -122,7 +122,7 @@ elseif vfoptions.exoticpreferences=='QuasiHyperbolic'
         end
     end
     return
-elseif vfoptions.exoticpreferences=='EpsteinZin'
+elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else

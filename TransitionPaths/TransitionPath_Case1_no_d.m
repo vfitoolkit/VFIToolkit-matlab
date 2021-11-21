@@ -162,8 +162,30 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
-        disp('Old, New')
+%         disp('Old, New')
+%         [PricePathOld,PricePathNew]
+        fprintf('Old, New, price paths \n')
+        PricePathNames'
         [PricePathOld,PricePathNew]
+        fprintf('GE conditions \n')
+        GEcondnspath
+        fprintf('Agg Vars \n')
+        AggVarsPath
+        if transpathoptions.graphpricepath==1
+            if length(PricePathNames)>12
+                ncolumns=4;
+            elseif length(PricePathNames)>6
+                ncolumns=3;
+            else
+                ncolumns=2;
+            end
+            nrows=ceil(length(PricePathNames)/ncolumns);
+            figure(1)
+            for pp=1:length(PricePathNames)
+                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+                title(PricePathNames{pp})
+            end
+        end
     end
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but

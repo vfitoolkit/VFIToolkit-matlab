@@ -33,7 +33,7 @@ for ii=1:N_i
     end 
     
     if vfoptions_temp.verbose==1
-        fprintf('Permanent type: %i of %i',ii, N_i)
+        fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     
     % Go through everything which might be dependent on fixed type (PType)

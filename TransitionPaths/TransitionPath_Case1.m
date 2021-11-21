@@ -31,6 +31,7 @@ if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
+    transpathoptions.updateaccuracycutoff=10^(-9); % If the suggested update is less than this then don't bother; 10^(-9) is decent odds to be numerical error anyway (currently only works for transpathoptions.GEnewprice=3)
     transpathoptions.parallel=1+(gpuDeviceCount>0);
     transpathoptions.lowmemory=0;
     transpathoptions.oldpathweight=0.9; % default =0.9
@@ -46,6 +47,9 @@ else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
         transpathoptions.tolerance=10^(-5);
+    end
+    if isfield(transpathoptions,'updateaccuracycutoff')==0
+        transpathoptions.updateaccuracycutoff=10^(-9);
     end
     if isfield(transpathoptions,'parallel')==0
         transpathoptions.parallel=1+(gpuDeviceCount>0);
@@ -343,6 +347,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
             GEcondnspath(i,:)=p_i;
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+            I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
+            p_i=I_makescutoff.*p_i;
             PricePathNew(i,:)=PricePathOld(i,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
         
@@ -365,6 +371,21 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         GEcondnspath
         fprintf('Agg Vars \n')
         AggVarsPath
+        if transpathoptions.graphpricepath==1
+            if length(PricePathNames)>12
+                ncolumns=4;
+            elseif length(PricePathNames)>6
+                ncolumns=3;
+            else
+                ncolumns=2;
+            end
+            nrows=ceil(length(PricePathNames)/ncolumns);
+            figure(1)
+            for pp=1:length(PricePathNames)
+                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+                title(PricePathNames{pp})
+            end
+        end
     end
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but
