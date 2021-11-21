@@ -70,8 +70,6 @@ for jj=1:N_j
 %     PolicyIndexesKron.(jstr)=gather(PolicyIndexesKron.(jstr));
 end
 
-%%
-SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
 %% For sure the following could be made faster by parallelizing some stuff.
 % WITH AGE DEPENDENT grids it would be much faster to first sort all the
 % observations of SimPanel_ii by age j. Then go through age by age giving
@@ -80,8 +78,9 @@ SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
 % AN EXAMPLE OF HOW TO DO IT. (could then also parfor across the different
 % ages to make things even faster!)
 
-for ii=1:simoptions.numbersims
+parfor ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
+    SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
 
     for t=1:simoptions.simperiods
         j_ind=SimPanel_ii(end,t);
@@ -96,27 +95,14 @@ for ii=1:simoptions.numbersims
             
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a_j,a_sub);
-%             a_val=daz_gridvals(j_ind).a_gridvals_j(a_ind,:);
             a_gridvals_j=daz_gridstructure.a_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).a_gridvals_j(a_ind,:);
             a_val=a_gridvals_j(a_ind,:);
             
             z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
             z_ind=sub2ind_homemade(n_z_j,z_sub);
-%             z_val=daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
             z_gridvals_j=daz_gridstructure.z_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
             z_val=z_gridvals_j(z_ind,:);            
             
-%             PolicyIndexesKron_j=PolicyIndexesKron.(jstr(:));
-%             d_ind=PolicyIndexesKron_j(a_ind,z_ind);
-%             d_sub=ind2sub_homemade(n_d_j,d_ind);
-%             d_grid_j=daz_gridstructure.d_grid.(jstr(:));
-%             for kk1=1:l_d
-%                 if kk1==1
-%                     d_val(kk1)=d_grid_j(d_sub(kk1));
-%                 else
-%                     d_val(kk1)=d_grid_j(d_sub(kk1)+sum(n_d_j(1:kk1-1)));
-%                 end
-%             end
             az_ind=sub2ind_homemade([N_a_j,N_z_j],[a_ind,z_ind]);
             dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
             d_val=dPolicy_gridvals_j(az_ind,:);

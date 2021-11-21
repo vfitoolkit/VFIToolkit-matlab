@@ -60,12 +60,36 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
-l_z=length(n_z);
+if n_z(1)==0
+    l_z=0;
+else
+    l_z=length(n_z);
+end
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 simoptions
+
+
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
 
 %% Create a different 'Values' for each of the variable to be evaluated
 
@@ -333,6 +357,26 @@ else % options.parallel~=2
             
         end
     end
+end
+
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    AgeConditionalStats2=AgeConditionalStats;
+    clear AgeConditionalStats
+    AgeConditionalStats=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        AgeConditionalStats.(AggVarNames{ff}).Mean=AgeConditionalStats2(ff).Mean;
+        AgeConditionalStats.(AggVarNames{ff}).Median=AgeConditionalStats2(ff).Median;
+        AgeConditionalStats.(AggVarNames{ff}).Variance=AgeConditionalStats2(ff).Variance;
+        AgeConditionalStats.(AggVarNames{ff}).LorenzCurve=AgeConditionalStats2(ff).LorenzCurve;
+        AgeConditionalStats.(AggVarNames{ff}).Gini=AgeConditionalStats2(ff).Gini;
+        AgeConditionalStats.(AggVarNames{ff}).QuantileCutoffs=AgeConditionalStats2(ff).QuantileCutoffs;
+        AgeConditionalStats.(AggVarNames{ff}).QuantileMeans=AgeConditionalStats2(ff).QuantileMeans;
+    end
+end
+
+
 end
 
 

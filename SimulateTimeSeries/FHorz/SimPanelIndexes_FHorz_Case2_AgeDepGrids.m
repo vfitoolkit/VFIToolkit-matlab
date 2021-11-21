@@ -186,18 +186,17 @@ for jj=1:N_j
 end
 
 MoveOutputtoGPU=0;
-% if simoptions.parallel==2
-    % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
-    % back. For anything but ridiculously short simulations it is more than worth the overhead.
-    for jj=1:N_j
-        jstr=daz_gridstructure.jstr{jj};
-        Phi_of_Policy.(jstr(:))=gather(Phi_of_Policy.(jstr(:)));
-        daz_gridstructure.cumsumpi_z.(jstr(:))=gather(daz_gridstructure.cumsumpi_z.(jstr(:)));
-    end
-    seedpoints=gather(seedpoints);
+for jj=1:N_j
+    jstr=daz_gridstructure.jstr{jj};
+    Phi_of_Policy.(jstr(:))=gather(Phi_of_Policy.(jstr(:)));
+    daz_gridstructure.cumsumpi_z.(jstr(:))=gather(daz_gridstructure.cumsumpi_z.(jstr(:)));
+end
+seedpoints=gather(seedpoints);
+simoptions.simperiods=gather(simoptions.simperiods);
+if simoptions.parallel==2
+    simoptions.parallel=1;
     MoveOutputtoGPU=1;
-    simoptions.simperiods=gather(simoptions.simperiods);
-% end
+end
 
 l_a=length(n_a_j);
 l_z=length(n_z_j);
@@ -230,11 +229,7 @@ if simoptions.parallel==0
     end
 else
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-%       for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
-        
-%         ii
-%         seedpoint
         
         SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_AgeDepGrids_raw(Phi_of_Policy,Case2_Type,daz_gridstructure, N_j, seedpoint, simoptions.simperiods);
         

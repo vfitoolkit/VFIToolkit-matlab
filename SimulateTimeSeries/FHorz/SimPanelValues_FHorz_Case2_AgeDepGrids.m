@@ -65,7 +65,6 @@ end
 
 
 %%
-SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
 %% For sure the following could be made faster by parallelizing some stuff.
 % WITH AGE DEPENDENT grids it would be much faster to first sort all the
 % observations of SimPanel_ii by age j. Then go through age by age giving
@@ -74,8 +73,9 @@ SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
 % AN EXAMPLE OF HOW TO DO IT. (could then also parfor across the different
 % ages to make things even faster!)
 
-for ii=1:simoptions.numbersims
+parfor ii=1:simoptions.numbersims
     SimPanel_ii=SimPanelIndexes(:,:,ii);
+    SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
 
     for t=1:simoptions.simperiods
         j_ind=SimPanel_ii(end,t);
@@ -96,29 +96,9 @@ for ii=1:simoptions.numbersims
             z_gridvals_j=daz_gridstructure.z_gridvals.(jstr(:)); %Old: daz_gridvals(j_ind).z_gridvals_j(z_ind,:);
             z_val=z_gridvals_j(a_ind,:);            
             
-            % The following lines are just doing d_gridvals. So may as well
-            % precreate this instead.
-%             PolicyIndexesKron_j=PolicyIndexesKron.(jstr(:));
-%             d_ind=PolicyIndexesKron_j(a_ind,z_ind);
-%             d_gridvals_j=daz_gridstructure.d_gridvals.(jstr(:));
-%             d_val=d_gridvals_j(d_ind,:);
             az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
             dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
             d_val=dPolicy_gridvals_j(az_ind,:);
-%             d_grid_j=daz_gridstructure.d_grid.(jstr(:));
-%             for kk1=1:l_d % This for loop could probably be replaced with what follows
-%                 if kk1==1
-%                     d_val(kk1)=d_grid_j(d_sub(kk1));
-%                 else
-%                     d_val(kk1)=d_grid_j(d_sub(kk1)+sum(n_d_j(1:kk1-1)));
-%                 end
-%             end
-            % Can probably replace with
-%             if l_d>1
-%                 d_sub=d_sub+[0,cumsum(n_d_j(1:end-1))];
-%             end
-%             d_val=d_grid_j(d_sub);
-
             
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'

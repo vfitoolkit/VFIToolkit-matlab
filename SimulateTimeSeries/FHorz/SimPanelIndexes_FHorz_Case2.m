@@ -96,20 +96,12 @@ end
     seedpoints=nan(simoptions.numbersims,3); % 3 as a,z,j (vectorized)
     if numel(InitialDist)==N_a*N_z % Has just been given for age j=1
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z,1]));
-%         [~,seedpointvec]=max(cumsumInitialDistVec>rand(1,numbersims,1));
-%         for ii=1:simoptions.numbersims
-%             seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointvec(ii)),1];
-%         end
         parfor ii=1:simoptions.numbersims
             [~,seedpoint_ii]=max(cumsumInitialDistVec>rand(1));
             seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpoint_ii),1];
         end
     else % Distribution across ages as well
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_j,1]));
-%         [~,seedpointvec]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims,1));
-%         for ii=1:simoptions.numbersims
-%             seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointvec(ii));
-%         end
         [~,seedpoint_ii]=max(cumsumInitialDistVec>rand(1));
         parfor ii=1:simoptions.numbersims
             seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpoint_ii);
@@ -187,8 +179,9 @@ if simoptions.parallel==2
     Phi_of_Policy=gather(Phi_of_Policy);
     cumsumpi_z=gather(cumsumpi_z);
     seedpoints=gather(seedpoints);
-    MoveOutputtoGPU=1;
     simoptions.simperiods=gather(simoptions.simperiods);
+    MoveOutputtoGPU=1;
+    simoptions.parallel=1;
 end
 
 %% Do the simluation itself

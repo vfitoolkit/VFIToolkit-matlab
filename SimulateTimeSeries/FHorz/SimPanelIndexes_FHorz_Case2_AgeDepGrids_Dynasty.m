@@ -75,21 +75,16 @@ if simoptions.parallel==2
 %         seedpointvec=zeros(simoptions.numbersims,1,'gpuArray');
         AgeWeightsAdjustment=cumsum(InitialDist.AgeWeights)-InitialDist.AgeWeights(1);
         for jj=1:N_j
-%             if jj<N_j
             seeds_rand_sorted_jj=seeds_rand_sorted(seeds_age_summary(jj):(seeds_age_summary(jj+1)-1))-AgeWeightsAdjustment(jj); % Get the seeds for the current age
-%             else % No longer do the '-1'
-%                 seeds_rand_sorted_jj=seeds_rand_sorted(seeds_age_summary(jj):seeds_age_summary(jj+1))-AgeWeightsAdjustment(jj); 
-%             end
+
             jstr=daz_gridstructure.jstr{jj};
             N_a_j=daz_gridstructure.N_a.(jstr(:));
             N_z_j=daz_gridstructure.N_z.(jstr(:));
             cumsumInitialDistVec=cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1]));            
-%            [~,seedpointvectemp]=max(cumsumInitialDistVec>seeds_rand_sorted_jj,'first');
             % Use of max was creating an out-of-memory bottleneck
             for ii=1:(seeds_age_summary(jj+1)-seeds_age_summary(jj))
                 [~,seedpointtemp]=max(cumsumInitialDistVec>seeds_rand_sorted_jj(ii));
                 seedpoints(seeds_age_summary(jj)-1+ii,1:end-1)=ind2sub_homemade_gpu([N_a_j,N_z_j],seedpointtemp); % Just going through the 'max' for each ii one at a time. Slower, but avoids what was otherwise a potential memory bottleneck.
-%                 seedpoints(seeds_age_summary(jj)-1+ii,1:end-1)=ind2sub_homemade_gpu([N_a_j,N_z_j],seedpointvectemp(ii)); % NEED TO CREATE A VECTOR VERSION OF ind2sub_homemade to speed this up (would be able to get rid of the for-loop over ii)
                 seedpoints(seeds_age_summary(jj)-1+ii,end)=jj;
             end
         end
@@ -128,9 +123,6 @@ else
             jstr=daz_gridstructure.jstr{jj};
             N_a_j=daz_gridstructure.N_a.(jstr(:));
             N_z_j=daz_gridstructure.N_z.(jstr(:));
-            % Following two lines were causing 'out of memory' so have replaced with the two that follow it (and actually seem to be faster)
-%             cumsumInitialDistVec=gather(cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1])));
-%             [~,seedpointvectemp]=max(cumsumInitialDistVec>(seeds_rand_sorted-AgeWeightsAdjustment(jj)));
             [uniq_cumsumInitialDistVec,uniq_index]=unique(cumsum(reshape(InitialDist.(jstr),[N_a_j*N_z_j,1])));
             uniq_cumsumInitialDistVec=gather(uniq_cumsumInitialDistVec);
             uniq_index=gather(uniq_index);
@@ -199,18 +191,18 @@ for jj=1:N_j
 end
 
 MoveOutputtoGPU=0;
-% if simoptions.parallel==2
-    % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
-    % back. For anything but ridiculously short simulations it is more than worth the overhead.
-    for jj=1:N_j
-        jstr=daz_gridstructure.jstr{jj};
-        Phi_of_Policy.(jstr(:))=gather(Phi_of_Policy.(jstr(:)));
-        daz_gridstructure.cumsumpi_z.(jstr(:))=gather(daz_gridstructure.cumsumpi_z.(jstr(:)));
-    end
-    seedpoints=gather(seedpoints);
+for jj=1:N_j
+    jstr=daz_gridstructure.jstr{jj};
+    Phi_of_Policy.(jstr(:))=gather(Phi_of_Policy.(jstr(:)));
+    daz_gridstructure.cumsumpi_z.(jstr(:))=gather(daz_gridstructure.cumsumpi_z.(jstr(:)));
+end
+seedpoints=gather(seedpoints);
+MoveOutputtoGPU=1;
+simoptions.simperiods=gather(simoptions.simperiods);
+if simoptions.parallel==2
+    simoptions.parallel=1;
     MoveOutputtoGPU=1;
-    simoptions.simperiods=gather(simoptions.simperiods);
-% end
+end
 
 
 l_a=length(n_a_j);
@@ -246,8 +238,7 @@ if simoptions.parallel==0
         SimPanel(:,:,ii)=SimPanel_ii;
     end
 else
-%     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-      for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+    parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
         
         SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_AgeDepGrids_Dynasty_raw(Phi_of_Policy,Case2_Type,daz_gridstructure, N_j, seedpoint, simoptions.simperiods);

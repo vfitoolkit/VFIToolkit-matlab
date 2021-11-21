@@ -124,15 +124,15 @@ else
 end
 
 %%
-SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan for unobserved (when finite time-horizon is reached, so after than agent is 'dead')
 %% For sure the following could be made faster by parallelizing some stuff.
 % Intelligent would be to sort everything by j value, then do all this,
 % then unsort. (as dPolicy_gridvals depends on j value)
-for ii=1:simoptions.numbersims
+parfor ii=1:simoptions.numbersims
+    SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan for unobserved (when finite time-horizon is reached, so after than agent is 'dead')
     SimPanel_ii=SimPanelIndexes(:,:,ii);
     for t=1:simoptions.simperiods
         j_ind=SimPanel_ii(end,t);
-        if isnan(j_ind)==0 % If the agent is still alive (j_ind=nan once agent dies)
+        if ~isnan(j_ind) % If the agent is still alive (j_ind=nan once agent dies)
             
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
@@ -154,16 +154,7 @@ for ii=1:simoptions.numbersims
             az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
             dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
             d_val=dPolicy_gridvals_j(az_ind,:);
-            %         d_ind=PolicyIndexesKron(a_ind,z_ind,t);
-            %         d_sub=ind2sub_homemade(n_d,d_ind);
-            %         for kk1=1:l_d
-            %             if kk1==1
-            %                 d_val(kk1)=d_grid(d_sub(kk1));
-            %             else
-            %                 d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-            %             end
-            %         end
-            
+
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
                     tempcell=num2cell([d_val,a_val,z_val]');
