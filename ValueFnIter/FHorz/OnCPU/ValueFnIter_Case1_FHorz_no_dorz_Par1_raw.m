@@ -10,8 +10,9 @@ Policy=zeros(N_a,N_z,N_j); %first dim indexes the optimal choice for aprime rest
 a_grid=gather(a_grid);
 z_grid=gather(z_grid);
 
-% eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-% eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
@@ -26,6 +27,8 @@ end
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
+
+% Note: There is no z, so no need to deal with z_grid and pi_z depending on age
 
 if vfoptions.lowmemory==0
     
@@ -63,6 +66,8 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    
+    % Note: There is no z, so no need to deal with z_grid and pi_z depending on age
     
     VKronNext_j=V(:,:,jj+1);
     

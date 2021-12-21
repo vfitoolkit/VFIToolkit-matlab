@@ -150,6 +150,26 @@ elseif vfoptions.piz_strictonrowsaddingtoone==0
     end
 end
 
+%% Implement new way of handling ReturnFn inputs
+if n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
+% If no ReturnFnParamNames inputted, then figure it out from ReturnFn
+if isstruct(ReturnFn)
+    temp=getAnonymousFnInputNames(ReturnFn);
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        ReturnFnParamNames={};
+    end
+% else
+%     ReturnFnParamNames=ReturnFnParamNames;
+end
+
 %%
 
 if vfoptions.parallel==2 

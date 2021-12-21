@@ -19,24 +19,6 @@ l_z=length(n_z);
 %%
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 
-% z_gridvals=zeros(N_z,length(n_z),'gpuArray'); 
-% for i1=1:N_z
-%     sub=zeros(1,length(n_z));
-%     sub(1)=rem(i1-1,n_z(1))+1;
-%     for ii=2:length(n_z)-1
-%         sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-%     end
-%     sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-%     
-%     if length(n_z)>1
-%         sub=sub+[0,cumsum(n_z(1:end-1))];
-%     end
-%     z_gridvals(i1,:)=z_grid(sub);
-% end
-% % Somewhere in my codes I have a better way of implementing this z_gridvals when using gpu.
-% % But this will do for now.
-
-
 %%
 tempcounter=1;
 currdist=Inf;

@@ -47,14 +47,6 @@ while currdist>vfoptions.tolerance
             ReturnFnParamsVec=ReturnFnParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
             DiscountFactorParamsVec=DiscountFactorParamsMatrix(jj,:); %CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
             
-%             % Make a three digit number out of jj
-%             if jj<10
-%                 jstr=['00',num2str(jj)];
-%             elseif jj>=10 && jj<100
-%                 jstr=['0',num2str(jj)];
-%             else
-%                 jstr=num2str(jj);
-%             end
             jstr=daz_gridstructure.jstr{jj};
             % Get the relevant grid and transition matrix
             if vfoptions.agedependentgrids(1)==1
@@ -70,20 +62,6 @@ while currdist>vfoptions.tolerance
                 if vfoptions.lowmemory==2
                     special_n_a=ones(1,length(n_a));
                     a_gridvals=daz_gridstructure.a_gridvals.(jstr(:));
-%                     a_gridvals=zeros(N_a,length(n_a),'gpuArray');
-%                     for i2=1:N_a
-%                         sub=zeros(1,length(n_a));
-%                         sub(1)=rem(i2-1,n_a(1))+1;
-%                         for ii=2:length(n_a)-1
-%                             sub(ii)=rem(ceil(i2/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-%                         end
-%                         sub(length(n_a))=ceil(i2/prod(n_a(1:length(n_a)-1)));
-%                         
-%                         if length(n_a)>1
-%                             sub=sub+[0,cumsum(n_a(1:end-1))];
-%                         end
-%                         a_gridvals(i2,:)=a_grid(sub);
-%                     end
                 end
             end
             if vfoptions.agedependentgrids(3)==1
@@ -94,20 +72,6 @@ while currdist>vfoptions.tolerance
                 if vfoptions.lowmemory==1
                     special_n_z=ones(1,length(n_z));
                     z_gridvals=daz_gridstructure.z_gridvals.(jstr(:));
-%                     z_gridvals=zeros(N_z,length(n_z),'gpuArray');
-%                     for i1=1:N_z
-%                         sub=zeros(1,length(n_z));
-%                         sub(1)=rem(i1-1,n_z(1))+1;
-%                         for ii=2:length(n_z)-1
-%                             sub(ii)=rem(ceil(i1/prod(n_z(1:ii-1)))-1,n_z(ii))+1;
-%                         end
-%                         sub(length(n_z))=ceil(i1/prod(n_z(1:length(n_z)-1)));
-%                         
-%                         if length(n_z)>1
-%                             sub=sub+[0,cumsum(n_z(1:end-1))];
-%                         end
-%                         z_gridvals(i1,:)=z_grid(sub);
-%                     end
                 end
             end
             

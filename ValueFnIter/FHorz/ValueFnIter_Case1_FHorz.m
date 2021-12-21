@@ -26,54 +26,59 @@ if exist('vfoptions','var')==0
     vfoptions.policy_forceintegertype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-%     if isfield(vfoptions,'exoticpreferences')==0
-%         vfoptions.exoticpreferences=0;
+%     if ~isfield(vfoptions,'exoticpreferences')
+%         vfoptions.exoticpreferences='None';
 %     end
-    if isfield(vfoptions,'dynasty')==0
+    if ~isfield(vfoptions,'dynasty')
         vfoptions.dynasty=0;
     end
-    if isfield(vfoptions,'parallel')==0
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    if isfield(vfoptions,'returnmatrix')==0
+    if ~isfield(vfoptions,'returnmatrix')
         if isa(ReturnFn,'function_handle')==1
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
     end
-    if isfield(vfoptions,'lowmemory')==0
+    if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if isfield(vfoptions,'verbose')==0
+    if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
-    if isfield(vfoptions,'polindorval')==0
+    if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if isfield(vfoptions,'policy_forceintegertype')==0
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
+    end
+    if isfield(vfoptions,'ExogShockFn')
+        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
     end
 end
 
+if isempty(n_d)
+    n_d=0;
+end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%% Check the sizes of some of the inputs
-if size(d_grid)~=[N_d, 1]
-    disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
+if size(d_grid)~=[sum(n_d), 1]
+    disp('ERROR: d_grid is not the correct shape (should be  of size sum(n_d)-by-1)')
     dbstack
     return
-elseif size(a_grid)~=[N_a, 1]
-    disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
+elseif size(a_grid)~=[sum(n_a), 1]
+    disp('ERROR: a_grid is not the correct shape (should be  of size sum(n_a)-by-1)')
     dbstack
     return
-elseif size(z_grid)~=[N_z, 1]
-    disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
+elseif size(z_grid)~=[sum(n_z), 1]
+    disp('ERROR: z_grid is not the correct shape (should be  of size sum(n_z)-by-1)')
     dbstack
     return
 elseif size(pi_z)~=[N_z, N_z]
@@ -82,6 +87,25 @@ elseif size(pi_z)~=[N_z, N_z]
     return
 end
 
+%% Implement new way of handling ReturnFn inputs
+if n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
+% If no ReturnFnParamNames inputted, then figure it out from ReturnFn
+if isempty(ReturnFnParamNames)
+    temp=getAnonymousFnInputNames(ReturnFn);
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        ReturnFnParamNames={};
+    end
+% else
+%     ReturnFnParamNames=ReturnFnParamNames;
+end
 
 %% 
 if vfoptions.parallel==2 

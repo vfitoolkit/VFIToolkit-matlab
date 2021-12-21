@@ -4,13 +4,15 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %indexes the optimal choice for d given rest of dimensions a,z
 
 %%
+
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+
 if vfoptions.lowmemory>0 || Case2_Type==11
     special_n_z=ones(1,length(n_z));
     z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
@@ -31,7 +33,10 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
-if fieldexists_ExogShockFn==1
+if fieldexists_pi_z_J==1
+    z_grid=vfoptions.z_grid_J(:,N_j);
+    pi_z=vfoptions.pi_z_J(:,:,N_j);
+elseif fieldexists_ExogShockFn==1
     if fieldexists_ExogShockFnParamNames==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -39,12 +44,13 @@ if fieldexists_ExogShockFn==1
             ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
         end
         [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     end
 end
+
 
 if vfoptions.lowmemory==0
     
@@ -108,18 +114,21 @@ if Case2_Type==1 % phi_a'(d,a,z,z')
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
                 
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
                 for ii=1:length(ExogShockFnParamsVec)
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});              
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         
@@ -220,7 +229,10 @@ if Case2_Type==11 % phi_a'(d,a,z')
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -228,10 +240,10 @@ if Case2_Type==11 % phi_a'(d,a,z')
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
                 [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         
@@ -309,26 +321,6 @@ if Case2_Type==11 % phi_a'(d,a,z')
                 %calculate in order, the maximizing aprime indexes
                 [V(:,z_c,jj),Policy(:,z_c,jj)]=max(entireRHS,[],1);
 
-                    
-%                 z_val=z_gridvals(z_c,:);                    
-
-%                 for a_c=1:N_a
-%                     RHSpart2=zeros(N_d,1,'gpuArray');
-%                     for zprime_c=1:N_z
-%                         zprime_val=z_gridvals(zprime_c,:);
-%                         Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, special_n_z, d_grid, a_grid, zprime_val,PhiaprimeParamsVec);
-%                         
-%                         if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                             for d_c=1:N_d
-%                                 RHSpart2(d_c)=RHSpart2(d_c)+Vnextj(Phi_aprimeMatrix_z(d_c,a_c,1),zprime_c)*pi_z(z_c,zprime_c);
-%                             end
-%                         end
-%                     end
-%                     entireRHS=ReturnMatrix_z(:,a_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-%                     
-%                     %calculate in order, the maximizing aprime indexes
-%                     [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-%                 end
             end
         elseif vfoptions.lowmemory==2
             for a_c=1:N_a
@@ -376,7 +368,10 @@ if Case2_Type==12 % phi_a'(d,a,z)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
         
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -384,10 +379,10 @@ if Case2_Type==12 % phi_a'(d,a,z)
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
                 [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         
@@ -405,14 +400,6 @@ if Case2_Type==12 % phi_a'(d,a,z)
             for z_c=1:N_z
                 aaa=kron(pi_z(z_c,:),ones(N_d,1,'gpuArray'));
                 for a_c=1:N_a
-%                     RHSpart2=zeros(N_d,1,'gpuArray');
-%                     for zprime_c=1:N_z
-%                         if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                             for d_c=1:N_d
-%                                 RHSpart2(d_c)=RHSpart2(d_c)+Vnextj(Phi_aprimeMatrix(d_c,a_c,z_c),zprime_c)*pi_z(z_c,zprime_c);
-%                             end
-%                         end
-%                     end
                     EV_az=Vnextj(Phi_aprimeMatrix(:,a_c,z_c),:); %(d,z')
                     EV_az=EV_az.*aaa;
                     EV_az(isnan(EV_az))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -496,7 +483,10 @@ if Case2_Type==2  % phi_a'(d,z,z')
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -504,10 +494,10 @@ if Case2_Type==2  % phi_a'(d,z,z')
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
                 [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         
@@ -539,22 +529,6 @@ if Case2_Type==2  % phi_a'(d,z,z')
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-%         for z_c=1:N_z
-%             RHSpart2=zeros(N_d,1);
-%             for zprime_c=1:N_z
-%                 if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%                     for d_c=1:N_d
-%                         RHSpart2(d_c)=RHSpart2(d_c)+Vnextj(Phi_aprimeKron(d_c,z_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
-%                     end
-%                 end
-%             end
-%             for a_c=1:N_a
-%                 entireRHS=ReturnMatrix(:,a_c,z_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-%                 
-%                 %calculate in order, the maximizing aprime indexes
-%                 [V(a_c,z_c,jj),Policy(a_c,z_c,jj)]=max(entireRHS,[],1);
-%             end
-%         end
     end
 end
 
@@ -575,7 +549,10 @@ if Case2_Type==3  % phi_a'(d,z')
             Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
         end
         
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -583,10 +560,10 @@ if Case2_Type==3  % phi_a'(d,z')
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
                 [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         
@@ -604,26 +581,6 @@ if Case2_Type==3  % phi_a'(d,z')
                         end
                     end
                 end
-                % This was old version
-                % EV_z=zeros(N_d,1);
-                % for zprime_c=1:N_z
-                %     if pi_z(z_c,zprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                %         for d_c=1:N_d
-                %             EV_z(d_c)=EV_z(d_c)+Vnextj(Phi_aprimeMatrix(d_c,zprime_c),zprime_c)*pi_z(z_c,zprime_c);
-                %         end
-                %     end
-                % end
-                %                     for a_c=1:N_a
-                %                         entireRHS_z=ReturnMatrix(:,a_c,z_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-                %
-                %                         %calculate in order, the maximizing aprime indexes
-                %                         [V(a_c,z_c,j),Policy(a_c,z_c,j)]=max(entireRHS,[],1);
-                %                     end
-                %                     %Calc the max and it's index
-                %                     [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                %                     V(:,z_c,j)=Vtemp;
-                %                     PolicyIndexes(:,z_c,j)=maxindex;
-                
                 entireRHS_z=ReturnMatrix(:,:,z_c)+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
                 
                 %Calc the max and it's index
@@ -643,12 +600,6 @@ if Case2_Type==3  % phi_a'(d,z')
                         end
                     end
                 end
-                %                     for a_c=1:N_a
-                %                         entireRHS=ReturnMatrix_z(:,a_c)+DiscountFactorParamsVec*RHSpart2; %aprime by 1
-                %
-                %                         %calculate in order, the maximizing aprime indexes
-                %                         [V(a_c,z_c,j),Policy(a_c,z_c,j)]=max(entireRHS,[],1);
-                %                     end
                 entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
                 
                 %Calc the max and it's index
@@ -689,7 +640,10 @@ if Case2_Type==4  % phi_a'(d,a)
         jj=N_j-reverse_j;
         Vnextj=V(:,:,jj+1);
         
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -697,10 +651,10 @@ if Case2_Type==4  % phi_a'(d,a)
                     ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
                 [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         

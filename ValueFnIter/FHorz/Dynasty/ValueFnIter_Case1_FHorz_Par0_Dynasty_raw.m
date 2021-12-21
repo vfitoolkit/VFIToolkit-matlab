@@ -9,7 +9,9 @@ Policy=zeros(N_a,N_z,N_j); %first dim indexes the optimal choice for d and aprim
 
 %%
 
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
@@ -41,14 +43,21 @@ while currdist>vfoptions.tolerance
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
         
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=vfoptions.z_grid_J(:,jj);
+            pi_z=vfoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-                z_grid=gpuArray(z_grid); pi_z=gpuArray(z_grid);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         

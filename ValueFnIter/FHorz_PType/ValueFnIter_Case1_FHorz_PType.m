@@ -93,7 +93,7 @@ for ii=1:N_i
         names=fieldnames(ReturnFnParamNames);
         ReturnFnParamNames_temp=ReturnFnParamNames.(names{ii});
     end
-        
+    
     [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions);
         
     V.(Names_i{ii})=gather(V_ii); % GPU memory is limited, so switch solutions to the cpu

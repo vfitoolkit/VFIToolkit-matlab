@@ -11,7 +11,9 @@ Policy=zeros(N_a,N_z,N_j); %first dim indexes the optimal choice for d and aprim
 a_grid=gather(a_grid);
 z_grid=gather(z_grid);
 
-% eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
