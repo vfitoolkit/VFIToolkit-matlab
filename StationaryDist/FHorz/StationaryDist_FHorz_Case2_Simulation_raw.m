@@ -27,11 +27,14 @@ if simoptions.parallel==2
     MoveSSDKtoGPU=1;
 end
 
-% This implementation is slightly inefficient when shocks are not age
-% dependent, but speed loss is fairly trivial
+% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-if fieldexists_ExogShockFn==1
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+
+if fieldexists_pi_z_J==1
+    pi_z_J=simoptions.pi_z_J;
+elseif fieldexists_ExogShockFn==1
     pi_z_J=zeros(N_z,N_z,N_j);
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1

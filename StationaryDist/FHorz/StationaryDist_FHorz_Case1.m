@@ -1,5 +1,8 @@
 function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions)
 
+if isempty(n_d)
+    n_d=0;
+end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -41,6 +44,9 @@ else
     end
     if isfield(simoptions,'iterate')==0
         simoptions.iterate=1;
+    end
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
 end
 

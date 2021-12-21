@@ -12,6 +12,7 @@ N_z=prod(n_z);
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 
 if simoptions.parallel~=2
@@ -27,10 +28,16 @@ if simoptions.parallel~=2
     end    
     
     for jj=1:(N_j-1)
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
                 [~,pi_z]=simoptions.ExogShockFn(jj);
             end
@@ -87,14 +94,21 @@ elseif simoptions.parallel==2 % Using the GPU
     % First, generate the transition matrix P=g of Q (the convolution of the 
     % optimal policy function and the transition fn for exogenous shocks)
     for jj=1:(N_j-1)
-        if fieldexists_ExogShockFn==1
+        if fieldexists_pi_z_J==1
+            z_grid=simoptions.z_grid_J(:,jj);
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
             if fieldexists_ExogShockFnParamNames==1
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
-                pi_z=gpuArray(pi_z);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-                pi_z=gpuArray(pi_z);
+                [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+                z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
             end
         end
         

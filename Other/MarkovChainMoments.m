@@ -88,7 +88,7 @@ end
 % toc
 
 %% Calculate the mean and variance
-mean=z_grid'*statdist;
+mean=(z_grid')*statdist;
 
 secondmoment=(z_grid.^2)'*statdist;
 variance=secondmoment-mean^2;

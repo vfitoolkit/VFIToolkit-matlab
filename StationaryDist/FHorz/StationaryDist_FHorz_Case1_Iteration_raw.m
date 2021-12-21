@@ -6,7 +6,6 @@ function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDi
 %  simoptions.tolerance
 %  simoptions.parallel
 
-
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
@@ -17,20 +16,18 @@ if simoptions.parallel<2
     StationaryDistKron(:,1)=jequaloneDistKron;
     
     for jj=1:(N_j-1)
-        if fieldexists_ExogShockFn==1
-            if fieldexists_pi_z_J==0
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [~,pi_z]=simoptions.ExogShockFn(jj);
+        if fieldexists_pi_z_J==1
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
-                pi_z=simoptions.pi_z_J(:,:,jj);
+                [~,pi_z]=simoptions.ExogShockFn(jj);
             end
         end
            
@@ -62,29 +59,22 @@ elseif simoptions.parallel==2 % Using the GPU
     % First, generate the transition matrix P=g of Q (the convolution of the 
     % optimal policy function and the transition fn for exogenous shocks)
     for jj=1:(N_j-1)
-        if fieldexists_ExogShockFn==1
-            if fieldexists_pi_z_J==0
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    pi_z=gpuArray(pi_z);
-                else
-                    [~,pi_z]=simoptions.ExogShockFn(jj);
-                    pi_z=gpuArray(pi_z);
+        if fieldexists_pi_z_J==1
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                pi_z=gpuArray(pi_z);
             else
-                pi_z=simoptions.pi_z_J(:,:,jj);
+                [~,pi_z]=simoptions.ExogShockFn(jj);
+                pi_z=gpuArray(pi_z);
             end
         end
-%         if fieldexists_ImposeExogShockDist==1 % Note: This option is presently only able to impose new distribution on all shocks at once (cannot currently be used for some shocks but not others)
-%             if simoptions.ImposeExogShockDistWhen(jj+1)>0 % Next period is a period in which a distribution on the exogenous shock is imposed.
-%                 pi_z=ones(N_z,1,'gpuArray')*(gpuArray(simoptions.ImposeExogShockDist(:,simoptions.ImposeExogShockDistWhen(jj+1))))';
-%             end
-%         end
         
         if N_d==0 %length(n_d)==1 && n_d(1)==0
             optaprime=reshape(PolicyIndexesKron(:,:,jj),[1,N_a*N_z]);
@@ -104,20 +94,18 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
     StationaryDistKron(:,1)=jequaloneDistKron;
     
     for jj=1:(N_j-1)
-        if fieldexists_ExogShockFn==1
-            if fieldexists_pi_z_J==0
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [~,pi_z]=simoptions.ExogShockFn(jj);
+        if fieldexists_pi_z_J==1
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             else
-                pi_z=simoptions.pi_z_J(:,:,jj);
+                [~,pi_z]=simoptions.ExogShockFn(jj);
             end
         end
         
