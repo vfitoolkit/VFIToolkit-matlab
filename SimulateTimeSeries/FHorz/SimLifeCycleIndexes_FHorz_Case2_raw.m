@@ -1,4 +1,4 @@
-function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_raw(Phi_of_Policy,Case2_Type,N_d,N_a,N_z,N_j,cumsumpi_z,seedpoint,simperiods,fieldexists_ExogShockFn)
+function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case2_raw(Phi_of_Policy,Case2_Type,N_d,N_a,N_z,N_j,cumsumpi_z,seedpoint,simperiods,fieldexists_pi_z_J)
 % All inputs must be on the CPU
 %
 % Simulates a path based on PolicyIndexes of length 'periods' beginning from point 'seedpoint' (this is not just left
@@ -20,7 +20,7 @@ currstate=seedpoint;
 % Simulation is simperiods, or up to 'end of finite horizon'.
 periods=min(simperiods,N_j+1-seedpoint(3));
 
-if fieldexists_ExogShockFn==0
+if fieldexists_pi_z_J==0
     for jj=1:periods
         SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); %a_c
         SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); %z_c

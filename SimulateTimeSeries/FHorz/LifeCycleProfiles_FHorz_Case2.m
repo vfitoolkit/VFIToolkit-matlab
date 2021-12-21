@@ -52,6 +52,9 @@ if exist('options','var')==1
     if isfield(simoptions,'crosssectioncorrelation')==0
         simoptions.crosssectioncorrelation=0;
     end    
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
 else
     %If options is not given, just use all the defaults
     simoptions.parallel=2;
@@ -89,6 +92,28 @@ N_z=prod(n_z);
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+
+if fieldexists_pi_z_J==1
+    z_grid_J=simoptions.z_grid_J;
+elseif fieldexists_ExogShockFn==1
+    z_grid_J=zeros(N_z,N_j);
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+        z_grid_J(:,jj)=gather(z_grid);
+    end
+else
+    z_grid_J=repmat(z_grid,1,N_j);
+end
 
 %% Create a different 'Values' for each of the variable to be evaluated
 PolicyValues=PolicyInd2Val_FHorz_Case2(Policy,n_d,n_a,n_z,N_j,d_grid,simoptions.parallel);
@@ -125,18 +150,7 @@ for kk=1:length(simoptions.agegroupings)
     for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
         Values=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
         for jj=j1:jend
-            if fieldexists_ExogShockFn==1
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for kk=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-                    end
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [z_grid,~]=simoptions.ExogShockFn(jj);
-                end
-            end
+            z_grid=z_grid_J(:,jj);
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
                 FnsToEvaluateParamsVec=[];
@@ -201,18 +215,7 @@ for kk=1:length(simoptions.agegroupings)
             for aa=(ii+1):length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
                 Values2=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
                 for jj=j1:jend
-                    if fieldexists_ExogShockFn==1
-                        if fieldexists_ExogShockFnParamNames==1
-                            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                            for kk=1:length(ExogShockFnParamsVec)
-                                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-                            end
-                            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                        else
-                            [z_grid,~]=simoptions.ExogShockFn(jj);
-                        end
-                    end
+                    z_grid=z_grid_J(:,jj);
                     % Includes check for cases in which no parameters are actually required
                     if isempty(FnsToEvaluateParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
                         FnsToEvaluateParamsVec=[];

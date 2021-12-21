@@ -43,7 +43,9 @@ if exist('simoptions','var')==1
     if isfield(simoptions,'tolerance')==0    
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
 else
     %If options is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
@@ -54,7 +56,10 @@ else
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
 end
 
-if n_d(1)==0
+if isempty(n_d)
+    l_d=0;
+    n_d=0;
+elseif n_d(1)==0
     l_d=0;
 else
     l_d=length(n_d);
@@ -68,9 +73,28 @@ end
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
-simoptions
-
+if fieldexists_pi_z_J==1
+    z_grid_J=simoptions.z_grid_J;
+elseif fieldexists_ExogShockFn==1
+    z_grid_J=zeros(N_z,N_j);
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+        z_grid_J(:,jj)=gather(z_grid);
+    end
+else
+    z_grid_J=repmat(z_grid,1,N_j);
+end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -124,18 +148,7 @@ if simoptions.parallel==2
         for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
             Values=nan(N_a*N_z,jend-j1+1,'gpuArray'); % Preallocate
             for jj=j1:jend
-                if fieldexists_ExogShockFn==1
-                    if fieldexists_ExogShockFnParamNames==1
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for kk=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-                        end
-                        [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    else
-                        [z_grid,~]=simoptions.ExogShockFn(jj);
-                    end
-                end
+                z_grid=z_grid_J(:,jj);
                 % Includes check for cases in which no parameters are actually required
                 if isempty(FnsToEvaluateParamNames(ii).Names)% check for 'FnsToEvaluateParamNames={}'
                     FnsToEvaluateParamsVec=[];
@@ -159,45 +172,60 @@ if simoptions.parallel==2
             AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
             % Calculate the 'age conditional' median
             AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(max(1,floor(0.5*length(SortedWeightedValues)))); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
-            % Calculate the 'age conditional' variance
-            AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
             
-            
-            if simoptions.npoints>0
-                % Calculate the 'age conditional' lorenz curve
-                AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
-                % Calculate the 'age conditional' gini
-                AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
-            end
-            
-            % Calculate the 'age conditional' quantile means (ventiles by default)
-            % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-            QuantileIndexes=zeros(1,simoptions.nquantiles-1,'gpuArray');
-            QuantileCutoffs=zeros(1,simoptions.nquantiles-1,'gpuArray');
-            QuantileMeans=zeros(1,simoptions.nquantiles,'gpuArray');
-            
-            for ll=1:simoptions.nquantiles-1
-                tempindex=find(CumSumSortedWeights>=ll/simoptions.nquantiles,1,'first');
-                QuantileIndexes(ll)=tempindex;
-                QuantileCutoffs(ll)=SortedValues(tempindex);
-                if ll==1
-                    QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-                elseif ll<(simoptions.nquantiles-1) % (1<ll) &&
-                    QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                else %if ll==(options.nquantiles-1)
-                    QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                    QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+            if SortedValues(1)==SortedValues(end)
+                % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
+                AgeConditionalStats(ii).Variance(kk)=0;
+                AgeConditionalStats(ii).LorenzCurve(:,kk)=linspace(1/simoptions.npoints,1/simoptions.npoints,1);
+                AgeConditionalStats(ii).Gini(kk)=0;
+                AgeConditionalStats(ii).QuantileCutoffs(:,kk)=nan(simoptions.nquantiles+1,1,'gpuArray');
+                AgeConditionalStats(ii).QuantileMeans(:,kk)=SortedValues(1)*ones(simoptions.nquantiles,1);
+            else
+                % Calculate the 'age conditional' variance
+                AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
+                                
+                if simoptions.npoints>0
+                    if SortedValues(1)<0
+                        AgeConditionalStats(ii).LorenzCurve(:,kk)=nan;
+                        AgeConditionalStats(ii).LorenzCurveComment(kk)={'Lorenz curve cannot be calculated as some values are negative'};
+                        AgeConditionalStats(ii).Gini(kk)=nan;
+                        AgeConditionalStats(ii).GiniComment(kk)={'Gini cannot be calculated as some values are negative'};
+                    else
+                        % Calculate the 'age conditional' lorenz curve
+                        AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
+                        % Calculate the 'age conditional' gini
+                        AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
+                    end
                 end
+                
+                % Calculate the 'age conditional' quantile means (ventiles by default)
+                % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
+                QuantileIndexes=zeros(simoptions.nquantiles-1,1,'gpuArray');
+                QuantileCutoffs=zeros(simoptions.nquantiles-1,1,'gpuArray');
+                QuantileMeans=zeros(simoptions.nquantiles,1,'gpuArray');
+                
+                for ll=1:simoptions.nquantiles-1
+                    tempindex=find(CumSumSortedWeights>=ll/simoptions.nquantiles,1,'first');
+                    QuantileIndexes(ll)=tempindex;
+                    QuantileCutoffs(ll)=SortedValues(tempindex);
+                    if ll==1
+                        QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+                    elseif ll<(simoptions.nquantiles-1) % (1<ll) &&
+                        QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
+                    else %if ll==(options.nquantiles-1)
+                        QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
+                        QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+                    end
+                end
+                % Min value
+                tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
+                minvalue=SortedValues(tempindex);
+                % Max value
+                tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+                maxvalue=SortedValues(tempindex);
+                AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue; QuantileCutoffs; maxvalue];
+                AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans;
             end
-            % Min value
-            tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
-            minvalue=SortedValues(tempindex);
-            % Max value
-            tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
-            maxvalue=SortedValues(tempindex);
-            AgeConditionalStats(ii).QuantileCutoffs(:,kk)=[minvalue, QuantileCutoffs, maxvalue]';
-            AgeConditionalStats(ii).QuantileMeans(:,kk)=QuantileMeans';
-            
         end
     end
 
@@ -213,10 +241,9 @@ else % options.parallel~=2
     
     d_grid=gather(d_grid);
     a_grid=gather(a_grid);
-    z_grid=gather(z_grid);
+%     z_grid=gather(z_grid);
     
     a_gridvals=CreateGridvals(n_a,a_grid,2);
-    z_gridvals=CreateGridvals(n_z,z_grid,2);
 
 %     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
     for kk=1:length(simoptions.agegroupings)
@@ -236,19 +263,7 @@ else % options.parallel~=2
             gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
             gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
             
-            if fieldexists_ExogShockFn==1
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for kk=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-                    end
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [z_grid,~]=simoptions.ExogShockFn(jj);
-                end
-                z_gridvals=CreateGridvals(n_z,z_grid,2);
-            end
+            z_gridvals=CreateGridvals(n_z,z_grid_J(:,jj),2);
             gridvalsFull(jj-j1+1).z_gridvals=z_gridvals;
         end
         

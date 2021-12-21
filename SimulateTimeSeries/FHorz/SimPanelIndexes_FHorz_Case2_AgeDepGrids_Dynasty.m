@@ -26,6 +26,9 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
     end
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
     simoptions.newbirths=0; % It is assumed you do not want to add 'new births' to panel as you go. If you do you just tell it the 'birstdist' (sometimes just the same as InitialDist, but not often)
     if isfield(simoptions,'birthdist')
         simoptions.newbirths=1;

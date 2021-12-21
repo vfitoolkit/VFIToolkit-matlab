@@ -16,20 +16,23 @@ N_d=prod(n_d);
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'simperiods')==0
+    if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=N_j;
     end
-    if isfield(simoptions,'numbersims')==0
+    if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^4; % Given that aim is to calculate ventiles of life-cycle profiles 10^4 seems appropriate
     end
-    if isfield(simoptions,'lifecyclepercentiles')==0
+    if ~isfield(simoptions,'lifecyclepercentiles')
         simoptions.lifecyclepercentiles=20; % by default gives ventiles
+    end
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
 else
     %If simoptions is not given, just use all the defaults
@@ -96,8 +99,13 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
-if fieldexists_ExogShockFn==1
+if fieldexists_pi_z_J
+    for jj=1:N_j
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,jj),1);
+    end
+elseif fieldexists_ExogShockFn==1
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);

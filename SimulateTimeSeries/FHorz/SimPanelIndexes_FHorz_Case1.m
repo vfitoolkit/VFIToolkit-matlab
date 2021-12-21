@@ -30,6 +30,9 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
     end
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
     simoptions.newbirths=0; % It is assumed you do not want to add 'new births' to panel as you go. If you do you just tell it the 'birstdist' (sometimes just the same as InitialDist, but not often)
     if isfield(simoptions,'birthdist')
         simoptions.newbirths=1;
@@ -107,11 +110,17 @@ else
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 end
 
-if isfield(simoptions,'ExogShockFn')==1
-    fieldexists_ExogShockFn=1; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
+%%
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+
+if fieldexists_pi_z_J==1
+    cumsumpi_z(:,:,jj)=gather(cumsum(simoptions.pi_z_J,2));
+elseif fieldexists_ExogShockFn==1
     cumsumpi_z=nan(N_z,N_z,N_j);
     for jj=1:N_j
-        if isfield(simoptions,'ExogShockFnParamNames')==1
+        if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
                         ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
             for kk=1:length(ExogShockFnParamsVec)
@@ -123,8 +132,9 @@ if isfield(simoptions,'ExogShockFn')==1
         end
         cumsumpi_z(:,:,jj)=gather(cumsum(pi_z_jj,2));
     end
+    fieldexists_pi_z_J=1; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
 else
-    fieldexists_ExogShockFn=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
+    fieldexists_pi_z_J=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
     cumsumpi_z=cumsum(pi_z,2);
 end
 
@@ -143,7 +153,7 @@ SimPanel=nan(l_a+l_z+1,simoptions.simperiods,simoptions.numbersims); % (a,z,j)
 if simoptions.parallel==0
     for ii=1:simoptions.numbersims
         seedpoint=seedpoints(ii,:);
-        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_ExogShockFn);
+        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_pi_z_J);
         
         SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
         
@@ -169,7 +179,7 @@ if simoptions.parallel==0
 else
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
-        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_ExogShockFn);
+        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods,fieldexists_pi_z_J);
         
         SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
         
@@ -220,7 +230,7 @@ if simoptions.newbirths==1
     
         for ii=1:newbirthsvector(birthperiod)
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods-birthperiod+1,fieldexists_ExogShockFn);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simoptions.simperiods-birthperiod+1,fieldexists_pi_z_J);
 
             SimPanel_ii=nan(l_a+l_z+1,simoptions.simperiods);
             

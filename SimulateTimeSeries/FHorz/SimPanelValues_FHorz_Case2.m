@@ -12,24 +12,27 @@ function SimPanelValues=SimPanelValues_FHorz_Case2(InitialDist,Policy,FnsToEvalu
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1;
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'simperiods')==0
+    if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=N_j;
     end
-    if isfield(simoptions,'numbersims')==0
+    if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
     end    
-    if isfield(simoptions,'dynasty')==0
+    if ~isfield(simoptions,'dynasty')
         simoptions.dynasty=0;
     end 
-    if isfield(simoptions,'agedependentgrids')==0
+    if ~isfield(simoptions,'agedependentgrids')
         simoptions.agedependentgrids=0;
     end 
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
 else
     %If simoptions is not given, just use all the defaults
     simoptions.parallel=1;
@@ -85,7 +88,6 @@ SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.nu
 
 %% Precompute the gridvals vectors.
 a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
-z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
 dPolicy_gridvals=struct();
 for jj=1:N_j
     % Make a three digit number out of jj
@@ -102,8 +104,13 @@ end
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
-if fieldexists_ExogShockFn==1
+if fieldexists_pi_z_J
+    for jj=1:N_j
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,:,jj),1);
+    end
+elseif fieldexists_ExogShockFn==1
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
@@ -118,6 +125,7 @@ if fieldexists_ExogShockFn==1
         fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
     end
 else
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
     for jj=1:N_j
         fullgridvals(jj).z_gridvals=z_gridvals;
     end
