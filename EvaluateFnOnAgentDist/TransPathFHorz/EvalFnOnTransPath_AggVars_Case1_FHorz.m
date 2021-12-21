@@ -35,6 +35,15 @@ end
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
+if isempty(n_d)
+    l_d=0;
+elseif n_d(1)==0
+    l_d=0;
+else
+    l_d=1;
+end
+l_a=length(n_a);
+l_z=length(n_z);
 
 %%
 % Internally PricePathOld is matrix of size T-by-'number of prices'.
@@ -168,6 +177,25 @@ else
     end
 end
 
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
 %%
 if transpathoptions.parallel==2 
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -257,36 +285,75 @@ if transpathoptions.parallel==2
     % Free up space on GPU by deleting things no longer needed
     clear V Vnext
 
-    %Now we have the full PolicyIndexesPath, we go forward in time from 1
-    %to T using the policies to update the agents distribution and generate
-    %the AggVarsPath.
-    AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
-    %Call AgentDist the current periods distn
-    AgentDist=AgentDist_initial;
-    for ii=1:T%-1
-                
-        %Get the current optimal policy
-        if N_d>0
-            Policy=PolicyIndexesPath(:,:,:,:,ii);
-        else
-            Policy=PolicyIndexesPath(:,:,:,ii);
+    
+    if FnsToEvaluateStruct==0
+        %Now we have the full PolicyIndexesPath, we go forward in time from 1
+        %to T using the policies to update the agents distribution and generate
+        %the AggVarsPath.
+        AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
+        %Call AgentDist the current periods distn
+        AgentDist=AgentDist_initial;
+        for ii=1:T%-1
+            
+            %Get the current optimal policy
+            if N_d>0
+                Policy=PolicyIndexesPath(:,:,:,:,ii);
+            else
+                Policy=PolicyIndexesPath(:,:,:,ii);
+            end
+            
+            p=PricePath(ii,:);
+            
+            for nn=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{nn})=ParamPath(ii,nn);
+            end
+            for nn=1:length(PricePathNames)
+                Parameters.(PricePathNames{nn})=PricePath(ii,nn);
+            end
+            
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
+            
+            AggVarsPath(ii,:)=AggVars;
+            
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
         end
-        
-        p=PricePath(ii,:);
-        
-        for nn=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{nn})=ParamPath(ii,nn);
+    else % FnsToEvaluateStruct==1
+        %Now we have the full PolicyIndexesPath, we go forward in time from 1
+        %to T using the policies to update the agents distribution and generate
+        %the AggVarsPath.
+        for ff=1:length(AggVarNames)
+            AggVarsPath.(AggVarNames{ff}).Mean=zeros(T,1,'gpuArray');
         end
-        for nn=1:length(PricePathNames)
-            Parameters.(PricePathNames{nn})=PricePath(ii,nn);
+        %Call AgentDist the current periods distn
+        AgentDist=AgentDist_initial;
+        for ii=1:T%-1
+            
+            %Get the current optimal policy
+            if N_d>0
+                Policy=PolicyIndexesPath(:,:,:,:,ii);
+            else
+                Policy=PolicyIndexesPath(:,:,:,ii);
+            end
+            
+            p=PricePath(ii,:);
+            
+            for nn=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{nn})=ParamPath(ii,nn);
+            end
+            for nn=1:length(PricePathNames)
+                Parameters.(PricePathNames{nn})=PricePath(ii,nn);
+            end
+            
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
+            
+            for ff=1:length(AggVarNames)
+                AggVarsPath.(AggVarNames{ff}).Mean(ii)=AggVars(ff);
+            end
+            
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
         end
-        
-        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
-      
-        AggVarsPath(ii,:)=AggVars;
-        
-        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
     end
 
 else
@@ -335,36 +402,74 @@ else
     % Free up memory by deleting things no longer needed
     clear V Vnext         
     
-    %Now we have the full PolicyIndexesPath, we go forward in time from 1
-    %to T using the policies to update the agents distribution and generate
-    %the AggVarsPath.
-    AggVarsPath=zeros(T,length(FnsToEvaluate));
-    %Call AgentDist the current periods distn
-    AgentDist=AgentDist_initial;
-    for ii=1:T%-1
-                
-        %Get the current optimal policy
-        if N_d>0
-            Policy=PolicyIndexesPath(:,:,:,:,ii);
-        else
-            Policy=PolicyIndexesPath(:,:,:,ii);
+    if FnsToEvaluateStruct==0
+        %Now we have the full PolicyIndexesPath, we go forward in time from 1
+        %to T using the policies to update the agents distribution and generate
+        %the AggVarsPath.
+        AggVarsPath=zeros(T,length(FnsToEvaluate));
+        %Call AgentDist the current periods distn
+        AgentDist=AgentDist_initial;
+        for ii=1:T%-1
+            
+            %Get the current optimal policy
+            if N_d>0
+                Policy=PolicyIndexesPath(:,:,:,:,ii);
+            else
+                Policy=PolicyIndexesPath(:,:,:,ii);
+            end
+            
+            p=PricePath(ii,:);
+            
+            for nn=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{nn})=ParamPath(ii,nn);
+            end
+            for nn=1:length(PricePathNames)
+                Parameters.(PricePathNames{nn})=PricePath(ii,nn);
+            end
+            
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 1); % The 1 is for Parallel (use CPU)
+            
+            AggVarsPath(ii,:)=AggVars;
+            
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
         end
-        
-        p=PricePath(ii,:);
-        
-        for nn=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{nn})=ParamPath(ii,nn);
+    else % FnsToEvaluateStruct==1
+        %Now we have the full PolicyIndexesPath, we go forward in time from 1
+        %to T using the policies to update the agents distribution and generate
+        %the AggVarsPath.
+        for ff=1:length(AggVarNames)
+            AggVarsPath.(AggVarNames{ff}).Mean=zeros(T,1);
         end
-        for nn=1:length(PricePathNames)
-            Parameters.(PricePathNames{nn})=PricePath(ii,nn);
+        %Call AgentDist the current periods distn
+        AgentDist=AgentDist_initial;
+        for ii=1:T%-1
+            
+            %Get the current optimal policy
+            if N_d>0
+                Policy=PolicyIndexesPath(:,:,:,:,ii);
+            else
+                Policy=PolicyIndexesPath(:,:,:,ii);
+            end
+            
+            p=PricePath(ii,:);
+            
+            for nn=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{nn})=ParamPath(ii,nn);
+            end
+            for nn=1:length(PricePathNames)
+                Parameters.(PricePathNames{nn})=PricePath(ii,nn);
+            end
+            
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 1); % The 1 is for Parallel (use CPU)
+            
+            for ff=1:length(AggVarNames)
+                AggVarsPath.(AggVarNames{ff}).Mean(ii)=AggVars(ii,ff);
+            end
+            
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
         end
-        
-        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 1); % The 1 is for Parallel (use CPU)
-      
-        AggVarsPath(ii,:)=AggVars;
-        
-        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
     end
 end
 

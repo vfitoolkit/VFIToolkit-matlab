@@ -40,7 +40,11 @@ else
     end
 end
 
-numFnsToEvaluate=length(FnsToEvaluate);
+if isstruct(FnsToEvaluate)
+    numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
+else
+    numFnsToEvaluate=length(FnsToEvaluate);
+end
 
 if isa(StationaryDist.(Names_i{1}), 'gpuArray')
     AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
@@ -174,41 +178,22 @@ for ii=1:N_i
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
     if simoptions_temp.verbose==1
-        sprintf('Parameter values for the current permanent type')
+        fprintf('Parameter values for the current permanent type (%i of %i) \n',ii,N_i)
         Parameters_temp
     end
     
     
-    % Figure out which functions are actually relevant to the present
-    % PType. Only the relevant ones need to be evaluated.
-    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
-    % necessarily the same.
-    FnsToEvaluate_temp={};
-    FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-%     numFnsToEvaluate=length(FnsToEvaluateFn); % Now done outside the for-ii-loop
-    WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
-    jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-    for kk=1:numFnsToEvaluate
-        if isa(FnsToEvaluate{kk},'struct')
-            if isfield(FnsToEvaluate{kk}, Names_i{ii})
-                FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-                if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-                else
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-                end
-                WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-                % else
-                %  % do nothing as this FnToEvaluate is not relevant for the current PType
-                % % Implicitly, WhichFnsForCurrentPType(kk)=0
-            end
-        else
-            % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
-            FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-            WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-        end
+    % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
+    % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
+    % Allows for FnsToEvaluate as structure.
+    if n_d_temp(1)==0
+        l_d_temp=0;
+    else
+        l_d_temp=1;
     end
+    l_a_temp=length(n_a_temp);
+    l_z_temp=length(n_z_temp);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType]=PType_FnsToEvaluate(FnsToEvaluate,FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp);
     
     StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
     
@@ -217,10 +202,23 @@ for ii=1:N_i
     for kk=1:numFnsToEvaluate
         jj=WhichFnsForCurrentPType(kk);
         if jj>0
-            AggVars(kk,:)=AggVars(kk,:)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
+            AggVars(kk)=AggVars(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
         end
     end
-    
+         
+end
+
+% If using FnsToEvaluate as structure need to get in appropriate form for output
+if isstruct(FnsToEvaluate)
+    AggVarNames=fieldnames(FnsToEvaluate);
+    % Change the output into a structure
+    AggVars2=AggVars;
+    clear AggVars
+    AggVars=struct();
+    %     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
+    end
 end
 
 

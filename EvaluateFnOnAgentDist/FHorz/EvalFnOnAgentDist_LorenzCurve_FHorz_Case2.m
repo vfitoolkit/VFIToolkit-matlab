@@ -28,9 +28,60 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+%% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
+if exist('simoptions','var')
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
+end
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
+if fieldexists_pi_z_J==1
+    z_grid_J=simoptions.z_grid_J;
+elseif fieldexists_ExogShockFn==1
+    z_grid_J=zeros(N_z,N_j);
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+        z_grid_J(:,jj)=z_grid;
+    end
+else
+    z_grid_J=repmat(z_grid,1,N_j);
+end
+if Parallel==2
+    z_grid_J=gpuArray(z_grid_J);
+end
+
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+%%
 if Parallel==2
 %     AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');
     LorenzCurve=zeros(npoints,length(FnsToEvaluate),'gpuArray');
@@ -44,18 +95,7 @@ if Parallel==2
     for i=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
-            if fieldexists_ExogShockFn==1
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for kk=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-                    end
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [z_grid,~]=simoptions.ExogShockFn(jj);
-                end
-            end
+            z_grid=z_grid_J(:,jj);
             
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames) %|| strcmp(SSvalueParamNames(i).Names(1),'')) % check for 'SSvalueParamNames={} or SSvalueParamNames={''}'
@@ -123,18 +163,15 @@ if Parallel==2
         LorenzCurve(:,i)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,Parallel); 
     end
 else
-%     AggVars=zeros(1,length(FnsToEvaluate));
     LorenzCurve=zeros(npoints,length(FnsToEvaluate));
-
+    
+    a_gridvals=CreateGridvals(n_a,a_grid,1);
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
     sizePolicyIndexes=size(PolicyIndexes);
     if sizePolicyIndexes(2:end)~=[N_a,N_z,N_j] % If not in vectorized form
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
-    
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
     dPolicy_gridvals=zeros(N_a*N_z,N_j);
     for jj=1:N_j
         dPolicy_gridvals(:,jj)=CreateGridvals_Policy(PolicyIndexes(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
@@ -143,19 +180,8 @@ else
     for i=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
         for jj=1:N_j 
-            if fieldexists_ExogShockFn==1
-                if fieldexists_ExogShockFnParamNames==1
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for kk=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-                    end
-                    [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [z_grid,~]=simoptions.ExogShockFn(jj);
-                end
-                z_gridvals=CreateGridvals(n_z,z_grid,1);
-            end
+            z_grid=z_grid_J(:,jj);
+            z_gridvals=CreateGridvals(n_z,z_grid,1);
             
             for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
