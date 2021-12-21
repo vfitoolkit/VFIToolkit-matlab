@@ -39,9 +39,11 @@ if exist('transpathoptions','var')==0
     transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
     transpathoptions.verbosegraphs=0;
+    transpathoptions.fastOLG=0;
     transpathoptions.GEnewprice=2;
     transpathoptions.historyofpricepath=0;
     transpathoptions.stockvars=0;
+    transpathoptions.fastOLG=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
     if isfield(transpathoptions,'tolerance')==0
@@ -70,6 +72,9 @@ else
     end
     if isfield(transpathoptions,'GEnewprice')==0
         transpathoptions.GEnewprice=2;
+    end
+    if isfield(transpathoptions,'fastOLG')==0
+        transpathoptions.fastOLG=0;
     end
     if isfield(transpathoptions,'historyofpricepath')==0
         transpathoptions.historyofpricepath=0;

@@ -6,8 +6,9 @@ N_z=prod(n_z);
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 %% First, create the big 'next period (of transition path) expected value fn.
 
@@ -17,28 +18,34 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-if fieldexists_ExogShockFn==0
-    z_grid_AllAges=z_grid.*ones(1,N_j);
-    pi_z_AllAges=pi_z.*ones(1,1,N_j);
+if fieldexists_pi_z_J==0 && fieldexists_ExogShockFn==0
+    z_grid_J=z_grid.*ones(1,N_j);
+    pi_z_J=pi_z.*ones(1,1,N_j);
+elseif fieldexists_pi_z_J==1
+    z_grid_J=vfoptions.z_grid_J;
+    pi_z_J=vfoptions.pi_z_J;
 elseif fieldexists_ExogShockFn==1
+    z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
+    pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
-            z_grid_AllAges(:,jj)=gpuArray(z_grid); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            z_grid_J(:,jj)=gpuArray(z_grid); pi_z_J(:,jj)=gpuArray(pi_z);
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid_AllAges(:,jj)=gpuArray(z_grid); pi_z_AllAges(:,:,jj)=gpuArray(pi_z);
+            z_grid_J(:,jj)=gpuArray(z_grid); pi_z_J(:,:,jj)=gpuArray(pi_z);
         end
     end
-%     temp=1:1:(l_a+l_a+l_z+1);
-%     temp(2)=l_a+l_a+l_z+1; temp(end)=2;
-%     z_grid_AllAges=permute(z_grid_AllAges,temp); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG()
 end
-z_grid_AllAges=z_grid_AllAges'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
-pi_z_AllAges=permute(pi_z_AllAges,[3,2,1]); % Give it the size best for the loop below (j,z',z)
+z_grid_J=z_grid_J'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
+pi_z_J=permute(pi_z_J,[3,2,1]); % Give it the size best for the loop below (j,z',z)
     
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z, N_j, [], a_grid, z_grid_AllAges, ReturnFnParamsAgeMatrix);
+ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z, N_j, [], a_grid, z_grid_J, ReturnFnParamsAgeMatrix);
 
 % ReturnMatrix=permute(ReturnMatrix,[1 2 4 3]); % Swap j and z (so that z
 % is last) % Modified CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG to
@@ -59,7 +66,7 @@ for z_c=1:N_z
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
 %     EV_z=VKronNext.*(ones(N_a*N_j,1,'gpuArray')*pi_z(z_c,:));
-    EV_z=VKronNext.*kron(pi_z_AllAges(:,:,z_c),ones(N_a,1,'gpuArray'));
+    EV_z=VKronNext.*kron(pi_z_J(:,:,z_c),ones(N_a,1,'gpuArray'));
     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV_z=sum(EV_z,2);
 

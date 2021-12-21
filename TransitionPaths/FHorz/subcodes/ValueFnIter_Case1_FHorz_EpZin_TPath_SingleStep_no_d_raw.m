@@ -7,6 +7,7 @@ Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for 
 
 %%
 
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
@@ -42,10 +43,17 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 % is just multiplying by a constant nor will it effect the argmax, so
 % can just scale solution to the max directly.
 
-if fieldexists_ExogShockFn==1
+if fieldexists_pi_z_J==1
+    z_grid=vfoptions.z_grid_J(:,N_j);
+    pi_z=vfoptions.pi_z_J(:,:,N_j);
+elseif fieldexists_ExogShockFn==1
     if fieldexists_ExogShockFnParamNames==1
         ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        end
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
         z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
@@ -107,10 +115,17 @@ for reverse_j=1:N_j-1
 %     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
 %     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    if fieldexists_ExogShockFn==1
+    if fieldexists_pi_z_J==1
+        z_grid=vfoptions.z_grid_J(:,jj);
+        pi_z=vfoptions.pi_z_J(:,:,jj);
+    elseif fieldexists_ExogShockFn==1
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
             z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(jj);

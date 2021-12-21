@@ -40,6 +40,16 @@ for i=1:T-1 %so t=T-i
         Parameters.(ParamPathNames{kk})=ParamPath(T-i,kk);
     end
     
+    if transpathoptions.zpathprecomputed==1
+        if transpathoptions.zpathtrivial==1
+            vfoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
+            vfoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,i);
+        end
+        % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in vfoptions already
+    end
+    % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use vfoptions.ExogShockFn within  ValueFnIter command
+    
+    
     [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % The VKron input is next period value fn, the VKron output is this period.
     % Policy is kept in the form where it is just a single-value in (d,a')
@@ -76,6 +86,16 @@ for i=1:T-1
     for nn=1:length(PricePathNames)
         Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
     end
+    
+    if transpathoptions.zpathprecomputed==1
+        if transpathoptions.zpathtrivial==1
+            simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
+            simoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,i);
+        end
+        % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
+    end
+    % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use simoptions.ExogShockFn within StationaryDist and FnEvaluation command
+    
     
     PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)

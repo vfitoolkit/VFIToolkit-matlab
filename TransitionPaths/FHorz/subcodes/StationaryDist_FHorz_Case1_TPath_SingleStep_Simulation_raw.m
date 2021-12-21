@@ -22,23 +22,30 @@ if simoptions.parallel==2
     MoveSSDKtoGPU=1;
 end
 
-% This implementation is slightly inefficient when shocks are not age
-% dependent, but speed loss is fairly trivial
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-if fieldexists_ExogShockFn==1
-    pi_z_J=zeros(N_z,N_z,N_j);
+% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
+eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+if fieldexists_pi_z_J==0 && fieldexists_ExogShockFn==0
+    pi_z_J=pi_z.*ones(1,1,N_j);
+elseif fieldexists_pi_z_J==1
+    pi_z_J=vfoptions.pi_z_J;
+elseif fieldexists_ExogShockFn==1
+    pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            end
+            [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            pi_z_J(:,jj)=gpuArray(pi_z);
         else
-            [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+            [~,pi_z]=vfoptions.ExogShockFn(jj);
+            pi_z_J(:,:,jj)=gpuArray(pi_z);
         end
-        pi_z_J(:,:,jj)=gather(pi_z);
     end
-else
-    pi_z_J=repmat(pi_z,1,1,N_j);
 end
 
 if simoptions.parallel==1
