@@ -1,11 +1,8 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_subfn(GEprices, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_subfn(GEprices, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_p=prod(n_p);
-
-l_p=length(n_p);
 
 %% 
 for ii=1:l_p
@@ -15,10 +12,12 @@ end
 %% 
 % If 'exogenous shock fn' is used and depends on GE parameters then
 % precompute it here (otherwise it is already precomputed).
-if isfield(vfoptions,'ExogShockFn')
+if isfield(vfoptions,'pi_z_J')
+    % Do nothing, this is just to avoid doing the next 'elseif' statement
+elseif isfield(vfoptions,'ExogShockFn')
     if ~isfield(vfoptions,'pi_z_J') % This is implicitly checking that ExogShockFn does depend on GE params (if it doesn't then this field will already exist)
         pi_z_J=zeros(N_z,N_z,N_j);
-        z_grid_J=zeros(N_z,N_j);
+        z_grid_J=zeros(sum(n_z),N_j);
         for jj=1:N_j
             if isfield(vfoptions,'ExogShockFnParamNames')
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
@@ -52,8 +51,16 @@ AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, FnsToE
 %    AggVars
 
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
-
+if isstruct(GeneralEqmEqns)
+    AggVarNames=fieldnames(AggVars); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
+    for ii=1:length(AggVarNames)
+        Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+    end
+    GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns, Parameters));
+else
+    GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+end
+    
 if heteroagentoptions.multiGEcriterion==0  
     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
@@ -63,11 +70,28 @@ end
 GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
-    fprintf('Current aggregate variables. \n')
-    AggVars
-    fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
-    GEprices
-    GeneralEqmConditionsVec
+    fprintf(' \n')
+    fprintf('Current GE prices: \n')
+    for ii=1:l_p
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},GEprices(ii))
+    end
+    fprintf('Current aggregate variables: \n')
+    if ~isstruct(AggVars)
+        AggVars
+    else
+        for ii=1:length(AggVarNames)
+            fprintf('	%s: %8.4f \n',AggVarNames{ii},AggVars.(AggVarNames{ii}).Mean)
+        end
+    end
+    fprintf('Current GeneralEqmEqns: \n')
+    if ~isstruct(GeneralEqmEqns)
+        GeneralEqmConditionsVec
+    else
+        GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+        for ii=1:length(GeneralEqmEqnsNames)
+            fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
+        end
+    end
 end
 
 end

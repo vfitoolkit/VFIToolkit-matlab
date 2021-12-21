@@ -5,6 +5,7 @@ if exist('Parallel','var')==0 || isempty(Parallel)
     Parallel=1+(gpuDeviceCount>0);
 end
 
+%%
 if Parallel==2 || Parallel==4
     GeneralEqmConditionsVec=ones(1,length(GeneralEqmEqns),'gpuArray')*Inf;
     for i=1:length(GeneralEqmEqns)

@@ -9,6 +9,38 @@ for ii=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{ii})=p(ii);
 end
 
+%% 
+% If 'exogenous shock fn' is used and depends on GE parameters then
+% precompute it here (otherwise it is already precomputed).
+if isfield(vfoptions,'pi_z_J')
+    % Do nothing, this is just to avoid doing the next 'elseif' statement
+elseif isfield(vfoptions,'ExogShockFn')
+    if ~isfield(vfoptions,'pi_z_J') % This is implicitly checking that ExogShockFn does depend on GE params (if it doesn't then this field will already exist)
+        pi_z_J=zeros(N_z,N_z,N_j);
+        z_grid_J=zeros(sum(n_z),N_j);
+        for jj=1:N_j
+            if isfield(vfoptions,'ExogShockFnParamNames')
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            else
+                [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+            end
+            pi_z_J(:,:,jj)=gather(pi_z);
+            z_grid_J(:,jj)=gather(z_grid);
+        end
+        % Now store them in vfoptions and simoptions
+        vfoptions.pi_z_J=pi_z_J;
+        vfoptions.z_grid_J=z_grid_J;
+        simoptions.pi_z_J=pi_z_J;
+        simoptions.z_grid_J=z_grid_J;
+    end
+end
+
+%%
 [~, Policy]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, Phi_aprimeFn, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance

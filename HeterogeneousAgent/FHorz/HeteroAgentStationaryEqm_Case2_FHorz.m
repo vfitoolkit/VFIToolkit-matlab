@@ -80,6 +80,46 @@ if vfoptions.phiaprimematrix==1
 end
 
 %%
+% If 'exogenous shock fn' is used, then precompute it to save evaluating it numerous times
+% Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
+if isfield(vfoptions,'pi_z_J')
+    % Do nothing, this is just to avoid doing the next 'elseif' statement
+elseif isfield(vfoptions,'ExogShockFn')
+    overlap=0;
+    for ii=1:length(vfoptions.ExogShockFnParamNames)
+        if strcmp(vfoptions.ExogShockFnParamNames{ii},GEPriceParamNames)
+            overlap=1;
+        end
+    end
+    if overlap==0
+        % If ExogShockFn does not depend on any of the GEPriceParamNames, then
+        % we can simply create it now rather than within each 'subfn' or 'p_grid'
+        pi_z_J=zeros(N_z,N_z,N_j);
+        for jj=1:N_j
+            if isfield(vfoptions,'ExogShockFnParamNames')
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            else
+                [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+            end
+            pi_z_J(:,:,jj)=gather(pi_z);
+            z_grid_J(:,jj)=gather(z_grid);
+        end
+        % Now store them in vfoptions and simoptions
+        vfoptions.pi_z_J=pi_z_J;
+        vfoptions.z_grid_J=z_grid_J;
+        simoptions.pi_z_J=pi_z_J;
+        simoptions.z_grid_J=z_grid_J;
+    end
+    % If overlap=1 then z_grid_J and/or pi_z_J depends on General eqm
+    % parameters, so it must be calculated inside the function.
+end
+
+%%
 if N_p~=0
     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case2_FHorz_pgrid(jequaloneDist,AgeWeightParamNames,n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
     for ii=1:length(GEPriceParamNames)
