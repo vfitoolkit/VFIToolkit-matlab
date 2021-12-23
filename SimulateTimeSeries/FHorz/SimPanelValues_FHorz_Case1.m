@@ -39,11 +39,15 @@ else
     simoptions.numbersims=10^3;
 end
 
-if n_d(1)==0
+if isempty(n_d)
+    n_d=0;
+    l_d=0;
+elseif n_d(1)==0
     l_d=0;
 else
     l_d=length(n_d);
 end
+
 l_a=length(n_a);
 l_z=length(n_z);
 
