@@ -152,11 +152,20 @@ else
     
 end
 
-
-% Change the ordering and size so that ProbDensityFns has same kind of
-% shape as StationaryDist, except first dimension indexes the
-% 'FnsToEvaluate'.
-ValuesOnGrid=permute(ValuesOnGrid,[3,1,2]);
-ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z,N_j]);
+if FnsToEvaluateStruct==1
+    ValuesOnGrid2=ValuesOnGrid;
+    clear ValuesOnGrid
+    ValuesOnGrid=struct();
+    for ff=1:length(AggVarNames)
+        ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid2(:,:,ii),[n_a,n_z,N_j]);
+        % Change the ordering and size so that ProbDensityFns has same kind of shape as StationaryDist
+    end
+else
+    % Change the ordering and size so that ProbDensityFns has same kind of
+    % shape as StationaryDist, except first dimension indexes the
+    % 'FnsToEvaluate'.
+    ValuesOnGrid=permute(ValuesOnGrid,[3,1,2]);
+    ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z,N_j]);
+end
 
 end

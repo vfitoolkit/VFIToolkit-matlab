@@ -112,6 +112,7 @@ else
     AggVars=zeros(length(FnsToEvaluate),1);
 
     a_gridvals=CreateGridvals(n_a,a_grid,2);
+    z_gridvals=CreateGridvals(n_z,z_grid,2);
 
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     

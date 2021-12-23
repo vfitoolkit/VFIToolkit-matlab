@@ -186,7 +186,7 @@ if simoptions.parallel==2
                                 
                 if simoptions.npoints>0
                     if SortedValues(1)<0
-                        AgeConditionalStats(ii).LorenzCurve(:,kk)=nan;
+                        AgeConditionalStats(ii).LorenzCurve(:,kk)=nan(simoptions.npoints,1);
                         AgeConditionalStats(ii).LorenzCurveComment(kk)={'Lorenz curve cannot be calculated as some values are negative'};
                         AgeConditionalStats(ii).Gini(kk)=nan;
                         AgeConditionalStats(ii).GiniComment(kk)={'Gini cannot be calculated as some values are negative'};

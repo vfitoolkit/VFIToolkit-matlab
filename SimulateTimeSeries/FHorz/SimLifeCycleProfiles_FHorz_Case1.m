@@ -1,7 +1,7 @@
-function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_Case1(InitialDist,Policy,ValuesFns,ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
+function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_Case1(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. Then based on
-% this it computes life-cycle profiles for the 'VaulesFns' and reports
+% this it computes life-cycle profiles for the 'FnsToEvalute' and reports
 % mean, median, min, 19 intermediate ventiles, and max. (you can change from
 % ventiles using simperiods.lifecyclepercentiles)
 %
@@ -43,7 +43,10 @@ else
     simoptions.lifecyclepercentiles=20; % by default gives ventiles
 end
 
-if n_d(1)==0
+if isempty(n_d)
+    n_d=0;
+    l_d=0;
+elseif n_d(1)==0
     l_d=0;
 else
     l_d=length(n_d);
@@ -57,9 +60,7 @@ if simoptions.parallel~=2
     z_grid=gather(z_grid);
 end
 
-tic;
 PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);%,simoptions); % This is actually being created inside SimPanelIndexes already
-toc
 
 % if simoptions.parallel~=2
 %     PolicyIndexesKron=gather(PolicyIndexesKron);
@@ -73,8 +74,26 @@ PolicyIndexesKron=gather(PolicyIndexesKron);
 InitialDist=gather(InitialDist);
 pi_z=gather(pi_z);
 
-tic;
-% Because we want life-cycle profiles we only use the part of InitialDist that is how agents appear 'at birth' (in j=1).
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+%% Because we want life-cycle profiles we only use the part of InitialDist that is how agents appear 'at birth' (in j=1).
 % (InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 if numel(InitialDist)==N_a*N_z % Has just been given for age j=1
     SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions);
@@ -82,18 +101,8 @@ else
     InitialDist=reshape(InitialDist,[N_a*N_z,N_j]);
     SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist(:,1),PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions); % Use only j=1: InitialDist(:,1)
 end
-toc
 
-SimPanelValues=zeros(length(ValuesFns), simoptions.simperiods, simoptions.numbersims);
-
-
-d_val=zeros(1,l_d);
-aprime_val=zeros(1,l_a);
-a_val=zeros(1,l_a);
-z_val=zeros(1,l_z);
-% d_ind=zeros(1,num_d_vars); aprime_ind=zeros(1,l_a);
-
-% Precompute the gridvals vectors.
+%% Precompute the gridvals vectors.
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
@@ -125,140 +134,112 @@ else
     end
 end
 
+for jj=1:N_j
+    PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 1);
+    if l_d~=0
+        fullgridvals(jj).d_gridvals=d_gridvals;
+    end
+    fullgridvals(jj).aprime_gridvals=aprime_gridvals;
+end
+
 %%
-SimPanelValues_ii=zeros(length(ValuesFns),simoptions.simperiods);
+SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
+
 %% For sure the following could be made faster by parallelizing some stuff. (It could likely be done on the gpu, currently just do single cpu and parallel cpu)
 if simoptions.parallel==0
+    SimPanelValues_ii=zeros(length(FnsToEvaluate),simoptions.simperiods);
     for ii=1:simoptions.numbersims
         SimPanel_ii=SimPanelIndexes(:,:,ii);
-        SimPanelValues_ii=zeros(length(ValuesFns),simoptions.simperiods);
-        for t=1:simoptions.simperiods
-            a_sub=SimPanel_ii(1:l_a,t);
+        for tt=1:simoptions.simperiods
+            a_sub=SimPanel_ii(1:l_a,tt);
             a_ind=sub2ind_homemade(n_a,a_sub);
             
-            z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
+            z_sub=SimPanel_ii((l_a+1):(l_a+l_z),tt);
             z_ind=sub2ind_homemade(n_z,z_sub);
             
-            j_ind=SimPanel_ii(end,t);
+            j_ind=SimPanel_ii(end,tt);
             
             a_val=a_gridvals(a_ind,:);
             z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
-            
             if l_d==0
-                aprime_ind=PolicyIndexesKron(a_ind,z_ind,t); % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-                aprime_sub=ind2sub_homemade(n_a,aprime_ind);
+                aprime_ind=PolicyIndexesKron(a_ind,z_ind,j_ind); % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
+                aprime_val=fullgridvals(j_ind).aprime_gridvals(aprime_ind,:);
             else
-                temp=PolicyIndexesKron(:,a_ind,z_ind,t);
+                temp=PolicyIndexesKron(:,a_ind,z_ind,j_ind);
                 d_ind=temp(1); aprime_ind=temp(2);
-                % SHOULD BE ABLE TO CHANGE NEXT BUNCH OF LINES TO GET d_val and
-                % aprime_val DIRECTLY FROM d_gridvals and a_gridvals. WOULD BE
-                % FASTER THAN CURRENT APPROACH.
-                d_sub=ind2sub_homemade(n_a,d_ind);
-                aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                for kk1=1:l_d
-                    if kk1==1
-                        d_val(kk1)=d_grid(d_sub(kk1));
-                    else
-                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-                    end
-                end
-            end
-            for kk2=1:l_a
-                if kk2==1
-                    aprime_val(kk2)=a_grid(aprime_sub(kk2));
-                else
-                    aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-                end
+                aprime_val=fullgridvals(j_ind).aprime_gridvals(aprime_ind,:);
+                d_val=fullgridvals(j_ind).d_gridvals(d_ind,:);
             end
             
             if l_d==0
-                for vv=1:length(ValuesFns)
-                    if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                         tempcell=num2cell([aprime_val,a_val,z_val]');
                     else
-                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
                         tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
                     end
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+                    SimPanelValues_ii(vv,tt)=FnsToEvaluate{vv}(tempcell{:});
                 end
             else
-                for vv=1:length(ValuesFns)
-                    if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                         tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
                     else
-                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
                         tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
                     end
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+                    SimPanelValues_ii(vv,tt)=FnsToEvaluate{vv}(tempcell{:});
                 end
             end
         end
         SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
-else
+else % simoptions.parallel==1
     parfor ii=1:simoptions.numbersims % This is only change from simoptions.parallel==0 case
-        d_val=zeros(1,length(n_d));
-        aprime_val=zeros(1,length(n_a));
         SimPanel_ii=SimPanelIndexes(:,:,ii);
-        SimPanelValues_ii=zeros(length(ValuesFns),simoptions.simperiods);
-        for t=1:simoptions.simperiods
-            a_sub=SimPanel_ii(1:l_a,t);
+        SimPanelValues_ii=zeros(length(FnsToEvaluate),simoptions.simperiods);
+        for tt=1:simoptions.simperiods
+            a_sub=SimPanel_ii(1:l_a,tt);
             a_ind=sub2ind_homemade(n_a,a_sub);
             
-            z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
+            z_sub=SimPanel_ii((l_a+1):(l_a+l_z),tt);
             z_ind=sub2ind_homemade(n_z,z_sub);
             
-            j_ind=SimPanel_ii(end,t);
+            j_ind=SimPanel_ii(end,tt);
             
             a_val=a_gridvals(a_ind,:);
             z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
-            
             if l_d==0
-                aprime_ind=PolicyIndexesKron(a_ind,z_ind,t); % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-                aprime_sub=ind2sub_homemade(n_a,aprime_ind);
+                aprime_ind=PolicyIndexesKron(a_ind,z_ind,j_ind); % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
+                aprime_val=fullgridvals(j_ind).aprime_gridvals(aprime_ind,:);
             else
-                temp=PolicyIndexesKron(:,a_ind,z_ind,t);
+                temp=PolicyIndexesKron(:,a_ind,z_ind,j_ind);
                 d_ind=temp(1); aprime_ind=temp(2);
-                % SHOULD BE ABLE TO CHANGE NEXT BUNCH OF LINES TO GET d_val and
-                % aprime_val DIRECTLY FROM d_gridvals and a_gridvals. WOULD BE
-                % FASTER THAN CURRENT APPROACH.
-                d_sub=ind2sub_homemade(n_a,d_ind);
-                aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-                for kk1=1:l_d
-                    if kk1==1
-                        d_val(kk1)=d_grid(d_sub(kk1));
-                    else
-                        d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-                    end
-                end
-            end
-            for kk2=1:l_a
-                if kk2==1
-                    aprime_val(kk2)=a_grid(aprime_sub(kk2));
-                else
-                    aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-                end
+                aprime_val=fullgridvals(j_ind).aprime_gridvals(aprime_ind,:);
+                d_val=fullgridvals(j_ind).d_gridvals(d_ind,:);
             end
             
             if l_d==0
-                for vv=1:length(ValuesFns)
-                    if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                         tempcell=num2cell([aprime_val,a_val,z_val]');
                     else
-                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
                         tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
                     end
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+                    SimPanelValues_ii(vv,tt)=FnsToEvaluate{vv}(tempcell{:});
                 end
             else
-                for vv=1:length(ValuesFns)
-                    if isempty(ValuesFnsParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                         tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
                     else
-                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,ValuesFnsParamNames(vv).Names,j_ind);
+                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
                         tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
                     end
-                    SimPanelValues_ii(vv,t)=ValuesFns{vv}(tempcell{:});
+                    SimPanelValues_ii(vv,tt)=FnsToEvaluate{vv}(tempcell{:});
                 end
             end
         end
@@ -268,25 +249,42 @@ end
 
 % Now get the life-cycle profiles by looking at (age-conditional) cross-sections of this panel data.
 if simoptions.lifecyclepercentiles>0
-    SimLifeCycleProfiles=zeros(length(ValuesFns), simoptions.simperiods, simoptions.lifecyclepercentiles+3); % Mean, median, min, 19 intermediate ventiles, and max.
+    SimLifeCycleProfiles=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.lifecyclepercentiles+3); % Mean, median, min, 19 intermediate ventiles, and max.
     prctilegrid=(0:1/simoptions.lifecyclepercentiles:1)*100;
-    for ii=1:length(ValuesFns)
-        for jj=1:simoptions.simperiods
-            temp=SimPanelValues(ii,jj,:);
-            SimLifeCycleProfiles(ii,jj,1)=mean(temp);
-            SimLifeCycleProfiles(ii,jj,2)=median(temp);
-            SimLifeCycleProfiles(ii,jj,3:end)=prctile(temp,prctilegrid);
+    for ii=1:length(FnsToEvaluate)
+        for tt=1:simoptions.simperiods
+            temp=SimPanelValues(ii,tt,:);
+            SimLifeCycleProfiles(ii,tt,1)=mean(temp);
+            SimLifeCycleProfiles(ii,tt,2)=median(temp);
+            SimLifeCycleProfiles(ii,tt,3:end)=prctile(temp,prctilegrid);
         end
     end
 else
-    SimLifeCycleProfiles=zeros(length(ValuesFns), simoptions.simperiods, 2); % Mean, median
-    for ii=1:length(ValuesFns)
-        for jj=1:simoptions.simperiods
-            temp=SimPanelValues(ii,jj,:);
-            SimLifeCycleProfiles(ii,jj,1)=mean(temp);
-            SimLifeCycleProfiles(ii,jj,2)=median(temp);
+    SimLifeCycleProfiles=zeros(length(FnsToEvaluate), simoptions.simperiods, 2); % Mean, median
+    for ii=1:length(FnsToEvaluate)
+        for tt=1:simoptions.simperiods
+            temp=SimPanelValues(ii,tt,:);
+            SimLifeCycleProfiles(ii,tt,1)=mean(temp);
+            SimLifeCycleProfiles(ii,tt,2)=median(temp);
         end
     end
 end
 
 
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    SimLifeCycleProfiles2=SimLifeCycleProfiles;
+    clear SimLifeCycleProfiles
+    SimLifeCycleProfiles=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        SimLifeCycleProfiles.(AggVarNames{ff}).Mean=SimLifeCycleProfiles2(ff,:,1);
+        SimLifeCycleProfiles.(AggVarNames{ff}).Median=SimLifeCycleProfiles2(ff,:,2);
+        if simoptions.lifecyclepercentiles>0
+            SimLifeCycleProfiles.(AggVarNames{ff}).prctile=SimLifeCycleProfiles2(ff,:,3:end);
+        end
+    end
+end
+
+
+end
