@@ -9,7 +9,7 @@ function [z_grid,P] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodaopti
 % Inputs
 %   mew            - constant term coefficient
 %   rho            - autocorrelation coefficient
-%   sigma          - standard deviation of (gaussion) innovations
+%   sigma          - standard deviation of (gaussian) innovations
 %   znum           - number of states in discretization of z (minumum of 3)
 % Optional Inputs (farmertodaoptions)
 %   method         - The method used to determine the grid ('even','gauss-legendre', 'clenshaw-curtis','gauss-hermite')
