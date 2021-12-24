@@ -173,6 +173,7 @@ if simoptions.parallel==2
             % Calculate the 'age conditional' median
             AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(max(1,floor(0.5*length(SortedWeightedValues)))); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
             
+            
             if SortedValues(1)==SortedValues(end)
                 % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
                 AgeConditionalStats(ii).Variance(kk)=0;
@@ -185,7 +186,7 @@ if simoptions.parallel==2
                 AgeConditionalStats(ii).Variance(kk)=sum((Values.^2).*StationaryDistVec_kk)-(AgeConditionalStats(ii).Mean(kk))^2; % Weighted square of values - mean^2
                                 
                 if simoptions.npoints>0
-                    if SortedValues(1)<0
+                    if SortedWeightedValues(1)<0
                         AgeConditionalStats(ii).LorenzCurve(:,kk)=nan(simoptions.npoints,1);
                         AgeConditionalStats(ii).LorenzCurveComment(kk)={'Lorenz curve cannot be calculated as some values are negative'};
                         AgeConditionalStats(ii).Gini(kk)=nan;

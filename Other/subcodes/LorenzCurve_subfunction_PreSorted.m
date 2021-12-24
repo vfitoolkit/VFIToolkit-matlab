@@ -14,8 +14,8 @@ CumSumSortedWeights_temp=round(CumSumSortedWeights*10^options.ordertoroundtoavoi
 % round(CumSumSortedWeights,options.ordertoroundtoavoidnumericalerror);
 % Works on cpu, but not implemented for GPU as of R2021a (likely better way to do this once Matlab implements it)
 [~,UniqueIndex] = unique(CumSumSortedWeights_temp,'first');
-CumSumSortedStationaryDistVec_NoDuplicates=CumSumSortedWeights(sort(UniqueIndex));
-SortedWeightedValues_NoDuplicates=SortedWeightedValues(sort(UniqueIndex));
+CumSumSortedStationaryDistVec_NoDuplicates=CumSumSortedWeights(UniqueIndex);
+SortedWeightedValues_NoDuplicates=SortedWeightedValues(UniqueIndex);
 CumSumSortedWeightedValues_NoDuplicates=cumsum(SortedWeightedValues_NoDuplicates);
 if Parallel==2
     InverseCDF_xgrid=gpuArray(1/npoints:1/npoints:1);
@@ -25,9 +25,9 @@ end
 
 if numel(CumSumSortedStationaryDistVec_NoDuplicates)==1 % Have to treat the case of Lorenz curve for perfect equality (so just one unique element) seperately as otherwise causes interp1 to error
     if Parallel==2
-        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1,'gpuArray'); %0:(1/npoints):1;
+        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1,'gpuArray');
     else
-        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1); %0:(1/npoints):1;        
+        InverseCDF_SSvalues=CumSumSortedStationaryDistVec_NoDuplicates*ones(npoints,1);       
     end
 else
     InverseCDF_SSvalues=interp1(CumSumSortedStationaryDistVec_NoDuplicates,CumSumSortedWeightedValues_NoDuplicates, InverseCDF_xgrid);
