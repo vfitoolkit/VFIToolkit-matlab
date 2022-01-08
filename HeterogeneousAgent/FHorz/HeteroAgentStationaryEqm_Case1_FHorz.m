@@ -125,8 +125,8 @@ for ii=1:length(GEPriceParamNames)
     GEprices0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 
-fprintf('GEprices0 is: \n')
-GEprices0
+% fprintf('GEprices0 is: \n')
+% GEprices0
 
 minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
