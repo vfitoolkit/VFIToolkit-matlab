@@ -26,7 +26,7 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy
 % AgeDependentGridParamNames is an optional input, and only used if prod(options.agedependentgrids)~=0
 
 %% Check which option have been declared, set all others to defaults 
-if exist('options','var')==1
+if exist('simoptions','var')==1
     %Check options for missing fields, if there are some fill them with the defaults
     if isfield(simoptions,'parallel')==0
         simoptions.parallel=2;

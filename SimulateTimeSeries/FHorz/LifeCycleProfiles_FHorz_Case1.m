@@ -126,13 +126,17 @@ if simoptions.parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
 
     % Do some preallocation of the output structure
-    AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-    AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(simoptions.nquantiles,ngroups,'gpuArray');
+    AgeConditionalStats=struct();
+    for ii=length(FnsToEvaluate):-1:1 % Backwards as preallocating
+        % length(FnsToEvaluate)
+        AgeConditionalStats(ii).Mean=nan(1,ngroups,'gpuArray');
+        AgeConditionalStats(ii).Median=nan(1,ngroups,'gpuArray');
+        AgeConditionalStats(ii).Variance=nan(1,ngroups,'gpuArray');
+        AgeConditionalStats(ii).LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
+        AgeConditionalStats(ii).Gini=nan(1,ngroups,'gpuArray');
+        AgeConditionalStats(ii).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
+        AgeConditionalStats(ii).QuantileMeans=nan(simoptions.nquantiles,ngroups,'gpuArray');
+    end
     
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
     for kk=1:length(simoptions.agegroupings)

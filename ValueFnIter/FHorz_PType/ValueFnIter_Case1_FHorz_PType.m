@@ -54,7 +54,7 @@ for ii=1:N_i
         z_grid_temp=z_grid.(names{ii});
     end
     pi_z_temp=pi_z;
-        if isa(pi_z,'struct')
+    if isa(pi_z,'struct')
         names=fieldnames(pi_z);
         pi_z_temp=pi_z.(names{ii});
     end
@@ -73,7 +73,7 @@ for ii=1:N_i
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
             names=fieldnames(Parameters.(FullParamNames{kField}));
             Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{ii});
-        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)==1 % Check for permanent type in vector/matrix form.
+        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
             [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
             if ptypedim==1
@@ -88,13 +88,8 @@ for ii=1:N_i
         names=fieldnames(DiscountFactorParamNames);
         DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{ii});
     end
-    ReturnFnParamNames_temp=ReturnFnParamNames;
-    if isa(ReturnFnParamNames,'struct')
-        names=fieldnames(ReturnFnParamNames);
-        ReturnFnParamNames_temp=ReturnFnParamNames.(names{ii});
-    end
     
-    [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions);
+    [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions);
         
     V.(Names_i{ii})=gather(V_ii); % GPU memory is limited, so switch solutions to the cpu
     Policy.(Names_i{ii})=gather(Policy_ii);  % GPU memory is limited, so switch solutions to the cpu
