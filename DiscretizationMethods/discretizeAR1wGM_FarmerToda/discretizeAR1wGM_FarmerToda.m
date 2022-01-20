@@ -1,10 +1,10 @@
-function [z_grid,P] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_i,mu_i,sigma_i,znum,farmertodaoptions)
+function [z_grid,P,nMoments_grid] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_i,mu_i,sigma_i,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments"
 %
 % Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation
 %    of AR(1) process with gaussian mixture innovations:
 %       z'=(1-rho)*mew+rho*z+e, e~F
-%          where F=sum_{i=1}^nmix(mixprobs_i*N(mu_i,sigma_i^2)) is a gaussian mixture
+%          where F=sum_{i=1}^nmix mixprobs_i*N(mu_i,sigma_i^2) is a gaussian mixture
 %    by Farmer-Toda method
 %
 % We use "nmix" to denote the number of normal distributions being mixed in the gaussian mixture innovations
@@ -154,9 +154,12 @@ P2 = ones(znum,1); % znum*1 matrix used to construct P
 scalingFactor = max(abs(X1));
 kappa = 1e-8;
 
-for ii = 1:znum
-    
-    condMean = mew*(1-sum(rho))+rho*z_grid(:,ii);
+nMoments_grid=zeros(znum,1);
+
+for z_c = 1:znum
+
+    % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an inital guess for pnn'
+    condMean = mew*(1-sum(rho))+rho*z_grid(z_c); % z_grid(z_c) here is the lag grid point
     xPDF = (X1-condMean)';
     switch farmertodaoptions.method
         case 'gauss-hermite'
@@ -169,28 +172,33 @@ for ii = 1:znum
     
     if any(q < kappa)
         q(q < kappa) = kappa;
-    end
-    
+    end    
+            
     if farmertodaoptions.nMoments == 1 % match only 1 moment
-        P1(ii,:) = discreteApproximation(X1,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
+        P1(z_c,:) = discreteApproximation(X1,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
+        nMoments_grid(z_c)=1;
     else % match 2 moments first
         [p,lambda,momentError] = discreteApproximation(X1,@(x) [(x-condMean)./scalingFactor;...
             ((x-condMean)./scalingFactor).^2],...
             TBar(1:2)./(scalingFactor.^(1:2)'),q,zeros(2,1));
         if norm(momentError) > 1e-5 % if 2 moments fail, then just match 1 moment
             warning('Failed to match first 2 moments. Just matching 1.')
-            P1(ii,:) = discreteApproximation(X1,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
+            P1(z_c,:) = discreteApproximation(X1,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
+            nMoments_grid(z_c)=1;
         elseif farmertodaoptions.nMoments == 2
-            P1(ii,:) = p;
+            P1(z_c,:) = p;
+            nMoments_grid(z_c)=2;
         elseif farmertodaoptions.nMoments == 3
             [pnew,~,momentError] = discreteApproximation(X1,@(x) [(x-condMean)./scalingFactor;...
                 ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                 TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
             if norm(momentError) > 1e-5
                 warning('Failed to match first 3 moments.  Just matching 2.')
-                P1(ii,:) = p;
+                P1(z_c,:) = p;
+                nMoments_grid(z_c)=2;
             else
-                P1(ii,:) = pnew;
+                P1(z_c,:) = pnew;
+                nMoments_grid(z_c)=3;
             end
         else % 4 moments
             [pnew,~,momentError] = discreteApproximation(X1,@(x) [(x-condMean)./scalingFactor;...
@@ -203,16 +211,19 @@ for ii = 1:znum
                     TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
                 if norm(momentError) > 1e-5
                     warning('Failed to match first 3 moments.  Just matching 2.')
-                    P1(ii,:) = p;
+                    P1(z_c,:) = p;
+                    nMoments_grid(z_c)=2;
                 else
-                    P1(ii,:) = pnew;
                     warning('Failed to match first 4 moments.  Just matching 3.')
+                    P1(z_c,:) = pnew;
+                    nMoments_grid(z_c)=3;
                 end
             else
-                P1(ii,:) = pnew;
+                P1(z_c,:) = pnew;
+                nMoments_grid(z_c)=4;
             end
         end
-        P(ii,:) = kron(P1(ii,:),P2(ii,:));
+        P(z_c,:) = kron(P1(z_c,:),P2(z_c,:));
     end
     
 end

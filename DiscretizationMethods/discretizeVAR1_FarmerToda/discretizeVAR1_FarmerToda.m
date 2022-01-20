@@ -95,15 +95,15 @@ else
 end
 
 % Make sure method is set appropraitely
-if ~strcmp(farmertodaoptions.method,'quantile') && ~strcmp(farmertodaoptions.method,'even') && ~strcmp(farmertodaoptions.method,'quadrature')
-    error('Method must be one of quantile, even, or quadrature')
+if ~strcmp(farmertodaoptions.method,'quantile') && ~strcmp(farmertodaoptions.method,'even') && ~strcmp(farmertodaoptions.method,'gauss-hermite')
+    error('Method must be one of quantile, even, or gauss-hermite')
 end
 if strcmp(farmertodaoptions.method,'quantile')
     warning('quantile method is poor and not recommended')
 end
 % Warning about persistence for quadrature method
-if strcmp(farmertodaoptions.method,'quadrature') && any(eig(Rho) > 0.8)
-    warning('The quadrature method may perform poorly for persistent processes.')
+if strcmp(farmertodaoptions.method,'gauss-hermite') && any(eig(Rho) > 0.8)
+    warning('The gauss-hermite quadrature method may perform poorly for persistent processes.')
 end
 
 
@@ -183,7 +183,7 @@ switch farmertodaoptions.method
             y1D(ii,:) = norminv((2*(1:znum)-1)./(2*znum),0,sigmas(ii));
             y1DBounds(ii,:) = [-Inf, norminv((1:znum-1)./znum,0,sigmas(ii)), Inf];
         end
-    case 'quadrature'
+    case 'gauss-hermite'
         [nodes,weights] = GaussHermite(znum);
         for ii = 1:M
             y1D(ii,:) = sqrt(2)*nodes;
@@ -211,7 +211,7 @@ for ii = 1:(znum^M)
         case 'quantile'
             q = normcdf(y1DBounds(:,2:end),repmat(condMean(:,ii),1,znum),1)...
                 - normcdf(y1DBounds(:,1:end-1),repmat(condMean(:,ii),1,znum),1);
-        case 'quadrature'
+        case 'gauss-hermite'
             q = bsxfun(@times,(normpdf(y1D,repmat(condMean(:,ii),1,znum),1)./normpdf(y1D,0,1)),...
                 (weights'./sqrt(pi)));
     end

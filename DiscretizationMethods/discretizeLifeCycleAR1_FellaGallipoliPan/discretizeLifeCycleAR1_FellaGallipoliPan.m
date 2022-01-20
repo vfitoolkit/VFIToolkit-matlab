@@ -1,4 +1,4 @@
-function [z_grid_J, P_J] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,znum,J,fellagallipolipanoptions) 
+function [z_grid_J, P_J,jequaloneDistz] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,znum,J,fellagallipolipanoptions)
 % Please cite: Fella, Gallipoli & Pan (2019) "Markov-chain approximations for life-cycle models"
 %
 % Fella-Gallipoli-Pan discretization method for a 'life-cycle non-stationary AR(1) process'. 
@@ -19,12 +19,18 @@ function [z_grid_J, P_J] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,zn
 %   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
 %   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
 %                  Transition probabilities are arranged by row.
+%                  P(:,:,j) is transition matrix from age j to j+1 (Modified from FGP where it is j-1 to j)
 %
 % This code is by Fella, Gallipoli & Pan.
 % Lightly modified by Robert Kirkby.
 % !========================================================================%
 % Original paper:
 % Fella, Gallipoli & Pan (2019) "Markov-chain approximations for life-cycle models"
+%
+% Two changes from FGP2019:
+%    i) Allow z0 to be a normal distribution, rather than forcing z0=0;
+%    using fellagallipolipanoptions.initialj0sigma_z
+%    ii) Here P_J(:,:,j) is transition from j to j+1; in FGP2019 it was from j-1 to j.
 %
 % FGP use MIT license, which must be included with the code, you can find it at the bottom of this 
 % script. (VFI Toolkit is GPL3 license, hence having to reproduce.)
@@ -55,7 +61,12 @@ end
 % Evenly-spaced N-state space over [-sqrt(N-1)*sigma_y(t),sqrt(N-1)*sigma_y(t)].
 
 % 1.a Compute unconditional variances of y(t)
-sigma_z(1) = sigma(1);
+if isfield(fellagallipolipanoptions,'initialj0sigma_z')
+    sigma_z(1) = sqrt(rho(1)^2*fellagallipolipanoptions.initialj0sigma_z^2+sigma(1)^2);
+else
+    sigma_z(1) = sigma(1);
+end
+
 for jj = 2:J
     sigma_z(jj) = sqrt(rho(jj)^2*sigma_z(jj-1)^2+sigma(jj)^2);
 end
@@ -78,8 +89,9 @@ P_J(:,:,1) = rhmat(p,znum);
 
 for jj = 2:J
     % Compute p for t>1
-    p = (sigma_z(jj)+rho(jj)*sigma_z(jj-1))/(2*sigma_z(jj) );
+    p = (sigma_z(jj)+rho(jj)*sigma_z(jj-1))/(2*sigma_z(jj));
     P_J(:,:,jj) = rhmat(p,znum);
+    % Note that here P_J(:,:,jj) is the transition from jj-1 into jj
 end
 
 %% I AM BEING LAZY AND JUST MOVING RESULT TO GPU RATHER THAN CREATING IT THERE IN THE FIRST PLACE
@@ -87,6 +99,16 @@ if fellagallipolipanoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
     P_J=gpuArray(P_J);
 end
+
+
+%%
+jequaloneDistz=P_J(1,:,1)';
+
+%% P(:,:,j) is transition from age j to j+1 (Modified from FGP where it is j-1 to j)
+% Change P_J so that P_J(:,:,jj) is the transition matrix from period jj to period jj+1
+P_J(:,:,1:end-1)=P_J(:,:,2:end);
+% For jj=J, P_J(:,:,J) is kind of meaningless (there is no period jj+1 to transition to). I just fill it in as a uniform distribution
+P_J(:,:,J)=ones(znum,znum)/znum;
 
 
 %% Subfunction rhmat()
