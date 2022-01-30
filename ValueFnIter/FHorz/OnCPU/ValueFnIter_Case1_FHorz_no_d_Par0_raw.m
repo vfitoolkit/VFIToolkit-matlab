@@ -121,21 +121,6 @@ for reverse_j=1:N_j-1
         
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        
-        % IN PRINCIPLE, WHY BOTHER TO LOOP OVER z AT ALL TO CALCULATE
-        % entireRHS?? CAN IT BE VECTORIZED DIRECTLY?
-%         %Calc the condl expectation term (except beta), which depends on z but
-%         %not on control variables
-%         EV=VKronNext_j*pi_z'; %THIS LINE IS LIKELY INCORRECT
-%         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%         %EV=sum(EV,2);
-%         
-%         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV*ones(1,N_a,N_z);
-%         
-%         %Calc the max and it's index
-%         [Vtemp,maxindex]=max(entireRHS,[],1);
-%         V(:,:,j)=Vtemp;
-%         Policy(:,:,j)=maxindex;
 
         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);

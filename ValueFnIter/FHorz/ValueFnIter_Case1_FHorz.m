@@ -22,6 +22,11 @@ if exist('vfoptions','var')==0
     end
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
+    if prod(n_z)>50
+        vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
+    else
+        vfoptions.paroverz=0;
+    end
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -48,6 +53,13 @@ else
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
+    if ~isfield(vfoptions,'paroverz') % Only used when vfoptions.lowmemory=0
+        if prod(n_z)>50
+            vfoptions.paroverz=1;
+        else
+            vfoptions.paroverz=0;
+        end
+    end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
@@ -60,6 +72,9 @@ else
     if isfield(vfoptions,'ExogShockFn')
         vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
     end
+    if isfield(vfoptions,'EiidShockFn')
+        vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    end
 end
 
 if isempty(n_d)
@@ -69,22 +84,36 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if size(d_grid)~=[sum(n_d), 1]
-    disp('ERROR: d_grid is not the correct shape (should be  of size sum(n_d)-by-1)')
+if ~isequal(size(d_grid), [sum(n_d), 1])
+    if ~isempty(n_d) % Make sure d is being used before complaining about size of d_grid
+        if n_d~=0
+            error('ERROR: d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
+            dbstack
+            return
+        end
+    end
+elseif ~isequal(size(a_grid), [sum(n_a), 1])
+    error('ERROR: a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
     dbstack
     return
-elseif size(a_grid)~=[sum(n_a), 1]
-    disp('ERROR: a_grid is not the correct shape (should be  of size sum(n_a)-by-1)')
+elseif ~isequal(size(z_grid), [sum(n_z), 1])
+    error('ERROR: z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
     dbstack
     return
-elseif size(z_grid)~=[sum(n_z), 1]
-    disp('ERROR: z_grid is not the correct shape (should be  of size sum(n_z)-by-1)')
+elseif ~isequal(size(pi_z), [N_z, N_z])
+    error('ERROR: pi is not of size N_z-by-N_z')
     dbstack
     return
-elseif size(pi_z)~=[N_z, N_z]
-    disp('ERROR: pi is not of size N_z-by-N_z')
-    dbstack
-    return
+elseif isfield(vfoptions,'n_e')
+    if  ~isequal(size(vfoptions.e_grid), [sum(vfoptions.n_e), 1])
+        error('ERROR: (vfoptions.) e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
+        dbstack
+        return
+    elseif ~isequal(size(vfoptions.pi_e), [prod(vfoptions.n_e),1])
+        error('ERROR: (vfoptions.) pi_e is not the correct shape (should be of size N_e-by-1)')
+        dbstack
+        return
+    end
 end
 
 %% Implement new way of handling ReturnFn inputs
@@ -95,11 +124,16 @@ else
 end
 l_a=length(n_a);
 l_z=length(n_z);
+if isfield(vfoptions,'n_e')
+    l_e=length(vfoptions.n_e);
+else
+    l_e=0;
+end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
     temp=getAnonymousFnInputNames(ReturnFn);
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_a+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
+        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
     else
         ReturnFnParamNames={};
     end
@@ -144,6 +178,19 @@ if isfield(vfoptions,'exoticpreferences')
         end
     end
 end
+
+%% TESTING
+% if isfield(vfoptions,'n_e')
+%     if vfoptions.parallel==2
+%         [VKron,PolicyKron]=ValueFnIter_paroverz_par2_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+%     else
+% %         [VKron,PolicyKron]=ValueFnIter_paroverz_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+%     end
+%     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+%     V=reshape(VKron,[n_a,n_z,N_j]);
+%     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+%     return
+% end
 
 %% Deal with StateDependentVariables_z if need to do that.
 if isfield(vfoptions,'StateDependentVariables_z')==1
@@ -250,7 +297,23 @@ end
 %% Just do the standard case
 if N_d==0
     if vfoptions.parallel==2
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isfield(vfoptions,'n_e')
+            fprintf('Using e variable \n')
+            if isfield(vfoptions,'e_grid_J')
+                e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
+            else
+                e_grid=vfoptions.e_grid;
+            end
+            if isfield(vfoptions,'pi_e_J')
+                pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
+            else
+                pi_e=vfoptions.pi_e;
+            end
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            
+        else
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
     elseif vfoptions.parallel==1
         if N_z==0 || N_z==1 % Would normally just parallel cpu over z, but if there is not z then treat this as 'special case'
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_dorz_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -262,7 +325,22 @@ if N_d==0
     end
 else
     if vfoptions.parallel==2
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isfield(vfoptions,'n_e')
+            fprintf('Using e variable \n')
+            if isfield(vfoptions,'e_grid_J')
+                e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
+            else
+                e_grid=vfoptions.e_grid;
+            end
+            if isfield(vfoptions,'pi_e_J')
+                pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
+            else
+                pi_e=vfoptions.pi_e;
+            end
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
     elseif vfoptions.parallel==1
         if N_z==0 || N_z==1 % Would normally just parallel cpu over z, but if there is not z then treat this as 'special case'
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_no_z_Par1_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);            
@@ -275,8 +353,13 @@ else
 end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-V=reshape(VKron,[n_a,n_z,N_j]);
-Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+if isfield(vfoptions,'n_e')
+    V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+    Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+else
+    V=reshape(VKron,[n_a,n_z,N_j]);
+    Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then

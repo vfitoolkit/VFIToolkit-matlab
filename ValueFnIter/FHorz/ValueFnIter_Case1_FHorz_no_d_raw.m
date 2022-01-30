@@ -49,7 +49,6 @@ end
 
 if vfoptions.lowmemory==0
     
-    %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -58,11 +57,10 @@ if vfoptions.lowmemory==0
 
 elseif vfoptions.lowmemory==1
     
-    %if vfoptions.returnmatrix==2 % GPU
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec);
-        %Calc the max and it's index
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
         V(:,z_c,N_j)=Vtemp;
         Policy(:,z_c,N_j)=maxindex;
@@ -70,13 +68,12 @@ elseif vfoptions.lowmemory==1
     
 elseif vfoptions.lowmemory==2
 
-    %if vfoptions.returnmatrix==2 % GPU
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         for a_c=1:N_a
             a_val=a_gridvals(z_c,:);
             ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, ReturnFnParamsVec);
-            %Calc the max and it's index
+            % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_az);
             V(a_c,z_c,N_j)=Vtemp;
             Policy(a_c,z_c,N_j)=maxindex;
@@ -126,21 +123,40 @@ for reverse_j=1:N_j-1
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, ReturnFnParamsVec);
         
-        for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+        if vfoptions.paroverz==1
+            % (aprime,a,z)
             
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+            % Use sparse for a few lines until sum over zprime
+            EV=VKronNext_j.*shiftdim(pi_z',-1);
+            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
             
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,jj)=Vtemp;
-            Policy(:,z_c,jj)=maxindex;
+            [Vtemp,maxindex]=max(entireRHS,[],1);
+            
+            V(:,:,jj)=shiftdim(Vtemp,1);
+            Policy(:,:,jj)=shiftdim(maxindex,1);
+            
+        elseif vfoptions.paroverz==0
+            
+            for z_c=1:N_z
+                ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+                
+                %Calc the condl expectation term (except beta), which depends on z but
+                %not on control variables
+                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z=sum(EV_z,2);
+                
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                
+                %Calc the max and it's index
+                [Vtemp,maxindex]=max(entireRHS_z,[],1);
+                V(:,z_c,jj)=Vtemp;
+                Policy(:,z_c,jj)=maxindex;
+            end
         end
         
     elseif vfoptions.lowmemory==1
