@@ -25,8 +25,10 @@ N_z=prod(n_z);
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check options for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
+        simoptions.parallel=2;
+    else
+        simoptions.paralle=1;
     end
     if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
@@ -48,7 +50,11 @@ if exist('simoptions','var')==1
     end
 else
     %If options is not given, just use all the defaults
-    simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    if isgpuarray(StationaryDist)
+        simoptions.parallel=2;
+    else
+        simoptions.paralle=1;
+    end
     simoptions.verbose=0;
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
@@ -94,6 +100,51 @@ elseif fieldexists_ExogShockFn==1
     end
 else
     z_grid_J=repmat(z_grid,1,N_j);
+end
+
+if isfield(simoptions,'n_e')
+    % Because of how FnsToEvaluate works I can just get the e variables and
+    % then 'combine' them with z
+    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+    
+    N_e=prod(simoptions.n_e);
+    l_e=length(simoptions.n_e);
+    
+    if fieldexists_pi_e_J==1
+        e_grid_J=simoptions.e_grid_J;
+    elseif fieldexists_EiidShockFn==1
+        e_grid_J=zeros(N_e,N_j);
+        for jj=1:N_j
+            if fieldexists_EiidShockFnParamNames==1
+                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                for ii=1:length(EiidShockFnParamsVec)
+                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                end
+                [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+            else
+                [e_grid,~]=simoptions.EiidShockFn(jj);
+            end
+            e_grid_J(:,jj)=gather(e_grid);
+        end
+    else
+        e_grid_J=repmat(simoptions.e_grid,1,N_j);
+    end
+    
+    % Now combine into z
+    if n_z(1)==0
+        l_z=l_e;
+        n_z=simoptions.n_e;
+        z_grid_J=e_grid_J;
+    else
+        l_z=l_z+l_e;
+        n_z=[n_z,simoptions.n_e];
+        z_grid_J=[z_grid_J; e_grid_J];
+    end
+    N_z=prod(n_z);
+        
 end
 
 %% Implement new way of handling FnsToEvaluate
@@ -288,7 +339,7 @@ else % options.parallel~=2
                             Values(ll,jj-j1+1)=FnsToEvaluate{ii}(d_gridvals{l1+(l2-1)*N_a,:},aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
                         end
                     else
-                        FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names));
+                        FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                         for ll=1:N_a*N_z
                             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                             l1=rem(ll-1,N_a)+1;
@@ -310,7 +361,7 @@ else % options.parallel~=2
                             Values(ll,jj-j1+1)=FnsToEvaluate{ii}(aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
                         end
                     else
-                        FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names));
+                        FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                         for ll=1:N_a*N_z
                             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                             l1=rem(ll-1,N_a)+1;
