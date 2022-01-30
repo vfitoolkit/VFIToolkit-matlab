@@ -164,10 +164,7 @@ for ii=1:N_i
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                sprintf('(it is possible this is just a coincidence of number of columns) \n')
-                dbstack
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii)';
             end
         end
     end

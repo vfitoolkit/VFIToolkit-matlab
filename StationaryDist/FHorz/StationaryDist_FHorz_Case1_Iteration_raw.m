@@ -16,6 +16,11 @@ if simoptions.parallel<2
     StationaryDistKron(:,1)=jequaloneDistKron;
     
     for jj=1:(N_j-1)
+        
+        if simoptions.verbose==1
+            fprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+        end
+
         if fieldexists_pi_z_J==1
             pi_z=simoptions.pi_z_J(:,:,jj);
         elseif fieldexists_ExogShockFn==1
@@ -59,6 +64,11 @@ elseif simoptions.parallel==2 % Using the GPU
     % First, generate the transition matrix P=g of Q (the convolution of the 
     % optimal policy function and the transition fn for exogenous shocks)
     for jj=1:(N_j-1)
+        
+        if simoptions.verbose==1
+            fprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+        end
+
         if fieldexists_pi_z_J==1
             pi_z=simoptions.pi_z_J(:,:,jj);
         elseif fieldexists_ExogShockFn==1
@@ -88,12 +98,93 @@ elseif simoptions.parallel==2 % Using the GPU
         StationaryDistKron(:,jj+1)=Ptran*StationaryDistKron(:,jj);
     end
     
-elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead of a standard matrix for P
+elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P, on cpu
     
     StationaryDistKron=sparse(N_a*N_z,N_j);
     StationaryDistKron(:,1)=jequaloneDistKron;
     
     for jj=1:(N_j-1)
+        
+        if simoptions.verbose==1
+            sprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+        end
+        
+        if fieldexists_pi_z_J==1
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif fieldexists_ExogShockFn==1
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            else
+                [~,pi_z]=simoptions.ExogShockFn(jj);
+            end
+        end
+        
+        % Old version
+%         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+%         if N_d==0 %length(n_d)==1 && n_d(1)==0
+%             optaprime_jj=reshape(PolicyIndexesKron(:,:,jj),[N_a*N_z,1]);
+%         else
+%             optaprime_jj=reshape(PolicyIndexesKron(2,:,:,jj),[N_a*N_z,1]);
+%         end
+%         Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]
+% 
+%         
+%         parfor az_c=1:N_a*N_z
+%             Ptranspose_az=sparse(N_a*N_z,1);
+%             optaprime=optaprime_jj(az_c);
+%             az_sub=ind2sub_homemade([N_a,N_z],az_c);
+%             pi_z_temp=pi_z(az_sub(2),:);
+%             sum_pi_z_temp=sum(pi_z_temp);
+%             for zprime_c=1:N_z
+%                 optaprimezprime=sub2ind_homemade([N_a,N_z],[optaprime,zprime_c]);
+%                 Ptranspose_az(optaprimezprime)=pi_z_temp(zprime_c)/sum_pi_z_temp;
+%             end
+%             Ptranspose(:,az_c)=Ptranspose_az;
+%         end
+
+        %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+        if N_d==0 %length(n_d)==1 && n_d(1)==0
+            optaprime_jj=reshape(PolicyIndexesKron(:,:,jj),[1,N_a*N_z]);
+        else
+            optaprime_jj=reshape(PolicyIndexesKron(2,:,:,jj),[1,N_a*N_z]);
+        end
+        PtransposeA=sparse(N_a,N_a*N_z);
+        PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z-1))=1;
+        
+        pi_z=sparse(pi_z);
+        try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
+            Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
+        catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
+            pi_z=gather(pi_z); % The indexing used can only be done on cpu
+            Ptranspose=kron(ones(N_z,1),PtransposeA);
+            for ii=1:N_z
+                Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
+            end
+        end
+
+        StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
+    end
+    
+    StationaryDistKron=full(StationaryDistKron); % Why do I do this? Why not just leave it sparse?
+    % Move the solution to the gpu
+    StationaryDistKron=gpuArray(StationaryDistKron);
+    
+elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on cpu
+    
+    StationaryDistKron=sparse(N_a*N_z,N_j);
+    StationaryDistKron(:,1)=jequaloneDistKron;
+    
+    for jj=1:(N_j-1)
+        
+        if simoptions.verbose==1
+            fprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+        end
+
         if fieldexists_pi_z_J==1
             pi_z=simoptions.pi_z_J(:,:,jj);
         elseif fieldexists_ExogShockFn==1
@@ -110,32 +201,33 @@ elseif simoptions.parallel>2 % Same as <2, but now using a sparse matrix instead
         end
         
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-        Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]
         if N_d==0 %length(n_d)==1 && n_d(1)==0
-            PolicyIndexesKron_jj=reshape(PolicyIndexesKron(:,:,jj),[N_a*N_z,1]);
+            optaprime_jj=reshape(PolicyIndexesKron(:,:,jj),[1,N_a*N_z]);
         else
-            PolicyIndexesKron_jj=reshape(PolicyIndexesKron(2,:,:,jj),[N_a*N_z,1]);
+            optaprime_jj=reshape(PolicyIndexesKron(2,:,:,jj),[1,N_a*N_z]);
         end
-                
-%         whos N_a N_z StationaryDistKron PolicyIndexesKron_jj pi_z Ptranspose
-        parfor az_c=1:N_a*N_z
-            Ptranspose_az=sparse(N_a*N_z,1);
-            optaprime=PolicyIndexesKron_jj(az_c);
-            az_sub=ind2sub_homemade([N_a,N_z],az_c);
-            pi_z_temp=pi_z(az_sub(2),:);
-            sum_pi_z_temp=sum(pi_z_temp);
-            for zprime_c=1:N_z
-                optaprimezprime=sub2ind_homemade([N_a,N_z],[optaprime,zprime_c]);
-                Ptranspose_az(optaprimezprime)=pi_z_temp(zprime_c)/sum_pi_z_temp;
+        PtransposeA=sparse(N_a,N_a*N_z);
+        PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z-1))=1;
+        
+        pi_z=sparse(pi_z);
+        try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
+            Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
+        catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
+            pi_z=gather(pi_z); % The indexing used can only be donoe on cpu
+            Ptranspose=kron(ones(N_z,1),PtransposeA);
+            for ii=1:N_z
+                Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
             end
-            Ptranspose(:,az_c)=Ptranspose_az;
         end
-
+        
+        Ptranspose=gpuArray(Ptranspose);
+        pi_z=gpuArray(pi_z);
+        
         StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
     end
     StationaryDistKron=full(StationaryDistKron);
     
-    if simoptions.parallel==4
+    if simoptions.parallel==4 % Move solution to gpu
         StationaryDistKron=gpuArray(StationaryDistKron);
     end
 end
@@ -154,7 +246,7 @@ end
 if found==0 % Have added this check so that user can see if they are missing a parameter
     fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
 end
-% I assume AgeWeights is a row vector
+
 StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z,1)*AgeWeights);
 
 end
