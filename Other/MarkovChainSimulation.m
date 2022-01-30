@@ -22,6 +22,14 @@ else
     end
 end
 
+% Check if using z_grid_J and pi_z_J, in which case just produce a finite horizon simulation
+if isfield(simoptions,'z_grid_J') || isfield(simoptions,'pi_z_J')
+    
+    
+    
+end
+
+
 z_grid=gather(z_grid);
 pi_z=gather(pi_z);
 
