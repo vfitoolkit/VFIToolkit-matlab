@@ -1,7 +1,6 @@
 function InvertedParetoCoeff=EvalFnOnAgentDist_InvertedParetoCoeff_Case1(SteadyStateDist, PolicyIndexes, FnsToEvaluate, n_d, n_a, n_s, d_grid, a_grid, s_grid, pi_s, p_val)
-disp('THIS CODE (EvalFnOnAgentDist_InvertedParetoCoeff_Case1) IS INCOMPLETE. DO NOT USE.')
-dbstack
-return
+
+error('THIS CODE (EvalFnOnAgentDist_InvertedParetoCoeff_Case1) IS INCOMPLETE. DO NOT USE.')
 
 % Calculates the Inverted Pareto Coefficient.
 % Parameter alpha on wikipedia (Pareto Type I)

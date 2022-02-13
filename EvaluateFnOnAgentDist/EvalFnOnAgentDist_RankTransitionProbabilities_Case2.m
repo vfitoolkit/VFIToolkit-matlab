@@ -6,6 +6,23 @@ function TransitionProbabilities=EvalFnOnAgentDist_RankTransitionProbabilities_C
 %
 % Parallel and npoints are optional inputs
 
+%%
+% In principle this could likely be done better based on cupola (rank
+% transition matrix). For now just implementing a basic version based on
+% simulation methods.
+
+% To save overhead, move everything to cpu. Can then move back to gpu at
+% end. Otherwise the subcodes would keep moving things back and forth as
+% all simulations are done on cpu (in my experience this is always faster).
+
+% We can just call the standard time series simulation codes to do this.
+% Want no burnin, and to draw initial conditions randomly from
+% StationaryDist. We only need to actually store the first and 't' period
+% values. We can do this just based on index values for the state
+% variables, and then just evaluate the functions on them and calculate the
+% ranks at the end.
+
+%%
 if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0);
 elseif isempty(Parallel)
@@ -24,20 +41,24 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-% In principle this could likely be done better based on cupola (rank
-% transition matrix). For now just implementing a basic version based on
-% simulation methods.
-
-% To save overhead, move everything to cpu. Can then move back to gpu at
-% end. Otherwise the subcodes would keep moving things back and forth as
-% all simulations are done on cpu (in my experience this is always faster).
-
-% We can just call the standard time series simulation codes to do this.
-% Want no burnin, and to draw initial conditions randomly from
-% StationaryDist. We only need to actually store the first and 't' period
-% values. We can do this just based on index values for the state
-% variables, and then just evaluate the functions on them and calculate the
-% ranks at the end.
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
 
 %%
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
@@ -175,6 +196,20 @@ for jj=1:length(FnsToEvaluate)
         end
     end
 end
+
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    TransitionProbabilities2=TransitionProbabilities;
+    clear TransitionProbabilities
+    TransitionProbabilities=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        TransitionProbabilities.(AggVarNames{ff})=TransitionProbabilities2(:,:,ff);
+    end
+end
+
+
 
 end
 

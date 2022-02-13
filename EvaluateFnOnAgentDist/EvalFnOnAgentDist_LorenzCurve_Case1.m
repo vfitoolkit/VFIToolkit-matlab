@@ -9,6 +9,7 @@ function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case1(StationaryDist, PolicyI
 %
 % Parallel and npoints are optional inputs
 
+%%
 if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0);
 elseif isempty(Parallel)
@@ -30,6 +31,27 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+%%
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 if Parallel==2
@@ -119,14 +141,12 @@ else
             Values=zeros(N_a*N_z,1);
             if l_d==0
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             else % l_d>0
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
@@ -138,7 +158,6 @@ else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
@@ -146,7 +165,6 @@ else
             else % l_d>0
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
@@ -196,6 +214,18 @@ else
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
         LorenzCurve(i,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,1)';
+    end
+end
+
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    LorenzCurve2=LorenzCurve;
+    clear LorenzCurve
+    LorenzCurve=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        LorenzCurve.(AggVarNames{ff})=LorenzCurve2(ff,:);
     end
 end
 

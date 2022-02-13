@@ -4,6 +4,7 @@ function AggVars=EvalFnOnAgentDist_AggVars_Case2(StationaryDist, PolicyIndexes, 
 %
 % Parallel is an optional input
 
+%%
 if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0);
 elseif isempty(Parallel)
@@ -17,6 +18,28 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+
+
+%%
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 try % if Parallel==2 % First try to use gpu as this will be faster when it works
@@ -91,6 +114,20 @@ catch % else % Use the CPU
         end
     end
     
+end
+
+
+
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    AggVars2=AggVars;
+    clear AggVars
+    AggVars=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
+    end
 end
 
 

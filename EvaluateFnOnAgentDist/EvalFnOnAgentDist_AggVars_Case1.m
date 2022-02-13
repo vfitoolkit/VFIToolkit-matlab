@@ -3,12 +3,46 @@ function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, PolicyIndexes, 
 %
 % Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
 
+%%
 if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0);
 elseif isempty(Parallel)
     Parallel=1+(gpuDeviceCount>0);
 end
 
+if n_d(1)==0
+    l_d=0;
+    N_d=0;
+else
+    l_d=length(n_d);
+    N_d=prod(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
+
+N_a=prod(n_a);
+N_z=prod(n_z);
+
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+%%
 if exist('simoptions', 'var')
     if isfield(simoptions,'statedependentparams')
         n_SDP=length(simoptions.statedependentparams.names);
@@ -26,14 +60,10 @@ if exist('simoptions', 'var')
             end
         end
         if N_d>1
-            l_d=length(n_d);
             n_full=[n_d,n_a,n_a,n_z];
         else
-            l_d=0;
             n_full=[n_a,n_a,n_z];
         end
-        l_a=length(n_a);
-        l_z=length(n_z);
         
         % First state dependent parameter, get into form needed for the valuefn
         SDP1=Params.(vfoptions.statedependentparams.names{1});
@@ -181,12 +211,12 @@ if Parallel==2 || Parallel==4
     a_grid=gpuArray(a_grid);
     z_grid=gpuArray(z_grid);
     
-    % l_d not needed with Parallel=2 implementation
-    l_a=length(n_a);
-    l_z=length(n_z);
-    
-    N_a=prod(n_a);
-    N_z=prod(n_z);
+%     % l_d not needed with Parallel=2 implementation
+%     l_a=length(n_a);
+%     l_z=length(n_z);
+%     
+%     N_a=prod(n_a);
+%     N_z=prod(n_z);
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
@@ -223,14 +253,6 @@ if Parallel==2 || Parallel==4
     end
     
 else
-    if n_d(1)==0
-        l_d=0;
-    else
-        l_d=length(n_d);
-    end
-    
-    N_a=prod(n_a);
-    N_z=prod(n_z);
     
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
@@ -311,6 +333,19 @@ else
         end
     end
     
+end
+
+
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    AggVars2=AggVars;
+    clear AggVars
+    AggVars=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
+    end
 end
 
 

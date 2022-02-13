@@ -6,6 +6,7 @@ function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case2(StationaryDist, PolicyI
 %
 % evalfnoptions.parallel and evalfnoptions.npoints are optional inputs
 
+%%
 if exist('evalfnoptions','var')==0
     evalfnoptions.parallel=1+(gpuDeviceCount>0);
     evalfnoptions.npoints=100;
@@ -32,6 +33,27 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+%%
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 if evalfnoptions.parallel==2
@@ -187,6 +209,18 @@ else
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
         LorenzCurve(i,:)=gather(LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,evalfnoptions.npoints,evalfnoptions.parallel)');
+    end
+end
+
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    LorenzCurve2=LorenzCurve;
+    clear LorenzCurve
+    LorenzCurve=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        LorenzCurve.(AggVarNames{ff})=LorenzCurve2(ff,:);
     end
 end
 

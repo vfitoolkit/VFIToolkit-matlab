@@ -277,6 +277,14 @@ elseif l_d==1 && l_a==1 && l_z==1
 elseif l_d==1 && l_a==1 && l_z==2
     Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==3
+    size(d1vals)
+    size(a1primevals)
+    size(a1vals)
+    size(z1vals)
+    size(z2vals)
+    size(z3vals)
+    ParamCell{:}
+    FnToEvaluate
     Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==4
     Values=arrayfun(FnToEvaluate, d1vals, a1primevals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});

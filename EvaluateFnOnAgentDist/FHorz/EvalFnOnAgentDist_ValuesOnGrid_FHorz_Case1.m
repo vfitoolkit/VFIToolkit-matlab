@@ -28,7 +28,7 @@ eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 if fieldexists_pi_z_J==1
     z_grid_J=simoptions.z_grid_J;
 elseif fieldexists_ExogShockFn==1
-    z_grid_J=zeros(N_z,N_j);
+    z_grid_J=zeros(sum(n_z),N_j);
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
@@ -49,6 +49,55 @@ if Parallel==2
     z_grid_J=gpuArray(z_grid_J);
 end
 
+if isfield(simoptions,'n_e')
+    % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
+
+    if exist('simoptions','var')
+        if isfield(simoptions,'EiidShockFn') % If using EiidShockFn then figure out the parameter names
+            simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
+        end
+    end
+    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+    
+    N_e=prod(simoptions.n_e);
+    l_e=length(simoptions.n_e);
+    
+    if fieldexists_pi_e_J==1
+        e_grid_J=simoptions.e_grid_J;
+    elseif fieldexists_EiidShockFn==1
+        e_grid_J=zeros(sum(simoptions.n_e),N_j);
+        for jj=1:N_j
+            if fieldexists_EiidShockFnParamNames==1
+                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                for ii=1:length(EiidShockFnParamsVec)
+                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                end
+                [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+            else
+                [e_grid,~]=simoptions.EiidShockFn(jj);
+            end
+            e_grid_J(:,jj)=gather(e_grid);
+        end
+    else
+        e_grid_J=repmat(simoptions.e_grid,1,N_j);
+    end
+    
+    % Now combine into z
+    if n_z(1)==0
+        l_z=l_e;
+        n_z=simoptions.n_e;
+        z_grid_J=e_grid_J;
+    else
+        l_z=l_z+l_e;
+        n_z=[n_z,simoptions.n_e];
+        z_grid_J=[z_grid_J; e_grid_J];
+    end
+    N_z=prod(n_z);
+        
+end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -78,11 +127,10 @@ if Parallel==2
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
     
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
-    for ii=1:length(FnsToEvaluate)
+    for ii=1:length(FnsToEvaluate)        
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
-            z_grid=z_grid_J(:,jj);
-            
+            z_grid=z_grid_J(:,jj); 
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
                 FnToEvaluateParamsVec=[];
