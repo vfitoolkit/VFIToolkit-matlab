@@ -44,9 +44,9 @@ end
 if ~exist('farmertodaoptions','var')
     farmertodaoptions.nMoments=2;
     if abs(rho) <= 1-2/(znum-1)
-        farmertodaoptions.nSigmas = sqrt(2*(znum-1));
+        farmertodaoptions.nSigmas = min(sqrt(2*(znum-1)),4);
     else
-        farmertodaoptions.nSigmas = sqrt(znum-1);
+        farmertodaoptions.nSigmas = min(sqrt(znum-1),4); % Set max of 4
     end
     if rho<=0.8
         farmertodaoptions.method='gauss-hermite';
@@ -61,9 +61,9 @@ else
     % define grid spacing parameter if not provided
     if ~isfield(farmertodaoptions,'nSigmas') % This is just direct from Farmer-Toda code. I am not aware of any results showing it performs 'better'
         if abs(rho) <= 1-2/(znum-1)
-            farmertodaoptions.nSigmas = sqrt(2*(znum-1));
+            farmertodaoptions.nSigmas = min(sqrt(2*(znum-1)),4);
         else
-            farmertodaoptions.nSigmas = sqrt(znum-1);
+            farmertodaoptions.nSigmas = min(sqrt(znum-1),4);
         end
     end
     % Set method based on findings of paper of Farmer & Toda (2017): last para on pg 678

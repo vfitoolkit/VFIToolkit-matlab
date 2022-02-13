@@ -49,8 +49,8 @@ if znum==1
     return
 end
 
-% Note: tauchenoptions.dshift equals zero gives the Tauchen method. For nonzero tauchenoptions.dshift
-% this is actually implementing a non-standard Tauchen method.
+% Note: tauchenoptions.dshift equals zero gives the Tauchen method. 
+% For nonzero tauchenoptions.dshift this is actually implementing a non-standard Tauchen method.
 if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     zstar=mew/(1-rho); %expected value of z
     sigmaz=sigma/sqrt(1-rho^2); %stddev of z
@@ -76,6 +76,7 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     z_grid=gpuArray(zstar*ones(znum,1) + linspace(-Tauchen_q*sigmaz,Tauchen_q*sigmaz,znum)');
     omega=z_grid(2)-z_grid(1); %Note that all the points are equidistant by construction.
     
+    % NOTE; normcdf NOW WORKS FOR GPU, I SHOULD CHECK IF IT IS FASTER
     %Note: normcdf is not yet a supported function for use on the gpu in Matlab
     %(see list of supported functions at http://www.mathworks.es/es/help/distcomp/run-built-in-functions-on-a-gpu.html)
     %However erf is supported, and we can easily construct our own normcdf

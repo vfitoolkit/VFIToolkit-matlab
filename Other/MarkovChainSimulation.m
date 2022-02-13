@@ -22,18 +22,62 @@ else
     end
 end
 
-% Check if using z_grid_J and pi_z_J, in which case just produce a finite horizon simulation
+%% Check if using z_grid_J and pi_z_J, in which case just produce a finite horizon simulation
 if isfield(simoptions,'z_grid_J') || isfield(simoptions,'pi_z_J')
+    if ~isfield(simoptions,'jequaloneDist')
+        error('When using z_grid_J and pi_z_J you must set simoptions.jequaloneDist')
+    end
+    % Check that time horizon is less than or equal to the finite horizon
+    if T>size(simoptions.z_grid_J,2)
+        error('Cannot simulate a time series longer than the finite horizon')
+    end
     
-    
-    
+    z_timeseries_index=zeros(T,1);
+    z_timeseries=zeros(T,1);
+        
+    z_timeseries_index(1)=max(cumsum(simoptions.jequaloneDist)>rand(1)); % Pull initial value from jequaloneDist
+    zcurr=z_timeseries_index(1);
+
+    for jj=1:T
+        % First, get pi_z and z_grid
+        if isfield(simoptions,'pi_z_J')
+            z_grid=simoptions.z_grid_J(:,jj);
+            pi_z=simoptions.pi_z_J(:,:,jj);
+        elseif isfield(simoptions,'ExogShockFn')
+            if isfield(simoptions,'ExogShockFnParamNames')
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            else
+                [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+            end
+        end
+        z_grid=gather(z_grid);
+        pi_z=gather(pi_z);
+        
+        z_timeseries(jj)=z_grid(z_timeseries_index(jj));
+
+        
+        if jj<T
+            cumpi_z=cumsum(pi_z,2);
+            [~,zcurr]=max(cumpi_z(zcurr,:)>rand(1));
+            z_timeseries_index(jj+1)=zcurr;
+        end
+        
+    end
+        
+    return
 end
 
 
+
+%% Simulate
 z_grid=gather(z_grid);
 pi_z=gather(pi_z);
-
-%% Simulate index
+% Simulate index
 z_timeseries_index=zeros(T+simoptions.burnin,1);
 z_timeseries_index(1)=simoptions.seedpoint;
 cumpi_z=cumsum(pi_z,2);
@@ -42,8 +86,7 @@ for tt=2:T+simoptions.burnin
     [~,zcurr]=max(cumpi_z(zcurr,:)>rand(1));
     z_timeseries_index(tt)=zcurr;
 end
-
-%% Switch to values
+% Switch to values
 z_timeseries=z_grid(z_timeseries_index);
 
 end

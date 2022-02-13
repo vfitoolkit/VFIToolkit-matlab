@@ -42,9 +42,13 @@ P_J = zeros(znum,znum,J);
 %% Set options
 if ~exist('fellagallipolipanoptions','var')
     fellagallipolipanoptions.parallel=1+(gpuDeviceCount>0);
+    fellagallipolipanoptions.nSigmas=min(sqrt(znum-1),4);
 else
     if ~isfield(fellagallipolipanoptions,'parallel')
         fellagallipolipanoptions.parallel=1+(gpuDeviceCount>0);
+    end
+    if ~isfield(fellagallipolipanoptions,'nSigmas')
+        fellagallipolipanoptions.nSigmas=min(sqrt(znum-1),4);
     end
 end
 
@@ -72,9 +76,9 @@ for jj = 2:J
 end
 
 % 1.b Construct state space
-h = 2*sqrt(znum-1)*sigma_z/(znum-1); % grid step
+h = 2*fellagallipolipanoptions.nSigmas*sigma_z/(znum-1); % grid step (2* as is nSigmas either side of zero)
 z_grid_J = repmat(h,znum,1);
-z_grid_J(1,:)=-sqrt(znum-1) * sigma_z;
+z_grid_J(1,:)=-fellagallipolipanoptions.nSigmas*sigma_z;
 z_grid_J = cumsum(z_grid_J,1); 
 
 %% Step 2: Compute the transition matrices trans(:,:,t) from period (t-1) to period t
