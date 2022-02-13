@@ -84,7 +84,7 @@ eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 if fieldexists_pi_z_J==1
     z_grid_J=simoptions.z_grid_J;
 elseif fieldexists_ExogShockFn==1
-    z_grid_J=zeros(N_z,N_j);
+    z_grid_J=zeros(sum(n_z),N_j);
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
@@ -115,7 +115,7 @@ if isfield(simoptions,'n_e')
     if fieldexists_pi_e_J==1
         e_grid_J=simoptions.e_grid_J;
     elseif fieldexists_EiidShockFn==1
-        e_grid_J=zeros(N_e,N_j);
+        e_grid_J=zeros(sum(simoptions.n_e),N_j);
         for jj=1:N_j
             if fieldexists_EiidShockFnParamNames==1
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
