@@ -21,9 +21,7 @@ if vfoptions.parallel==2
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 elseif vfoptions.parallel==0 || vfoptions.parallel==1
-    disp('ERROR: Epstein-Zin currently only implemented for Parallel=2: email robertdkirkby@gmail.com')
-    dbstack
-    return
+    error('Epstein-Zin currently only implemented for Parallel=2: email robertdkirkby@gmail.com')
 %     if N_d==0
 %         % Following command is somewhat misnamed, as actually does Par0 and Par1
 %         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_no_d_Par0_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

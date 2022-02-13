@@ -87,32 +87,20 @@ N_z=prod(n_z);
 if ~isequal(size(d_grid), [sum(n_d), 1])
     if ~isempty(n_d) % Make sure d is being used before complaining about size of d_grid
         if n_d~=0
-            error('ERROR: d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
-            dbstack
-            return
+            error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
         end
     end
 elseif ~isequal(size(a_grid), [sum(n_a), 1])
-    error('ERROR: a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
-    dbstack
-    return
+    error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
 elseif ~isequal(size(z_grid), [sum(n_z), 1])
-    error('ERROR: z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
-    dbstack
-    return
+    error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
 elseif ~isequal(size(pi_z), [N_z, N_z])
-    error('ERROR: pi is not of size N_z-by-N_z')
-    dbstack
-    return
+    error('pi is not of size N_z-by-N_z')
 elseif isfield(vfoptions,'n_e')
     if  ~isequal(size(vfoptions.e_grid), [sum(vfoptions.n_e), 1])
-        error('ERROR: (vfoptions.) e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
-        dbstack
-        return
+        error('(vfoptions.) e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
     elseif ~isequal(size(vfoptions.pi_e), [prod(vfoptions.n_e),1])
-        error('ERROR: (vfoptions.) pi_e is not the correct shape (should be of size N_e-by-1)')
-        dbstack
-        return
+        error('(vfoptions.) pi_e is not the correct shape (should be of size N_e-by-1)')
     end
 end
 
@@ -172,9 +160,7 @@ if isfield(vfoptions,'exoticpreferences')
             [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             return
         else
-            disp('ERROR: CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
-            dbstack
-            return
+            error('CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
         end
     end
 end

@@ -24,8 +24,7 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 if length(DiscountFactorParamNames)<3
-    disp('ERROR: There should be at least three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
-    dbstack
+    error('There should be at least three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
 end
 
 if vfoptions.lowmemory>0
@@ -124,7 +123,7 @@ for reverse_j=1:N_j-1
     j=N_j-reverse_j;
 
     if vfoptions.verbose==1
-        sprintf('Finite horizon: %i of %i',j, N_j)
+        fprintf('Finite horizon: %i of %i \n',j, N_j)
     end
     
     

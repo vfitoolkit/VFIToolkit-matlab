@@ -159,7 +159,7 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
-if isstruct(ReturnFn)
+if isempty(ReturnFnParamNames)
     temp=getAnonymousFnInputNames(ReturnFn);
     if length(temp)>(l_d+l_a+l_a+l_z)
         ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)

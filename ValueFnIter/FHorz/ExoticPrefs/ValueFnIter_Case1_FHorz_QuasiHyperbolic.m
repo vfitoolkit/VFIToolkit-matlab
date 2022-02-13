@@ -23,9 +23,7 @@ if ~isfield(vfoptions,'quasi_hyperbolic')
     fprintf('NOTE: using Naive quasi-hyperbolic as type of quasi-hyperbolic was not specified \n')
 elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') 
     % Check that one of the possible options have been used. If not then error.
-    fprintf('ERROR: vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
-    dbstack
-    return
+    error('vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
 end
 
 % CANNOT YET DEAL WITH DYNASTY WHEN USING QUASI-HYPERBOLIC
@@ -38,9 +36,7 @@ if vfoptions.parallel==2
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 elseif vfoptions.parallel==0 || vfoptions.parallel==1
-    disp('ERROR: Quasi-Hyperbolic currently only implemented for Parallel=2: email robertdkirkby@gmail.com')
-    dbstack
-    return
+    error('Quasi-Hyperbolic currently only implemented for Parallel=2: email robertdkirkby@gmail.com')
 %     if N_d==0
 %         % Following command is somewhat misnamed, as actually does Par0 and Par1
 %         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_no_d_Par0_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
