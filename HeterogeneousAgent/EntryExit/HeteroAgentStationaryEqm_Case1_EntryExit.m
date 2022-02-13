@@ -94,19 +94,11 @@ end
 
 %% If solving on p_grid
 if N_p~=0
-    fprintf('ERROR: Using p_grid with Entry/Exit is not currently implemented. Please email robertdkirkby@gmail.com if you have a specific want/need for it and I can easily implement it. \n')
-
-%     fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')
-%     fprintf('         It remains possible to use p_grid with Entry/Exit solely because it can be useful for exploratory purposes. It should not be used for solving models. \n')
-%     [p_eqm,p_eqm_index,GeneralEqmCondition]=HeteroAgentStationaryEqm_Case1_EntryExit_pgrid(n_d, n_a, n_s, n_p, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
-%     fprintf('WARNING: Using p_grid with Entry/Exit is not likely to converge to correct solution (as it does not enforce general eqm in the entry conditions). \n')
-%     fprintf('         It remains possible to use p_grid with Entry/Exit solely because it can be useful for exploratory purposes. It should not be used for solving models. \n')
-    return
+    error('Using p_grid with Entry/Exit is not currently implemented. Please email robertdkirkby@gmail.com if you have a specific want/need for it and I can easily implement it. \n')
 end
 
 %% Otherwise, use fminsearch to find the general equilibrium
 
-% I SHOULD IMPLEMENT A BETTER V0Kron HERE
 GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_EntryExit_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
 
 p0=nan(length(GEPriceParamNames),1);

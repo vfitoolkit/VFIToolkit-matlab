@@ -89,14 +89,14 @@ else
     end
 end
 
-if heteroagentoptions.oldGE==1
-%     GeneralEqmEqnInputNames=GeneralEqmEqnParamNames;
-elseif heteroagentoptions.oldGE==0
-    clear GeneralEqmEqnParamNames
-    for ii=1:length(GeneralEqmEqns)
-        GeneralEqmEqnParamNames(ii).Names=getAnonymousFnInputNames(GeneralEqmEqns{ii});
-    end
-end
+% if heteroagentoptions.oldGE==1
+% %     GeneralEqmEqnInputNames=GeneralEqmEqnParamNames;
+% elseif heteroagentoptions.oldGE==0
+%     clear GeneralEqmEqnParamNames
+%     for ii=1:length(GeneralEqmEqns)
+%         GeneralEqmEqnParamNames(ii).Names=getAnonymousFnInputNames(GeneralEqmEqns{ii});
+%     end
+% end
 
 %% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1
@@ -119,10 +119,10 @@ end
 %% Otherwise, use fminsearch to find the general equilibrium
 
 if heteroagentoptions.fminalgo<3
-    GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+    GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfn(p, n_d, n_a, n_z, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 elseif heteroagentoptions.fminalgo==3
     % Multi-objective verion
-    GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfnMO(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
+    GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfnMO(p, n_d, n_a, n_z, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 end
     
     

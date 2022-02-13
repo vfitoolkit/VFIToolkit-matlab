@@ -1,10 +1,8 @@
 function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_pgrid(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+% Solve for the stationary general equilbirium. Evaluates the general
+% equilibrium conditions at the points on the price grid.
 
-% N_d=prod(n_d);
-% N_a=prod(n_a);
-% N_z=prod(n_z);
 N_p=prod(n_p);
-
 l_p=length(n_p);
 
 p_grid=heteroagentoptions.pgrid;
@@ -19,7 +17,7 @@ end
 
 for p_c=1:N_p
     if heteroagentoptions.verbose==1
-        p_c
+        fprintf('Stationary eqm: using price grid element %i out of %i \n', p_c, N_p)
     end
     
 %     V0Kron(~isfinite(V0Kron))=0; %Since we loop through with V0Kron from previous p_c this is necessary to avoid contamination by -Inf's
@@ -27,14 +25,14 @@ for p_c=1:N_p
     %Step 1: Solve the value fn iteration problem (given this price, indexed by p_c)
     %Calculate the price vector associated with p_c
     p_index=ind2sub_homemade(n_p,p_c);
-    p=nan(l_p,1);
+    GEprices=nan(l_p,1);
     for ii=1:l_p
         if ii==1
-            p(ii)=p_grid(p_index(1));
+            GEprices(ii)=p_grid(p_index(1));
         else
-            p(ii)=p_grid(sum(n_p(1:ii-1))+p_index(ii));
+            GEprices(ii)=p_grid(sum(n_p(1:ii-1))+p_index(ii));
         end
-        Parameters.(GEPriceParamNames{ii})=p(ii);
+        Parameters.(GEPriceParamNames{ii})=GEprices(ii);
     end
     
     [~,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn,Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
@@ -45,11 +43,19 @@ for p_c=1:N_p
     AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluateFn, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel);
     
     % The following line is often a useful double-check if something is going wrong.
-%    AggVars
+    %    AggVars
     
-    % use of real() is a hack that could disguise errors, but I couldn't
-    % find why matlab was treating output as complex
-    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
+    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+    if isstruct(GeneralEqmEqns)
+        AggVarNames=fieldnames(AggVars); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
+        for ii=1:length(AggVarNames)
+            Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+        end
+        GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns, Parameters));
+    else
+        GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, simoptions.parallel));
+    end
+    GeneralEqmConditionsKron(p_c,:)=GeneralEqmConditionsVec;
 end
 
 multiGEweightsKron=ones(N_p,1)*heteroagentoptions.multiGEweights;
@@ -85,7 +91,6 @@ if l_p>1
 else
     GeneralEqmConditions=reshape(multiGEweightsKron.*GeneralEqmConditionsKron,[n_p,1]);
 end
-
 
 %Calculate the price associated with p_eqm_index
 p_eqm=zeros(l_p,1);
