@@ -41,14 +41,18 @@ Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
 % but when I then implemented it here it was slower)
 % Following commented out line is what I had
 % [V,~] = eigs(Ptranspose,1); % We are only interested in the largest eigenvector
-% Following lines are alternative I found in MNS2016. It includes a bunch
-% of checks of input and output
+% Following lines are alternative I found in MNS2016. It includes a bunch of checks of input and output
 assert(all(abs(sum(Ptranspose)-1)<1e-10));
 opts.disp=0;
 [x,eval] = eigs(Ptranspose,[],1,1+1e-10,opts);
 assert(abs(eval-1)<1e-10);
 V = x/sum(x);
-assert(min(V)>-1e-12);
+% assert(min(V)>-1e-12); % Replaced with if statement
+if min(V)>-1e-11
+    StationaryDistKron=1;
+    return
+    % Failed, just return 1 and the code that calls this knows to try another method
+end
 V = max(V,0);
 
 StationaryDistKron=V/sum(V);

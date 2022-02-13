@@ -53,6 +53,9 @@ else
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
+    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
+    end
 end
 
 jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z*N_e,1]);

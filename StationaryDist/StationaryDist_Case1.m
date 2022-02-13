@@ -18,7 +18,7 @@ if exist('simoptions','var')==0
     catch
         simoptions.ncores=1;
     end
-    simoptions.eigenvector=1; % I implemented an eigenvector based approach
+    simoptions.eigenvector=1; % I implemented an eigenvector based approach. It is fast but not robust.
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
     simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
@@ -47,14 +47,7 @@ else
         end
     end
     if isfield(simoptions, 'eigenvector')==0
-        simoptions.eigenvector=1; % I implemented an eigenvector based approach but it seems to really struggle due to the immense sparseness of Ptranspose (the transition matrix on AxZ), and also because the markov process typically has a stationary distribution which is zero on a large share of the grid
-%         % Following commented out lines are about when I tried using
-%         % eigenvector approach, it is only feasible for 'smaller' grids.
-%         if N_a*N_z<5*10^4 % If the Ptranspose matrix (transition matrix on AxZ) will fit in memory (20gb) then use eigenvector method. Note 10^5 would need 75gb of memory (will likely increase this limit in future)
-%             simoptions.eigenvector=1;
-%         else
-%             simoptions.eigenvector=0;
-%         end % Otherwise will use simulation followed by iteration.
+        simoptions.eigenvector=1; % I implemented an eigenvector based approach. It is fast but not robust.
     end
     if isfield(simoptions, 'seedpoint')==0
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
@@ -86,7 +79,7 @@ else
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
     if isfield(simoptions, 'policyalreadykron')==0
         simoptions.policyalreadykron=0;
-    else
+    end
 end
 
 %%
@@ -184,12 +177,16 @@ end
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
     StationaryDistKron=StationaryDist_Case1_LeftEigen_raw(PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
-    return
+    if prod(size(StationaryDistKron))==1
+        % Has failed, so continue on below to simulation and iteration commands
+        warning('Eigenvector method for simulating agent dist failed, going to use simulate/iterate instead')
+    else
+        StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
+        return
+    end
 end
 
-% Eigenvector method is terribly slow for sparse matrices, so if the
-% Ptranspose matrix (transition matrix on AxZ) does not fit in memory as a
+% Eigenvector method is terribly slow for sparse matrices, so if the Ptranspose matrix (transition matrix on AxZ) does not fit in memory as a
 % full matrix then better to just use simulation and iteration (or for really big state space possibly just simulation).
 
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that

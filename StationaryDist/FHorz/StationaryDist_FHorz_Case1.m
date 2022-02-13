@@ -1,9 +1,10 @@
 function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions)
 
-%% NOTE: I SHOULD MAKE THE FOLLOWING CHANGE
-% Check for the age weights parameter, and make sure it is a row vector
-% Then just pass this vector to all the subfunctions, rather than passing
-% AgeWeightParamNames as currently done.
+%% Check for the age weights parameter, and make sure it is a row vector
+if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
+    Parameters.(AgeWeightParamNames{1})=Parameters.(AgeWeightParamNames{1})'; 
+    % Note: assumed there is only one AgeWeightParamNames
+end
 
 %%
 if isfield(simoptions,'n_e')
@@ -58,6 +59,9 @@ else
     end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
+    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
 end
 

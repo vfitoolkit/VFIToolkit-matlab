@@ -419,8 +419,7 @@ elseif simoptions.parallel==6 % Same as 4, except loops over e
     
 end
 
-% Reweight the different ages based on 'AgeWeightParamNames'. (it is
-% assumed there is only one Age Weight Parameter (name))
+% Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 FullParamNames=fieldnames(Parameters);
 nFields=length(FullParamNames);
 found=0;
@@ -434,7 +433,7 @@ if found==0 % Have added this check so that user can see if they are missing a p
     fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
 end
 % I assume AgeWeights is a row vector
-if simoptions.parallel==5
+if simoptions.parallel==5 || simoptions.parallel==6 
     StationaryDistKron=StationaryDistKron.*repmat(shiftdim(AgeWeights,-1),N_a*N_z,N_e,1);
 else
     StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z*N_e,1)*AgeWeights);    
