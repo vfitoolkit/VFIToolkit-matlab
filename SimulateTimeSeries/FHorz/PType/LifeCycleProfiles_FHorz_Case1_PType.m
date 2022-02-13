@@ -41,9 +41,20 @@ else
     end
 end
 
-numFnsToEvaluate=length(FnsToEvaluate);
+if isstruct(FnsToEvaluate)
+    numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
+else
+    numFnsToEvaluate=length(FnsToEvaluate);
+end
 AgeConditionalStats=struct();
 FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
+
+% Set default of grouping all the PTypes together when reporting statistics
+if exist('simoptions','var')
+    if ~isfield(simoptions,'groupptypesforstats')
+       simoptions.groupptypesforstats=1;
+    end
+end
 
 for ii=1:N_i
     % First set up simoptions
@@ -56,7 +67,7 @@ for ii=1:N_i
         simoptions_temp.verbose=0;
     end
     if simoptions_temp.verbose==1
-        sprintf('Permanent type: %i of %i',ii, N_i)
+        fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
@@ -174,7 +185,7 @@ for ii=1:N_i
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
     if simoptions_temp.verbose==1
-        sprintf('Parameter values for the current permanent type')
+        fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
     end
     
@@ -185,33 +196,62 @@ for ii=1:N_i
     FnsToEvaluate_temp={};
     FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
-    jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-    for kk=1:numFnsToEvaluate
-        if isa(FnsToEvaluate{kk},'struct')
-            if isfield(FnsToEvaluate{kk}, Names_i{ii})
-                FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-                if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-                else
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
+    if isstruct(FnsToEvaluate)
+        % Just conver from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
+        FnNames=fieldnames(FnsToEvaluate);
+        FnsToEvaluateParamNames_temp=[]; % Ignore, is filled in by subcodes
+        jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
+        for kk=1:numFnsToEvaluate
+            % Note: I keep it as a structure to avoid having to find the input names here (which needs to allow for things like using n_e)
+            if isa(FnsToEvaluate.(FnNames{kk}),'struct')
+                if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
+                    FnsToEvaluate_temp.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
+%                     FnsToEvaluate_temp{jj}=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
+%                     FnsToEvaluateParamNames_temp(jj).Names=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
+                    WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
+                    % else
+                    %  % do nothing as this FnToEvaluate is not relevant for the current PType
+                    %  % Implicitly, WhichFnsForCurrentPType(kk)=0
+                    FnsAndPTypeIndicator(kk,ii)=1;
                 end
+            else
+                % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
+                    FnsToEvaluate_temp.(FnNames{kk})=FnsToEvaluate.(FnNames{kk});
+%                 FnsToEvaluate_temp{jj}=FnsToEvaluate.(FnNames{kk});
+%                 FnsToEvaluateParamNames_temp(jj).Names=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}));
                 WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-                % else
-                %  % do nothing as this FnToEvaluate is not relevant for the current PType
-                % % Implicitly, WhichFnsForCurrentPType(kk)=0
                 FnsAndPTypeIndicator(kk,ii)=1;
             end
-        else
-            % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
-            FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-            WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-            FnsAndPTypeIndicator(kk,ii)=1;
+        end
+    else
+        jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
+        for kk=1:numFnsToEvaluate
+            if isa(FnsToEvaluate{kk},'struct')
+                if isfield(FnsToEvaluate{kk}, Names_i{ii})
+                    FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
+                    if isa(FnsToEvaluateParamNames(kk).Names,'struct')
+                        FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
+                    else
+                        FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
+                    end
+                    WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
+                    % else
+                    %  % do nothing as this FnToEvaluate is not relevant for the current PType
+                    % % Implicitly, WhichFnsForCurrentPType(kk)=0
+                    FnsAndPTypeIndicator(kk,ii)=1;
+                end
+            else
+                % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
+                FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
+                FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
+                WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
+                FnsAndPTypeIndicator(kk,ii)=1;
+            end
         end
     end
     
     if simoptions.groupptypesforstats==0
-        AgeConditionalStats_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp)
+        AgeConditionalStats_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
         %     PTypeWeight_ii=StationaryDist.ptweights(ii);
         
         for kk=1:numFnsToEvaluate
@@ -223,6 +263,9 @@ for ii=1:N_i
     else % simoptions.groupptypesforstats==1
         ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
         N_a_temp=prod(n_a_temp);
+        if isfield(simoptions_temp,'n_e')
+            n_z_temp=[n_z_temp,simoptions_temp.n_e];
+        end
         N_z_temp=prod(n_z_temp);
         ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
         for kk=1:numFnsToEvaluate
@@ -234,8 +277,7 @@ for ii=1:N_i
         end
         
         % I can write over StationaryDist.(Names_i{ii}) as I don't need it
-        % again, but I do need the reshaped and reweighed version in the next
-        % for loop.
+        % again, but I do need the reshaped and reweighed version in the next for loop.
         StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp,N_j_temp]);
     end
 end
