@@ -21,6 +21,7 @@ if exist('simoptions','var')==0
             simoptions.ncores=1;
         end
     end
+    simoptions.iterate=1;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if isfield(simoptions, 'seedpoint')==0
@@ -46,6 +47,7 @@ else
             simoptions.ncores=1;
         end
     end
+    simoptions.iterate=1;
 end
 
 %%
