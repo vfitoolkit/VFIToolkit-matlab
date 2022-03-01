@@ -1,7 +1,6 @@
-function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,npoints,simoptions)
+function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
 % Returns a Lorenz Curve 100-by-1 that contains all of the quantiles from 1
-% to 100. Unless the optional npoints input is used in which case it will be
-% npoints-by-1.
+% to 100. Unless the simoptions.npoints is set which case it will be npoints-by-1.
 % 
 % Note that to unnormalize the Lorenz Curve you can just multiply it be the
 % AggVars for the same variable. This will give you the inverse cdf.
@@ -21,8 +20,12 @@ else
         end
     end
 end
-if exist('npoints','var')==0
-    npoints=100;
+if exist('simoptions','var')
+    simoptions.npoints=100;
+else
+    if ~isfield(simoptions,'npoints')
+        simoptions.npoints=100;
+    end
 end
 
 if n_d(1)==0
@@ -40,6 +43,9 @@ if exist('simoptions','var')
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
+    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
+    end
 end
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
@@ -52,10 +58,7 @@ elseif fieldexists_ExogShockFn==1
     for jj=1:N_j
         if fieldexists_ExogShockFnParamNames==1
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
+            ExogShockFnParamsCell=num2cell(ExogShockFnParamsVec);
             [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
         else
             [z_grid,~]=simoptions.ExogShockFn(jj);
@@ -67,6 +70,47 @@ else
 end
 if Parallel==2
     z_grid_J=gpuArray(z_grid_J);
+end
+
+if isfield(simoptions,'n_e')
+    % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
+    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+    
+    N_e=prod(simoptions.n_e);
+    l_e=length(simoptions.n_e);
+    
+    if fieldexists_pi_e_J==1
+        e_grid_J=simoptions.e_grid_J;
+    elseif fieldexists_EiidShockFn==1
+        e_grid_J=zeros(sum(simoptions.n_e),N_j);
+        for jj=1:N_j
+            if fieldexists_EiidShockFnParamNames==1
+                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                EiidShockFnParamsCell=num2cell(EiidShockFnParamsVec);
+                [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+            else
+                [e_grid,~]=simoptions.EiidShockFn(jj);
+            end
+            e_grid_J(:,jj)=gather(e_grid);
+        end
+    else
+        e_grid_J=repmat(simoptions.e_grid,1,N_j);
+    end
+    
+    % Now combine into z
+    if n_z(1)==0
+        l_z=l_e;
+        n_z=simoptions.n_e;
+        z_grid_J=e_grid_J;
+    else
+        l_z=l_z+l_e;
+        n_z=[n_z,simoptions.n_e];
+        z_grid_J=[z_grid_J; e_grid_J];
+    end
+    N_z=prod(n_z);
+        
 end
 
 %% Implement new way of handling FnsToEvaluate
@@ -93,7 +137,7 @@ end
 LorenzCurveNan=zeros(length(FnsToEvaluate),1); % If the minimum value is negative then cannot calculate the lorenz curve
 if Parallel==2
     AggVars=zeros(1,length(FnsToEvaluate),'gpuArray');
-    LorenzCurve=zeros(npoints,length(FnsToEvaluate),'gpuArray');
+    LorenzCurve=zeros(simoptions.npoints,length(FnsToEvaluate),'gpuArray');
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
@@ -129,12 +173,12 @@ if Parallel==2
         
         CumSumSortedStationaryDistVec=cumsum(SortedStationaryDistVec);
         
-        LorenzCurve(:,ii)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,2);
+        LorenzCurve(:,ii)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,simoptions.npoints,2);
     end
     
 else
     AggVars=zeros(1,length(FnsToEvaluate));
-    LorenzCurve=zeros(npoints,length(FnsToEvaluate));
+    LorenzCurve=zeros(simoptions.npoints,length(FnsToEvaluate));
     a_gridvals=CreateGridvals(n_a,a_grid,1);
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
@@ -210,7 +254,7 @@ else
         if SortedWeightedValues(1)<0
             LorenzCurveNan(ii)=1;
         end
-        LorenzCurve(:,ii)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,1);
+        LorenzCurve(:,ii)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,simoptions.npoints,1);
     end
     
 end

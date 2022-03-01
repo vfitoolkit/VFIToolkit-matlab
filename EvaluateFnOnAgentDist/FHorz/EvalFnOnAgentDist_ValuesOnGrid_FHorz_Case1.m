@@ -52,11 +52,10 @@ end
 if isfield(simoptions,'n_e')
     % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
 
-    if exist('simoptions','var')
-        if isfield(simoptions,'EiidShockFn') % If using EiidShockFn then figure out the parameter names
-            simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
-        end
+    if isfield(simoptions,'EiidShockFn') % If using EiidShockFn then figure out the parameter names
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
+    
     eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
     eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
     eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
@@ -116,6 +115,11 @@ if isstruct(FnsToEvaluate)
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
+end
+if isfield(simoptions,'keepoutputasmatrix')
+    if simoptions.keepoutputasmatrix==1
+        FnsToEvaluateStruct=0;
+    end
 end
 
 %%

@@ -1,6 +1,7 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
+%
 %
 % simoptions.verbose=1 will give feedback
 % simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
@@ -43,12 +44,20 @@ else
     end
 end
 
+if ~exist('simoptions','var')
+    simoptions.npoints=100;
+else
+    if ~isfield(simoptions,'npoints')
+        simoptions.npoints=100;
+    end
+end
 
 if isstruct(FnsToEvaluate)
     numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
 else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
+FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
@@ -59,19 +68,10 @@ else
     end
 end
 
-if simoptions.groupptypesforstats==1 
-    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-        AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
-    else
-        AggVars=zeros(numFnsToEvaluate,1);
-    end
-else % simoptions.groupptypesforstats==0
-    AggVars=struct();
-end
+FnNames=fieldnames(FnsToEvaluate);
 
 %%
 for ii=1:N_i
-    
     % First set up simoptions
     if exist('simoptions','var')
         simoptions_temp=PType_Options(simoptions,Names_i,ii);
@@ -88,7 +88,8 @@ for ii=1:N_i
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
-    end    
+    end
+        
     PolicyIndexes_temp=Policy.(Names_i{ii});
     StationaryDist_temp=StationaryDist.(Names_i{ii});
     if isa(StationaryDist_temp, 'gpuArray')
@@ -206,7 +207,7 @@ for ii=1:N_i
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
-    end    
+    end
     
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
@@ -218,49 +219,82 @@ for ii=1:N_i
     end
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);  
-%     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType]=PType_FnsToEvaluate(FnsToEvaluate,FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp);
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
-    simoptions_temp.keepoutputasmatrix=1;
-    StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
+	if simoptions.groupptypesforstats==0
+        LorenzCurve.(Names_i{ii})=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,simoptions_temp);
+    else %simoptions.groupptypesforstats==1
+        simoptions_temp.keepoutputasmatrix=1;
+        ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+                
+        if isfield(simoptions_temp,'n_e')
+            n_z_temp=[n_z_temp,simoptions.n_e];
+        end
+        N_a_temp=prod(n_a_temp);
+        N_z_temp=prod(n_z_temp);
+        ValuesOnGrid_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
+        for kk=1:numFnsToEvaluate
+            jj=WhichFnsForCurrentPType(kk);
+            if jj>0
+                ValuesOnGrid_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp*N_j_temp,1]);
+            end
+            ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnGrid_Kron;
+        end
         
-    if simoptions.groupptypesforstats==1
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                AggVars(kk)=AggVars(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
+        % I can write over StationaryDist.(Names_i{ii}) as I don't need it
+        % again, but I do need the reshaped and reweighed version in the next for loop.
+        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1]);
+    end
+    
+end
+
+
+if simoptions.groupptypesforstats==1
+    % Calculate the quantiles
+    for kk=1:numFnsToEvaluate
+        SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+        
+        DistVec=[];
+        ValuesVec=[];
+        for ii=1:N_i
+            if FnsAndPTypeIndicator(kk,ii)==1
+                DistVec=[DistVec; StationaryDist.(Names_i{ii})/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
+                ValuesVec=[ValuesVec;ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)])];
             end
         end
-    else
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                AggVars(kk).(Names_i{ii})=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
-            end
+        
+        [SortedValues,SortedValues_index]=sort(ValuesVec);
+        SortedWeights=DistVec(SortedValues_index);
+        
+        CumSumSortedWeights=cumsum(SortedWeights);
+
+        WeightedValues=ValuesVec.*DistVec;
+        SortedWeightedValues=WeightedValues(SortedValues_index);
+                
+        if SortedWeightedValues(1)<0
+            LorenzCurveNan(ii)=1;
         end
+        LorenzCurve.(FnNames{kk})=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,1);
     end
 end
 
 % If using FnsToEvaluate as structure need to get in appropriate form for output
-if isstruct(FnsToEvaluate)
-    AggVarNames=fieldnames(FnsToEvaluate);
+if isstruct(FnsToEvaluate) && simoptions.groupptypesforstats==0
+    FnNames=fieldnames(FnsToEvaluate);
     % Change the output into a structure
-    AggVars2=AggVars;
-    clear AggVars
-    AggVars=struct();
+    LorenzCurve2=LorenzCurve;
+    clear Quantiles
+    LorenzCurve=struct();
     %     AggVarNames=fieldnames(FnsToEvaluate);
-    if simoptions.groupptypesforstats==1
-        for ff=1:length(AggVarNames)
-            AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
-        end
-    else % simoptions.groupptypesforstats==0
-        for ff=1:length(AggVarNames)
-            for ii=1:N_i
-                AggVars.(AggVarNames{ff}).(Names_i{ii}).Mean=AggVars2(ff).(Names_i{ii});
-            end
+    for ff=1:length(FnNames)
+        for ii=1:N_i
+            LorenzCurve.(FnNames{ff}).(Names_i{ii})=LorenzCurve2.(Names_i{ii}).(FnNames{ff});
+            LorenzCurve.(FnNames{ff}).(Names_i{ii})=LorenzCurve2.(Names_i{ii}).(FnNames{ff});
         end
     end
 end
+%Note: nothing needs to be dome if simoptions.groupptypesforstats==1
 
 
 end

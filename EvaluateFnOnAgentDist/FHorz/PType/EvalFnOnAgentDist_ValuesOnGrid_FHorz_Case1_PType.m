@@ -2,8 +2,6 @@ function ValuesOnDist=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(Stationar
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
-% RIGHT NOW THIS ValuesOnGrid ONLY WORKS WHEN ALL AGENT PTypes ARE ON THE SAME GRID
-%
 % Rest of this description describes how those inputs not already used for
 % ValueFnIter_PType or StationaryDist_PType should be set up.
 %
@@ -42,28 +40,41 @@ else
     end
 end
 
-numFnsToEvaluate=length(FnsToEvaluate);
+if isstruct(FnsToEvaluate)
+    numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
+else
+    numFnsToEvaluate=length(FnsToEvaluate);
+end
 
 % RIGHT NOW THIS ValuesOnGrid ONLY WORKS WHEN ALL AGENTS ARE ON THE SAME GRID
 N_a=prod(n_a);
 N_z=prod(n_z);
-if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-    ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
-else
-    ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j);
+if ~isstruct(FnsToEvaluate)
+    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
+        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
+    else
+        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j);
+    end
 end
+ValuesOnDist=struct();
 
-for ii=1:N_i
-    sprintf('Permanent type: %i of %i',ii, N_i)
-    
-    % First set up simoptions
+%%
+for ii=1:N_i% First set up simoptions
     if exist('simoptions','var')
         simoptions_temp=PType_Options(simoptions,Names_i,ii);
         if ~isfield(simoptions_temp,'verbose')
             simoptions_temp.verbose=0;
         end
+        if ~isfield(simoptions_temp,'verboseparams')
+            simoptions_temp.verboseparams=0;
+        end
     else
         simoptions_temp.verbose=0;
+        simoptions_temp.verboseparams=0;
+    end
+    
+    if simoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     
     PolicyIndexes_temp=Policy.(Names_i{ii});
@@ -106,7 +117,8 @@ for ii=1:N_i
         if temp(1)>1 % n_d depends on fixed type
             n_d_temp=n_d(ii,:);
         elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+            fprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+            dbstack
         end
     end
     n_a_temp=n_a;
@@ -117,7 +129,7 @@ for ii=1:N_i
         if temp(1)>1 % n_a depends on fixed type
             n_a_temp=n_a(ii,:);
         elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
+            fprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
             dbstack
         end
     end
@@ -129,7 +141,7 @@ for ii=1:N_i
         if temp(1)>1 % n_z depends on fixed type
             n_z_temp=n_z(ii,:);
         elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
+            fprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
             dbstack
         end
     end
@@ -170,91 +182,55 @@ for ii=1:N_i
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                sprintf('(it is possible this is just a coincidence of number of columns) \n')
+                fprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
+                fprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
+                fprintf('(it is possible this is just a coincidence of number of columns) \n')
                 dbstack
             end
         end
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
-    if simoptions_temp.verbose==1
-        sprintf('Parameter values for the current permanent type')
+    if simoptions_temp.verboseparams==1
+        fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
-    end
-    
-    
-    % Check for some options that may depend on permanent type (already
-    % dealt with verbose and agedependentgrids)
-    if exist('options','var')
-        if isfield(simoptions,'dynasty')
-            if isa(simoptions.dynasty,'struct')
-                if isfield(simoptions.dynasty, Names_i{ii})
-                    simoptions_temp.dynasty=simoptions.dynasty.(Names_i{ii});
-                else
-                    simoptions_temp.dynasty=0; % the default value
-                end
-            elseif prod(size(simoptions.dynasty))~=1
-                simoptions_temp.dynasty=simoptions.dynasty(ii);
-            end
-        end
-        if isfield(simoptions,'parallel')
-            if isa(simoptions.parallel, 'struct')
-                if isfield(simoptions.parallel, Names_i{ii})
-                    simoptions_temp.parallel=simoptions.parallel.(Names_i{ii});
-                else
-                    simoptions_temp.parallel=2; % the default value
-                end
-            elseif prod(size(simoptions.parallel))~=1
-                simoptions_temp.parallel=simoptions.parallel(ii);
-            end
-        end
     end
     
     % Figure out which functions are actually relevant to the present
     % PType. Only the relevant ones need to be evaluated.
-    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
-    % necessarily the same.
-    FnsToEvaluate_temp={};
-    FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-%     numFnsToEvaluate=length(FnsToEvaluateFn); % Now done outside the for-ii-loop
-    WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
-    jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-    for kk=1:numFnsToEvaluate
-        if isa(FnsToEvaluate{kk},'struct')
-            if isfield(FnsToEvaluate{kk}, Names_i{ii})
-                FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-                if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-                else
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-                end
-                WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-                % else
-                %  % do nothing as this FnToEvaluate is not relevant for the current PType
-                % % Implicitly, WhichFnsForCurrentPType(kk)=0
+    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
+    if n_d_temp(1)==0
+        l_d_temp=0;
+    else
+        l_d_temp=1;
+    end
+    l_a_temp=length(n_a_temp);
+    l_z_temp=length(n_z_temp);  
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    
+    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+
+    if isfield(simoptions_temp,'n_e')
+        n_z_temp=[n_z_temp,simoptions_temp.n_e];
+    end
+    if isstruct(FnsToEvaluate)
+        FnNames=fieldnames(FnsToEvaluate);
+        for kk=1:numFnsToEvaluate
+            jj=WhichFnsForCurrentPType(kk);
+            if jj>0
+                ValuesOnDist.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]);
             end
-        else
-            % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
-            FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-            WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
         end
-    end
-    
-    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
-    
-%     PTypeWeight_ii=StationaryDist.ptweights(ii);
-    
-    for kk=1:numFnsToEvaluate
-        jj=WhichFnsForCurrentPType(kk);
-        if jj>0
-            ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+        
+    else % Note: this only works when all agents use same grid
+        for kk=1:numFnsToEvaluate
+            jj=WhichFnsForCurrentPType(kk);
+            if jj>0
+                ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+            end
         end
+        ValuesOnDist.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]);
     end
-    
-    ValuesOnDist.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a,n_z,N_j]);
     
 end
 

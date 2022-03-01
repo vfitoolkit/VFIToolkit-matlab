@@ -50,6 +50,50 @@ if Parallel==2
     z_grid_J=gpuArray(z_grid_J);
 end
 
+if isfield(simoptions,'n_e')
+    % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
+    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+    
+    N_e=prod(simoptions.n_e);
+    l_e=length(simoptions.n_e);
+    
+    if fieldexists_pi_e_J==1
+        e_grid_J=simoptions.e_grid_J;
+    elseif fieldexists_EiidShockFn==1
+        e_grid_J=zeros(sum(simoptions.n_e),N_j);
+        for jj=1:N_j
+            if fieldexists_EiidShockFnParamNames==1
+                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                for ii=1:length(EiidShockFnParamsVec)
+                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                end
+                [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+            else
+                [e_grid,~]=simoptions.EiidShockFn(jj);
+            end
+            e_grid_J(:,jj)=gather(e_grid);
+        end
+    else
+        e_grid_J=repmat(simoptions.e_grid,1,N_j);
+    end
+    
+    % Now combine into z
+    if n_z(1)==0
+        l_z=l_e;
+        n_z=simoptions.n_e;
+        z_grid_J=e_grid_J;
+    else
+        l_z=l_z+l_e;
+        n_z=[n_z,simoptions.n_e];
+        z_grid_J=[z_grid_J; e_grid_J];
+    end
+    N_z=prod(n_z);
+        
+end
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
@@ -170,6 +214,19 @@ else
 
 end
 
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    MeanMedianStdDev2=MeanMedianStdDev;
+    clear AggVars
+    MeanMedianStdDev=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        MeanMedianStdDev.(AggVarNames{ff}).Mean=MeanMedianStdDev2(ff,1);
+        MeanMedianStdDev.(AggVarNames{ff}).Median=MeanMedianStdDev2(ff,2);
+        MeanMedianStdDev.(AggVarNames{ff}).StdDev=MeanMedianStdDev2(ff,3);
+    end
+end
 
 end
 
