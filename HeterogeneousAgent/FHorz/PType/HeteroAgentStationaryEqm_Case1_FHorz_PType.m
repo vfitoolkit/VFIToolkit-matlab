@@ -65,6 +65,11 @@ else
     end
 end
 
+AggVarNames=fieldnames(FnsToEvaluate);
+nGEprices=length(GEPriceParamNames);
+
+PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
+
 %%
 % PTypeStructure contains everything for the different permanent types.
 % There are two fields, PTypeStructure.Names_i, and PTypeStructure.N_i.
@@ -111,24 +116,20 @@ for ii=1:PTypeStructure.N_i
     
     if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    else
+        PTypeStructure.(iistr).vfoptions.verbose=0;
     end
     
     if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
         PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+    else
+        PTypeStructure.(iistr).vfoptions.verbose=0;
     end
+    
+    PTypeStructure.(iistr).simoptions.keepoutputasmatrix=1; % Used by AggVars (in heteroagent subfn)
 
-    if isfield(PTypeStructure.(iistr).vfoptions,'verbose')
-        if PTypeStructure.(iistr).vfoptions.verbose==1
-            sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-        elseif isfield(PTypeStructure.(iistr).simoptions,'verbose')
-            if PTypeStructure.(iistr).simoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-            end
-        end
-    elseif isfield(PTypeStructure.(iistr).simoptions,'verbose')
-        if PTypeStructure.(iistr).simoptions.verbose==1
-            sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-        end
+    if heteroagentoptions.verbose==1
+        fprintf('Setting up, Permanent type: %i of %i \n',ii, PTypeStructure.N_i)
     end
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -163,7 +164,7 @@ for ii=1:PTypeStructure.N_i
         if temp(1)>1 % n_d depends on fixed type
             PTypeStructure.(iistr).n_d=n_d(ii,:);
         elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+            warning('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
         end
     end
     PTypeStructure.(iistr).n_a=n_a;
@@ -174,8 +175,7 @@ for ii=1:PTypeStructure.N_i
         if temp(1)>1 % n_a depends on fixed type
             PTypeStructure.(iistr).n_a=n_a(ii,:);
         elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
+            warning('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
         end
     end
     PTypeStructure.(iistr).n_z=n_z;
@@ -186,8 +186,7 @@ for ii=1:PTypeStructure.N_i
         if temp(1)>1 % n_z depends on fixed type
             PTypeStructure.(iistr).n_z=n_z(ii,:);
         elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
+            warning('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
         end
     end
     
@@ -312,36 +311,21 @@ for ii=1:PTypeStructure.N_i
         end
     end
         
-    % Figure out which functions are actually relevant to the present
-    % PType. Only the relevant ones need to be evaluated.
-    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
-    % necessarily the same.
-    PTypeStructure.(iistr).FnsToEvaluateFn={};
-    PTypeStructure.(iistr).FnsToEvaluateParamNames=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-    PTypeStructure.(iistr).numFnsToEvaluate=length(FnsToEvaluate);
-    PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.(iistr).numFnsToEvaluate,1);
-    jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-    for kk=1:PTypeStructure.(iistr).numFnsToEvaluate
-        if isa(FnsToEvaluate{kk},'struct')
-            if isfield(FnsToEvaluate{kk}, Names_i{ii})
-                PTypeStructure.(iistr).FnsToEvaluateFn{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-                if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-                    PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
-                end
-                PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-                % else
-                %  % do nothing as this FnToEvaluate is not relevant for the current PType
-                % % Implicitly, PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=0
-            end
-        else
-            % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            PTypeStructure.(iistr).FnsToEvaluateFn{jj}=FnsToEvaluate{kk};
-            PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
-            PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-        end
+    
+    % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
+    % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
+    % Allows for FnsToEvaluate as structure.
+    if PTypeStructure.(iistr).n_d(1)==0
+        l_d_temp=0;
+    else
+        l_d_temp=1;
     end
+    l_a_temp=length(PTypeStructure.(iistr).n_a);
+    l_z_temp=length(PTypeStructure.(iistr).n_z);  
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
+    PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
+    PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
     
     if isa(PTypeDistParamNames, 'array')
         PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
@@ -350,41 +334,25 @@ for ii=1:PTypeStructure.N_i
     end
 end
 
-% % %%
-% % % Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
-% % if heteroagentoptions.verbose==1
-% %     for ii=1:PTypeStructure.N_i
-% %         % Create all the things specific for each Permanent type and store them all in PTypeStructure.
-% %         if ii<10 % one digit
-% %             iistr=['ptype00',num2str(ii)];
-% %         elseif ii<100 % two digit
-% %             iistr=['ptype0',num2str(ii)];
-% %         elseif ii<1000 % three digit
-% %             iistr=['ptype',num2str(ii)];
-% %         end
-% %         PTypeStructure.(iistr)
-% %     end
-% % end
 
+%% Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
 
 %%
 if N_p~=0
-%     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
-    fprintf('NOTE: Following does not yet exist so will throw an error. Contact robertdkirkby@gmail.com if you actually want to use it and I will set it up. \n')
-    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
-    for ii=1:length(GEPriceParamNames)
-        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
-    end
-    return
+    error('NOTE: HeteroAgentStationaryEqm_Case1_FHorz_PType with p_grid does not yet exist so will throw an error. Contact robertdkirkby@gmail.com if you actually want to use it and I will set it up. \n')
+%     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
+%     for ii=1:length(GEPriceParamNames)
+%         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
+%     end
+%     return
 end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-
 % GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 
-p0=nan(length(GEPriceParamNames),1);
-for ii=1:length(GEPriceParamNames)
+p0=nan(nGEprices,1);
+for ii=1:nGEprices
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 
@@ -399,122 +367,9 @@ end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
-for ii=1:length(GEPriceParamNames)
+for ii=1:nGEprices
     p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
 end
     
-%     PolicyIndexes_temp=Policy.(Names_i{ii});
-%     StationaryDist_temp=StationaryDist.(Names_i{ii});
-%     if isa(StationaryDist_temp, 'gpuArray')
-%         Parallel_temp=2;
-%     else
-%         Parallel_temp=1;
-%     end
-%     
-%     if finitehorz==0  % Infinite horizon
-%         % Infinite Horizon requires an initial guess of value function. For
-%         % the present I simply don't let this feature be used when using
-%         % permanent types. WOULD BE GOOD TO CHANGE THIS IN FUTURE SOMEHOW.
-%         V_ii=zeros(prod(n_a_temp),prod(n_z_temp)); % The initial guess (note that its value is 'irrelevant' in the sense that global uniform convergence is anyway known to occour for VFI).
-%         if Case1orCase2==1
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
-%             end
-%         elseif Case1orCase2==2
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
-%             end
-%         end
-%     elseif finitehorz==1 % Finite horizon
-%         % Check for some relevant vfoptions that may depend on permanent type
-%         % dynasty, agedependentgrids, lowmemory, (parallel??)
-%         if Case1orCase2==1
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
-%             end
-%         elseif Case1orCase2==2
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
-%             end
-%         end
-%     end
-%         
-%     V.(Names_i{ii})=V_ii;
-%     Policy.(Names_i{ii})=Policy_ii;    
-    
-%     if PTypeStructure.(iistr).finitehorz==0  % Infinite horizon
-%         if PTypeStructure.(iistr).Case1orCase2==1
-%             if exist('simoptions','var')
-%                 StationaryDist_ii=StationaryDist_Case1(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist_ii=StationaryDist_Case1(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z);
-%             end
-%         elseif PTypeStructure.(iistr).Case1orCase2==2
-%             if exist('simoptions','var')
-%                 StationaryDist_ii=StationaryDist_Case2(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist_ii=StationaryDist_Case2(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z);
-%             end
-%         end
-%     elseif PTypeStructure.(iistr).finitehorz==1 % Finite horizon
-%         % Check for some relevant simoptions that may depend on permanent type
-%         % dynasty, agedependentgrids, lowmemory, (parallel??)
-%         if PTypeStructure.(iistr).Case1orCase2==1
-%             if exist('simoptions','var')
-%                 StationaryDist=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters);
-%             end
-%         elseif PTypeStructure.(iistr).Case1orCase2==2
-%             if exist('simoptions','var')
-%                 StationaryDist_ii=StationaryDist_FHorz_Case2(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).PhiaprimeParamNames,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist_ii=StationaryDist_FHorz_Case2(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).PhiaprimeParamNames);
-%             end
-%         end
-%     end
-% 	
-%     StationaryDist.(Names_i{ii})=StationaryDist_ii;
-% 
-%     if finitehorz==0  % Infinite horizon
-%         if Case1orCase2==1
-%             StatsFromDist_AggVars_ii=SSvalues_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-%         elseif Case1orCase2==2
-%             StatsFromDist_AggVars_ii=SSvalues_AggVars_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-%         end
-%     elseif finitehorz==1 % Finite horizon
-%         if Case1orCase2==1
-%             StatsFromDist_AggVars_ii=SSvalues_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-%         elseif Case1orCase2==2
-%             if exist('options','var')
-%                 StatsFromDist_AggVars_ii=SSvalues_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
-%             else
-%                 StatsFromDist_AggVars_ii=SSvalues_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
-%             end
-%         end
-%     end
-%     
-%     if isa(PTypeDistNames, 'array')
-%         PTypeWeight_ii=PTypeDistNames(ii);
-%     else
-%         PTypeWeight_ii=Parameters.(PTypeDistNames{1}).(Names_i{ii});
-%     end
-%     
-%     StatsFromDist_AggVars=zeros(PTypeStructure.(iistr).numFnsToEvaluate,1,'gpuArray');
-%     for kk=1:PTypeStructure.(iistr).numFnsToEvaluate
-%         jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-%         if jj>0
-%             StatsFromDist_AggVars(kk,:)=StatsFromDist_AggVars(kk,:)+PTypeWeight_ii*StatsFromDist_AggVars_ii(jj,:);
-%         end
-%     end
-
 
 end

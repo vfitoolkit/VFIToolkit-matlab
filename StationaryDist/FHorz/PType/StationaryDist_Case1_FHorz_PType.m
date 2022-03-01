@@ -2,6 +2,9 @@ function StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeight
 % Allows for different permanent (fixed) types of agent. 
 % See ValueFnIter_Case1_FHorz_PType for general idea.
 %
+% simoptions.verbose=1 will give feedback
+% simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
+%
 % jequaloneDist can either be same for all permanent types, or must be passed as a structure.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
@@ -42,12 +45,16 @@ for ii=1:N_i
         if ~isfield(simoptions_temp,'verbose')
             simoptions_temp.verbose=0;
         end
+        if ~isfield(simoptions_temp,'verboseparams')
+            simoptions_temp.verboseparams=0;
+        end
     else
         simoptions_temp.verbose=0;
+        simoptions_temp.verboseparams=0;
     end 
     
     if simoptions_temp.verbose==1
-        fprintf('Permanent type: %i of %i',ii, N_i)
+        fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
            
     
@@ -170,11 +177,9 @@ for ii=1:N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
-    if exist('simoptions_temp','var')
-        if simoptions_temp.verbose==1
-            sprintf('Parameter values for the current permanent type')
-            Parameters_temp
-        end
+    if simoptions_temp.verboseparams==1
+        sprintf('Parameter values for the current permanent type')
+        Parameters_temp
     end
     
     jequaloneDist_temp=jequaloneDist;

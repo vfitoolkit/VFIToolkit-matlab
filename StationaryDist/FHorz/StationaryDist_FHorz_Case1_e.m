@@ -69,16 +69,11 @@ end
 PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,n_e);
 
 if simoptions.iterate==0
-    if simoptions.parallel==3 || simoptions.parallel==4 
+    if simoptions.parallel>=3
         % Sparse matrix is not relevant for the simulation methods, only for iteration method
-        simoptions.parallel=simoptions.parallel-3;
+        simoptions.parallel=2; % will simulate on parallel cpu, then transfer solution to gpu
     end
-    % ARE YOU BETTER SIMULATING z & e SEPERATELY OR JOINTLY?
-    % FOR NOW I AM BEING LAZY AND JUST MERGING z & e AND THEN CALLING OLD CODE
-    n_z=[n_z,n_e];
-    N_z=prod(n_z);
-    pi_z=kron(pi_e*ones(N_e,1),pi_z);
-    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_j,pi_z,Parameters,simoptions);
+    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_e,N_j,pi_z,pi_e,Parameters,simoptions);
 elseif simoptions.iterate==1
     StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_e,N_j,pi_z,pi_e,Parameters,simoptions);
 end

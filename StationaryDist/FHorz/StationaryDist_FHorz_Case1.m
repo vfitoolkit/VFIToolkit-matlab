@@ -75,9 +75,9 @@ end
 PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j);
 
 if simoptions.iterate==0
-    if simoptions.parallel==3 || simoptions.parallel==4 
+    if simoptions.parallel>=3
         % Sparse matrix is not relevant for the simulation methods, only for iteration method
-        simoptions.parallel=simoptions.parallel-3;
+        simoptions.parallel=2; % will simulate on parallel cpu, then transfer solution to gpu
     end
     StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_j,pi_z,Parameters,simoptions);
 elseif simoptions.iterate==1

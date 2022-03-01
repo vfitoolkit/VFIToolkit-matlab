@@ -51,6 +51,8 @@ else
     pi_z_J=repmat(pi_z,1,1,N_j);
 end
 
+simoptions.parallel
+
 if simoptions.parallel==1
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')

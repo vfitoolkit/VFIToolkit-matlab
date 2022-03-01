@@ -19,7 +19,7 @@ end
 
 for p_c=1:N_p
     if heteroagentoptions.verbose==1
-        sprintf('Evaluating price vector %i of %i',p_c,N_p)
+        sprintf('Evaluating price vector %i of %i \n',p_c,N_p)
     end
         
     %Step 1: Solve the value fn iteration problem (given this price, indexed by p_c)
@@ -68,12 +68,7 @@ for p_c=1:N_p
     StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist, AgeWeightParamNames, Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, SSvaluesFn, Parameters, SSvalueParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2,simoptions); % The 2 is for Parallel (use GPU)
     
-    % The following line is often a useful double-check if something is going wrong.
-%    AggVars
-    
-    % use of real() is a hack that could disguise errors, but I couldn't
-    % find why matlab was treating output as complex
-%     MarketClearanceKron(p_c,:)=real(MarketClearance_Case1_pgrid(SSvalues_AggVars,p_c,n_p,p_grid, MarketPriceEqns, Parameters,MarketPriceParamNames));
+    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
 
@@ -102,12 +97,6 @@ if l_p>1
 else
     GeneralEqmConditions=reshape(multiGEweightsKron.*GeneralEqmConditionsKron,[n_p,1]);
 end
-
-% %TEMPORARILY PRINT THIS OUT
-% p_eqm_index
-% p_eqm_index=gather(p_eqm_index);
-% whos p_eqm_index
-% p_eqm_index-[11,3,3]
 
 p_eqm_index=round(p_eqm_index); % Was having rounding errors of order of numerical accuracy.
 

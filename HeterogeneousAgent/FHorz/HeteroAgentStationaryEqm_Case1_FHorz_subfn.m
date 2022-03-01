@@ -47,9 +47,6 @@ end
 StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid,[],simoptions);
 
-% The following line is often a useful double-check if something is going wrong.
-%    AggVars
-
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 if isstruct(GeneralEqmEqns)
     AggVarNames=fieldnames(AggVars); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct

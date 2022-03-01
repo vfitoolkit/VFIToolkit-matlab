@@ -18,7 +18,7 @@ if exist('simoptions','var')==0
     catch
         simoptions.ncores=1;
     end
-    simoptions.eigenvector=1; % I implemented an eigenvector based approach. It is fast but not robust.
+    simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
     simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
@@ -47,7 +47,7 @@ else
         end
     end
     if isfield(simoptions, 'eigenvector')==0
-        simoptions.eigenvector=1; % I implemented an eigenvector based approach. It is fast but not robust.
+        simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     end
     if isfield(simoptions, 'seedpoint')==0
         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];

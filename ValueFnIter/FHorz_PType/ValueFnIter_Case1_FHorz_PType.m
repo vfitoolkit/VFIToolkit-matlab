@@ -1,5 +1,10 @@
 function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+%
+% vfoptions.verbose=1 will give feedback
+% vfoptions.verboseparams=1 will give further feedback on the param values of each permanent type
+%
+
 % N_d=prod(n_d);
 % N_a=prod(n_a);
 % N_z=prod(n_z);
@@ -28,8 +33,12 @@ for ii=1:N_i
         if ~isfield(vfoptions_temp,'verbose')
             vfoptions_temp.verbose=0;
         end
+        if ~isfield(vfoptions_temp,'verboseparams')
+            vfoptions_temp.verboseparams=0;
+        end
     else
         vfoptions_temp.verbose=0;
+        vfoptions_temp.verboseparams=0;
     end 
     
     if vfoptions_temp.verbose==1
@@ -87,6 +96,11 @@ for ii=1:N_i
     if isa(DiscountFactorParamNames,'struct')
         names=fieldnames(DiscountFactorParamNames);
         DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{ii});
+    end
+    
+    if vfoptions_temp.verboseparams==1
+        sprintf('Parameter values for the current permanent type')
+        Parameters_temp
     end
     
     [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions);
