@@ -1,18 +1,16 @@
-function [Parameters,fval,counteval,exitflag]=EstimateModel(Parameters, ParamNamesToEstimate, EstimationTargets, ModelTargetsFn, estimationoptions, GEPriceParamNames, GeneralEqmTargetNames)
+function [EstimatedParameters,fval,counteval,exitflag]=EstimateModel(ParamNamesToEstimate, EstimationTargets, ModelToEstimate, estimationoptions)
 %
 % ------------Inputs----------------
-% Parameters (structure): gives both the values for parameters which are not calibration exercise, and also gives the initial values for the
-%     parameters that are part of the calibration exercise.
 % ParamNamesToEstimate (cell of strings): gives the names of the parameters to be estimated.
 % EstimationTargets (structure): gives the values for the targets of the estimation.
-% ModelTargetsFn (function): takes 'Parameters' as an input, returns a structure with the model-values for the estimation targets 
-%     (and the values for the general equilibrium conditions if you want to do a general eqm estimation)
+% ModelToEstimate (structure): contains all parts of the model (e.g. Parameters, grids, FnsToEvaluate, ReturnFn, etc.)
 % estimationoptions (structure): can be used to set options relating to 
 %     (i) upper and lower bounds for the parameters values, 
 %     (ii) how the distance between a given model and data target is calculated, 
 %     (iii) the weights given to each of the distances for the individual targets
 %     (iv) various other options relating to which algorithms are used and their internal options
 %
+% ------------Optional Inputs----------------
 % If the model to be estimated is general equilibrium you also need the following two inputs,
 % GeneralEqmParamNames (cell of strings): an optional input, only use if you wish to solve a general eqm 
 %     model (if partial eqm simply do not input). Gives names of the parameters/prices determined as part 
@@ -30,107 +28,387 @@ function [Parameters,fval,counteval,exitflag]=EstimateModel(Parameters, ParamNam
 %     the actual estimation target values.
 
 %% Check some options and if none are given set defaults
-if ~isfield(estimationoptions,'verbose')
+if ~exist('estimationoptions','var')
     estimationoptions.verbose=0;
+    estimationoptions.nestedfixedpoint=0;
+    estimationoptions.testmodel=1; % Test the model before beginning the estimation (gives more feedback and checks that model is correctly set up)
+else
+    if ~isfield(estimationoptions,'verbose')
+        estimationoptions.verbose=0;
+    end
+    if ~isfield(estimationoptions,'nestedfixedpoint')
+        estimationoptions.nestedfixedpoint=0; % By default treat GE conditions as joint targets, rather than solving GE as nested fixed point
+    end
+    if ~isfield(estimationoptions,'testmodel')
+        estimationoptions.testmodel=1; % Test the model before beginning the estimation (gives more feedback and checks that model is correctly set up)
+    end
+end
+
+%%
+if estimationoptions.verbose==1
+    fprintf('Setting up Model Estimation \n')
+end
+
+%% Check if ModelToEstimate appears to contain what it should
+if ~isfield(ModelToEstimate,'Params') && ~isfield(ModelToEstimate,'Parameters')
+	fprintf('ERROR: ModelToEstimate does not specify Params/Parameters \n')
+elseif isfield(ModelToEstimate,'Params')
+    ModelToEstimate.Parameters=ModelToEstimate.Params; % Codes assume it is called Parameters
+end
+
+if ~isfield(ModelToEstimate,'n_d')
+	fprintf('ERROR: ModelToEstimate does not specify n_d \n')
+elseif ~isfield(ModelToEstimate,'n_a')
+	fprintf('ERROR: ModelToEstimate does not specify n_a \n')
+elseif ~isfield(ModelToEstimate,'n_z')
+	fprintf('ERROR: ModelToEstimate does not specify n_z \n')
+elseif ~isfield(ModelToEstimate,'d_grid')
+	fprintf('ERROR: ModelToEstimate does not specify d_grid \n')
+elseif ~isfield(ModelToEstimate,'a_grid')
+	fprintf('ERROR: ModelToEstimate does not specify a_grid \n')
+elseif ~isfield(ModelToEstimate,'z_grid')
+	fprintf('ERROR: ModelToEstimate does not specify z_grid \n')
+elseif ~isfield(ModelToEstimate,'pi_z')
+	fprintf('ERROR: ModelToEstimate does not specify pi_z \n')
+elseif ~isfield(ModelToEstimate,'DiscountFactorParamNames')
+	fprintf('ERROR: ModelToEstimate does not specify DiscountFactorParamNames \n')
+elseif ~isfield(ModelToEstimate,'ReturnFn')
+	fprintf('ERROR: ModelToEstimate does not specify ReturnFn \n')
+end
+
+if ~isfield(ModelToEstimate,'N_j')
+	fprintf('WARNING: ModelToEstimate does not specify time horizon, have assumed infinite horizon \n')
+    ModelToEstimate.N_j=Inf;
+elseif isfinite(ModelToEstimate.N_j) % Finite horizon
+    if ~isfield(ModelToEstimate,'jequaloneDist')
+        fprintf('ERROR: ModelToEstimate does not specify jequaloneDist \n')
+    elseif ~isfield(ModelToEstimate,'AgeWeightsParamNames')
+        fprintf('ERROR: ModelToEstimate does not specify AgeWeightsParamNames \n')
+    end
+end
+if ~isfield(ModelToEstimate,'FnsToEvaluate')
+	fprintf('ERROR: ModelToEstimate does not specify FnsToEvaluate \n')
+elseif ~isfield(ModelToEstimate,'WhichModelStatistics')
+	fprintf('ERROR: ModelToEstimate does not specify WhichModelStatistics \n')
 end
 
 %% Check if this will be a General Equilibrium estimation.
-if nargin>5
-    ImposeGE=1;
-end
-
-NestedFixedPt=0;
-WeightForGEConditions=100; % Default value is 100
-if ImposeGE==1
-    if length(GEPriceParamNames)~=length(GeneralEqmTargetNames)
-        fprintf('WARNING: In EstimateModel() the (optional) inputs GeneralEqmParamNames and GeneralEqmTargetNames must be of equal length')
-        return
+if isfield(ModelToEstimate,'GeneralEqmEqns')
+    if ~isfield(estimationoptions,'ImposeGE')
+        estimationoptions.ImposeGE=1;    
     end
-    
-    % Two options for dealing with General Equilibrium:
-    %   (i) joint-fixed-point (default), 'joint-fixed-pt'
-    %   (ii) nested-fixed-point, 'nested-fixed-pt'
-    if ~isfield(estimationoptions, 'fixedpointalgo')
-        estimationoptions.fixedpointalgo='joint-fixed-pt';
+    if ~isfield(ModelToEstimate,'GEPriceParamNames')
+        fprintf('ERROR: ModelToEstimate uses GeneralEqmEqns but does not specify GEPriceParamNames \n')        
     end
-    
-    if strcmp(estimationoptions.fixedpointalgo,'joint-fixed-pt')
-        if isfield(estimationoptions,'WeightForGEConditions')==1
-            WeightForGEConditions=estimationoptions.WeightForGEConditions; % A scalar. Note that this can then be further overruled for specific GeneralEqmConditions by using estimationoptions.TargetWeights.('String_GeneralEqmCondName')
+    if estimationoptions.ImposeGE==1
+        % Two options for dealing with General Equilibrium:
+        %   (i) joint-fixed-point (default), 'joint-fixed-pt'
+        %   (ii) nested-fixed-point, 'nested-fixed-pt'
+        if ~isfield(estimationoptions, 'fixedpointalgo')
+            estimationoptions.fixedpointalgo='joint-fixed-pt';
         end
-    else % Nested fixed point.
-        clear NestedFixedPt % Will instead create a structure which contains all the details of the GeneralEqm aspect and use 'EstimateModel' command to solve this.
-        ImposeGE=0;
-        NestedFixedPt.GeneralEqmParamNames=GEPriceParamNames;
-        NestedFixedPt.GeneralEqmTargetNames=GeneralEqmTargetNames;
+        
+        ParamNamesToEstimate={ParamNamesToEstimate{:},GEPriceParamNames{:}}; % Add General eqm parameters to the list of those to estimate
+        
+        % Add the General Eqm Conditions as Estimation Targets
+        GEConditionNames=fieldnames(ModelToEstimate.GeneralEqmEqns);
+        for gg=1:length(GEConditionNames)
+            EstimationTargets.(GEConditionNames{gg})=0; % GE conditions should all evaluate to zero
+        end
+        
+        % To be able to evaluate the GE conditions need AggVars, which may
+        % not have been requested as one of the estimation targets so need
+        % to add it to what will be calculated.
+        if max(strcmp(ModelToEstimate.WhichModelStatistics,'AggVars'))==0
+            ModelToEstimate.WhichModelStatistics{1+length(ModelToEstimate.WhichModelStatistics)}='AggVars';
+        end
     end
-end
-
-%%
-fprintf('Beginning Model Estimation \n')
-
-%%
-if ImposeGE==1 % Because this is the GE
-    NumberOfMarketsToClear=length(GEPriceParamNames);
-    FullListOfNames={ParamNamesToEstimate{:},GEPriceParamNames{:}};
 else
-    NumberOfMarketsToClear=0;
-    FullListOfNames=ParamNamesToEstimate;
+    estimationoptions.ImposeGE=0;
 end
-NumberOfParametersToCalibrate=length(FullListOfNames);
 
+%% Set up initial value for the parameters being estimated, as well as weights for the estimation targets
 
 % Create a vector containing all the parameters to estimate (in order)
-CalibParamsVec_initvals=CreateVectorFromParams(Parameters, FullListOfNames);
-CalibParamsVec_initvals=CalibParamsVec_initvals'; % CMAES codes require that this is a column vector.
-% CalibParamsVec_initvals=CreateVectorFromParams(Parameters, ParamNamesToEstimate);
-% if ImposeGE==1 % Because this is the GE
-%     CalibParamsVec_initvals=[CalibParamsVec_initvals, CreateVectorFromParams(Parameters, GeneralEqmParamNames)];
-% end
-
-% None of the following needed here. Most of the created variables are only used
-% internally by EstimateModel_DistanceFn. Precalculated here just for speed.
-NamesEstimationTargets=fieldnames(EstimationTargets);
-% Create a vector containing all the targets for the estimate (in order)
-EstimationTargetsVec=CreateVectorFromParams2(EstimationTargets, NamesEstimationTargets);
-NumberOfEstimationTargets=length(EstimationTargetsVec);
-% Because the EstimationTargets can be vector valued (not just scalar) we need to do a bit of extra trickery.
-EstimationTargetSizesVec=nan(length(NamesEstimationTargets),1);
-for jj=1:length(NamesEstimationTargets)
-    EstimationTargetSizesVec(jj)=length(EstimationTargets.(NamesEstimationTargets{jj}));
+CalibParamsStruct=struct();
+for ii=1:length(ParamNamesToEstimate)
+    CalibParamsStruct.(ParamNamesToEstimate{ii})=ModelToEstimate.Parameters.(ParamNamesToEstimate{ii});
 end
+% To be able to access the parameters need to know the size of each of them
+[CalibParamsVec,CalibParamsNames,CalibParamsSize]=CreateParamsVecNamesSize(CalibParamsStruct);
+% Note that CalibParamNames is effectively just a copy of ParamNamesToEstimate
 
-% Note: Since some of the estimation targets can be vectors
-% length(NamesEstimationTargets) need not equal (can be smaller)
-% than NumberOfEstimationTargets (which is a vector of scalar elements)
+%% Create a few things that are used to calculate the distance once all the model statistics have been calculated
 
-% Figure out which of these targets are the General Eqm conditions (the individual GE targets must be scalars, not vectors)
-GenEqmTargetsIndicatorVec=zeros(1,NumberOfEstimationTargets); % Note that if there are no GE targets this will just remain vector of zeros.
-for ii=1:NumberOfMarketsToClear % if ImposeGE==1 % Because this is the GE
-    tempGenEqmName=GeneralEqmTargetNames(ii);
-    for jj=1:length(NamesEstimationTargets)
-        if strcmp(NamesEstimationTargets{jj},tempGenEqmName)
-            GenEqmTargetsIndicatorVec(sum(EstimationTargetSizesVec(1:jj-1))+1:sum(EstimationTargetSizesVec(1:jj)))=1;
+NumOfEstimationTargets=0;
+NumOfEstimationTargetsIndivNumbersPerTarget=[];
+NumOfEstimationTargetsIndivNumbers=0;
+% I break down EstimationTargets. Allow up to 5 layers
+fnames1=fieldnames(EstimationTargets);
+for f1=1:length(fnames1)
+    if isstruct(EstimationTargets.(fnames1{f1}))
+        fnames2=fieldnames(EstimationTargets.(fnames1{f1}));
+        for f2=1:length(fnames2)
+            if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}))
+                fnames3=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}));
+                for f3=1:length(fnames3)
+                    if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}))
+                        fnames4=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}));
+                        for f4=1:length(fnames4)
+                            if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}))
+                                fnames5=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}));
+                                for f5=1:length(fnames5)
+                                    if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5}))
+                                        fprintf('ERROR: EstimationTargets is a structure with a depth of more than 5 (depth 5 is the max) \n')
+                                        dbstack
+                                        break
+                                    else
+                                        NumOfEstimationTargets=NumOfEstimationTargets+1;
+                                        NumOfEstimationTargetsIndivNumbers=NumOfEstimationTargetsIndivNumbers+numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5}));
+                                        NumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)=numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5}));
+                                    end
+                                end
+                            else
+                                NumOfEstimationTargets=NumOfEstimationTargets+1;
+                                NumOfEstimationTargetsIndivNumbers=NumOfEstimationTargetsIndivNumbers+numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}));
+                                NumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)=numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}));
+                            end
+                        end
+                    else
+                        NumOfEstimationTargets=NumOfEstimationTargets+1;
+                        NumOfEstimationTargetsIndivNumbers=NumOfEstimationTargetsIndivNumbers+numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}));
+                        NumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)=numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}));
+                    end
+                end
+            else
+                NumOfEstimationTargets=NumOfEstimationTargets+1;
+                NumOfEstimationTargetsIndivNumbers=NumOfEstimationTargetsIndivNumbers+numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}));
+                NumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)=numel(EstimationTargets.(fnames1{f1}).(fnames2{f2}));
+            end
         end
+    else
+        NumOfEstimationTargets=NumOfEstimationTargets+1;
+        NumOfEstimationTargetsIndivNumbers=NumOfEstimationTargetsIndivNumbers+numel(EstimationTargets.(fnames1{f1}));
+        NumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)=numel(EstimationTargets.(fnames1{f1}));
     end
 end
-GenEqmTargetsIndicatorVec=logical(GenEqmTargetsIndicatorVec); % Note that if there are no GE targets this will just remain vector of zeros.
 
-EstimationTargetsVec(GenEqmTargetsIndicatorVec)=0; % GeneralEqm conditions (which should equal zero)
+CumNumOfEstimationTargetsIndivNumbersPerTarget=cumsum(NumOfEstimationTargetsIndivNumbersPerTarget);
+ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget=[0,CumNumOfEstimationTargetsIndivNumbersPerTarget];
 
-% CalibDistTypeVec
-% First set the defaults:
-CalibDistTypeVec=2*ones(1,NumberOfEstimationTargets); % absolute value of error divided by value of target (default value=2)
-CalibDistTypeVec(abs(EstimationTargetsVec)<1)=4; % Absolute difference between model and target for those parameters that are less than one in absolute value
-% if ImposeGE==1 % Because this is the GE
-CalibDistTypeVec(GenEqmTargetsIndicatorVec)=3; % GE conditions are evaluated based on square of distance from zero.
-% end
-% Now do any distance functions that have been set as part of the estimationoptions
-if isfield(estimationoptions,'TargetDistanceFns')==0
-    for jj=1:NumberOfEstimationTargets
-        if isfield(estimationoptions.TargetDistanceFns,FullListOfNames{jj})
-            temp=estimationoptions.TargetDistanceFns.(FullListOfNames{jj});
-            if isstr(temp)
+%% I can actually create 'which calibration targets' from the fnames1
+
+
+%% Create vectors that will be used to store the targets, as well as how to compute the distance and what weights to apply when adding them
+TargetValuesVec=nan(NumOfEstimationTargetsIndivNumbers,1); % Use nan as want to cause errors if don't put in numbers later
+TargetDistanceVec=2*ones(NumOfEstimationTargetsIndivNumbers,1); % Two is square of error divided by value of target (unless target is of absolute value less than 0.5, in which case just use absolute difference
+TargetWeightsVec=ones(NumOfEstimationTargetsIndivNumbers,1);
+
+% The default weight applied to General Eqm conditions
+if ~isfield(estimationoptions,'DefaultGEWeight')
+    estimationoptions.DefaultGEWeight=20;
+end
+
+% I break down EstimationTargets. Allow up to 5 layers
+NumOfEstimationTargets=0;
+fnames1=fieldnames(EstimationTargets);
+for f1=1:length(fnames1)
+    if isstruct(EstimationTargets.(fnames1{f1}))
+        fnames2=fieldnames(EstimationTargets.(fnames1{f1}));
+        for f2=1:length(fnames2)
+            if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}))
+                fnames3=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}));
+                for f3=1:length(fnames3)
+                    if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}))
+                        fnames4=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}));
+                        for f4=1:length(fnames4)
+                            if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}))
+                                fnames5=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}));
+                                for f5=1:length(fnames5)
+                                    if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5}))
+                                        fprintf('ERROR: EstimationTargets is a structure with a depth of more than 5 (depth 5 is the max) \n')
+                                        dbstack
+                                        break
+                                    else
+                                        NumOfEstimationTargets=NumOfEstimationTargets+1;
+                                        CurrentTarget=EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5});
+                                        CurrVecIndexes=(ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)+1):1:ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets+1);
+                                        TargetValuesVec(CurrVecIndexes)=reshape(CurrentTarget,[numel(CurrentTarget),1]);
+                                        try % If this field exists in EstimationWeights
+                                            temp=estimationoptions.EstimationWeights.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5});
+                                            if isscalar(temp)
+                                                TargetWeightsVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                                            else
+                                                TargetWeightsVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                                            end
+                                        catch
+                                            % If the field does not exist in estimationoptions.EstimationWeights then do nothing (leave weight as default of one)
+                                        end
+                                        try % If this field exists in EstimationDistanceMeasure
+                                            temp=estimationoptions.EstimationDistanceMeasure.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5});
+                                            if isstr(temp) % Note that when using string it must be same for all parts of this target vector/matrix (you can use numbers in a vector/matrix to allow different distance measures for different elements of target)
+                                                if strcmp(temp,'relative-square-difference')
+                                                    temp=1;
+                                                elseif strcmp(temp,'relative-absolute-difference')
+                                                    temp=2;
+                                                elseif strcmp(temp,'square-difference')
+                                                    temp=3;
+                                                elseif strcmp(temp,'absolute-difference')
+                                                    temp=4;
+                                                end
+                                            elseif isscalar(temp)
+                                                TargetDistanceVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                                            else
+                                                TargetDistanceVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                                            end
+                                        catch
+                                            % If the field does not exist in estimationoptions.EstimationDistanceMeasure then do nothing (leave weight as default of one)
+                                        end
+                                    end
+                                end
+                            else
+                                NumOfEstimationTargets=NumOfEstimationTargets+1;
+                                CurrentTarget=EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4});
+                                CurrVecIndexes=(ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)+1):1:ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets+1);
+                                TargetValuesVec(CurrVecIndexes)=reshape(CurrentTarget,[numel(CurrentTarget),1]);
+                                try % If this field exists in EstimationWeights
+                                    temp=estimationoptions.EstimationWeights.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4});
+                                    if isscalar(temp)
+                                        TargetWeightsVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                                    else
+                                        TargetWeightsVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                                    end
+                                catch
+                                    % If the field does not exist in estimationoptions.EstimationWeights then do nothing (leave weight as default of one)
+                                end
+                                try % If this field exists in EstimationDistanceMeasure
+                                    temp=estimationoptions.EstimationDistanceMeasure.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4});
+                                    if isstr(temp) % Note that when using string it must be same for all parts of this target vector/matrix (you can use numbers in a vector/matrix to allow different distance measures for different elements of target)
+                                        if strcmp(temp,'relative-square-difference')
+                                            temp=1;
+                                        elseif strcmp(temp,'relative-absolute-difference')
+                                            temp=2;
+                                        elseif strcmp(temp,'square-difference')
+                                            temp=3;
+                                        elseif strcmp(temp,'absolute-difference')
+                                            temp=4;
+                                        end
+                                    elseif isscalar(temp)
+                                        TargetDistanceVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                                    else
+                                        TargetDistanceVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                                    end
+                                catch
+                                    % If the field does not exist in estimationoptions.EstimationDistanceMeasure then do nothing (leave weight as default of one)
+                                end
+                            end
+                        end
+                    else
+                        NumOfEstimationTargets=NumOfEstimationTargets+1;
+                        CurrentTarget=EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3});
+                        CurrVecIndexes=(ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)+1):1:ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets+1);
+                        TargetValuesVec(CurrVecIndexes)=reshape(CurrentTarget,[numel(CurrentTarget),1]);
+                        try % If this field exists in EstimationWeights
+                            temp=estimationoptions.EstimationWeights.(fnames1{f1}).(fnames2{f2}).(fnames3{f3});
+                            if isscalar(temp)
+                                TargetWeightsVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                            else
+                                TargetWeightsVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                            end
+                        catch
+                            % If the field does not exist in estimationoptions.EstimationWeights then do nothing (leave weight as default of one)
+                        end
+                        try % If this field exists in EstimationDistanceMeasure
+                            temp=estimationoptions.EstimationDistanceMeasure.(fnames1{f1}).(fnames2{f2}).(fnames3{f3});
+                            if isstr(temp) % Note that when using string it must be same for all parts of this target vector/matrix (you can use numbers in a vector/matrix to allow different distance measures for different elements of target)
+                                if strcmp(temp,'relative-square-difference')
+                                    temp=1;
+                                elseif strcmp(temp,'relative-absolute-difference')
+                                    temp=2;
+                                elseif strcmp(temp,'square-difference')
+                                    temp=3;
+                                elseif strcmp(temp,'absolute-difference')
+                                    temp=4;
+                                end
+                            elseif isscalar(temp)
+                                TargetDistanceVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                            else
+                                TargetDistanceVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                            end
+                        catch
+                            % If the field does not exist in estimationoptions.EstimationDistanceMeasure then do nothing (leave weight as default of one)
+                        end
+                    end
+                end
+            else
+                NumOfEstimationTargets=NumOfEstimationTargets+1;
+                CurrentTarget=EstimationTargets.(fnames1{f1}).(fnames2{f2});
+                CurrVecIndexes=(ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)+1):1:ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets+1);
+                TargetValuesVec(CurrVecIndexes)=reshape(CurrentTarget,[numel(CurrentTarget),1]);
+                try % If this field exists in EstimationWeights
+                    temp=estimationoptions.EstimationWeights.(fnames1{f1}).(fnames2{f2});
+                    if isscalar(temp)
+                        TargetWeightsVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                    else
+                        TargetWeightsVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                    end
+                catch
+                    % If the field does not exist in estimationoptions.EstimationWeights then do nothing (leave weight as default of one)
+                end
+                try % If this field exists in EstimationDistanceMeasure
+                    temp=estimationoptions.EstimationDistanceMeasure.(fnames1{f1}).(fnames2{f2});
+                    if isstr(temp) % Note that when using string it must be same for all parts of this target vector/matrix (you can use numbers in a vector/matrix to allow different distance measures for different elements of target)
+                        if strcmp(temp,'relative-square-difference')
+                            temp=1;
+                        elseif strcmp(temp,'relative-absolute-difference')
+                            temp=2;
+                        elseif strcmp(temp,'square-difference')
+                            temp=3;
+                        elseif strcmp(temp,'absolute-difference')
+                            temp=4;
+                        end
+                    elseif isscalar(temp)
+                        TargetDistanceVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+                    else
+                        TargetDistanceVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+                    end
+                catch
+                    % If the field does not exist in estimationoptions.EstimationDistanceMeasure then do nothing (leave weight as default of one)
+                end
+            end
+        end
+    else
+        NumOfEstimationTargets=NumOfEstimationTargets+1;
+        CurrentTarget=EstimationTargets.(fnames1{f1});
+        CurrVecIndexes=(ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets)+1):1:ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget(NumOfEstimationTargets+1);
+        TargetValuesVec(CurrVecIndexes)=reshape(CurrentTarget,[numel(CurrentTarget),1]);
+        
+        % Because of how I put GE conditions into the EstimationTargets,
+        % any estimation targets will be here (they are never structures,
+        % all must be numbers in this first layer)
+        % For the GE conditions, set the default weights to 20
+        if estimationoptions.ImposeGE==1
+            if estimationoptions.nestedfixedpoint==0
+                % Add the General Eqm Conditions as Estimation Targets
+                if max(strcmp(GEConditionNames,fnames1{f1}))==1
+                    TargetWeightsVec(CurrVecIndexes)=DefaultGEWeight; % Note that code then checks if you have specified weight and overwrites this if you do
+                end
+            end
+        end
+        
+        try % If this field exists in EstimationWeights
+            temp=estimationoptions.EstimationWeights.(fnames1{f1});
+            if isscalar(temp)
+                TargetWeightsVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
+            else
+                TargetWeightsVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+            end
+        catch
+            % If the field does not exist in estimationoptions.EstimationWeights then do nothing (leave weight as default of one)
+        end
+        try % If this field exists in EstimationDistanceMeasure
+            temp=estimationoptions.EstimationDistanceMeasure.(fnames1{f1});
+            if isstr(temp) % Note that when using string it must be same for all parts of this target vector/matrix (you can use numbers in a vector/matrix to allow different distance measures for different elements of target)
                 if strcmp(temp,'relative-square-difference')
                     temp=1;
                 elseif strcmp(temp,'relative-absolute-difference')
@@ -140,78 +418,129 @@ if isfield(estimationoptions,'TargetDistanceFns')==0
                 elseif strcmp(temp,'absolute-difference')
                     temp=4;
                 end
-            end
-            if iscolumn(temp)
-                CalibDistTypeVec(sum(EstimationTargetSizesVec(1:jj-1))+1:sum(EstimationTargetSizesVec(1:jj)))=temp;
+            elseif isscalar(temp)
+                TargetDistanceVec(CurrVecIndexes)=temp*ones(numel(CurrentTarget),1);
             else
-                CalibDistTypeVec(sum(EstimationTargetSizesVec(1:jj-1))+1:sum(EstimationTargetSizesVec(1:jj)))=temp';
+                TargetDistanceVec(CurrVecIndexes)=reshape(temp,[numel(CurrentTarget),1]);
+            end
+        catch
+            % If the field does not exist in estimationoptions.EstimationDistanceMeasure then do nothing (leave weight as default of one)
+        end
+    end
+end
+
+if max(TargetValuesVec(TargetDistanceVec==1)==0)
+    fprintf('WARNING: Cannot use relative-square-difference as the measure of distance for an estimation target which is zero (as would divide by zero), switched to square-difference \n')
+    TargetDistanceVec(TargetValuesVec(TargetDistanceVec==1)==0)=3;
+end
+if max(TargetValuesVec(TargetDistanceVec==2)==0)
+    fprintf('WARNING: Cannot use relative-absolute-difference as the measure of distance for an estimation target which is zero (as would divide by zero), switched to absolute-difference \n')
+    TargetDistanceVec(TargetValuesVec(TargetDistanceVec==2)==0)=4;
+end
+
+%% Check if any of the targets are 'nan'. If they are then print warning that they will be ignored.
+if max(isnan(TargetValuesVec))==1
+    fprintf('Following WARNINGS are from from EstimationModel() \n')
+    % There is a nan somewhere, so go through the whole structure to find and report all the nan targets by name
+    % I break down EstimationTargets. Allow up to 5 layers
+    fnames1=fieldnames(EstimationTargets);
+    for f1=1:length(fnames1)
+        if isstruct(EstimationTargets.(fnames1{f1}))
+            fnames2=fieldnames(EstimationTargets.(fnames1{f1}));
+            for f2=1:length(fnames2)
+                if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}))
+                    fnames3=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}));
+                    for f3=1:length(fnames3)
+                        if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}))
+                            fnames4=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}));
+                            for f4=1:length(fnames4)
+                                if isstruct(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}))
+                                    fnames5=fieldnames(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}));
+                                    for f5=1:length(fnames5)
+                                        % Code already threw an error if the 5th layer is a structure
+                                        if max(isnan(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4}).(fnames5{f5})))==1
+                                            fprintf('WARNING: %s.%s.%s.%s.%s EstimationTargets contains some nan values, these will be ignored/omitted from the calculation of the distance \n', fnames1{f1},fnames2{f2},fnames3{f3},fnames4{f4},fnames5{f5})
+                                        end
+                                    end
+                                else
+                                    if max(isnan(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3}).(fnames4{f4})))==1
+                                        fprintf('WARNING: %s.%s.%s.%s EstimationTargets contains some nan values, these will be ignored/omitted from the calculation of the distance \n', fnames1{f1},fnames2{f2},fnames3{f3},fnames4{f4})
+                                    end
+                                end
+                            end
+                        else
+                            if max(isnan(EstimationTargets.(fnames1{f1}).(fnames2{f2}).(fnames3{f3})))==1
+                                fprintf('WARNING: %s.%s.%s EstimationTargets contains some nan values, these will be ignored/omitted from the calculation of the distance \n', fnames1{f1},fnames2{f2},fnames3{f3})
+                            end
+                        end
+                    end
+                else
+                    if max(isnan(EstimationTargets.(fnames1{f1}).(fnames2{f2})))==1
+                        fprintf('WARNING: %s.%s EstimationTargets contains some nan values, these will be ignored/omitted from the calculation of the distance \n', fnames1{f1},fnames2{f2})
+                    end
+                end
+            end
+        else
+            if max(isnan(EstimationTargets.(fnames1{f1})))==1
+                fprintf('WARNING: %s EstimationTargets contains some nan values, these will be ignored/omitted from the calculation of the distance \n', fnames1{f1})
             end
         end
     end
 end
 
-% CalibWeightsVec
-% First set the defaults:
-CalibWeightsVec=ones(1,NumberOfEstimationTargets); % EstimateModel_DistanceFn requires the weights to be a column vector (default value=1)
-% if ImposeGE==1 % Because this is the GE
-CalibWeightsVec(GenEqmTargetsIndicatorVec)=WeightForGEConditions; % GE conditions are given high weights
-% end
-% Now do any weights that have been set as part of the estimationoptions
-if isfield(estimationoptions,'TargetWeights')==0
-    for jj=1:NumberOfEstimationTargets
-        if isfield(estimationoptions.TargetWeights,FullListOfNames{jj})
-            temp=estimationoptions.TargetWeights.(FullListOfNames{jj});
-            if iscolumn(temp)
-                CalibWeightsVec(sum(EstimationTargetSizesVec(1:jj-1))+1:sum(EstimationTargetSizesVec(1:jj)))=temp;
-            else
-                CalibWeightsVec(sum(EstimationTargetSizesVec(1:jj-1))+1:sum(EstimationTargetSizesVec(1:jj)))=temp';
-            end
-        end
-    end
+%% Create the function that is takes CalibParamsVec and the ModelToEstimate and returns the distance between the targest and model statistics
+
+% Do a sets of CalibFn that makes sure that all of the model statistics are being calculated, and that they are all the appropriate size
+CalibFn=@(CalibParamsVec) EstimateModel_DistanceFn(CalibParamsVec,CalibParamsNames,CalibParamsSize, ModelToEstimate, TargetValuesVec, TargetDistanceVec, TargetWeightsVec, ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget, estimationoptions, EstimationTargets);
+% Note that EstimationTargets is only used if TestModel=1
+
+if estimationoptions.testmodel==1
+    % Run the test of the model
+    CalibFn(CalibParamsVec)
+    estimationoptions.testmodel=0;
+    % Redefine CalibFn using TestModel=0
+    CalibFn=@(CalibParamsVec) EstimateModel_DistanceFn(CalibParamsVec,CalibParamsNames,CalibParamsSize, ModelToEstimate, TargetValuesVec, TargetDistanceVec, TargetWeightsVec, ShiftCumNumOfEstimationTargetsIndivNumbersPerTarget, estimationoptions, EstimationTargets);
 end
 
-% if ImposeGE==1 % Because this is the GE
-CalibFn=@(CalibParamsVec) EstimateModel_DistanceFn(CalibParamsVec, ModelTargetsFn, Parameters, EstimationTargetsVec, FullListOfNames, NamesEstimationTargets, CalibDistTypeVec, CalibWeightsVec, estimationoptions.verbose, NestedFixedPt);
-% end
 
 %% Use the CMA-ES algorithm for the distance minimization
-disp('Starting CMA-ES algorithm of Andreasen (2010) [Covariance Matrix Adaptation Evolutionary Stategy]')
+fprintf('Starting CMA-ES algorithm of Andreasen (2010) [Covariance Matrix Adaptation Evolutionary Stategy] \n')
 
 %% Settings for CMA-ES
 % If no values given, set lower and upper bounds on parameter value to
 % being 0.1 and 10 times the initial guess.
-lb=nan(size(CalibParamsVec_initvals));
-ub=nan(size(CalibParamsVec_initvals));
+lb=nan(size(CalibParamsVec));
+ub=nan(size(CalibParamsVec));
 if isfield(estimationoptions,'ParamBounds')==1
-    for ii=1:NumberOfParametersToCalibrate
-        if isfield(estimationoptions.ParamBounds,FullListOfNames{ii}) % Also checks for GEPriceParams
-            bounds=estimationoptions.ParamBounds.(FullListOfNames{ii});
+    for ii=1:length(ParamNamesToEstimate)
+        if isfield(estimationoptions.ParamBounds,ParamNamesToEstimate{ii}) % Also checks for GEPriceParams
+            bounds=estimationoptions.ParamBounds.(ParamNamesToEstimate{ii});
             lb(ii)=bounds(1);
             ub(ii)=bounds(2);
         else
-            if CalibParamsVec_initvals(ii)>0
-                lb(ii)=0.1*CalibParamsVec_initvals(ii);
-                ub(ii)=10*CalibParamsVec_initvals(ii);
-            elseif CalibParamsVec_initvals(ii)==0 % If it is zero we would be left with lb & ub being equal. 
+            if CalibParamsVec(ii)>0
+                lb(ii)=0.1*CalibParamsVec(ii);
+                ub(ii)=10*CalibParamsVec(ii);
+            elseif CalibParamsVec(ii)==0 % If it is zero we would be left with lb & ub being equal. 
                 lb=-0.1; % I thus arbitrarily impose these bounds. I arbirarily chose these bounds for no good reason.
                 ub=0.1;  % 
-            elseif CalibParamsVec_initvals(ii)<0
-                lb(ii)=10*CalibParamsVec_initvals(ii);
-                ub(ii)=0.1*CalibParamsVec_initvals(ii);
+            elseif CalibParamsVec(ii)<0
+                lb(ii)=10*CalibParamsVec(ii);
+                ub(ii)=0.1*CalibParamsVec(ii);
             end
         end
     end
 else
-    for ii=1:NumberOfParametersToCalibrate
-        if CalibParamsVec_initvals(ii)>0
-            lb(ii)=0.1*CalibParamsVec_initvals(ii);
-            ub(ii)=10*CalibParamsVec_initvals(ii);
-        elseif CalibParamsVec_initvals(ii)==0 % If it is zero we would be left with lb & ub being equal.
+    for ii=1:length(ParamNamesToEstimate)
+        if CalibParamsVec(ii)>0
+            lb(ii)=0.1*CalibParamsVec(ii);
+            ub(ii)=10*CalibParamsVec(ii);
+        elseif CalibParamsVec(ii)==0 % If it is zero we would be left with lb & ub being equal.
             lb=-0.1; % I thus arbitrarily impose these bounds. I arbirarily chose these bounds for no good reason.
             ub=0.1;  %
-        elseif CalibParamsVec_initvals(ii)<0
-            lb(ii)=10*CalibParamsVec_initvals(ii);
-            ub(ii)=0.1*CalibParamsVec_initvals(ii);
+        elseif CalibParamsVec(ii)<0
+            lb(ii)=10*CalibParamsVec(ii);
+            ub(ii)=0.1*CalibParamsVec(ii);
         end
     end
 end
@@ -297,23 +626,31 @@ end
 
 % DEBUGGING PURPOSES ONLY
 fprintf('SOME DEBUGGING STUFF \n')
-[NumberOfParametersToCalibrate, numel(CalibParamsVec_initvals), numel(CMAES_Insigma)]
-CalibParamsVec_initvals
+[length(ParamNamesToEstimate), numel(CalibParamsVec), numel(CMAES_Insigma)]
+CalibParamsVec
 CMAES_Insigma
 [lb,ub]
 
-[CalibParamsVec, fval, counteval, exitflag] = cmaes_dsge(CalibFn,CalibParamsVec_initvals,CMAES_sigma, CMAES_Insigma,opts);
-
-% CalibParamsTemp=CreateParamsStrucFromParamsVec(ParamNamesToEstimate, CalibParamsVec);
-% for jj=1:NumberOfParametersToCalibrate
-%     Parameters.(ParamNamesToEstimate{:})=CalibParamsTemp.(ParamNamesToEstimate{:});
-% end
-% Because this is the GE
-% FullListOfNames={ParamNamesToEstimate{:},MarketClearanceNames{:}};
-CalibParamsTemp=CreateParamsStrucFromParamsVec(FullListOfNames, CalibParamsVec);
-for jj=1:length(FullListOfNames)
-    Parameters.(FullListOfNames{jj})=CalibParamsTemp.(FullListOfNames{jj});
+if estimationoptions.verbose==1
+    fprintf('Setting up Model Estimation \n')
 end
+
+[CalibParamsVec, fval, counteval, exitflag] = cmaes_dsge(CalibFn,CalibParamsVec,CMAES_sigma, CMAES_Insigma,opts);
+
+if estimationoptions.verbose==1
+    fprintf('Completed Model Estimation \n')
+    CalibParamsVec
+end
+
+%% Clean up output (put the estimated parameters in a structure)
+% Includes general eqm parameters if general eqm was used
+CalibParamsTemp=CreateParamsStrucFromParamsVec(ParamNamesToEstimate, CalibParamsVec);
+EstimatedParameters=struct();
+for jj=1:length(ParamNamesToEstimate)
+    EstimatedParameters.(ParamNamesToEstimate{jj})=CalibParamsTemp.(ParamNamesToEstimate{jj});
+end
+
+EstimatedParameters
 
 
 end
