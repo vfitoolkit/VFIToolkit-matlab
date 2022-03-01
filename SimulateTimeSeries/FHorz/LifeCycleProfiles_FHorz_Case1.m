@@ -48,6 +48,9 @@ if exist('simoptions','var')==1
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
+    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
+    end
 else
     %If options is not given, just use all the defaults
     if isgpuarray(StationaryDist)
@@ -164,6 +167,11 @@ if isstruct(FnsToEvaluate)
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
+end
+if isfield(simoptions,'keepoutputasmatrix')
+    if simoptions.keepoutputasmatrix==1
+        FnsToEvaluateStruct=0;
+    end
 end
 
 %% Create a different 'Values' for each of the variable to be evaluated
