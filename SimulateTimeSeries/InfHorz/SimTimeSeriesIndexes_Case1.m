@@ -4,38 +4,41 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
-%% Check which simoptions have been used, set all others to defaults 
-if exist('simoptions','var')==0
-    %If vfoptions is not given, just use all the defaults
-    simoptions.polindorval=1;
-    simoptions.burnin=1000;
-    simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    simoptions.simperiods=10000;
-    simoptions.parallel=1+(gpuDeviceCount>0);
-    simoptions.verbose=0;
-else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions, 'polindorval')
-        simoptions.polindorval=1;
-    end
-    if ~isfield(simoptions, 'burnin')
-        simoptions.burnin=1000;
-    end
-    if ~isfield(simoptions, 'seedpoint')
-        simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    end
-    if ~isfield(simoptions, 'simperiods')
-        simoptions.simperiods=10^4;
-    end
-    if ~isfield(simoptions, 'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if ~isfield(simoptions, 'verbose')
-        simoptions.verbose=0;
-    end
-end
+%% Simoptions are set in the commands that call this function.
 
+% %% Check which simoptions have been used, set all others to defaults 
+% if exist('simoptions','var')==0
+%     %If vfoptions is not given, just use all the defaults
+%     simoptions.polindorval=1;
+%     simoptions.burnin=1000;
+%     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
+%     simoptions.simperiods=10000;
+%     simoptions.parallel=1+(gpuDeviceCount>0);
+%     simoptions.verbose=0;
+% else
+%     %Check vfoptions for missing fields, if there are some fill them with
+%     %the defaults
+%     if ~isfield(simoptions, 'polindorval')
+%         simoptions.polindorval=1;
+%     end
+%     if ~isfield(simoptions, 'burnin')
+%         simoptions.burnin=1000;
+%     end
+%     if ~isfield(simoptions, 'seedpoint')
+%         simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
+%     end
+%     if ~isfield(simoptions, 'simperiods')
+%         simoptions.simperiods=10^4;
+%     end
+%     if ~isfield(simoptions, 'parallel')
+%         simoptions.parallel=1+(gpuDeviceCount>0);
+%     end
+%     if ~isfield(simoptions, 'verbose')
+%         simoptions.verbose=0;
+%     end
+% end
+
+%%
 %Simulates a path based on PolicyIndexes of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped). The burn in begins from point 'seedpoint' (this is not just left
@@ -58,8 +61,8 @@ SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(gather(PolicyIndexesKron),N_d,N
 SimTimeSeries=zeros(l_a+l_z,simoptions.simperiods);
 for t=1:simoptions.simperiods
     temp=SimTimeSeriesKron(:,t);
-    a_c_vec=ind2sub_homemade([n_a],temp(1));
-    z_c_vec=ind2sub_homemade([n_z],temp(2));
+    a_c_vec=ind2sub_homemade(n_a,temp(1));
+    z_c_vec=ind2sub_homemade(n_z,temp(2));
     for i=1:l_a
         SimTimeSeries(i,t)=a_c_vec(i);
     end
