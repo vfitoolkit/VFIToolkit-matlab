@@ -1,4 +1,4 @@
-function ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDistpdf,StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
+function ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDistpdf,StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,FnsToEvaluateStruct)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
 eval('fieldexists=1;simoptions.endogenousexit;','fieldexists=0;')
@@ -13,7 +13,34 @@ else
     end
 end
 
+if n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
 
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+
+%%
 if Parallel==2 || Parallel==4
     Parallel=2;
     StationaryDistpdf=gpuArray(StationaryDistpdf);
@@ -25,10 +52,6 @@ if Parallel==2 || Parallel==4
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
     z_grid=gpuArray(z_grid);
-    
-    % l_d not needed with Parallel=2 implementation
-    l_a=length(n_a);
-    l_z=length(n_z);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
@@ -62,23 +85,26 @@ if Parallel==2 || Parallel==4
     
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'SSvalueParamNames={}'
-            FnToEvaluateParamsCell=StationaryDistmass;
+        if isempty(FnsToEvaluateParamNames(i).Names)
+            FnToEvaluateParamsVec=[];
         else
-            FnToEvaluateParamsCell=[StationaryDistmass,gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names))];
+            if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
+                if length(FnsToEvaluateParamNames(i).Names)==1
+                    FnToEvaluateParamsVec=StationaryDistmass;
+                else
+                    FnToEvaluateParamsVec=[StationaryDistmass,gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end)))];
+                end
+            else
+                FnToEvaluateParamsVec=[gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names))];
+            end
         end
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        
+        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
         ProbDensityFns(:,i)=Values.*StationaryDistpdfVec;
     end
     
 else
-    if n_d(1)==0
-        l_d=0;
-    else
-        l_d=length(n_d);
-    end
-    l_a=length(n_a);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
@@ -182,11 +208,22 @@ end
 % 0) we get 'NaN'. Just eliminate those.
 ProbDensityFns(isnan(ProbDensityFns))=0;
 
-% Change the ordering and size so that ProbDensityFns has same kind of
-% shape as StationaryDist, except first dimension indexes the
-% 'FnsToEvaluate'.
-ProbDensityFns=ProbDensityFns';
-ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
+%%
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    ProbDensityFns2=ProbDensityFns'; % Note the transpose
+    clear ProbDensityFns
+    ProbDensityFns=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        ProbDensityFns.(AggVarNames{ff})=reshape(ProbDensityFns2(ff,:),[n_a,n_z]);
+    end
+else
+    % Change the ordering and size so that ProbDensityFns has same kind of
+    % shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
+    ProbDensityFns=ProbDensityFns';
+    ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
+end
 
 
 end

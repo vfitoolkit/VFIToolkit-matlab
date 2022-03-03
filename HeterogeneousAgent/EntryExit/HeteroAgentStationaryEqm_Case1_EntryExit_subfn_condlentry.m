@@ -6,21 +6,81 @@ function CondlEntryDecision=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condl
 
 %% I'm being lazy, this should be outside the subfn, and just the needed parts passed to the subfunction (would be faster that way)
 if isfield(heteroagentoptions,'specialgeneqmcondn')
-    standardgeneqmcondnindex=zeros(1,length(GeneralEqmEqns));
-    jj=1;
-    GeneralEqmEqnParamNames_Full=GeneralEqmEqnParamNames;
-    clear GeneralEqmEqnParamNames
-    for ii=1:length(GeneralEqmEqns)
-        if isnumeric(heteroagentoptions.specialgeneqmcondn{ii}) % numeric means equal to zero and is a standard GEqm
-            standardgeneqmcondnindex(jj)=ii;
-            GeneralEqmEqnParamNames(jj).Names=GeneralEqmEqnParamNames_Full(ii).Names;
-            jj=jj+1;
-        elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
-            CondlEntryCondnEqn=GeneralEqmEqns(ii);
-            CondlEntryCondnEqnParamNames(1).Names=GeneralEqmEqnParamNames_Full(ii).Names;
+    if isstruct(GeneralEqmEqns)
+        GECondNames=fieldnames(GeneralEqmEqns);
+        jj=1;
+        for ii=1:length(GECondNames)
+            if isnumeric(heteroagentoptions.specialgeneqmcondn{ii}) % numeric means equal to zero and is a standard GEqm
+                jj=jj+1;
+            elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
+                CondlEntryCondnEqn=GeneralEqmEqns.(GECondNames{ii});
+                temp=getAnonymousFnInputNames(GeneralEqmEqns.(GECondNames{ii}));
+                % The first entry of CondlEntryCondnEqnParamNames must be the value function
+                CondlEntryCondnEqnParamNames=temp(2:end);
+            end
+        end
+        
+    else % Old version of GeneralEqmEqns as cell
+%         standardgeneqmcondnindex=zeros(1,length(GeneralEqmEqns));
+        jj=1;
+%         GeneralEqmEqnParamNames_Full=GeneralEqmEqnParamNames;
+%         clear GeneralEqmEqnParamNames
+        for ii=1:length(GeneralEqmEqns)
+            if isnumeric(heteroagentoptions.specialgeneqmcondn{ii}) % numeric means equal to zero and is a standard GEqm
+%                 standardgeneqmcondnindex(jj)=ii;
+%                 GeneralEqmEqnParamNames(jj).Names=GeneralEqmEqnParamNames_Full(ii).Names;
+                jj=jj+1;
+            elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
+                CondlEntryCondnEqn=GeneralEqmEqns(ii);
+                CondlEntryCondnEqnParamNames=GeneralEqmEqnParamNames(ii).Names;
+%                 CondlEntryCondnEqnParamNames=GeneralEqmEqnParamNames_Full(ii).Names;
+            end
         end
     end
 end
+
+
+% if isstruct(GeneralEqmEqns)
+%     GECondNames=fieldnames(GeneralEqmEqns);
+%     GeneralEqmConditionsVec=zeros(1,length(GECondNames));
+%     GeneralEqmEqns2=GeneralEqmEqns;
+%     clear GeneralEqmEqns
+%     GeneralEqmEqns=struct(); EntryCondnEqn=struct(); CondlEntryCondnEqn=struct();
+%     standardgeneqmcondnsused=0;
+%     specialgeneqmcondnsused=0;
+%     entrycondnexists=0; condlentrycondnexists=0;
+%     if ~isfield(heteroagentoptions,'specialgeneqmcondn')
+%         standardgeneqmcondnsused=1;
+%         standardgeneqmcondnindex=1:1:length(GECondNames);
+%     else
+%         standardgeneqmcondnindex=zeros(1,length(GECondNames));
+%         jj=1;
+%         for ii=1:length(GECondNames)
+%             if isnumeric(heteroagentoptions.specialgeneqmcondn{ii}) % numeric means equal to zero and is a standard GEqm
+%                 standardgeneqmcondnsused=1;
+%                 standardgeneqmcondnindex(jj)=ii;
+%                 GeneralEqmEqns.(GECondNames{jj})=GeneralEqmEqns2.(GECondNames{ii});
+%                 jj=jj+1;
+%             elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'entry')
+%                 specialgeneqmcondnsused=1;
+%                 entrycondnexists=1;
+%                 % currently 'entry' is the only kind of specialgeneqmcondn
+%                 entrygeneqmcondnindex=ii;
+%                 EntryCondnEqn.(GECondNames{jj})=GeneralEqmEqns2.(GECondNames{ii});
+%             elseif strcmp(heteroagentoptions.specialgeneqmcondn{ii},'condlentry')
+%                 specialgeneqmcondnsused=1;
+%                 condlentrycondnexists=1;
+%                 condlentrygeneqmcondnindex=ii;
+%                 CondlEntryCondnEqn=GeneralEqmEqns2.(GECondNames{ii});
+%                 CondlEntryCondnEqnParamNames=getAnonymousFnInputNames(CondlEntryCondnEqn);
+%             end
+%         end
+%     end
+%     standardgeneqmcondnindex=logical(standardgeneqmcondnindex);
+% else % Old version of GeneralEqmEqns as cell
+
+
+
 
 %% 
 for ii=1:length(GEPriceParamNames)
@@ -44,12 +104,16 @@ end
 % Evaluate the conditional equilibrium condition on the (potential entrants) grid,
 % and where it is >=0 use this to set new values for the
 % EntryExitParamNames.CondlEntryDecisions parameter.
-CondlEntryCondnEqnParamsVec=CreateVectorFromParams(Parameters, CondlEntryCondnEqnParamNames(1).Names);
+CondlEntryCondnEqnParamsVec=CreateVectorFromParams(Parameters, CondlEntryCondnEqnParamNames);
 CondlEntryCondnEqnParamsCell=cell(length(CondlEntryCondnEqnParamsVec),1);
 for jj=1:length(CondlEntryCondnEqnParamsVec)
     CondlEntryCondnEqnParamsCell(jj,1)={CondlEntryCondnEqnParamsVec(jj)};
 end
 
-CondlEntryDecision=(CondlEntryCondnEqn{1}(V,p,CondlEntryCondnEqnParamsCell{:}) >=0);
+if isstruct(GeneralEqmEqns)
+    CondlEntryDecision=(CondlEntryCondnEqn(V,CondlEntryCondnEqnParamsCell{:}) >=0);
+else
+    CondlEntryDecision=(CondlEntryCondnEqn{1}(V,p,CondlEntryCondnEqnParamsCell{:}) >=0);
+end
 
 end

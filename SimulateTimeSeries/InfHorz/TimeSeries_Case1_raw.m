@@ -5,9 +5,8 @@ if prod(n_d)==0
 else
     l_d=length(n_d);
 end
-l_a=length(n_a);
 
-N_z=prod(n_z);
+N_a=prod(n_a);
 
 numFnsToEvaluate=length(FnsToEvaluate);
 
@@ -41,7 +40,7 @@ if l_d==0
         z_ind=TimeSeriesIndexesKron_t(2);
         z_val=z_gridvals(z_ind,:);
         
-        az_ind=a_ind+N_z*(z_ind-1);
+        az_ind=a_ind+N_a*(z_ind-1);
         aprime_val=aprime_gridvals(az_ind,:);
         
         for ff=1:numFnsToEvaluate
@@ -69,7 +68,7 @@ else % l_d>0
         z_ind=TimeSeriesIndexesKron_t(2);
         z_val=z_gridvals(z_ind,:);
         
-        az_ind=a_ind+N_z*(z_ind-1);
+        az_ind=a_ind+N_a*(z_ind-1);
         aprime_val=aprime_gridvals(az_ind,:);
         d_val=d_gridvals(az_ind,:);
         

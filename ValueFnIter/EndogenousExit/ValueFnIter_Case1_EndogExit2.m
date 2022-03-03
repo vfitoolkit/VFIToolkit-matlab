@@ -28,10 +28,6 @@ if isfield(vfoptions,'endogenousexitcontinuationcost')==0
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.endogenousexitcontinuationcost \n');
     return
 end
-if isfield(vfoptions,'ReturnToExitFnParamNames')==0
-    fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.ReturnToExitFnParamNames \n');
-    return
-end
 if isfield(vfoptions,'ReturnToExitFn')==0
     fprintf('ERROR: vfoptions.endogenousexit=2 requires that you specify vfoptions.ReturnToExitFn \n');
     return
@@ -42,7 +38,14 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 % The 'return to exit function' parameters (in order)
-ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ReturnToExitFnParamNames);
+% The 'return to exit function' parameters (in order)
+temp=getAnonymousFnInputNames(vfoptions.ReturnToExitFn);
+if length(temp)>(l_a+l_z)
+    ReturnToExitFnParamNames={temp{l_a+l_z+1:end}}; % the first inputs will always be (a,z)
+else
+    ReturnToExitFnParamNames={};
+end
+ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, ReturnToExitFnParamNames);
 % Parameters relating to 'mixed' exit.
 exitprobabilities=CreateVectorFromParams(Parameters, vfoptions.exitprobabilities);
 exitprobabilities=[1-sum(exitprobabilities),exitprobabilities];

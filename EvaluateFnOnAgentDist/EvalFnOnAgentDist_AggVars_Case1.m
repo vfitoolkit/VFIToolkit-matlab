@@ -186,7 +186,9 @@ if exist('simoptions', 'var')
     end
 end
 
+%% Deal with Entry and/or Exit if approprate
 if isstruct(StationaryDist)
+    % Note: if you want the agent mass of the stationary distribution you have to call it 'agentmass'
     if ~isfield(simoptions,'endogenousexit')
         simoptions.endogenousexit=0;
     end
@@ -197,9 +199,23 @@ if isstruct(StationaryDist)
         exitprobs=[1-sum(exitprobabilities),exitprobabilities];
         AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, exitprobs);
     end
+    
+    if FnsToEvaluateStruct==1
+        % Change the output into a structure
+        AggVars2=AggVars;
+        clear AggVars
+        AggVars=struct();
+        %     AggVarNames=fieldnames(FnsToEvaluate);
+        for ff=1:length(AggVarNames)
+            AggVars.(AggVarNames{ff}).Aggregate=AggVars2(ff);
+        end
+    end
+    
     return
 end
 
+
+%%
 if Parallel==2 || Parallel==4
     Parallel=2;
     StationaryDist=gpuArray(StationaryDist);

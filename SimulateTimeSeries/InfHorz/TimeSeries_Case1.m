@@ -3,7 +3,6 @@ function TimeSeries=TimeSeries_Case1(Policy, FnsToEvaluate, Parameters, n_d, n_a
 
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_d=prod(n_d);
 
 l_a=length(n_a);
 l_z=length(n_z);
@@ -73,8 +72,8 @@ if simoptions.parallel~=2
     TimeSeriesIndexesKron=zeros(3,length(TimeSeriesIndexes(1,:)));
     
     for t=1:length(TimeSeriesIndexes(1,:))
-        TimeSeriesIndexesKron(1,t)=sub2ind_homemade([n_a],TimeSeriesIndexes(1:l_a,t)); % a
-        TimeSeriesIndexesKron(2,t)=sub2ind_homemade([n_z],TimeSeriesIndexes(l_a+1:l_a+l_z,t)); % z
+        TimeSeriesIndexesKron(1,t)=sub2ind_homemade(n_a,TimeSeriesIndexes(1:l_a,t)); % a
+        TimeSeriesIndexesKron(2,t)=sub2ind_homemade(n_z,TimeSeriesIndexes(l_a+1:l_a+l_z,t)); % z
     end
     
     TimeSeriesKron=TimeSeries_Case1_raw(TimeSeriesIndexesKron, Policy,Parameters, FnsToEvaluate,FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid);

@@ -19,13 +19,12 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+l_a=length(n_a);
+l_z=length(n_z);
+
 % Make sure that the inputs specifically required for endogenous exit have been included.
 if isfield(vfoptions,'ReturnToExitFn')==0
     fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFn \n');
-    return
-end
-if isfield(vfoptions,'ReturnToExitFnParamNames')==0
-    fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFnParamNames \n');
     return
 end
 
@@ -34,7 +33,13 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 % The 'return to exit function' parameters (in order)
-ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ReturnToExitFnParamNames);
+temp=getAnonymousFnInputNames(vfoptions.ReturnToExitFn);
+if length(temp)>(l_a+l_z)
+    ReturnToExitFnParamNames={temp{l_a+l_z+1:end}}; % the first inputs will always be (a,z)
+else
+    ReturnToExitFnParamNames={};
+end
+ReturnToExitFnParamsVec=CreateVectorFromParams(Parameters, ReturnToExitFnParamNames);
 
 %%
 if vfoptions.lowmemory==0

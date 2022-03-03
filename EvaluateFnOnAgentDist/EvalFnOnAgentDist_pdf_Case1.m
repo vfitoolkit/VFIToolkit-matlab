@@ -21,6 +21,13 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+%%
+if isstruct(StationaryDist)
+    % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
+    ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+    return
+end
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
@@ -41,12 +48,6 @@ else
 end
 
 %%
-if isstruct(StationaryDist)
-    % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
-    ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
-    return
-end
-
 if Parallel==2 || Parallel==4
     Parallel=2;
     StationaryDist=gpuArray(StationaryDist);
@@ -150,22 +151,21 @@ end
 % 0) we get 'NaN'. Just eliminate those.
 ProbDensityFns(isnan(ProbDensityFns))=0;
 
-% Change the ordering and size so that ProbDensityFns has same kind of
-% shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
-ProbDensityFns=ProbDensityFns';
-ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
-
-
 %%
 if FnsToEvaluateStruct==1
     % Change the output into a structure
-    ProbDensityFns2=ProbDensityFns;
+    ProbDensityFns2=ProbDensityFns'; % Note the transpose
     clear ProbDensityFns
     ProbDensityFns=struct();
 %     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
-        ProbDensityFns.(AggVarNames{ff})=shiftdim(ProbDensityFns2(ff,:,:));
+        ProbDensityFns.(AggVarNames{ff})=reshape(ProbDensityFns2(ff,:),[n_a,n_z]);
     end
+else
+    % Change the ordering and size so that ProbDensityFns has same kind of
+    % shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
+    ProbDensityFns=ProbDensityFns';
+    ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
 end
 
 end
