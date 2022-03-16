@@ -1,4 +1,4 @@
-function [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions)
+function [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions, transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes)
@@ -66,6 +66,8 @@ end
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
+    transpathoptions.weightscheme=0;
+    
     if isstruct(GeneralEqmEqns) 
         % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
         % Is same as order of fields in GeneralEqmEqns
@@ -217,7 +219,7 @@ while max(PricePathDist,StockVarsPathDist)>transpathoptions.tolerance && pathcou
         end
         
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2,simoptions); % The 2 is for Parallel (use GPU)
               
 
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
@@ -227,41 +229,28 @@ while max(PricePathDist,StockVarsPathDist)>transpathoptions.tolerance && pathcou
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-            if isstruct(AggVars)
-                AggVarNames=fieldnames(AggVars);
-                for ii=1:length(AggVarNames)
-                    Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
-                end
-                PricePathNew(i,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-            else
-                PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars, GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+            AggVarNames=fieldnames(AggVars);
+            for ii=1:length(AggVarNames)
+                Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
+            PricePathNew(i,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
             for j=1:length(GeneralEqmEqns)
-                if isstruct(AggVars)
-                    AggVarNames=fieldnames(AggVars);
-                    for ii=1:length(AggVarNames)
-                        Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
-                    end
-                    GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
-                    PricePathNew(i,j)=fminsearch(GEeqn_temp,GEprices);
-                else
-                    GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1(AggVars, GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames)).^2);
-                    PricePathNew(i,j)=fminsearch(GEeqn_temp,GEprices);
-                end
-            end
-        % Note there is no GEnewprice==2, it uses a completely different code
-        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-            if isstruct(AggVars)
                 AggVarNames=fieldnames(AggVars);
                 for ii=1:length(AggVarNames)
                     Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
                 end
-                p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-            else
-                p_i=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 2));
+                GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
+                PricePathNew(i,j)=fminsearch(GEeqn_temp,GEprices);
             end
+        % Note there is no GEnewprice==2, it uses a completely different code
+        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
+            AggVarNames=fieldnames(AggVars);
+            for ii=1:length(AggVarNames)
+                Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+            end
+            p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
 %             GEcondnspath(i,:)=p_i;
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
@@ -332,7 +321,7 @@ while max(PricePathDist,StockVarsPathDist)>transpathoptions.tolerance && pathcou
     end
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
-    if transpathoptions.GEnewprice==3
+    if transpathoptions.weightscheme==0
         PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
     elseif transpathoptions.weightscheme==1 % Just a constant weighting
         PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);

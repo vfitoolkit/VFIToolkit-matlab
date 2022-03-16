@@ -37,14 +37,21 @@ elseif justcountries==2
 end
 
 tempseries_id = [code1, 'US', code2];
-%tempfred = fetch(f, tempseries_id, observation_start, observation_end)
-tempfred=getFredData(tempseries_id, observation_start, observation_end, units, frequency, aggregation_method) %, ondate, realtime_end)
+if exist('units','var') && exist('frequency','var') && exist('aggregation_method','var') 
+    tempfred=getFredData(tempseries_id, observation_start, observation_end, units, frequency, aggregation_method) %, ondate, realtime_end)
+elseif exist('units','var') && exist('frequency','var')
+    tempfred=getFredData(tempseries_id, observation_start, observation_end, units, frequency)
+elseif exist('units','var')
+    tempfred=getFredData(tempseries_id, observation_start, observation_end,units)
+else
+    tempfred=getFredData(tempseries_id, observation_start, observation_end)
+end
 DateVector=tempfred.Data(:,1);
 
 DataMatrix=zeros(length(DateVector), length(CountryCodes));
 for ii=1:length(CountryCodes)
     currentcode=[code1, CountryCodes(ii,:), code2];
-    currentfred = fetch(f, currentcode, StartDate, EndDate)
+    currentfred = getFredData(currentcode, observation_start, observation_end)
     DataMatrix(:,ii)=currentfred.Data(:,2);
 end
 

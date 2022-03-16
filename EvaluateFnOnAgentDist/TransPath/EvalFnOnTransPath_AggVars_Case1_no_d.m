@@ -1,8 +1,51 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames)
-%AggVarsPath is T+1 periods long (period 0 (before the reforms are announced) is the initial value).
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames,PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames, simoptions, transpathoptions)
+% AggVarsPath is T+1 periods long (period 0 (before the reforms are announced) is the initial value).
 % Period 1 is thus once the whole reforms  path (prices and params) is know, but with the agents 
 % distribution still being it's inital value.
 
+% It is hardcoded that simoptions.outputasstructure=1, but need to set to zero for subfunction
+simoptions.outputasstructure=0;
+
+%% Check if using _tminus1 and/or _tplus1 variables.
+if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+else
+    tplus1priceNames=[];
+    tminus1priceNames=[];
+    tminus1AggVarsNames=[];
+    tplus1pricePathkk=[];
+end
+
+use_tplus1price=0;
+if length(tplus1priceNames)>0
+    use_tplus1price=1;
+end
+use_tminus1price=0;
+if length(tminus1priceNames)>0
+    use_tminus1price=1;
+    for tt=1:length(tminus1priceNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{tt})
+            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
+            dbstack
+            break
+        end
+    end
+end
+use_tminus1AggVars=0;
+if length(tminus1AggVarsNames)>0
+    use_tminus1AggVars=1;
+    for tt=1:length(tminus1AggVarsNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{tt})
+            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
+            dbstack
+            break
+        end
+    end
+end
+% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+
+%%
 N_z=prod(n_z);
 N_a=prod(n_a);
 
@@ -13,19 +56,11 @@ Policy=zeros(N_a,N_z,'gpuArray');
 
 unkronoptions.parallel=2;
 
-beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-IndexesForDiscountFactorInPathParams=CreateParamVectorIndexes(ParamPathNames,DiscountFactorParamNames);
 ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
-IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PricePathNames, ReturnFnParamNames);
-IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
-IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,ReturnFnParamNames);
-% FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters, FnsToEvaluateParamNames));
-% IndexesForPricePathInFnsToEvaluateParams=CreateParamVectorIndexes(FnsToEvaluateParamNames, PricePathNames);
-% IndexesForFnsToEvaluateParamsInPricePath=CreateParamVectorIndexes(PricePathNames,FnsToEvaluateParamNames);
-% IndexesForPathParamsInFnsToEvaluateParams=CreateParamVectorIndexes(FnsToEvaluateParamNames, ParamPathNames);
-% IndexesForFnsToEvaluateParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,FnsToEvaluateParamNames);
+[IndexesForPricePathInReturnFnParams, IndexesPricePathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
+[IndexesForPathParamsInReturnFnParams, IndexesParamPathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
 PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 %First, go from T-1 to 1 calculating the Value function and Optimal
@@ -33,16 +68,16 @@ PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 %functions for anything later we just store the next period one in
 %Vnext, and the current period one to be calculated in V
 Vnext=V_final;
-for ii=0:T-1 %so t=T-i
+for ttr=0:T-1 %so tt=T-ttr
     
     if ~isnan(IndexesForPathParamsInDiscountFactor)
-        beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,IndexesForDiscountFactorInPathParams); % This step could be moved outside all the loops
+        beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
     end
     if ~isnan(IndexesForPricePathInReturnFnParams)
-    ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePath(T-ii,IndexesForReturnFnParamsInPricePath);
+        ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePath(T-ttr,IndexesPricePathUsedInReturnFn);
     end
     if ~isnan(IndexesForPathParamsInReturnFnParams)
-        ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ii,IndexesForReturnFnParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+        ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
     end
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
     
@@ -63,7 +98,7 @@ for ii=0:T-1 %so t=T-i
         
     end
     
-    PolicyIndexesPath(:,:,T-ii)=Policy;
+    PolicyIndexesPath(:,:,T-ttr)=Policy;
     Vnext=V;
 end
 
@@ -79,9 +114,9 @@ AgentDist=AgentDist_initial;
 %Now we have the full PolicyIndexesPath, we go forward in time from 1
 %to T using the policies to update the agents distribution generating a
 %new price path
-for ii=1:T
+for tt=1:T
     %Get the current optimal policy
-    Policy=PolicyIndexesPath(:,:,ii);
+    Policy=PolicyIndexesPath(:,:,tt);
     
     optaprime=reshape(Policy,[1,N_a*N_z]);
     
@@ -90,41 +125,52 @@ for ii=1:T
     Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
     AgentDistnext=Ptran*AgentDist;
     
-%     p=PricePath(ii,:);
-%     
-%     if ~isnan(IndexesForPricePathInFnsToEvaluateParams)
-%         FnsToEvaluateParamsVec(IndexesForPricePathInFnsToEvaluateParams)=PricePathOld(ii,IndexesForFnsToEvaluateParamsInPricePath);
-%     end
-%     if ~isnan(IndexesForPathParamsInFnsToEvaluateParams)
-%         FnsToEvaluateParamsVec(IndexesForPathParamsInFnsToEvaluateParams)=ParamPath(ii,IndexesForFnsToEvaluateParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-%     end
-%     PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-%     SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, FnsToEvaluate, FnsToEvaluateParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
-
-    for jj=1:size(PricePath,2)
-        Parameters.(PricePathNames{jj})=PricePath(ii,jj);
+    for kk=1:length(PricePathNames)
+        Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
     end
-    for jj=1:size(ParamPath,2)
-        Parameters.(ParamPathNames{jj})=ParamPath(ii,jj);
+    for kk=1:length(ParamPathNames)
+        Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+    end
+    if use_tminus1price==1
+        for pp=1:length(tminus1priceNames)
+            if tt>1
+                Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+            else
+                Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+            end
+        end
+    end
+    if use_tplus1price==1
+        for pp=1:length(tplus1priceNames)
+            kk=tplus1pricePathkk(pp);
+            Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+        end
+    end
+    if use_tminus1AggVars==1
+        for pp=1:length(use_tminus1AggVars)
+            if tt>1
+                % The AggVars have not yet been updated, so they still contain previous period values
+                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
+            else
+                Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+            end
+        end
     end
     
     PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
+    AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
 
-    AggVarsPath(ii,:)=AggVars;
+    AggVarsPath(tt,:)=AggVars;
     
     AgentDist=AgentDistnext;
 end
-% %i=T
-% p=PricePath(T,:);
-% if ~isnan(IndexesForPricesInSSvalueParamsVec)
-%     SSvalueParamsVec(IndexesForPricesInSSvalueParamsVec)=PricePathOld(T,:);
-% end
-% if ~isnan(IndexesForPathParamsInSSvalueParamsVec)
-%     SSvalueParamsVec(IndexesForPathParamsInSSvalueParamsVec)=ParamPath(T,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-% end
-% AggVarsPath(:,T)=SSvalues_AggVars_Case1_vec(AgentDist, Policy_final, SSvaluesFn, SSvalueParamsVec, 0, n_a, n_z, 0, a_grid, z_grid, pi_z,p, 2);
 
-
+% Change the output into a structure
+AggVarsPath2=AggVarsPath;
+clear AggVarsPath
+AggVarsPath=struct();
+for ff=1:length(simoptions.AggVarNames)
+    AggVarsPath.(simoptions.AggVarNames{ff}).Mean=AggVarsPath2(:,ff);
+end
 
 end

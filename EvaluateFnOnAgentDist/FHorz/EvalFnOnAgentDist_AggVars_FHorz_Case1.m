@@ -127,8 +127,16 @@ if isstruct(FnsToEvaluate)
 else
     FnsToEvaluateStruct=0;
 end
-if isfield(simoptions,'keepoutputasmatrix')
-    if simoptions.keepoutputasmatrix==1
+% if isfield(simoptions,'keepoutputasmatrix') % USE simoptions.outputasstructure instead
+%     if simoptions.keepoutputasmatrix==1
+%         FnsToEvaluateStruct=0;
+%     end
+% end
+if isfield(simoptions,'outputasstructure')
+    if simoptions.outputasstructure==1
+        FnsToEvaluateStruct=1;
+        AggVarNames=simoptions.AggVarNames;
+    elseif simoptions.outputasstructure==0
         FnsToEvaluateStruct=0;
     end
 end

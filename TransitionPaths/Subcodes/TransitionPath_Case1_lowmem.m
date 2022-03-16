@@ -1,59 +1,4 @@
-function PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames,transpathoptions)
-% This code will work for all transition paths except those that involve at
-% change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
-
-% PricePathOld is matrix of size T-by-'number of prices'
-% ParamPath is matrix of size T-by-'number of parameters that change over path'
-
-%% Check which transpathoptions have been used, set all others to defaults 
-if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-    transpathoptions.tolerance=10^(-5);
-    transpathoptions.parallel=2;
-    transpathoptions.lowmemory=0;
-    transpathoptions.exoticpreferences=0;
-    transpathoptions.oldpathweight=0.9; % default =0.9
-    transpathoptions.weightscheme=1; % default =1
-    transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=1000;
-    transpathoptions.verbose=0;
-    transpathoptions.GEnewprice=0;
-    transpathoptions.oldGE=0;
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
-        transpathoptions.tolerance=10^(-5);
-    end
-    if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=2;
-    end
-    if isfield(transpathoptions,'lowmemory')==0
-        transpathoptions.lowmemory=0;
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
-    end
-    if isfield(transpathoptions,'oldpathweight')==0
-        transpathoptions.oldpathweight=0.9;
-    end
-    if isfield(transpathoptions,'weightscheme')==0
-        transpathoptions.weightscheme=1;
-    end
-    if isfield(transpathoptions,'Ttheta')==0
-        transpathoptions.Ttheta=1;
-    end
-    if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=1000;
-    end
-    if isfield(transpathoptions,'verbose')==0
-        transpathoptions.verbose=0;
-    end
-    if isfield(transpathoptions,'GEnewprice')==0
-        transpathoptions.GEnewprice=0;
-    end
-end
+function PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions)
 
 %%
 if transpathoptions.exoticpreferences~=0
@@ -66,12 +11,117 @@ else
     end
 end
 
-if transpathoptions.parallel~=2
-    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1')
-else
-    d_grid=gpuArray(d_grid); a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    PricePathOld=gpuArray(PricePathOld);
+if transpathoptions.verbose==1
+    % Set up some things to be used later
+    pathnametitles=cell(1,2*length(PricePathNames));
+    for ii=1:length(PricePathNames)
+        pathnametitles{ii}={['Old ',PricePathNames{ii}]};
+        pathnametitles{ii+length(PricePathNames)}={['New ',PricePathNames{ii}]};
+    end
 end
+
+%% Check if using _tminus1 and/or _tplus1 variables.
+if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+else
+    tplus1priceNames=[];
+    tminus1priceNames=[];
+    tminus1AggVarsNames=[];
+    tplus1pricePathkk=[];
+end
+
+use_tplus1price=0;
+if length(tplus1priceNames)>0
+    use_tplus1price=1;
+end
+use_tminus1price=0;
+if length(tminus1priceNames)>0
+    use_tminus1price=1;
+    for ii=1:length(tminus1priceNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
+            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
+            dbstack
+            break
+        end
+    end
+end
+use_tminus1AggVars=0;
+if length(tminus1AggVarsNames)>0
+    use_tminus1AggVars=1;
+    for ii=1:length(tminus1AggVarsNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
+            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+            dbstack
+            break
+        end
+    end
+end
+% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+
+use_tminus1price
+use_tminus1AggVars
+
+%% Set up GEnewprice==3 (if relevant)
+if transpathoptions.GEnewprice==3
+    transpathoptions.weightscheme=0;
+    
+    if isstruct(GeneralEqmEqns) 
+        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
+        % Is same as order of fields in GeneralEqmEqns
+        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
+        temp=transpathoptions.GEnewprice3.howtoupdate;
+        GEeqnNames=fieldnames(GeneralEqmEqns);
+        for ii=1:length(GEeqnNames)
+            for jj=1:size(temp,1)
+                if strcmp(temp{jj,1},GEeqnNames{ii}) % Names match
+                    transpathoptions.GEnewprice3.howtoupdate{ii,1}=temp{jj,1};
+                    transpathoptions.GEnewprice3.howtoupdate{ii,2}=temp{jj,2};
+                    transpathoptions.GEnewprice3.howtoupdate{ii,3}=temp{jj,3};
+                    transpathoptions.GEnewprice3.howtoupdate{ii,4}=temp{jj,4};
+                end
+            end
+        end
+        nGeneralEqmEqns=length(GEeqnNames);
+    else
+        nGeneralEqmEqns=length(GeneralEqmEqns);
+    end
+    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
+    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    tempweight=transpathoptions.oldpathweight;
+    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
+    for ii=1:length(transpathoptions.GEnewprice3.factor)
+        if transpathoptions.GEnewprice3.factor(ii)==Inf
+            transpathoptions.GEnewprice3.factor(ii)=1;
+            transpathoptions.GEnewprice3.keepold(ii)=0;
+            transpathoptions.oldpathweight(ii)=tempweight;
+        end
+    end
+    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
+        % do nothing, this is how things should be
+    else
+        fprintf('ERROR: transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+    end
+    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
+    for ii=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for jj=1:length(PricePathNames)
+            if strcmp(transpathoptions.GEnewprice3.howtoupdate{ii,2},PricePathNames{jj})
+                transpathoptions.GEnewprice3.permute(ii)=jj;
+            end
+        end
+    end
+    if isfield(transpathoptions,'updateaccuracycutoff')==0
+        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
+    end
+end
+
+%%
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
 unkronoptions.parallel=2;
 
 N_d=prod(n_d);
@@ -79,24 +129,6 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 l_z=length(n_z);
 l_p=size(PricePathOld,2);
-
-if transpathoptions.parallel==2
-    % Make sure things are on gpu where appropriate.
-    if N_d>0
-        d_grid=gather(d_grid);
-    end
-    a_grid=gather(a_grid);
-    z_grid=gather(z_grid);
-end
-
-if N_d==0
-    PricePathNew=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames,transpathoptions);
-    return
-end
-
-if transpathoptions.verbose==1
-    transpathoptions
-end
 
 PricePathDist=Inf;
 pathcounter=0;
@@ -108,8 +140,6 @@ PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOl
 Policy=zeros(N_a,N_z,'gpuArray');
 
 GEcondnspath=zeros(size(PricePathOld),'gpuArray');
-
-
 
 if transpathoptions.verbose==1
     DiscountFactorParamNames
@@ -153,16 +183,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %functions for anything later we just store the next period one in
     %Vnext, and the current period one to be calculated in V
     Vnext=V_final;
-    for i=1:T-1 %so t=T-i
+    for ttr=1:T-1 %so tt=T-ttr
         
         if ~isnan(IndexesForPathParamsInDiscountFactor)
-            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-i,:); % This step could be moved outside all the loops
+            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
         end
         if ~isnan(IndexesForPricePathInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-i,IndexesPricePathUsedInReturnFn);
+            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,IndexesPricePathUsedInReturnFn);
         end
         if ~isnan(IndexesForPathParamsInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-i,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
         end
         
         for z_c=1:N_z
@@ -183,7 +213,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Policy(:,z_c)=maxindex;
         end
         
-        PolicyIndexesPath(:,:,T-i)=Policy;
+        PolicyIndexesPath(:,:,T-ttr)=Policy;
         Vnext=V;
     end
     % Free up space on GPU by deleting things no longer needed
@@ -196,10 +226,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Call AgentDist the current periods distn and AgentDistnext
     %the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
-    for i=1:T-1
+    for tt=1:T-1
                 
         %Get the current optimal policy
-        Policy=PolicyIndexesPath(:,:,i);
+        Policy=PolicyIndexesPath(:,:,tt);
         
         optaprime=shiftdim(ceil(Policy/N_d),-1); % This shipting of dimensions is probably not necessary
         optaprime=reshape(optaprime,[1,N_a*N_z]);
@@ -209,14 +239,38 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
         AgentDistnext=Ptran*AgentDist;
         
-        p=PricePathOld(i,:);
-        
-        for nn=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{nn})=ParamPath(i,nn);
+        GEprices=PricePathOld(tt,:);
+                
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePathOld(T-tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
-        for nn=1:length(PricePathNames)
-            Parameters.(PricePathNames{nn})=PricePathOld(i,nn);
-            Parameters.([PricePathNames{nn},'_tplus1'])=PricePathOld(i+1,nn); % Make is so that the time t+1 variables can be used
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(T-tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        end
+        if use_tminus1price==1
+            for pp=1:length(tminus1priceNames)
+                if tt>1
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+                else
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                end
+            end
+        end
+        if use_tplus1price==1
+            for pp=1:length(tplus1priceNames)
+                kk=tplus1pricePathkk(pp);
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+            end
+        end
+        if use_tminus1AggVars==1
+            for pp=1:length(use_tminus1AggVars)
+                if tt>1
+                    % The AggVars have not yet been updated, so they still contain previous period values
+                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
+                else
+                    Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+                end
+            end
         end
         
         % The next five lines should really be replaced with a custom
@@ -229,43 +283,38 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
         PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2);
-        for ii=1:length(transpathoptions.AggVarsNames)
-            Parameters.(transpathoptions.AggVarsNames{ii})=AggVars(ii);
-        end
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2, simoptions);
         
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
-        if transpathoptions.GEnewprice==1
-            if heteroagentoptions.oldGE==1
-                PricePathNew(i,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, 2));
-            else
-                PricePathNew(i,:)=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters, 2));
-            end
+        if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
+                AggVarNames=fieldnames(AggVars);
+                for ii=1:length(AggVarNames)
+                    Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+                end
+                PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-            fprintf('ERROR: transpathoptions.GEnewprice==0 NOT YET IMPLEMENTED (TransitionPath_Case1_no_d.m)')
-            return
-%             for j=1:length(MarketPriceEqns)
-%                 GEeqn_temp=@(p) real(MarketPriceEqns{j}(SSvalues_AggVars,p, MarketPriceParamsVec));
-%                 PricePathNew(i,j)=fzero(GEeqn_temp,p);
-%             end
-        % Note there is no GEnewprice==2, I did this to make it harder to make a mistake
+            % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
+            for j=1:length(GeneralEqmEqns)
+                AggVarNames=fieldnames(AggVars);
+                for ii=1:length(AggVarNames)
+                    Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+                end
+                GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
+                PricePathNew(tt,j)=fminsearch(GEeqn_temp,GEprices);
+            end
+        % Note there is no GEnewprice==2, it uses a completely different code
         elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-            if transpathoptions.oldGE==1
-                p_i=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames,2));
-            else
-                p_i=real(GeneralEqmConditions_Case1_new(GeneralEqmEqns, GeneralEqmEqnInputNames, Parameters,2));
+            AggVarNames=fieldnames(AggVars);
+            for ii=1:length(AggVarNames)
+                Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
-            GEcondnspath(i,:)=p_i; p_i1=p_i;
+            p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+%             GEcondnspath(i,:)=p_i;
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
-            PricePathNew(i,:)=PricePathOld(i,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
-            if i==1
-                p_i1
-                transpathoptions.GEnewprice3.permute
-                transpathoptions.GEnewprice3.add
-                transpathoptions.GEnewprice3.factor
-                p_i
-            end
+            I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
+            p_i=I_makescutoff.*p_i;
+            PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
         
         AgentDist=AgentDistnext;
@@ -278,15 +327,36 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
-        disp('Old, New, GEcondns')
-        [PricePathOld,PricePathNew,GEcondnspath]
-%         disp('Old, New')
-%         [PricePathOld,PricePathNew]
+        fprintf('Number of iteration on the path: %i \n',pathcounter)
+        
+        pathnametitles{:}
+        [PricePathOld,PricePathNew]
+        
+        if transpathoptions.graphpricepath==1
+            if length(PricePathNames)>12
+                ncolumns=4;
+            elseif length(PricePathNames)>6
+                ncolumns=3;
+            else
+                ncolumns=2;
+            end
+            nrows=ceil(length(PricePathNames)/ncolumns);
+            figure(1)
+            for pp=1:length(PricePathNames)
+                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+                title(PricePathNames{pp})
+            end
+        end
+    end
+    if transpathoptions.verbosegraphs==1
+        figure(pricepathfig)
+        plot(PricePathNew)
     end
     
-    %Set price path to be 9/10ths the old path and 1/10th the new path (but
-    %making sure to leave prices in periods 1 & T unchanged).
-    if transpathoptions.weightscheme==1 % Just a constant weighting
+    %Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
+    if transpathoptions.weightscheme==0
+        PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
+    elseif transpathoptions.weightscheme==1 % Just a constant weighting
         PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
@@ -318,6 +388,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 %     if pathcounter==1
 %         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
 %     end
+
+    if transpathoptions.historyofpricepath==1
+        % Store the whole history of the price path and save it every ten iterations
+        PricePathHistory{pathcounter,1}=PricePathDist;
+        PricePathHistory{pathcounter,2}=PricePathOld;        
+        if rem(pathcounter,10)==1
+            save ./SavedOutput/TransPath_Internal.mat PricePathHistory
+        end
+    end
     
     pathcounter=pathcounter+1;
     
