@@ -354,7 +354,6 @@ else
     ReturnFnParamNames={};
 end
 
-
 if ~isstruct(FnsToEvaluate)
     error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
 end
