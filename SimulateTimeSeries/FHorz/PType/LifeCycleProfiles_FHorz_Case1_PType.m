@@ -182,14 +182,11 @@ for ii=1:N_i
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                sprintf('(it is possible this is just a coincidence of number of columns) \n')
-                dbstack
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
             end
         end
     end
@@ -342,13 +339,13 @@ if simoptions.groupptypesforstats==1
     
     ngroups=length(simoptions.agegroupings);
     % Do some preallocation of the output structure
-    AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups,'gpuArray');
-    AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-    AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(simoptions.nquantiles,ngroups,'gpuArray');
+    AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(simoptions.npoints,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
+    AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups); % Includes the min and max values
+    AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(simoptions.nquantiles,ngroups);
     
     if isstruct(FnsToEvaluate)
         numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
@@ -359,12 +356,12 @@ if simoptions.groupptypesforstats==1
     for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         
         N_i_kk=sum(FnsAndPTypeIndicator(kk,:)); % How many agents is this statistic calculated for
-        StationaryDistVec_kk=zeros(N_a_temp*N_z_temp,N_j_temp,N_i_kk,'gpuArray');
-        Values_kk=zeros(N_a_temp*N_z_temp,N_j_temp,N_i_kk,'gpuArray');
+        StationaryDistVec_kk=zeros(N_a_temp*N_z_temp,N_j_temp,N_i_kk); % This was originally a gpuArray, but it became a blockage as it requires substantially more gpu memory that the other things around it
+        Values_kk=zeros(N_a_temp*N_z_temp,N_j_temp,N_i_kk); % This was originally a gpuArray, but it became a blockage as it requires substantially more gpu memory that the other things around it
         
         for ii=1:N_i_kk
-            StationaryDistVec_kk(:,:,ii)=StationaryDist.(Names_i{ii}); % Note, has already been multiplied by StationaryDist.ptweights(ii)
-            Values_kk(:,:,ii)=ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)]);
+            StationaryDistVec_kk(:,:,ii)=gather(StationaryDist.(Names_i{ii})); % Note, has already been multiplied by StationaryDist.ptweights(ii)
+            Values_kk(:,:,ii)=gather(ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)]));
         end
         
         for jj=1:length(simoptions.agegroupings)
@@ -404,9 +401,9 @@ if simoptions.groupptypesforstats==1
             
             % Calculate the 'age conditional' quantile means (ventiles by default)
             % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-            QuantileIndexes=zeros(1,simoptions.nquantiles-1,'gpuArray');
-            QuantileCutoffs=zeros(1,simoptions.nquantiles-1,'gpuArray');
-            QuantileMeans=zeros(1,simoptions.nquantiles,'gpuArray');
+            QuantileIndexes=zeros(1,simoptions.nquantiles-1);
+            QuantileCutoffs=zeros(1,simoptions.nquantiles-1);
+            QuantileMeans=zeros(1,simoptions.nquantiles);
             
             for ll=1:simoptions.nquantiles-1
                 tempindex=find(CumSumSortedWeights>=ll/simoptions.nquantiles,1,'first');

@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, FnsToEvaluateParamNames, PricePath, ParamPath, Parameters, T, V_final, Policy_final, AgentDist_initial, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, PricePath, ParamPath, Parameters, T, V_final, Policy_final, AgentDist_initial, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, AgeWeightsParamNames, transpathoptions)
 %AggVarsPath is T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
 % To fix idea of the size/shape: AggVarsPath=nan(T,length(FnsToEvaluate));
 
@@ -195,6 +195,15 @@ if isstruct(FnsToEvaluate)
 else
     FnsToEvaluateStruct=0;
 end
+
+% Create ReturnFnParamNames
+temp=getAnonymousFnInputNames(ReturnFn);
+if length(temp)>(l_d+l_a+l_a+l_z)
+    ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+else
+    ReturnFnParamNames={};
+end
+
 
 %%
 if transpathoptions.parallel==2 

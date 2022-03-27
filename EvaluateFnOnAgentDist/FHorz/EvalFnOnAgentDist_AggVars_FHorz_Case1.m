@@ -14,7 +14,7 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if exist('Parallel','var')==0
+if ~exist('Parallel','var')
     if isa(StationaryDist, 'gpuArray')
         Parallel=2;
     else
@@ -30,15 +30,16 @@ else
     end
 end
 
+if ~exist('simoptions','var')
+    simoptions=struct();
+end
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
-if exist('simoptions','var')
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
-    end
+if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+    simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+end
+if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+    simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
 end
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
@@ -127,11 +128,6 @@ if isstruct(FnsToEvaluate)
 else
     FnsToEvaluateStruct=0;
 end
-% if isfield(simoptions,'keepoutputasmatrix') % USE simoptions.outputasstructure instead
-%     if simoptions.keepoutputasmatrix==1
-%         FnsToEvaluateStruct=0;
-%     end
-% end
 if isfield(simoptions,'outputasstructure')
     if simoptions.outputasstructure==1
         FnsToEvaluateStruct=1;

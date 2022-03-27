@@ -194,10 +194,7 @@ for ii=1:N_i
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                fprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                fprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                fprintf('(it is possible this is just a coincidence of number of columns) \n')
-                dbstack
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
             end
         end
     end
@@ -221,7 +218,7 @@ for ii=1:N_i
 %     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType]=PType_FnsToEvaluate(FnsToEvaluate,FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     
-    simoptions_temp.keepoutputasmatrix=1;
+    simoptions_temp.outputasstructure=0;
     StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
         
     if simoptions.groupptypesforstats==1

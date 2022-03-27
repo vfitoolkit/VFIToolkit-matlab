@@ -195,10 +195,7 @@ for ii=1:N_i
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                fprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                fprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                fprintf('(it is possible this is just a coincidence of number of columns) \n')
-                dbstack
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
             end
         end
     end
@@ -259,8 +256,9 @@ if simoptions.groupptypesforstats==1
         ValuesVec=[];
         for ii=1:N_i
             if FnsAndPTypeIndicator(kk,ii)==1
-                DistVec=[DistVec; StationaryDist.(Names_i{ii})/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
-                ValuesVec=[ValuesVec;ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)])];
+                % The 'gather' was added as this was otherwise a gpu memory bottleneck
+                DistVec=[DistVec; gather(StationaryDist.(Names_i{ii}))/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
+                ValuesVec=[ValuesVec;gather(ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)]))];
             end
         end
         
