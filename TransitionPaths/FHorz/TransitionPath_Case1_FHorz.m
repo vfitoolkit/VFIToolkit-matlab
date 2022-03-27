@@ -152,6 +152,17 @@ else
     % transpathoptions.updateageweights %Don't declare if not being used
 end
 
+if isfield(transpathoptions,'p_eqm_init')
+    p_eqm_init=transpathoptions.p_eqm_init;
+    use_p_eqm_init=1;
+else
+    use_p_eqm_init=0;
+end
+
+
+transpathoptions
+disp('Here1')
+
 %% Check which vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
@@ -248,6 +259,8 @@ else
     end
 end
 
+disp('Here2')
+
 %% Check the sizes of some of the inputs
 if isempty(n_d)
     N_d=0;
@@ -319,6 +332,8 @@ else
    PricePathOld=gather(PricePathOld);
 end
 
+disp('Here3')
+
 %%
 if transpathoptions.usestockvars==1 
     % Get the stock variable objects out of transpathoptions.
@@ -378,6 +393,7 @@ if isfield(transpathoptions,'updateageweights')
     transpathoptions.AgeWeightsParamPath=AgeWeightsParamPath; % Store it so as to pass to sub-functions.
 end
 
+disp('Here4')
 
 %% Check if z_grid and/or pi_z depend on prices. If not then create pi_z_J and z_grid_J for the entire transition before we start
 % If 'exogenous shock fn' is used, then precompute it to save evaluating it numerous times
@@ -387,7 +403,7 @@ transpathoptions.zpathprecomputed=0;
 if isfield(vfoptions,'pi_z_J')
     transpathoptions.zpathprecomputed=1;
     transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
-if isfield(vfoptions,'ExogShockFn')
+elseif isfield(vfoptions,'ExogShockFn')
     % Note: If ExogShockFn depends on the path, it must be done via a parameter
     % that depends on the path (i.e., via ParamPath or PricePath)
     overlap=0;
@@ -462,8 +478,15 @@ if isfield(vfoptions,'ExogShockFn')
     end
 end
 
+disp('Here5')
 
 %% Handle ReturnFn and FnsToEvaluate structures
+l_d=length(n_d);
+if n_d(1)==0
+    l_d=0;
+end
+l_a=length(n_a);
+l_z=length(n_z);
 
 % Create ReturnFnParamNames
 temp=getAnonymousFnInputNames(ReturnFn);
@@ -492,7 +515,7 @@ simoptions.outputasstructure=1;
 simoptions.AggVarNames=AggVarNames;
 
 %%
-
+transpathoptions
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
         if transpathoptions.usestockvars==0
@@ -508,6 +531,8 @@ if transpathoptions.GEnewprice~=2
                 [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions);
             end
         end
+    else
+        error('VFI Toolkit does not offer transition path without gpu. Would be too slow to be useful.')
     end
     % Switch the solution into structure for output.
     for ii=1:length(PricePathNames)

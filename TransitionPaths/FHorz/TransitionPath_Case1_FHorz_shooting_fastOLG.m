@@ -15,16 +15,6 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 l_p=length(PricePathNames);
 
-% % Make sure things are on cpu where appropriate.
-% if N_d>0
-%     d_grid=gather(d_grid);
-% end
-% a_grid=gather(a_grid);
-% z_grid=gather(z_grid);
-
-if transpathoptions.verbose==1
-    transpathoptions
-end
 if transpathoptions.verbosegraphs==1
     valuefnfig=figure;
     title('Value Function')
@@ -32,8 +22,6 @@ if transpathoptions.verbosegraphs==1
     pricepathfig=figure;
     title('Price Path') 
     plot(PricePathOld)
-%     PricePathNames
-%     PricePathNames{:}
     legend(PricePathNames{:})
 
     agentdistfig=figure;
@@ -43,18 +31,6 @@ if transpathoptions.verbosegraphs==1
     agestoplot=[1,floor(N_j/5),floor(2*N_j/5),floor(3*N_j/5),floor(4*N_j/5),N_j]; % When plotting agent distribution
 end
 
-PricePathDist=Inf;
-pathcounter=1;
-
-V_final=reshape(V_final,[N_a,N_z,N_j]);
-AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,N_j]);
-V=zeros(size(V_final),'gpuArray'); %preallocate space
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-if N_d>0
-    Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
-else
-    Policy=zeros(N_a,N_z,N_j,'gpuArray');
-end
 if transpathoptions.verbose==1
     DiscountFactorParamNames
     ReturnFnParamNames
@@ -62,11 +38,27 @@ if transpathoptions.verbose==1
     PricePathNames
 end
 
+%%
+if transpathoptions.verbose==1
+    % Set up some things to be used later
+    pathnametitles=cell(1,2*length(PricePathNames));
+    for tt=1:length(PricePathNames)
+        pathnametitles{tt}={['Old ',PricePathNames{tt}]};
+        pathnametitles{tt+length(PricePathNames)}={['New ',PricePathNames{tt}]};
+    end
+end
+
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
     [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+else
+    tplus1priceNames=[];
+    tminus1priceNames=[];
+    tminus1AggVarsNames=[];
+    tplus1pricePathkk=[];
 end
-% 
+ 
 use_tplus1price=0;
 if length(tplus1priceNames)>0
     use_tplus1price=1;
@@ -94,6 +86,10 @@ if length(tminus1AggVarsNames)>0
     end
 end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+
+use_tminus1price
+use_tminus1AggVars
+
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
@@ -145,6 +141,21 @@ if isfield(transpathoptions,'updateageweights')
     updateageweights=1;
 end
 % Note: age weights are not used by value fn codes, but are used to simulate the agent distribution, and for some aggregate variables.
+
+%%
+
+PricePathDist=Inf;
+pathcounter=1;
+
+V_final=reshape(V_final,[N_a,N_z,N_j]);
+AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,N_j]);
+V=zeros(size(V_final),'gpuArray'); %preallocate space
+PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+if N_d>0
+    Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
+else
+    Policy=zeros(N_a,N_z,N_j,'gpuArray');
+end
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations

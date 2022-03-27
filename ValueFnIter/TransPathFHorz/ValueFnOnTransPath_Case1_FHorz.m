@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,AgeWeightsParamNames, transpathoptions, vfoptions, simoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, AgeWeightsParamNames, transpathoptions, vfoptions, simoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 %% Check which transpathoptions have been used, set all others to defaults 
@@ -149,6 +149,14 @@ end
 % AgeWeightsParamNames are not actually needed as an input, but require
 % them anyway to make it easier to 'copy-paste' input lists from other
 % similar functions the user is likely to be using.
+
+%% Create ReturnFnParamNames
+temp=getAnonymousFnInputNames(ReturnFn);
+if length(temp)>(l_d+l_a+l_a+l_z)
+    ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+else
+    ReturnFnParamNames={};
+end
 
 
 %%
