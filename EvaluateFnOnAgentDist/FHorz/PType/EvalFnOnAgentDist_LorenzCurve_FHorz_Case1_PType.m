@@ -257,7 +257,7 @@ if simoptions.groupptypesforstats==1
         for ii=1:N_i
             if FnsAndPTypeIndicator(kk,ii)==1
                 % The 'gather' was added as this was otherwise a gpu memory bottleneck
-                DistVec=[DistVec; gather(StationaryDist.(Names_i{ii}))/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
+                DistVec=[DistVec; gather(StationaryDist.(Names_i{ii})/SigmaNxi)]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
                 ValuesVec=[ValuesVec;gather(ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)]))];
             end
         end

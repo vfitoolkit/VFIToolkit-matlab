@@ -151,6 +151,15 @@ end
 % similar functions the user is likely to be using.
 
 %% Create ReturnFnParamNames
+l_d=0;
+if ~isempty(n_d)
+    if n_d(1)~=0
+        l_d=length(n_d);
+    end
+end
+l_a=length(n_a);
+l_z=length(n_z);
+
 temp=getAnonymousFnInputNames(ReturnFn);
 if length(temp)>(l_d+l_a+l_a+l_z)
     ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
