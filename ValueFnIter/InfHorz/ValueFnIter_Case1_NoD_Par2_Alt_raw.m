@@ -1,5 +1,7 @@
-function [V, Policy]=ValueFnIter_Case1_NoD_Par2_raw(V, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
+function [V, Policy]=ValueFnIter_Case1_NoD_Par2_Alt_raw(V, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
+
+error('ValueFnIter_Case1_NoD_Par2_Alt_raw does not yet work (you probably just want to use ValueFnIter_Case1_NoD_Par2_raw \n')
 
 N_a=prod(n_a);
 N_z=prod(n_z);
