@@ -1,4 +1,4 @@
-function [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d,l_a,l_z,FnsToEvaluate_StructToCell)
+function [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d,l_a,l_z,FnsToEvaluate_StructToCell)
 % Figure out which functions are actually relevant to the present PType. 
 % Only the relevant ones need to be evaluated.
 % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
@@ -9,7 +9,8 @@ if ~exist('FnsToEvaluate_StructToCell','var')
     FnsToEvaluate_StructToCell=0; % Keep structure as structure by default
 end
 
-if isstruct(FnsToEvaluate) && FnsToEvaluate_StructToCell==0 % Structure
+% Only works for Version 2, that is it hardcodes for isstruct(FnsToEvaluate)==1
+if FnsToEvaluate_StructToCell==0 % Structure
     % Just conver from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
     FnNames=fieldnames(FnsToEvaluate);
     numFnsToEvaluate=length(FnNames);
@@ -39,7 +40,7 @@ if isstruct(FnsToEvaluate) && FnsToEvaluate_StructToCell==0 % Structure
         end
     end
 
-elseif isstruct(FnsToEvaluate) && FnsToEvaluate_StructToCell==1 % Structure, but output as cell
+elseif FnsToEvaluate_StructToCell==1 % Structure, but output as cell
     FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten.
     FnNames=fieldnames(FnsToEvaluate);
     numFnsToEvaluate=length(FnNames);
@@ -74,36 +75,6 @@ elseif isstruct(FnsToEvaluate) && FnsToEvaluate_StructToCell==1 % Structure, but
             FnsAndPTypeIndicator_ii(ff)=1;
         end
     end
-    
-else
-    FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten.
-    numFnsToEvaluate=length(FnsToEvaluate);
-    WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
-    jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-    for ff=1:numFnsToEvaluate
-        if isa(FnsToEvaluate{ff},'struct')
-            if isfield(FnsToEvaluate{ff}, Names_i{ii})
-                FnsToEvaluate_temp{jj}=FnsToEvaluate{ff}.(Names_i{ii});
-                if isa(FnsToEvaluateParamNames(ff).Names,'struct')
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(ff).Names.(Names_i{ii});
-                else
-                    FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(ff).Names;
-                end
-                WhichFnsForCurrentPType(ff)=jj; jj=jj+1;
-                % else
-                %  % do nothing as this FnToEvaluate is not relevant for the current PType
-                % % Implicitly, WhichFnsForCurrentPType(kk)=0
-                FnsAndPTypeIndicator_ii(ff)=1;
-            end
-        else
-            % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            FnsToEvaluate_temp{jj}=FnsToEvaluate{ff};
-            FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(ff).Names;
-            WhichFnsForCurrentPType(ff)=jj; jj=jj+1;
-            FnsAndPTypeIndicator_ii(ff)=1;
-        end
-    end
-    varargout={FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType};
 end
 
 

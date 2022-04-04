@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, PTypeDistParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 % Inputting vfoptions and simoptions is optional (they are not required inputs)
 %
 % Allows for different permanent (fixed) types of agent. 
@@ -126,7 +126,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.verbose=0;
     end
     
-    PTypeStructure.(iistr).simoptions.keepoutputasmatrix=1; % Used by AggVars (in heteroagent subfn)
+    PTypeStructure.(iistr).simoptions.outputasstructure=0; % Used by AggVars (in heteroagent subfn)
 
     if heteroagentoptions.verbose==1
         fprintf('Setting up, Permanent type: %i of %i \n',ii, PTypeStructure.N_i)
@@ -190,6 +190,19 @@ for ii=1:PTypeStructure.N_i
         end
     end
     
+    if PTypeStructure.(iistr).n_d(1)==0
+        PTypeStructure.(iistr).l_d=0;
+    else
+        PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
+    end
+    PTypeStructure.(iistr).l_a=length(PTypeStructure.(iistr).n_a);
+    PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);
+    if isfield(PTypeStructure.(iistr).simoptions,'n_e')
+        PTypeStructure.(iistr).l_e=length(PTypeStructure.(iistr).simoptions.n_e);
+    else
+        PTypeStructure.(iistr).l_e=0;
+    end
+    
     PTypeStructure.(iistr).d_grid=d_grid;
     if isa(d_grid,'struct')
         PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
@@ -249,6 +262,12 @@ for ii=1:PTypeStructure.N_i
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
+    temp=getAnonymousFnInputNames(PTypeStructure.(iistr).ReturnFn);
+    if length(temp)>(PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
+        PTypeStructure.(iistr).ReturnFnParamNames={temp{PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        PTypeStructure.(iistr).ReturnFnParamNames={};
+    end
     
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
@@ -295,10 +314,6 @@ for ii=1:PTypeStructure.N_i
     if isa(DiscountFactorParamNames,'struct')
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
     end
-    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
-    if isa(ReturnFnParamNames,'struct')
-        PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames.(Names_i{ii});
-    end
     PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
         if isfield(AgeWeightsParamNames,Names_i{ii})
@@ -322,7 +337,7 @@ for ii=1:PTypeStructure.N_i
     end
     l_a_temp=length(PTypeStructure.(iistr).n_a);
     l_z_temp=length(PTypeStructure.(iistr).n_z);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
@@ -349,7 +364,7 @@ end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
 % GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 
 p0=nan(nGEprices,1);
 for ii=1:nGEprices
