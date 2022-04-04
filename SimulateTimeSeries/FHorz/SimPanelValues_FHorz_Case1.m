@@ -9,10 +9,6 @@ function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvalu
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
-N_a=prod(n_a);
-N_z=prod(n_z);
-N_d=prod(n_d);
-
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
@@ -39,6 +35,85 @@ else
     simoptions.numbersims=10^3;
 end
 
+%%
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+
+if fieldexists_pi_z_J
+    for jj=1:N_j
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,:,jj),1);
+    end
+elseif fieldexists_ExogShockFn==1
+    for jj=1:N_j
+        if fieldexists_ExogShockFnParamNames==1
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for kk=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
+            end
+            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        else
+            [z_grid,~]=simoptions.ExogShockFn(jj);
+        end
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
+    end
+else
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+    for jj=1:N_j
+        fullgridvals(jj).z_gridvals=z_gridvals;
+    end
+end
+
+% If using n_e just put it inside n_z for the purpose of simulating panel
+% data (note, creating a different code would be marginally faster, but I
+% am not in the mood for doing so just now as likely speed gain is small)
+if isfield(simoptions,'n_e')
+    % Because of how FnsToEvaluate works I can just get the e variables and
+    % then 'combine' them with z
+    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+    
+%     N_e=prod(simoptions.n_e);
+    l_e=length(simoptions.n_e);
+    
+    if fieldexists_pi_e_J==1
+        e_grid_J=simoptions.e_grid_J;
+    elseif fieldexists_EiidShockFn==1
+        e_grid_J=zeros(sum(simoptions.n_e),N_j);
+        for jj=1:N_j
+            if fieldexists_EiidShockFnParamNames==1
+                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                for ii=1:length(EiidShockFnParamsVec)
+                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                end
+                [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+            else
+                [e_grid,~]=simoptions.EiidShockFn(jj);
+            end
+            e_grid_J(:,jj)=gather(e_grid);
+        end
+    else
+        e_grid_J=repmat(simoptions.e_grid,1,N_j);
+    end
+    
+    % Now combine into z
+    if n_z(1)==0
+        l_z=l_e;
+        n_z=simoptions.n_e;
+        z_grid_J=e_grid_J;
+    else
+        l_z=l_z+l_e;
+        n_z=[n_z,simoptions.n_e];
+        z_grid_J=[z_grid_J; e_grid_J];
+    end
+    N_z=prod(n_z);
+        
+end
+
+%%
 if isempty(n_d)
     n_d=0;
     l_d=0;
@@ -100,35 +175,6 @@ a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices
 
 d_val=zeros(1,l_d);
 aprime_val=zeros(1,l_a);
-
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-
-if fieldexists_pi_z_J
-    for jj=1:N_j
-        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,:,jj),1);
-    end
-elseif fieldexists_ExogShockFn==1
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for kk=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-            end
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        else
-            [z_grid,~]=simoptions.ExogShockFn(jj);
-        end
-        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
-    end
-else
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
-    for jj=1:N_j
-        fullgridvals(jj).z_gridvals=z_gridvals;
-    end
-end
 
 %%
 SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die' (reach N_j) before end of panel

@@ -1,4 +1,4 @@
-function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, FnsToEvaluateParamNames, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -207,7 +207,7 @@ for ii=1:N_i
     end
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate, FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 %     % Figure out which functions are actually relevant to the present
 %     % PType. Only the relevant ones need to be evaluated.
@@ -424,6 +424,11 @@ if simoptions.groupptypesforstats==1
             % Max value
             tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
             maxvalue=SortedValues(tempindex);
+            % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
+            if isempty(maxvalue)
+                tempindex=find(CumSumSortedWeights>=(1-10*simoptions.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
+                maxvalue=SortedValues(tempindex);
+            end
             AgeConditionalStats(kk).QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
             AgeConditionalStats(kk).QuantileMeans(:,jj)=QuantileMeans';
             
@@ -442,17 +447,6 @@ if isstruct(FnsToEvaluate) && simoptions.groupptypesforstats==1
     AggVarNames=fieldnames(FnsToEvaluate);
 %     if simoptions.groupptypesforstats==0
         % Do nothing
-%         for ii=1:N_i
-%             for ff=1:length(AggVarNames)
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).Mean=AgeConditionalStats2(ff).(Names_i{ii}).Mean;
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).Median=AgeConditionalStats2(ff).(Names_i{ii}).Median;
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).Variance=AgeConditionalStats2(ff).(Names_i{ii}).Variance;
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).LorenzCurve=AgeConditionalStats2(ff).(Names_i{ii}).LorenzCurve;
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).Gini=AgeConditionalStats2(ff).(Names_i{ii}).Gini;
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).QuantileCutoffs=AgeConditionalStats2(ff).(Names_i{ii}).QuantileCutoffs;
-%                 AgeConditionalStats.(AggVarNames{ff}).(Names_i{ii}).QuantileMeans=AgeConditionalStats2(ff).(Names_i{ii}).QuantileMeans;
-%             end
-%         end
 %     else % simoptions.groupptypesforstats==1
         for ff=1:length(AggVarNames)
             AgeConditionalStats.(AggVarNames{ff}).Mean=AgeConditionalStats2(ff).Mean;
