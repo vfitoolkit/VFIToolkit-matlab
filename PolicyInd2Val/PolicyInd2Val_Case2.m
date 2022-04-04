@@ -1,12 +1,12 @@
-function PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid,Parallel)
-% Parallel is an optional input
+function PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid)
 
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
+if isgpuarray(PolicyIndexes)
+    Parallel=2;
+else
+    Parallel=1;
 end
 
 l_d=length(n_d);
-% l_a=length(n_a);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -31,22 +31,7 @@ if Parallel==2
     end
     
     PolicyValues=reshape(PolicyValues,[l_d,n_a,n_z]);
-end
-
-% % FOLLOWING COULD BE MADE MUCH FASTER BY VECTORIZATION (ABOVE SHOULD WORK
-% % REGARDLESS OF VALUE OF Parallel???)
-% if Parallel~=2
-%     PolicyValues=zeros(l_d,N_a,N_z);
-%     for a_c=1:N_a
-%         for z_c=1:N_z
-%             temp_d=ind2grid_homemade(n_d,PolicyIndexes(a_c,z_c),d_grid);
-%             for ii=1:length(n_d)
-%                 PolicyValues(ii,a_c,z_c)=temp_d(ii);
-%             end
-%         end
-%     end
-% end
-if Parallel~=2 % Is exactly the same as Parallel==2, except now array rather than gpuArray
+else
     PolicyIndexes=reshape(PolicyIndexes,[l_d,N_a*N_z]);
     PolicyValues=zeros(l_d,N_a*N_z);
     

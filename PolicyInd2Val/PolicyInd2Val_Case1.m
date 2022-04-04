@@ -1,8 +1,9 @@
-function PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid, Parallel)
-% Parallel is an optional input
+function PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid)
 
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
+if isgpuarray(PolicyIndexes)
+    Parallel=2;
+else
+    Parallel=1;
 end
 
 if n_d(1)==0
@@ -121,35 +122,6 @@ if Parallel~=2
         PolicyValues=reshape(PolicyValues,[l_d+l_a,n_a,n_z]);
     end
 end
-
-% % % FOLLOWING COULD BE MADE MUCH FASTER BY VECTORIZATION
-% % if Parallel~=2
-% %     if n_d(1)==0
-% %         PolicyValues=zeros(length(n_a),N_a,N_z); %NOTE: this is not actually in Kron form
-% %         for a_c=1:N_a
-% %             for z_c=1:N_z
-% %                 temp_a=ind2grid_homemade(PolicyIndexes(a_c,z_c),n_a,a_grid);
-% %                 for ii=1:length(n_a)
-% %                     PolicyValues(ii,a_c,z_c)=temp_a(ii);
-% %                 end
-% %             end
-% %         end
-% %     else
-% %         PolicyValues=zeros(length(n_d)+length(n_a),N_a,N_z);
-% %         for a_c=1:N_a
-% %             for z_c=1:N_z
-% %                 temp_d=ind2grid_homemade(n_d,PolicyIndexes(1,a_c,z_c),d_grid);
-% %                 for ii=1:length(n_d)
-% %                     PolicyValues(ii,a_c,z_c)=temp_d(ii);
-% %                 end
-% %                 temp_a=ind2grid_homemade(n_a,PolicyIndexes(2,a_c,z_c),a_grid);
-% %                 for ii=1:length(n_a)
-% %                     PolicyValues(length(n_d)+ii,a_c,z_c)=temp_a(ii);
-% %                 end
-% %             end
-% %         end
-% %     end
-% % end
 
 
 end

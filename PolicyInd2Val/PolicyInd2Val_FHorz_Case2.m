@@ -1,17 +1,17 @@
-function PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,Parallel)
-% Parallel is an optional input
+function PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid)
 
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
+
+if isgpuarray(PolicyIndexes)
+    Parallel=2;
+else
+    Parallel=1;
 end
 
 l_d=length(n_d);
-% l_a=length(n_a);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-cumsum_n_a=cumsum(n_a);
 cumsum_n_d=cumsum(n_d);
 
 if Parallel==2
@@ -32,9 +32,7 @@ if Parallel==2
     end
     
     PolicyValues=reshape(PolicyValues,[l_d,n_a,n_z,N_j]);
-end
-
-if Parallel~=2
+else
     PolicyValues=zeros(l_d,N_a,N_z,N_j);
     for a_c=1:N_a
         for z_c=1:N_z
