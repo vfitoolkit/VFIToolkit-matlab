@@ -72,17 +72,26 @@ for ii=1:N_i
         if ~isfield(simoptions_temp,'verboseparams')
             simoptions_temp.verboseparams=0;
         end
+        if ~isfield(simoptions_temp,'ptypestorecpu')
+            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        end
     else
         simoptions_temp.verbose=0;
         simoptions_temp.verboseparams=0;
+        simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     
-    PolicyIndexes_temp=Policy.(Names_i{ii});
-    StationaryDist_temp=StationaryDist.(Names_i{ii});
+    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+        PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
+        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+    else
+        PolicyIndexes_temp=Policy.(Names_i{ii});
+        StationaryDist_temp=StationaryDist.(Names_i{ii});
+    end
     if isa(StationaryDist_temp, 'gpuArray')
         Parallel_temp=2;
     else

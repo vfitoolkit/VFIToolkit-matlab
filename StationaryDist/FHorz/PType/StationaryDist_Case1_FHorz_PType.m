@@ -48,9 +48,13 @@ for ii=1:N_i
         if ~isfield(simoptions_temp,'verboseparams')
             simoptions_temp.verboseparams=0;
         end
+        if ~isfield(simoptions_temp,'ptypestorecpu')
+            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        end
     else
         simoptions_temp.verbose=0;
         simoptions_temp.verboseparams=0;
+        simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end 
     
     if simoptions_temp.verbose==1
@@ -207,8 +211,12 @@ for ii=1:N_i
 
     StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
     
-    StationaryDist.(Names_i{ii})=StationaryDist_ii;
-
+    if simoptions_temp.ptypestorecpu==1
+        StationaryDist.(Names_i{ii})=gather(StationaryDist_ii);
+    else
+        StationaryDist.(Names_i{ii})=StationaryDist_ii;
+    end
+    
 end
 
 StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{:}),[],1); % reshape is to make sure this is a column vector

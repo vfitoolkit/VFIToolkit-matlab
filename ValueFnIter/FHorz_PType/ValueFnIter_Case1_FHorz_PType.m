@@ -36,9 +36,13 @@ for ii=1:N_i
         if ~isfield(vfoptions_temp,'verboseparams')
             vfoptions_temp.verboseparams=0;
         end
+        if ~isfield(vfoptions_temp,'ptypestorecpu')
+            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        end
     else
         vfoptions_temp.verbose=0;
         vfoptions_temp.verboseparams=0;
+        vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end 
     
     if vfoptions_temp.verbose==1
@@ -103,10 +107,16 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions);
+    [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
         
-    V.(Names_i{ii})=gather(V_ii); % GPU memory is limited, so switch solutions to the cpu
-    Policy.(Names_i{ii})=gather(Policy_ii);  % GPU memory is limited, so switch solutions to the cpu
+    if vfoptions_temp.ptypestorecpu==1
+        V.(Names_i{ii})=gather(V_ii);
+        Policy.(Names_i{ii})=gather(Policy_ii);
+    else
+        V.(Names_i{ii})=V_ii;
+        Policy.(Names_i{ii})=Policy_ii;
+    end
+        
     clear V_ii Policy_ii
 
 end

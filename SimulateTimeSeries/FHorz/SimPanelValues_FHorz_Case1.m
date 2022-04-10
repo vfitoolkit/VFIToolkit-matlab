@@ -36,13 +36,26 @@ else
 end
 
 %%
+if isempty(n_d)
+    n_d=0;
+    l_d=0;
+elseif n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+
+l_a=length(n_a);
+l_z=length(n_z);
+
+%%
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if fieldexists_pi_z_J
     for jj=1:N_j
-        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,:,jj),1);
+        fullgridvals(jj).z_gridvals=CreateGridvals(n_z,simoptions.z_grid_J(:,jj),1);
     end
 elseif fieldexists_ExogShockFn==1
     for jj=1:N_j
@@ -65,9 +78,7 @@ else
     end
 end
 
-% If using n_e just put it inside n_z for the purpose of simulating panel
-% data (note, creating a different code would be marginally faster, but I
-% am not in the mood for doing so just now as likely speed gain is small)
+% If using n_e need to set that up too
 if isfield(simoptions,'n_e')
     % Because of how FnsToEvaluate works I can just get the e variables and
     % then 'combine' them with z
@@ -99,53 +110,30 @@ if isfield(simoptions,'n_e')
         e_grid_J=repmat(simoptions.e_grid,1,N_j);
     end
     
-    % Now combine into z
-    if n_z(1)==0
-        l_z=l_e;
-        n_z=simoptions.n_e;
-        z_grid_J=e_grid_J;
-    else
-        l_z=l_z+l_e;
-        n_z=[n_z,simoptions.n_e];
-        z_grid_J=[z_grid_J; e_grid_J];
+    for jj=1:N_j
+        fullgridvals(jj).e_gridvals=CreateGridvals(simoptions.n_e,e_grid_J(:,jj),1);
     end
-    N_z=prod(n_z);
-        
 end
 
 %%
-if isempty(n_d)
-    n_d=0;
-    l_d=0;
-elseif n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-
-l_a=length(n_a);
-l_z=length(n_z);
-
-if simoptions.parallel~=2
-    d_grid=gather(d_grid);
-    a_grid=gather(a_grid);
-    z_grid=gather(z_grid);
-end
-
-% NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
-PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);%,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
-
-SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions);
-
-% COMMENT: I COULD MAKE THINGS FASTER BY JUST DOING
-% SimPanelIndexes TO CREATE KRON, AS I AM JUST HAVING TO CONVERT TO THIS
-% LATER TO ASSIGN VALUES
-
-% Move everything to cpu for what remains.
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
-z_grid=gather(z_grid);
+
+% NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
+if isfield(simoptions,'n_e')
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+else
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+end
+simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
+SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions);
+
+disp('HERE')
+max(max(max(max(abs(PolicyIndexesKron-round(PolicyIndexesKron))))))
+
 PolicyIndexesKron=gather(PolicyIndexesKron);
+
+max(max(max(max(abs(PolicyIndexesKron-round(PolicyIndexesKron))))))
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -173,59 +161,67 @@ SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.nu
 %% Precompute the gridvals vectors.
 a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
 
-d_val=zeros(1,l_d);
-aprime_val=zeros(1,l_a);
+[dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_PolicyKron(PolicyIndexesKron,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 1);
 
 %%
-SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die' (reach N_j) before end of panel
+simperiods=simoptions.simperiods; % Helps the parfor reduce overhead
 
 %% For sure the following could be made faster by improving how I do it
 parfor ii=1:simoptions.numbersims
-    SimPanel_ii=SimPanelIndexes(:,:,ii);
+    SimPanelIndexes_ii=SimPanelIndexes(:,:,ii);
     t=0;
-    j_ind=0;
-    d_val=0; % This and following two lines are just to help matlab figure out how to parfor
-    aprime_val=0;
-    SimPanelValues_ii=zeros(length(FnsToEvaluate),simoptions.simperiods);
-    while t<=simoptions.simperiods && j_ind<N_j % Once we pass N_j all entries are just nan; j_ind<N_j last round means at most j_ind<=N_j this round
-        t=t+1;        
-        j_ind=SimPanel_ii(end,t);
+    SimPanelValues_ii=zeros(length(FnsToEvaluate),simperiods);
+    while t<=simperiods && j_ind<N_j % Once we pass N_j all entries are just nan; j_ind<N_j last round means at most j_ind<=N_j this round
+        t=t+1;
+        
+        a_ind=SimPanelIndexes_ii(1,t);
+        z_ind=SimPanelIndexes_ii(2,t);
+        j_ind=SimPanelIndexes_ii(3,t);
+        
+        az_ind=a_ind+N_a*(z_ind-1)
 
-        a_sub=SimPanel_ii(1:l_a,t);
-        a_ind=sub2ind_homemade(n_a,a_sub);
         a_val=a_gridvals(a_ind,:);
-        
-        z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
-        z_ind=sub2ind_homemade(n_z,z_sub);
         z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
+
+%         j_ind=SimPanelIndexes_ii(end,t);
+% 
+%         a_sub=SimPanelIndexes_ii(1:l_a,t);
+%         a_ind=sub2ind_homemade(n_a,a_sub);
+%         a_val=a_gridvals(a_ind,:);
+%         
+%         z_sub=SimPanelIndexes_ii((l_a+1):(l_a+l_z),t);
+%         z_ind=sub2ind_homemade(n_z,z_sub);
+%         z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
+%         
+%         
+%         if l_d==0
+%             aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
+%             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
+%         else
+%             temp=PolicyIndexesKron(:,a_ind,z_ind,t);
+%             d_ind=temp(1); 
+%             aprime_ind=temp(2);
+%             d_sub=ind2sub_homemade(n_d,d_ind);
+%             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
+%             for kk1=1:l_d
+%                 if kk1==1
+%                     d_val(kk1)=d_grid(d_sub(kk1));
+%                 else
+%                     d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+%                 end
+%             end
+%         end
+%         for kk2=1:l_a
+%             if kk2==1
+%                 aprime_val(kk2)=a_grid(aprime_sub(kk2));
+%             else
+%                 aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
+%             end
+%         end
         
-        
-        if l_d==0
-            aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-            aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-        else
-            temp=PolicyIndexesKron(:,a_ind,z_ind,t);
-            d_ind=temp(1); 
-            aprime_ind=temp(2);
-            d_sub=ind2sub_homemade(n_d,d_ind);
-            aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-            for kk1=1:l_d
-                if kk1==1
-                    d_val(kk1)=d_grid(d_sub(kk1));
-                else
-                    d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-                end
-            end
-        end
-        for kk2=1:l_a
-            if kk2==1
-                aprime_val(kk2)=a_grid(aprime_sub(kk2));
-            else
-                aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-            end
-        end
-        
-        if l_d==0
+        if l_d==0            
+            aprime_val=aprimePolicy_gridvals(az_ind,:);
+
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                    tempcell=num2cell([aprime_val,a_val,z_val]');
@@ -236,6 +232,9 @@ parfor ii=1:simoptions.numbersims
                 SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
             end
         else
+            d_val=dPolicy_gridvals(az_ind,:);
+            aprime_val=aprimePolicy_gridvals(az_ind,:);
+
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
                     tempcell=num2cell([d_val,aprime_val,a_val,z_val]');

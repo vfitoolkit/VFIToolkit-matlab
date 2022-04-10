@@ -1,4 +1,4 @@
-function PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, n_e)%,options)
+function PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j, n_e)
 % n_e is an optional input
 %
 % Input: Policy (l_d+l_a,n_a,n_z,N_j);
