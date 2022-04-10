@@ -52,7 +52,7 @@ StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 if Parallel==2    
     CrossSectionCorr=zeros(length(FnsToEvaluate),length(FnsToEvaluate),'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid, Parallel);
+    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     

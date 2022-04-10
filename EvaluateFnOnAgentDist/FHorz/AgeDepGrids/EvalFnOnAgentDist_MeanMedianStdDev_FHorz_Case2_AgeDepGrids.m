@@ -76,7 +76,7 @@ daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_g
 % %         
 % %         FullStationaryDistVec((counter_Naz+1):(counter_Naz+N_a*N_z))=StationaryDistVec;
 % %         
-% %         PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid,2);
+% %         PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid);
 % %         permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
 % %         PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 % %         
@@ -145,7 +145,7 @@ daz_gridstructure=AgeDependentGrids_Create_daz_gridstructure(n_d,n_a,n_z,N_j,d_g
         
         FullStationaryDistVec((counter_Naz+1):(counter_Naz+N_a*N_z))=StationaryDistVec;
         
-        PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid,2);
+        PolicyValues=PolicyInd2Val_Case2(PolicyIndexes.(jstr),n_d,n_a,n_z,d_grid);
         permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
         PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
         

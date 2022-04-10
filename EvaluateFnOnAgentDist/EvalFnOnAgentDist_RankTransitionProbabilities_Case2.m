@@ -120,7 +120,7 @@ end
 Transitions_StartAndFinish=nan(2,NSims,length(FnsToEvaluate),'gpuArray');
 Transitions_StartAndFinish_jj=nan(2,NSims,'gpuArray');
 
-PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid,Parallel);
+PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 

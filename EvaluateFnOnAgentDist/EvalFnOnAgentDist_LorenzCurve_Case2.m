@@ -61,7 +61,7 @@ if evalfnoptions.parallel==2
     PolicyIndexes=gpuArray(PolicyIndexes);
 
     
-    PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid,evalfnoptions.parallel);
+    PolicyValues=PolicyInd2Val_Case2(PolicyIndexes,n_d,n_a,n_z,d_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d]
     

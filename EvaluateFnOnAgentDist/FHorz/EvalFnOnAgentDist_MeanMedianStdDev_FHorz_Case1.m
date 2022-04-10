@@ -133,7 +133,7 @@ if Parallel==2
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
-    PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid, Parallel);
+    PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
     

@@ -327,7 +327,7 @@ for ii=1:N_i
                 end
                 if finitehorz==0  % Infinite horizon
                     l_a_temp=length(n_a_temp); l_z_temp=length(n_z_temp);
-                    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp, Parallel_temp);
+                    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp);
                     permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
                     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
                     if Case1orCase2==1

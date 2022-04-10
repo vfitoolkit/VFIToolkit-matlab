@@ -120,7 +120,7 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
-    PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,2);
+    PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
