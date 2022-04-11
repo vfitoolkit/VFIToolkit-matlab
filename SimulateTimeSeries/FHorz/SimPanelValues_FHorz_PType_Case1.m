@@ -66,6 +66,7 @@ else
         simoptions.simperiods=N_j;
     end
 end
+simoptions.outputasstructure=0; % SimPanelValues as matrix
 
 % Need to figure out how many simulations to do for each PType.
 % Make them perfectly representative of the PType masses.
@@ -79,7 +80,7 @@ PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
 
 %%
-SimPanelValues=nan(length(FnsToEvaluate)+1,simoptions.simperiods,simoptions.numbersims); % +1 is the fixed type.
+SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);
 for ii=1:N_i
     % First set up simoptions
     if exist('simoptions','var')
@@ -237,19 +238,24 @@ for ii=1:N_i
     end
     
     SimPanelValues_ii=SimPanelValues_FHorz_Case1(InitialDist_temp,Policy_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
-
+    % simoptions.outputasstructure=0; % SimPanelValues as matrix is set above
     if ii==1
-        SimPanelValues(1:length(FnsToEvaluate),:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
-        SimPanelValues(length(FnsToEvaluate)+1,:,1:sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions_temp.simperiods,PType_numbersims(ii));
+        SimPanelValues(WhichFnsForCurrentPType,:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
+        % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.
     else
-        SimPanelValues(1:length(FnsToEvaluate),:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
-        SimPanelValues(length(FnsToEvaluate)+1,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=ii*ones(1,simoptions_temp.simperiods,PType_numbersims(ii));
+        SimPanelValues(WhichFnsForCurrentPType,:,(1+sum(PType_numbersims(1:(ii-1)))):sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
+        % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.
     end
     
 end
-%%
 
-
+%% Change the output into a structure
+SimPanelValues2=SimPanelValues;
+clear SimPanelValues
+SimPanelValues=struct();
+for ff=1:length(FnNames)
+    SimPanelValues.(FnNames{ff})=shiftdim(SimPanelValues2(ff,:,:),1);
+end
 
 
 end

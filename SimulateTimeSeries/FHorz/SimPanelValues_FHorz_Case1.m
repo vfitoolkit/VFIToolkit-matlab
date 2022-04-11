@@ -128,12 +128,24 @@ end
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
 SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z, simoptions);
 
-disp('HERE')
-max(max(max(max(abs(PolicyIndexesKron-round(PolicyIndexesKron))))))
-
 PolicyIndexesKron=gather(PolicyIndexesKron);
 
-max(max(max(max(abs(PolicyIndexesKron-round(PolicyIndexesKron))))))
+% disp('HERE3')
+% max(max(max(max(abs(PolicyIndexesKron-round(PolicyIndexesKron))))))
+% min(min(min(min(isfinite(PolicyIndexesKron)))))
+% min(min(min(min(abs(PolicyIndexesKron)))))
+% min(min(min(min(PolicyIndexesKron))))
+% % This seems fine to me
+
+% 
+% disp('HERE4')
+% max(max(max(max(abs(SimPanelIndexes-round(SimPanelIndexes))))))
+% min(min(min(min(isfinite(SimPanelIndexes)))))
+% min(min(min(min(abs(SimPanelIndexes)))))
+% min(min(min(min(SimPanelIndexes))))
+% sum(sum(sum(sum(isnan(SimPanelIndexes)))))
+% sum(sum(sum(sum(isfinite(SimPanelIndexes)))))
+% numel(SimPanelIndexes)
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -154,6 +166,14 @@ else
     FnsToEvaluateStruct=0;
 end
 
+if isfield(simoptions,'outputasstructure')
+    if simoptions.outputasstructure==1
+        FnsToEvaluateStruct=1;
+        AggVarNames=simoptions.AggVarNames;
+    elseif simoptions.outputasstructure==0
+        FnsToEvaluateStruct=0;
+    end
+end
 
 %%
 SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
@@ -165,12 +185,15 @@ a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices
 
 %%
 simperiods=simoptions.simperiods; % Helps the parfor reduce overhead
+N_a=prod(n_a);
 
 %% For sure the following could be made faster by improving how I do it
 parfor ii=1:simoptions.numbersims
     SimPanelIndexes_ii=SimPanelIndexes(:,:,ii);
     t=0;
     SimPanelValues_ii=zeros(length(FnsToEvaluate),simperiods);
+    j_ind=1; % Note, this is just to satify the 'while' constraint, it will be overwritten before being used for anything
+    
     while t<=simperiods && j_ind<N_j % Once we pass N_j all entries are just nan; j_ind<N_j last round means at most j_ind<=N_j this round
         t=t+1;
         
@@ -178,81 +201,82 @@ parfor ii=1:simoptions.numbersims
         z_ind=SimPanelIndexes_ii(2,t);
         j_ind=SimPanelIndexes_ii(3,t);
         
-        az_ind=a_ind+N_a*(z_ind-1)
-
-        a_val=a_gridvals(a_ind,:);
-        z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
-
-%         j_ind=SimPanelIndexes_ii(end,t);
-% 
-%         a_sub=SimPanelIndexes_ii(1:l_a,t);
-%         a_ind=sub2ind_homemade(n_a,a_sub);
-%         a_val=a_gridvals(a_ind,:);
-%         
-%         z_sub=SimPanelIndexes_ii((l_a+1):(l_a+l_z),t);
-%         z_ind=sub2ind_homemade(n_z,z_sub);
-%         z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
-%         
-%         
-%         if l_d==0
-%             aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-%             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-%         else
-%             temp=PolicyIndexesKron(:,a_ind,z_ind,t);
-%             d_ind=temp(1); 
-%             aprime_ind=temp(2);
-%             d_sub=ind2sub_homemade(n_d,d_ind);
-%             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-%             for kk1=1:l_d
-%                 if kk1==1
-%                     d_val(kk1)=d_grid(d_sub(kk1));
-%                 else
-%                     d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-%                 end
-%             end
-%         end
-%         for kk2=1:l_a
-%             if kk2==1
-%                 aprime_val(kk2)=a_grid(aprime_sub(kk2));
-%             else
-%                 aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-%             end
-%         end
+        if ~isnan(z_ind) % The simulations sometimes include nan values, so I use this to skip those ones
         
-        if l_d==0            
-            aprime_val=aprimePolicy_gridvals(az_ind,:);
-
-            for vv=1:length(FnsToEvaluate)
-                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                   tempcell=num2cell([aprime_val,a_val,z_val]');
-                else
-                   ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                   tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
+            az_ind=a_ind+N_a*(z_ind-1);
+            
+            a_val=a_gridvals(a_ind,:);
+            z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
+            
+            %         j_ind=SimPanelIndexes_ii(end,t);
+            %
+            %         a_sub=SimPanelIndexes_ii(1:l_a,t);
+            %         a_ind=sub2ind_homemade(n_a,a_sub);
+            %         a_val=a_gridvals(a_ind,:);
+            %
+            %         z_sub=SimPanelIndexes_ii((l_a+1):(l_a+l_z),t);
+            %         z_ind=sub2ind_homemade(n_z,z_sub);
+            %         z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
+            %
+            %
+            %         if l_d==0
+            %             aprime_ind=PolicyIndexesKron(a_ind,z_ind,t);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
+            %             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
+            %         else
+            %             temp=PolicyIndexesKron(:,a_ind,z_ind,t);
+            %             d_ind=temp(1);
+            %             aprime_ind=temp(2);
+            %             d_sub=ind2sub_homemade(n_d,d_ind);
+            %             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
+            %             for kk1=1:l_d
+            %                 if kk1==1
+            %                     d_val(kk1)=d_grid(d_sub(kk1));
+            %                 else
+            %                     d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
+            %                 end
+            %             end
+            %         end
+            %         for kk2=1:l_a
+            %             if kk2==1
+            %                 aprime_val(kk2)=a_grid(aprime_sub(kk2));
+            %             else
+            %                 aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
+            %             end
+            %         end
+            
+            if l_d==0
+                aprime_val=aprimePolicy_gridvals(az_ind,:);
+                
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                        tempcell=num2cell([aprime_val,a_val,z_val]');
+                    else
+                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
+                        tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                    end
+                    SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                 end
-                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
-            end
-        else
-            d_val=dPolicy_gridvals(az_ind,:);
-            aprime_val=aprimePolicy_gridvals(az_ind,:);
-
-            for vv=1:length(FnsToEvaluate)
-                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                    tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
-                else
-                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                    tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
+            else
+                d_val=dPolicy_gridvals(az_ind,:);
+                aprime_val=aprimePolicy_gridvals(az_ind,:);
+                
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                        tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
+                    else
+                        ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
+                        tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
+                    end
+                    SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
                 end
-                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
             end
         end
-        
     end
     SimPanelValues(:,:,ii)=SimPanelValues_ii;
 end
 
 %% Implement new way of handling FnsToEvaluate: convert results
 if FnsToEvaluateStruct==1
-    if FnsToEvaluateStruct==1
     % Change the output into a structure
     SimPanelValues2=SimPanelValues;
     clear SimPanelValues
@@ -260,7 +284,6 @@ if FnsToEvaluateStruct==1
 %     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         SimPanelValues.(AggVarNames{ff})=shiftdim(SimPanelValues2(ff,:,:),1);
-    end
     end
 end
 
