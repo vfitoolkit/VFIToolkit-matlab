@@ -60,21 +60,13 @@ if heteroagentoptions.verbose==1
         fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},GEprices(ii))
     end
     fprintf('Current aggregate variables: \n')
-    if ~isstruct(AggVars)
-        AggVars
-    else
-        for ii=1:length(AggVarNames)
-            fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
-        end
+    for ii=1:length(AggVarNames)
+        fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
     end
     fprintf('Current GeneralEqmEqns: \n')
-    if ~isstruct(GeneralEqmEqns)
-        GeneralEqmConditionsVec
-    else
-        GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
-        for ii=1:length(GeneralEqmEqnsNames)
-            fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
-        end
+    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+    for ii=1:length(GeneralEqmEqnsNames)
+        fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
     end
 end
 

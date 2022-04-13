@@ -218,72 +218,11 @@ for ii=1:N_i
     l_z_temp=length(n_z_temp);  
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-%     % Figure out which functions are actually relevant to the present
-%     % PType. Only the relevant ones need to be evaluated.
-%     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
-%     % necessarily the same.
-%     FnsToEvaluate_temp={};
-%     FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-%     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
-%     if isstruct(FnsToEvaluate)
-%         % Just conver from struct into the FnsToEvaluate_temp and FnsToEvaluateParamNames_temp format now.
-%         FnNames=fieldnames(FnsToEvaluate);
-%         FnsToEvaluateParamNames_temp=[]; % Ignore, is filled in by subcodes
-%         jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-%         for kk=1:numFnsToEvaluate
-%             % Note: I keep it as a structure to avoid having to find the input names here (which needs to allow for things like using n_e)
-%             if isa(FnsToEvaluate.(FnNames{kk}),'struct')
-%                 if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
-%                     FnsToEvaluate_temp.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
-% %                     FnsToEvaluate_temp{jj}=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
-% %                     FnsToEvaluateParamNames_temp(jj).Names=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
-%                     WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-%                     % else
-%                     %  % do nothing as this FnToEvaluate is not relevant for the current PType
-%                     %  % Implicitly, WhichFnsForCurrentPType(kk)=0
-%                     FnsAndPTypeIndicator(kk,ii)=1;
-%                 end
-%             else
-%                 % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-%                     FnsToEvaluate_temp.(FnNames{kk})=FnsToEvaluate.(FnNames{kk});
-% %                 FnsToEvaluate_temp{jj}=FnsToEvaluate.(FnNames{kk});
-% %                 FnsToEvaluateParamNames_temp(jj).Names=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}));
-%                 WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-%                 FnsAndPTypeIndicator(kk,ii)=1;
-%             end
-%         end
-%     else
-%         jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-%         for kk=1:numFnsToEvaluate
-%             if isa(FnsToEvaluate{kk},'struct')
-%                 if isfield(FnsToEvaluate{kk}, Names_i{ii})
-%                     FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-%                     if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-%                         FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-%                     else
-%                         FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-%                     end
-%                     WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-%                     % else
-%                     %  % do nothing as this FnToEvaluate is not relevant for the current PType
-%                     % % Implicitly, WhichFnsForCurrentPType(kk)=0
-%                     FnsAndPTypeIndicator(kk,ii)=1;
-%                 end
-%             else
-%                 % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-%                 FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
-%                 FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-%                 WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-%                 FnsAndPTypeIndicator(kk,ii)=1;
-%             end
-%         end
-%     end
     
     if simoptions.groupptypesforstats==0
         simoptions_temp.keepoutputasmatrix=0;
         AgeConditionalStats_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
         %     PTypeWeight_ii=StationaryDist.ptweights(ii);
-        
         AggVarNames_temp=fieldnames(FnsToEvaluate);
         for kk=1:numFnsToEvaluate
             jj=WhichFnsForCurrentPType(kk);
@@ -294,7 +233,7 @@ for ii=1:N_i
         end
     else % simoptions.groupptypesforstats==1
         simoptions_temp.keepoutputasmatrix=1;
-        ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
         N_a_temp=prod(n_a_temp);
         if isfield(simoptions_temp,'n_e')
             n_z_temp=[n_z_temp,simoptions_temp.n_e];
@@ -370,7 +309,7 @@ if simoptions.groupptypesforstats==1
         
         for ii=1:N_i_kk
             StationaryDistVec_kk(:,:,ii)=gather(StationaryDist.(Names_i{ii})); % Note, has already been multiplied by StationaryDist.ptweights(ii)
-            Values_kk(:,:,ii)=gather(ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)]));
+            Values_kk(:,:,ii)=gather(ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])); % Note, this is actually already on the cpu anyway
         end
         
         for jj=1:length(simoptions.agegroupings)

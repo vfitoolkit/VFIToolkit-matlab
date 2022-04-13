@@ -15,7 +15,7 @@ if isempty(n_p)
     N_p=0;
 end
 
-l_p=length(n_p);
+l_p=length(GEPriceParamNames);
 
 p_eqm_vec=nan; p_eqm=struct(); p_eqm_index=nan; GeneralEqmCondition=nan;
 
@@ -125,7 +125,7 @@ elseif heteroagentoptions.fminalgo==3
     GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_subfnMO(p, n_d, n_a, n_z, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 end
     
-    
+
 p0=zeros(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
@@ -144,6 +144,8 @@ elseif heteroagentoptions.fminalgo==2
     z0.z=p0;
     [sol,GeneralEqmCondition]=solve(prob,z0);
     p_eqm_vec=sol.z;
+    % Note, doesn't really work as automattic differentiation is only for
+    % supported functions, and the objective here is not a supported function
 elseif heteroagentoptions.fminalgo==3
     goal=zeros(length(p0),1);
     weight=ones(length(p0),1); % I already implement weights via heteroagentoptions

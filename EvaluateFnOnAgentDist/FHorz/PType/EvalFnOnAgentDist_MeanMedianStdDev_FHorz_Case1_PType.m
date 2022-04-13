@@ -223,37 +223,6 @@ for ii=1:N_i
     l_z_temp=length(n_z_temp);  
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-%     % Figure out which functions are actually relevant to the present
-%     % PType. Only the relevant ones need to be evaluated.
-%     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
-%     % necessarily the same.
-%     FnsToEvaluate_temp={};
-%     FnsToEvaluateParamNames_temp=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-%     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
-%     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
-%     for kk=1:numFnsToEvaluate
-%         if isa(FnsToEvaluate{kk},'struct')
-%             if isfield(FnsToEvaluate{kk}, Names_i{ii})
-%                 FnsToEvaluate_temp{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-%                 if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-%                     FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-%                 else
-%                     FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-%                 end
-%                 WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-%                 % else
-%                 %  % do nothing as this FnToEvaluate is not relevant for the current PType
-%                 % % Implicitly, WhichFnsForCurrentPType(kk)=0
-%                 FnsAndPTypeIndicator(kk,ii)=1;
-%             end
-%         else
-%             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-%             FnsToEvaluate_temp{jj}=FnsToEvaluate{kk};
-%             FnsToEvaluateParamNames_temp(jj).Names=FnsToEvaluateParamNames(kk).Names;
-%             WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
-%             FnsAndPTypeIndicator(kk,ii)=1;
-%         end
-%     end
     
     simoptions_temp.keepoutputasmatrix=1;
     MeanMedianStdDev_ii=EvalFnOnAgentDist_MeanMedianStdDev_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,simoptions_temp);
@@ -269,7 +238,7 @@ for ii=1:N_i
     end
     
     if simoptions.groupptypesforstats==1
-        ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
         
         if isfield(simoptions_temp,'n_e')
             n_z_temp=[n_z_temp,simoptions.n_e];
@@ -319,17 +288,6 @@ if simoptions.groupptypesforstats==1
             temp2=zeros(N_i,1);
             for ii=2:N_i
                 if FnsAndPTypeIndicator(kk,ii)==1
-                    %             temp=StationaryDist.ptweights(ii)*FnsAndPTypeIndicator(kk,1:(ii-1)).*StationaryDist.ptweights(1:(ii-1)).*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2);
-                    %             tempA=StationaryDist.ptweights(ii);
-                    %             tempB=FnsAndPTypeIndicator(kk,1:(ii-1));
-                    %             tempC=StationaryDist.ptweights(1:(ii-1));
-                    %             tempD=((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2);
-                    %             [kk,ii]
-                    %             tempA
-                    %             tempB
-                    %             tempC
-                    %             tempD
-                    %             size(temp)
                     temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2));
                 end
             end

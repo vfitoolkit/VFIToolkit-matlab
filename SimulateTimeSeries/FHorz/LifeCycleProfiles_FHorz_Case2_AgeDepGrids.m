@@ -51,9 +51,9 @@ for jj=1:N_j
 %     a_grid_j=daz_gridstructure.a_grid.(jstr(:));
 
     if options.parallel~=2
-        PolicyValuestemp=PolicyInd2Val_Case2(gather(Policy.(jstr(:))),n_d_j,n_a_j,n_z_j,gather(d_grid_j),options.parallel);
+        PolicyValuestemp=PolicyInd2Val_Case2(gather(Policy.(jstr(:))),n_d_j,n_a_j,n_z_j,gather(d_grid_j));
     else
-        PolicyValuestemp=PolicyInd2Val_Case2(Policy.(jstr(:)),n_d_j,n_a_j,n_z_j,d_grid_j,options.parallel);
+        PolicyValuestemp=PolicyInd2Val_Case2(Policy.(jstr(:)),n_d_j,n_a_j,n_z_j,d_grid_j);
     end
     l_d=length(n_d_j);
     l_a=length(n_a_j);

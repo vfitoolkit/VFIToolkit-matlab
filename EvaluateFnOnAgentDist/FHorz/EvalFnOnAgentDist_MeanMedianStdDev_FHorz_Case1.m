@@ -156,7 +156,7 @@ if Parallel==2
         % Mean
         MeanMedianStdDev(ii,1)=sum(Values.*StationaryDistVec);
         % Median
-        [SortedValues,SortedValues_index] = sort(Values);
+        [SortedValues,SortedValues_index] = sort(gather(Values)); % sort() is faster on gpu, but is also a substantial bottleneck (often gives an out of memory error), speed difference is not worth the lack of being able to handle large matrices
         SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
         median_index=find(cumsum(SortedStationaryDistVec)>=0.5,1,'first');
         MeanMedianStdDev(ii,2)=SortedValues(median_index);

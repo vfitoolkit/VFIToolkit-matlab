@@ -363,7 +363,6 @@ if N_p~=0
 end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-% GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
 GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 
 p0=nan(nGEprices,1);
@@ -371,11 +370,19 @@ for ii=1:nGEprices
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 
+% Choosing algorithm for the optimization problem
+% https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
     [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
 elseif heteroagentoptions.fminalgo==1
     [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+elseif heteroagentoptions.fminalgo==2
+    [p_eqm_vec,GeneralEqmConditions]=fminunc(GeneralEqmConditionsFn,p0); % fminunc uses gradient based method, fminsearch uses gradient-free simplex methods
+elseif heteroagentoptions.fminalgo==3
+    options=optimoptions('fminunc');
+    options.Algorithm='trust-region';
+    [p_eqm_vec,GeneralEqmConditions]=fminunc(GeneralEqmConditionsFn,p0,options);
 else
     [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
 end
