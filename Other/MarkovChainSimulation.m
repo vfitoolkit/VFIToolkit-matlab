@@ -1,92 +1,58 @@
-function z_timeseries=MarkovChainSimulation(T,z_grid,pi_z,n_z,simoptions)
+function z_timeseries=MarkovChainSimulation(T,z_grid,pi_z,simoptions)
 % Create a time-series simulation of a (one dimensional) first-order discrete markov process
 % Inputs:
 %  T        - number of time periods to simulate
 %  z_grid   - grid values of the discrete markov process (column vector)
 %  pi_z     - transition matrix of the discrete markov process (matrix, row gives probabilities for next period states, should add to one)
 % Optional inputs (simoptions)
-%  burnin    - number of periods to 'burn in' (these are automatically  deleted from simulation to eliminate bias caused by initial seed point value)
-%  seedpoint - point from which to start the simulation
+%  simoptions.burnin    - number of periods to 'burn in' (these are automatically  deleted from simulation to eliminate bias caused by initial seed point value)
+%  simoptions.seedpoint - point from which to start the simulation
+%  simoptions.nsims     - number of simulations (by default it is 1, so you just get a time series)
 
 %% Set default options
-N_z=prod(n_z);
+N_z=size(z_grid,1);
 if ~exist('simoptions','var')
-    simoptions.burnin=30*N_z;
+    simoptions.burnin=30*N_z; % I just made this up, no idea what is appropriate
     simoptions.seedpoint=floor(N_z+1)/2; % Just use midpoint as I'm lazy
+    simoptions.nsims=1; % number of simulations (by default it is 1, so you just get a time series)
 else
     if ~isfield(simoptions,'burnin')
-        simoptions.burnin=30*N_z;
+        simoptions.burnin=30*N_z;% I just made this up, no idea what is appropriate
     end
     if ~isfield(simoptions,'seepoint')
         simoptions.seedpoint=floor(N_z+1)/2; % Just use midpoint as I'm lazy
     end
+    if ~isfield(simoptions,'nsims')
+        simoptions.nsims=1; % number of simulations (by default it is 1, so you just get a time series)
+    end
 end
 
-%% Check if using z_grid_J and pi_z_J, in which case just produce a finite horizon simulation
-if isfield(simoptions,'z_grid_J') || isfield(simoptions,'pi_z_J')
-    if ~isfield(simoptions,'jequaloneDist')
-        error('When using z_grid_J and pi_z_J you must set simoptions.jequaloneDist')
-    end
-    % Check that time horizon is less than or equal to the finite horizon
-    if T>size(simoptions.z_grid_J,2)
-        error('Cannot simulate a time series longer than the finite horizon')
-    end
-    
-    z_timeseries_index=zeros(T,1);
-    z_timeseries=zeros(T,1);
-        
-    z_timeseries_index(1)=max(cumsum(simoptions.jequaloneDist)>rand(1)); % Pull initial value from jequaloneDist
-    zcurr=z_timeseries_index(1);
-
-    for jj=1:T
-        % First, get pi_z and z_grid
-        if isfield(simoptions,'pi_z_J')
-            z_grid=simoptions.z_grid_J(:,jj);
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif isfield(simoptions,'ExogShockFn')
-            if isfield(simoptions,'ExogShockFnParamNames')
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            else
-                [z_grid,pi_z]=simoptions.ExogShockFn(jj);
-            end
-        end
-        z_grid=gather(z_grid);
-        pi_z=gather(pi_z);
-        
-        z_timeseries(jj)=z_grid(z_timeseries_index(jj));
-
-        
-        if jj<T
-            cumpi_z=cumsum(pi_z,2);
-            [~,zcurr]=max(cumpi_z(zcurr,:)>rand(1));
-            z_timeseries_index(jj+1)=zcurr;
-        end
-        
-    end
-        
-    return
+%% Get the dimensions
+% N_z=size(z_grid,1);
+% Check the sizes of pi_z
+if size(pi_z,1)~=N_z
+    error('z_grid and pi_z disagree about the size of N_z')
+elseif size(pi_z,2)~=N_z
+    error('z_grid and pi_z disagree about the size of N_z')
 end
-
-
 
 %% Simulate
 z_grid=gather(z_grid);
 pi_z=gather(pi_z);
 % Simulate index
-z_timeseries_index=zeros(T+simoptions.burnin,1);
-z_timeseries_index(1)=simoptions.seedpoint;
-cumpi_z=cumsum(pi_z,2);
-zcurr=z_timeseries_index(1);
-for tt=2:T+simoptions.burnin
-    [~,zcurr]=max(cumpi_z(zcurr,:)>rand(1));
-    z_timeseries_index(tt)=zcurr;
+z_timeseries=zeros(simoptions.nsims,T);
+parfor ii=1:simoptions.nsims
+    z_timeseries_index=zeros(1,T+simoptions.burnin);
+    z_timeseries_index(1)=simoptions.seedpoint;
+    cumpi_z=cumsum(pi_z,2);
+    zcurr=z_timeseries_index(1);
+    for tt=2:T+simoptions.burnin
+        [~,zcurr]=max(cumpi_z(zcurr,:)>rand(1));
+        z_timeseries_index(tt)=zcurr;
+    end
+    % Switch to values
+    z_timeseries(ii,:)=z_grid(z_timeseries_index(simoptions.burnin+1:end));
 end
-% Switch to values
-z_timeseries=z_grid(z_timeseries_index);
+
 
 end
