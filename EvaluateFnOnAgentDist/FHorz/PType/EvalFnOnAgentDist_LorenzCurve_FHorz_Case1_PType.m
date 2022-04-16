@@ -232,7 +232,7 @@ for ii=1:N_i
         LorenzCurve.(Names_i{ii})=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,simoptions_temp);
     else %simoptions.groupptypesforstats==1
         simoptions_temp.keepoutputasmatrix=1;
-        ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
                 
         if isfield(simoptions_temp,'n_e')
             n_z_temp=[n_z_temp,simoptions.n_e];
@@ -267,7 +267,7 @@ if simoptions.groupptypesforstats==1
             if FnsAndPTypeIndicator(kk,ii)==1
                 % The 'gather' was added as this was otherwise a gpu memory bottleneck
                 DistVec=[DistVec; gather(StationaryDist.(Names_i{ii})/SigmaNxi)]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
-                ValuesVec=[ValuesVec;gather(ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)]))];
+                ValuesVec=[ValuesVec;gather(ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)]))]; % Note: actually already used gather()
             end
         end
         

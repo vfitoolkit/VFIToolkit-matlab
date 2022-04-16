@@ -34,6 +34,8 @@ l_p=length(n_p);
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcritereon=1;
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
@@ -49,6 +51,12 @@ else
             disp('ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
             dbstack
         end
+    end
+    if isfield(heteroagentoptions,'toleranceGEprices')==0
+        heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    end
+    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+        heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
@@ -414,20 +422,53 @@ end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
 
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
+GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions)
 
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 
+% Choosing algorithm for the optimization problem
+% https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-    heteroagentoptions.multimarketcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
+    heteroagentoptions.multiGEcriterion=0;
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
-else
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0);
+elseif heteroagentoptions.fminalgo==2
+    % Use the optimization toolbox so as to take advantage of automatic differentiation
+    z=optimvar('z',length(p0));
+    optimfun=fcn2optimexpr(GeneralEqmConditionsFnOpt, z);
+    prob = optimproblem("Objective",optimfun);
+    z0.z=p0;
+    [sol,GeneralEqmConditions]=solve(prob,z0);
+    p_eqm_vec=sol.z;
+    % Note, doesn't really work as automattic differentiation is only for
+    % supported functions, and the objective here is not a supported function
+elseif heteroagentoptions.fminalgo==3
+    goal=zeros(length(p0),1);
+    weight=ones(length(p0),1); % I already implement weights via heteroagentoptions
+    [p_eqm_vec,GeneralEqmConditionsVec] = fgoalattain(GeneralEqmConditionsFnOpt,p0,goal,weight);
+    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
+elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
+    % https://en.wikipedia.org/wiki/CMA-ES
+    % https://cma-es.github.io/
+    % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab
+    if ~isfield(heteroagentoptions,'insigma')
+        % insigma: initial coordinate wise standard deviation(s)
+        heteroagentoptions.insigma=0.3*p0; % Set standard deviation to 30% of the initial parameter value itself
+    end
+    if ~isfield(heteroagentoptions,'inopts')
+        % inopts: options struct, see defopts below
+        heteroagentoptions.inopts=[];
+    end
+    % varargin (unused): arguments passed to objective function 
+    if heteroagentoptions.verbose==1
+        disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
+    end
+	% This is a minor edit of cmaes, because I want to use 'GeneralEqmConditionsFnOpt' as a function_handle, but the original cmaes code only allows for 'GeneralEqmConditionsFnOpt' as a string
+    [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,p0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
@@ -435,119 +476,5 @@ p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 for ii=1:length(GEPriceParamNames)
     p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
 end
-    
-%     PolicyIndexes_temp=Policy.(Names_i{ii});
-%     StationaryDist_temp=StationaryDist.(Names_i{ii});
-%     if isa(StationaryDist_temp, 'gpuArray')
-%         Parallel_temp=2;
-%     else
-%         Parallel_temp=1;
-%     end
-%     
-%     if finitehorz==0  % Infinite horizon
-%         % Infinite Horizon requires an initial guess of value function. For
-%         % the present I simply don't let this feature be used when using
-%         % permanent types. WOULD BE GOOD TO CHANGE THIS IN FUTURE SOMEHOW.
-%         V_ii=zeros(prod(n_a_temp),prod(n_z_temp)); % The initial guess (note that its value is 'irrelevant' in the sense that global uniform convergence is anyway known to occour for VFI).
-%         if Case1orCase2==1
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
-%             end
-%         elseif Case1orCase2==2
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
-%             end
-%         end
-%     elseif finitehorz==1 % Finite horizon
-%         % Check for some relevant vfoptions that may depend on permanent type
-%         % dynasty, agedependentgrids, lowmemory, (parallel??)
-%         if Case1orCase2==1
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
-%             end
-%         elseif Case1orCase2==2
-%             if exist('vfoptions','var')
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfPTypeStructure.(iistr).vfoptions);
-%             else
-%                 [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
-%             end
-%         end
-%     end
-%         
-%     V.(Names_i{ii})=V_ii;
-%     Policy.(Names_i{ii})=Policy_ii;    
-    
-%     if PTypeStructure.(iistr).finitehorz==0  % Infinite horizon
-%         if PTypeStructure.(iistr).Case1orCase2==1
-%             if exist('simoptions','var')
-%                 StationaryDist_ii=StationaryDist_Case1(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist_ii=StationaryDist_Case1(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z);
-%             end
-%         elseif PTypeStructure.(iistr).Case1orCase2==2
-%             if exist('simoptions','var')
-%                 StationaryDist_ii=StationaryDist_Case2(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist_ii=StationaryDist_Case2(PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z);
-%             end
-%         end
-%     elseif PTypeStructure.(iistr).finitehorz==1 % Finite horizon
-%         % Check for some relevant simoptions that may depend on permanent type
-%         % dynasty, agedependentgrids, lowmemory, (parallel??)
-%         if PTypeStructure.(iistr).Case1orCase2==1
-%             if exist('simoptions','var')
-%                 StationaryDist=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters);
-%             end
-%         elseif PTypeStructure.(iistr).Case1orCase2==2
-%             if exist('simoptions','var')
-%                 StationaryDist_ii=StationaryDist_FHorz_Case2(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).PhiaprimeParamNames,PTypeStructure.(iistr).simoptions);
-%             else
-%                 StationaryDist_ii=StationaryDist_FHorz_Case2(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,PTypeStructure.(iistr).Policy_temp,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j_temp,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Phi_aprime_temp,PTypeStructure.(iistr).Case2_Type_temp,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).PhiaprimeParamNames);
-%             end
-%         end
-%     end
-% 	
-%     StationaryDist.(Names_i{ii})=StationaryDist_ii;
-% 
-%     if finitehorz==0  % Infinite horizon
-%         if Case1orCase2==1
-%             StatsFromDist_AggVars_ii=SSvalues_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-%         elseif Case1orCase2==2
-%             StatsFromDist_AggVars_ii=SSvalues_AggVars_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-%         end
-%     elseif finitehorz==1 % Finite horizon
-%         if Case1orCase2==1
-%             StatsFromDist_AggVars_ii=SSvalues_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp);
-%         elseif Case1orCase2==2
-%             if exist('options','var')
-%                 StatsFromDist_AggVars_ii=SSvalues_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, options_temp, AgeDependentGridParamNames_temp);
-%             else
-%                 StatsFromDist_AggVars_ii=SSvalues_AggVars_FHorz_Case2(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluateFn_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp);
-%             end
-%         end
-%     end
-%     
-%     if isa(PTypeDistNames, 'array')
-%         PTypeWeight_ii=PTypeDistNames(ii);
-%     else
-%         PTypeWeight_ii=Parameters.(PTypeDistNames{1}).(Names_i{ii});
-%     end
-%     
-%     StatsFromDist_AggVars=zeros(PTypeStructure.(iistr).numFnsToEvaluate,1,'gpuArray');
-%     for kk=1:PTypeStructure.(iistr).numFnsToEvaluate
-%         jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-%         if jj>0
-%             StatsFromDist_AggVars(kk,:)=StatsFromDist_AggVars(kk,:)+PTypeWeight_ii*StatsFromDist_AggVars_ii(jj,:);
-%         end
-%     end
-
 
 end

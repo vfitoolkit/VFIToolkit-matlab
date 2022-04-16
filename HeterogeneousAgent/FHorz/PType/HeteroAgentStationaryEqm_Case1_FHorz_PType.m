@@ -38,6 +38,8 @@ l_p=length(n_p);
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
@@ -53,6 +55,12 @@ else
             disp('ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
             dbstack
         end
+    end
+    if isfield(heteroagentoptions,'toleranceGEprices')==0
+        heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
+    end
+    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+        heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
@@ -363,7 +371,7 @@ if N_p~=0
 end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-GeneralEqmConditionsFn=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 
 p0=nan(nGEprices,1);
 for ii=1:nGEprices
@@ -372,19 +380,45 @@ end
 
 % Choosing algorithm for the optimization problem
 % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
+minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFn,p0);    
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);
 elseif heteroagentoptions.fminalgo==2
-    [p_eqm_vec,GeneralEqmConditions]=fminunc(GeneralEqmConditionsFn,p0); % fminunc uses gradient based method, fminsearch uses gradient-free simplex methods
+    % Use the optimization toolbox so as to take advantage of automatic differentiation
+    z=optimvar('z',length(p0));
+    optimfun=fcn2optimexpr(GeneralEqmConditionsFnOpt, z);
+    prob = optimproblem("Objective",optimfun);
+    z0.z=p0;
+    [sol,GeneralEqmConditions]=solve(prob,z0);
+    p_eqm_vec=sol.z;
+    % Note, doesn't really work as automattic differentiation is only for
+    % supported functions, and the objective here is not a supported function
 elseif heteroagentoptions.fminalgo==3
-    options=optimoptions('fminunc');
-    options.Algorithm='trust-region';
-    [p_eqm_vec,GeneralEqmConditions]=fminunc(GeneralEqmConditionsFn,p0,options);
-else
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFn,p0);
+    goal=zeros(length(p0),1);
+    weight=ones(length(p0),1); % I already implement weights via heteroagentoptions
+    [p_eqm_vec,GeneralEqmConditionsVec] = fgoalattain(GeneralEqmConditionsFnOpt,p0,goal,weight);
+    GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
+elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
+    % https://en.wikipedia.org/wiki/CMA-ES
+    % https://cma-es.github.io/
+    % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab
+    if ~isfield(heteroagentoptions,'insigma')
+        % insigma: initial coordinate wise standard deviation(s)
+        heteroagentoptions.insigma=0.3*p0; % Set standard deviation to 30% of the initial parameter value itself
+    end
+    if ~isfield(heteroagentoptions,'inopts')
+        % inopts: options struct, see defopts below
+        heteroagentoptions.inopts=[];
+    end
+    % varargin (unused): arguments passed to objective function 
+    if heteroagentoptions.verbose==1
+        disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
+    end
+	% This is a minor edit of cmaes, because I want to use 'GeneralEqmConditionsFnOpt' as a function_handle, but the original cmaes code only allows for 'GeneralEqmConditionsFnOpt' as a string
+    [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,p0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
@@ -392,6 +426,11 @@ p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 for ii=1:nGEprices
     p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
 end
-    
+
+% vargout={p_eqm,p_eqm_index,GeneralEqmConditions};
+% if heteroagentoptions.fminalgo==3
+%     vargout={p_eqm,GeneralEqmConditions,counteval,stopflag,out,bestever};
+% end
+
 
 end
