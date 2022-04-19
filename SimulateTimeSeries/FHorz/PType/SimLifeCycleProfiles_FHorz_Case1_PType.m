@@ -1,4 +1,4 @@
-function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_PType_Case1(InitialDist,Policy,ValuesFns,ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,N_i,d_grid,a_grid,z_grid,pi_z, simoptions)
+function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_Case1_PType(InitialDist,Policy,ValuesFns,ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,N_i,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. Then based on
 % this it computes life-cycle profiles for the 'VaulesFns' and reports

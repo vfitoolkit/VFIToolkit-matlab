@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_FHorz_PType_Case1(InitialDist,Policy,n_d,n_a,n_z,N_j,N_i,pi_z, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_Case1_PType(InitialDist,Policy,n_d,n_a,n_z,N_j,N_i,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from points in InitialDist.
 %
