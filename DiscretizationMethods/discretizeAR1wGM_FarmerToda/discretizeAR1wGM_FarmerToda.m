@@ -1,4 +1,4 @@
-function [z_grid,P,nMoments_grid] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_i,mu_i,sigma_i,znum,farmertodaoptions)
+function [z_grid,P,otheroutputs] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_i,mu_i,sigma_i,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments"
 %
 % Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation
@@ -25,6 +25,8 @@ function [z_grid,P,nMoments_grid] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs
 %   z_grid         - column vector containing the znum states of the discrete approximation of z
 %   P              - transition matrix of the discrete approximation of z;
 %                    transmatrix(i,j) is the probability of transitioning from state i to state j
+%   otheroutputs   - optional output structure containing info for evaluating the distribution including,
+%        otheroutputs.nMoments_grid  - optional output that shows how many moments were  matched from each grid point
 %
 % Comment: mew is what would be the unconditional mean of z if the gaussian mixture were mean zero (but we do not require the gaussian mixture to be mean zero).
 %
@@ -233,6 +235,9 @@ if farmertodaoptions.parallel==2
     P=gpuArray(P);
     z_grid=gpuArray(z_grid);
 end
+
+%% Some additional outputs that can be used to evaluate the discretization
+otheroutputs.nMoments_grid=nMoments_grid;
 
 z_grid=z_grid'; % Column vector for output
 
