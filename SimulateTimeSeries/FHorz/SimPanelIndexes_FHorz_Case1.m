@@ -130,7 +130,7 @@ if ~isfield(simoptions,'n_e')
     else % Distribution across ages as well
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_j,1]));
         parfor ii=1:simoptions.numbersims
-            seedpointvec]=max(cumsumInitialDistVec>rand(1));
+            seedpointvec=max(cumsumInitialDistVec>rand(1));
             seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointvec);
         end
     end
