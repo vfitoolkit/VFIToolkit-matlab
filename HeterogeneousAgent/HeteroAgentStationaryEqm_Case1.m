@@ -166,7 +166,7 @@ elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adap
     % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab
     if ~isfield(heteroagentoptions,'insigma')
         % insigma: initial coordinate wise standard deviation(s)
-        heteroagentoptions.insigma=0.3*p0; % Set standard deviation to 30% of the initial parameter value itself
+        heteroagentoptions.insigma=0.3*abs(p0)+0.1*(p0==0); % Set standard deviation to 30% of the initial parameter value itself (cannot input zero, so add 0.1 to any zeros)
     end
     if ~isfield(heteroagentoptions,'inopts')
         % inopts: options struct, see defopts below
