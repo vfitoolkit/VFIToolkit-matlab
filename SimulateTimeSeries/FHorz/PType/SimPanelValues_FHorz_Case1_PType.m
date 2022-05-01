@@ -78,7 +78,6 @@ ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % them randomly, but cant be bothered right now)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
-
 %%
 SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);
 for ii=1:N_i
@@ -239,6 +238,7 @@ for ii=1:N_i
     
     SimPanelValues_ii=SimPanelValues_FHorz_Case1(InitialDist_temp,Policy_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
     % simoptions.outputasstructure=0; % SimPanelValues as matrix is set above
+        
     if ii==1
         SimPanelValues(WhichFnsForCurrentPType,:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii;
         % I decided to get rid of giving the PType as part of the panel as you can always ask for this using FnsToEvaluate anyway if you actually want it.

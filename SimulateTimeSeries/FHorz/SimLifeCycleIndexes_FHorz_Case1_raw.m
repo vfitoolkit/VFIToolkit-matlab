@@ -14,17 +14,19 @@ currstate=seedpoint;
 
 % seedpoint is (a,z,j)
 
+initialage=seedpoint(3); % j in (a,z,j)
+
 % Simulation is simperiods, or up to 'end of finite horizon'.
-periods=min(simperiods,N_j+1-seedpoint(3));
+periods=min(simperiods,N_j+1-initialage);
 
 if fieldexists_pi_z_J==0
     if N_d==0
         SimLifeCycleKron=nan(2,N_j);
         for jj=1:periods
-            SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); % a_c
-            SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); % z_c
+            SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
+            SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
             
-            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+seedpoint(3)-1);
+            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
         end
     else
@@ -34,25 +36,25 @@ if fieldexists_pi_z_J==0
         if include_daprime==0
             SimLifeCycleKron=nan(2,N_j);
             for jj=1:periods
-                SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); % a_c
-                SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); % z_c
+                SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
+                SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
                 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+seedpoint(3)-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
             end
         else
             SimLifeCycleKron=nan(4,N_j);
             for jj=1:periods
-                SimLifeCycleKron(3,jj+seedpoint(3)-1)=currstate(1); % a_c
-                SimLifeCycleKron(4,jj+seedpoint(3)-1)=currstate(2); % z_c
+                SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a_c
+                SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z_c
                 
-                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+seedpoint(3)-1);
-                SimLifeCycleKron(1,jj+seedpoint(3)-1)=curr_d; % d_c
+                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+initialage-1);
+                SimLifeCycleKron(1,jj+initialage-1)=curr_d; % d_c
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+seedpoint(3)-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 
-                SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(1); % aprime_c
+                SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime_c
             end
         end
     end
@@ -60,10 +62,10 @@ else
     if N_d==0
         SimLifeCycleKron=nan(2,N_j);
         for jj=1:periods
-            SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); % a_c
-            SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); % z_c
+            SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
+            SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
             
-            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+seedpoint(3)-1);
+            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
         end
     else
@@ -73,25 +75,25 @@ else
         if include_daprime==0
             SimLifeCycleKron=nan(2,N_j);
             for jj=1:periods
-                SimLifeCycleKron(1,jj+seedpoint(3)-1)=currstate(1); % a_c
-                SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(2); % z_c
+                SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
+                SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
                 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+seedpoint(3)-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
             end
         else
             SimLifeCycleKron=nan(4,N_j);
             for jj=1:periods
-                SimLifeCycleKron(3,jj+seedpoint(3)-1)=currstate(1); % a
-                SimLifeCycleKron(4,jj+seedpoint(3)-1)=currstate(2); % z
+                SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a
+                SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z
                 
-                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+seedpoint(3)-1);
-                SimLifeCycleKron(1,jj+seedpoint(3)-1)=curr_d; % d
+                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+initialage-1);
+                SimLifeCycleKron(1,jj+initialage-1)=curr_d; % d
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+seedpoint(3)-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
                 
-                SimLifeCycleKron(2,jj+seedpoint(3)-1)=currstate(1); % aprime
+                SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime
             end            
         end
     end

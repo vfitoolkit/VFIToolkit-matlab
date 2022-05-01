@@ -146,7 +146,7 @@ if ~isfield(simoptions,'n_e')
                 
                 SimPanel_ii=nan(l_a+l_z+1,simperiods);
                 
-                j1=seedpoint(3);
+                j1=seedpoint(3); % 3 as j in (a,z,j)
                 j2=min(N_j,j1+simperiods);
                 for t=1:(j2-j1+1)
                     jj=t+j1-1;
@@ -172,7 +172,7 @@ if ~isfield(simoptions,'n_e')
                 
                 SimPanel_ii=nan(l_a+l_z+1,simperiods);
                 
-                j1=seedpoint(3);
+                j1=seedpoint(3); % 3 as j in (a,z,j)
                 j2=min(N_j,j1+simperiods);
                 for t=1:(j2-j1+1)
                     jj=t+j1-1;
@@ -223,7 +223,7 @@ if ~isfield(simoptions,'n_e')
                     
                     SimPanel_ii=nan(l_a+l_z+1,simperiods);
                     
-                    j1=seedpoint(3);
+                    j1=seedpoint(3); % 3 as j in (a,z,j)
                     j2=min(N_j,j1+(simperiods-birthperiod+1));
                     for t=1:(j2-j1+1)
                         jj=t+j1-1;
@@ -367,12 +367,11 @@ else %if isfield(simoptions,'n_e')
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
-%                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
                 
                 SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
                 
-                j1=seedpoint(3);
+                j1=seedpoint(4); % 4 as j in (a,z,e,j)
                 j2=min(N_j,j1+simperiods);
                 for t=1:(j2-j1+1)
                     jj=t+j1-1;
@@ -396,14 +395,13 @@ else %if isfield(simoptions,'n_e')
                 SimPanel(:,:,ii)=SimPanel_ii;
             end
         else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0                
                 seedpoint=seedpoints(ii,:);
-%                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);               
                 
                 SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
                 
-                j1=seedpoint(3);
+                j1=seedpoint(4); % 4 as j in (a,z,e,j)
                 j2=min(N_j,j1+simperiods);
                 for t=1:(j2-j1+1)
                     jj=t+j1-1;
@@ -454,12 +452,11 @@ else %if isfield(simoptions,'n_e')
                 
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
-%                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods-birthperiod+1,fieldexists_pi_z_J);
                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
                     
                     SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
                     
-                    j1=seedpoint(3);
+                    j1=seedpoint(4); % 4 as j in (a,z,e,j)
                     j2=min(N_j,j1+(simperiods-birthperiod+1));
                     for t=1:(j2-j1+1)
                         jj=t+j1-1;
@@ -488,17 +485,20 @@ else %if isfield(simoptions,'n_e')
         
         
     else % simoptions.simpanelindexkron==1 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(3,simperiods,simoptions.numbersims); % (a,z,j)
+        SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,z,e,j)
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                SimLifeCycleKron2=[SimLifeCycleKron; nan(1,seedpoint(4)-1), seedpoint(4):1:N_j];
+                SimPanel(:,:,ii)=SimLifeCycleKron2;          
             end
         else
             parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
                 seedpoint=seedpoints(ii,:);
                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
+                SimLifeCycleKron2=[SimLifeCycleKron; nan(1,seedpoint(4)-1), seedpoint(4):1:N_j];
+                SimPanel(:,:,ii)=SimLifeCycleKron2;
             end
         end
         
@@ -529,7 +529,7 @@ else %if isfield(simoptions,'n_e')
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
-%                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods-birthperiod+1,fieldexists_pi_z_J);
+                    %                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods-birthperiod+1,fieldexists_pi_z_J);
                     SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
                 end
             end
