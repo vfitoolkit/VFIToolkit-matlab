@@ -112,8 +112,30 @@ elseif vfoptions.piz_strictonrowsaddingtoone==0
     end
 end
 
-% Create a vector containing all the return function parameters (in order)
+
+%% Implement new way of handling ReturnFn inputs
+if n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
+% If no ReturnFnParamNames inputted, then figure it out from ReturnFn
+if isempty(ReturnFnParamNames)
+    temp=getAnonymousFnInputNames(ReturnFn);
+    if length(temp)>(l_d+l_a+l_z)
+        ReturnFnParamNames={temp{l_d+l_a+l_z+1:end}}; % the first inputs will always be (d,a,z) for Case2
+    else
+        ReturnFnParamNames={};
+    end
+% else
+%     ReturnFnParamNames=ReturnFnParamNames;
+end
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
+
+%%
+% Create a vector containing all the return function parameters (in order)
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 if vfoptions.phiaprimematrix~=1
     PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames);
@@ -134,13 +156,10 @@ end
 
 if vfoptions.exoticpreferences==0
     if length(DiscountFactorParamsVec)~=1
-        disp('ERROR: There should only be a single Discount Factor (in DiscountFactorParamNames)')
-        dbstack
+        error('There should only be a single Discount Factor (in DiscountFactorParamNames)')
     end
-elseif vfoptions.exoticpreferences==1 % alpha-beta hyperbolic discounting
-    
-elseif vfoptions.exoticpreferences==2 % epstein-zin preferences
-    
+else
+    error('Cannot use exotic preferences in Case2 (if you need this please email roberdkirkby@gmail.com')
 end
 
 %%

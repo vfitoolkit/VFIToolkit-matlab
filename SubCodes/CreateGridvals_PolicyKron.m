@@ -53,10 +53,6 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-%                 daprime_ind=PolicyIndexesKron(j1,j2);
-%                 daprime_sub=ind2sub_homemade_gpu([n_d,n_a],daprime_ind);
-%                 d_sub=daprime_sub(1:l_d);
-%                 aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 d_ind=PolicyIndexesKron(1,j1,j2);
                 aprime_ind=PolicyIndexesKron(2,j1,j2);
                 d_sub=ind2sub_homemade_gpu(n_d,d_ind);
@@ -85,10 +81,6 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-%                 daprime_ind=PolicyIndexesKron(j1,j2);
-%                 daprime_sub=ind2sub_homemade_gpu([n_d,n_a],daprime_ind);
-%                 d_sub=daprime_sub(1:l_d);
-%                 aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 d_ind=PolicyIndexesKron(1,j1,j2);
                 aprime_ind=PolicyIndexesKron(2,j1,j2);
                 d_sub=ind2sub_homemade_gpu(n_d,d_ind);

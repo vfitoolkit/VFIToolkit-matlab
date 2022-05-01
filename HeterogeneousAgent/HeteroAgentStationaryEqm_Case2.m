@@ -8,8 +8,11 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_s=prod(n_s);
 N_p=prod(n_p);
+if isempty(n_p)
+    N_p=0;
+end
 
-% l_p=length(n_p);
+l_p=length(GEPriceParamNames);
 
 p_eqm=struct();
 
@@ -97,7 +100,7 @@ if N_p~=0
 end
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case2_subfn(p, n_d, n_a, n_s, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case2_subfn(p, n_d, n_a, n_s,l_p, pi_s, d_grid, a_grid, s_grid, Phi_aprimeKron, Case2_Type, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
 
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)

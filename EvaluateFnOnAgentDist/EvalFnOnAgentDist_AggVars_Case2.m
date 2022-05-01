@@ -25,8 +25,8 @@ if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_d+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_z+1:end}}; % the first inputs will always be (d,a,z) as Case2
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
