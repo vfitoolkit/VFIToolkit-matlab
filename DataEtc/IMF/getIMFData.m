@@ -1,30 +1,64 @@
-function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end, counterpartycountrycode2L, sector_id, counterpartysector_id, vintage_id)
+function [output] = getIMFData(database_id, series_id, countrycode2L, frequency, observation_start, observation_end, vintage_id, adinput1, adinput2, adinput3,adinput4)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% database_id: currently supports 'BOP', 'IFS', 'DOT', 'CPIS', 'FSI'
+% database_id: currently supports 'BOP', 'IFS', 'DOT', 'CPIS', 'FSI', 'CPI'
+%   and all seven GFS: 'GFSMAB', 'GFSE', 'GFSCOFOG', 'GFSR', 'GFSSSUC','GFSFALCS','GFSIBS'
 % [IMF datasets Balance of Payments (BOP), International Fiscal Statistics (IFS), 
 % Direction of Trade Statistics (DOT), Coordinated Portfolio Investment Survey (CPIS),
-% and Financial Soundness Indicators (FSI).]
+% Financial Soundness Indicators (FSI), Consumer Price Index (CPI), and the seven
+% Government Finance Statistics (GFS): GFS Main Aggregates and Balances (GFSMAB), 
+% GFS Expense (GFSE), GFS Classification of the Functions of Government (GFSCOFOG), 
+% GFS Revenue (GFSR), GFS Statement of Sources and Uses of Cash (GFSSSUC),
+% GFS Financial Assets and Liabilities by Counterpart Sector (GFSFALCS), 
+% GFS Integrated Balance Sheet (GFSIBS).]
 %
 % If the only input is the database_id, then output will return a
-% dictionary of 'series_id' and their names. This can then be searched to
-% find the series_id for a variable when you only have some idea what the
-% name might be.
+% dictionary of 'series_id' (and other inputs) and their names. 
+% This can then be searched to find the series_id for a variable when 
+% you only have some idea what the name might be.
 %
-% series_id: the code for the variable you want
+% -----------
+% Inputs:
+%   series_id: the code for the variable you want
+%   frequency: for example monthly M, quarterly Q, or annually A;
 %
-% frequency: for example monthly M, quarterly Q, or annually A;
+%   If you do not input observation_start and observation_end you will be
+%   given data for all available dates. Equivalently, set
+%   observation_start=[], and similarly for observation_end=[].
 %
-% If you do not input observation_start and observation_end you will be
-% given data for all available dates. Equivalently, set
-% observation_start=[], and similarly for observation_end=[].
-%
-% For BOP, FSI, IFS no further inputs are required. 
-%
-% Using CPIS you will need three further inputs:
+%   For BOP, FSI, IFS, CPI databases no further inputs are required. 
+%   Otherwise the additional inputs depend on the database.
+%   The additional inputs come after vintage_id, which can typically just be left empty, i.e., vintage_id=[]
+%   DOT uses one further input
+%   CPIS uses three further inputs. 
+%   GFSMAB,GFSE,GFSCOFOG,GFSR,GFSSSUC use two further inputs.
+%   GFSFALCS uses three further inputs.
+%   GFSIBS uses four further inputs.
+% -----------
+% The further inputs are:
+%   adinput1, adinput2, adinput3, adinput4
+%   They are interpreted in this order depending on the database.
+%   If not used, just don't include these inputs.
+% Using DOT you will need one further input (adinput1)
+%   counterpartycountrycode2L: same format as countrycode2L, is the counterpart country
+% Using CPIS you will need three further inputs (adinput1, adinput2, adinput3):
 %   sector_id: see CPIS database for an explanation of Sectors
 %   counterpartycountrycode2L: same format as countrycode2L, is the counterpart country
-%   counterpartysector_id: same format as sector_id, is the counterpart sector
+%   counterparty_id: same format as sector_id, is the counterpart sector
+% Using GFSMAB,GFSE,GFSCOFOG,GFSR,GFSSSUC you need two further inputs (adinput1, adinput2):
+%   sector_id: see GFS database for an explanation of Sectors
+%   unit: see GFS database for an explanation of units
+% Using GFSFALCS you need three further inputs (adinput1, adinput2, adinput3):
+%   sector_id: see GFS database for an explanation of Sectors
+%   unit: see GFS database for an explanation of units
+%   counterparty_id: see GFS database for an exlanation of counterparty, is the counterpart sector (Central Bank, Banks ...)
+% Using GFSIBS you need three further inputs (adinput1, adinput2, adinput3):
+%   sector_id: see GFS database for an explanation of Sectors
+%   unit: see GFS database for an explanation of units
+%   instr_id:  see GFS database for an explanation of instr_id
+%   counterparty_id: see GFS database for an explanation of counterparty_id (total, domestic / external)
+% Note: counterparty_id means different things for the different databases.
+%
 %
 % To access vintage data you need to include a 'vintage_id'. This will be a
 % string that contains the year and, where relevant, either quarter or month for the vintage
@@ -39,6 +73,7 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 % 2019
 % Robert Kirkby
 % robertdkirkby.com
+% Special thanks to Mikhail Nicolaev for implementing the GFS databases.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%     
 
@@ -74,28 +109,34 @@ function [output] = getIMFData(database_id, series_id, countrycode2L, frequency,
 %
 %%%%%
 
+
+%%
 database_id_full=database_id;
 if exist('vintage_id', 'var')==1
-   database_id_full=[database_id,'_',vintage_id];
-   % Awkwardly some datasets use 'M07' for July while others use 'M7', the
-   % following lines deal with this for the user who always just puts in
-   % 'M07'
-   try str2num(vintage_id(end-1)) % If the second last is a number
-      if str2num(vintage_id(end-1))==0 % And that number is a zero
-        try webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/',database_id_full])
-            % If it works, do nothing
-        catch % If it does not work, then remove the zero.
-            vintage_id=[vintage_id(1:end-2),vintage_id(end)];
-        end
-      end 
-   catch
-       % If it second last is not a number then there is nothing to worry about (hopefully!!!)
-   end       
+   if ~isempty(vintage_id)
+       database_id_full=[database_id,'_',vintage_id];
+       % Awkwardly some datasets use 'M07' for July while others use 'M7', the
+       % following lines deal with this for the user who always just puts in
+       % 'M07'
+       try str2num(vintage_id(end-1)) % If the second last is a number
+           if str2num(vintage_id(end-1))==0 % And that number is a zero
+               try webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/',database_id_full])
+                   % If it works, do nothing
+               catch % If it does not work, then remove the zero.
+                   vintage_id=[vintage_id(1:end-2),vintage_id(end)];
+               end
+           end
+       catch
+           % If it second last is not a number then there is nothing to worry about (hopefully!!!)
+       end
+   end
 end
 
+%%
 if nargin==1 % Just return a dictionary for that database
     % /DataStructure/
     JSONdata2 = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/DataStructure/',database_id_full]);
+    
     temp=JSONdata2.Structure.CodeLists.CodeList{1}.Code;
     for ii=1:length(temp)
         output.Scale{ii,1}=temp(ii).x_value;
@@ -111,14 +152,14 @@ if nargin==1 % Just return a dictionary for that database
         output.CountryCodes{ii,1}=temp(ii).x_value;
         output.CountryCodes{ii,2}=temp(ii).Description.x_text;
     end
-    temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
-    for ii=1:length(temp)
-        output.Variables{ii,1}=temp(ii).x_value;
-        output.Variables{ii,2}=temp(ii).Description.x_text;
-    end
-    % The above first four appear to always be the same, at least for BOP,
-    % IFS, CPIS and FSI. After the first four things are specific to the database being queried.
+    % The above first three appear to always be the same, at least for BOP, IFS, CPIS and FSI. 
+    % After the first three things are specific to the database being queried.
     if strcmp(database_id,'IFS') || strcmp(database_id,'FSI')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
         temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
         for ii=1:length(temp)
             output.TimeFormat{ii,1}=temp(ii).x_value;
@@ -126,6 +167,11 @@ if nargin==1 % Just return a dictionary for that database
         end
     end
     if strcmp(database_id,'CPIS')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
         temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
         for ii=1:length(temp)
             output.Sector{ii,1}=temp(ii).x_value;
@@ -138,6 +184,11 @@ if nargin==1 % Just return a dictionary for that database
         end
     end
     if strcmp(database_id,'DOT')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
         temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
         for ii=1:length(temp)
             output.CouterpartCountry{ii,1}=temp(ii).x_value;
@@ -149,20 +200,166 @@ if nargin==1 % Just return a dictionary for that database
             output.TimeFormat{ii,2}=temp(ii).Description.x_text;
         end
     end
+    if strcmp(database_id,'CPI')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
+    end
+    if strcmp(database_id,'GFSMAB') || strcmp(database_id,'GFSE') || strcmp(database_id,'GFSCOFOG') || strcmp(database_id,'GFSR') || strcmp(database_id,'GFSSSUC')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Sector{ii,1}=temp(ii).x_value;
+            output.Sector{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{6}.Code;
+        for ii=1:length(temp)
+            output.Unit{ii,1}=temp(ii).x_value;
+            output.Unit{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{7}.Code;
+        for ii=1:length(temp)
+            output.TimeFormat{ii,1}=temp(ii).x_value;
+            output.TimeFormat{ii,2}=temp(ii).Description.x_text;
+        end
+    end
+    if strcmp(database_id,'GFSFALCS')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Sector{ii,1}=temp(ii).x_value;
+            output.Sector{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
+        for ii=1:length(temp)
+            output.Unit{ii,1}=temp(ii).x_value;
+            output.Unit{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{6}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{7}.Code;
+        for ii=1:length(temp)
+            output.Couterpart{ii,1}=temp(ii).x_value;
+            output.Couterpart{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{8}.Code;
+        for ii=1:length(temp)
+            output.TimeFormat{ii,1}=temp(ii).x_value;
+            output.TimeFormat{ii,2}=temp(ii).Description.x_text;
+        end
+    end
+    if strcmp(database_id,'GFSIBS')
+        temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
+        for ii=1:length(temp)
+            output.Sector{ii,1}=temp(ii).x_value;
+            output.Sector{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{5}.Code;
+        for ii=1:length(temp)
+            output.Unit{ii,1}=temp(ii).x_value;
+            output.Unit{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{6}.Code;
+        for ii=1:length(temp)
+            output.Variables{ii,1}=temp(ii).x_value;
+            output.Variables{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{7}.Code;
+        for ii=1:length(temp)
+            output.Instrument{ii,1}=temp(ii).x_value;
+            output.Instrument{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{8}.Code;
+        for ii=1:length(temp)
+            output.Couterpart{ii,1}=temp(ii).x_value;
+            output.Couterpart{ii,2}=temp(ii).Description.x_text;
+        end
+        temp=JSONdata2.Structure.CodeLists.CodeList{9}.Code;
+        for ii=1:length(temp)
+            output.TimeFormat{ii,1}=temp(ii).x_value;
+            output.TimeFormat{ii,2}=temp(ii).Description.x_text;
+        end
+    end
     return
 end
 
 
-% Not just database_id, so an actual data 'series_id' has been requested
-if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP') || strcmp(database_id, 'FSI')
+%% Figure out the additional inputs based on which database is being used.
+if strcmp(database_id,'IFS') || strcmp(database_id,'FSI') || strcmp(database_id,'BOP') || strcmp(database_id,'CPI')
+    % No additional inputs
+    if nargin>7
+        error('Too many inputs given the database you are using')
+    end
+elseif strcmp(database_id,'DOT')
+    counterpartycountrycode2L=adinput1;
+    if nargin>8
+        error('Too many inputs given the database you are using')
+    end
+elseif strcmp(database_id,'CPIS')
+    counterpartycountrycode2L=adinput1;
+    sector_id=adinput2;
+    counterparty_id=adinput3; % counterparty-sector
+    if nargin>10
+        error('Too many inputs given the database you are using')
+    end
+    % Because I introduced a breaking change (June 2022) to CPIS, reordering inputs.
+    % Check if vintageid looks like it is supposed to be counterpartycountrycode2L and throw a warning
+    if iscell(vintage_id)
+        if all(isletter(vintage_id{1}))
+            warning('CPIS input ordering was changed in June 2022, you appear to be using the old ordering. See CPISexample code on project github for how to order inputs')
+            % Github link: https://github.com/robertdkirkby/getimfdata-matlab/blob/master/getIMFData_CPISexample.m
+        end
+    elseif isempty(vintage_id)
+        % Do nothing, this is likely intended (had to seperate this case as empty is considered a letter by matlab).
+    elseif all(isletter(vintage_id))
+        warning('CPIS input ordering was changed in June 2022, you appear to be using the old ordering. See CPISexample code on project github for how to order inputs')
+        % Github link: https://github.com/robertdkirkby/getimfdata-matlab/blob/master/getIMFData_CPISexample.m
+    end
+elseif strcmp(database_id,'GFSMAB') || strcmp(database_id,'GFSE') || strcmp(database_id,'GFSCOFOG') || strcmp(database_id,'GFSR') || strcmp(database_id,'GFSSSUC')
+    sector_id=adinput1;
+    unit=adinput2;
+    if nargin>9
+        error('Too many inputs given the database you are using')
+    end
+elseif strcmp(database_id,'GFSFALCS')
+    sector_id=adinput1;
+    unit=adinput2;
+    counterparty_id=adinput3; % Central Bank, Banks ...
+    if nargin>10
+        error('Too many inputs given the database you are using')
+    end
+elseif strcmp(database_id, 'GFSIBS')
+    sector_id=adinput1;
+    unit=adinput2;
+    instr_id=adinput3;
+    counterparty_id=adinput4;  % total, domestic / external
+    % Note: counterpartysector_id means different things for CPIS, GFSFALCS and GFSIBS
+end
+
+%% Not just database_id, so an actual data 'series_id' has been requested
+if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP') || strcmp(database_id, 'FSI') || strcmp(database_id, 'CPI')
     optionstring=[frequency,'.',countrycode2L,'.',series_id];
     if nargin==7
         optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',timeformat];
     end
 elseif strcmp(database_id,'CPIS')
-    optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',sector_id,'.',counterpartysector_id,'.',counterpartycountrycode2L];
+    optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',sector_id,'.',counterparty_id,'.',counterpartycountrycode2L];
 elseif strcmp(database_id,'DOT')
     optionstring=[frequency,'.',countrycode2L,'.',series_id,'.',counterpartycountrycode2L];
+elseif strcmp(database_id, 'GFSMAB') || strcmp(database_id, 'GFSCOFOG') || strcmp(database_id, 'GFSE') || strcmp(database_id, 'GFSR') || strcmp(database_id, 'GFSSSUC')
+    optionstring=[frequency,'.',countrycode2L,'.',sector_id,'.',unit,'.',series_id];
+elseif strcmp(database_id, 'GFSFALCS')
+    optionstring=[frequency,'.',countrycode2L,'.',sector_id,'.',unit,'.',series_id,'.',counterparty_id]; %counterpart_sector - Central Bank, Banks ...
+elseif strcmp(database_id, 'GFSIBS')
+    optionstring=[frequency,'.',countrycode2L,'.',sector_id,'.',unit,'.',series_id,'.',instr_id,'.',counterparty_id]; %counterpart_sector2 - total, domestic / external
 end
 
 if exist('observation_start','var')==1 && exist('observation_end','var')==1 % if specific start and end dates are given
@@ -173,11 +370,8 @@ else
     longoptionstring=optionstring;
 end
 
-% For some reason the JSON sometimes is not read correctly, and is
-% interpreted as text. When this occurs I rerequest the JSON.
-
-
-% /CompactData/
+%% /CompactData/
+% For some reason the JSON sometimes is not read correctly, and is interpreted as text. When this occurs I rerequest the JSON.
 JSONdata = webread(['http://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/',database_id_full,'/',longoptionstring]);
 attempts=0;
 while ~isstruct(JSONdata) && attempts<=10 % Try a few time to get the data as JSON (rather than text, which for some reason sometimes happens)
@@ -238,7 +432,7 @@ else
     if strcmp(database_id,'IFS') || strcmp(database_id, 'BOP') || strcmp(database_id, 'FSI')
         fprintf('    Missing: Database: %s , Series: %s , Country: %s \n', database_id_full, series_id, countrycode2L);
     elseif strcmp(database_id,'CPIS')
-        fprintf('    Missing: Database: %s , Series: %s , Countries: %s and %s , Sectors: %s and %s \n', database_id_full, series_id, countrycode2L, counterpartycountrycode2L,sector_id,counterpartysector_id);
+        fprintf('    Missing: Database: %s , Series: %s , Countries: %s and %s , Sectors: %s and %s \n', database_id_full, series_id, countrycode2L, counterpartycountrycode2L,sector_id,counterparty_id);
     elseif strcmp(database_id,'DOT')
         fprintf('    Missing: Database: %s , Series: %s , Countries: %s and %s \n', database_id_full, series_id, countrycode2L, counterpartycountrycode2L);
     end
@@ -247,7 +441,7 @@ end
 
 
 
-% %GenericMetadata/
+%% GenericMetadata
 % For some reason known only to IMF, it appears you can only request
 % metadata for the 'annual frequency' code. So next line just imposes this
 % on the metadata request (the frequency is not part of the metadata anyway).
