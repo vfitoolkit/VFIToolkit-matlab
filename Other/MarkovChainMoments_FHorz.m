@@ -8,6 +8,7 @@ function [mean,variance,autocorrelation,statdist]=MarkovChainMoments_FHorz(z_gri
 %   - jequaloneDist: the distribution at age jj=1
 % Optional inputs:
 %   - mcmomentsoptions: note that if mcmomentsoptions contains z_grid_J, pi_z_J or jequaloneDist then these are used to overwrite the inputs
+%   - mcmomentsoptions.n_z: if the markov process is multidimensional you will need to input n_z
 %
 % Outputs:
 %   - mean: mean of first order markov chain for each age (i.e., age conditional mean)
@@ -23,6 +24,7 @@ if exist('mcmomentsoptions','var')==0
     mcmomentsoptions.Tolerance=10^(-8);
     mcmomentsoptions.calcautocorrelation=1; % Have made it easy to skip calculating autocorrelation as this takes time
     mcmomentsoptions.calcautocorrelation_nsims=10^6; % Number of simulations to use for calculating the autocorrelation
+    mcmomentsoptions.n_z=length(z_grid_J); % Is assumed to be a single valued z
 else
     if isfield(mcmomentsoptions,'parallel')==0
         mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
@@ -35,6 +37,9 @@ else
     end
     if isfield(mcmomentsoptions,'calcautocorrelation_nsims')==0
         mcmomentsoptions.calcautocorrelation_nsims=10^6;
+    end
+    if isfield(mcmomentsoptions,'n_z')==0
+        mcmomentsoptions.n_z=length(z_grid_J); % Is assumed to be a single valued z
     end
 end
 
@@ -76,45 +81,90 @@ else
 end
 
 %% Get the dimensions
-N_z=size(z_grid_J,1);
+N_z=prod(mcmomentsoptions.n_z);
 N_j=size(z_grid_J,2);
 
 % Check the sizes of jequaloneDist and pi_z_J
+if size(z_grid_J,1)~=sum(mcmomentsoptions.n_z)
+    error('z_grid_J does not have right number of points for z')
+end
 if size(pi_z_J,1)~=N_z
-    error('z_grid_J and pi_z_J disagree about the size of N_z')
+    error('pi_z_J does not have right number of points for z')
 elseif size(pi_z_J,2)~=N_z
-    error('z_grid_J and pi_z_J disagree about the size of N_z')
+    error('pi_z_J does not have right number of points for z')
 elseif size(pi_z_J,3)~=N_j
-    error('z_grid_J and pi_z_J disagree about the size of N_j')
+    error('pi_z_J does not have right number of points for j (compared to z_grid_J)')
 end
 if length(jequaloneDistz)~=N_z
     error('z_grid_J and jequaloneDist disagree about the size of N_z')
 end
 
-%% Compute the mean, variance, and (first-order auto-) correlation
-statdist=zeros(N_z,N_j);
-mean=zeros(1,N_j);
-secondmoment=zeros(1,N_j);
-variance=zeros(1,N_j);
-covar_withlag=nan(1,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
-autocorrelation=nan(1,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
+if length(mcmomentsoptions.n_z)==1
+    %% Compute the mean, variance, and (first-order auto-) correlation
+    statdist=zeros(N_z,N_j);
+    mean=zeros(1,N_j);
+    secondmoment=zeros(1,N_j);
+    variance=zeros(1,N_j);
+    covar_withlag=nan(1,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
+    autocorrelation=nan(1,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
+    
+    statdist(:,1)=jequaloneDistz;
+    mean(1)=(z_grid_J(:,1)')*statdist(:,1);
+    secondmoment(1)=(z_grid_J(:,1).^2)'*statdist(:,1);
+    variance(1)=secondmoment(1)-mean(1).^2;
+    for jj=2:N_j
+        statdist(:,jj)=pi_z_J(:,:,jj-1)'*statdist(:,jj-1);
+        
+        mean(jj)=(z_grid_J(:,jj)')*statdist(:,jj);
+        secondmoment(jj)=(z_grid_J(:,jj).^2)'*statdist(:,jj);
+        
+        variance(jj)=secondmoment(jj)-mean(jj).^2;
+        
+        covar_withlag(jj)=sum(statdist(:,jj-1).*sum(pi_z_J(:,:,jj-1).*((z_grid_J(:,jj-1)-mean(jj-1))*(z_grid_J(:,jj)-mean(jj))'),2));
+        
+        autocorrelation(jj)=covar_withlag(jj)/(sqrt(variance(jj))*sqrt(variance(jj-1)));
+        
+    end
+    
+else % z is multidimensional (note: I only calculate variance, autocorellation of each invidivually, not the actual covariance matrix and autocorrelation matrix of the multivariate)
+    n_z=mcmomentsoptions.n_z;
+    l_z=length(n_z);
+    
+    %% Compute the mean, variance, and (first-order auto-) correlation
+    statdist=zeros(N_z,N_j);
+    mean=zeros(l_z,N_j);
+    secondmoment=zeros(l_z,N_j);
+    variance=zeros(l_z,N_j);
+    covar_withlag=nan(l_z,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
+    autocorrelation=nan(l_z,N_j); % e.g., the second entry is j=2 with j=1. First entry remains nan.
+    
+    z_gridvals=CreateGridvals(n_z,z_grid_J(:,1),1);
+    
+    statdist(:,1)=jequaloneDistz;
+    for ii=1:l_z
+        mean(ii,1)=(z_gridvals(:,ii)')*statdist(:,1);
+        secondmoment(ii,1)=(z_gridvals(:,ii).^2)'*statdist(:,1);
+        variance(ii,1)=secondmoment(ii,1)-mean(ii,1).^2;
+    end
+    
+    for jj=2:N_j
+        z_gridvals_lag=z_gridvals;
+        z_gridvals=CreateGridvals(n_z,z_grid_J(:,jj),1);
 
-statdist(:,1)=jequaloneDistz;
-mean(1)=(z_grid_J(:,1)')*statdist(:,1);
-secondmoment(1)=(z_grid_J(:,1).^2)'*statdist(:,1);
-variance(1)=secondmoment(1)-mean(1).^2;
-for jj=2:N_j
-    statdist(:,jj)=pi_z_J(:,:,jj-1)'*statdist(:,jj-1);
-    
-    mean(jj)=(z_grid_J(:,jj)')*statdist(:,jj);
-    secondmoment(jj)=(z_grid_J(:,jj).^2)'*statdist(:,jj);
-    
-    variance(jj)=secondmoment(jj)-mean(jj).^2;
-    
-    covar_withlag(jj)=sum(statdist(:,jj-1).*sum(pi_z_J(:,:,jj-1).*((z_grid_J(:,jj-1)-mean(jj-1))*(z_grid_J(:,jj)-mean(jj))'),2));
-    
-    autocorrelation(jj)=covar_withlag(jj)/(sqrt(variance(jj))*sqrt(variance(jj-1)));
-
+        statdist(:,jj)=pi_z_J(:,:,jj-1)'*statdist(:,jj-1);
+        
+        for ii=1:l_z
+            mean(ii,jj)=(z_gridvals(:,ii)')*statdist(:,jj);
+            secondmoment(ii,jj)=(z_gridvals(:,ii).^2)'*statdist(:,jj);
+            
+            variance(ii,jj)=secondmoment(ii,jj)-mean(ii,jj).^2;
+            
+            covar_withlag(ii,jj)=sum(statdist(:,jj-1).*sum(pi_z_J(:,:,jj-1).*((z_gridvals_lag(:,ii)-mean(ii,jj-1))*(z_gridvals(:,ii)-mean(ii,jj))'),2));
+            
+            autocorrelation(ii,jj)=covar_withlag(ii,jj)/(sqrt(variance(ii,jj))*sqrt(variance(ii,jj-1)));
+        end
+        
+    end
 end
 
 
