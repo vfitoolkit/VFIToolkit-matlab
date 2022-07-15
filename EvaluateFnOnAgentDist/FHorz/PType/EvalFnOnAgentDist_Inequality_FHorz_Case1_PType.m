@@ -1,6 +1,10 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function InequalityStats=EvalFnOnAgentDist_Inequality_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
+%
+%
+% simoptions.verbose=1 will give feedback
+% simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
 %
 % Rest of this description describes how those inputs not already used for
 % ValueFnIter_PType or StationaryDist_PType should be set up.
@@ -40,26 +44,35 @@ else
     end
 end
 
+if ~exist('simoptions','var')
+    simoptions.npoints=100;
+else
+    if ~isfield(simoptions,'npoints')
+        simoptions.npoints=100;
+    end
+end
+
 if isstruct(FnsToEvaluate)
     numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
 else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
+FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
-% RIGHT NOW THIS ValuesOnGrid ONLY WORKS WHEN ALL AGENTS ARE ON THE SAME GRID
-N_a=prod(n_a);
-N_z=prod(n_z);
-if ~isstruct(FnsToEvaluate)
-    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
-    else
-        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j);
+% Set default of grouping all the PTypes together when reporting statistics
+if ~exist('simoptions','var')
+    simoptions.groupptypesforstats=1;
+else
+    if ~isfield(simoptions,'groupptypesforstats')
+       simoptions.groupptypesforstats=1;
     end
 end
-ValuesOnGrid=struct();
+
+FnNames=fieldnames(FnsToEvaluate);
 
 %%
-for ii=1:N_i% First set up simoptions
+for ii=1:N_i
+    % First set up simoptions
     if exist('simoptions','var')
         simoptions_temp=PType_Options(simoptions,Names_i,ii);
         if ~isfield(simoptions_temp,'verbose')
@@ -71,16 +84,20 @@ for ii=1:N_i% First set up simoptions
         if ~isfield(simoptions_temp,'ptypestorecpu')
             simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
         end
+        if ~isfield(simoptions_temp,'npoints')
+            simoptions_temp.npoints=100; % Need later so can do 'top X share'
+        end
     else
         simoptions_temp.verbose=0;
         simoptions_temp.verboseparams=0;
         simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        simoptions_temp.npoints=100;
     end
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+        
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
         StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
@@ -191,10 +208,7 @@ for ii=1:N_i% First set up simoptions
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                fprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                fprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                fprintf('(it is possible this is just a coincidence of number of columns) \n')
-                dbstack
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
             end
         end
     end
@@ -205,9 +219,9 @@ for ii=1:N_i% First set up simoptions
         Parameters_temp
     end
     
-    % Figure out which functions are actually relevant to the present
-    % PType. Only the relevant ones need to be evaluated.
-    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
+    % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
+    % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
+    % Allows for FnsToEvaluate as structure.
     if n_d_temp(1)==0
         l_d_temp=0;
     else
@@ -215,32 +229,140 @@ for ii=1:N_i% First set up simoptions
     end
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
-    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
-    
-    if isfield(simoptions_temp,'n_e')
-        n_z_temp=[n_z_temp,simoptions_temp.n_e];
-    end
-    if isstruct(FnsToEvaluate)
-        FnNames=fieldnames(FnsToEvaluate);
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]);
-            end
+    if simoptions.groupptypesforstats==0
+        LorenzCurve=EvalFnOnAgentDist_LorenzCurve_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,simoptions_temp);
+        
+        % Top X share indexes
+        Top1cutpoint=round(0.99*simoptions_temp.npoints);
+        Top5cutpoint=round(0.95*simoptions_temp.npoints);
+        Top10cutpoint=round(0.90*simoptions_temp.npoints);
+        Top50cutpoint=round(0.50*simoptions_temp.npoints);
+        
+        FnNames_forii=fieldnames(FnsToEvaluate_temp);
+        for kk=1:length(FnNames_forii)
+            LorenzCurve_kk=LorenzCurve.(FnNames{kk});
+            InequalityStats.LorenzCurve.(FnNames{kk}).(Names_i{ii})=LorenzCurve_kk;
+            InequalityStats.Top1share.(FnNames{kk}).(Names_i{ii})=LorenzCurve_kk(1+Top1cutpoint:end);
+            InequalityStats.Top5share.(FnNames{kk}).(Names_i{ii})=LorenzCurve_kk(1+Top5cutpoint:end);
+            InequalityStats.Top10share.(FnNames{kk}).(Names_i{ii})=LorenzCurve_kk(1+Top10cutpoint:end);
+            InequalityStats.Bottom50share.(FnNames{kk}).(Names_i{ii})=LorenzCurve_kk(1:Top50cutpoint);
         end
         
-    else % Note: this only works when all agents use same grid
-        for kk=1:numFnsToEvaluate
+        % Now for the cutoffs
+        simoptions_temp.keepoutputasmatrix=1;
+        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+        
+        if isfield(simoptions_temp,'n_e')
+            n_z_temp=[n_z_temp,simoptions.n_e];
+        end
+        N_a_temp=prod(n_a_temp);
+        N_z_temp=prod(n_z_temp);
+        
+        DistVec_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]);
+        
+        for kk=1:length(FnNames_forii)
+            ValuesVec_iikk=zeros(N_a_temp*N_z_temp*N_j_temp,1);
             jj=WhichFnsForCurrentPType(kk);
             if jj>0
-                ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+                ValuesVec_iikk=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp*N_j_temp,1]);
             end
+            
+            [SortedValues,SortedValues_index]=sort(ValuesVec_iikk);
+            SortedWeights=DistVec_ii(SortedValues_index);
+            
+            CumSumSortedWeights=cumsum(SortedWeights);
+            
+            % Now the cutoffs
+            cutoffvalues = prctile(CumSumSortedWeights,[50,90,95,99]);
+            InequalityStats.MedianValue.(FnNames{kk}).(Names_i{ii})=cutoffvalues(1);
+            InequalityStats.Percentile50th.(FnNames{kk}).(Names_i{ii})=cutoffvalues(1);
+            InequalityStats.Percentile90th.(FnNames{kk}).(Names_i{ii})=cutoffvalues(2);
+            InequalityStats.Percentile95th.(FnNames{kk}).(Names_i{ii})=cutoffvalues(3);
+            InequalityStats.Percentile99th.(FnNames{kk}).(Names_i{ii})=cutoffvalues(4);
         end
-        ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]);
+        
+    else %simoptions.groupptypesforstats==1
+        simoptions_temp.keepoutputasmatrix=1;
+        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+        
+        if isfield(simoptions_temp,'n_e')
+            n_z_temp=[n_z_temp,simoptions.n_e];
+        end
+        N_a_temp=prod(n_a_temp);
+        N_z_temp=prod(n_z_temp);
+        for kk=1:numFnsToEvaluate
+            ValuesOnGrid_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
+            jj=WhichFnsForCurrentPType(kk);
+            if jj>0
+                ValuesOnGrid_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp*N_j_temp,1]);
+            end
+            ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnGrid_Kron;
+            
+        end
+        
+        % I can write over StationaryDist.(Names_i{ii}) as I don't need it
+        % again, but I do need the reshaped and reweighed version in the next for loop.
+        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1]);
     end
     
 end
+
+if simoptions.groupptypesforstats==1
+    % Top X share indexes
+    Top1cutpoint=round(0.99*simoptions_temp.npoints);
+    Top5cutpoint=round(0.95*simoptions_temp.npoints);
+    Top10cutpoint=round(0.90*simoptions_temp.npoints);
+    Top50cutpoint=round(0.50*simoptions_temp.npoints);
+    
+    % Calculate the quantiles
+    for kk=1:numFnsToEvaluate
+        SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+        
+        DistVec=[];
+        ValuesVec=[];
+        for ii=1:N_i
+            if FnsAndPTypeIndicator(kk,ii)==1
+                % The 'gather' was added as this was otherwise a gpu memory bottleneck
+                DistVec=[DistVec; gather(StationaryDist.(Names_i{ii})/SigmaNxi)]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
+                ValuesVec=[ValuesVec;gather(ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)]))]; % Note: actually already used gather()
+            end
+        end
+        
+        [SortedValues,SortedValues_index]=sort(ValuesVec);
+        SortedWeights=DistVec(SortedValues_index);
+        
+        CumSumSortedWeights=cumsum(SortedWeights);
+
+        WeightedValues=ValuesVec.*DistVec;
+        SortedWeightedValues=WeightedValues(SortedValues_index);
+                
+        if SortedWeightedValues(1)<0
+            LorenzCurveNan(ii)=1;
+        end
+        LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,1);
+        InequalityStats.LorenzCurve.(FnNames{kk})=LorenzCurve;
+        InequalityStats.Top1share.(FnNames{kk})=LorenzCurve(1+Top1cutpoint:end);
+        InequalityStats.Top5share.(FnNames{kk})=LorenzCurve(1+Top5cutpoint:end);
+        InequalityStats.Top10share.(FnNames{kk})=LorenzCurve(1+Top10cutpoint:end);
+        InequalityStats.Bottom50share.(FnNames{kk})=LorenzCurve(1:Top50cutpoint);
+        % Now the cutoffs
+        cutoffvalues = prctile(CumSumSortedWeights,[50,90,95,99]);
+        InequalityStats.MedianValue.(FnNames{kk})=cutoffvalues(1);
+        InequalityStats.Percentile50th.(FnNames{kk})=cutoffvalues(1);
+        InequalityStats.Percentile90th.(FnNames{kk})=cutoffvalues(2);
+        InequalityStats.Percentile95th.(FnNames{kk})=cutoffvalues(3);
+        InequalityStats.Percentile99th.(FnNames{kk})=cutoffvalues(4);
+    end
+end
+
+% If using FnsToEvaluate as structure need to get in appropriate form for output
+if isstruct(FnsToEvaluate) && simoptions.groupptypesforstats==0
+    %Note: nothing needs to be dome if simoptions.groupptypesforstats==0
+end
+%Note: nothing needs to be dome if simoptions.groupptypesforstats==1
+
 
 end

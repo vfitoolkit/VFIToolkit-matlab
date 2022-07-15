@@ -239,8 +239,8 @@ for ii=1:N_i
         end
         N_a_temp=prod(n_a_temp);
         N_z_temp=prod(n_z_temp);
-        ValuesOnGrid_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
         for kk=1:numFnsToEvaluate
+            ValuesOnGrid_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
             jj=WhichFnsForCurrentPType(kk);
             if jj>0
                 ValuesOnGrid_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp*N_j_temp,1]);
@@ -297,7 +297,7 @@ if isstruct(FnsToEvaluate) && simoptions.groupptypesforstats==0
     for ff=1:length(FnNames)
         for ii=1:N_i
             LorenzCurve.(FnNames{ff}).(Names_i{ii})=LorenzCurve2.(Names_i{ii}).(FnNames{ff});
-            LorenzCurve.(FnNames{ff}).(Names_i{ii})=LorenzCurve2.(Names_i{ii}).(FnNames{ff});
+%             LorenzCurve.(FnNames{ff}).(Names_i{ii})=LorenzCurve2.(Names_i{ii}).(FnNames{ff}); % This looks like I just accidently put same line twice. Am just going to comment out rather than delete.
         end
     end
 end

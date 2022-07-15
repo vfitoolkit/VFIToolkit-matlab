@@ -73,7 +73,7 @@ PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 %functions for anything later we just store the next period one in
 %Vnext, and the current period one to be calculated in V
 Vnext=V_final;
-for tt=0:T-1 %so tt=T-ttr
+for ttr=0:T-1 %so tt=T-ttr
     
     if ~isnan(IndexesForPathParamsInDiscountFactor)
         beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
