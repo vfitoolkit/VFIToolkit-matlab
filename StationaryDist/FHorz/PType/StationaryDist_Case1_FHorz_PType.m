@@ -208,7 +208,6 @@ for ii=1:N_i
             end
         end
     end
-
     StationaryDist_ii=StationaryDist_FHorz_Case1(jequaloneDist_temp,AgeWeightParamNames_temp,Policy_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp,simoptions_temp);
     
     if simoptions_temp.ptypestorecpu==1
