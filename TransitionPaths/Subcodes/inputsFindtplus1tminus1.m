@@ -26,6 +26,7 @@ for ff=1:length(GEeqnNames)
 end
 % Now, get rid of all the duplicates
 FnInputNames=unique(FnInputNames);
+
 % Find any which are _tplus1 or _tminus1
 tplus1Names={};
 ntplus1=0;
@@ -46,12 +47,14 @@ for ii=1:length(FnInputNames)
         end
     end
 end
+
 tplus1UsedAsPriceOrAggVar=zeros(ntplus1,1); % I replace the zeros with ones as I find them
 tminus1UsedAsPriceOrAggVar=zeros(ntminus1,1); % I replace the zeros with ones as I find them
 tplus1priceNames={}; ntplus1prices=0;
 tminus1priceNames={}; ntminus1prices=0;
 tminus1AggVarsNames={}; ntminus1AggVars=0;
 tplus1pricePathkk=[];
+
 % Check that they are prices, otherwise error
 for kk=1:length(PricePathNames)
     for ii=1:ntplus1
@@ -70,7 +73,7 @@ for kk=1:length(PricePathNames)
         end
     end
 end
-for ff=1:length(AggVarNames)
+for kk=1:length(AggVarNames)
     for ii=1:ntminus1
         if strcmp(tminus1Names{ii},AggVarNames{kk})
             ntminus1AggVars=ntminus1AggVars+1;
@@ -81,7 +84,7 @@ for ff=1:length(AggVarNames)
 end
 % Check that they have all been use, otherwise error
 if prod(tplus1UsedAsPriceOrAggVar)==0
-    fprintf('ERROR: FnsToEvaluate or GeneralEqmEqns are trying to use a _tplus1 input that is NOT a prices \n')
+    fprintf('ERROR: FnsToEvaluate or GeneralEqmEqns are trying to use a _tplus1 input that is NOT a price \n')
     dbstack
     return
 elseif prod(tminus1UsedAsPriceOrAggVar)==0

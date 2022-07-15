@@ -160,6 +160,7 @@ if exist('vfoptions','var')==0
     vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
+    vfoptions.solnmethod='purediscretization';
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'parallel')==0
@@ -198,6 +199,9 @@ else
     end
     if isfield(vfoptions,'policy_forceintegertype')==0
         vfoptions.policy_forceintegertype=0;
+    end
+    if isfield(vfoptions,'solnmethod')==0
+        vfoptions.solnmethod='purediscretization';
     end
 end
 
@@ -357,20 +361,6 @@ end
 if ~isstruct(FnsToEvaluate)
     error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
 end
-AggVarNames=fieldnames(FnsToEvaluate);
-for ff=1:length(AggVarNames)
-    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        FnsToEvaluateParamNames(ff).Names={};
-    end
-    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
-end
-FnsToEvaluate=FnsToEvaluate2;
-% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
-simoptions.outputasstructure=1;
-simoptions.AggVarNames=AggVarNames;
 
 
 %%
@@ -380,15 +370,15 @@ if transpathoptions.GEnewprice~=2
             % The lowmemory option is going to use gpu (but loop over z instead of
             % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
             if N_d==0
-                PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions);
+                PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             else
-                PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions);
+                PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             end
         else
             if N_d==0
-                PricePath=TransitionPath_Case1_shooting_no_d(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions);
+                PricePath=TransitionPath_Case1_shooting_no_d(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             else
-                PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions);
+                PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             end
         end
     else

@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
 
 
 if transpathoptions.verbose==1
@@ -10,6 +10,10 @@ unkronoptions.parallel=2;
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
+
+l_d=length(n_d); % Note that if l_d=0 would instead have used TransitionPath_Case1_shooting_no_d
+l_a=length(n_a);
+l_z=length(n_z);
 
 if transpathoptions.verbose==1
     DiscountFactorParamNames
@@ -69,6 +73,22 @@ end
 
 use_tminus1price
 use_tminus1AggVars
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
@@ -132,9 +152,9 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
-V=zeros(size(V_final),'gpuArray');
+% V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-Policy=zeros(N_a,N_z,'gpuArray');
+% Policy=zeros(N_a,N_z,'gpuArray');
 
 
 beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
@@ -155,35 +175,45 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
         
-        if ~isnan(IndexesForPathParamsInDiscountFactor)
-            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
+%         if ~isnan(IndexesForPathParamsInDiscountFactor)
+%             beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
+%         end
+%         if ~isnan(IndexesForPricePathInReturnFnParams)
+%             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,IndexesPricePathUsedInReturnFn);
+%         end
+%         if ~isnan(IndexesForPathParamsInReturnFnParams)
+%             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+%         end
+%         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+%         
+%         for z_c=1:N_z
+%             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+% %             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
+%             %Calc the condl expectation term (except beta), which depends on z but
+%             %not on control variables
+%             EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+%             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+%             EV_z=sum(EV_z,2);
+%             
+%             entireEV_z=kron(EV_z,ones(N_d,1));
+%             entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
+%             
+%             %Calc the max and it's index
+%             [Vtemp,maxindex]=max(entireRHS,[],1);
+%             V(:,z_c)=Vtemp;
+%             Policy(:,z_c)=maxindex;
+%         end
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePathOld(T-i,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
-        if ~isnan(IndexesForPricePathInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,IndexesPricePathUsedInReturnFn);
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(T-i,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        if ~isnan(IndexesForPathParamsInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-        end
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
         
-        for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-%             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            entireEV_z=kron(EV_z,ones(N_d,1));
-            entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            V(:,z_c)=Vtemp;
-            Policy(:,z_c)=maxindex;
-        end
-        
+        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        % The VKron input is next period value fn, the VKron output is this period.
+        % Policy is kept in the form where it is just a single-value in (d,a')
+                
         PolicyIndexesPath(:,:,T-ttr)=Policy;
         Vnext=V;
     end

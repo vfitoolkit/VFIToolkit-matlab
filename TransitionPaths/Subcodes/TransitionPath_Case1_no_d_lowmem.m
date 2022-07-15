@@ -1,5 +1,28 @@
-function PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
 
+
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
+unkronoptions.parallel=2;
+
+N_d=prod(n_d);
+N_z=prod(n_z);
+N_a=prod(n_a);
+
+l_d=length(n_d); % Note that if l_d=0 would instead have used TransitionPath_Case1_shooting_no_d
+l_a=length(n_a);
+l_z=length(n_z);
+
+if transpathoptions.verbose==1
+    DiscountFactorParamNames
+    ReturnFnParamNames
+    ParamPathNames
+    PricePathNames
+end
+
+%%
 if transpathoptions.verbose==1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));
@@ -50,6 +73,22 @@ end
 
 use_tminus1price
 use_tminus1AggVars
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
@@ -107,15 +146,6 @@ if transpathoptions.GEnewprice==3
 end
 
 %%
-if transpathoptions.verbose==1
-    transpathoptions
-end
-
-unkronoptions.parallel=2;
-
-N_z=prod(n_z);
-N_a=prod(n_a);
-l_z=length(n_z);
 l_p=size(PricePathOld,2);
 
 PricePathDist=Inf;

@@ -1,8 +1,29 @@
-function PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
+
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
+unkronoptions.parallel=2;
+
+N_d=prod(n_d);
+N_z=prod(n_z);
+N_a=prod(n_a);
+
+l_d=length(n_d); % Note that if l_d=0 would instead have used TransitionPath_Case1_shooting_no_d
+l_a=length(n_a);
+l_z=length(n_z);
+
+if transpathoptions.verbose==1
+    DiscountFactorParamNames
+    ReturnFnParamNames
+    ParamPathNames
+    PricePathNames
+end
 
 %%
-if transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
+if ~strcmp(vfoptions.exoticpreferences,'None')
+    disp('ERROR: Only vfoptions.exoticpreferences=None is supported by TransitionPath_Case1')
     dbstack
 else
     if length(DiscountFactorParamNames)~=1
@@ -11,6 +32,7 @@ else
     end
 end
 
+%%
 if transpathoptions.verbose==1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));
@@ -61,6 +83,22 @@ end
 
 use_tminus1price
 use_tminus1AggVars
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
@@ -118,16 +156,6 @@ if transpathoptions.GEnewprice==3
 end
 
 %%
-if transpathoptions.verbose==1
-    transpathoptions
-end
-
-unkronoptions.parallel=2;
-
-N_d=prod(n_d);
-N_z=prod(n_z);
-N_a=prod(n_a);
-l_z=length(n_z);
 l_p=size(PricePathOld,2);
 
 PricePathDist=Inf;
@@ -274,7 +302,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         % The next five lines should really be replaced with a custom
-        % alternative version of SSvalues_AggVars_Case1_vec that can
+        % alternative version of EvalFnOnAgentDist_AggVars_Case1 that can
         % operate directly on Policy, rather than present messing around
         % with converting to PolicyTemp and then using
         % UnKronPolicyIndexes_Case1.
@@ -282,6 +310,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PolicyTemp=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
         PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
         PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+        if l_d>1 || l_a>1
+            PolicyTemp=UnKronPolicyIndexes_Case1(PolicyTemp, n_d, n_a, n_z,vfoptions);
+        end
 
         AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2, simoptions);
         
