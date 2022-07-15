@@ -335,7 +335,8 @@ if simoptions.groupptypesforstats==1
             % Calculate the 'age conditional' mean
             AgeConditionalStats(kk).Mean(jj)=sum(WeightedValues);
             % Calculate the 'age conditional' median
-            AgeConditionalStats(kk).Median(jj)=SortedWeightedValues(max(1,floor(0.5*length(SortedWeightedValues)))); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
+            [~,medianindex]=min(abs(SortedWeights-0.5));
+            AgeConditionalStats(kk).Median(jj)=SortedValues(medianindex);
             % Calculate the 'age conditional' variance
             AgeConditionalStats(kk).Variance(jj)=sum((Values_jj.^2).*StationaryDistVec_jj)-(AgeConditionalStats(kk).Mean(jj))^2; % Weighted square of values - mean^2
             

@@ -38,10 +38,18 @@ if exist('simoptions','var')==1
         simoptions.endogenousexit=0; % Note: this will only be relevant if agententryandexit=1
     end
     if isfield(simoptions,'entryinpanel')==0
-        simoptions.entryinpanel=1; % Note: this will only be relevant if agententryandexit=1
+        if simoptions.agententryandexit==1
+            simoptions.entryinpanel=1; % Note: this will only be relevant if agententryandexit=1
+        else
+            simoptions.entryinpanel=0;
+        end
     end
     if isfield(simoptions,'exitinpanel')==0
-        simoptions.exitinpanel=1; % Note: this will only be relevant if agententryandexit=1
+        if simoptions.agententryandexit==1
+            simoptions.exitinpanel=1; % Note: this will only be relevant if agententryandexit=1
+        else
+            simoptions.exitinpanel=0;
+        end
     end
 else
     %If simoptions is not given, just use all the defaults

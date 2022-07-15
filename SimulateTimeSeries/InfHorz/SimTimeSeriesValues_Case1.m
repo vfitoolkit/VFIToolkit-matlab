@@ -1,4 +1,4 @@
-function SimTimeSeries=SimTimeSeriesValues_Case1(Policy,n_d,n_a,n_z,pi_z, ContinuousVarIndicator_d, ContinuousVarIndicator_a, simoptions)
+function SimTimeSeries=SimTimeSeriesValues_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);

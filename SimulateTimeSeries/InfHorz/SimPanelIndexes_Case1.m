@@ -54,6 +54,8 @@ if exist('CondlProbOfSurvival','var')==1
     if ~isfield(simoptions, 'endogenousexit')
         simoptions.endogenousexit=0;  % Note: this will only be relevant if exitinpanel=1
     end
+else
+    CondlProbOfSurvivalKron=0; % will be unused, but otherwise there was an error that it wasnt recognized
 end
 
 if n_d(1)==0
