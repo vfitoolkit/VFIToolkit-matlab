@@ -123,15 +123,23 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.iistr{ii}=iistr;
     
     if exist('vfoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+        if ~isempty(vfoptions)
+            PTypeStructure.(iistr).vfoptions=PType_Options(vfoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+        else
+            PTypeStructure.(iistr).simoptions.verbose=0;
+        end
     else
         PTypeStructure.(iistr).vfoptions.verbose=0;
     end
     
     if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
-        PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+        if ~isempty(simoptions)
+            PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+        else
+            PTypeStructure.(iistr).simoptions.verbose=0;
+        end
     else
-        PTypeStructure.(iistr).vfoptions.verbose=0;
+        PTypeStructure.(iistr).simoptions.verbose=0;
     end
     
     PTypeStructure.(iistr).simoptions.outputasstructure=0; % Used by AggVars (in heteroagent subfn)
