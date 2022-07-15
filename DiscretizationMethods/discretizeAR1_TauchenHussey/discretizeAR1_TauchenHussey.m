@@ -38,6 +38,8 @@ else
         w=0.5+rho/4;
         sigmaZ=sigma/sqrt(1-rho^2);
         baseSigma=w*sigma+(1-w)*sigma*sigmaZ;
+    else
+        baseSigma=tauchenhusseyoptions.baseSigma;
     end
 end
 

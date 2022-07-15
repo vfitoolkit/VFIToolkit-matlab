@@ -1,4 +1,4 @@
-function [z_grid_J, P_J,jequaloneDistz] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,znum,J,fellagallipolipanoptions)
+function [z_grid_J, P_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,znum,J,fellagallipolipanoptions)
 % Please cite: Fella, Gallipoli & Pan (2019) "Markov-chain approximations for life-cycle models"
 %
 % Fella-Gallipoli-Pan discretization method for a 'life-cycle non-stationary AR(1) process'. 
@@ -20,6 +20,9 @@ function [z_grid_J, P_J,jequaloneDistz] = discretizeLifeCycleAR1_FellaGallipoliP
 %   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
 %                  Transition probabilities are arranged by row.
 %                  P(:,:,j) is transition matrix from age j to j+1 (Modified from FGP where it is j-1 to j)
+%   jequaloneDistz - znum-by-1 vector, the distribution of z in period 1
+%   otheroutputs - optional output structure containing info for evaluating the distribution including,
+%        otheroutputs.sigma_z     - the standard deviation of z at each age (used to determine grid)
 %
 % This code is by Fella, Gallipoli & Pan.
 % Lightly modified by Robert Kirkby.
@@ -61,10 +64,10 @@ if J < 2
     error('The time horizon has to have dimension J>1. Exiting.')
 end
 
-%% Step 1: construct the state space y_grid(t) in each period t.
-% Evenly-spaced N-state space over [-sqrt(N-1)*sigma_y(t),sqrt(N-1)*sigma_y(t)].
+%% Step 1: construct the state space z_grid_J for each period j.
+% Evenly-spaced znum-state space over [-kirkbyoptions.nSigmas*sigma_z(j),kirkbyoptions.nSigmas*sigma_z(j)].
 
-% 1.a Compute unconditional variances of y(t)
+% 1.a Compute unconditional variances of z(j)
 if isfield(fellagallipolipanoptions,'initialj0sigma_z')
     sigma_z(1) = sqrt(rho(1)^2*fellagallipolipanoptions.initialj0sigma_z^2+sigma(1)^2);
 else
@@ -85,8 +88,10 @@ z_grid_J = cumsum(z_grid_J,1);
 % The transition matrix for period t is defined by parameter p(t).
 % p(t) = 0.5*(1+rho*sigma(t-1)/sigma(t))
 
-% Note: P(:,:,1) is the transition matrix from y(0)=0 to any gridpoint of y_grid(1) in period 1.
+% Note: P(:,:,1) is the transition matrix from z(0)=0 to any gridpoint of z_grid(1) in period 1.
 % Any of its rows is the (unconditional) distribution in period 1.
+
+% Note: rhmat() is the 'Rouwenhorst matrix' subfunction
 
 p = 1/2; % First period: p(1) = 0.5 as y(1) is white noise.  
 P_J(:,:,1) = rhmat(p,znum);
@@ -103,7 +108,6 @@ if fellagallipolipanoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
     P_J=gpuArray(P_J);
 end
-
 
 %%
 jequaloneDistz=P_J(1,:,1)';
@@ -142,6 +146,9 @@ function [Pmat] = rhmat(p,N)
         end % of for
     end % if N == 2
 end % of rhmat function
+
+%% Some additional outputs that can be used to evaluate the discretization
+otheroutputs.sigma_z=sigma_z; % Standard deviation of z (for each period)
 
 end
 
