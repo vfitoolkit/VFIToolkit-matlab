@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, StationaryDist_init, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, AgeWeightsParamNames, transpathoptions, vfoptions, simoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, AgeWeightsParamNames, transpathoptions, vfoptions, simoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 %% Check which transpathoptions have been used, set all others to defaults 
@@ -209,7 +209,6 @@ PricePathDist=Inf;
 pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z,N_j]);
-StationaryDist_initial=reshape(StationaryDist_init,[N_a*N_z,N_j]);
 V=zeros(size(V_final),'gpuArray');
 if N_d>0
     Policy=zeros(2,N_a,N_z,N_j,'gpuArray');

@@ -149,7 +149,8 @@ if options.parallel==2
             % Calculate the 'age conditional' mean
             AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
             % Calculate the 'age conditional' median
-            AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
+            [~,medianindex]=min(abs(SortedWeights-0.5));
+            AgeConditionalStats(ii).Median(kk)=SortedValues(medianindex);
             % Calculate the 'age conditional' variance
             AgeConditionalStats(ii).Variance(kk)=sum(StationaryDistVec_kk.*((Values-(AgeConditionalStats(ii).Mean(kk).*ones(N_a_k*N_z_k,1))).^2));
             % Calculate the 'age conditional' standard deviation
@@ -322,7 +323,8 @@ elseif options.parallel==3
             % Calculate the 'age conditional' mean
             AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
             % Calculate the 'age conditional' median
-            AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
+            [~,medianindex]=min(abs(SortedWeights-0.5));
+            AgeConditionalStats(ii).Median(kk)=SortedValues(medianindex);
             % Calculate the 'age conditional' variance
             AgeConditionalStats(ii).Variance(kk)=sum(StationaryDistVec_kk.*((Values-(AgeConditionalStats(ii).Mean(kk).*ones(N_a_k*N_z_k,1))).^2));
             % Calculate the 'age conditional' standard deviation

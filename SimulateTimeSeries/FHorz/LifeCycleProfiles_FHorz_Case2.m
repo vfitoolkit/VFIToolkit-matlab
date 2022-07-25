@@ -173,7 +173,8 @@ for kk=1:length(simoptions.agegroupings)
         % Calculate the 'age conditional' mean
         AgeConditionalStats(ii).Mean(kk)=sum(WeightedValues);
         % Calculate the 'age conditional' median
-        AgeConditionalStats(ii).Median(kk)=SortedWeightedValues(floor(0.5*length(SortedWeightedValues)));
+        [~,medianindex]=min(abs(SortedWeights-0.5));
+        AgeConditionalStats(ii).Median(kk)=SortedValues(medianindex);
         % Calculate the 'age conditional' variance
         
         if simoptions.npoints>0
