@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_NoD_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
+function [VKron, Policy]=PolicyFnIter_Case1_NoD_Par2_raw(VKron, n_a, n_z, pi_z, beta, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose, a_grid, z_grid, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -27,7 +27,7 @@ while currdist>Tolerance
         EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-        
+                
         entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
         
         %Calc the max and it's index
@@ -41,18 +41,34 @@ while currdist>Tolerance
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-        for Howards_counter=1:Howards
-            %VKrontemp=VKron;
-            %EVKrontemp=VKrontemp(PolicyIndexes,:);
-            EVKrontemp=VKron(PolicyIndexes,:);
-            
-            EVKrontemp=EVKrontemp.*aaa;
-            EVKrontemp(isnan(EVKrontemp))=0;
-            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
-            VKron=Ftemp+beta*EVKrontemp;
-        end
-    end
+    
+%     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+%         for Howards_counter=1:Howards
+%             %VKrontemp=VKron;
+%             %EVKrontemp=VKrontemp(PolicyIndexes,:);
+%             EVKrontemp=VKron(PolicyIndexes,:);
+%             
+%             EVKrontemp=EVKrontemp.*aaa;
+%             EVKrontemp(isnan(EVKrontemp))=0;
+%             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+%             VKron=Ftemp+beta*EVKrontemp;
+%         end
+%     end
+
+    % Policy Evaluation step
+    %     tic;
+    Ftemp=reshape(Ftemp,[N_a*N_z,1]);
+    
+    optaprime=PolicyIndexes(:)';
+    
+    Ptranspose=zeros(N_a,N_a*N_z);
+    Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+    Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+        
+    VKron=(eye(N_a*N_z)-beta*(Ptranspose'))\Ftemp;
+    
+    VKron=reshape(VKron,[N_a,N_z]);
+    %   time3=toc;
 
 %     if Verbose==1
 %         if rem(tempcounter,100)==0

@@ -27,6 +27,7 @@ if exist('vfoptions','var')==0
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
     vfoptions.endogenousexit=0;
+    vfoptions.endotype=0; % (vector indicating endogenous state is a type)
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     vfoptions.polindorval=1;
@@ -69,6 +70,9 @@ else
     if isfield(vfoptions,'endogenousexit')==0
         vfoptions.endogenousexit=0;
     end
+    if isfield(vfoptions,'endotype')==0
+        vfoptions.endotype=0; % (vector indicating endogenous state is a type)
+    end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     if isfield(vfoptions,'polindorval')==0
@@ -95,7 +99,7 @@ else
     if vfoptions.parallel==2
         V0=zeros([N_a,N_z], 'gpuArray');
     else
-        V0=zeros([N_a,N_z]);        
+        V0=zeros([N_a,N_z]);
     end
 end
 
@@ -150,6 +154,16 @@ elseif vfoptions.piz_strictonrowsaddingtoone==0
     end
 end
 
+if vfoptions.endotype==1
+    % Check that the number of states and grid have been given for the 'Endogenous Type'
+    if ~isfield(vfoptions,'n_endotype')
+        error('Using vfoptions.endotype=1 you need to declare vfoptions.n_endotype')
+    end
+    if ~isfield(vfoptions,'endotype_grid')
+        error('Using vfoptions.endotype=1 you need to declare vfoptions.endotype_grid')
+    end
+end
+
 %% Implement new way of handling ReturnFn inputs
 if n_d(1)==0
     l_d=0;
@@ -157,12 +171,18 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
+l_a_temp=l_a;
 l_z=length(n_z);
+l_z_temp=l_z;
+if max(vfoptions.endotype)==1
+    l_a_temp=l_a-sum(vfoptions.endotype); % Some of the endogenous states is an endogenous type, so it won't appear at this 
+    l_z_temp=l_z+sum(vfoptions.endotype); % The variables after z is the endogenous types
+end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
     temp=getAnonymousFnInputNames(ReturnFn);
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
+        ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
     else
         ReturnFnParamNames={};
     end
@@ -260,6 +280,8 @@ if isfield(vfoptions,'exoticpreferences')
 end
 
 %% State Dependent Parameters
+n_SDP=0;
+SDP1=[]; SDP2=[]; SDP3=[];
 if isfield(vfoptions,'statedependentparams')
     % Remove the statedependentparams from ReturnFnParamNames
     ReturnFnParamNames=setdiff(ReturnFnParamNames,vfoptions.statedependentparams.names);
@@ -350,121 +372,15 @@ end
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
     % Note: have only implemented Relative VFI on the GPU
-    if vfoptions.lowmemory==0
-        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
-        % Since the return function is independent of time creating it once and
-        % then using it every iteration is good for speed, but it does use a
-        % lot of memory.
-        
-        if vfoptions.verbose==1
-            disp('Creating return fn matrix')
-            tic;
-            if vfoptions.returnmatrix==0
-                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-            end
-        end
-        
-        if isfield(vfoptions,'statedependentparams')
-            if vfoptions.returnmatrix==2 % GPU
-                if n_SDP==3
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-                elseif n_SDP==2
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
-                elseif n_SDP==1
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
-                end
-            else
-                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
-                dbstack
-            end
-        else % Following is the normal/standard behavior
-            if vfoptions.returnmatrix==0
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-            elseif vfoptions.returnmatrix==1
-                ReturnMatrix=ReturnFn;
-            elseif vfoptions.returnmatrix==2 % GPU
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-            end
-        end
-        
-        if vfoptions.verbose==1
-            time=toc;
-            fprintf('Time to create return fn matrix: %8.4f \n', time)
-            disp('Starting Value Function')
-            tic;
-        end
-        
-        %%
-        if n_d(1)==0
-            if vfoptions.parallel==2 % On GPU
-                [VKron,Policy]=ValueFnIterRel_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
-            end
-        else
-            if vfoptions.parallel==2 % On GPU
-                [VKron, Policy]=ValueFnIterRel_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-            end
-        end
-    end
+    warning('Relative VFI is unstable if you have substantial discretization (has difficulty convering if you dont use enough points)')
+    [VKron,Policy]=ValueFnIter_Case1_RelativeVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI') 
     % Note: have only implemented Endogenous VFI on the GPU
-    if vfoptions.lowmemory==0
-        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
-        % Since the return function is independent of time creating it once and
-        % then using it every iteration is good for speed, but it does use a
-        % lot of memory.
-        
-        if vfoptions.verbose==1
-            disp('Creating return fn matrix')
-            tic;
-            if vfoptions.returnmatrix==0
-                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-            end
-        end
-        
-        if isfield(vfoptions,'statedependentparams')
-            if vfoptions.returnmatrix==2 % GPU
-                if n_SDP==3
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-                elseif n_SDP==2
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
-                elseif n_SDP==1
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
-                end
-            else
-                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
-                dbstack
-            end
-        else % Following is the normal/standard behavior
-            if vfoptions.returnmatrix==0
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-            elseif vfoptions.returnmatrix==1
-                ReturnMatrix=ReturnFn;
-            elseif vfoptions.returnmatrix==2 % GPU
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-            end
-        end
-        
-        if vfoptions.verbose==1
-            time=toc;
-            fprintf('Time to create return fn matrix: %8.4f \n', time)
-            disp('Starting Value Function')
-            tic;
-        end
-        
-        %%
-        if n_d(1)==0
-            if vfoptions.parallel==2 % On GPU
-                [VKron,Policy]=ValueFnIterEndo_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
-            end
-        else
-            if vfoptions.parallel==2 % On GPU
-                [VKron, Policy]=ValueFnIterEndo_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-            end
-        end
-    end
+    error('Endogneous VFI is not yet working')
+    [VKron,Policy]=ValueFnIter_Case1_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %% Semi-endogenous state
@@ -703,63 +619,89 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
 end
 
 %%
-if strcmp(vfoptions.solnmethod,'purediscretization_PFI') 
-    % Note: have only implemented PFI on the GPU
-    if vfoptions.lowmemory==0
-        %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
-        % Since the return function is independent of time creating it once and
-        % then using it every iteration is good for speed, but it does use a
-        % lot of memory.
-        
-        if vfoptions.verbose==1
-            disp('Creating return fn matrix')
-            tic;
-            if vfoptions.returnmatrix==0
-                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-            end
-        end
-        
-        if isfield(vfoptions,'statedependentparams')
-            if vfoptions.returnmatrix==2 % GPU
-                if n_SDP==3
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-                elseif n_SDP==2
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
-                elseif n_SDP==1
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
-                end
-            else
-                fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
-                dbstack
-            end
-        else % Following is the normal/standard behavior
-            if vfoptions.returnmatrix==0
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-            elseif vfoptions.returnmatrix==1
-                ReturnMatrix=ReturnFn;
-            elseif vfoptions.returnmatrix==2 % GPU
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-            end
-        end
-        
-        if vfoptions.verbose==1
-            time=toc;
-            fprintf('Time to create return fn matrix: %8.4f \n', time)
-            disp('Starting Value Function')
-            tic;
-        end
-        
-        %%
-        if n_d(1)==0
-            if vfoptions.parallel==2 % On GPU
-                [VKron,Policy]=PolicyFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
-            end
-        else
-            if vfoptions.parallel==2 % On GPU
-                [VKron, Policy]=PolicyFnIter_Case1_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-            end
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
+    if n_d(1)==0
+        warning('You are using purediscretization_refinement as the vfoptions.solnmethod, but you have no decision (d) variables, this is likely innappropriate (will work but unnecessary overhead/slower)')
+    end
+    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
+    [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+end
+
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
+    if n_d(1)==0
+        warning('You are using purediscretization_refinement2 as the vfoptions.solnmethod, but you have no decision (d) variables, this is likely innappropriate (will work but unnecessary overhead/slower)')
+    end
+    % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
+    % Refinement 2: Multigrid approach when presolving for dstar(aprime,a,z).
+    
+    % Check that the info about layers is provided
+    if ~isfield(vfoptions,'refine_pts') % points per dimension per layer
+        error('Using vfoptions.solnmethod purediscretization_refinement2 you must declare vfoptions.refine_pts')
+    else
+        if rem(vfoptions.refine_pts,2)~=1
+            error('vfoptions.refine_pts must be an odd number')
         end
     end
+    if ~isfield(vfoptions,'refine_iter') % number of layers
+        error('Using vfoptions.solnmethod purediscretization_refinement2 you must declare vfoptions.refine_iter')
+    end
+    
+    % Check that grid size for d variables matches the ptsperlayer and 
+    RequiredGridPoints=nGridPointsWithLayers(vfoptions);
+    for ii=1:length(n_d)
+        if n_d(ii)~=RequiredGridPoints
+            fprintf('Problem with the %i-th decision variable \n',ii)
+            fprintf('With current settings for layers (in vfoptions) you should be using %i points for each decision variable \n',RequiredGridPoints)
+            error('The number of points in the grid for the i-th variable is does not fit layers')
+        end
+    end
+    
+    if max(vfoptions.endotype)==0 % If they are all zeros, no endo types are used
+        [VKron,Policy]=ValueFnIter_Case1_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    else
+        % Need to seperate endogenous states from endogenous types to take advantage of them
+        n_endostate=n_a(logical(1-vfoptions.endotype));
+        n_endotype=n_a(logical(vfoptions.endotype));
+        endostate_grid=zeros(sum(n_endostate),1);
+        endotype_grid=zeros(sum(n_endotype),1);
+        endostate_c=1;
+        endotype_c=1;
+        if vfoptions.endotype(1)==1 % Endogenous type
+            endotype_grid(1:n_a(1))=a_grid(1:n_a(1));
+            endotype_c=endotype_c+1;
+        else % Endogenous state
+            endostate_grid(1:n_a(1))=a_grid(1:n_a(1));
+            endostate_c=endostate_c+1;
+        end
+        for ii=2:length(n_a)
+            if vfoptions.endotype(ii)==1 % Endogenous type
+                if endotype_c==1
+                    endotype_grid(1:n_endotype(1))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
+                else
+                    endotype_grid(1+sum(n_endotype(1:endotype_c-1)):sum(n_endotype(1:endotype_c)))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
+                end
+                endotype_c=endotype_c+1;
+            else % Endogenous state
+                if endotype_c==1
+                    endostate_grid(1:n_endostate(1))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
+                else
+                    endostate_grid(1+sum(n_endostate(1:endostate_c-1)):sum(n_endostate(1:endostate_c)))=a_grid(1+sum(n_a(1:ii-1)):sum(n_a(1:ii)));
+                end
+                endostate_c=endostate_c+1;
+            end
+        end
+        
+        [VKron,Policy]=ValueFnIter_Case1_EndoType_Refine2(V0,l_d,prod(n_endostate),N_z,n_d,n_endostate,n_z,n_endotype,d_grid,endostate_grid,z_grid,endotype_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    end
+%     % To be able to resize the output we need to pretend endotype is just another endogenous state
+%     n_a=[n_a,vfoptions.n_endotype]; % (Needed for the UnKron steps)
+%     a_grid=[a_grid;vfoptions.endotype_grid]; % This is just in case PolicyInd2Val=1
+end
+
+%%
+if strcmp(vfoptions.solnmethod,'purediscretization_PFI') 
+    % Note: have only implemented PFI on the GPU
+    [VKron,Policy]=ValueFnIter_Case1_PolicyFnIter(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 if vfoptions.verbose==1
