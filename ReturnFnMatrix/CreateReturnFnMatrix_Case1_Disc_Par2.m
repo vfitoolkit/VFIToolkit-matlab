@@ -1,5 +1,9 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParams)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParams,Refine) % Refine is an optional input
 %If there is no d variable, just input n_d=0 and d_grid=0
+
+if ~exist('Refine','var')
+    Refine=0;
+end
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
@@ -242,9 +246,12 @@ end
 if l_d==0
     Fmatrix=reshape(Fmatrix,[N_a,N_a,N_z]);
 else
-    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_z]);
+    if Refine==1
+        Fmatrix=reshape(Fmatrix,[N_d,N_a,N_a,N_z]); % This is the difference when using Refine
+    else
+        Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_z]);
+    end
 end
-
 
 end
 

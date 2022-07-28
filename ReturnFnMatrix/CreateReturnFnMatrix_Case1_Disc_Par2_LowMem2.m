@@ -1,5 +1,9 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_aprime, n_a, n_z, d_grid, a_grid, avals, zvals,ReturnFnParamsVec)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_aprime, n_a, n_z, d_grid, a_grid, avals, zvals,ReturnFnParamsVec,Refine) % Refine is an optional input
 %If there is no d variable, just input n_d=0 and d_grid=0
+
+if ~exist('Refine','var')
+    Refine=0;
+end
 
 ParamCell=cell(length(ReturnFnParamsVec),1);
 for ii=1:length(ReturnFnParamsVec)
@@ -553,8 +557,12 @@ else
         end
     end
     
-    Fmatrix=reshape(Fmatrix,[N_d*N_aprime,N_a,N_z]);
-    
+    if Refine==1
+        Fmatrix=reshape(Fmatrix,[N_d,N_aprime,N_a,N_z]);
+    else
+        Fmatrix=reshape(Fmatrix,[N_d*N_aprime,N_a,N_z]);
+    end
+
 end
 
 end
