@@ -378,7 +378,7 @@ end
 % For refinement, add d to Policy
 % Policy is currently
 if n_d(1)>0
-    Policy=zeros(2,N_a,N_z);
+    Policy=zeros(2,N_a,N_z,'gpuArray');
     Policy(2,:,:)=shiftdim(Policy_a,-1);
     temppolicyindex=reshape(Policy_a,[1,N_a*N_z])+(0:1:N_a*N_z-1)*N_a;
     Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]);

@@ -693,9 +693,8 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement2')
         
         [VKron,Policy]=ValueFnIter_Case1_EndoType_Refine2(V0,l_d,prod(n_endostate),N_z,n_d,n_endostate,n_z,n_endotype,d_grid,endostate_grid,z_grid,endotype_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
     end
-%     % To be able to resize the output we need to pretend endotype is just another endogenous state
-%     n_a=[n_a,vfoptions.n_endotype]; % (Needed for the UnKron steps)
-%     a_grid=[a_grid;vfoptions.endotype_grid]; % This is just in case PolicyInd2Val=1
+    % To be able to resize the output we need to treat endotype is just
+    % another endogenous state. This will happen because of how we have n_a setup.
 end
 
 %%
