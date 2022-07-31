@@ -34,6 +34,8 @@ if l_z>4
 end
 
 if nargin(ReturnFn)~=l_d+l_a+l_a+l_z+length(ReturnFnParams)
+    fprintf('Next line is numbers relevant to the error \n')
+    [nargin(ReturnFn),l_d,l_a,l_z,length(ReturnFnParams)]
     error('ERROR: Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
 end
 
