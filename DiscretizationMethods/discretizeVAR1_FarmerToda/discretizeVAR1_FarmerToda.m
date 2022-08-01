@@ -17,7 +17,7 @@ function [Z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodao
 %   Mew       - (M x 1) constant vector
 %   Rho       - (M x M) matrix of impact coefficients
 %   Sigma     - (M x M) variance-covariance matrix of the innovations
-%   znum      - Desired number of discrete points in each dimension 
+%   znum      - Desired number of discrete points in each dimension
 %               (must be same for every dimension; actual grids are jointly determined as znum^M points per variable)
 % Optional inputs (farmertodaoptions):
 %   parallel: - set equal to 2 to use GPU, 0 to use CPU
@@ -74,7 +74,7 @@ else
     end
     % define grid spacing parameter if not provided (only used for 'even' method)
     if ~isfield(farmertodaoptions,'nSigmas') % This is just direct from Farmer-Toda code. I am not aware of any results showing it performs 'better'
-        if abs(rho) <= 1-2/(znum-1)
+        if abs(eig(Rho)) <= 1-2/(znum-1)
             farmertodaoptions.nSigmas = sqrt(2*(znum-1)); % This was in Farmer-Toda AR(1) code, but not their VAR(1) code. I have put it here as well.
         else
             farmertodaoptions.nSigmas = sqrt(znum-1); 
@@ -252,7 +252,7 @@ for ii = 1:(znum^M)
                         @(X) polynomialMoment(X,condMean(jj,ii),scalingFactor(jj),mm),...
                         gaussianMoment(1:mm)./(scalingFactor(jj).^(1:mm)'),q(jj,:),lambdaGuess);
                     if norm(momentError) > 1e-5
-                        warning(sprintf('Failed to match first %d moments.  Just matching %d.',mm,mm-2))
+                        warning('Failed to match first %d moments.  Just matching %d.',mm,mm-2)
                         break;
                     else
                         p = pnew;
