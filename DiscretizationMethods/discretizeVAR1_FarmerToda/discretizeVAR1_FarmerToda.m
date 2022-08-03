@@ -1,4 +1,4 @@
-function [Z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodaoptions)
+function [z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
 % 
 % Purpose: 
@@ -267,7 +267,7 @@ for ii = 1:(znum^M)
     
 end
 
-Z_grid = C*D + repmat(mu,1,znum^M); % map grids back to original space
+z_grid = C*D + repmat(mu,1,znum^M); % map grids back to original space
 % Z_grid is M-by-(znum^M)
 % It is NOT a kronecker-product grid.
 
@@ -276,7 +276,7 @@ warning on MATLAB:singularMatrix
 % HAVE DONE THE LAZY OPTION. THIS SHOULD REALLY BE REWRITTEN SO THAT JUST
 % CREATE ON GPU OR CPU AS APPROPRIATE. (AVOID THE OVERHEAD OF MOVING TO GPU)
 if farmertodaoptions.parallel==2 
-    Z_grid=gpuArray(Z_grid);
+    z_grid=gpuArray(z_grid);
     P=gpuArray(P); %(z,zprime)  
 end
 
