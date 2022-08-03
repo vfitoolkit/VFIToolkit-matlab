@@ -166,7 +166,7 @@ ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     
-    PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
     %policy function at each step. Since we won't need to keep the value
@@ -175,46 +175,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
         
-%         if ~isnan(IndexesForPathParamsInDiscountFactor)
-%             beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
-%         end
-%         if ~isnan(IndexesForPricePathInReturnFnParams)
-%             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,IndexesPricePathUsedInReturnFn);
-%         end
-%         if ~isnan(IndexesForPathParamsInReturnFnParams)
-%             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,IndexesParamPathUsedInReturnFn); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-%         end
-%         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
-%         
-%         for z_c=1:N_z
-%             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-% %             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
-%             %Calc the condl expectation term (except beta), which depends on z but
-%             %not on control variables
-%             EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-%             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%             EV_z=sum(EV_z,2);
-%             
-%             entireEV_z=kron(EV_z,ones(N_d,1));
-%             entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
-%             
-%             %Calc the max and it's index
-%             [Vtemp,maxindex]=max(entireRHS,[],1);
-%             V(:,z_c)=Vtemp;
-%             Policy(:,z_c)=maxindex;
-%         end
         for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(T-i,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
         for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(T-i,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_Case1_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
-                
-        PolicyIndexesPath(:,:,T-ttr)=Policy;
+              
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
         Vnext=V;
     end
     % Free up space on GPU by deleting things no longer needed
@@ -230,10 +202,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     for tt=1:T-1
                 
         %Get the current optimal policy
-        Policy=PolicyIndexesPath(:,:,tt);
+        Policy=PolicyIndexesPath(:,:,:,tt);
         
-        optaprime=shiftdim(ceil(Policy/N_d),-1); % This shipting of dimensions is probably not necessary
-        optaprime=reshape(optaprime,[1,N_a*N_z]);
+        optaprime=reshape(shiftdim(Policy(2,:,:),-1),[1,N_a*N_z]); % This shifting of dimensions is probably not necessary
     
         Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
         Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
@@ -281,12 +252,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % with converting to PolicyTemp and then using
         % UnKronPolicyIndexes_Case1.
         % Current approach is likely way suboptimal speedwise.
-        PolicyTemp=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-        PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-        PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
-        PolicyTemp=UnKronPolicyIndexes_Case1(PolicyTemp, n_d, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
+        Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
 
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.

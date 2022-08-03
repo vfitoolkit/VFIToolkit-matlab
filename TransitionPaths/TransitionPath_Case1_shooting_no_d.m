@@ -171,34 +171,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Vnext, and the current period one to be calculated in V
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
-        
-%         if ~isnan(IndexesForPathParamsInDiscountFactor)
-%             beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
-%         end
-%         if ~isnan(IndexesForPricePathInReturnFnParams)
-%             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,:);
-%         end
-%         if ~isnan(IndexesForPathParamsInReturnFnParams)
-%             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-%         end
-%         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid,ReturnFnParamsVec);
-%         
-%         for z_c=1:N_z
-%             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-%             %Calc the condl expectation term (except beta), which depends on z but
-%             %not on control variables
-%             EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-%             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%             EV_z=sum(EV_z,2);
-%             
-%             entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by 1
-%             
-%             %Calc the max and it's index
-%             [Vtemp,maxindex]=max(entireRHS,[],1);
-%             V(:,z_c)=Vtemp;
-%             Policy(:,z_c)=maxindex;
-%             
-%         end
 
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));

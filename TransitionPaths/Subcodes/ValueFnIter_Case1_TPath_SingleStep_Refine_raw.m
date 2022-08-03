@@ -1,11 +1,12 @@
-function [V,Policy2]=ValueFnIter_Case1_TPath_SingleStep_Refine_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case1_TPath_SingleStep_Refine_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+%% Refinement: calculate ReturnMatrix and 'remove' the d dimension
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 V=zeros(N_a,N_z,'gpuArray');
-Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy_a=zeros(N_a,N_z,'gpuArray');
 
 %%
 if vfoptions.lowmemory>0
@@ -72,7 +73,7 @@ if vfoptions.lowmemory==0
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;
-        Policy(:,z_c)=maxindex;
+        Policy_a(:,z_c)=maxindex;
     end
     
 elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
@@ -90,14 +91,14 @@ elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;
-        Policy(:,z_c)=maxindex;
+        Policy_a(:,z_c)=maxindex;
     end
 end
 
 %%
-Policy2=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(Policy,-1);
-temppolicyindex=reshape(Policy,[1,N_a*N_z])+(0:1:N_a*N_z-1)*N_a;
-Policy2(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]);
+Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
+Policy(2,:,:)=shiftdim(Policy_a,-1); % aprime
+temppolicyindex=reshape(Policy_a,[1,N_a*N_z])+(0:1:N_a*N_z-1)*N_a;
+Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % d
 
 end

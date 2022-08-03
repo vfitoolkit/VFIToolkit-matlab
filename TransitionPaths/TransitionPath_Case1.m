@@ -161,6 +161,7 @@ if exist('vfoptions','var')==0
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.solnmethod='purediscretization';
+    vfoptions.endotype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'parallel')==0
@@ -202,6 +203,9 @@ else
     end
     if isfield(vfoptions,'solnmethod')==0
         vfoptions.solnmethod='purediscretization';
+    end
+    if isfield(vfoptions,'endotype')==0
+        vfoptions.endotype=0;
     end
 end
 
@@ -349,11 +353,16 @@ if n_d(1)==0
 end
 l_a=length(n_a);
 l_z=length(n_z);
-
+l_a_temp=l_a;
+l_z_temp=l_z;
+if max(vfoptions.endotype)==1
+    l_a_temp=l_a-sum(vfoptions.endotype);
+    l_z_temp=l_z+sum(vfoptions.endotype);
+end
 % Create ReturnFnParamNames
 temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_a+l_a+l_z)
-    ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
+    ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
 else
     ReturnFnParamNames={};
 end
@@ -362,13 +371,18 @@ if ~isstruct(FnsToEvaluate)
     error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
 end
 
+%%
+if max(vfoptions.endotype)==1
+    % Use endogenous type
+    PricePath=TransitionPath_Case1_EndoType(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+end
 
 %%
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
         if transpathoptions.lowmemory==1
-            % The lowmemory option is going to use gpu (but loop over z instead of
-            % parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
+            % The lowmemory option is going to use gpu (but loop over z instead of parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
+            % Note: Just using vfoptions.lowmemory=1 will do the loop over z for value fn, but would not include the sparse matrix for agent distribtion
             if N_d==0
                 PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             else
