@@ -389,8 +389,8 @@ else %if isfield(simoptions,'n_e')
                         for kk=1:l_e
                             SimPanel_ii(l_a+l_z+kk,t)=e_c_vec(kk);
                         end
+                        SimPanel_ii(l_a+l_z+l_e+1,t)=jj; % Note: temp(4) is jj, but no need to actually access it
                     end
-                    SimPanel_ii(l_a+l_z+l_e+1,t)=jj;
                 end
                 SimPanel(:,:,ii)=SimPanel_ii;
             end
@@ -419,8 +419,8 @@ else %if isfield(simoptions,'n_e')
                         for kk=1:l_e
                             SimPanel_ii(l_a+l_z+kk,t)=e_c_vec(kk);
                         end
+                        SimPanel_ii(l_a+l_z+l_e+1,t)=jj;  % Note: temp(4) is jj, but no need to actually access it
                     end
-                    SimPanel_ii(l_a+l_z+l_e+1,t)=jj;
                 end
                 SimPanel(:,:,ii)=SimPanel_ii;
             end
@@ -474,8 +474,8 @@ else %if isfield(simoptions,'n_e')
                             for kk=1:l_e
                                 SimPanel_ii(l_a+l_z+kk,t)=e_c_vec(kk);
                             end
+                            SimPanel_ii(l_a+l_z+l_e+1,t)=jj;
                         end
-                        SimPanel_ii(l_a+l_z+l_e+1,t)=jj;
                     end
                     SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimPanel_ii;
                 end

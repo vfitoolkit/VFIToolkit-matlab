@@ -4,7 +4,7 @@ function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,
 % Simulates a path based on PolicyIndexes of length 'periods' beginning from point 'seedpoint' (this is not just left
 % as being random since some random points may be ones that never 'exist' in eqm)
 %
-% Outputs the indexes for (a,z) for every period j. This is for period 1 to J. 
+% Outputs the indexes for (a,z,j) for every period j. This is for period 1 to J. 
 % Since most simulations will not start at period 1, the first entries are typically 'NaN'.
 
 % seedpoint=simoptions.seedpoint;
@@ -21,7 +21,7 @@ periods=min(simperiods,N_j+1-initialage);
 
 if fieldexists_pi_z_J==0
     if N_d==0
-        SimLifeCycleKron=nan(2,N_j);
+        SimLifeCycleKron=nan(3,N_j);
         for jj=1:periods
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -29,12 +29,13 @@ if fieldexists_pi_z_J==0
             currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
         end
+        SimLifeCycleKron(3,:)=seedpoint(3):1:N_j;
     else
         if ~exist('include_daprime','var')
             include_daprime=0;
         end
         if include_daprime==0
-            SimLifeCycleKron=nan(2,N_j);
+            SimLifeCycleKron=nan(3,N_j);
             for jj=1:periods
                 SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -42,8 +43,9 @@ if fieldexists_pi_z_J==0
                 currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
             end
+            SimLifeCycleKron(3,:)=seedpoint(3):1:N_j;
         else
-            SimLifeCycleKron=nan(4,N_j);
+            SimLifeCycleKron=nan(5,N_j);
             for jj=1:periods
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z_c
@@ -56,11 +58,12 @@ if fieldexists_pi_z_J==0
                 
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime_c
             end
+            SimLifeCycleKron(5,:)=seedpoint(3):1:N_j;
         end
     end
 else
     if N_d==0
-        SimLifeCycleKron=nan(2,N_j);
+        SimLifeCycleKron=nan(3,N_j);
         for jj=1:periods
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -68,12 +71,13 @@ else
             currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
         end
+        SimLifeCycleKron(3,:)=seedpoint(3):1:N_j;
     else
         if ~exist('include_daprime','var')
             include_daprime=0;
         end
         if include_daprime==0
-            SimLifeCycleKron=nan(2,N_j);
+            SimLifeCycleKron=nan(3,N_j);
             for jj=1:periods
                 SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -81,8 +85,9 @@ else
                 currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
             end
+            SimLifeCycleKron(3,:)=seedpoint(3):1:N_j;
         else
-            SimLifeCycleKron=nan(4,N_j);
+            SimLifeCycleKron=nan(5,N_j);
             for jj=1:periods
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z
@@ -94,7 +99,8 @@ else
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
                 
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime
-            end            
+            end   
+            SimLifeCycleKron(5,:)=seedpoint(3):1:N_j;
         end
     end
 end

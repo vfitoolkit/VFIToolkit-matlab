@@ -21,7 +21,7 @@ periods=min(simperiods,N_j+1-initialage);
 
 if fieldexists_pi_z_J==0 && fieldexists_pi_e_J==0
     if N_d==0
-        SimLifeCycleKron=nan(3,N_j);
+        SimLifeCycleKron=nan(4,N_j);
         for jj=1:periods
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -31,12 +31,13 @@ if fieldexists_pi_z_J==0 && fieldexists_pi_e_J==0
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
         end
+        SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
     else
         if ~exist('include_daprime','var')
             include_daprime=0;
         end
         if include_daprime==0
-            SimLifeCycleKron=nan(3,N_j);
+            SimLifeCycleKron=nan(4,N_j);
             for jj=1:periods
                 SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -46,8 +47,9 @@ if fieldexists_pi_z_J==0 && fieldexists_pi_e_J==0
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
             end
+            SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
         else
-            SimLifeCycleKron=nan(5,N_j); %d,aprime,a,z,e
+            SimLifeCycleKron=nan(6,N_j); %d,aprime,a,z,e
             for jj=1:periods
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z_c
@@ -62,11 +64,12 @@ if fieldexists_pi_z_J==0 && fieldexists_pi_e_J==0
                 
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime_c
             end
+            SimLifeCycleKron(6,:)=seedpoint(4):1:N_j;
         end
     end
 elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
     if N_d==0
-        SimLifeCycleKron=nan(3,N_j);
+        SimLifeCycleKron=nan(4,N_j);
         for jj=1:periods
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -76,12 +79,13 @@ elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
         end
+        SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
     else
         if ~exist('include_daprime','var')
             include_daprime=0;
         end
         if include_daprime==0
-            SimLifeCycleKron=nan(3,N_j);
+            SimLifeCycleKron=nan(4,N_j);
             for jj=1:periods
                 SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -91,8 +95,9 @@ elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
             end
+            SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
         else
-            SimLifeCycleKron=nan(5,N_j);
+            SimLifeCycleKron=nan(6,N_j);
             for jj=1:periods
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z_c
@@ -107,11 +112,12 @@ elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
                 
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime_c
             end
+            SimLifeCycleKron(6,:)=seedpoint(4):1:N_j;
         end
     end
 elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
     if N_d==0
-        SimLifeCycleKron=nan(3,N_j);
+        SimLifeCycleKron=nan(4,N_j);
         for jj=1:periods
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -121,12 +127,13 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
         end
+        SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
     else
         if ~exist('include_daprime','var')
             include_daprime=0;
         end
         if include_daprime==0
-            SimLifeCycleKron=nan(3,N_j);
+            SimLifeCycleKron=nan(4,N_j);
             for jj=1:periods
                 SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -136,8 +143,9 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));            
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
             end
+            SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
         else
-            SimLifeCycleKron=nan(5,N_j);
+            SimLifeCycleKron=nan(6,N_j);
             for jj=1:periods
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z
@@ -151,12 +159,13 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
  
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime
-            end            
+            end   
+            SimLifeCycleKron(6,:)=seedpoint(4):1:N_j;
         end
     end
 elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
     if N_d==0
-        SimLifeCycleKron=nan(3,N_j);
+        SimLifeCycleKron=nan(4,N_j);
         for jj=1:periods
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -166,12 +175,13 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
         end
+        SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
     else
         if ~exist('include_daprime','var')
             include_daprime=0;
         end
         if include_daprime==0
-            SimLifeCycleKron=nan(3,N_j);
+            SimLifeCycleKron=nan(4,N_j);
             for jj=1:periods
                 SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
@@ -181,8 +191,9 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
             end
+            SimLifeCycleKron(4,:)=seedpoint(4):1:N_j;
         else
-            SimLifeCycleKron=nan(5,N_j);
+            SimLifeCycleKron=nan(6,N_j);
             for jj=1:periods
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(1); % a
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z
@@ -196,7 +207,8 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
                 
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime
-            end            
+            end     
+            SimLifeCycleKron(6,:)=seedpoint(4):1:N_j;
         end
     end
 end
