@@ -11,7 +11,6 @@ AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
     tempninputs=length(temp);
-%     FnInputNames{ninputs+1:ninputs+tempninputs}=temp; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     ninputs=ninputs+tempninputs;
 end
@@ -20,7 +19,6 @@ GEeqnNames=fieldnames(GeneralEqmEqns);
 for ff=1:length(GEeqnNames)
     temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{ff}));
     tempninputs=length(temp);
-%     FnInputNames{ninputs+1:ninputs+tempninputs}=temp;  % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     ninputs=ninputs+tempninputs;
 end
@@ -56,8 +54,11 @@ tminus1AggVarsNames={}; ntminus1AggVars=0;
 tplus1pricePathkk=[];
 
 % Check that they are prices, otherwise error
-for kk=1:length(PricePathNames)
-    for ii=1:ntplus1
+% Note: the for-loop over PricePathNames has to be inside the loop over
+% ntplus1 because we need to follow the ordering in ntplus1 when creating
+% tplus1priceNames and tplus1pricePathkk
+for ii=1:ntplus1
+    for kk=1:length(PricePathNames)
         if strcmp(tplus1Names{ii},PricePathNames{kk})
             ntplus1prices=ntplus1prices+1;
             tplus1priceNames{ntplus1prices}=tplus1Names{ii};
@@ -65,7 +66,9 @@ for kk=1:length(PricePathNames)
             tplus1pricePathkk(ii)=kk;
         end
     end
-    for ii=1:ntminus1
+end
+for ii=1:ntminus1
+    for kk=1:length(PricePathNames)
         if strcmp(tminus1Names{ii},PricePathNames{kk})
             ntminus1prices=ntminus1prices+1;
             tminus1priceNames{ntminus1prices}=tminus1Names{ii};
@@ -73,8 +76,8 @@ for kk=1:length(PricePathNames)
         end
     end
 end
-for kk=1:length(AggVarNames)
-    for ii=1:ntminus1
+for ii=1:ntminus1
+    for kk=1:length(AggVarNames)
         if strcmp(tminus1Names{ii},AggVarNames{kk})
             ntminus1AggVars=ntminus1AggVars+1;
             tminus1AggVarsNames{ntminus1AggVars}=tminus1Names{ii};
@@ -93,7 +96,5 @@ elseif prod(tminus1UsedAsPriceOrAggVar)==0
     return
 end
 
-
-% tplus1pricePathkk
 
 end

@@ -163,15 +163,12 @@ if transpathoptions.verbose==1
     ParamPathNames
     PricePathNames
 end
-    
-beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-% IndexesForDiscountFactorInPathParams=CreateParamVectorIndexes(ParamPathNames,DiscountFactorParamNames);
-ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
-IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-% IndexesForReturnFnParamsInPricePath=CreateParamVectorIndexes(PricePathNames, ReturnFnParamNames);
-IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
-% IndexesForReturnFnParamsInPathParams=CreateParamVectorIndexes(ParamPathNames,ReturnFnParamNames);
+
+% beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+% IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
+% ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
+% IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
+% IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
 z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 is to create z_gridvals as matrix
 
@@ -185,15 +182,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
         
-        if ~isnan(IndexesForPathParamsInDiscountFactor)
-            beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
+%         if ~isnan(IndexesForPathParamsInDiscountFactor)
+%             beta(IndexesForPathParamsInDiscountFactor)=ParamPath(T-ttr,:); % This step could be moved outside all the loops
+%         end
+%         if ~isnan(IndexesForPricePathInReturnFnParams)
+%             ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,:);
+%         end
+%         if ~isnan(IndexesForPathParamsInReturnFnParams)
+%             ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
+%         end
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
-        if ~isnan(IndexesForPricePathInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPricePathInReturnFnParams)=PricePathOld(T-ttr,:);
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        if ~isnan(IndexesForPathParamsInReturnFnParams)
-            ReturnFnParamsVec(IndexesForPathParamsInReturnFnParams)=ParamPath(T-ttr,:); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-        end
+        beta=Parameters.(DiscountFactorParamNames{1});
+        ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
         
         for z_c=1:N_z
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, ones(l_z,1), 0, a_grid, z_gridvals(z_c,:),ReturnFnParamsVec);
@@ -315,28 +320,42 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
+        % Would be nice to have a way to get the iteration count without having the whole
+        % printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
-        
-        if transpathoptions.graphpricepath==1
-            if length(PricePathNames)>12
-                ncolumns=4;
-            elseif length(PricePathNames)>6
-                ncolumns=3;
-            else
-                ncolumns=2;
-            end
-            nrows=ceil(length(PricePathNames)/ncolumns);
-            figure(1)
-            for pp=1:length(PricePathNames)
-                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
-                title(PricePathNames{pp})
-            end
+    end
+    
+    if transpathoptions.graphpricepath==1
+        if length(PricePathNames)>12
+            ncolumns=4;
+        elseif length(PricePathNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(PricePathNames)/ncolumns);
+        fig1=figure(1);
+        for pp=1:length(PricePathNames)
+            subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+            title(PricePathNames{pp})
         end
     end
-    if transpathoptions.verbosegraphs==1
-        figure(pricepathfig)
-        plot(PricePathNew)
+    if transpathoptions.graphaggvarspath==1
+        % Do an additional graph, this one of the AggVars
+        if length(AggVarNames)>12
+            ncolumns=4;
+        elseif length(AggVarNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(AggVarNames)/ncolumns);
+        fig2=figure(2);
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(AggVarNames{pp})
+        end
     end
     
     
@@ -369,11 +388,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-%     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
-    
-%     if pathcounter==1
-%         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
-%     end
     
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations

@@ -247,7 +247,20 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     
         Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
         Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+        try % Try full matrix
+            Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+        catch % Otherwise, use sparse matrix
+%             Ptemp=sparse(Ptemp);
+%             pi_z=sparse(pi_z);
+%             warning('This is about to error because kron() does not yet support sparse gpuArray. I am leaving the code in the hope Matlab implement this')
+%             Ptran=kron(pi_z',sparse(ones(N_a,N_a,'gpuArray'))).*(kron(sparse(ones(N_z,1,'gpuArray')),Ptemp));
+
+            % kron() does not yet support sparse gpuArray (as of R2022a). So going to have to switch to sparse cpu, do kron(), switch back.
+            Ptemp=sparse(gather(Ptemp));
+            pi_z_cpu=sparse(gather(pi_z));
+            Ptran=kron(pi_z_cpu',sparse(ones(N_a,N_a))).*(kron(sparse(ones(N_z,1)),Ptemp));
+            Ptran=gpuArray(Ptran);
+        end
         AgentDistnext=Ptran*AgentDist;
         
         GEprices=PricePathOld(tt,:);
