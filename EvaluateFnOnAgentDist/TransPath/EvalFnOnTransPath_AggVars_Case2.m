@@ -1,6 +1,8 @@
 function [AggVarsPath]=EvalFnOnTransPath_AggVars_Case2(FnsToEvaluate, FnsToEvaluateParamNames,PricePath, ParamPath, Parameters, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, Phi_aprimeKron, Case2_Type,T, V_final, AgentDist_initial, ReturnFn, ReturnFnParamNames)
 %AggVarsPath is T+1 periods long (period 0 (before the reforms are announced) is the initial value).
 
+warning('EvalFnOnTransPath_AggVars_Case2() is likely outdated. Use with caution. It lacks many features')
+
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);

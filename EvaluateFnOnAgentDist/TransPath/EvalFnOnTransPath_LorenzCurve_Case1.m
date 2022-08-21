@@ -25,6 +25,7 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 
+%%
 % Internally PricePathOld is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
 PricePathNames=fieldnames(PricePath);
@@ -40,6 +41,7 @@ for ii=1:length(ParamPathNames)
     ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
 end
 
+%%
 if N_d==0
     LorenzCurvePath=EvalFnOnTransPath_AggVars_Case1_no_d(FnsToEvaluate, FnsToEvaluateParamNames,PricePath,PricePathNames, ParamPath, ParamPathNames, Parameters, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, ReturnFnParamNames,transpathoptions.parallel,npoints);
     return
@@ -133,15 +135,6 @@ for ii=1:T%-1
     Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
     AgentDistnext=Ptran*AgentDist;
     
-%     p=PricePath(ii,:);
-%     
-%     if ~isnan(IndexesForPricePathInFnsToEvaluateParams)
-%         FnsToEvaluateParamsVec(IndexesForPricePathInFnsToEvaluateParams)=PricePath(ii,IndexesForFnsToEvaluateParamsInPricePath);
-%     end
-%     if ~isnan(IndexesForPathParamsInFnsToEvaluateParams)
-%         FnsToEvaluateParamsVec(IndexesForPathParamsInFnsToEvaluateParams)=ParamPath(ii,IndexesForFnsToEvaluateParamsInPathParams); % This step could be moved outside all the loops by using BigReturnFnParamsVec idea
-%     end
-%     
 %     % The next five lines should really be replaced with a custom
 %     % alternative version of SSvalues_AggVars_Case1_vec that can
 %     % operate directly on Policy, rather than present messing around
@@ -152,8 +145,6 @@ for ii=1:T%-1
     PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
     PolicyTemp(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
     
-%     SSvalues_AggVars=SSvalues_AggVars_Case1_vec(AgentDist, PolicyTemp, SSvaluesFn, FnsToEvaluateParamsVec, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z,p, 2);
-
     for jj=1:size(PricePath,2)
         Parameters.(PricePathNames{jj})=PricePath(ii,jj);
     end
@@ -169,28 +160,6 @@ for ii=1:T%-1
     
     AgentDist=AgentDistnext;
 end
-%i=T
-% params=ParamPath(T,:);
-% p=PricePath(T,:);
-% Fmatrix=reshape(ReturnFn(p,params),[N_a,N_a,N_z]);
-% for s_c=1:N_z
-%     %first calc the second half of the RHS (except beta)
-%     RHSpart2=zeros(N_a,1); %aprime by kprime
-%     for sprime_c=1:N_z
-%         if pi_z(s_c,sprime_c)~=0 %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%             RHSpart2=RHSpart2+V_final(:,sprime_c)*pi_z(s_c,sprime_c)';
-%         end
-%     end
-%     for a_c=1:N_a
-%         entireRHS=Fmatrix(:,a_c,s_c)+beta*RHSpart2; %aprime by 1
-%         
-%         %calculate in order, the maximizing aprime indexes
-%         [V(a_c,s_c),Policy(1,a_c,s_c)]=max(entireRHS,[],1);
-%     end
-% end
-% AggVarsPath(:,T)=SSvalues_AggVars_Case1_raw(AgentDist, Policy, SSvaluesFn, 0, n_a, N_z, 0, a_grid,z_grid,pi_z,p); %the two zeros represent the d variables
-%end
-
 
 
 
