@@ -28,6 +28,7 @@ if exist('vfoptions','var')==0
     vfoptions.maxhowards=500;
     vfoptions.endogenousexit=0;
     vfoptions.endotype=0; % (vector indicating endogenous state is a type)
+    vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     vfoptions.polindorval=1;
@@ -72,6 +73,9 @@ else
     end
     if isfield(vfoptions,'endotype')==0
         vfoptions.endotype=0; % (vector indicating endogenous state is a type)
+    end
+    if isfield(vfoptions,'incrementaltype')==0
+        vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
@@ -137,32 +141,29 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
 end
 
 if min(min(pi_z))<0
-    fprintf('WARNING: Problem with pi_z in ValueFnIter_Case1: min(min(pi_z))<0 \n')
-    dbstack
-    return
+    error('Problem with pi_z in ValueFnIter_Case1: min(min(pi_z))<0 \n')
 elseif vfoptions.piz_strictonrowsaddingtoone==1
     if max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
-        fprintf('WARNING: Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
-        dbstack
-        return
+        error('Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
     end
 elseif vfoptions.piz_strictonrowsaddingtoone==0
     if max(abs((sum(pi_z,2))-1)) > 10^(-13)
-        fprintf('WARNING: Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
-        dbstack
-        return
+        error('Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
     end
 end
 
-if vfoptions.endotype==1
-    % Check that the number of states and grid have been given for the 'Endogenous Type'
-    if ~isfield(vfoptions,'n_endotype')
-        error('Using vfoptions.endotype=1 you need to declare vfoptions.n_endotype')
-    end
-    if ~isfield(vfoptions,'endotype_grid')
-        error('Using vfoptions.endotype=1 you need to declare vfoptions.endotype_grid')
+if max(vfoptions.endotype)==1
+    if ~strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
+        error('Using vfoptions.endotype only works with vfoptions.solnmethod as purediscretization_refinement2')
     end
 end
+if max(vfoptions.incrementaltype)==1
+    if ~strcmp(vfoptions.solnmethod,'purediscretization') 
+        error('Using vfoptions.incrementaltype only works with vfoptions.solnmethod as purediscretization')
+    end
+end
+
+
 
 %% Implement new way of handling ReturnFn inputs
 if n_d(1)==0
@@ -372,24 +373,22 @@ end
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
     % Note: have only implemented Relative VFI on the GPU
-    warning('Relative VFI is unstable if you have substantial discretization (has difficulty convering if you dont use enough points)')
+    warning('Relative VFI is unstable if you have substantial discretization (has difficulty converging if you dont use enough points)')
     [VKron,Policy]=ValueFnIter_Case1_RelativeVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI') 
     % Note: have only implemented Endogenous VFI on the GPU
-    error('Endogneous VFI is not yet working')
-    [VKron,Policy]=ValueFnIter_Case1_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
+    error('Endogenous VFI is not yet working')
+%     [VKron,Policy]=ValueFnIter_Case1_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(vfoptions,'SemiEndogShockFn')
     if vfoptions.lowmemory~=0 || vfoptions.parallel<1 % GPU or parellel CPU are only things that I have created (email me if you want/need other options)
-        fprintf('Only lowmemory=0 and parallel=1 or 2 are currently possible when using vfoptions.SemiEndogShockFn \n')
-        dbstack
-        return
+        error('Only lowmemory=0 and parallel=1 or 2 are currently possible when using vfoptions.SemiEndogShockFn \n')
     end
     if vfoptions.verbose==1
         fprintf('Creating return fn matrix \n')
@@ -412,9 +411,7 @@ if isfield(vfoptions,'SemiEndogShockFn')
         pi_z_semiendog=vfoptions.SemiEndogShockFn;
     else
         if ~isfield(vfoptions,'SemiEndogShockFnParamNames')
-            fprintf('ERROR: vfoptions.SemiEndogShockFnParamNames is missing (is needed for vfoptions.SemiEndogShockFn) \n')
-            dbstack
-            return
+            error('vfoptions.SemiEndogShockFnParamNames is missing (is needed for vfoptions.SemiEndogShockFn) \n')
         end
         pi_z_semiendog=zeros(N_a,N_z,N_z);
         a_gridvals=CreateGridvals(n_a,a_grid,2);
@@ -482,6 +479,11 @@ if isfield(vfoptions,'SemiEndogShockFn')
     return
 end
 
+%% Detect if using incremental endogenous states and solve this using purediscretization, prior to the main purediscretization routines
+if max(vfoptions.incrementaltype==1) && strcmp(vfoptions.solnmethod,'purediscretization')
+    % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
+    [VKron,Policy]=ValueFnIter_Case1_Increment(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+end
 
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization') 
@@ -489,8 +491,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         
         %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
         % Since the return function is independent of time creating it once and
-        % then using it every iteration is good for speed, but it does use a
-        % lot of memory.
+        % then using it every iteration is good for speed, but it does use a lot of memory.
         
         if vfoptions.verbose==1
             disp('Creating return fn matrix')
