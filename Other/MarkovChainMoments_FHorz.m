@@ -24,7 +24,7 @@ if exist('mcmomentsoptions','var')==0
     mcmomentsoptions.Tolerance=10^(-8);
     mcmomentsoptions.calcautocorrelation=1; % Have made it easy to skip calculating autocorrelation as this takes time
     mcmomentsoptions.calcautocorrelation_nsims=10^6; % Number of simulations to use for calculating the autocorrelation
-    mcmomentsoptions.n_z=length(z_grid_J); % Is assumed to be a single valued z
+    mcmomentsoptions.n_z=size(z_grid_J,1); % Is assumed to be a single valued z
 else
     if isfield(mcmomentsoptions,'parallel')==0
         mcmomentsoptions.parallel=1+(gpuDeviceCount>0);
@@ -39,7 +39,7 @@ else
         mcmomentsoptions.calcautocorrelation_nsims=10^6;
     end
     if isfield(mcmomentsoptions,'n_z')==0
-        mcmomentsoptions.n_z=length(z_grid_J); % Is assumed to be a single valued z
+        mcmomentsoptions.n_z=size(z_grid_J,1); % Is assumed to be a single valued z
     end
 end
 
