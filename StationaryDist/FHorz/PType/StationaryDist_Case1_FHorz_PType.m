@@ -190,11 +190,19 @@ for ii=1:N_i
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
             jequaloneDist_temp=jequaloneDist.(Names_i{ii});
+            % jequaloneDist_temp must be of mass one for the codes to work.
+            if sum(jequaloneDist_temp(:))~=1
+                error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
+            end
         else
             if isfinite(N_j_temp)
                 sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
                 dbstack
             end
+        end
+    else
+        if sum(jequaloneDist_temp(:))~=1
+            error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
         end
     end
     AgeWeightParamNames_temp=AgeWeightsParamNames;

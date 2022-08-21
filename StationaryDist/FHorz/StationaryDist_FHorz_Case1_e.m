@@ -1,7 +1,7 @@
 function StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions)
 
 n_e=simoptions.n_e;
-e_grid=simoptions.e_grid;
+% e_grid=simoptions.e_grid; % Note needed for StationaryDist
 pi_e=simoptions.pi_e;
 
 if isempty(n_d)

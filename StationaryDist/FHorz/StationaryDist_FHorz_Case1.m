@@ -6,6 +6,11 @@ if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
     % Note: assumed there is only one AgeWeightParamNames
 end
 
+%% Check that the age one distribution is of mass one
+if abs(sum(jequaloneDist(:))-1)>10^(-9)
+    error('The jequaloneDist must be of mass one')
+end
+
 %%
 if isfield(simoptions,'n_e')
     StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
