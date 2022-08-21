@@ -489,16 +489,13 @@ else %if isfield(simoptions,'n_e')
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
-                SimLifeCycleKron2=[SimLifeCycleKron; nan(1,seedpoint(4)-1), seedpoint(4):1:N_j];
-                SimPanel(:,:,ii)=SimLifeCycleKron2;          
+                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
             end
         else
             parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
                 seedpoint=seedpoints(ii,:);
                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
-                SimLifeCycleKron2=[SimLifeCycleKron; nan(1,seedpoint(4)-1), seedpoint(4):1:N_j];
-                SimPanel(:,:,ii)=SimLifeCycleKron2;
+                SimPanel(:,:,ii)=SimLifeCycleKron; 
             end
         end
         
@@ -529,7 +526,6 @@ else %if isfield(simoptions,'n_e')
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
-                    %                     SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods-birthperiod+1,fieldexists_pi_z_J);
                     SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
                 end
             end
