@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes)
@@ -14,6 +14,13 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 l_p=length(PricePathNames);
+
+l_d=length(n_d);
+if N_d==0
+    l_d=0;
+end
+l_a=length(n_a);
+l_z=length(n_z);
 
 if transpathoptions.verbosegraphs==1
     valuefnfig=figure;
@@ -90,6 +97,21 @@ end
 use_tminus1price
 use_tminus1AggVars
 
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
@@ -134,13 +156,6 @@ if transpathoptions.GEnewprice==3
         transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
     end
 end
-
-%%
-updateageweights=0;
-if isfield(transpathoptions,'updateageweights')
-    updateageweights=1;
-end
-% Note: age weights are not used by value fn codes, but are used to simulate the agent distribution, and for some aggregate variables.
 
 %%
 
@@ -245,9 +260,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(i,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        if updateageweights==1
-            Parameters.(AgeWeightsParamNames{:})=transpathoptions.AgeWeightsParamPath(tt,:);
-        end
+%         if updateageweights==1
+%             Parameters.(AgeWeightsParamNames{:})=transpathoptions.AgeWeightsParamPath(tt,:);
+%         end
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
                 if i>1

@@ -156,11 +156,11 @@ AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 % Policy=zeros(N_a,N_z,'gpuArray');
 
-beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
-IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
+% beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
+% IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
+% ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
+% IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
+% IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
@@ -288,28 +288,42 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
+        % Would be nice to have a way to get the iteration count without having the whole
+        % printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
-        
-        if transpathoptions.graphpricepath==1
-            if length(PricePathNames)>12
-                ncolumns=4;
-            elseif length(PricePathNames)>6
-                ncolumns=3;
-            else
-                ncolumns=2;
-            end
-            nrows=ceil(length(PricePathNames)/ncolumns);
-            figure(1)
-            for pp=1:length(PricePathNames)
-                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
-                title(PricePathNames{pp})
-            end
+    end
+    
+    if transpathoptions.graphpricepath==1
+        if length(PricePathNames)>12
+            ncolumns=4;
+        elseif length(PricePathNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(PricePathNames)/ncolumns);
+        fig1=figure(1);
+        for pp=1:length(PricePathNames)
+            subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+            title(PricePathNames{pp})
         end
     end
-    if transpathoptions.verbosegraphs==1
-        figure(pricepathfig)
-        plot(PricePathNew)
+    if transpathoptions.graphaggvarspath==1
+        % Do an additional graph, this one of the AggVars
+        if length(AggVarNames)>12
+            ncolumns=4;
+        elseif length(AggVarNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(AggVarNames)/ncolumns);
+        fig2=figure(2);
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(AggVarNames{pp})
+        end
     end
     
     
@@ -342,11 +356,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-%     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
-    
-%     if pathcounter==1
-%         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
-%     end
     
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations

@@ -1,4 +1,4 @@
-function [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns,StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions, transpathoptions)
+function [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns,StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -13,12 +13,12 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 l_p=length(PricePathNames);
 
-% % Make sure things are on cpu where appropriate.
-% if N_d>0
-%     d_grid=gather(d_grid);
-% end
-% a_grid=gather(a_grid);
-% z_grid=gather(z_grid);
+l_d=length(n_d);
+if N_d==0
+    l_d=0;
+end
+l_a=length(n_a);
+l_z=length(n_z);
 
 if transpathoptions.verbose==1
     transpathoptions
@@ -58,6 +58,23 @@ if transpathoptions.verbose==1
     ParamPathNames
     PricePathNames
 end
+
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3

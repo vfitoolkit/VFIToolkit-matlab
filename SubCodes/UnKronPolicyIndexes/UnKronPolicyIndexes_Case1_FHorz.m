@@ -15,6 +15,9 @@ l_a=length(n_a);
 % that Policy is not integer valued. The following corrects this by converting to int64 and then
 % makes the output back into double as Matlab otherwise cannot use it in
 % any arithmetical expressions.
+if ~isfield(vfoptions,'policy_forceintegertype')
+    vfoptions.policy_forceintegertype=0;
+end
 if vfoptions.policy_forceintegertype==1
     Policy=round(Policy);
 end

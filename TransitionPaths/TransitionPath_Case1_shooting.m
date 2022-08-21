@@ -152,16 +152,18 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
-% V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-% Policy=zeros(N_a,N_z,'gpuArray');
 
+AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
-beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
-IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
-[IndexesForPricePathInReturnFnParams, IndexesPricePathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-[IndexesForPathParamsInReturnFnParams, IndexesParamPathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
+% The following five lines are essentially how I used to do things, but now
+% are redundant (I just do things by name, which takes a bit more run time
+% but much easier to code/read/debug)
+% beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
+% IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
+% ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
+% [IndexesForPricePathInReturnFnParams, IndexesPricePathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
+% [IndexesForPathParamsInReturnFnParams, IndexesParamPathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
@@ -212,7 +214,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         AgentDistnext=Ptran*AgentDist;
         
         GEprices=PricePathOld(tt,:);
-                
+        
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
@@ -245,21 +247,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
         
-        
         % The next five lines should really be replaced with a custom
-        % alternative version of SSvalues_AggVars_Case1_vec that can
+        % alternative version of EvalFnOnAgentDist_AggVars_Case1 that can
         % operate directly on Policy, rather than present messing around
         % with converting to PolicyTemp and then using
         % UnKronPolicyIndexes_Case1.
         % Current approach is likely way suboptimal speedwise.
-
+        
         Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
         AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
 
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-                AggVarNames=fieldnames(AggVars);
                 for ii=1:length(AggVarNames)
                     Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
                 end
@@ -267,7 +267,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
             for j=1:length(GeneralEqmEqns)
-                AggVarNames=fieldnames(AggVars);
                 for ii=1:length(AggVarNames)
                     Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
                 end
@@ -276,7 +275,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         % Note there is no GEnewprice==2, it uses a completely different code
         elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-            AggVarNames=fieldnames(AggVars);
             for ii=1:length(AggVarNames)
                 Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
@@ -288,42 +286,63 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
         
+        % Sometimes, want to keep the AggVars to plot them
+        if transpathoptions.graphaggvarspath==1
+            for ii=1:length(AggVarNames)
+                AggVarsPath(tt,ii)=AggVars.(AggVarNames{ii}).Mean;
+            end
+        end
+        
         AgentDist=AgentDistnext;
     end
     % Free up space on GPU by deleting things no longer needed
     clear Ptemp Ptran AgentDistnext AgentDist PolicyTemp
     
-    %See how far apart the price paths are
+    % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
-    %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
+    % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
+        % Would be nice to have a way to get the iteration count without having the whole
+        % printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
-        
-        if transpathoptions.graphpricepath==1
-            if length(PricePathNames)>12
-                ncolumns=4;
-            elseif length(PricePathNames)>6
-                ncolumns=3;
-            else
-                ncolumns=2;
-            end
-            nrows=ceil(length(PricePathNames)/ncolumns);
-            figure(1)
-            for pp=1:length(PricePathNames)
-                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
-                title(PricePathNames{pp})
-            end
-        end
-    end
-    if transpathoptions.verbosegraphs==1
-        figure(pricepathfig)
-        plot(PricePathNew)
     end
     
+    if transpathoptions.graphpricepath==1
+        if length(PricePathNames)>12
+            ncolumns=4;
+        elseif length(PricePathNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(PricePathNames)/ncolumns);
+        fig1=figure(1);
+        for pp=1:length(PricePathNames)
+            subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+            title(PricePathNames{pp})
+        end
+    end
+    if transpathoptions.graphaggvarspath==1
+        % Do an additional graph, this one of the AggVars
+        if length(AggVarNames)>12
+            ncolumns=4;
+        elseif length(AggVarNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(AggVarNames)/ncolumns);
+        fig2=figure(2);
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(AggVarNames{pp})
+        end
+    end
+
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0
@@ -355,11 +374,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-%     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
-    
-%     if pathcounter==1
-%         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
-%     end
     
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations

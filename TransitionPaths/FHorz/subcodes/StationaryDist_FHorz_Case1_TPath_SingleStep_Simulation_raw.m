@@ -48,12 +48,16 @@ elseif fieldexists_ExogShockFn==1
     end
 end
 
+% Remove the existing age weights, then impose the new age weights at the end
+% (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
+AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
+jequaloneDistKroncumsum=cumsum(AgentDist); % This period. Will then wipe AgentDist so as to use it for next period
+cumsum_pi_z_J=cumsum(pi_z_J,2);
+
 if simoptions.parallel==1
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
     AgentDist=zeros(N_a,N_z,N_j,simoptions.ncores);
-    cumsum_pi_z_J=cumsum(pi_z_J,2);
-    jequaloneDistKroncumsum=cumsum(AgentDist);
     %Create simoptions.ncores different steady state distn's, then combine them.
     if N_d==0
         parfor ncore_c=1:simoptions.ncores
@@ -94,10 +98,7 @@ if simoptions.parallel==1
         AgentDist=AgentDist./sum(sum(AgentDist,1),2);
     end
 elseif simoptions.parallel==0
-    disp('NOW IN APPROPRIATE PART OF STATDIST') %DEBUGGING
     AgentDist=zeros(N_a,N_z,N_j);
-    cumsum_pi_z_J=cumsum(pi_z_J,2);
-    jequaloneDistKroncumsum=cumsum(AgentDist);
     if N_d==0
 %         StationaryDistKron=zeros(N_a,N_z,N_j);
         for ii=1:simoptions.nsims
@@ -150,9 +151,11 @@ end
 if length(AgeWeights)~=size(AgeWeights,2)
     AgeWeights=AgeWeights';
 end
-% AgentDist=AgentDist.*shiftdim(AgeWeights,-1);
+
+% Need to remove the old age weights, and impose the new ones
+% Already removed the old age weights earlier, so now just impose the new ones.
 % I assume AgeWeights is a row vector
-AgentDist=AgentDist.*(ones(N_a*N_z,1)*(AgeWeights./sum(AgentDist,1))); % The sum is needed to get rid of previous period weights (implicit in the inputed AgentDist)
+AgentDist=AgentDist.*(ones(N_a*N_z,1)*AgeWeights);
 
 if MoveSSDKtoGPU==1
     AgentDist=gpuArray(AgentDist);

@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -12,6 +12,14 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 l_p=length(PricePathNames);
+
+
+l_d=length(n_d);
+if N_d==0
+    l_d=0;
+end
+l_a=length(n_a);
+l_z=length(n_z);
 
 if transpathoptions.verbose==1
     transpathoptions
@@ -52,6 +60,8 @@ if N_d>0
 else
     Policy=zeros(N_a,N_z,N_j,'gpuArray');
 end
+AggVarsPath=zeros(T-1,length(fieldnames(FnsToEvaluate)),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+
 if transpathoptions.verbose==1
     DiscountFactorParamNames
     ReturnFnParamNames
@@ -79,9 +89,7 @@ if length(tminus1priceNames)>0
     use_tminus1price=1;
     for ii=1:length(tminus1priceNames)
         if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
-            dbstack
-            break
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
         end
     end
 end
@@ -90,9 +98,7 @@ if length(tminus1AggVarsNames)>0
     use_tminus1AggVars=1;
     for ii=1:length(tminus1AggVarsNames)
         if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-            dbstack
-            break
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
         end
     end
 end
@@ -100,6 +106,22 @@ end
 
 use_tminus1price
 use_tminus1AggVars
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
 
 %% Set up GEnewprice==3 (if relevant)
 if transpathoptions.GEnewprice==3
@@ -157,13 +179,6 @@ if transpathoptions.GEnewprice==3
 end
 
 %%
-updateageweights=0;
-if isfield(transpathoptions,'updateageweights')
-    updateageweights=1;
-end
-% Note: age weights are not used by value fn codes, but are used to simulate the agent distribution, and for some aggregate variables.
-
-%%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     if N_d>0
         PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
@@ -176,19 +191,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %functions for anything later we just store the next period one in
     %Vnext, and the current period one to be calculated in V
     Vnext=V_final;
-    for i=1:T-1 %so t=T-i
+    for tt=1:T-1 %so t=T-i
                 
         for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(T-i,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            Parameters.(PricePathNames{kk})=PricePathOld(T-tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
         for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(T-i,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            Parameters.(ParamPathNames{kk})=ParamPath(T-tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
         if transpathoptions.zpathprecomputed==1
             if transpathoptions.zpathtrivial==1
-                vfoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
-                vfoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,i);
+                vfoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                vfoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
             end
             % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in vfoptions already
         end
@@ -201,8 +216,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         % Following just does a little bit of graphing Value function over
         % the transition path (for median value of a variables and z variables)
-        if transpathoptions.verbosegraphs==1 && ismember(T-i,timeperiodstoplot)
-            [~,subplotindex] = ismember(T-i,timeperiodstoplot);
+        if transpathoptions.verbosegraphs==1 && ismember(T-tt,timeperiodstoplot)
+            [~,subplotindex] = ismember(T-tt,timeperiodstoplot);
             figure(valuefnfig)
             subplot(3,3,subplotindex);  plot(reshape(V(max(1,floor(N_a/2)),max(1,floor(N_z/2)),:),[1,N_j])) % I am not sure why this is subplotindex-1, but the -1 seems needed
             
@@ -212,9 +227,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         if N_d>0
-            PolicyIndexesPath(:,:,:,:,T-i)=Policy;
+            PolicyIndexesPath(:,:,:,:,T-tt)=Policy;
         else
-            PolicyIndexesPath(:,:,:,T-i)=Policy;
+            PolicyIndexesPath(:,:,:,T-tt)=Policy;
         end
         Vnext=V;
 
@@ -234,29 +249,27 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %new price path
     %Call AgentDist the current periods distn
     AgentDist=AgentDist_initial;
-    for i=1:T-1
-                
+    for tt=1:T-1
+
         %Get the current optimal policy
         if N_d>0
-            Policy=PolicyIndexesPath(:,:,:,:,i);
+            Policy=PolicyIndexesPath(:,:,:,:,tt);
         else
-            Policy=PolicyIndexesPath(:,:,:,i);
+            Policy=PolicyIndexesPath(:,:,:,tt);
         end
         
-        GEprices=PricePathOld(i,:);
+        GEprices=PricePathOld(tt,:);
 
         for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(i,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
         for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(i,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        if updateageweights==1
-            Parameters.(AgeWeightsParamNames{:})=transpathoptions.AgeWeightsParamPath(i,:);
-        end
+        
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
-                if i>1
+                if tt>1
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
                 else
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
@@ -266,12 +279,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(i+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
             end
         end
         if use_tminus1AggVars==1
             for pp=1:length(use_tminus1AggVars)
-                if i>1
+                if tt>1
                     % The AggVars have not yet been updated, so they still contain previous period values
                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
                 else
@@ -280,11 +293,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
 
-        
         if transpathoptions.zpathprecomputed==1
             if transpathoptions.zpathtrivial==1
-                simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,i);
-                simoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,i);
+                simoptions.pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                simoptions.z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
             end
             % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
         end
@@ -304,7 +316,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             for ii=1:length(AggVarNames)
                 Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
-            PricePathNew(i,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+            PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
             for j=1:length(GeneralEqmEqns)
@@ -313,7 +325,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                     Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
                 end
                 GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
-                PricePathNew(i,j)=fminsearch(GEeqn_temp,GEprices);
+                PricePathNew(tt,j)=fminsearch(GEeqn_temp,GEprices);
             end
         % Note there is no GEnewprice==2, it uses a completely different code
         elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
@@ -326,42 +338,40 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
-            PricePathNew(i,:)=(PricePathOld(i,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
+            PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
+        end
+        
+        % Sometimes, want to keep the AggVars to plot them
+        if transpathoptions.graphaggvarspath==1
+            for ii=1:length(AggVarNames)
+                AggVarsPath(tt,ii)=AggVars.(AggVarNames{ii}).Mean;
+            end
         end
         
         AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
         
-%         % Temporary for debugging
-%         fprintf('For pathcounter %i: time period %i \n',pathcounter,i)
-%         fprintf('AggVars: ')
-%         disp(AggVars')
-%         fprintf('PricePathNew: ')
-%         disp(PricePathNew(i,:))
-%         fprintf('Gap')
-%         disp(-2*(PricePathNew(i,:)-PricePathOld(i,:)))
-        
-        if transpathoptions.verbosegraphs==1 && ismember(i,timeperiodstoplot)
-            [~,subplotindex] = ismember(i,timeperiodstoplot);
-            figure(agentdistfig)
-            
-            if subplotindex==3 % Don't actually want this one
-                AgentDistPlot=reshape(AgentDist_initial,[N_a,N_z,N_j]);
-                subplot(6,3,1); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-                subplot(6,3,4); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-            elseif subplotindex==1 || subplotindex==2
-                AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
-                subplot(6,3,1+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-                subplot(6,3,4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-            elseif subplotindex==4 || subplotindex==5 || subplotindex==6
-                AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
-                subplot(6,3,7-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-                subplot(6,3,10-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-            elseif subplotindex==7 || subplotindex==8 || subplotindex==9
-                AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
-                subplot(6,3,13-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-                subplot(6,3,16-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-            end
-        end
+%         if transpathoptions.verbosegraphs==1 && ismember(i,timeperiodstoplot)
+%             [~,subplotindex] = ismember(i,timeperiodstoplot);
+%             figure(agentdistfig)
+%             
+%             if subplotindex==3 % Don't actually want this one
+%                 AgentDistPlot=reshape(AgentDist_initial,[N_a,N_z,N_j]);
+%                 subplot(6,3,1); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+%                 subplot(6,3,4); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+%             elseif subplotindex==1 || subplotindex==2
+%                 AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
+%                 subplot(6,3,1+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+%                 subplot(6,3,4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+%             elseif subplotindex==4 || subplotindex==5 || subplotindex==6
+%                 AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
+%                 subplot(6,3,7-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+%                 subplot(6,3,10-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+%             elseif subplotindex==7 || subplotindex==8 || subplotindex==9
+%                 AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
+%                 subplot(6,3,13-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
+%                 subplot(6,3,16-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
+%             end
+%         end
     end
 %     % Free up space on GPU by deleting things no longer needed
 %     clear AgentDist
@@ -373,28 +383,42 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
+        % Would be nice to have a way to get the iteration count without having the whole
+        % printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
-        
-        if transpathoptions.graphpricepath==1
-            if length(PricePathNames)>12
-                ncolumns=4;
-            elseif length(PricePathNames)>6
-                ncolumns=3;
-            else
-                ncolumns=2;
-            end
-            nrows=ceil(length(PricePathNames)/ncolumns);
-            figure(1)
-            for pp=1:length(PricePathNames)
-                subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
-                title(PricePathNames{pp})
-            end
+    end
+    
+    if transpathoptions.graphpricepath==1
+        if length(PricePathNames)>12
+            ncolumns=4;
+        elseif length(PricePathNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(PricePathNames)/ncolumns);
+        fig1=figure(1);
+        for pp=1:length(PricePathNames)
+            subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+            title(PricePathNames{pp})
         end
     end
-    if transpathoptions.verbosegraphs==1
-        figure(pricepathfig)
-        plot(PricePathNew)
+    if transpathoptions.graphaggvarspath==1
+        % Do an additional graph, this one of the AggVars
+        if length(AggVarNames)>12
+            ncolumns=4;
+        elseif length(AggVarNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(AggVarNames)/ncolumns);
+        fig2=figure(2);
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(AggVarNames{pp})
+        end
     end
     
     % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).

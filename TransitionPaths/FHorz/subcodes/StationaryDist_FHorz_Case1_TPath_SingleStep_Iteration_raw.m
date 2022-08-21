@@ -1,5 +1,5 @@
 function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z,Parameters,simoptions)
-%Will treat the agents as being on a continuum of mass 1.
+% Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
 %  simoptions.maxit
@@ -36,9 +36,13 @@ end
 if simoptions.parallel~=2
     
     AgentDist=reshape(AgentDist,[N_a*N_z,N_j]);
-%     AgentDist(:,1)=AgentDist(:,1); % Assume that endowment characteristics of newborn
-%     generation are not changing over the transition path.
+%   Implicitly: AgentDist(:,1)=AgentDist(:,1); % Assume that endowment characteristics of newborngeneration are not changing over the transition path.
     
+    % Remove the existing age weights, then impose the new age weights at the end 
+    % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
+    size((ones(N_a*N_z,1)*sum(AgentDist,1)))
+    AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
+
     for jj=1:(N_j-1)
         pi_z=pi_z_J(:,:,jj);
         
@@ -63,6 +67,10 @@ if simoptions.parallel~=2
     end
     
 elseif simoptions.parallel==2 % Using the GPU
+        
+    % Remove the existing age weights, then impose the new age weights at the end 
+    % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
+    AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
     
 %     AgentDist=zeros(N_a*N_z,N_j,'gpuArray');
 %     AgentDist(:,1)=AgentDist; % Assume that endowment characteristics of newborn
@@ -100,13 +108,14 @@ end
 if found==0 % Have added this check so that user can see if they are missing a parameter
     fprintf(['FAILED TO FIND PARAMETER ', AgeWeightParamNames{1}])
 end
-% I assume AgeWeights is a row vector, if it has been given as column then
-% transpose it.
+% I assume AgeWeights is a row vector, if it has been given as column then transpose it.
 if length(AgeWeights)~=size(AgeWeights,2)
     AgeWeights=AgeWeights';
 end
-% AgentDist=AgentDist.*shiftdim(AgeWeights,-1);
+
+% Need to remove the old age weights, and impose the new ones
+% Already removed the old age weights earlier, so now just impose the new ones.
 % I assume AgeWeights is a row vector
-AgentDist=AgentDist.*(ones(N_a*N_z,1)*(AgeWeights./sum(AgentDist,1))); % The sum is needed to get rid of previous period weights (implicit in the inputed AgentDist)
+AgentDist=AgentDist.*(ones(N_a*N_z,1)*AgeWeights);
 
 end

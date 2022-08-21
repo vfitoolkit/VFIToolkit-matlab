@@ -84,6 +84,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbose=0;
     transpathoptions.verbosegraphs=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
+    transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     transpathoptions.historyofpricepath=0;
     transpathoptions.stockvars=0;
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
@@ -129,6 +130,9 @@ else
     end
     if isfield(transpathoptions,'graphpricepath')==0
         transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
+    end
+    if isfield(transpathoptions,'graphaggvarspath')==0
+        transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     end
     if isfield(transpathoptions,'historyofpricepath')==0
         transpathoptions.historyofpricepath=0;
