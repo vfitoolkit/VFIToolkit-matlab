@@ -64,7 +64,7 @@ if size(Path_sj)==[T,N_j]
     Path_sj=Path_sj';
 end
 if ~all(size(Path_sj)==[N_j,T])
-    error('The path on conditional survival probability should be N_j-by-T')
+    error('The path on conditional survival probability should be N_j-by-T (it disagrees with either N_j from initial_mewj or with T from Path_n')
 end
 
 %%

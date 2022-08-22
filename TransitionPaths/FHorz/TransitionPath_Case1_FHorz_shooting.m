@@ -446,16 +446,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
     end
     
-    TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+    TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
+        fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-%     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
-    
-%     if pathcounter==1
-%         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
-%     end
 
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations

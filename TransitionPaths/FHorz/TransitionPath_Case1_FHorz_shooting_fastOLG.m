@@ -260,9 +260,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(i,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-%         if updateageweights==1
-%             Parameters.(AgeWeightsParamNames{:})=transpathoptions.AgeWeightsParamPath(tt,:);
-%         end
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
                 if i>1
@@ -407,13 +404,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
+        fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-%     save ./SavedOutput/TransPathConv.mat TransPathConvergence pathcounter
-    
-%     if pathcounter==1
-%         save ./SavedOutput/FirstTransPath.mat V_final V PolicyIndexesPath PricePathOld PricePathNew
-%     end
 
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations
