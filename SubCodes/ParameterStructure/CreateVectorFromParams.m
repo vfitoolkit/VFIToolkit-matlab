@@ -74,4 +74,8 @@ elseif nargin==4
     end
 end
 
+% if nCalibParams==0
+%     VectorOfParamValues=[]; % Have to treat this specially so that length(VectorOfParamValues) evaluates to zero
+% end
+
 end

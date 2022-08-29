@@ -60,217 +60,238 @@ if exist('simoptions','var')
 else
     simoptions.groupptypesforstats=1;
 end
-
-%%
-for ii=1:N_i
-    % First set up simoptions
-    if exist('simoptions','var')
-        simoptions_temp=PType_Options(simoptions,Names_i,ii);
-        if ~isfield(simoptions_temp,'verbose')
-            simoptions_temp.verbose=0;
-        end
-        if ~isfield(simoptions_temp,'verboseparams')
-            simoptions_temp.verboseparams=0;
-        end
-        if ~isfield(simoptions_temp,'ptypestorecpu')
-            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        end
-    else
-        simoptions_temp.verbose=0;
-        simoptions_temp.verboseparams=0;
-        simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+% Check for using ptypestorcpu. If this is used then do a lower memory
+% alternative that can still do some taking advantage of the gpu.
+if exist('simoptions','var')
+    if ~isfield(simoptions,'groupptypesforstats')
+       simoptions.ptypestorecpu=0;
     end
-    
-    if simoptions_temp.verbose==1
-        fprintf('Permanent type: %i of %i \n',ii, N_i)
-    end
-    
-    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
-    else
-        PolicyIndexes_temp=Policy.(Names_i{ii});
-        StationaryDist_temp=StationaryDist.(Names_i{ii});
-    end
-    if isa(StationaryDist_temp, 'gpuArray')
-        Parallel_temp=2;
-    else
-        Parallel_temp=1;
-    end
-
-        
-    % Go through everything which might be dependent on permanent type (PType)
-    % Notice that the way this is coded the grids (etc.) could be either
-    % fixed, or a function (that depends on age, and possibly on permanent
-    % type), or they could be a structure. Only in the case where they are
-    % a structure is there a need to take just a specific part and send
-    % only that to the 'non-PType' version of the command.
-    
-    % Start with those that determine whether the current permanent type is finite or
-    % infinite horizon, and whether it is Case 1 or Case 2
-    % Figure out which case is relevant to the current PType. This is done
-    % using N_j which for the current type will evaluate to 'Inf' if it is
-    % infinite horizon and a finite number for any other finite horizon.
-    % First, check if it is a structure, and otherwise just get the
-    % relevant value.
-    
-    % Horizon is determined via N_j
-    if isstruct(N_j)
-        N_j_temp=N_j.(Names_i{ii});
-    elseif isscalar(N_j)
-        N_j_temp=N_j;
-    else % is a vector
-        N_j_temp=N_j(ii);
-    end
-    
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
-    else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-        end
-    end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
-    else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
-    end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
-    else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
-    end
-    
-
-    if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(Names_i{ii});
-    else
-        d_grid_temp=d_grid;
-    end
-    if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(Names_i{ii});
-    else
-        a_grid_temp=a_grid;
-    end
-    if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(Names_i{ii});
-    else
-        z_grid_temp=z_grid;
-    end
-    
-    % Parameters are allowed to be given as structure, or as vector/matrix
-    % (in terms of their dependence on permanent type). So go through each of
-    % these in term.
-    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-    Parameters_temp=Parameters;
-    FullParamNames=fieldnames(Parameters); % all the different parameters
-    nFields=length(FullParamNames);
-    for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-            end
-        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
-            temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-            if ptypedim==1
-                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-            elseif ptypedim==2
-                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
-    % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-    
-    if simoptions_temp.verboseparams==1
-        fprintf('Parameter values for the current permanent type \n')
-        Parameters_temp
-    end
-    
-    % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
-    % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
-    % Allows for FnsToEvaluate as structure.
-    if n_d_temp(1)==0
-        l_d_temp=0;
-    else
-        l_d_temp=1;
-    end
-    l_a_temp=length(n_a_temp);
-    l_z_temp=length(n_z_temp);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
-    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-    
-    if simoptions.groupptypesforstats==0
-        simoptions_temp.keepoutputasmatrix=0;
-        AgeConditionalStats_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
-        %     PTypeWeight_ii=StationaryDist.ptweights(ii);
-        AggVarNames_temp=fieldnames(FnsToEvaluate);
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-%                 AgeConditionalStats.(Names_i{ii})(kk)=AgeConditionalStats_ii.(AggVarNames_temp{jj});
-                AgeConditionalStats.(AggVarNames_temp{jj}).(Names_i{ii})=AgeConditionalStats_ii.(AggVarNames_temp{jj});
-            end
-        end
-    else % simoptions.groupptypesforstats==1
-        simoptions_temp.keepoutputasmatrix=1;
-        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
-        N_a_temp=prod(n_a_temp);
-        if isfield(simoptions_temp,'n_e')
-            n_z_temp=[n_z_temp,simoptions_temp.n_e];
-            N_z_temp=prod(n_z_temp);
-            ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
-            for kk=1:numFnsToEvaluate
-                jj=WhichFnsForCurrentPType(kk);
-                if jj>0
-                    ValuesOnDist_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:,:),[N_a_temp*N_z_temp,N_j_temp]);
-                end
-                ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnDist_Kron;
-            end
-        else
-            N_z_temp=prod(n_z_temp);
-            ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
-            for kk=1:numFnsToEvaluate
-                jj=WhichFnsForCurrentPType(kk);
-                if jj>0
-                    ValuesOnDist_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp,N_j_temp]);
-                end
-                ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnDist_Kron;
-            end
-        end
-        
-        % I can write over StationaryDist.(Names_i{ii}) as I don't need it
-        % again, but I do need the reshaped and reweighed version in the next for loop.
-        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp,N_j_temp]);
-    end
+else
+    simoptions.ptypestorecpu=0;
 end
 
-%% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
-% (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
-% Will throw an error if this is not the case
 
-% If grouping, we have ValuesOnDist and StationaryDist that contain
-% everythign we will need. Now we just have to compute them.
-if simoptions.groupptypesforstats==1
+%% First do groupptypesforstats==0, then groupptypesforstats==1
+% The later I want to loop over the functions to evaluate and within that over permanent type.
+if simoptions.groupptypesforstats==0
+    for ii=1:N_i
+        % First set up simoptions
+        if exist('simoptions','var')
+            simoptions_temp=PType_Options(simoptions,Names_i,ii);
+            if ~isfield(simoptions_temp,'verbose')
+                simoptions_temp.verbose=0;
+            end
+            if ~isfield(simoptions_temp,'verboseparams')
+                simoptions_temp.verboseparams=0;
+            end
+            if ~isfield(simoptions_temp,'ptypestorecpu')
+                simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+            end
+        else
+            simoptions_temp.verbose=0;
+            simoptions_temp.verboseparams=0;
+            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        end
+
+        if simoptions_temp.verbose==1
+            fprintf('Permanent type: %i of %i \n',ii, N_i)
+        end
+
+        if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+            PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
+            StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+        else
+            PolicyIndexes_temp=Policy.(Names_i{ii});
+            StationaryDist_temp=StationaryDist.(Names_i{ii});
+        end
+        % Parallel is determined by StationaryDist, unless it is specified
+        if isa(StationaryDist_temp, 'gpuArray')
+            Parallel_temp=2;
+        else
+            Parallel_temp=1;
+        end
+        if isfield(simoptions_temp,'parallel')
+            Parallel_temp=simoptions.parallel;
+            if Parallel_temp~=2
+                PolicyIndexes_temp=gather(PolicyIndexes_temp);
+                StationaryDist_temp=gather(StationaryDist_temp);
+            end
+        end
+
+
+        % Go through everything which might be dependent on permanent type (PType)
+        % Notice that the way this is coded the grids (etc.) could be either
+        % fixed, or a function (that depends on age, and possibly on permanent
+        % type), or they could be a structure. Only in the case where they are
+        % a structure is there a need to take just a specific part and send
+        % only that to the 'non-PType' version of the command.
+
+        % Start with those that determine whether the current permanent type is finite or
+        % infinite horizon, and whether it is Case 1 or Case 2
+        % Figure out which case is relevant to the current PType. This is done
+        % using N_j which for the current type will evaluate to 'Inf' if it is
+        % infinite horizon and a finite number for any other finite horizon.
+        % First, check if it is a structure, and otherwise just get the
+        % relevant value.
+
+        % Horizon is determined via N_j
+        if isstruct(N_j)
+            N_j_temp=N_j.(Names_i{ii});
+        elseif isscalar(N_j)
+            N_j_temp=N_j;
+        else % is a vector
+            N_j_temp=N_j(ii);
+        end
+
+        n_d_temp=n_d;
+        if isa(n_d,'struct')
+            n_d_temp=n_d.(Names_i{ii});
+        else
+            temp=size(n_d);
+            if temp(1)>1 % n_d depends on fixed type
+                n_d_temp=n_d(ii,:);
+            elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+                sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+            end
+        end
+        n_a_temp=n_a;
+        if isa(n_a,'struct')
+            n_a_temp=n_a.(Names_i{ii});
+        else
+            temp=size(n_a);
+            if temp(1)>1 % n_a depends on fixed type
+                n_a_temp=n_a(ii,:);
+            elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
+                sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
+                dbstack
+            end
+        end
+        n_z_temp=n_z;
+        if isa(n_z,'struct')
+            n_z_temp=n_z.(Names_i{ii});
+        else
+            temp=size(n_z);
+            if temp(1)>1 % n_z depends on fixed type
+                n_z_temp=n_z(ii,:);
+            elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+                sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
+                dbstack
+            end
+        end
+
+
+        if isa(d_grid,'struct')
+            d_grid_temp=d_grid.(Names_i{ii});
+        else
+            d_grid_temp=d_grid;
+        end
+        if isa(a_grid,'struct')
+            a_grid_temp=a_grid.(Names_i{ii});
+        else
+            a_grid_temp=a_grid;
+        end
+        if isa(z_grid,'struct')
+            z_grid_temp=z_grid.(Names_i{ii});
+        else
+            z_grid_temp=z_grid;
+        end
+
+        % Parameters are allowed to be given as structure, or as vector/matrix
+        % (in terms of their dependence on permanent type). So go through each of
+        % these in term.
+        % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
+        Parameters_temp=Parameters;
+        FullParamNames=fieldnames(Parameters); % all the different parameters
+        nFields=length(FullParamNames);
+        for kField=1:nFields
+            if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+                % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
+                if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
+                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+                end
+            elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
+                temp=Parameters.(FullParamNames{kField});
+                [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
+                if ptypedim==1
+                    Parameters_temp.(FullParamNames{kField})=temp(ii,:);
+                elseif ptypedim==2
+                    Parameters_temp.(FullParamNames{kField})=temp(:,ii);
+                end
+            end
+        end
+        % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
+
+        if simoptions_temp.verboseparams==1
+            fprintf('Parameter values for the current permanent type \n')
+            Parameters_temp
+        end
+
+        % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
+        % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
+        % Allows for FnsToEvaluate as structure.
+        if n_d_temp(1)==0
+            l_d_temp=0;
+        else
+            l_d_temp=1;
+        end
+        l_a_temp=length(n_a_temp);
+        l_z_temp=length(n_z_temp);
+        [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+        FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
+
+%         if simoptions.groupptypesforstats==0
+            simoptions_temp.keepoutputasmatrix=0;
+            AgeConditionalStats_ii=LifeCycleProfiles_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,simoptions_temp);
+            %     PTypeWeight_ii=StationaryDist.ptweights(ii);
+            AggVarNames_temp=fieldnames(FnsToEvaluate);
+            for kk=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(kk);
+                if jj>0
+                    AgeConditionalStats.(AggVarNames_temp{jj}).(Names_i{ii})=AgeConditionalStats_ii.(AggVarNames_temp{jj});
+                end
+            end
+            % Following is the old version of groupptypesforstats. It worked but was too memory intensive.
+%         else % simoptions.groupptypesforstats==1
+%             simoptions_temp.keepoutputasmatrix=1;
+%             ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+%             N_a_temp=prod(n_a_temp);
+%             if isfield(simoptions_temp,'n_e')
+%                 n_z_temp=[n_z_temp,simoptions_temp.n_e];
+%                 N_z_temp=prod(n_z_temp);
+%                 ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
+%                 for kk=1:numFnsToEvaluate
+%                     jj=WhichFnsForCurrentPType(kk);
+%                     if jj>0           
+%                         Values_jj=reshape(Values_kk(:,j1:jend,:),[N_a_temp*N_z_temp*(jend-j1+1)*N_i,1]);
+%                         ValuesOnDist_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:,:),[N_a_temp*N_z_temp,N_j_temp]);
+%                     end
+%                     ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnDist_Kron;
+%                 end
+%             else
+%                 N_z_temp=prod(n_z_temp);
+%                 ValuesOnDist_Kron=zeros(N_a_temp*N_z_temp*N_j_temp,1);
+%                 for kk=1:numFnsToEvaluate
+%                     jj=WhichFnsForCurrentPType(kk);
+%                     if jj>0
+%                         ValuesOnDist_Kron=reshape(ValuesOnGrid_ii(jj,:,:,:),[N_a_temp*N_z_temp,N_j_temp]);
+%                     end
+%                     ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])=ValuesOnDist_Kron;
+%                 end
+%             end
+% 
+%             % I can write over StationaryDist.(Names_i{ii}) as I don't need it
+%             % again, but I do need the reshaped and reweighed version in the next for loop.
+%             StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp,N_j_temp]);
+    end
+
+elseif simoptions.groupptypesforstats==1
+
+    %% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
+    % (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
+    % Will throw an error if this is not the case
+
+    % If grouping, we have ValuesOnDist and StationaryDist that contain
+    % everythign we will need. Now we just have to compute them.
     % Note that I do not currently allow the following simoptions to differ by PType
     if isfield(simoptions,'nquantiles')==0
         simoptions.nquantiles=20; % by default gives ventiles
@@ -281,10 +302,10 @@ if simoptions.groupptypesforstats==1
     if isfield(simoptions,'npoints')==0
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     end
-    if isfield(simoptions,'tolerance')==0    
+    if isfield(simoptions,'tolerance')==0
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    
+
     ngroups=length(simoptions.agegroupings);
     % Do some preallocation of the output structure
     AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
@@ -294,23 +315,211 @@ if simoptions.groupptypesforstats==1
     AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
     AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups); % Includes the min and max values
     AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(simoptions.nquantiles,ngroups);
-    
+
     if isstruct(FnsToEvaluate)
-        numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
+        FnsToEvalNames=fieldnames(FnsToEvaluate);
+        numFnsToEvaluate=length(FnsToEvalNames);
     else
-        numFnsToEvaluate=length(FnsToEvaluate);
+        error('You can only use PType when FnsToEvaluate is a structure')
+%         numFnsToEvaluate=length(FnsToEvaluate);
     end
-    
+
     for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        clear FnsToEvaluate_kk
+        FnsToEvaluate_kk.(FnsToEvalNames{kk})=FnsToEvaluate.(FnsToEvalNames{kk}); % Structure containing just this funcion
+
+        for ii=1:N_i
+            % First set up simoptions
+            if exist('simoptions','var')
+                simoptions_temp=PType_Options(simoptions,Names_i,ii);
+                if ~isfield(simoptions_temp,'verbose')
+                    simoptions_temp.verbose=0;
+                end
+                if ~isfield(simoptions_temp,'verboseparams')
+                    simoptions_temp.verboseparams=0;
+                end
+                if ~isfield(simoptions_temp,'ptypestorecpu')
+                    simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+                end
+            else
+                simoptions_temp.verbose=0;
+                simoptions_temp.verboseparams=0;
+                simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+            end
+
+            if simoptions_temp.verbose==1
+                fprintf('Permanent type: %i of %i \n',ii, N_i)
+            end
+
+            if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+                PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
+                StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+            else
+                PolicyIndexes_temp=Policy.(Names_i{ii});
+                StationaryDist_temp=StationaryDist.(Names_i{ii});
+            end
+            % Parallel is determined by StationaryDist, unless it is specified
+            if isa(StationaryDist_temp, 'gpuArray')
+                Parallel_temp=2;
+            else
+                Parallel_temp=1;
+            end
+            if isfield(simoptions_temp,'parallel')
+                Parallel_temp=simoptions.parallel;
+                if Parallel_temp~=2
+                    PolicyIndexes_temp=gather(PolicyIndexes_temp);
+                    StationaryDist_temp=gather(StationaryDist_temp);
+                end
+            end
+
+
+            % Go through everything which might be dependent on permanent type (PType)
+            % Notice that the way this is coded the grids (etc.) could be either
+            % fixed, or a function (that depends on age, and possibly on permanent
+            % type), or they could be a structure. Only in the case where they are
+            % a structure is there a need to take just a specific part and send
+            % only that to the 'non-PType' version of the command.
+
+            % Start with those that determine whether the current permanent type is finite or
+            % infinite horizon, and whether it is Case 1 or Case 2
+            % Figure out which case is relevant to the current PType. This is done
+            % using N_j which for the current type will evaluate to 'Inf' if it is
+            % infinite horizon and a finite number for any other finite horizon.
+            % First, check if it is a structure, and otherwise just get the
+            % relevant value.
+
+            % Horizon is determined via N_j
+            if isstruct(N_j)
+                N_j_temp=N_j.(Names_i{ii});
+            elseif isscalar(N_j)
+                N_j_temp=N_j;
+            else % is a vector
+                N_j_temp=N_j(ii);
+            end
+
+            n_d_temp=n_d;
+            if isa(n_d,'struct')
+                n_d_temp=n_d.(Names_i{ii});
+            else
+                temp=size(n_d);
+                if temp(1)>1 % n_d depends on fixed type
+                    n_d_temp=n_d(ii,:);
+                elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+                    sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+                end
+            end
+            n_a_temp=n_a;
+            if isa(n_a,'struct')
+                n_a_temp=n_a.(Names_i{ii});
+            else
+                temp=size(n_a);
+                if temp(1)>1 % n_a depends on fixed type
+                    n_a_temp=n_a(ii,:);
+                elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
+                    sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
+                    dbstack
+                end
+            end
+            n_z_temp=n_z;
+            if isa(n_z,'struct')
+                n_z_temp=n_z.(Names_i{ii});
+            else
+                temp=size(n_z);
+                if temp(1)>1 % n_z depends on fixed type
+                    n_z_temp=n_z(ii,:);
+                elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+                    sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
+                    dbstack
+                end
+            end
+
+
+            if isa(d_grid,'struct')
+                d_grid_temp=d_grid.(Names_i{ii});
+            else
+                d_grid_temp=d_grid;
+            end
+            if isa(a_grid,'struct')
+                a_grid_temp=a_grid.(Names_i{ii});
+            else
+                a_grid_temp=a_grid;
+            end
+            if isa(z_grid,'struct')
+                z_grid_temp=z_grid.(Names_i{ii});
+            else
+                z_grid_temp=z_grid;
+            end
+
+            % Parameters are allowed to be given as structure, or as vector/matrix
+            % (in terms of their dependence on permanent type). So go through each of
+            % these in term.
+            % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
+            Parameters_temp=Parameters;
+            FullParamNames=fieldnames(Parameters); % all the different parameters
+            nFields=length(FullParamNames);
+            for kField=1:nFields
+                if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+                    % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
+                    if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
+                        Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+                    end
+                elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
+                    temp=Parameters.(FullParamNames{kField});
+                    [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
+                    if ptypedim==1
+                        Parameters_temp.(FullParamNames{kField})=temp(ii,:);
+                    elseif ptypedim==2
+                        Parameters_temp.(FullParamNames{kField})=temp(:,ii);
+                    end
+                end
+            end
+            % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
+
+            if simoptions_temp.verboseparams==1
+                fprintf('Parameter values for the current permanent type \n')
+                Parameters_temp
+            end
+
+            % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
+            % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
+            % Allows for FnsToEvaluate as structure.
+            if n_d_temp(1)==0
+                l_d_temp=0;
+            else
+                l_d_temp=1;
+            end
+            l_a_temp=length(n_a_temp);
+            l_z_temp=length(n_z_temp);
+            % Note: next line uses FnsToEvaluate_kk
+            [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_kk,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+            FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
+
+            simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
+            ValuesOnDist.(Names_i{ii})=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+%             ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+            N_a_temp=prod(n_a_temp);
+            if isfield(simoptions_temp,'n_e')
+                n_z_temp=[n_z_temp,simoptions_temp.n_e];
+            end
+            N_z_temp=prod(n_z_temp);
+            % Note: the following shape of ValuesOnGrid_ii is because of simoptions_temp.keepoutputasmatrix=2
+%             ValuesOnDist.(Names_i{ii})=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]);
+            
+            % I can write over StationaryDist.(Names_i{ii}) as I don't need it
+            % again, but I do need the reshaped and reweighed version in the next for loop.
+            if kk==1 % Just do this the first time as it does not depend on kk
+                StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp,N_j_temp]);
+            end
+    
+        end
         
         N_i_kk=sum(FnsAndPTypeIndicator(kk,:)); % How many agents is this statistic calculated for
-        StationaryDistVec_kk=zeros(N_a_temp*N_z_temp,N_j_temp,N_i_kk); % This was originally a gpuArray, but it became a blockage as it requires substantially more gpu memory that the other things around it
-        Values_kk=zeros(N_a_temp*N_z_temp,N_j_temp,N_i_kk); % This was originally a gpuArray, but it became a blockage as it requires substantially more gpu memory that the other things around it
         
-        for ii=1:N_i_kk
-            StationaryDistVec_kk(:,:,ii)=gather(StationaryDist.(Names_i{ii})); % Note, has already been multiplied by StationaryDist.ptweights(ii)
-            Values_kk(:,:,ii)=gather(ValuesOnDist.(Names_i{ii}).(['k',num2str(kk)])); % Note, this is actually already on the cpu anyway
-        end
+        % CHANGING THE NEXT FOUR LINES (TO JUST USE SAY 100000 POINTS PER TYPE RATHER THAN THEY ENTIRE a-by-z-by-j GRID
+%         for ii=1:N_i_kk
+%             StationaryDistVec_kk(:,:,ii)=gather(StationaryDist.(Names_i{ii})); % Note, has already been multiplied by StationaryDist.ptweights(ii)
+%             Values_kk(:,:,ii)=gather(ValuesOnDist.(Names_i{ii}); % Note, this is actually already on the cpu anyway
+%         end
         
         for jj=1:length(simoptions.agegroupings)
             j1=simoptions.agegroupings(jj);
@@ -319,19 +528,32 @@ if simoptions.groupptypesforstats==1
             else
                 jend=N_j;
             end
-            StationaryDistVec_jj=reshape(StationaryDistVec_kk(:,j1:jend,:),[N_a_temp*N_z_temp*(jend-j1+1)*N_i_kk,1]);
+
+            StationaryDistVec_kk=zeros(N_a_temp*N_z_temp,jend-j1+1,N_i_kk); % This was originally a gpuArray, but it became a blockage as it requires substantially more gpu memory that the other things around it
+            Values_kk=zeros(N_a_temp*N_z_temp,jend-j1+1,N_i_kk); % This was originally a gpuArray, but it became a blockage as it requires substantially more gpu memory that the other things around it
+
+            for ii=1:N_i_kk
+                temp=gather(StationaryDist.(Names_i{ii}));
+                StationaryDistVec_kk(:,:,ii)=temp(:,j1:jend); % Note, has already been multiplied by StationaryDist.ptweights(ii)
+                temp=gather(ValuesOnDist.(Names_i{ii})); % Note, this is actually already on the cpu anyway
+                Values_kk(:,:,ii)=temp(:,j1:jend); 
+            end
+
+%             StationaryDistVec_jj=reshape(StationaryDistVec_kk(:,j1:jend,:),[N_a_temp*N_z_temp*(jend-j1+1)*N_i_kk,1]);
+            StationaryDistVec_jj=reshape(StationaryDistVec_kk,[N_a_temp*N_z_temp*(jend-j1+1)*N_i_kk,1]);
             StationaryDistVec_jj=StationaryDistVec_jj./sum(StationaryDistVec_jj); % Normalize to sum to one for this 'agegrouping'
-            
-            Values_jj=reshape(Values_kk(:,j1:jend,:),[N_a_temp*N_z_temp*(jend-j1+1)*N_i,1]);
-            
+
+%             Values_jj=reshape(Values_kk(:,j1:jend,:),[N_a_temp*N_z_temp*(jend-j1+1)*N_i,1]);
+            Values_jj=reshape(Values_kk,[N_a_temp*N_z_temp*(jend-j1+1)*N_i,1]);
+
             [SortedValues,SortedValues_index] = sort(Values_jj);
-            
+
             SortedWeights = StationaryDistVec_jj(SortedValues_index);
             CumSumSortedWeights=cumsum(SortedWeights);
-            
+
             WeightedValues=Values_jj.*StationaryDistVec_jj;
             SortedWeightedValues=WeightedValues(SortedValues_index);
-            
+
             % Calculate the 'age conditional' mean
             AgeConditionalStats(kk).Mean(jj)=sum(WeightedValues);
             % Calculate the 'age conditional' median
@@ -339,21 +561,21 @@ if simoptions.groupptypesforstats==1
             AgeConditionalStats(kk).Median(jj)=SortedValues(medianindex);
             % Calculate the 'age conditional' variance
             AgeConditionalStats(kk).Variance(jj)=sum((Values_jj.^2).*StationaryDistVec_jj)-(AgeConditionalStats(kk).Mean(jj))^2; % Weighted square of values - mean^2
-            
-            
+
+
             if simoptions.npoints>0
                 % Calculate the 'age conditional' lorenz curve
                 AgeConditionalStats(kk).LorenzCurve(:,jj)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
                 % Calculate the 'age conditional' gini
                 AgeConditionalStats(kk).Gini(jj)=Gini_from_LorenzCurve(AgeConditionalStats(kk).LorenzCurve(:,jj));
             end
-            
+
             % Calculate the 'age conditional' quantile means (ventiles by default)
             % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
             QuantileIndexes=zeros(1,simoptions.nquantiles-1);
             QuantileCutoffs=zeros(1,simoptions.nquantiles-1);
             QuantileMeans=zeros(1,simoptions.nquantiles);
-            
+
             for ll=1:simoptions.nquantiles-1
                 tempindex=find(CumSumSortedWeights>=ll/simoptions.nquantiles,1,'first');
                 QuantileIndexes(ll)=tempindex;
@@ -380,11 +602,13 @@ if simoptions.groupptypesforstats==1
             end
             AgeConditionalStats(kk).QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
             AgeConditionalStats(kk).QuantileMeans(:,jj)=QuantileMeans';
-            
+
         end
     end
 
+
 end
+
 
 
 %%

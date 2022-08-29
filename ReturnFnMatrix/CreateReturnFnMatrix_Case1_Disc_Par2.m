@@ -24,13 +24,13 @@ end
 l_a=length(n_a); 
 l_z=length(n_z);
 if l_d>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
 end
 if l_a>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+    error('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
 end
-if l_z>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
+if l_z>5
+    error('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>5)')
 end
 
 if nargin(ReturnFn)~=l_d+l_a+l_a+l_z+length(ReturnFnParams)
@@ -75,6 +75,9 @@ if l_z>=1
             z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a-l_a-2);
             if l_z>=4
                 z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a-l_a-3);
+                if l_z>=5
+                    z5vals=shiftdim(z_grid(sum(n_z(1:4))+1:sum(n_z(1:5))),-l_d-l_a-l_a-4);
+                end
             end
         end
     end
@@ -90,6 +93,8 @@ elseif l_d==0 && l_a==1 && l_z==3
     Fmatrix=arrayfun(ReturnFn, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==0 && l_a==1 && l_z==4
     Fmatrix=arrayfun(ReturnFn, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==0 && l_a==1 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==0 && l_a==2 && l_z==1
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==0 && l_a==2 && l_z==2
@@ -98,6 +103,8 @@ elseif l_d==0 && l_a==2 && l_z==3
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==0 && l_a==2 && l_z==4
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==0 && l_a==2 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==0 && l_a==3 && l_z==1
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==0 && l_a==3 && l_z==2
@@ -106,6 +113,8 @@ elseif l_d==0 && l_a==3 && l_z==3
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==0 && l_a==3 && l_z==4
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==0 && l_a==3 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==0 && l_a==4 && l_z==1
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
 elseif l_d==0 && l_a==4 && l_z==2
@@ -114,6 +123,8 @@ elseif l_d==0 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==0 && l_a==4 && l_z==4
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==0 && l_a==4 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==1
     d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals, a1vals, z1vals, ParamCell{:});
@@ -123,6 +134,8 @@ elseif l_d==1 && l_a==1 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==1 && l_a==1 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==1 && l_a==2 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==1 && l_a==2 && l_z==2
@@ -131,6 +144,8 @@ elseif l_d==1 && l_a==2 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==1 && l_a==2 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==1 && l_a==2 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==1 && l_a==3 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==1 && l_a==3 && l_z==2
@@ -139,6 +154,8 @@ elseif l_d==1 && l_a==3 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==1 && l_a==3 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==1 && l_a==3 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==1 && l_a==4 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
 elseif l_d==1 && l_a==4 && l_z==2
@@ -147,6 +164,8 @@ elseif l_d==1 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==1 && l_a==4 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==1 && l_a==4 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==2 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals, a1vals, z1vals, ParamCell{:});
 elseif l_d==2 && l_a==1 && l_z==2
@@ -155,6 +174,8 @@ elseif l_d==2 && l_a==1 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==2 && l_a==1 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==2 && l_a==1 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==2
@@ -163,6 +184,8 @@ elseif l_d==2 && l_a==2 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==2 && l_a==2 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==2 && l_a==2 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==2 && l_a==3 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==2 && l_a==3 && l_z==2
@@ -171,6 +194,8 @@ elseif l_d==2 && l_a==3 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==2 && l_a==3 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==2 && l_a==3 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==2 && l_a==4 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
 elseif l_d==2 && l_a==4 && l_z==2
@@ -179,6 +204,8 @@ elseif l_d==2 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==2 && l_a==4 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});  
+elseif l_d==2 && l_a==4 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});  
 elseif l_d==3 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals, a1vals, z1vals, ParamCell{:});
 elseif l_d==3 && l_a==1 && l_z==2
@@ -187,6 +214,8 @@ elseif l_d==3 && l_a==1 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==3 && l_a==1 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==3 && l_a==1 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==3 && l_a==2 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==3 && l_a==2 && l_z==2
@@ -195,6 +224,8 @@ elseif l_d==3 && l_a==2 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==3 && l_a==2 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==3 && l_a==2 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==3 && l_a==3 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==3 && l_a==3 && l_z==2
@@ -203,6 +234,8 @@ elseif l_d==3 && l_a==3 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==3 && l_a==3 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==3 && l_a==3 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==3 && l_a==4 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
 elseif l_d==3 && l_a==4 && l_z==2
@@ -211,6 +244,8 @@ elseif l_d==3 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==3 && l_a==4 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});  
+elseif l_d==3 && l_a==4 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});  
 elseif l_d==4 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals, a1vals, z1vals, ParamCell{:});
 elseif l_d==4 && l_a==1 && l_z==2
@@ -219,6 +254,8 @@ elseif l_d==4 && l_a==1 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==4 && l_a==1 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==4 && l_a==1 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==4 && l_a==2 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_d==4 && l_a==2 && l_z==2
@@ -227,6 +264,8 @@ elseif l_d==4 && l_a==2 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==4 && l_a==2 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==4 && l_a==2 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==4 && l_a==3 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_d==4 && l_a==3 && l_z==2
@@ -235,6 +274,8 @@ elseif l_d==4 && l_a==3 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==4 && l_a==3 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==4 && l_a==3 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==4 && l_a==4 && l_z==1
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
 elseif l_d==4 && l_a==4 && l_z==2
@@ -243,6 +284,8 @@ elseif l_d==4 && l_a==4 && l_z==3
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_d==4 && l_a==4 && l_z==4
     Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+elseif l_d==4 && l_a==4 && l_z==5
+    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 end
 
 if l_d==0

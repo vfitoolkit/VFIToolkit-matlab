@@ -155,6 +155,7 @@ AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
 AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+GEcondnsPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 % The following five lines are essentially how I used to do things, but now
 % are redundant (I just do things by name, which takes a bit more run time
@@ -279,7 +280,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
             p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-%             GEcondnspath(i,:)=p_i;
+            GEcondnsPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
@@ -305,8 +306,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
-        % Would be nice to have a way to get the iteration count without having the whole
-        % printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
     end
@@ -342,7 +341,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             title(AggVarNames{pp})
         end
     end
-
+    if transpathoptions.graphGEcondns==1
+        % Assumes transpathoptions.GEnewprice==3
+        % Do an additional graph, this one of the general eqm conditions
+        if length(GEeqnNames)>12
+            ncolumns=4;
+        elseif length(GEeqnNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(GEeqnNames)/ncolumns);
+        fig3=figure(3);
+        for pp=1:length(GEeqnNames)
+            subplot(nrows,ncolumns,pp); plot(GEcondnsPath(:,pp))
+            title(GEeqnNames{pp})
+        end
+    end
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0

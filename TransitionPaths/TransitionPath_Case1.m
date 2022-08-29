@@ -85,6 +85,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbosegraphs=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
+    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.historyofpricepath=0;
     transpathoptions.stockvars=0;
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
@@ -134,6 +135,9 @@ else
     if isfield(transpathoptions,'graphaggvarspath')==0
         transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     end
+    if isfield(transpathoptions,'graphGEcondns')==0
+        transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
+    end
     if isfield(transpathoptions,'historyofpricepath')==0
         transpathoptions.historyofpricepath=0;
     end
@@ -152,6 +156,11 @@ else
     use_p_eqm_init=0;
 end
 
+if transpathoptions.graphGEcondns==1
+    if transpathoptions.GEnewprice~=3
+        error('Can only use transpathoptions.graphGEcondns=1 when using transpathoptions.GEnewprice=3')
+    end
+end
 
 %% Check which vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0

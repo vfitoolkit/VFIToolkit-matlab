@@ -201,7 +201,7 @@ for ii=1:N_i
             end
         end
     else
-        if sum(jequaloneDist_temp(:))~=1
+        if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
             error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
         end
     end

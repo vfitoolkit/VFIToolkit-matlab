@@ -27,6 +27,7 @@ if exist('vfoptions','var')==0
     else
         vfoptions.paroverz=0;
     end
+    vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
 else
@@ -63,6 +64,9 @@ else
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
+    if isfield(vfoptions,'incrementaltype')==0
+        vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
+    end
     if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
@@ -97,10 +101,16 @@ elseif ~isequal(size(z_grid), [sum(n_z), 1])
 elseif ~isequal(size(pi_z), [N_z, N_z])
     error('pi is not of size N_z-by-N_z')
 elseif isfield(vfoptions,'n_e')
-    if  ~isequal(size(vfoptions.e_grid), [sum(vfoptions.n_e), 1])
-        error('(vfoptions.) e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
-    elseif ~isequal(size(vfoptions.pi_e), [prod(vfoptions.n_e),1])
-        error('(vfoptions.) pi_e is not the correct shape (should be of size N_e-by-1)')
+    if ~isfield(vfoptions,'e_grid') && ~isfield(vfoptions,'e_grid_J')
+        error('When using vfoptions.n_e you must declare vfoptions.e_grid (or vfoptions.e_grid_J)')
+    elseif ~isfield(vfoptions,'pi_e') && ~isfield(vfoptions,'pi_e_J')
+        error('When using vfoptions.n_e you must declare vfoptions.pi_e(or vfoptions.pi_e_J)')
+    else
+        if  ~isequal(size(vfoptions.e_grid), [sum(vfoptions.n_e), 1])
+            error('(vfoptions.) e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
+        elseif ~isequal(size(vfoptions.pi_e), [prod(vfoptions.n_e),1])
+            error('(vfoptions.) pi_e is not the correct shape (should be of size N_e-by-1)')
+        end
     end
 end
 
@@ -112,6 +122,9 @@ else
 end
 l_a=length(n_a);
 l_z=length(n_z);
+if n_z(1)==0
+    l_z=0;
+end
 if isfield(vfoptions,'n_e')
     l_e=length(vfoptions.n_e);
 else
@@ -125,8 +138,6 @@ if isempty(ReturnFnParamNames)
     else
         ReturnFnParamNames={};
     end
-% else
-%     ReturnFnParamNames=ReturnFnParamNames;
 end
 
 %% 
@@ -279,12 +290,33 @@ if vfoptions.dynasty==1
     return
 end
 
+%% Detect if using incremental endogenous states and solve this using purediscretization, prior to the main purediscretization routines
+if any(vfoptions.incrementaltype)
+    % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
+    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_grid,N_j,pi_z,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
+    
+    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+    if isfield(vfoptions,'n_e')
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        end
+    else
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+    end
+    
+    return
+end
+
 
 %% Just do the standard case
 if N_d==0
     if vfoptions.parallel==2
         if isfield(vfoptions,'n_e')
-            fprintf('Using e variable \n')
             if isfield(vfoptions,'e_grid_J')
                 e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
             else
@@ -295,8 +327,11 @@ if N_d==0
             else
                 pi_e=vfoptions.pi_e;
             end
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            
+            if N_z==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
         else
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
@@ -340,8 +375,13 @@ end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if isfield(vfoptions,'n_e')
-    V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-    Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+    if N_z==0
+        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+    else
+        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+    end
 else
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);

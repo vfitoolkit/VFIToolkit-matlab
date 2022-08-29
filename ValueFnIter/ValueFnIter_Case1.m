@@ -110,45 +110,37 @@ end
 %% Check the sizes of some of the inputs
 if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'localpolicysearch')
     if size(d_grid)~=[sum(n_d), 1]
-        disp('ERROR: d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
-        dbstack
-        return
+        error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
     elseif size(a_grid)~=[sum(n_a), 1]
-        disp('ERROR: a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
-        dbstack
-        return
-    elseif size(z_grid)~=[sum(n_z), 1]
-        disp('ERROR: z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
-        dbstack
-        return
-    elseif size(pi_z)~=[N_z, N_z]
-        disp('ERROR: pi is not of size N_z-by-N_z')
-        dbstack
-        return
+        error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
+    elseif N_z>0
+        if size(z_grid)~=[sum(n_z), 1]
+            error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
+        elseif size(pi_z)~=[N_z, N_z]
+            error('pi is not of size N_z-by-N_z')
+        end
     elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
         if ndims(V0)>2
             if size(V0)~=[n_a,n_z] % Allow for input to be already transformed into Kronecker form
-                disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
-                dbstack
-                return
+                error('Starting choice for ValueFn is not of size [n_a,n_z]')
             end
         elseif size(V0)~=[N_a,N_z] % Allows for possiblity that V0 is already in kronecker form
-            disp('ERROR: Starting choice for ValueFn is not of size [n_a,n_z]')
-            dbstack
-            return
+            error('Starting choice for ValueFn is not of size [n_a,n_z]')
         end
     end
 end
 
-if min(min(pi_z))<0
-    error('Problem with pi_z in ValueFnIter_Case1: min(min(pi_z))<0 \n')
-elseif vfoptions.piz_strictonrowsaddingtoone==1
-    if max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
-        error('Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
-    end
-elseif vfoptions.piz_strictonrowsaddingtoone==0
-    if max(abs((sum(pi_z,2))-1)) > 10^(-13)
-        error('Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
+if N_z>0
+    if min(min(pi_z))<0
+        error('Problem with pi_z in ValueFnIter_Case1: min(min(pi_z))<0 \n')
+    elseif vfoptions.piz_strictonrowsaddingtoone==1
+        if max(sum(pi_z,2))~=1 || min(sum(pi_z,2))~=1
+            error('Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
+        end
+    elseif vfoptions.piz_strictonrowsaddingtoone==0
+        if max(abs((sum(pi_z,2))-1)) > 10^(-13)
+            error('Problem with pi_z in ValueFnIter_Case1: rows do not sum to one \n')
+        end
     end
 end
 

@@ -22,13 +22,13 @@ for ii=1:length(FnToEvaluateParams)
 end
 
 % if l_d>4
-%     disp('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4): (in ValuesOnSSGrid_Case1)')
+%     error
 % end
 % if l_a>4
-%     disp('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4): (in ValuesOnSSGrid_Case1)')
+%     error
 % end
 % if l_z>4
-%     disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in ValuesOnSSGrid_Case1)')
+%     error
 % end
 
 if l_a>=1

@@ -18,10 +18,10 @@ N_z=prod(n_z); % THIS WILL EQUAL 1 FOR LowMem2
 l_a=length(n_a);
 l_z=length(n_z);
 if l_a>4
-    disp('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4): (in CreateReturnFnMatrix_Case1_Disc_Parallel2). Email me (robertdkirkby@gmail.com) and I will add this functionality (have been too lazy till now).')
+    disp('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
 end
 if l_z>4
-    disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case1_Disc_Parallel2). Email me (robertdkirkby@gmail.com) and I will add this functionality (have been too lazy till now).')
+    disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4)')
 end
 
 if N_d==0
