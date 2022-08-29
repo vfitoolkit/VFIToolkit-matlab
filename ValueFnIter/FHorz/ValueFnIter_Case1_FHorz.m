@@ -347,7 +347,6 @@ if N_d==0
 else
     if vfoptions.parallel==2
         if isfield(vfoptions,'n_e')
-            fprintf('Using e variable \n')
             if isfield(vfoptions,'e_grid_J')
                 e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
             else
