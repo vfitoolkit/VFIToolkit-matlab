@@ -290,7 +290,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
         if use_tminus1AggVars==1
-            for pp=1:length(use_tminus1AggVars)
+            for pp=1:length(tminus1AggVarsNames)
                 if tt>1
                     % The AggVars have not yet been updated, so they still contain previous period values
                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
