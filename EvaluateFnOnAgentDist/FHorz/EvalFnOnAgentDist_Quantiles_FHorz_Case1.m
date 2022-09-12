@@ -1,6 +1,7 @@
 function  varargout=EvalFnOnAgentDist_Quantiles_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
 % Returns the cut-off values and the within percentile means from dividing the StationaryDist into simoptions.nquantiles quantiles (so 4 gives quartiles, 5 gives quintiles, 100 gives percentiles).
 %
+% Uses digests.
 
 if ~exist('simoptions','var')
     simoptions.nquantiles=100;
@@ -137,6 +138,7 @@ end
 
 %%
 if Parallel==2
+
     QuantileCutOffs=zeros(length(FnsToEvaluate),simoptions.nquantiles+1,'gpuArray'); %Includes min and max
     QuantileMeans=zeros(length(FnsToEvaluate),simoptions.nquantiles,'gpuArray');
     
@@ -170,20 +172,20 @@ if Parallel==2
         WeightedValues=Values.*StationaryDistVec;
         SortedWeightedValues=WeightedValues(SortedValues_index);
         
-        QuantileIndexes=zeros(1,simoptions.nquantiles-1,'gpuArray');
-        QuantileCutoffs=zeros(1,simoptions.nquantiles-1,'gpuArray');
-        QuantileMeans=zeros(1,simoptions.nquantiles,'gpuArray');
+        QuantileIndexes_ii=zeros(1,simoptions.nquantiles-1,'gpuArray');
+        QuantileCutoffs_ii=zeros(1,simoptions.nquantiles-1,'gpuArray');
+        QuantileMeans_ii=zeros(1,simoptions.nquantiles,'gpuArray');
         for qq=1:simoptions.nquantiles-1
             [tempindex,~]=find(CumSumSortedWeights>=qq/simoptions.nquantiles,1,'first');
-            QuantileIndexes(qq)=tempindex;
-            QuantileCutoffs(qq)=SortedValues(tempindex);
+            QuantileIndexes_ii(qq)=tempindex;
+            QuantileCutoffs_ii(qq)=SortedValues(tempindex);
             if qq==1
-                QuantileMeans(qq)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+                QuantileMeans_ii(qq)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
             elseif (1<qq) && (qq<(simoptions.nquantiles-1))
-                QuantileMeans(qq)=sum(SortedWeightedValues(QuantileIndexes(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(qq-1)));
+                QuantileMeans_ii(qq)=sum(SortedWeightedValues(QuantileIndexes_ii(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_ii(qq-1)));
             elseif qq==(simoptions.nquantiles-1)
-                QuantileMeans(qq)=sum(SortedWeightedValues(QuantileIndexes(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(qq-1)));
-                QuantileMeans(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+                QuantileMeans_ii(qq)=sum(SortedWeightedValues(QuantileIndexes_ii(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_ii(qq-1)));
+                QuantileMeans_ii(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
             end
         end
         
@@ -194,8 +196,8 @@ if Parallel==2
         [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
-        QuantileCutOffs(ii,:)=[minvalue, QuantileCutoffs, maxvalue];
-        QuantileMeans(ii,:)=QuantileMeans;
+        QuantileCutOffs(ii,:)=[minvalue, QuantileCutoffs_ii, maxvalue];
+        QuantileMeans(ii,:)=QuantileMeans_ii;
     end
     
 else
@@ -274,20 +276,20 @@ else
         WeightedValues=Values.*StationaryDistVec;
         SortedWeightedValues=WeightedValues(SortedValues_index);
         
-        QuantileIndexes=zeros(1,simoptions.nquantiles-1);
-        QuantileCutoffs=zeros(1,simoptions.nquantiles-1);
-        QuantileMeans=zeros(1,simoptions.nquantiles);
+        QuantileIndexes_ii=zeros(1,simoptions.nquantiles-1);
+        QuantileCutoffs_ii=zeros(1,simoptions.nquantiles-1);
+        QuantileMeans_ii=zeros(1,simoptions.nquantiles);
         for qq=1:simoptions.nquantiles-1
             [tempindex,~]=find(CumSumSortedWeights>=qq/simoptions.nquantiles,1,'first');
-            QuantileIndexes(qq)=tempindex;
-            QuantileCutoffs(qq)=SortedValues(tempindex);
+            QuantileIndexes_ii(qq)=tempindex;
+            QuantileCutoffs_ii(qq)=SortedValues(tempindex);
             if qq==1
-                QuantileMeans(qq)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
+                QuantileMeans_ii(qq)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
             elseif (1<qq) && (qq<(simoptions.nquantiles-1))
-                QuantileMeans(qq)=sum(SortedWeightedValues(QuantileIndexes(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(qq-1)));
+                QuantileMeans_ii(qq)=sum(SortedWeightedValues(QuantileIndexes_ii(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_ii(qq-1)));
             elseif qq==(simoptions.nquantiles-1)
-                QuantileMeans(qq)=sum(SortedWeightedValues(QuantileIndexes(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(qq-1)));
-                QuantileMeans(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+                QuantileMeans_ii(qq)=sum(SortedWeightedValues(QuantileIndexes_ii(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_ii(qq-1)));
+                QuantileMeans_ii(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
             end
         end
         
@@ -298,8 +300,8 @@ else
         [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
-        QuantileCutOffs(ii,:)=[minvalue, QuantileCutoffs, maxvalue];
-        QuantileMeans(ii,:)=QuantileMeans;
+        QuantileCutOffs(ii,:)=[minvalue, QuantileCutoffs_ii, maxvalue];
+        QuantileMeans(ii,:)=QuantileMeans_ii;
     end
     
 end

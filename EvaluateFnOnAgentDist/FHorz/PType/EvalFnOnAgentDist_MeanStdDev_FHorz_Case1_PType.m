@@ -1,6 +1,15 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function MeanStdDev=EvalFnOnAgentDist_MeanStdDev_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+% Returns the mean and standard deviation of FnsToEvaluate across the StationaryDist.
+%
+% Can use simoptions.groupptypesforstats=1, or report for each PType
+% seperately using simoptions.groupptypesforstats=0
+%
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
+%
+%
+% simoptions.verbose=1 will give feedback
+% simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
 %
 % Rest of this description describes how those inputs not already used for
 % ValueFnIter_PType or StationaryDist_PType should be set up.
@@ -40,32 +49,34 @@ else
     end
 end
 
+
 if isstruct(FnsToEvaluate)
     numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
 else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
+MeanStdDev=zeros(numFnsToEvaluate,2,'gpuArray'); % The 2 are: mean and standard deviation
+FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
-% RIGHT NOW THIS ValuesOnGrid ONLY WORKS WHEN ALL AGENTS ARE ON THE SAME GRID
-N_a=prod(n_a);
-N_z=prod(n_z);
-if ~isstruct(FnsToEvaluate)
-    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
-    else
-        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j);
-    end
-end
-ValuesOnGrid=struct();
+PTypeMeans=zeros(numFnsToEvaluate,N_i);
+PTypeStdDev=zeros(numFnsToEvaluate,N_i);
 
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
+    simoptions.groupptypesforstats=1;
     simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     simoptions.verbose=0;
     simoptions.verboseparams=0;
 else
+    if ~isfield(simoptions,'groupptypesforstats')
+        simoptions.groupptypesforstats=1;
+    end
     if ~isfield(simoptions,'ptypestorecpu')
-        simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        if simoptions.groupptypesforstats==1
+            simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        elseif simoptions.groupptypesforstats==0
+            simoptions.ptypestorecpu=0;
+        end
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=100;
@@ -76,13 +87,14 @@ else
 end
 
 %%
-for ii=1:N_i % First set up simoptions
-    simoptions_temp=PType_Options(simoptions,Names_i,ii);  % Note: already check for existence of simoptions and created it if it was not inputted
-    
+for ii=1:N_i
+    % First set up simoptions
+    simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-    
+        
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
         StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
@@ -90,20 +102,11 @@ for ii=1:N_i % First set up simoptions
         PolicyIndexes_temp=Policy.(Names_i{ii});
         StationaryDist_temp=StationaryDist.(Names_i{ii});
     end
-    % Parallel is determined by StationaryDist, unless it is specified
     if isa(StationaryDist_temp, 'gpuArray')
         Parallel_temp=2;
     else
         Parallel_temp=1;
     end
-    if isfield(simoptions_temp,'parallel')
-        Parallel_temp=simoptions.parallel;
-        if Parallel_temp~=2
-            PolicyIndexes_temp=gather(PolicyIndexes_temp);
-            StationaryDist_temp=gather(StationaryDist_temp);
-        end
-    end
-    
     
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -137,7 +140,8 @@ for ii=1:N_i % First set up simoptions
         if temp(1)>1 % n_d depends on fixed type
             n_d_temp=n_d(ii,:);
         elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+            fprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+            dbstack
         end
     end
     n_a_temp=n_a;
@@ -148,7 +152,7 @@ for ii=1:N_i % First set up simoptions
         if temp(1)>1 % n_a depends on fixed type
             n_a_temp=n_a(ii,:);
         elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
+            fprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
             dbstack
         end
     end
@@ -160,12 +164,12 @@ for ii=1:N_i % First set up simoptions
         if temp(1)>1 % n_z depends on fixed type
             n_z_temp=n_z(ii,:);
         elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
+            fprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
             dbstack
         end
     end
     
-    
+
     if isa(d_grid,'struct')
         d_grid_temp=d_grid.(Names_i{ii});
     else
@@ -197,7 +201,7 @@ for ii=1:N_i % First set up simoptions
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
@@ -211,11 +215,10 @@ for ii=1:N_i % First set up simoptions
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
     end
-
     
-    % Figure out which functions are actually relevant to the present
-    % PType. Only the relevant ones need to be evaluated.
-    % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
+    % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
+    % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
+    % Allows for FnsToEvaluate as structure.
     if n_d_temp(1)==0
         l_d_temp=0;
     else
@@ -223,32 +226,80 @@ for ii=1:N_i % First set up simoptions
     end
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
-    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
-    
-    if isfield(simoptions_temp,'n_e')
-        n_z_temp=[n_z_temp,simoptions_temp.n_e];
-    end
-    if isstruct(FnsToEvaluate)
-        FnNames=fieldnames(FnsToEvaluate);
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]);
-            end
-        end
+    simoptions_temp.keepoutputasmatrix=1;
+    MeanMedianStdDev_ii=EvalFnOnAgentDist_MeanStdDev_FHorz_Case1(StationaryDist_temp,PolicyIndexes_temp, FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,Parallel_temp,simoptions_temp);
         
-    else % Note: this only works when all agents use same grid
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
-            end
+    % Store the means and the std devs of each type so as these can later be used to calculate the standard deviation
+    for kk=1:numFnsToEvaluate
+        jj=WhichFnsForCurrentPType(kk);
+        if jj>0
+            PTypeMeans(kk,ii)=MeanMedianStdDev_ii(jj,1);
+            PTypeStdDev(kk,ii)=MeanMedianStdDev_ii(jj,2);
         end
-        ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]);
     end
     
 end
+
+
+if simoptions.groupptypesforstats==1
+    % Calculate the mean and standard deviation
+    % (Formula: https://en.wikipedia.org/wiki/Pooled_variance#Aggregation_of_standard_deviation_data )
+    % Calculate the median from the ValuesOnGrid
+    for kk=1:numFnsToEvaluate
+        SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+        
+        % Mean
+        MeanStdDev(kk,1)=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*PTypeMeans(kk,:))/SigmaNxi;
+        
+        % Standard Deviation
+        if N_i==1
+            MeanStdDev(kk,2)=PTypeStdDev(kk,:);
+        else
+            temp2=zeros(N_i,1);
+            for ii=2:N_i
+                if FnsAndPTypeIndicator(kk,ii)==1
+                    temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*((PTypeMeans(kk,1:(ii-1))-PTypeMeans(kk,ii)).^2));
+                end
+            end
+            MeanStdDev(kk,2)=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*PTypeStdDev(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+        end        
+    end
+else
+    MeanStdDev=zeros(numFnsToEvaluate,2,N_i);
+    for kk=1:numFnsToEvaluate
+        for ii=1:N_i
+            MeanStdDev(kk,1,ii)=PTypeMeans(kk,ii);
+            MeanStdDev(kk,2,ii)=PTypeStdDev(kk,ii);
+        end
+    end
+end
+
+
+% If using FnsToEvaluate as structure need to get in appropriate form for output
+if isstruct(FnsToEvaluate)
+    AggVarNames=fieldnames(FnsToEvaluate);
+    % Change the output into a structure
+    MeanMedianStdDev2=MeanStdDev;
+    clear MeanMedianStdDev
+    MeanStdDev=struct();
+    %     AggVarNames=fieldnames(FnsToEvaluate);
+    if simoptions.groupptypesforstats==1
+        for ff=1:length(AggVarNames)
+            MeanStdDev.(AggVarNames{ff}).Mean=MeanMedianStdDev2(ff,1);
+            MeanStdDev.(AggVarNames{ff}).StdDev=MeanMedianStdDev2(ff,2);
+        end
+    else % simoptions.groupptypesforstats==0
+        for ff=1:length(AggVarNames)
+            for ii=1:N_i
+                MeanStdDev.(AggVarNames{ff}).Mean.(Names_i{ii})=MeanMedianStdDev2(ff,1,ii);
+                MeanStdDev.(AggVarNames{ff}).StdDev.(Names_i{ii})=MeanMedianStdDev2(ff,2,ii);
+            end
+        end
+    end
+end
+
 
 end

@@ -58,12 +58,24 @@ FnNames=fieldnames(FnsToEvaluate);
 if ~exist('simoptions','var')
     simoptions.numbersims=10^5;
     simoptions.simperiods=N_j;
+    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+    simoptions.verbose=0;
+    simoptions.verboseparams=0;
 else
     if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^5;
     end
     if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=N_j;
+    end
+    if ~isfield(simoptions,'ptypestorecpu')
+        simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+    end
+    if ~isfield(simoptions,'verboseparams')
+        simoptions.verboseparams=100;
+    end
+    if ~isfield(simoptions,'verbose')
+        simoptions.verbose=100;
     end
 end
 simoptions.outputasstructure=0; % SimPanelValues as matrix
@@ -82,18 +94,7 @@ PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);
 for ii=1:N_i
     % First set up simoptions
-    if exist('simoptions','var')
-        simoptions_temp=PType_Options(simoptions,Names_i,ii);
-        if ~isfield(simoptions_temp,'verbose')
-            simoptions_temp.verbose=0;
-        end
-        if ~isfield(simoptions_temp,'verboseparams')
-            simoptions_temp.verboseparams=0;
-        end
-    else
-        simoptions_temp.verbose=0;
-        simoptions_temp.verboseparams=0;
-    end
+    simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)

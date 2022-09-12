@@ -53,9 +53,22 @@ end
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
+    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+    simoptions.verbose=0;
+    simoptions.verboseparams=0;
 else
-    if ~isfield(simoptions,'groupptypesforstats')
-       simoptions.groupptypesforstats=1;
+    if ~isfield(simoptions,'ptypestorecpu')
+        if simoptions.groupptypesforstats==1
+            simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        elseif simoptions.groupptypesforstats==0
+            simoptions.ptypestorecpu=0;
+        end
+    end
+    if ~isfield(simoptions,'verboseparams')
+        simoptions.verboseparams=100;
+    end
+    if ~isfield(simoptions,'verbose')
+        simoptions.verbose=100;
     end
 end
 
@@ -73,22 +86,7 @@ end
 for ii=1:N_i
     
     % First set up simoptions
-    if exist('simoptions','var')
-        simoptions_temp=PType_Options(simoptions,Names_i,ii);
-        if ~isfield(simoptions_temp,'verbose')
-            simoptions_temp.verbose=0;
-        end
-        if ~isfield(simoptions_temp,'verboseparams')
-            simoptions_temp.verboseparams=0;
-        end
-        if ~isfield(simoptions_temp,'ptypestorecpu')
-            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        end
-    else
-        simoptions_temp.verbose=0;
-        simoptions_temp.verboseparams=0;
-        simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end
+    simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
