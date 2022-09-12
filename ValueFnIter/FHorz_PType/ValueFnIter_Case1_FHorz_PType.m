@@ -108,9 +108,7 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    disp('HERE')
     [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
-    disp('HERE2')
     
     if vfoptions_temp.ptypestorecpu==1
         V.(Names_i{ii})=gather(V_ii);
