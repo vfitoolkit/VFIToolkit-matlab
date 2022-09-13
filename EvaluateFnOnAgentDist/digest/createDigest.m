@@ -1,6 +1,8 @@
 function [C,digestweights,qlimitvec]=createDigest(values, weights,delta)
 % Creates a t-digest from the distribution.
-% For explanation of t-digest: Dunning & Ertl (2019) - Computing Extremely Accurate Quantiles Using t-digests
+% For explanation of t-digest: 
+%   Kirkby - 
+%   Dunning & Ertl (2019) - Computing Extremely Accurate Quantiles Using t-digests
 %
 % trim: an optional input to trim any zeros from the tail
 %   (I recommend trim=0 if you later plan to merge, otherwise trim=1)
@@ -75,7 +77,7 @@ if Nq~=0
         end
     end
     ii=length(cumsortweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
-    C(count)=sum(sortweights(ibegin:ii-1).*sortvalues(ibegin:ii-1))/sum(sortweights(ibegin:ii-1));
+    C(count)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
     qlimitvec(count)=qlimit;
 
     % Some elements near the end will be zeros, so find and trim these
@@ -115,7 +117,7 @@ else % Have not precalculated number of elements, so memory usage not preallocat
         end
     end
     ii=length(cumsortweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
-    C=[C;sum(sortweights(ibegin:ii-1).*sortvalues(ibegin:ii-1))/sum(sortweights(ibegin:ii-1))];
+    C=[C;sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii))];
     qlimitvec=[qlimitvec;qlimit];
 
     digestweights=[qlimitvec(2:end);1]-qlimitvec;

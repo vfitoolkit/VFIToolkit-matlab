@@ -59,12 +59,8 @@ if Nq~=0
             % Nothing
         else
             % Passed qlimit, so store sigma, then create a new qlimit and reset sigma
-            if ii>ibegin
-                C(count)=sum(sortweights(ibegin:ii-1).*sortvalues(ibegin:ii-1))/sum(sortweights(ibegin:ii-1));
-            else
-                C(count)=sortvalues(ibegin);
-            end
-            ibegin=ii;
+            C(count)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
+            ibegin=ii+1;
             qlimitvec(count)=qlimit;
             count=count+1;
             qlimit=kinvfn(kfn(qlimit,delta)+1,delta);
@@ -81,7 +77,7 @@ if Nq~=0
         end
     end
     ii=length(cumsortweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
-    C(count)=sum(sortweights(ibegin:ii-1).*sortvalues(ibegin:ii-1))/sum(sortweights(ibegin:ii-1));
+    C(count)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
     qlimitvec(count)=qlimit;
 
     % Some will be zeros, so find and trim these
@@ -104,12 +100,8 @@ else % Have not precalculated number of elements, so memory usage not preallocat
             % Nothing
         else
             % Passed qlimit, so store sigma, then create a new qlimit and reset sigma
-            if ii>ibegin
-                C=[C;sum(sortweights(ibegin:ii-1).*sortvalues(ibegin:ii-1))/sum(sortweights(ibegin:ii-1))];
-            else
-                C=[C;sortvalues(ibegin)];
-            end
-            ibegin=ii;
+            C=[C;sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii))];
+            ibegin=ii+1;
             qlimitvec=[qlimitvec;qlimit];
             qlimit=kinvfn(kfn(qlimit,delta)+1,delta);
             % Need to ensure that the new qlimit is actually relevant
@@ -125,7 +117,7 @@ else % Have not precalculated number of elements, so memory usage not preallocat
         end
     end
     ii=length(cumsortweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
-    C=[C;sum(sortweights(ibegin:ii-1).*sortvalues(ibegin:ii-1))/sum(sortweights(ibegin:ii-1))];
+    C=[C;sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii))];
     qlimitvec=[qlimitvec;qlimit];
 
     digestweights=[qlimitvec(2:end);1]-qlimitvec;
