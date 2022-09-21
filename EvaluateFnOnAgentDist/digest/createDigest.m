@@ -77,8 +77,11 @@ if Nq~=0
         end
     end
     ii=length(cumsortweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
-    C(count)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
-    qlimitvec(count)=qlimit;
+    % Seem to get nan at the very top of the digests (on large models) so implemented the following if-statement as likely source was dividing by zero
+    if sum(sortweights(ibegin:ii))>0
+        C(count)=sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii));
+        qlimitvec(count)=qlimit;
+    end
 
     % Some elements near the end will be zeros, so find and trim these
     temp=~(qlimitvec==0);
@@ -117,9 +120,12 @@ else % Have not precalculated number of elements, so memory usage not preallocat
         end
     end
     ii=length(cumsortweights); % Have to treat this seperate as otherwise causes problems with q>qlimit never reached in the while statement
-    C=[C;sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii))];
-    qlimitvec=[qlimitvec;qlimit];
-
+    % Seem to get nan at the very top of the merged digests (on very large models) so implemented the following if-statement as likely source was dividing by zero
+    if sum(sortweights(ibegin:ii))>0
+        C=[C;sum(sortweights(ibegin:ii).*sortvalues(ibegin:ii))/sum(sortweights(ibegin:ii))];
+        qlimitvec=[qlimitvec;qlimit];
+    end
+    
     digestweights=[qlimitvec(2:end);1]-qlimitvec;
 
 end
