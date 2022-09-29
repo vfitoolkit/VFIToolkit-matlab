@@ -53,7 +53,7 @@ if Parallel==2
                 end
             end
             temp_d_grid=d_grid(cumsum_n_d(end-1)+1:end);
-            PolicyValues(end,:)=temp_d_grid(PolicyIndexes(end,:));
+            PolicyValues(l_d,:)=temp_d_grid(PolicyIndexes(l_d,:));
         end
         
         temp_a_grid=a_grid(1:cumsum_n_a(1));
@@ -66,7 +66,7 @@ if Parallel==2
                 end
             end
             temp_a_grid=a_grid(cumsum_n_a(end-1)+1:end);
-            PolicyValues(l_d+end,:)=temp_a_grid(PolicyIndexes(l_d+end,:));
+            PolicyValues(l_d+l_a,:)=temp_a_grid(PolicyIndexes(l_d+l_a,:));
         end
         
         PolicyValues=reshape(PolicyValues,[l_d+l_a,n_a,n_z,N_j]);
