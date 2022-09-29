@@ -46,11 +46,7 @@ else
     end
 end
 if MatrixOrCell==2
-    x_gridvals_mat=x_gridvals;
-    x_gridvals=cell(N_x,l_x);
-    for ii=1:N_x
-        x_gridvals(ii,:)=num2cell(x_gridvals_mat(ii,:));
-    end
+    x_gridvals=num2cell(x_gridvals);
 end
 
 %% OLD SLOWER VERSION THAT HAS BEEN REPLACED (WILL DELETE IT LATER)
