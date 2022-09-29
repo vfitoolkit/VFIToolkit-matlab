@@ -154,7 +154,7 @@ if nargin==1 % Just return a dictionary for that database
     end
     % The above first three appear to always be the same, at least for BOP, IFS, CPIS and FSI. 
     % After the first three things are specific to the database being queried.
-    if strcmp(database_id,'IFS') || strcmp(database_id,'FSI')
+    if strcmp(database_id,'IFS') || strcmp(database_id,'FSI') || strcmp(database_id, 'BOP')
         temp=JSONdata2.Structure.CodeLists.CodeList{4}.Code;
         for ii=1:length(temp)
             output.Variables{ii,1}=temp(ii).x_value;
