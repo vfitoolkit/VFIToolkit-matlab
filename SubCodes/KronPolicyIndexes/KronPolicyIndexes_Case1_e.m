@@ -40,7 +40,7 @@ if n_d(1)==0
     
 else
     l_d=length(n_d);
-  
+    
     if isa(Policy,'gpuArray')
         % Should test whether code runs faster with this predeclaration of PolicyKron commented or uncommented
         % PolicyKron=zeros(2,N_a,N_z,'gpuArray'); 
@@ -51,7 +51,7 @@ else
             temp=ones(l_d,1,'gpuArray')-eye(l_d,1,'gpuArray');
             temp2=gpuArray(cumprod(n_d')); % column vector
             PolicyTemp=(reshape(Policy(1:l_d,:,:),[l_d,N_a*N_z*N_e])-temp*ones(1,N_a*N_z*N_e,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_z*N_e,'gpuArray'));
-            PolicyKron(1,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_z,N_e]);
+            PolicyKron(1,:,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_z,N_e]);
         end
         % Then, a
         if l_a==1        
@@ -60,7 +60,7 @@ else
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
             temp2=gpuArray(cumprod(n_a')); % column vector
             PolicyTemp=(reshape(Policy(l_d+1:l_d+l_a,:,:),[l_a,N_a*N_z*N_e])-temp*ones(1,N_a*N_z*N_e,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_z*N_e,'gpuArray'));
-            PolicyKron(2,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_z,N_e]);
+            PolicyKron(2,:,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_z,N_e]);
         end
     else
         PolicyTemp=zeros(2,N_a,N_z,N_e);
