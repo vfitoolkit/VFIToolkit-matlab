@@ -10,7 +10,11 @@ N_z=prod(n_z);
 
 [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
 a_gridvals=CreateGridvals(n_a,a_grid,2);
-z_gridvals=CreateGridvals(n_z,z_grid,2);
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,2);
+elseif all(size(z_grid)==[prod(n_z),length(n_z)])
+    z_gridvals=z_grid;
+end
 
 % Includes check for cases in which no parameters are actually required
 if isempty(FnToEvaluateParamNames.Names) % check for 'FnsToEvaluateParamNames={}'

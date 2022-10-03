@@ -290,31 +290,39 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         
         StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
 
-        %% Create digest
-        [C_ii,digestweights_ii,qlimitvec_ii]=createDigest(ValuesOnGrid_ii, StationaryDist_ii,delta);
-
-        merge_nsofar2=merge_nsofar+length(C_ii);
-        Cmerge(merge_nsofar+1:merge_nsofar2)=C_ii;
-        digestweightsmerge(merge_nsofar+1:merge_nsofar2)=digestweights_ii*StationaryDist.ptweights(ii);
-        merge_nsofar=merge_nsofar2;
-
-        %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
-
-        % Mean
-        Mean=sum(ValuesOnGrid_ii.*StationaryDist_ii);
-        MeanVec(ii)=Mean; % This is used later for the grouped stat
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean=Mean;
-        % Standard Deviation
-        StdDev=sqrt(sum(StationaryDist_ii.*((ValuesOnGrid_ii-Mean.*ones(N_a_temp*N_z_temp*N_j_temp,1)).^2)));
-        StdDevVec(ii)=StdDev; % This is used later for the grouped stat
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=StdDev;
-
-        % Rest of the stats require sorted versions
+        % Eliminate all the zero-weighted points (this doesn't really same
+        % runtime for the exact calculation and often can increase it, but 
+        % for the createDigest it slashes the runtime. So since we want it 
+        % then we may as well do it now.)
+        temp=logical(StationaryDist_ii~=0);
+        StationaryDist_ii=StationaryDist_ii(temp);
+        ValuesOnGrid_ii=ValuesOnGrid_ii(temp);
+        
+        % Many of the stats require sorted versions
         [SortedValues,SortedValues_index]=sort(ValuesOnGrid_ii);
         SortedWeights=StationaryDist_ii(SortedValues_index);
         CumSumSortedWeights=cumsum(SortedWeights);
         SortedWeightedValues=SortedValues.*SortedWeights;
-                
+        
+        %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
+
+        % Min value
+        [~,tempindex]=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
+        minvalue=SortedValues(tempindex);
+        % Max value
+        [~,tempindex]=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+        maxvalue=SortedValues(tempindex);
+        
+        % Mean
+        Mean=sum(SortedWeightedValues);
+        MeanVec(ii)=Mean; % This is used later for the grouped stat
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean=Mean;
+        % Standard Deviation
+        Variance=sum((ValuesOnGrid_ii.^2).*StationaryDist_ii)-Mean^2;  % Weighted square of values - mean^2
+        StdDev=sqrt(Variance);
+        StdDevVec(ii)=StdDev; % This is used later for the grouped stat
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=StdDev;
+        
         % Some stats bassed on Lorenz curve
         if SortedWeightedValues(1)<0
             warning('Lorenz curve for the %i-th FnsToEvaluate is complicated as it takes some negative values \n',kk)
@@ -358,19 +366,20 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                 QuantileMeans_ii(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
             end
         end
-        
-        % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
-        minvalue=SortedValues(tempindex);
-        % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
-        maxvalue=SortedValues(tempindex);
-        
+                
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=[minvalue, QuantileCutoffs_ii, maxvalue];
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=QuantileMeans_ii;
 
         minvaluevec(ii)=minvalue; % Keep so that we can calculate the grouped min directly from this
         maxvaluevec(ii)=maxvalue; % Keep so that we can calculate the grouped max directly from this
+        
+        %% Create digest
+        [C_ii,digestweights_ii,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1 is presorted
+
+        merge_nsofar2=merge_nsofar+length(C_ii);
+        Cmerge(merge_nsofar+1:merge_nsofar2)=C_ii;
+        digestweightsmerge(merge_nsofar+1:merge_nsofar2)=digestweights_ii*StationaryDist.ptweights(ii);
+        merge_nsofar=merge_nsofar2;
     end
     % Clean off the zeros at the end of Cmerge (that exist because of how
     % we preallocate 'too much' for Cmerge); same for digestweightsmerge.

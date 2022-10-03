@@ -237,13 +237,6 @@ if Parallel==2 || Parallel==4
     a_grid=gpuArray(a_grid);
     z_grid=gpuArray(z_grid);
     
-%     % l_d not needed with Parallel=2 implementation
-%     l_a=length(n_a);
-%     l_z=length(n_z);
-%     
-%     N_a=prod(n_a);
-%     N_z=prod(n_z);
-    
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
