@@ -30,8 +30,6 @@ eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
 if all(vfoptions.parallel_e==0)
     %% Loop over all e
     special_n_e=ones(1,length(n_e));
-    e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-
 
     %% N_j
     % Create a vector containing all the return function parameters (in order)
@@ -54,6 +52,12 @@ if all(vfoptions.parallel_e==0)
             e_grid=gpuArray(e_grid); pi_z=gpuArray(pi_e);
         end
     end
+    if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+        e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+        e_gridvals=e_grid;
+    end
+
 
     pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
     
@@ -83,6 +87,11 @@ if all(vfoptions.parallel_e==0)
             e_grid=vfoptions.e_grid_J(:,jj);
             pi_e=vfoptions.pi_e_J(:,jj);
             pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
+            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+                e_gridvals=e_grid;
+            end
         elseif fieldexists_EiidShockFn==1
             if fieldexists_EiidShockFnParamNames==1
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
@@ -97,6 +106,11 @@ if all(vfoptions.parallel_e==0)
                 e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
             end
             pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
+            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+                e_gridvals=e_grid;
+            end
         end
 
         VKronNext_j=V(:,:,jj+1);
@@ -128,6 +142,11 @@ elseif all(vfoptions.parallel_e==1)
     if fieldexists_pi_e_J==1
         e_grid=vfoptions.e_grid_J(:,N_j);
         pi_e=vfoptions.pi_e_J(:,N_j);
+        if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+            e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+            e_gridvals=e_grid;
+        end
     elseif fieldexists_EiidShockFn==1
         if fieldexists_EiidShockFnParamNames==1
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
@@ -140,6 +159,11 @@ elseif all(vfoptions.parallel_e==1)
         else
             [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
             e_grid=gpuArray(e_grid); pi_z=gpuArray(pi_e);
+        end
+        if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+            e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+            e_gridvals=e_grid;
         end
     end
 
@@ -167,7 +191,7 @@ elseif all(vfoptions.parallel_e==1)
         if fieldexists_pi_e_J==1
             e_grid=vfoptions.e_grid_J(:,jj);
             pi_e=vfoptions.pi_e_J(:,jj);
-            pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
+            pi_e=shiftdim(pi_e,-2); % Move to third dimension
         elseif fieldexists_EiidShockFn==1
             if fieldexists_EiidShockFnParamNames==1
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
@@ -206,14 +230,14 @@ else
     n_e2=n_e(~logical(vfoptions.parallel_e));
     N_e1=prod(n_e1);
     N_e2=prod(n_e2);
-    e1_grid=e_grid(1:sum(n_e1),:); % Note, allows for dependence on age j
-    e2_grid=e_grid(sum(n_e1)+1:end,:); % Note, allows for dependence on age j
     if fieldexists_pi_e_J==1
         e_grid=vfoptions.e_grid_J;
         pi_e=vfoptions.pi_e;
     elseif fieldexists_EiidShockFn==1
         error('Cannot use EiidShockFn together with vfoptions.parallel_e (if this functionality is important to you please contact me and I can implement)')
     end
+    e1_grid=e_grid(1:sum(n_e1),:); % Note, allows for dependence on age j
+    e2_grid=e_grid(sum(n_e1)+1:end,:); % Note, allows for dependence on age j
     if size(pi_e,2)==1
         temp=reshape(pi_e,[N_e1,N_e2]);
         pi_e1=sum(temp,2); % Assumes that e1 and e2 are uncorrelated/independently distributed
@@ -251,8 +275,11 @@ else
 
     % Now loop over e2, and within that parallelize over e1
     special_n_e2=ones(1,length(n_e2));
-    e2_gridvals=CreateGridvals(n_e2,e2_grid,1); % The 1 at end indicates want output in form of matrix.
-
+    if all(size(e2_grid)==[sum(n_e2),1]) % kronecker (cross-product) grid
+        e2_gridvals=CreateGridvals(n_e2,e2_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(e2_grid)==[prod(n_e2),length(n_e2)]) % joint-grid
+        e2_gridvals=e2_grid;
+    end
     pi_e1_prime=pi_e1'; % Move to second dimension
     pi_e2=shiftdim(pi_e2,-2); % Move to thrid dimension
 
@@ -288,7 +315,11 @@ else
             pi_e2=vfoptions.pi_e2_J(:,jj);
             pi_e2=shiftdim(pi_e2,-2); % Move to thrid dimension
 
-            e2_gridvals=CreateGridvals(n_e2,e2_grid,1); % The 1 at end indicates want output in form of matrix.
+            if all(size(e2_grid)==[sum(n_e2),1]) % kronecker (cross-product) grid
+                e2_gridvals=CreateGridvals(n_e2,e2_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(e2_grid)==[prod(n_e2),length(n_e2)]) % joint-grid
+                e2_gridvals=e2_grid;
+            end
         end
 
         VKronNext_j=V(:,:,:,jj+1);

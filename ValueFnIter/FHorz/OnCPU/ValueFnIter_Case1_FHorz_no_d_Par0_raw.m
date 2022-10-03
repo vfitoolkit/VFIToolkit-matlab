@@ -15,8 +15,9 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 if vfoptions.lowmemory>0
-    special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -43,6 +44,13 @@ elseif fieldexists_ExogShockFn==1
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
         z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+    end
+end
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
     end
 end
 
@@ -114,6 +122,13 @@ for reverse_j=1:N_j-1
             z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         end
     end
+    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+        if all(size(z_grid)==[sum(n_z),1])
+            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(z_grid)==[prod(n_z),l_z])
+            z_gridvals=z_grid;
+        end
+    end
     
     VKronNext_j=V(:,:,jj+1);
     
@@ -182,22 +197,5 @@ for reverse_j=1:N_j-1
     end
 end
 
-% %%
-% for reverse_j=1:N_j-1
-%     j=N_j-reverse_j;
-%     VKronNext_j=V(:,:,j+1);
-%     FmatrixKron_j=reshape(FmatrixFn_j(j),[N_a,N_a,N_z]);
-%     for z_c=1:N_z
-%         RHSpart2=VKronNext_j.*kron(ones(N_a,1),pi_z(z_c,:));
-%         RHSpart2(isnan(RHSpart2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%         RHSpart2=sum(RHSpart2,2);
-%         for a_c=1:N_a
-%             entireRHS=FmatrixKron_j(:,a_c,z_c)+beta_j(j)*RHSpart2; %aprime by 1
-%             
-%             %calculate in order, the maximizing aprime indexes
-%             [V(a_c,z_c,j),PolicyIndexes(1,a_c,z_c,j)]=max(entireRHS,[],1);
-%         end
-%     end
-% end
 
 end

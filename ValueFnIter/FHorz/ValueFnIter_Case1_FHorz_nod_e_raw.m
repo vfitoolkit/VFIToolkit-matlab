@@ -23,11 +23,12 @@ eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
-    e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+    % e_gridvals is created below
 end
 if vfoptions.lowmemory>1
-    special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    % z_gridvals is created below
 end
 
 %% j=N_j
@@ -52,6 +53,14 @@ elseif fieldexists_ExogShockFn==1
         z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
     end
 end
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
+    end
+end
+
 if fieldexists_pi_e_J==1
     e_grid=vfoptions.e_grid_J(:,N_j);
     pi_e=vfoptions.pi_e_J(:,N_j);
@@ -69,8 +78,17 @@ elseif fieldexists_EiidShockFn==1
         e_grid=gpuArray(e_grid); pi_z=gpuArray(pi_e);
     end
 end
+if vfoptions.lowmemory>0
+    if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+        e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+        e_gridvals=e_grid;
+    end
+end
 
 pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
+
+
 
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
@@ -155,6 +173,23 @@ for reverse_j=1:N_j-1
             e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         end
         pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
+    end
+    
+    if vfoptions.lowmemory>0
+        if (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+            if all(size(z_grid)==[sum(n_z),1])
+                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(z_grid)==[prod(n_z),l_z])
+                z_gridvals=z_grid;
+            end
+        end
+        if (fieldexists_pi_e_J==1 || fieldexists_EiidShockFn==1)
+            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+                e_gridvals=e_grid;
+            end
+        end
     end
     
     VKronNext_j=V(:,:,:,jj+1);

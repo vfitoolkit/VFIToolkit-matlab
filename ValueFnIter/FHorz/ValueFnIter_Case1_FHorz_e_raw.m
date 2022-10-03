@@ -5,6 +5,12 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
 
+if n_z(1)==0
+    l_z=0;
+else
+    l_z=length(n_z);
+end
+
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
@@ -25,11 +31,12 @@ eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
-    e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+    % e_gridvals is created below
 end
 if vfoptions.lowmemory>1
-    special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    % z_gridvals is created below
 end
 
 %% j=N_j
@@ -73,6 +80,19 @@ elseif fieldexists_EiidShockFn==1
 end
 
 pi_e=shiftdim(pi_e,-2); % Move to third dimension
+
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
+    end
+    if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+        e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+        e_gridvals=e_grid;
+    end
+end
 
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid, e_grid, ReturnFnParamsVec);
@@ -156,11 +176,28 @@ for reverse_j=1:N_j-1
             [e_grid,pi_e]=vfoptions.EiidShockFn(jj);
             e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         end
-        pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
+        pi_e=shiftdim(pi_e,-2); % Move to third dimension
+    end
+    
+    if vfoptions.lowmemory>0
+        if (vfoptions.paroverz==1 || vfoptions.lowmemory==2) && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+            if all(size(z_grid)==[sum(n_z),1])
+                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(z_grid)==[prod(n_z),l_z])
+                z_gridvals=z_grid;
+            end
+        end
+        if (fieldexists_pi_e_J==1 || fieldexists_EiidShockFn==1)
+            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+                e_gridvals=e_grid;
+            end
+        end
     end
     
     VKronNext_j=V(:,:,:,jj+1);
-    
+        
     VKronNext_j=sum(VKronNext_j.*pi_e,3);
 
     if vfoptions.lowmemory==0
@@ -192,7 +229,7 @@ for reverse_j=1:N_j-1
                 EV_e(isnan(EV_e))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_e=sum(EV_e,2); % sum over z', leaving a singular second dimension
                 
-                entireEV_e=kron(EV_e,ones(N_d,1));
+                entireEV_e=repelem(EV_e,N_d,1,1);
                 entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV_e.*ones(1,N_a,1);
                 
                 % Calc the max and it's index
@@ -204,13 +241,13 @@ for reverse_j=1:N_j-1
             elseif vfoptions.paroverz==0
                 for z_c=1:N_z
                     ReturnMatrix_ze=ReturnMatrix_e(:,:,z_c);
-                    
+                                                
                     %Calc the condl expectation term (except beta) which depends on z but not control variables
                     EV_ze=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
                     EV_ze(isnan(EV_ze))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                     EV_ze=sum(EV_ze,2);
                     
-                    entireEV_ze=kron(EV_ze,ones(N_d,1));
+                    entireEV_ze=repelem(EV_ze,N_d,1,1);
                     entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_ze*ones(1,N_a,1);
                     
                     %Calc the max and it's index

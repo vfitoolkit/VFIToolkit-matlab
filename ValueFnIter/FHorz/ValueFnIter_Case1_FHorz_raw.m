@@ -17,8 +17,9 @@ eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fie
 eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if vfoptions.lowmemory>0
+    l_z=length(n_z);
     special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -46,6 +47,13 @@ elseif fieldexists_ExogShockFn==1
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
         z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+    end
+end
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
     end
 end
 
@@ -119,6 +127,13 @@ for reverse_j=1:N_j-1
             z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         end
     end
+    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+        if all(size(z_grid)==[sum(n_z),1])
+            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(z_grid)==[prod(n_z),l_z])
+            z_gridvals=z_grid;
+        end
+    end
     
     VKronNext_j=V(:,:,jj+1);
     
@@ -166,6 +181,13 @@ for reverse_j=1:N_j-1
         end
         
     elseif vfoptions.lowmemory==1
+        if vfoptions.lowmemory>0
+            if all(size(z_grid)==[sum(n_z),1])
+                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(z_grid)==[prod(n_z),l_z])
+                z_gridvals=z_grid;
+            end
+        end
         for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
@@ -186,6 +208,13 @@ for reverse_j=1:N_j-1
         end
         
     elseif vfoptions.lowmemory==2
+        if vfoptions.lowmemory>0
+            if all(size(z_grid)==[sum(n_z),1])
+                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(z_grid)==[prod(n_z),l_z])
+                z_gridvals=z_grid;
+            end
+        end
         for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables

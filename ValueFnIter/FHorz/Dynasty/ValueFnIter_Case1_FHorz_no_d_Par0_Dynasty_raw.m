@@ -13,8 +13,13 @@ eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn
 eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 
 if vfoptions.lowmemory>0
-    special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
+    end
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -56,6 +61,13 @@ while currdist>vfoptions.tolerance
             else
                 [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
                 z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+            end
+        end
+        if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+            if all(size(z_grid)==[sum(n_z),1])
+                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+            elseif all(size(z_grid)==[prod(n_z),l_z])
+                z_gridvals=z_grid;
             end
         end
         

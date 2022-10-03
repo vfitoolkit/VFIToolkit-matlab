@@ -29,8 +29,9 @@ if length(DiscountFactorParamNames)<3
 end
 
 if vfoptions.lowmemory>0
-    special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -58,6 +59,13 @@ elseif fieldexists_ExogShockFn==1
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
         z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+    end
+end
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
     end
 end
 
@@ -138,6 +146,13 @@ for reverse_j=1:N_j-1
         else
             [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
             z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+        end
+    end
+    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+        if all(size(z_grid)==[sum(n_z),1])
+            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(z_grid)==[prod(n_z),l_z])
+            z_gridvals=z_grid;
         end
     end
     

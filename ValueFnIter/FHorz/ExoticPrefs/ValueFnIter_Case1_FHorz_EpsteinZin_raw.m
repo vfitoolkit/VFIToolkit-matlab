@@ -28,8 +28,9 @@ if length(DiscountFactorParamNames)<3
 end
 
 if vfoptions.lowmemory>0
-    special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
+    l_z=length(n_z);
+    special_n_z=ones(1,l_z);
+    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -61,6 +62,13 @@ elseif fieldexists_ExogShockFn==1
     else
         [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
         z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+    end
+end
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
     end
 end
 
@@ -151,6 +159,13 @@ for reverse_j=1:N_j-1
             z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
         end
     end
+    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+        if all(size(z_grid)==[sum(n_z),1])
+            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(z_grid)==[prod(n_z),l_z])
+            z_gridvals=z_grid;
+        end
+    end
     
     
     VKronNext_j=V(:,:,j+1);
@@ -159,20 +174,6 @@ for reverse_j=1:N_j-1
         
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-        
-%         %Calc the condl expectation term (except beta), which depends on z but
-%         %not on control variables
-%         EV=VKronNext_j.*(ones(N_a,1,'gpuArray')*dimshift(pi_z,1)); %THIS LINE IS LIKELY INCORRECT
-%         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%         EV=sum(EV,2);
-%         
-%         entireEV=kron(EV,ones(N_d,1,1));
-%         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,N_z);
-%         
-%         %Calc the max and it's index
-%         [Vtemp,maxindex]=max(entireRHS,[],3);
-%         V(:,:,j)=Vtemp;
-%         PolicyIndexes(:,:,j)=maxindex;
 
          for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
