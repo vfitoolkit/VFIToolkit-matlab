@@ -115,7 +115,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
         error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
     elseif N_z>0
         if size(z_grid)~=[sum(n_z), 1]
-            error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
+            if isequal(size(z_grid),[prod(n_z),length(n_z)])
+                % Using joint grids
+            else
+                error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
+            end
         elseif size(pi_z)~=[N_z, N_z]
             error('pi is not of size N_z-by-N_z')
         end

@@ -29,7 +29,12 @@ elseif vfoptions.lowmemory==1 % loop over z
     %% Refinement: calculate ReturnMatrix and 'remove' the d dimension
     ReturnMatrix=zeros(N_a,N_a,N_z); % 'refined' return matrix
     dstar=zeros(N_a,N_a,N_z);
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
+    l_z=length(n_z);
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
+    end
     n_z_temp=ones(1,l_z);
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
@@ -42,7 +47,12 @@ elseif vfoptions.lowmemory==2 % loop over z and a
     ReturnMatrix=zeros(N_a,N_a,N_z); % 'refined' return matrix
     dstar=zeros(N_a,N_a,N_z);
     a_gridvals=CreateGridvals(n_a,a_grid,1);
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
+    l_z=length(n_z);
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
+    end
     n_a_temp=ones(1,l_a);
     n_z_temp=ones(1,l_z);
     for z_c=1:N_z
