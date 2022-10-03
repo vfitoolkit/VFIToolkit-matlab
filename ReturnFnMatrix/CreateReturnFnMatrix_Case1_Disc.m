@@ -19,7 +19,11 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-z_gridvals=CreateGridvals(n_z,z_grid,1);
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,1);
+elseif all(size(z_grid)==[prod(n_z),l_z])
+    z_gridvals=z_grid;
+end
 if N_d~=0
     d_gridvals=CreateGridvals(n_d,d_grid,1);
 end

@@ -66,15 +66,12 @@ end
 if l_z>=1 % Note that z_grid is an abnormal shape due to fastOLG so the z dimension is after the j dimension (for the return function params, and possibly to allow z_grid to also depend on j)
     z1vals=shiftdim(z_grid(:,1:n_z(1)),-l_d-l_a-l_a);
     if l_z>=2
-%         z2vals=shiftdim(z_grid(:,n_z(1)+1:n_z(1)+n_z(2)),-l_d-l_a-l_a-1);
         z2vals=permute(z_grid(:,n_z(1)+1:n_z(1)+n_z(2)),[1,3,2]); % Because of fastOLG we want to leave the j dimension where it is  % Keep 1st where it is, move 2nd to 3rd
         z2vals=shiftdim(z2vals,-l_d-l_a-l_a); % Note that the permute already does the role usually played by -1
         if l_z>=3
-%             z3vals=shiftdim(z_grid(:,sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a-l_a-2);
             z3vals=permute(z_grid(:,sum(n_z(1:2))+1:sum(n_z(1:3))),[1,3,4,2]); % Keep 1st where it is, move 2nd to 4th
             z3vals=shiftdim(z3vals,-l_d-l_a-l_a); % Note that the permute already does the role usually played by -2
             if l_z>=4
-%                 z4vals=shiftdim(z_grid(:,sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a-l_a-3);
                 z4vals=permute(z_grid(:,sum(n_z(1:3))+1:sum(n_z(1:4))),[1,3,4,5,2]); % Keep 1st where it is, move 2nd to 5th
                 z4vals=shiftdim(z4vals,-l_d-l_a-l_a); % Note that the permute already does the role usually played by -3
             end

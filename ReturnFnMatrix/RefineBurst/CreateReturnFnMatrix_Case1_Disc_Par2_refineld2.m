@@ -44,19 +44,39 @@ if l_a>=1
         end
     end
 end
-if l_z>=1
-    z1vals=shiftdim(z_grid(1:n_z(1)),-l_d-l_a-l_a);
-    if l_z>=2
-        z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-l_d-l_a-l_a-1);
-        if l_z>=3
-            z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a-l_a-2);
-            if l_z>=4
-                z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a-l_a-3);
+if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
+    if l_z>=1
+        z1vals=shiftdim(z_grid(1:n_z(1)),-l_d-l_a-l_a);
+        if l_z>=2
+            z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-l_d-l_a-l_a-1);
+            if l_z>=3
+                z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a-l_a-2);
+                if l_z>=4
+                    z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a-l_a-3);
+                    if l_z>=5
+                        z5vals=shiftdim(z_grid(sum(n_z(1:4))+1:sum(n_z(1:5))),-l_d-l_a-l_a-4);
+                    end
+                end
+            end
+        end
+    end
+elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
+    if l_z>=1
+        z1vals=shiftdim(z_grid(:,1),-l_d-l_a-l_a);
+        if l_z>=2
+            z2vals=shiftdim(z_grid(:,2),-l_d-l_a-l_a);
+            if l_z>=3
+                z3vals=shiftdim(z_grid(:,3),-l_d-l_a-l_a);
+                if l_z>=4
+                    z4vals=shiftdim(z_grid(:,4),-l_d-l_a-l_a);
+                    if l_z>=5
+                        z5vals=shiftdim(z_grid(:,5),-l_d-l_a-l_a);
+                    end
+                end
             end
         end
     end
 end
-
 
 % l_d==2
 if l_a==1 && l_z==1

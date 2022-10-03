@@ -1,6 +1,6 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld3(ReturnFn, d1_grid_layer, d2_grid_layer, d3_grid_layer, n_d, n_a, n_z, a_grid, z_grid, ReturnFnParams) % Refine is an optional input
-% Note: this command is only called when l_d=3
-l_d=3;
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld1(ReturnFn, d1_grid_layer, n_d, n_a, n_z, a_grid, z_grid, ReturnFnParams) % Refine is an optional input
+% Note: this command is only called when l_d=1
+l_d=1;
 % Hardcodes: Refine=1
 
 ParamCell=cell(length(ReturnFnParams),1);
@@ -78,39 +78,39 @@ elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
     end
 end
 
-%  l_d==3 
+% l_d==1
 if l_a==1 && l_z==1
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals, a1vals, z1vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals, a1vals, z1vals, ParamCell{:});
 elseif l_a==1 && l_z==2
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals, a1vals, z1vals,z2vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals, a1vals, z1vals,z2vals, ParamCell{:});
 elseif l_a==1 && l_z==3
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals, a1vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_a==1 && l_z==4
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals, a1vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
 elseif l_a==2 && l_z==1
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals, ParamCell{:});
 elseif l_a==2 && l_z==2
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals, ParamCell{:});
 elseif l_a==2 && l_z==3
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_a==2 && l_z==4
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
 elseif l_a==3 && l_z==1
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals, ParamCell{:});
 elseif l_a==3 && l_z==2
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals, ParamCell{:});
 elseif l_a==3 && l_z==3
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_a==3 && l_z==4
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});
 elseif l_a==4 && l_z==1
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals, ParamCell{:});
 elseif l_a==4 && l_z==2
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals, ParamCell{:});
 elseif l_a==4 && l_z==3
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals, ParamCell{:});
 elseif l_a==4 && l_z==4
-    Fmatrix=arrayfun(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});  
+    Fmatrix=arrayfun(ReturnFn, d1_grid_layer, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals, ParamCell{:});  
 end
 
 Fmatrix=reshape(Fmatrix,[N_d,N_a,N_a,N_z]); % This is the difference when using Refine
