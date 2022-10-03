@@ -240,7 +240,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         else
             z_grid_temp=z_grid;
         end
-
+        
         % Parameters are allowed to be given as structure, or as vector/matrix
         % (in terms of their dependence on permanent type). So go through each of
         % these in term.
@@ -301,6 +301,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
         AgeConditionalStats_ii.Mean=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.Median=nan(1,ngroups,'gpuArray');
+        AgeConditionalStats_ii.Variance=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.StdDev=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
         AgeConditionalStats_ii.Gini=nan(1,ngroups,'gpuArray');
@@ -329,13 +330,21 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
             Values_jj=reshape(ValuesOnGrid_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
 
+            % Eliminate all the zero-weights from these (this would
+            % increase run times if we only do exact calculations, but
+            % because we plan to createDigest() it helps reduce runtimes)
+            temp=logical(StationaryDistVec_jj~=0);
+            StationaryDistVec_jj=StationaryDistVec_jj(temp);
+            Values_jj=Values_jj(temp);            
+
+            % Should be mass one, but just enforce to reduce numerical rounding errors
             StationaryDistVec_jj=StationaryDistVec_jj./sum(StationaryDistVec_jj); % Normalize to sum to one for this 'agegrouping'
 
+            % Sort by values
             [SortedValues,SortedValues_index] = sort(Values_jj);
-
             SortedWeights = StationaryDistVec_jj(SortedValues_index);
-            CumSumSortedWeights=cumsum(SortedWeights);
 
+            CumSumSortedWeights=cumsum(SortedWeights);
             WeightedValues=Values_jj.*StationaryDistVec_jj;
             SortedWeightedValues=WeightedValues(SortedValues_index);
 
@@ -345,18 +354,51 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             % Calculate the 'age conditional' median
             [~,medianindex]=min(abs(SortedWeights-0.5));
             AgeConditionalStats_ii.Median(jj)=SortedValues(medianindex);
+            
+            % Do min and max before looking at the variance, std. dev.,
+            % lorenz curve, etc. As that way can skip when the min and max
+            % are the same (so variable is constant valued)
+            
+            % Min value
+            tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
+            minvalue=SortedValues(tempindex);
+            % Max value
+            tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+            maxvalue=SortedValues(tempindex);
+            % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
+            if isempty(maxvalue)
+                tempindex=find(CumSumSortedWeights>=(1-10*simoptions.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
+                maxvalue=SortedValues(tempindex);
+            end
+            
             % Calculate the 'age conditional' variance
-            if (max(Values_jj)-min(Values_jj))>0
+            if (maxvalue-minvalue)>0
                 AgeConditionalStats_ii.Variance(jj)=sum((Values_jj.^2).*StationaryDistVec_jj)-(AgeConditionalStats_ii.Mean(jj))^2; % Weighted square of values - mean^2
             else % There were problems at floating point error accuracy levels when there is no variance, so just treat this case directly
                 AgeConditionalStats_ii.Variance(jj)=0;
             end
+            if AgeConditionalStats_ii.Variance(jj)<0 % Some variance still appear to be machine tolerance level errors.
+                AgeConditionalStats_ii.StdDev(jj)=0; % You will be able to see the machine tolerance level error in the variance, and it is just overwritten to zero in the standard deviation
+            else
+                AgeConditionalStats_ii.StdDev(jj)=sqrt(AgeConditionalStats_ii.Variance(jj));
+            end
             
             % Calculate the 'age conditional' lorenz curve
-            LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
-            AgeConditionalStats_ii.LorenzCurve(:,jj)=LorenzCurve;
-            % Calculate the 'age conditional' gini
-            AgeConditionalStats_ii.Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
+            % Note: Commented out following line as would also need to
+            % change TopXshare stats, decided not to do this.
+%             if minvalue<0
+%                 AgeConditionalStats_ii.LorenzCurve(:,jj)=nan;
+%                 AgeConditionalStats_ii.Gini(jj)=nan;
+%             else
+            if (maxvalue-minvalue)>0
+                LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
+                AgeConditionalStats_ii.LorenzCurve(:,jj)=LorenzCurve;
+                % Calculate the 'age conditional' gini
+                AgeConditionalStats_ii.Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
+            else
+                LorenzCurve=linspace(0,1,simoptions.npoints);
+                AgeConditionalStats_ii.Gini(jj)=1;
+            end
             
             % Top X share indexes
             Top1cutpoint=round(0.99*simoptions_temp.npoints);
@@ -377,7 +419,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             AgeConditionalStats_ii.Percentile95th(jj)=SortedValues(index_p95);
             index_p99=find(CumSumSortedWeights>=0.99,1,'first');
             AgeConditionalStats_ii.Percentile99th(jj)=SortedValues(index_p99);
-
+            
             
             % Calculate the 'age conditional' quantile means (ventiles by default)
             % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
@@ -398,17 +440,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
                 end
             end
-            % Min value
-            tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
-            minvalue=SortedValues(tempindex);
-            % Max value
-            tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
-            maxvalue=SortedValues(tempindex);
-            % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
-            if isempty(maxvalue)
-                tempindex=find(CumSumSortedWeights>=(1-10*simoptions.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
-                maxvalue=SortedValues(tempindex);
-            end
+            
             AgeConditionalStats_ii.QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
             AgeConditionalStats_ii.QuantileMeans(:,jj)=QuantileMeans';
 
@@ -420,8 +452,8 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             % (Mean and stddev can just be done after the loop)
             
             %% Create digest
-            [C_jj,digestweights_jj,~]=createDigest(Values_jj, StationaryDistVec_jj,delta);
-
+            [C_jj,digestweights_jj,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1=presorted, as we sorted these above
+            
             %% Keep the digests so far as a stacked vector that can then merge later
             % Note that this will be automatically created such that it
             % only contains the agents for whom it is relevant.
@@ -430,17 +462,48 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Cmerge(jj).Cmerge(merge_nsofar(jj)+1:merge_nsofar2_jj)=C_jj;
             digestweightsmerge(jj).digestweightsmerge(merge_nsofar(jj)+1:merge_nsofar2_jj)=digestweights_jj*StationaryDist.ptweights(ii);
             merge_nsofar(jj)=merge_nsofar2_jj;
-                
-
+            
+            % DEBUGGING
+            if kk==1 || kk==2
+                if any(isnan(C_jj))
+                    fprintf('For age %i there are %i nan values in the digest means for agent %i for function %i \n',jj,sum(isnan(C_jj)),ii,kk)
+                    nanindex = find(isnan(C_jj)); % Find the non-zero values of isnan(C_jj), which are the nan values of C_jj
+                    for aaa=1:length(nanindex)
+                        fprintf('The nan is in index %i of %i \n',nanindex(aaa),length(C_jj))
+                        fprintf('The corresponding digestweight is %8.8f \n',digestweights_jj(aaa))
+                    end
+                    fprintf('Mass of agent dist-1 is %8.12f (should be zero) \n',sum(StationaryDistVec_jj)-1)
+                    fprintf('Number of zero-mass points in agent dist is %i (out of %i) \n',sum(StationaryDistVec_jj==0),numel(StationaryDistVec_jj))
+                    % The digestweight is not zero. So why is C_jj nan?
+                    % Maybe something about the values?
+                    fprintf('Number of finite values in Values_jj=%i, out of total of %i \n',sum(isfinite(Values_jj)),numel(Values_jj))
+                    fprintf('Number of nan in Values_jj=%i, out of total of %i \n',sum(isnan(Values_jj)),numel(Values_jj))
+                end
+                if any(isnan(digestweights_jj))
+                    fprintf('For age %i there are %i nan values in the digest weights for agent %i for function %i \n',jj,sum(isnan(digestweights_jj)),ii,kk)
+                    nanindex = find(isnan(digestweights_jj));
+                    for aaa=1:length(nanindex)
+                        fprintf('The nan is in index %i of %i \n',nanindex(aaa),length(digestweights_jj))
+                    end
+                end
+                if any((digestweights_jj==0))
+                    fprintf('For age %i there are %i zero values in the digest weights for agent %i for function %i \n',jj,sum((digestweights_jj==0)),ii,kk)
+                    nanindex = find((digestweights_jj==0));
+                    for aaa=1:length(nanindex)
+                        fprintf('The nan is in index %i of %i \n',nanindex(aaa),length(digestweights_jj))
+                    end
+                end
+            end
+            
         end
         MeanVec(ii,:)=AgeConditionalStats_ii.Mean;
-        StdDevVec(ii,:)=sqrt(AgeConditionalStats_ii.Variance);
+        StdDevVec(ii,:)=AgeConditionalStats_ii.StdDev;
 
         % Put the individual ones into the output
         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean=AgeConditionalStats_ii.Mean;
         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median=AgeConditionalStats_ii.Median;
         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance=AgeConditionalStats_ii.Variance;
-        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=sqrt(AgeConditionalStats_ii.Variance);
+        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=AgeConditionalStats_ii.StdDev;
         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=AgeConditionalStats_ii.LorenzCurve;
         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini=AgeConditionalStats_ii.Gini;
         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=AgeConditionalStats_ii.QuantileCutoffs;
@@ -511,6 +574,21 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         % Merge the digests
         [C_kk,digestweights_kk,qlimitvec_kk]=mergeDigest(Cmerge_jj, digestweightsmerge_jj, delta);
 
+        % DEBUGGING
+        if kk==1 || kk==2
+            if jj==1
+                if any(isnan(C_jj))
+                    fprintf('For age 1 there are %i nan values in the digest means for merged-agents \n',jj,sum(isnan(C_kk)))
+                end
+                if any(isnan(digestweights_kk))
+                    fprintf('For age 1 there are %i nan values in the digest weights for merged-agents \n',jj,sum(isnan(digestweights_kk)))
+                end
+                if any(isnan(qlimitvec_kk))
+                    fprintf('For age 1 there are %i nan values in the digest weights for merged-agents \n',jj,sum(isnan(qlimitvec_kk)))
+                end
+            end
+        end
+        
         % Top X share indexes
         Top1cutpoint=round(0.99*simoptions_temp.npoints);
         Top5cutpoint=round(0.95*simoptions_temp.npoints);

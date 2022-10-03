@@ -125,7 +125,11 @@ elseif fieldexists_ExogShockFn==1
         fullgridvals(jj).z_gridvals=CreateGridvals(n_z,z_grid,1);
     end
 else
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+    elseif all(size(z_grid)==[prod(n_z),lenght(n_z)])
+        z_gridvals=z_grid;
+    end
     for jj=1:N_j
         fullgridvals(jj).z_gridvals=z_gridvals;
     end

@@ -173,7 +173,12 @@ else
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
 end
 a_gridvals=CreateGridvals(n_a,a_grid,2); % 1 at end indicates output as matrices.
-z_gridvals=CreateGridvals(n_z,z_grid,2); % 1 at end indicates output as matrices.
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+elseif all(size(z_grid)==[prod(n_z),lenght(n_z)])
+    z_gridvals=z_grid;
+end
+z_gridvals=num2cell(z_gridvals);
 
 if exist('PolicyWhenExiting','var')
     [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);

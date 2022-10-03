@@ -87,16 +87,13 @@ if simoptions.parallel==1
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
     %Create simoptions.ncores different steady state distn's, then combine them.
     if N_d==0
-%         parfor ncore_c=1:simoptions.ncores
-        for ncore_c=1:simoptions.ncores
+        parfor ncore_c=1:simoptions.ncores
+%         for ncore_c=1:simoptions.ncores
             StationaryDistKron_ncore_c=zeros(N_a,N_z,N_e,N_j);
             for ii=1:nsimspercore
                 % Pull a random start point from jequaloneDistKron
-                ii
                 currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-                currstate
                 currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
-                currstate
                 StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)+1;
                 for jj=1:(N_j-1)
                     currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj); % a
@@ -130,41 +127,41 @@ if simoptions.parallel==1
         StationaryDistKron=sum(StationaryDistKron,5);
         StationaryDistKron=StationaryDistKron./sum(sum(sum(StationaryDistKron,1),2),3);
     end
-% elseif simoptions.parallel==0
-%     disp('NOW IN APPROPRIATE PART OF STATDIST') %DEBUGGING
-%     StationaryDistKron=zeros(N_a,N_z,N_j);
-%     cumsum_pi_z_J=cumsum(pi_z_J,2);
-%     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
-%     if N_d==0
-% %         StationaryDistKron=zeros(N_a,N_z,N_j);
-%         for ii=1:simoptions.nsims
-%             % Pull a random start point from jequaloneDistKron
-%             currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-%             currstate=ind2sub_homemade([N_a,N_z],currstate);
-%             StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
-%             for jj=1:(N_j-1)
-%                 currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj);
-%                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
-%                 StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
-%             end
-%         end
-%         StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);
-%     else
-%         optaprime=2;
-% %         StationaryDistKron=zeros(N_a,N_z,N_j);
-%         for ii=1:simoptions.nsims
-%             % Pull a random start point from jequaloneDistKron
-%             currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-%             currstate=ind2sub_homemade([N_a,N_z],currstate);
-%             StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
-%             for jj=1:(N_j-1)
-%                 currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),jj);
-%                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
-%                 StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
-%             end
-%         end
-%         StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);
-%     end
+elseif simoptions.parallel==0 % Note: You probably never want to actually use this.
+    StationaryDistKron=zeros(N_a,N_z,N_e,N_j);
+    cumsum_pi_z_J=cumsum(pi_z_J,2);
+    cumsum_pi_e_J=cumsum(pi_e_J,1);
+    jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
+    if N_d==0
+        for ii=1:simoptions.nsims
+            % Pull a random start point from jequaloneDistKron
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
+            StationaryDistKron(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron(currstate(1),currstate(2),currstate(3),1)+1;
+            for jj=1:(N_j-1)
+                currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj); % a
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % z
+                currstate(3)=find(cumsum_pi_e_J(:,jj)>rand(1,1),1,'first'); % e
+                StationaryDistKron(currstate(1),currstate(2),currstate(3),jj+1)=StationaryDistKron(currstate(1),currstate(2),currstate(3),jj+1)+1;
+            end
+        end
+        StationaryDistKron=StationaryDistKron./sum(sum(sum(StationaryDistKron,1),2),3);
+    else
+        optaprime=2;
+        for ii=1:simoptions.nsims
+            % Pull a random start point from jequaloneDistKron
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
+            StationaryDistKron(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron(currstate(1),currstate(2),currstate(3),1)+1;
+            for jj=1:(N_j-1)
+                currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),currstate(3),jj);
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
+                currstate(3)=find(cumsum_pi_e_J(:,jj)>rand(1,1),1,'first');
+                StationaryDistKron(currstate(1),currstate(2),currstate(3),jj+1)=StationaryDistKron(currstate(1),currstate(2),currstate(3),jj+1)+1;
+            end
+        end
+        StationaryDistKron=StationaryDistKron./sum(sum(sum(StationaryDistKron,1),2),3);
+    end
 end
 
 

@@ -43,7 +43,7 @@ if fieldexists_pi_z_J==0 && fieldexists_pi_e_J==0
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
                 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
             end
@@ -58,7 +58,7 @@ if fieldexists_pi_z_J==0 && fieldexists_pi_e_J==0
                 curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+initialage-1);
                 SimLifeCycleKron(1,jj+initialage-1)=curr_d; % d_c
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
                 
@@ -75,7 +75,7 @@ elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
             SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
             
-            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
+            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
         end
@@ -91,7 +91,7 @@ elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
                 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
             end
@@ -103,10 +103,10 @@ elseif fieldexists_pi_z_J==0 && fieldexists_pi_e_J==1
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z_c
                 SimLifeCycleKron(5,jj+initialage-1)=currstate(3); % e_c
                 
-                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+initialage-1);
+                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 SimLifeCycleKron(1,jj+initialage-1)=curr_d; % d_c
                 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
                 
@@ -123,7 +123,7 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
             SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
             
-            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
+            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
         end
@@ -139,7 +139,7 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));            
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
             end
@@ -151,10 +151,10 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==0
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z
                 SimLifeCycleKron(5,jj+initialage-1)=currstate(3); % e
                 
-                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+initialage-1);
+                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 SimLifeCycleKron(1,jj+initialage-1)=curr_d; % d
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e>rand(1,1));
  
@@ -171,7 +171,7 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
             SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
 
-            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
+            currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
             [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
         end
@@ -187,7 +187,7 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
                 SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
                 SimLifeCycleKron(3,jj+initialage-1)=currstate(3); % e_c
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
             end
@@ -199,10 +199,10 @@ elseif fieldexists_pi_z_J==1 && fieldexists_pi_e_J==1
                 SimLifeCycleKron(4,jj+initialage-1)=currstate(2); % z
                 SimLifeCycleKron(5,jj+initialage-1)=currstate(3); % e_c
 
-                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),jj+initialage-1);
+                curr_d=PolicyIndexesKron(1,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 SimLifeCycleKron(1,jj+initialage-1)=curr_d; % d
 
-                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
+                currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),currstate(3),jj+initialage-1);
                 [~,currstate(2)]=max(cumsumpi_z(currstate(2),:,jj)>rand(1,1));
                 [~,currstate(3)]=max(cumsumpi_e(:,jj)>rand(1,1));
                 
