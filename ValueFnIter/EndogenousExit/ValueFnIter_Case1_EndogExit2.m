@@ -114,53 +114,10 @@ elseif vfoptions.lowmemory==1
     fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=1, please contact robertdkirkby@gmail.com if this is something you want/need \n');
     dbstack
     return
-%     
-%     V0Kron=reshape(V0,[N_a,N_z]);
-%     
-%     if vfoptions.verbose==1
-%         disp('Starting Value Function')
-%         tic;
-%     end
-%     
-%     if n_d(1)==0
-%         if vfoptions.parallel==0
-%             [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-%         elseif vfoptions.parallel==1
-%             [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.verbose);
-%         elseif vfoptions.parallel==2 % On GPU
-%             [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-%         end
-%     else
-%         if vfoptions.parallel==0
-%             [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-%         elseif vfoptions.parallel==1
-%             [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0Kron, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.verbose);
-%         elseif vfoptions.parallel==2 % On GPU
-%             [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-%         end
-%     end
-%     
 elseif vfoptions.lowmemory==2
     fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=2, please contact robertdkirkby@gmail.com if this is something you want/need \n');
     dbstack
     return
-%     
-%     V0Kron=reshape(V0,[N_a,N_z]);
-%     
-%     if vfoptions.verbose==1
-%         disp('Starting Value Function')
-%         tic;
-%     end
-%     
-%     if n_d(1)==0
-%         if vfoptions.parallel==2
-%             [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0Kron, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.tolerance);
-%         end
-%     else
-%         if vfoptions.parallel==2 % On GPU
-%             [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance);
-%         end
-%     end
 end
 
 if vfoptions.verbose==1
