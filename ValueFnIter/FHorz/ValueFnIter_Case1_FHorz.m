@@ -322,15 +322,15 @@ if N_d==0
             end
         else
             if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     elseif vfoptions.parallel==1
-        if N_z==0 || N_z==1 % Would normally just parallel cpu over z, but if there is not z then treat this as 'special case'
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        else % Normal...
+        if N_z==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_Par1_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.parallel==0

@@ -17,7 +17,7 @@ N_x=prod(n_x);
 
 % Create x_gridvals.
 if l_x==1
-    x_gridvals=a_grid;
+    x_gridvals=x_grid;
 else
     if isa(x_grid, 'gpuArray')
         if l_x==2
