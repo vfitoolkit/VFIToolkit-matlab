@@ -1,4 +1,4 @@
-function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_IgnoringNan(PolicyIndexes,n_d,n_aprime,n_a,n_z,d_grid,aprime_grid,Case1orCase2, MatrixOrCell)
+function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_IgnoringNan(Policy,n_d,n_aprime,n_a,n_z,d_grid,aprime_grid,Case1orCase2, MatrixOrCell)
 % Creates the 'gridvals' versions of the optimal policy. These allow for
 % easier evaluation of functions on the grids via the EvalFnOnAgentDist
 % commands.
@@ -15,6 +15,8 @@ function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_Ignorin
 %
 % If either of d or aprime is not relevant, then a value of nan will be returned for the corresponding gridvals output.
 
+warning('I intend to disable this because it is slow: please tell me if it is still being used by something')
+dbstack
 % NOTE TO SELF: THE CPU VERSION COULD CERTAINLY BE SPED UP BY BETTER USE OF VECTORIZATION.
 
 if n_d(1)==0
@@ -33,7 +35,7 @@ aprime_val=zeros(l_aprime,1);
 % Now create those of d_gridvals and aprime_gridvals that are needed
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1
-    PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z]);
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
     if l_d>0
         d_val=zeros(l_d,1);
         if MatrixOrCell==1
@@ -52,7 +54,7 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_sub=PolicyIndexes(:,j1,j2);
+                daprime_sub=Policy(:,j1,j2);
                 d_sub=daprime_sub(1:l_d);
                 aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk1=1:l_d
@@ -83,7 +85,7 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_sub=PolicyIndexes(:,j1,j2);
+                daprime_sub=Policy(:,j1,j2);
                 d_sub=daprime_sub(1:l_d);
                 aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk1=1:l_d
@@ -120,7 +122,7 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_sub=PolicyIndexes(:,j1,j2);
+                daprime_sub=Policy(:,j1,j2);
                 aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk2=1:l_aprime
                     if isnan(aprime_sub(kk2))
@@ -140,7 +142,7 @@ if Case1orCase2==1
                 %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
-                daprime_sub=PolicyIndexes(:,j1,j2);
+                daprime_sub=Policy(:,j1,j2);
                 aprime_sub=daprime_sub((l_d+1):(l_d+l_aprime));
                 for kk2=1:l_aprime
                     if isnan(aprime_sub(kk2))
@@ -168,7 +170,7 @@ elseif Case1orCase2==2 % So there is only d, no possibility of any aprime
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
             j1=rem(ii-1,N_a)+1;
             j2=ceil(ii/N_a);
-            d_sub=PolicyIndexes(:,j1,j2);
+            d_sub=Policy(:,j1,j2);
             %                 d_ind=PolicyIndexes(j1,j2);
             %                 d_sub=ind2sub_homemade_gpu(n_d,d_ind);
             for kk1=1:l_d
@@ -189,7 +191,7 @@ elseif Case1orCase2==2 % So there is only d, no possibility of any aprime
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
             j1=rem(ii-1,N_a)+1;
             j2=ceil(ii/N_a);
-            d_sub=PolicyIndexes(:,j1,j2);
+            d_sub=Policy(:,j1,j2);
             %                 d_ind=PolicyIndexes(j1,j2);
             %                 d_sub=ind2sub_homemade_gpu(n_d,d_ind);
             for kk1=1:l_d
