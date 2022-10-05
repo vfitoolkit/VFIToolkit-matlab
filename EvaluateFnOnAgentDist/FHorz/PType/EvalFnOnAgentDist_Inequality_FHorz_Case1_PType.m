@@ -248,10 +248,10 @@ if simoptions.groupptypesforstats==0
         for kk=1:length(FnNames_forii)
             LorenzCurve_kk=LorenzCurve.(FnNames{kk});
             InequalityStats.(FnNames{kk}).LorenzCurve.(Names_i{ii})=LorenzCurve_kk;
-            InequalityStats.(FnNames{kk}).Top1share.(Names_i{ii})=sum(LorenzCurve_kk(1+Top1cutpoint:end));
-            InequalityStats.(FnNames{kk}).Top5share.(Names_i{ii})=sum(LorenzCurve_kk(1+Top5cutpoint:end));
-            InequalityStats.(FnNames{kk}).Top10share.(Names_i{ii})=sum(LorenzCurve_kk(1+Top10cutpoint:end));
-            InequalityStats.(FnNames{kk}).Bottom50share.(Names_i{ii})=sum(LorenzCurve_kk(1:Top50cutpoint));
+            InequalityStats.(FnNames{kk}).Top1share.(Names_i{ii})=1-LorenzCurve_kk(Top1cutpoint);
+            InequalityStats.(FnNames{kk}).Top5share.(Names_i{ii})=1-LorenzCurve_kk(Top5cutpoint);
+            InequalityStats.(FnNames{kk}).Top10share.(Names_i{ii})=1-LorenzCurve_kk(Top10cutpoint);
+            InequalityStats.(FnNames{kk}).Bottom50share.(Names_i{ii})=LorenzCurve_kk(Top50cutpoint);
         end
 
         % Now for the cutoffs
@@ -516,20 +516,20 @@ else % simoptions.groupptypesforstats==1
             warning('Cannot calculate lorenz curve for the %i-th FnsToEvaluate as it takes some negative values \n',kk)
         end
         % Calculate the quantiles
-        LorenzCurve.(FnNames{kk})=LorenzCurve_subfunction_PreSorted(C_kk.*digestweights_kk,qlimitvec_kk,simoptions_temp.npoints,1);
+        LorenzCurve=LorenzCurve_subfunction_PreSorted(C_kk.*digestweights_kk,qlimitvec_kk,simoptions_temp.npoints,1);
 
-        InequalityStats.(FnNames{kk}).LorenzCurve=LorenzCurve;
-        InequalityStats.(FnNames{kk}).Top1share=sum(LorenzCurve(1+Top1cutpoint:end));
-        InequalityStats.(FnNames{kk}).Top5share=sum(LorenzCurve(1+Top5cutpoint:end));
-        InequalityStats.(FnNames{kk}).Top10share=sum(LorenzCurve(1+Top10cutpoint:end));
-        InequalityStats.(FnNames{kk}).Bottom50share=sum(LorenzCurve(1:Top50cutpoint));
+        InequalityStats.LorenzCurve=LorenzCurve;
+        InequalityStats.Top1share=1-LorenzCurve(Top1cutpoint);
+        InequalityStats.Top5share=1-LorenzCurve(Top5cutpoint);
+        InequalityStats.Top10share=1-LorenzCurve(Top10cutpoint);
+        InequalityStats.Bottom50share=LorenzCurve(Top50cutpoint);
         % Now the cutoffs
         cutoffvalues=interp1(qlimitvec_kk,C_kk,[50,90,95,99]);
-        InequalityStats.(FnNames{kk}).MedianValue=cutoffvalues(1);
-        InequalityStats.(FnNames{kk}).Percentile50th=cutoffvalues(1);
-        InequalityStats.(FnNames{kk}).Percentile90th=cutoffvalues(2);
-        InequalityStats.(FnNames{kk}).Percentile95th=cutoffvalues(3);
-        InequalityStats.(FnNames{kk}).Percentile99th=cutoffvalues(4);
+        InequalityStats.MedianValue=cutoffvalues(1);
+        InequalityStats.Percentile50th=cutoffvalues(1);
+        InequalityStats.Percentile90th=cutoffvalues(2);
+        InequalityStats.Percentile95th=cutoffvalues(3);
+        InequalityStats.Percentile99th=cutoffvalues(4);
 
     end
 end

@@ -190,10 +190,10 @@ if Parallel==2
         end
         
         % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
+        tempindex=find(CumSumSortedWeights>=Tolerance,1,'first');
         minvalue=SortedValues(tempindex);
         % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
+        tempindex=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
         QuantileCutOffs(ii,:)=[minvalue, QuantileCutoffs_ii, maxvalue];
@@ -294,10 +294,10 @@ else
         end
         
         % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
+        tempindex=find(CumSumSortedWeights>=Tolerance,1,'first');
         minvalue=SortedValues(tempindex);
         % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
+        tempindex=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
         QuantileCutOffs(ii,:)=[minvalue, QuantileCutoffs_ii, maxvalue];

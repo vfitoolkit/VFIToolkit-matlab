@@ -456,54 +456,7 @@ else % simoptions.groupptypesforstats==1
         Quantiles.(FnNames{kk}).Cutoffs=quantilecutoffs;
         Quantiles.(FnNames{kk}).Means=quantilemeans;
     end
-end  
-        
-
-
-
-% %%
-%     % Calculate the quantiles
-%     for kk=1:numFnsToEvaluate
-%         SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
-%         
-%         DistVec=[];
-%         ValuesVec=[];
-%         for ii=1:N_i
-%             if FnsAndPTypeIndicator(kk,ii)==1
-%                 DistVec=[DistVec; StationaryDist.(Names_i{ii})/SigmaNxi]; % Note: StationaryDist.(Names_i{ii}) was overwritten in the main for-loop, it is actually =reshape(StationaryDist.(Names_i{ii}).*StationaryDist.ptweights(ii),[N_a_temp*N_z_temp*N_j_temp,1])
-%                 ValuesVec=[ValuesVec;ValuesOnGrid.(Names_i{ii}).(['k',num2str(kk)])];
-%             end
-%         end
-%         
-%         [SortedValues,SortedValues_index]=sort(ValuesVec);
-%         SortedWeights=DistVec(SortedValues_index);
-% 
-%         CumSumSortedWeights=cumsum(SortedWeights);
-%         
-%         WeightedValues=ValuesVec.*DistVec;
-%         SortedWeightedValues=WeightedValues(SortedValues_index);
-%         
-%         QuantileIndexes=zeros(1,simoptions.nquantiles-1);
-%         QuantileCutoffs=zeros(1,simoptions.nquantiles-1);
-%         QuantileMeans=zeros(1,simoptions.nquantiles);
-%         for qq=1:simoptions.nquantiles-1
-%             [tempindex,~]=find(CumSumSortedWeights>=qq/simoptions.nquantiles,1,'first');
-%             QuantileIndexes(qq)=tempindex;
-%             QuantileCutoffs(qq)=SortedValues(tempindex);
-%             if qq==1
-%                 QuantileMeans(qq)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-%             elseif (1<qq) && (qq<(simoptions.nquantiles-1))
-%                 QuantileMeans(qq)=sum(SortedWeightedValues(QuantileIndexes(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(qq-1)));
-%             elseif qq==(simoptions.nquantiles-1)
-%                 QuantileMeans(qq)=sum(SortedWeightedValues(QuantileIndexes(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(qq-1)));
-%                 QuantileMeans(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-%             end
-%         end
-%         
-%         Quantiles.(FnNames{kk}).Cutoffs=QuantileCutoffs;
-%         Quantiles.(FnNames{kk}).Means=QuantileMeans;
-%     end
-% end
+end
 
 % If using FnsToEvaluate as structure need to get in appropriate form for output
 if isstruct(FnsToEvaluate) && simoptions.groupptypesforstats==0

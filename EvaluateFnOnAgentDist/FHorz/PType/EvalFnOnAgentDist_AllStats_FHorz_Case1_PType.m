@@ -307,10 +307,10 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
 
         % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
+        tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
         minvalue=SortedValues(tempindex);
         % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+        tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
         % Mean
@@ -329,15 +329,15 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         end
         LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,1);
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=LorenzCurve;
-        % Top X share indexes
+        % Top X share indexes (simoptions_temp.npoints will be number of points in Lorenz Curve)
         Top1cutpoint=round(0.99*simoptions_temp.npoints);
         Top5cutpoint=round(0.95*simoptions_temp.npoints);
         Top10cutpoint=round(0.90*simoptions_temp.npoints);
         Top50cutpoint=round(0.50*simoptions_temp.npoints);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top1share=sum(LorenzCurve(1+Top1cutpoint:end));
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top5share=sum(LorenzCurve(1+Top5cutpoint:end));
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top10share=sum(LorenzCurve(1+Top10cutpoint:end));
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Bottom50share=sum(LorenzCurve(1:Top50cutpoint));
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top1share=1-LorenzCurve(Top1cutpoint);
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top5share=1-LorenzCurve(Top5cutpoint);
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top10share=1-LorenzCurve(Top10cutpoint);
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Bottom50share=LorenzCurve(Top50cutpoint);
         % Now some cutoffs
         index_median=find(CumSumSortedWeights>=0.5,1,'first');
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median=SortedValues(index_median);
@@ -348,7 +348,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile95th=SortedValues(index_p95);
         index_p99=find(CumSumSortedWeights>=0.99,1,'first');
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile99th=SortedValues(index_p99);
-
+        
         % Now do quantile cutoffs and quantile means.
         QuantileIndexes_ii=zeros(1,simoptions_temp.nquantiles-1,'gpuArray');
         QuantileCutoffs_ii=zeros(1,simoptions_temp.nquantiles-1,'gpuArray');
@@ -391,7 +391,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     % Merge the digests
     [C_kk,digestweights_kk,qlimitvec_kk]=mergeDigest(Cmerge, digestweightsmerge, delta);
     
-    % Top X share indexes
+    % Top X share indexes (simoptions_temp.npoints will be number of points in Lorenz Curve)
     Top1cutpoint=round(0.99*simoptions_temp.npoints);
     Top5cutpoint=round(0.95*simoptions_temp.npoints);
     Top10cutpoint=round(0.90*simoptions_temp.npoints);
@@ -403,10 +403,10 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     % Calculate the quantiles
     LorenzCurve=LorenzCurve_subfunction_PreSorted(C_kk.*digestweights_kk,qlimitvec_kk,simoptions_temp.npoints,1);
     AllStats.(FnsToEvalNames{kk}).LorenzCurve=LorenzCurve;
-    AllStats.(FnsToEvalNames{kk}).Top1share=sum(LorenzCurve(1+Top1cutpoint:end));
-    AllStats.(FnsToEvalNames{kk}).Top5share=sum(LorenzCurve(1+Top5cutpoint:end));
-    AllStats.(FnsToEvalNames{kk}).Top10share=sum(LorenzCurve(1+Top10cutpoint:end));
-    AllStats.(FnsToEvalNames{kk}).Bottom50share=sum(LorenzCurve(1:Top50cutpoint));
+    AllStats.(FnsToEvalNames{kk}).Top1share=1-LorenzCurve(Top1cutpoint);
+    AllStats.(FnsToEvalNames{kk}).Top5share=1-LorenzCurve(Top5cutpoint);
+    AllStats.(FnsToEvalNames{kk}).Top10share=1-LorenzCurve(Top10cutpoint);
+    AllStats.(FnsToEvalNames{kk}).Bottom50share=LorenzCurve(Top50cutpoint);
     
     cumsumdigestweights_kk=cumsum(digestweights_kk);
     % Now some cutoffs (note: qlimitvec is effectively already the cumulative sum)
@@ -439,7 +439,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(FnsAndPTypeIndicator_kk.*(StationaryDist.ptweights').*StdDevVec)/SigmaNxi + sum(temp2)/(SigmaNxi^2));
     end
     AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
-
+    
     % Calculate the quantiles directly from the digest
     quantiles=(1:1:simoptions_temp.nquantiles-1)/simoptions_temp.nquantiles;
     quantilecutoffs=interp1(qlimitvec_kk,C_kk,quantiles);
