@@ -88,18 +88,10 @@ SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.nu
 
 %% Precompute the gridvals vectors.
 a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
-dPolicy_gridvals=struct();
+fullgridvals=struct();
 for jj=1:N_j
-    % Make a three digit number out of jj
-    if jj<10
-        jstr=['j00',num2str(jj)];
-    elseif jj>=10 && jj<100
-        jstr=['j0',num2str(jj)];
-    else
-        jstr=['j',num2str(jj)];
-    end
-    [dPolicy_gridvals_j,~]=CreateGridvals_Policy(PolicyIndexesKron(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
-    dPolicy_gridvals.(jstr(:))=dPolicy_gridvals_j;
+    [dPolicy_gridvals_j,~]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
+    fullgridvals(jj).dPolicy_gridvals=dPolicy_gridvals_j;
 end
 
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
@@ -127,7 +119,7 @@ elseif fieldexists_ExogShockFn==1
 else
     if all(size(z_grid)==[sum(n_z),1])
         z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
-    elseif all(size(z_grid)==[prod(n_z),lenght(n_z)])
+    elseif all(size(z_grid)==[prod(n_z),length(n_z)])
         z_gridvals=z_grid;
     end
     for jj=1:N_j
@@ -135,7 +127,7 @@ else
     end
 end
 
-%%
+
 %% For sure the following could be made faster by parallelizing some stuff.
 % Intelligent would be to sort everything by j value, then do all this,
 % then unsort. (as dPolicy_gridvals depends on j value)
@@ -154,18 +146,8 @@ parfor ii=1:simoptions.numbersims
             z_ind=sub2ind_homemade(n_z,z_sub);
             z_val=fullgridvals(j_ind).z_gridvals(z_ind,:);
             
-            % Make a three digit number out of j_ind
-            if j_ind<10
-                jstr=['j00',num2str(j_ind)];
-            elseif j_ind>=10 && j_ind<100
-                jstr=['j0',num2str(j_ind)];
-            else
-                jstr=['j',num2str(j_ind)];
-            end
-            
             az_ind=sub2ind_homemade([N_a,N_z],[a_ind,z_ind]);
-            dPolicy_gridvals_j=dPolicy_gridvals.(jstr(:));
-            d_val=dPolicy_gridvals_j(az_ind,:);
+            d_val=fullgridvals(j_ind).dPolicy_gridvals(az_ind,:);
 
             for vv=1:length(FnsToEvaluate)
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'

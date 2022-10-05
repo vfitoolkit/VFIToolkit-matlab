@@ -336,8 +336,8 @@ else %if isfield(simoptions,'n_e')
     % so this saves a big chunk of the run time of 'SimPanelIndexes_FHorz_Case1',
     % Since this command is often called as a subcommand by functions where
     % PolicyIndexesKron it saves a lot of run time.
-    %Policy is [l_d+l_a,n_a,n_z,N_j]
-    if (l_d==0 && ndims(Policy)==3) || ndims(Policy)==4
+    %Policy is [l_d+l_a,n_a,n_z,n_e,N_j]
+    if (l_d==0 && ndims(Policy)==4) || ndims(Policy)==5 % 4 & 5 because of e
         Policy=Policy;
     else
         Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e);
