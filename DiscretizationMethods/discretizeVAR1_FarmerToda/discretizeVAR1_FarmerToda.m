@@ -62,6 +62,11 @@ warning off MATLAB:singularMatrix % surpress inversion warnings
 %% Set defaults
 if ~exist('farmertodaoptions','var')
     farmertodaoptions.nMoments = 2;
+    if abs(eig(Rho)) <= 1-2/(znum(1)-1)
+        farmertodaoptions.nSigmas = sqrt(2*(znum(1)-1)); % This was in Farmer-Toda AR(1) code, but not their VAR(1) code. I have put it here as well.
+    else
+        farmertodaoptions.nSigmas = sqrt(znum(1)-1);
+    end
     if any(eig(Rho) > 0.8)
         farmertodaoptions.method='even';
     else
@@ -74,10 +79,10 @@ else
     end
     % define grid spacing parameter if not provided (only used for 'even' method)
     if ~isfield(farmertodaoptions,'nSigmas') % This is just direct from Farmer-Toda code. I am not aware of any results showing it performs 'better'
-        if abs(eig(Rho)) <= 1-2/(znum-1)
-            farmertodaoptions.nSigmas = sqrt(2*(znum-1)); % This was in Farmer-Toda AR(1) code, but not their VAR(1) code. I have put it here as well.
+        if abs(eig(Rho)) <= 1-2/(znum(1)-1)
+            farmertodaoptions.nSigmas = sqrt(2*(znum(1)-1)); % This was in Farmer-Toda AR(1) code, but not their VAR(1) code. I have put it here as well.
         else
-            farmertodaoptions.nSigmas = sqrt(znum-1); 
+            farmertodaoptions.nSigmas = sqrt(znum(1)-1); 
         end
     end
     % Set method based on findings of paper of Farmer & Toda (2017): last para on pg 678
@@ -126,6 +131,15 @@ end
 if posDefCheck
     error('Sigma must be a positive definite matrix')
 end
+% If znum is a vector, check that all the entries are equal, and then just change it to a scalar
+if length(znum)>1
+    if any(znum~=znum(1))
+        error('Farmer-Toda for VAR requires using same number of grid points for each z variable')
+    else
+        % Overwrite with a scalar
+        znum=znum(1);
+    end
+end
 % Check that znum is a valid number of grid points
 if ~isnumeric(znum) || znum < 3 || rem(znum,1) ~= 0
     error('znum must be a positive integer greater than 3')
@@ -146,7 +160,7 @@ end
 
 %% Compute standardized VAR(1) representation (zero mean and diagonal covariance matrix)
 
-if M == 1
+if M == 1 % M=1 is just AR(1)
     
     C = sqrt(SigmaSq);
     A = Rho;
@@ -268,7 +282,8 @@ for ii = 1:(znum^M)
 end
 
 z_grid = C*D + repmat(mu,1,znum^M); % map grids back to original space
-% Z_grid is M-by-(znum^M)
+z_grid=z_grid';
+% Z_grid is (znum^M)-by-M
 % It is NOT a kronecker-product grid.
 
 warning on MATLAB:singularMatrix
