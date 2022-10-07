@@ -6,10 +6,10 @@ function x_gridvals=CreateGridvals(n_x,x_grid,MatrixOrCell)
 % For MatrixOrCell=1, output takes form of matrices
 % For MatrixOrCell=2, output takes form of cells.
 %
-% x_gridvals contain N_x rows, and (e.g., for a_gridvals) the columns for a given row contain
-% all the values of all the 'a' variables. (ie. a_gridvals is N_a-by-l_a)
+% x_gridvals contain N_x rows, and (e.g., for x_gridvals) the columns for a given row contain
+% all the values of all the 'a' variables. (ie. x_gridvals is N_a-by-l_a)
 % These contain no more information than the standard grid format (e.g.,
-% a_grid), but are substantially larger (use more memory), however for
+% x_grid), but are substantially larger (use more memory), however for
 % certain purposes they are much easier to use quickly or in parallel.
 
 l_x=length(n_x);
@@ -21,25 +21,25 @@ if l_x==1
 else
     if isa(x_grid, 'gpuArray')
         if l_x==2
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(n_a(2),1,'gpuArray')),kron(ones(n_a(1),1,'gpuArray'),a_grid(n_a(1)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(n_x(2),1,'gpuArray')),kron(ones(n_x(1),1,'gpuArray'),x_grid(n_x(1)+1:end))];
         elseif l_x==3
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(prod(n_a(2:3)),1,'gpuArray')),kron(kron(ones(n_a(1),1,'gpuArray'),a_grid(n_a(1)+1:n_a(1)+n_a(2))),ones(n_a(3),1,'gpuArray')) ,kron(ones(prod(n_a(1:2)),1,'gpuArray'),a_grid(n_a(1)+n_a(2)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(prod(n_x(2:3)),1,'gpuArray')),kron(kron(ones(n_x(1),1,'gpuArray'),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(n_x(3),1,'gpuArray')) ,kron(ones(prod(n_x(1:2)),1,'gpuArray'),x_grid(n_x(1)+n_x(2)+1:end))];
         elseif l_x==4
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(prod(n_a(2:4)),1,'gpuArray')),kron(kron(ones(n_a(1),1,'gpuArray'),a_grid(n_a(1)+1:n_a(1)+n_a(2))),ones(prod(n_a(3:4)),1,'gpuArray')), kron(kron(ones(prod(n_a(1:2)),1,'gpuArray'),a_grid(n_a(1)+n_a(2)+1:n_a(1)+n_a(2)+n_a(3))),ones(n_a(4),1,'gpuArray')), kron(ones(prod(n_a(1:3)),1,'gpuArray'),a_grid(n_a(1)+n_a(2)+n_a(3)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(prod(n_x(2:4)),1,'gpuArray')),kron(kron(ones(n_x(1),1,'gpuArray'),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(prod(n_x(3:4)),1,'gpuArray')), kron(kron(ones(prod(n_x(1:2)),1,'gpuArray'),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(n_x(4),1,'gpuArray')), kron(ones(prod(n_x(1:3)),1,'gpuArray'),x_grid(n_x(1)+n_x(2)+n_x(3)+1:end))];
         elseif l_x==5
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(prod(n_a(2:5)),1,'gpuArray')),kron(kron(ones(n_a(1),1,'gpuArray'),a_grid(n_a(1)+1:n_a(1)+n_a(2))),ones(prod(n_a(3:5)),1,'gpuArray')), kron(kron(ones(prod(n_a(1:2)),1,'gpuArray'),a_grid(n_a(1)+n_a(2)+1:n_a(1)+n_a(2)+n_a(3))),ones(prod(n_a(4:5)),1,'gpuArray')), kron(kron(ones(prod(n_a(1:3)),1,'gpuArray'),a_grid(n_a(1)+n_a(2)+n_a(3)+1:n_a(1)+n_a(2)+n_a(3)+n_a(4))),ones(n_a(5),1,'gpuArray')), kron(ones(prod(n_a(1:4)),1,'gpuArray'),a_grid(n_a(1)+n_a(2)+n_a(3)+n_a(4)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(prod(n_x(2:5)),1,'gpuArray')),kron(kron(ones(n_x(1),1,'gpuArray'),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(prod(n_x(3:5)),1,'gpuArray')), kron(kron(ones(prod(n_x(1:2)),1,'gpuArray'),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(prod(n_x(4:5)),1,'gpuArray')), kron(kron(ones(prod(n_x(1:3)),1,'gpuArray'),x_grid(n_x(1)+n_x(2)+n_x(3)+1:n_x(1)+n_x(2)+n_x(3)+n_x(4))),ones(n_x(5),1,'gpuArray')), kron(ones(prod(n_x(1:4)),1,'gpuArray'),x_grid(n_x(1)+n_x(2)+n_x(3)+n_x(4)+1:end))];
         else
             error('Cannot handle length(n_x)>5. Please email me if you need this functionality')
         end
     else
         if l_x==2
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(n_a(2),1)),kron(ones(n_a(1),1),a_grid(n_a(1)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(n_x(2),1)),kron(ones(n_x(1),1),x_grid(n_x(1)+1:end))];
         elseif l_x==3
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(prod(n_a(2:3)),1)),kron(kron(ones(n_a(1),1),a_grid(n_a(1)+1:n_a(1)+n_a(2))),ones(n_a(3),1)) ,kron(ones(prod(n_a(1:2)),1),a_grid(n_a(1)+n_a(2)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(prod(n_x(2:3)),1)),kron(kron(ones(n_x(1),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(n_x(3),1)) ,kron(ones(prod(n_x(1:2)),1),x_grid(n_x(1)+n_x(2)+1:end))];
         elseif l_x==4
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(prod(n_a(2:4)),1)),kron(kron(ones(n_a(1),1),a_grid(n_a(1)+1:n_a(1)+n_a(2))),ones(prod(n_a(3:4)),1)), kron(kron(ones(prod(n_a(1:2)),1),a_grid(n_a(1)+n_a(2)+1:n_a(1)+n_a(2)+n_a(3))),ones(n_a(4),1)), kron(ones(prod(n_a(1:3)),1),a_grid(n_a(1)+n_a(2)+n_a(3)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(prod(n_x(2:4)),1)),kron(kron(ones(n_x(1),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(prod(n_x(3:4)),1)), kron(kron(ones(prod(n_x(1:2)),1),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(n_x(4),1)), kron(ones(prod(n_x(1:3)),1),x_grid(n_x(1)+n_x(2)+n_x(3)+1:end))];
         elseif l_x==5
-            x_gridvals=[kron(a_grid(1:n_a(1)),ones(prod(n_a(2:5)),1)),kron(kron(ones(n_a(1),1),a_grid(n_a(1)+1:n_a(1)+n_a(2))),ones(prod(n_a(3:5)),1)), kron(kron(ones(prod(n_a(1:2)),1),a_grid(n_a(1)+n_a(2)+1:n_a(1)+n_a(2)+n_a(3))),ones(prod(n_a(4:5)),1)), kron(kron(ones(prod(n_a(1:3)),1),a_grid(n_a(1)+n_a(2)+n_a(3)+1:n_a(1)+n_a(2)+n_a(3)+n_a(4))),ones(n_a(5),1)), kron(ones(prod(n_a(1:4)),1),a_grid(n_a(1)+n_a(2)+n_a(3)+n_a(4)+1:end))];
+            x_gridvals=[kron(x_grid(1:n_x(1)),ones(prod(n_x(2:5)),1)),kron(kron(ones(n_x(1),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(prod(n_x(3:5)),1)), kron(kron(ones(prod(n_x(1:2)),1),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(prod(n_x(4:5)),1)), kron(kron(ones(prod(n_x(1:3)),1),x_grid(n_x(1)+n_x(2)+n_x(3)+1:n_x(1)+n_x(2)+n_x(3)+n_x(4))),ones(n_x(5),1)), kron(ones(prod(n_x(1:4)),1),x_grid(n_x(1)+n_x(2)+n_x(3)+n_x(4)+1:end))];
         else
             error('Cannot handle length(n_x)>5. Please email me if you need this functionality')
         end

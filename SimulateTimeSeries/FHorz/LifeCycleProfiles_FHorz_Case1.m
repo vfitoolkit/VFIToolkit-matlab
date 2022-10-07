@@ -51,6 +51,13 @@ if exist('simoptions','var')==1
     if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
+    if isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
+        if ~isfield(simoptions,'SampleRestrictionFn_include')
+            simoptions.SampleRestrictionFn_include=1; % By default, include observations that meet the sample restriction (if zero, then exclude observations meeting this criterion)
+        end
+        simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn);
+    end
+    
 else
     %If options is not given, just use all the defaults
     if isgpuarray(StationaryDist)
@@ -272,6 +279,71 @@ if simoptions.parallel==2
         StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_ze*(jend-j1+1),1]);
         StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
         
+        %%
+        if isfield(simoptions,'SampleRestrictionFn')
+            IncludeObs=nan(N_a*N_ze,jend-j1+1,'gpuArray'); % Preallocate
+            if N_z>0 && N_e==0
+                for jj=j1:jend
+                    if jointzgrid==0
+                        z_grid=z_grid_J(:,jj);
+                    else
+                        z_grid=z_grid_J(:,:,jj);
+                    end
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(simoptions.SampleRestrictionFnParamNames)% check for 'FnsToEvaluateParamNames={}'
+                        FnsToEvaluateParamsVec=[];
+                    else
+                        FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,simoptions.SampleRestrictionFnParamNames,jj));
+                    end
+                    IncludeObs(:,jj-j1+1)=reshape(EvalFnOnAgentDist_Grid_Case1(simoptions.SampleRestrictionFn, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel),[N_a*N_z,1]);
+                end
+            elseif N_z==0 && N_e>0
+                for jj=j1:jend
+                    if jointegrid==0
+                        e_grid=e_grid_J(:,jj);
+                    else
+                        e_grid=e_grid_J(:,:,jj);
+                    end
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(simoptions.SampleRestrictionFnParamNames) % check for 'FnsToEvaluateParamNames={}'
+                        FnsToEvaluateParamsVec=[];
+                    else
+                        FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,simoptions.SampleRestrictionFnParamNames,jj));
+                    end
+                    IncludeObs(:,jj-j1+1)=reshape(EvalFnOnAgentDist_Grid_Case1(simoptions.SampleRestrictionFn, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_e,l_d+l_a]),n_d,n_a,n_e,a_grid,e_grid,simoptions.parallel),[N_a*N_e,1]);
+                end
+            elseif N_z>0 && N_e>0
+                for jj=j1:jend
+                    if jointzgrid==0
+                        z_grid=z_grid_J(:,jj);
+                    else
+                        z_grid=z_grid_J(:,:,jj);
+                    end
+                    if jointegrid==0
+                        e_grid=e_grid_J(:,jj);
+                    else
+                        e_grid=e_grid_J(:,:,jj);
+                    end
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(simoptions.SampleRestrictionFnParamNames)% check for 'FnsToEvaluateParamNames={}'
+                        FnsToEvaluateParamsVec=[];
+                    else
+                        FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,simoptions.SampleRestrictionFnParamNames,jj));
+                    end
+                    IncludeObs(:,jj-j1+1)=reshape(EvalFnOnAgentDist_Grid_Case1e(simoptions.SampleRestrictionFn, FnsToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_ze,l_d+l_a]),n_d,n_a,n_z,n_e,a_grid,z_grid,e_grid,simoptions.parallel),[N_a*N_ze,1]);
+                end
+            end
+            IncludeObs=reshape(logical(IncludeObs),[N_a*N_ze*(jend-j1+1),1]);
+            
+            if simoptions.SampleRestrictionFn_include==0
+                IncludeObs=(~IncludeObs);
+            end
+            % Can just do the sample restriction once now for the
+            % stationary dist, and then later each time for the Values
+            StationaryDistVec_kk=StationaryDistVec_kk(IncludeObs);
+        end
+        
+        %%
         for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
             Values=nan(N_a*N_ze,jend-j1+1,'gpuArray'); % Preallocate
             if N_z>0 && N_e==0
@@ -327,6 +399,11 @@ if simoptions.parallel==2
             end
             
             Values=reshape(Values,[N_a*N_ze*(jend-j1+1),1]);
+            
+            if isfield(simoptions,'SampleRestrictionFn')
+                Values=Values(IncludeObs);
+                % Note: stationary dist has already been restricted (if relevant)
+            end            
             
             [SortedValues,SortedValues_index] = sort(Values);
             
