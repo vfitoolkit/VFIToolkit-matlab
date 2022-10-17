@@ -1,5 +1,4 @@
 function output1 = ImportPSIDdata(jobname)
-
 % Import the PSID data (and some of metadata) into matlab
 %
 % So, for example, I downloaded some PSID data and the data was called

@@ -20,7 +20,7 @@ else
         end
     end
 end
-if exist('simoptions','var')
+if ~exist('simoptions','var')
     simoptions.npoints=100;
 else
     if ~isfield(simoptions,'npoints')

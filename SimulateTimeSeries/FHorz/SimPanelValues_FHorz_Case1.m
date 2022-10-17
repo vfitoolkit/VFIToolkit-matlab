@@ -198,9 +198,9 @@ for jj=1:N_j
     else
         N_z=prod(n_z);
         if n_d(1)==0
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,jj),[N_a,N_z*N_e,1]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,jj),[N_a,N_z*N_e]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
         else
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,:,jj),[2,N_a,N_z*N_e,1]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,:,jj),[2,N_a,N_z*N_e]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
         end
     end
     dPolicy_gridvals(:,:,jj)=dPolicy_gridvals_j;

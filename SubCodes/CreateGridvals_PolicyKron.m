@@ -29,12 +29,12 @@ l_aprime=length(n_aprime);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-PolicyKron=reshape(PolicyKron,[size(PolicyKron,1),N_a*N_z]); % size depends on whether there are d vars or just a vars
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1
     if l_d>0
+        PolicyKron=reshape(PolicyKron,[2,N_a*N_z]);
         Policy_d=PolicyKron(1,:)';
-        Policy_aprime=PolicyKron(2:end,:)';
+        Policy_aprime=PolicyKron(2,:)';
         if l_d==1
             dPolicy_gridvals=d_grid(Policy_d);
         elseif l_d==2
@@ -55,7 +55,7 @@ if Case1orCase2==1
         end
     else
         dPolicy_gridvals=nan;
-        Policy_aprime=PolicyKron';
+        Policy_aprime=reshape(PolicyKron,[N_a*N_z,1]);
     end
 
     if l_aprime==1
@@ -77,7 +77,7 @@ if Case1orCase2==1
         aprimePolicy_gridvals=[a1prime_grid(rem(Policy_aprime-1,n_aprime(1))+1),a2prime_grid(rem(ceil(Policy_aprime/n_aprime(1))-1,n_aprime(2))+1),a3prime_grid(rem(ceil(Policy_aprime/prod(n_aprime(1:2)))-1,n_aprime(3))+1),a4prime_grid(ceil(Policy_aprime/prod(n_aprime(1:3))))];
     end
 else % Case1orCase2==2
-    Policy_d=PolicyKron';
+    Policy_d=reshape(PolicyKron,[N_a*N_z,1]);
     if l_d==1
         dPolicy_gridvals=d_grid(Policy_d);
     elseif l_d==2

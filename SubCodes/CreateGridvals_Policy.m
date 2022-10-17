@@ -50,7 +50,6 @@ if Case1orCase2==1
             dPolicy_gridvals=[d1_grid(Policy_d(:,1)),d2_grid(Policy_d(:,2)),d3_grid(Policy_d(:,4)),d4_grid(Policy_d(:,4))];
         end
     else
-        Policy=reshape(Policy,[1,N_a*N_z]);
         dPolicy_gridvals=nan;
         Policy_aprime=Policy';
     end

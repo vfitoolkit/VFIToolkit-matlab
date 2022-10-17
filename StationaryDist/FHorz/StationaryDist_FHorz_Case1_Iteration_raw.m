@@ -99,7 +99,7 @@ elseif simoptions.parallel==2 % Using the GPU
     end
     
 elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P, on cpu
-    
+   
     StationaryDistKron=sparse(N_a*N_z,N_j);
     StationaryDistKron(:,1)=jequaloneDistKron;
     
@@ -123,29 +123,6 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
                 [~,pi_z]=simoptions.ExogShockFn(jj);
             end
         end
-        
-        % Old version
-%         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-%         if N_d==0 %length(n_d)==1 && n_d(1)==0
-%             optaprime_jj=reshape(PolicyIndexesKron(:,:,jj),[N_a*N_z,1]);
-%         else
-%             optaprime_jj=reshape(PolicyIndexesKron(2,:,:,jj),[N_a*N_z,1]);
-%         end
-%         Ptranspose=sparse(N_a*N_z,N_a*N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z) [ So Ptranspose(aprime,zprime,a,z)=proby of going to (a',z') given in (a,z)]
-% 
-%         
-%         parfor az_c=1:N_a*N_z
-%             Ptranspose_az=sparse(N_a*N_z,1);
-%             optaprime=optaprime_jj(az_c);
-%             az_sub=ind2sub_homemade([N_a,N_z],az_c);
-%             pi_z_temp=pi_z(az_sub(2),:);
-%             sum_pi_z_temp=sum(pi_z_temp);
-%             for zprime_c=1:N_z
-%                 optaprimezprime=sub2ind_homemade([N_a,N_z],[optaprime,zprime_c]);
-%                 Ptranspose_az(optaprimezprime)=pi_z_temp(zprime_c)/sum_pi_z_temp;
-%             end
-%             Ptranspose(:,az_c)=Ptranspose_az;
-%         end
 
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         if N_d==0 %length(n_d)==1 && n_d(1)==0
@@ -170,15 +147,18 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
         StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
     end
     
-    StationaryDistKron=full(StationaryDistKron); % Why do I do this? Why not just leave it sparse?
+    StationaryDistKron=full(StationaryDistKron); % Why do I do this? Why not just leave it sparse? (Sparse gpu is very limited functionality, so since we return the gpuArray we want to change to full)
     % Move the solution to the gpu
     StationaryDistKron=gpuArray(StationaryDistKron);
     
 elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on cpu
+    % StationaryDistKron is a gpuArray
+    % StationaryDistKron_jj and Ptranspose are treated as sparse gpu arrays.    
     
-    StationaryDistKron=sparse(N_a*N_z,N_j);
+    StationaryDistKron=zeros(N_a*N_z,N_j,'gpuArray');
     StationaryDistKron(:,1)=jequaloneDistKron;
     
+    StationaryDistKron_jj=sparse(StationaryDistKron(:,1));
     for jj=1:(N_j-1)
         
         if simoptions.verbose==1
@@ -223,13 +203,11 @@ elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P
         Ptranspose=gpuArray(Ptranspose);
         pi_z=gpuArray(pi_z);
         
-        StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
+%         StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj); % Cannot index sparse gpuArray, so have to use StationaryDistKron_jj instead
+        StationaryDistKron_jj=Ptranspose*StationaryDistKron_jj;
+        StationaryDistKron(:,jj+1)=full(StationaryDistKron_jj);
     end
-    StationaryDistKron=full(StationaryDistKron);
     
-    if simoptions.parallel==4 % Move solution to gpu
-        StationaryDistKron=gpuArray(StationaryDistKron);
-    end
 end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is
