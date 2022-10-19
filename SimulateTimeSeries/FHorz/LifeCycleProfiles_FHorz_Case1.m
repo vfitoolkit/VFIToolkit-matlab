@@ -28,7 +28,7 @@ if exist('simoptions','var')==1
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
         simoptions.parallel=2;
     else
-        simoptions.paralle=1;
+        simoptions.parallel=1;
     end
     if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
@@ -63,7 +63,7 @@ else
     if isgpuarray(StationaryDist)
         simoptions.parallel=2;
     else
-        simoptions.paralle=1;
+        simoptions.parallel=1;
     end
     simoptions.verbose=0;
     simoptions.nquantiles=20; % by default gives ventiles
@@ -509,23 +509,23 @@ else % options.parallel~=2
             gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
             gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
             
-            if n_z>0
+            if N_z>0
                 if jointzgrid==0
                     z_gridvals=CreateGridvals(n_z,z_grid_J(:,jj),2);
                 else
                     z_gridvals=z_grid_J(:,:,jj);
                 end
             end
-            if n_e>0
+            if N_e>0
                 if jointegrid==0
-                    e_gridvals=CreateGridvals(n_e,e_grid_J(:,jj),2);
+                    e_gridvals=CreateGridvals(simoptions.n_e,e_grid_J(:,jj),2);
                 else
                     e_gridvals=e_grid_J(:,:,jj);
                 end
             end
-            if n_z>0 && n_e>0
+            if N_z>0 && N_e>0
                 z_gridvals=[kron(z_gridvals,ones(N_e,1)),kron(ones(N_z,1),e_gridvals)];
-            elseif n_e>0 && n_z==0
+            elseif N_e>0 && N_z==0
                 z_gridvals=e_gridvals;
                 % Note that n_z>0 and n_e=0 we just leave z_gridvals as is
             end

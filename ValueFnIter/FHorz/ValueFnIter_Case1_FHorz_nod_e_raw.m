@@ -88,8 +88,6 @@ end
 
 pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
 
-
-
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
     %Calc the max and it's index
@@ -211,9 +209,9 @@ for reverse_j=1:N_j-1
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
         
-
+        
     elseif vfoptions.lowmemory==1
-
+        
         for e_c=1:N_e
             e_val=e_gridvals(e_c,:);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_grid, e_val, ReturnFnParamsVec);

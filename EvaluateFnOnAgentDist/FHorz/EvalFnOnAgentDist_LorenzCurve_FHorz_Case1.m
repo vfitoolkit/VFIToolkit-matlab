@@ -179,7 +179,7 @@ if Parallel==2
 else
     AggVars=zeros(1,length(FnsToEvaluate));
     LorenzCurve=zeros(simoptions.npoints,length(FnsToEvaluate));
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
     sizePolicyIndexes=size(PolicyIndexes);
@@ -187,18 +187,17 @@ else
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     dPolicy_gridvals=zeros(N_a*N_z,N_j);
+
     for jj=1:N_j
-        dPolicy_gridvals(:,jj)=CreateGridvals_Policy(PolicyIndexes(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
+        dPolicy_gridvals(:,jj)=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,[],n_a,n_z,d_grid,[],1,1);
     end
-    
+
     for ii=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
         if l_d==0
             for jj=1:N_j
-                if fieldexists_ExogShockFn==1
-                    z_grid=z_grid_J(:,jj);
-                    z_gridvals=CreateGridvals(n_z,z_grid,2);
-                end
+                z_grid=z_grid_J(:,jj);
+                z_gridvals=CreateGridvals(n_z,z_grid,2);
                 
                 [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ii).Names)
@@ -217,10 +216,8 @@ else
             end
         else
             for jj=1:N_j
-                if fieldexists_ExogShockFn==1
-                    z_grid=z_grid_J(:,jj);
-                    z_gridvals=CreateGridvals(n_z,z_grid,2);
-                end
+                z_grid=z_grid_J(:,jj);
+                z_gridvals=CreateGridvals(n_z,z_grid,2);
 
                 [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ii).Names)

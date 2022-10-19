@@ -148,8 +148,10 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
     end
     
     StationaryDistKron=full(StationaryDistKron); % Why do I do this? Why not just leave it sparse? (Sparse gpu is very limited functionality, so since we return the gpuArray we want to change to full)
-    % Move the solution to the gpu
-    StationaryDistKron=gpuArray(StationaryDistKron);
+
+    if gpuDeviceCount>0 % Move the solution to the gpu if there is one
+        StationaryDistKron=gpuArray(StationaryDistKron);
+    end
     
 elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on cpu
     % StationaryDistKron is a gpuArray
