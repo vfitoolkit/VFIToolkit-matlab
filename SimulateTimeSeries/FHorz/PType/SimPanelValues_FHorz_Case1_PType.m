@@ -92,8 +92,6 @@ ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
 
-PType_numbersims
-
 %%
 SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);
 for ii=1:N_i
