@@ -227,7 +227,7 @@ for reverse_j=1:N_j-1
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
                 V(:,:,e_c,jj)=shiftdim(Vtemp,1);
-                Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
+                Policy(:,:,e_c,jj)=shiftdim(maxindex,1);              
                 
             elseif vfoptions.paroverz==0
                 for z_c=1:N_z
@@ -271,6 +271,7 @@ for reverse_j=1:N_j-1
             end
         end
     end
+    
 end
 
 

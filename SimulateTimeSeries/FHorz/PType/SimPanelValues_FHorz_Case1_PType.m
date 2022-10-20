@@ -87,8 +87,12 @@ PType_numbersims=floor(Parameters.(PTypeDistParamNames{1})*simoptions.numbersims
 ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % I just arbitrarily add them to the first PTypes. Your simulation should
 % anyway be big enough for this to be irrelavant. (I should probably add
-% them randomly, but cant be bothered right now)
+% them randomly, but cant be bothered right now. But otherwise if I don't 
+% make this random the sample won't satisfy properties of arandom sample)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
+
+
+PType_numbersims
 
 %%
 SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.numbersims);

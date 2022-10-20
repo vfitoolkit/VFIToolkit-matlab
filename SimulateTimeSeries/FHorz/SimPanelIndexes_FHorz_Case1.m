@@ -308,7 +308,7 @@ else %if isfield(simoptions,'n_e')
     l_e=length(simoptions.n_e);
     
     if fieldexists_pi_e_J==1
-        cumsumpi_e(:,jj)=gather(cumsum(simoptions.pi_e_J,2));
+        cumsumpi_e(:,jj)=gather(cumsum(simoptions.pi_e_J,1));
     elseif fieldexists_EiidShockFn==1
         cumsumpi_e=nan(N_e,N_j);
         for jj=1:N_j
@@ -329,9 +329,7 @@ else %if isfield(simoptions,'n_e')
         fieldexists_pi_e_J=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
         cumsumpi_e=cumsum(simoptions.pi_e);
     end
-    
-    
-    
+        
     % Check if the inputted Policy is already in form of PolicyIndexesKron. If
     % so this saves a big chunk of the run time of 'SimPanelIndexes_FHorz_Case1',
     % Since this command is often called as a subcommand by functions where
@@ -485,6 +483,7 @@ else %if isfield(simoptions,'n_e')
         
         
     else % simoptions.simpanelindexkron==1 % For some VFI Toolkit commands the kron is faster to use
+        
         SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,z,e,j)
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
@@ -498,6 +497,7 @@ else %if isfield(simoptions,'n_e')
                 SimPanel(:,:,ii)=SimLifeCycleKron; 
             end
         end
+        
         
         if simoptions.newbirths==1
             cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate

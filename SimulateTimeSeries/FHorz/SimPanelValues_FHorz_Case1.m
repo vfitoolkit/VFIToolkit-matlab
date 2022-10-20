@@ -264,6 +264,12 @@ if ~isfield(simoptions,'n_e')
     end
 else
     %% Using e variable
+    disp('Now for the values')
+    
+    disp('z gridvals at age 1')
+    size(fullgridvals(1).z_gridvals)
+    fullgridvals(1).z_gridvals
+    
     parfor ii=1:simoptions.numbersims
         SimPanelIndexes_ii=SimPanelIndexes(:,:,ii);
         t=0;
