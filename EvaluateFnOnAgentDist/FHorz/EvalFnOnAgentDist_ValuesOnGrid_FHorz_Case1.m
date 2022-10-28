@@ -13,6 +13,8 @@ N_z=prod(n_z);
 
 if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
 end
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
@@ -208,9 +210,9 @@ else
     ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate));
 
     a_gridvals=CreateGridvals(n_a,a_grid,2);
-    
+        
     sizePolicyIndexes=size(PolicyIndexes);
-    if sizePolicyIndexes(2:end)~=[N_a,N_z,N_j] % If not in vectorized form
+    if ~all(sizePolicyIndexes(2:4)==[N_a,N_z,N_j]) % If not in vectorized form
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     
@@ -221,7 +223,7 @@ else
             for jj=1:N_j
                 z_grid=z_grid_J(:,jj);
                 z_gridvals=CreateGridvals(n_z,z_grid,2);
-                
+                                
                 [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ff).Names)
                     FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));

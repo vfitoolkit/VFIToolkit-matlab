@@ -311,6 +311,10 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         minvalue=SortedValues(tempindex);
         % Max value
         tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+        if isempty(tempindex) % tolerance was not satisfied
+            CumSumSortedWeights=(CumSumSortedWeights/(CumSumSortedWeights(end))); % Normalize the total mass to one (it is out due to numerical rounding error)
+            tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+        end
         maxvalue=SortedValues(tempindex);
         
         % Mean
@@ -366,7 +370,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                 QuantileMeans_ii(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
             end
         end
-                
+        
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=[minvalue, QuantileCutoffs_ii, maxvalue];
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=QuantileMeans_ii;
 
