@@ -49,7 +49,7 @@ if all(vfoptions.parallel_e==0)
             e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         else
             [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-            e_grid=gpuArray(e_grid); pi_z=gpuArray(pi_e);
+            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         end
     end
     if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
@@ -158,7 +158,7 @@ elseif all(vfoptions.parallel_e==1)
             e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         else
             [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-            e_grid=gpuArray(e_grid); pi_z=gpuArray(pi_e);
+            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         end
         if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
             e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.

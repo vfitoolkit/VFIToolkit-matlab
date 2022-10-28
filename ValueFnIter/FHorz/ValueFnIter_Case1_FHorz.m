@@ -106,10 +106,22 @@ elseif isfield(vfoptions,'n_e')
     elseif ~isfield(vfoptions,'pi_e') && ~isfield(vfoptions,'pi_e_J')
         error('When using vfoptions.n_e you must declare vfoptions.pi_e (or vfoptions.pi_e_J)')
     else
-        if  ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), 1]) && ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)])
-            error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
-        elseif ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),1])
-            error('vfoptions.pi_e is not the correct shape (should be of size N_e-by-1)')
+        % check size of e_grid and pi_e
+        if isfield(vfoptions,'e_grid')
+            if  ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), 1]) && ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)])
+                error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
+            end
+        else % using e_grid_J
+            % HAVE NOT YET IMPLEMENTED A CHECK OF THE SIZE OF e_grid_J
+        end
+        if isfield(vfoptions,'pi_e')
+            if ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),1])
+                error('vfoptions.pi_e is not the correct shape (should be of size N_e-by-1)')
+            end
+        else % using pi_e_J
+            if ~all(size(vfoptions.pi_e_J)==[prod(vfoptions.n_e),N_j])
+                error('vfoptions.pi_e_J is not the correct shape (should be of size N_e-by-N_j)')
+            end
         end
     end
 end

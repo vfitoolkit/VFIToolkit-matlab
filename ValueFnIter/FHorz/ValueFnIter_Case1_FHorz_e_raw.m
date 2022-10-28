@@ -75,7 +75,7 @@ elseif fieldexists_EiidShockFn==1
         e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
     else
         [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-        e_grid=gpuArray(e_grid); pi_z=gpuArray(pi_e);
+        e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
     end
 end
 

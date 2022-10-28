@@ -2,7 +2,11 @@ function StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightPara
 
 n_e=simoptions.n_e;
 % e_grid=simoptions.e_grid; % Note needed for StationaryDist
-pi_e=simoptions.pi_e;
+if isfield(simoptions,'pi_e')
+    pi_e=simoptions.pi_e;
+else
+    pi_e=simoptions.pi_e_J(:,1); % just a placeholder
+end
 
 if isempty(n_d)
     n_d=0;

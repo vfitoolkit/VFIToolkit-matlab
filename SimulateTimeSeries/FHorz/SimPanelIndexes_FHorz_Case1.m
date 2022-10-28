@@ -308,7 +308,7 @@ else %if isfield(simoptions,'n_e')
     l_e=length(simoptions.n_e);
     
     if fieldexists_pi_e_J==1
-        cumsumpi_e(:,jj)=gather(cumsum(simoptions.pi_e_J,1));
+        cumsumpi_e=gather(cumsum(simoptions.pi_e_J,1));
     elseif fieldexists_EiidShockFn==1
         cumsumpi_e=nan(N_e,N_j);
         for jj=1:N_j
