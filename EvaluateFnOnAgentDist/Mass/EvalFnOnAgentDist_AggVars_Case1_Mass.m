@@ -122,68 +122,63 @@ else
     if l_d>0
         
         for i=1:length(FnsToEvaluate)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
-                end
-                % When evaluating value function (which may sometimes give -Inf
-                % values) on StationaryDistVec (which at those points will be
-                % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistpdfVec;
-                AggVars(i)=sum(temp(~isnan(temp)));
+            if isempty(FnsToEvaluateParamNames(i).Names)
+                FnToEvaluateParamsVec={};
             else
-                FnToEvaluateParamsVec=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsVec{:});
+                if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
+                    if length(FnsToEvaluateParamNames(i).Names)==1
+                        FnToEvaluateParamsVec=StationaryDistmass;
+                    else
+                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end))];
+                    end
+                else
+                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
                 end
-                % When evaluating value function (which may sometimes give -Inf
-                % values) on StationaryDistVec (which at those points will be
-                % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistpdfVec;
-                AggVars(i)=sum(temp(~isnan(temp)));
+                FnToEvaluateParamsVec=num2cell(FnToEvaluateParamsVec);
             end
+            Values=zeros(N_a*N_z,1);
+            for ii=1:N_a*N_z
+                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                j1=rem(ii-1,N_a)+1;
+                j2=ceil(ii/N_a);
+                Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsVec{:});
+            end
+            % When evaluating value function (which may sometimes give -Inf
+            % values) on StationaryDistVec (which at those points will be
+            % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+            temp=Values.*StationaryDistpdfVec;
+            AggVars(i)=sum(temp(~isnan(temp)));
         end
     
     else %l_d=0
         
         for i=1:length(FnsToEvaluate)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
-                end
-                % When evaluating value function (which may sometimes give -Inf
-                % values) on StationaryDistVec (which at those points will be
-                % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistpdfVec;
-                AggVars(i)=sum(temp(~isnan(temp)));
+            if isempty(FnsToEvaluateParamNames(i).Names)
+                FnToEvaluateParamsVec={};
             else
-                FnToEvaluateParamsVec=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsVec{:});
+                if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
+                    if length(FnsToEvaluateParamNames(i).Names)==1
+                        FnToEvaluateParamsVec=StationaryDistmass;
+                    else
+                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end))];
+                    end
+                else
+                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
                 end
-                % When evaluating value function (which may sometimes give -Inf  values) on StationaryDistVec 
-                % (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                temp=Values.*StationaryDistpdfVec;
-                AggVars(i)=sum(temp(~isnan(temp)));
+                FnToEvaluateParamsVec=num2cell(FnToEvaluateParamsVec);
             end
+            Values=zeros(N_a*N_z,1);
+            for ii=1:N_a*N_z
+                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
+                j1=rem(ii-1,N_a)+1;
+                j2=ceil(ii/N_a);
+                Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsVec{:});
+            end
+            % When evaluating value function (which may sometimes give -Inf
+            % values) on StationaryDistVec (which at those points will be
+            % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+            temp=Values.*StationaryDistpdfVec;
+            AggVars(i)=sum(temp(~isnan(temp)));
         end
     end
     
