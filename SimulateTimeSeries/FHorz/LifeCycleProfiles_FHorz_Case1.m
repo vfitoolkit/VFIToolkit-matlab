@@ -13,10 +13,10 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
-% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(ngroups,options.npoints);
+% AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(options.npoints,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
-% AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(ngroups,options.nquantiles+1); % Includes the min and max values
-% AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(ngroups,options.nquantiles);
+% AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups); % Includes the min and max values
+% AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups);
 
 % N_d=prod(n_d);
 N_a=prod(n_a);
@@ -81,6 +81,12 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
+
+if N_z==0
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,N_j,d_grid,a_grid,simoptions);
+    return
+end
+
 if n_z(1)==0
     l_z=0;
 else
@@ -477,13 +483,17 @@ if simoptions.parallel==2
     end
 else % options.parallel~=2
     % Do some preallocation of the output structure
-    AgeConditionalStats(length(FnsToEvaluate)).Mean=nan(1,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).Median=nan(1,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).Variance=nan(1,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).LorenzCurve=nan(simoptions.npoints,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
-    AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups); % Includes the min and max values
-    AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(simoptions.nquantiles,ngroups);
+    AgeConditionalStats=struct();
+    for ii=length(FnsToEvaluate):-1:1 % Backwards as preallocating
+        % length(FnsToEvaluate)
+        AgeConditionalStats(ii).Mean=nan(1,ngroups);
+        AgeConditionalStats(ii).Median=nan(1,ngroups);
+        AgeConditionalStats(ii).Variance=nan(1,ngroups);
+        AgeConditionalStats(ii).LorenzCurve=nan(simoptions.npoints,ngroups);
+        AgeConditionalStats(ii).Gini=nan(1,ngroups);
+        AgeConditionalStats(ii).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups); % Includes the min and max values
+        AgeConditionalStats(ii).QuantileMeans=nan(simoptions.nquantiles,ngroups);
+    end
     
     d_grid=gather(d_grid);
     a_grid=gather(a_grid);
@@ -491,7 +501,7 @@ else % options.parallel~=2
     
     a_gridvals=CreateGridvals(n_a,a_grid,2);
 
-%     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
+    PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
     for kk=1:length(simoptions.agegroupings)
         j1=simoptions.agegroupings(kk);
         if kk<length(simoptions.agegroupings)
@@ -504,8 +514,7 @@ else % options.parallel~=2
         
         clear gridvalsFull
         for jj=j1:jend
-            PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
-            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj-j1+1),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
             gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
             gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
             

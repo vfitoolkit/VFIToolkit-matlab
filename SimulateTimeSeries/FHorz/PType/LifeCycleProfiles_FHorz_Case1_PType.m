@@ -51,7 +51,13 @@ if ~exist('simoptions','var')
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     simoptions.nquantiles=20; % by default gives ventiles
-    simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+    if isstruct(N_j)
+        for ii=1:N_i
+            simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
+        end
+    else
+        simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+    end
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
 else
@@ -75,7 +81,15 @@ else
         simoptions.nquantiles=20; % by default gives ventiles
     end
     if isfield(simoptions,'agegroupings')==0
-        simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+        if isstruct(N_j)
+            for ii=1:N_i
+                if isfinite(N_j.(Names_i{ii})) % ignore any infinite horizon PTypes
+                    simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
+                end
+            end
+        else
+            simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+        end
     end
     if isfield(simoptions,'npoints')==0
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
@@ -179,52 +193,26 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         % First, check if it is a structure, and otherwise just get the
         % relevant value.
 
-        % Horizon is determined via N_j
-        if isstruct(N_j)
-            N_j_temp=N_j.(Names_i{ii});
-        elseif isscalar(N_j)
-            N_j_temp=N_j;
-        else % is a vector
-            N_j_temp=N_j(ii);
-        end
-
-        n_d_temp=n_d;
         if isa(n_d,'struct')
             n_d_temp=n_d.(Names_i{ii});
         else
-            temp=size(n_d);
-            if temp(1)>1 % n_d depends on fixed type
-                n_d_temp=n_d(ii,:);
-            elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-                sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-            end
+            n_d_temp=n_d;
         end
-        n_a_temp=n_a;
         if isa(n_a,'struct')
             n_a_temp=n_a.(Names_i{ii});
         else
-            temp=size(n_a);
-            if temp(1)>1 % n_a depends on fixed type
-                n_a_temp=n_a(ii,:);
-            elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-                sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-                dbstack
-            end
+            n_a_temp=n_a;
         end
-        n_z_temp=n_z;
         if isa(n_z,'struct')
             n_z_temp=n_z.(Names_i{ii});
         else
-            temp=size(n_z);
-            if temp(1)>1 % n_z depends on fixed type
-                n_z_temp=n_z(ii,:);
-            elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-                sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-                dbstack
-            end
+            n_z_temp=n_z;
         end
-
-
+        if isa(N_j,'struct')
+            N_j_temp=N_j.(Names_i{ii});
+        else
+            N_j_temp=N_j;
+        end
         if isa(d_grid,'struct')
             d_grid_temp=d_grid.(Names_i{ii});
         else
@@ -303,10 +291,10 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AgeConditionalStats_ii.Median=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.Variance=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.StdDev=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats_ii.LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
+        AgeConditionalStats_ii.LorenzCurve=nan(simoptions_temp.npoints,ngroups,'gpuArray');
         AgeConditionalStats_ii.Gini=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats_ii.QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-        AgeConditionalStats_ii.QuantileMeans=nan(simoptions.nquantiles,ngroups,'gpuArray');
+        AgeConditionalStats_ii.QuantileCutoffs=nan(simoptions_temp.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
+        AgeConditionalStats_ii.QuantileMeans=nan(simoptions_temp.nquantiles,ngroups,'gpuArray');
         AgeConditionalStats_ii.Top1share=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.Top5share=nan(1,ngroups,'gpuArray');
         AgeConditionalStats_ii.Top10share=nan(1,ngroups,'gpuArray');
@@ -318,14 +306,14 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AgeConditionalStats_ii.Percentile99th=nan(1,ngroups,'gpuArray');
         
         
-        for jj=1:length(simoptions.agegroupings)
-            j1=simoptions.agegroupings(jj);
-            if jj<length(simoptions.agegroupings)
-                jend=simoptions.agegroupings(jj+1)-1;
+        for jj=1:length(simoptions_temp.agegroupings)
+            j1=simoptions_temp.agegroupings(jj);
+            if jj<length(simoptions_temp.agegroupings)
+                jend=simoptions_temp.agegroupings(jj+1)-1;
             else
-                jend=N_j;
+                jend=N_j_temp;
             end
-
+            
             % Calculate the individual stats
             StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
             Values_jj=reshape(ValuesOnGrid_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
@@ -360,14 +348,14 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             % are the same (so variable is constant valued)
             
             % Min value
-            tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
+            tempindex=find(CumSumSortedWeights>=simoptions_temp.tolerance,1,'first');
             minvalue=SortedValues(tempindex);
             % Max value
-            tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
+            tempindex=find(CumSumSortedWeights>=(1-simoptions_temp.tolerance),1,'first');
             maxvalue=SortedValues(tempindex);
             % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
             if isempty(maxvalue)
-                tempindex=find(CumSumSortedWeights>=(1-10*simoptions.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
+                tempindex=find(CumSumSortedWeights>=(1-10*simoptions_temp.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
                 maxvalue=SortedValues(tempindex);
             end
             
@@ -391,12 +379,12 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 %                 AgeConditionalStats_ii.Gini(jj)=nan;
 %             else
             if (maxvalue-minvalue)>0
-                LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
+                LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,2);
                 AgeConditionalStats_ii.LorenzCurve(:,jj)=LorenzCurve;
                 % Calculate the 'age conditional' gini
                 AgeConditionalStats_ii.Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
             else
-                LorenzCurve=linspace(0,1,simoptions.npoints);
+                LorenzCurve=linspace(0,1,simoptions_temp.npoints);
                 AgeConditionalStats_ii.Gini(jj)=1;
             end
             
@@ -423,17 +411,17 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             
             % Calculate the 'age conditional' quantile means (ventiles by default)
             % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-            QuantileIndexes=zeros(1,simoptions.nquantiles-1);
-            QuantileCutoffs=zeros(1,simoptions.nquantiles-1);
-            QuantileMeans=zeros(1,simoptions.nquantiles);
+            QuantileIndexes=zeros(1,simoptions_temp.nquantiles-1);
+            QuantileCutoffs=zeros(1,simoptions_temp.nquantiles-1);
+            QuantileMeans=zeros(1,simoptions_temp.nquantiles);
 
-            for ll=1:simoptions.nquantiles-1
-                tempindex=find(CumSumSortedWeights>=ll/simoptions.nquantiles,1,'first');
+            for ll=1:simoptions_temp.nquantiles-1
+                tempindex=find(CumSumSortedWeights>=ll/simoptions_temp.nquantiles,1,'first');
                 QuantileIndexes(ll)=tempindex;
                 QuantileCutoffs(ll)=SortedValues(tempindex);
                 if ll==1
                     QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-                elseif ll<(simoptions.nquantiles-1) % (1<ll) &&
+                elseif ll<(simoptions_temp.nquantiles-1) % (1<ll) &&
                     QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
                 else %if ll==(options.nquantiles-1)
                     QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
