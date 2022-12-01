@@ -104,6 +104,11 @@ end
 PricePathNames
 ParamPathNames
 
+if N_z==0
+    AgentDistPath=AgentDistOnTransPath_Case1_FHorz_noz(AgentDist_initial,PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, PolicyPath, AgeWeightsParamNames,n_d,n_a,N_j, T,Parameters, transpathoptions, simoptions);
+    return
+end
+
 %%
 if transpathoptions.parallel==2 
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
