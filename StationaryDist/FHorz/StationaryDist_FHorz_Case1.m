@@ -13,9 +13,19 @@ end
 
 %%
 if isfield(simoptions,'n_e')
-    StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+    if n_z(1)==0
+        error('Not yet implemented n_z=0 with n_e, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
+    else
+        StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+    end
     return
 end
+
+if n_z(1)==0
+    StationaryDist=StationaryDist_FHorz_Case1_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+    return
+end
+
 
 if isempty(n_d)
     n_d=0;
@@ -64,9 +74,6 @@ else
     end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
 end
 

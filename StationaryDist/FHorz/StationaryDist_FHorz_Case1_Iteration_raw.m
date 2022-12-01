@@ -35,25 +35,34 @@ if simoptions.parallel<2
                 [~,pi_z]=simoptions.ExogShockFn(jj);
             end
         end
-           
-        %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-        P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
-        for a_c=1:N_a
-            for z_c=1:N_z
-                if N_d==0 %length(n_d)==1 && n_d(1)==0
-                    optaprime=PolicyIndexesKron(a_c,z_c,jj);
-                else
-                    optaprime=PolicyIndexesKron(2,a_c,z_c,jj);
-                end
-                for zprime_c=1:N_z
-                    P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
-                end
-            end
+            
+%         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
+%         P=zeros(N_a,N_z,N_a,N_z); %P(a,z,aprime,zprime)=proby of going to (a',z') given in (a,z)
+%         for a_c=1:N_a
+%             for z_c=1:N_z
+%                 if N_d==0 %length(n_d)==1 && n_d(1)==0
+%                     optaprime=PolicyIndexesKron(a_c,z_c,jj);
+%                 else
+%                     optaprime=PolicyIndexesKron(2,a_c,z_c,jj);
+%                 end
+%                 for zprime_c=1:N_z
+%                     P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
+%                 end
+%             end
+%         end
+%         P=reshape(P,[N_a*N_z,N_a*N_z]);
+%         P=P';
+
+        if N_d==0 %length(n_d)==1 && n_d(1)==0
+            optaprime=reshape(PolicyIndexesKron(:,:,jj),[1,N_a*N_z]);
+        else
+            optaprime=reshape(PolicyIndexesKron(2,:,:,jj),[1,N_a*N_z]);
         end
-        P=reshape(P,[N_a*N_z,N_a*N_z]);
-        P=P';
+        Ptranspose=zeros(N_a,N_a*N_z);
+        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+        Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
         
-        StationaryDistKron(:,jj+1)=P*StationaryDistKron(:,jj);
+        StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
     end
     
 elseif simoptions.parallel==2 % Using the GPU
@@ -91,11 +100,11 @@ elseif simoptions.parallel==2 % Using the GPU
         else
             optaprime=reshape(PolicyIndexesKron(2,:,:,jj),[1,N_a*N_z]);
         end
-        Ptran=zeros(N_a,N_a*N_z,'gpuArray');
-        Ptran(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptran));
+        Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
+        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+        Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptranspose));
         
-        StationaryDistKron(:,jj+1)=Ptran*StationaryDistKron(:,jj);
+        StationaryDistKron(:,jj+1)=Ptranspose*StationaryDistKron(:,jj);
     end
     
 elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P, on cpu
