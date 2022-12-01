@@ -133,20 +133,26 @@ end
 StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions,Parameters,EntryExitParamNames);
 
 %% Step 4.1: Evaluate the AggVars.
-if simoptions.endogenousexit==2
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames, PolicyWhenExiting);
-else
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames);
-end
-
-% The following line is often a useful double-check if something is going wrong.
-%    AggVars
-
-if isstruct(GeneralEqmEqns)
-    AggVarNames=fieldnames(AggVars); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
-    for ii=1:length(AggVarNames)
-        Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Aggregate;
+if ~isempty(fieldnames(FnsToEvaluate)) % Note that the entry/exit aggregates are treated seperately, so it is possible for this to be empty
+    
+    if simoptions.endogenousexit==2
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames, PolicyWhenExiting);
+    else
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames);
     end
+    
+    % The following line is often a useful double-check if something is going wrong.
+    %    AggVars
+    
+    if isstruct(GeneralEqmEqns)
+        AggVarNames=fieldnames(AggVars); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
+        for ii=1:length(AggVarNames)
+            Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Aggregate;
+        end
+    end
+else
+    AggVars=struct();
+    AggVarNames={};
 end
 
 %% Step 4.2: Evaluate the general equilibrium condititions.

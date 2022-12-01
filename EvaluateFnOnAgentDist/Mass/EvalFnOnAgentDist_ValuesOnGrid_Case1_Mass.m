@@ -144,17 +144,26 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
+                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
                 ValuesOnGrid(:,i)=Values; 
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
+                    if length(FnsToEvaluateParamNames(i).Names)==1
+                        FnToEvaluateParamsVec=StationaryDistmass;
+                    else
+                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end))];
+                    end
+                else
+                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+                end
+                FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);               
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
 %                 Values(logical(ExitPolicy))='nan';
                 Values=Values.*RemoveExits;
@@ -172,17 +181,26 @@ else
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
+                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
                 ValuesOnGrid(:,i)=Values;
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
+                    if length(FnsToEvaluateParamNames(i).Names)==1
+                        FnToEvaluateParamsVec=StationaryDistmass;
+                    else
+                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end))];
+                    end
+                else
+                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+                end
+                FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
 %                 Values(logical(ExitPolicy))='nan';
                 Values=Values.*RemoveExits;
@@ -191,6 +209,8 @@ else
         end
     end
 end
+
+
 
 
 
