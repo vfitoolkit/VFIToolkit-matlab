@@ -108,11 +108,10 @@ elseif simoptions.endogenousexit==1
         temp=optaprime+N_a*(0:1:N_a*N_z-1);
         temp=temp(optaprime>0); % temp is just optaprime conditional on staying
         Ptranspose(temp)=1;
-%         Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
         if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
-            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose));
+            Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose);
         else
-            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+            Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
         end
     elseif simoptions.parallel==2 % Using the GPU
         Ptranspose=zeros(N_a,N_a*N_z,'gpuArray');
@@ -127,16 +126,15 @@ elseif simoptions.endogenousexit==1
 %             Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
 %         end
         if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
-            Ptranspose=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(CondlProbOfSurvival*ones(N_z,1,'gpuArray'),Ptranspose));
+            Ptranspose=kron(pi_z',ones(N_a,N_a,'gpuArray')).*kron(CondlProbOfSurvival*ones(N_z,1,'gpuArray'),Ptranspose);
         else
-            Ptranspose=(kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
+            Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),(ones(N_a,1)*reshape(CondlProbOfSurvival,[1,N_a*N_z])).*Ptranspose); % The order of operations in this line is important, namely multiply the Ptranspose by the survival prob before the muliplication by pi_z
         end
     elseif simoptions.parallel>2
         Ptranspose=sparse(N_a,N_a*N_z);
         temp=optaprime+N_a*(0:1:N_a*N_z-1);
         temp=temp(optaprime>0); % temp is just optaprime conditional on staying
         Ptranspose(temp)=1;
-%         Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
         if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
             Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(CondlProbOfSurvival*ones(N_z,1),Ptranspose));
         else

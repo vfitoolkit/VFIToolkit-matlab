@@ -76,8 +76,8 @@ if vfoptions.lowmemory==0
     end
         
     %%
-    V0Kron=reshape(V0,[N_a,N_z]);    
-    
+    V0Kron=reshape(V0,[N_a,N_z]);
+        
     if n_d(1)==0
         if isfield(vfoptions,'SemiEndogShock')
             pi_z_semiendog=vfoptions.SemiEndogShock;

@@ -21,7 +21,6 @@ currdist=Inf;
 while currdist>Tolerance
     VKronold=VKron;
     
-%     tic;
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);     
@@ -45,18 +44,13 @@ while currdist>Tolerance
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
     end
-%     time1=toc;
-% 
-%     tic;
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-%     time2=toc;
-%     tic;
+
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
         for Howards_counter=1:Howards
-%             VKrontemp=VKron;
-%             EVKrontemp=VKrontemp(ceil(PolicyIndexes/N_d),:);
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
             
             EVKrontemp=EVKrontemp.*aaa;
@@ -65,7 +59,6 @@ while currdist>Tolerance
             VKron=Ftemp+beta*(1-ExitPolicy).*EVKrontemp;
         end
     end
-%     time3=toc;
     
 %     if Verbose==1
 %         if rem(tempcounter,100)==0

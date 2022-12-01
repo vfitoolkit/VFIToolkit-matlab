@@ -3,76 +3,60 @@ function [VKron, Policy, ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_Par1_raw(VK
 %decision variable (n_d=0)
 % N_a=prod(n_a);
 % N_z=prod(n_z);
-% 
-% if Verbose==1
-%     disp('Starting Value Fn Iteration')
-%     tempcounter=1;
-% end
 
 PolicyIndexes=zeros(N_a,N_z);
 ExitPolicy=zeros(N_a,N_z);
-
 Ftemp=zeros(N_a,N_z);
 
+bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
+ccc=kron(ones(N_a,1),bbb);
+aaa=reshape(ccc,[N_a*N_z,N_z]);
+
+%%
 tempcounter=1;
 currdist=Inf;
-
 while currdist>Tolerance
 
     VKronold=VKron;
-
+    
     parfor z_c=1:N_z
-        pi_z_z=pi_z(z_c,:);
-        VKron_z=zeros(N_a,1);
-        Ftemp_z=zeros(N_a,1);
-        PolicyIndexes_z=zeros(N_a,1);
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);
-        ExitPolicy_z=zeros(N_a,1);
-
-        EV_z=VKronold.*kron(ones(N_a,1),pi_z_z(1,:));
+        %Calc the condl expectation term (except beta), which depends on z but
+        %not on control variables
+        EV_z=VKronold.*(ones(N_a,1)*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
+                
+        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
         
-        for a_c=1:N_a
-            entireRHS=ReturnMatrix_z(:,a_c)+beta*EV_z; %aprime by 1
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS);
-            % Exit decision
-            ExitPolicy_z(a_c)=((ReturnToExitMatrix_z(a_c)-Vtemp)>0); % Assumes that when indifferent you do not exit.
-            VKron_z(a_c)=ExitPolicy_z(a_c)*ReturnToExitMatrix_z(a_c)+(1-ExitPolicy_z(a_c))*Vtemp;
-            PolicyIndexes_z(a_c)=maxindex;
-                % Note that this includes the policy that would be chosen if you did 
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+        % Exit decision
+        ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp')>0); % Assumes that when indifferent you do not exit.
+        VKron(:,z_c)=ExitPolicy(:,z_c).*ReturnToExitMatrix_z+(1-ExitPolicy(:,z_c)).*Vtemp';
+        PolicyIndexes(:,z_c)=maxindex; % Note that this includes the policy that would be chosen if you did 
                 % not exit, even when choose exit. This is because it makes it much easier to then implement 
                 % Howards, and can just impose the =0 on exit on the final PolicyIndexes at the end of this 
                 % function just prior to output.
-            Ftemp_z(a_c)=ReturnMatrix_z(maxindex,a_c);
-        end
         
-        VKron(:,z_c)=VKron_z;
-        PolicyIndexes(:,z_c)=PolicyIndexes_z;
-        ExitPolicy(:,z_c)=ExitPolicy_z;
-        Ftemp(:,z_c)=Ftemp_z;
+        tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
     end
         
     VKrondist=reshape(VKron-VKronold,[numel(VKron),1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-%         Ftemp=zeros(N_a,N_z);
-%         for z_c=1:N_z
-%             for a_c=1:N_a
-%                 Ftemp(a_c,z_c)=ReturnMatrix(PolicyIndexes(a_c,z_c),a_c,z_c);%FmatrixKron(PolicyIndexes1(a_c,z_c),PolicyIndexes2(a_c,z_c),a_c,z_c);
-%             end
-%         end
         Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
         for Howards_counter=1:Howards
-            VKrontemp=VKron;
-            for z_c=1:N_z
-                EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*kron(pi_z(z_c,:),ones(N_a,1)); %kron(pi_z(z_c,:),ones(nquad,1))
-                EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
-                VKron(:,z_c)=Ftemp(:,z_c)+beta*(1-ExitPolicy(:,z_c)).*sum(EVKrontemp_z,2);
-            end
+            %VKrontemp=VKron;
+            %EVKrontemp=VKrontemp(PolicyIndexes,:);
+            EVKrontemp=VKron(PolicyIndexes,:);
+            
+            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            VKron=Ftemp+beta*(1-ExitPolicy).*EVKrontemp;
         end
     end
     
