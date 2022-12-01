@@ -31,16 +31,60 @@ else
     end
 end
 
+%% Check which simoptions have been used, set all others to defaults 
+if isfield(transpathoptions,'simoptions')==1
+    simoptions=transpathoptions.simoptions;
+end
+
+if exist('simoptions','var')==0
+    simoptions.nsims=10^4;
+    simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
+    simoptions.verbose=0;
+    try 
+        PoolDetails=gcp;
+        simoptions.ncores=PoolDetails.NumWorkers;
+    catch
+        simoptions.ncores=1;
+    end
+    simoptions.iterate=1;
+    simoptions.tolerance=10^(-9);
+else
+    %Check vfoptions for missing fields, if there are some fill them with
+    %the defaults
+    if isfield(simoptions,'tolerance')==0
+        simoptions.tolerance=10^(-9);
+    end
+    if isfield(simoptions,'nsims')==0
+        simoptions.nsims=10^4;
+    end
+    if isfield(simoptions,'parallel')==0
+        simoptions.parallel=transpathoptions.parallel;
+    end
+    if isfield(simoptions,'verbose')==0
+        simoptions.verbose=0;
+    end
+    if isfield(simoptions,'ncores')==0
+        try
+            PoolDetails=gcp;
+            simoptions.ncores=PoolDetails.NumWorkers;
+        catch
+            simoptions.ncores=1;
+        end
+    end
+    if isfield(simoptions,'iterate')==0
+        simoptions.iterate=1;
+    end
+end
+
+
 %%
 N_d=prod(n_d);
-N_z=prod(n_z);
 N_a=prod(n_a);
-if isempty(n_d)
-    l_d=0;
-elseif n_d(1)==0
+N_z=prod(n_z);
+if n_d(1)==0
     l_d=0;
 else
-    l_d=1;
+    l_d=length(n_d);
 end
 l_a=length(n_a);
 l_z=length(n_z);
@@ -94,51 +138,11 @@ for tt=1:length(ParamPathNames)
     end
 end
 
-
-%% Check which simoptions have been used, set all others to defaults 
-if isfield(transpathoptions,'simoptions')==1
-    simoptions=transpathoptions.simoptions;
+if N_z==0
+    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_noz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, Parameters, T, n_d, n_a, N_j, d_grid, a_grid, DiscountFactorParamNames, transpathoptions, simoptions);
+    return
 end
 
-if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
-    simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
-    simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
-    simoptions.iterate=1;
-    simoptions.tolerance=10^(-9);
-else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    if isfield(simoptions,'tolerance')==0
-        simoptions.tolerance=10^(-9);
-    end
-    if isfield(simoptions,'nsims')==0
-        simoptions.nsims=10^4;
-    end
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=transpathoptions.parallel;
-    end
-    if isfield(simoptions,'verbose')==0
-        simoptions.verbose=0;
-    end
-    if isfield(simoptions,'ncores')==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
-    end
-    if isfield(simoptions,'iterate')==0
-        simoptions.iterate=1;
-    end
-end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)

@@ -57,6 +57,9 @@ if ~exist('simoptions','var')
     simoptions.verbose=0;
     simoptions.verboseparams=0;
 else
+    if ~isfield(simoptions,'groupptypesforstats')
+        simoptions.groupptypesforstats=1;
+    end
     if ~isfield(simoptions,'ptypestorecpu')
         if simoptions.groupptypesforstats==1
             simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
@@ -111,61 +114,26 @@ for ii=1:N_i
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
     
-    % Start with those that determine whether the current permanent type is finite or
-    % infinite horizon, and whether it is Case 1 or Case 2
-    % Figure out which case is relevant to the current PType. This is done
-    % using N_j which for the current type will evaluate to 'Inf' if it is
-    % infinite horizon and a finite number for any other finite horizon.
-    % First, check if it is a structure, and otherwise just get the
-    % relevant value.
-    
-    % Horizon is determined via N_j
-    if isstruct(N_j)
-        N_j_temp=N_j.(Names_i{ii});
-    elseif isscalar(N_j)
-        N_j_temp=N_j;
-    else % is a vector
-        N_j_temp=N_j(ii);
-    end
-    
-    n_d_temp=n_d;
     if isa(n_d,'struct')
         n_d_temp=n_d.(Names_i{ii});
     else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            fprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_d_temp=n_d;
     end
-    n_a_temp=n_a;
     if isa(n_a,'struct')
         n_a_temp=n_a.(Names_i{ii});
     else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            fprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_a_temp=n_a;
     end
-    n_z_temp=n_z;
     if isa(n_z,'struct')
         n_z_temp=n_z.(Names_i{ii});
     else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            fprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_z_temp=n_z;
     end
-    
-
+    if isa(N_j,'struct')
+        N_j_temp=N_j.(Names_i{ii});
+    else
+        N_j_temp=N_j;
+    end
     if isa(d_grid,'struct')
         d_grid_temp=d_grid.(Names_i{ii});
     else
@@ -185,19 +153,16 @@ for ii=1:N_i
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
-    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
     Parameters_temp=Parameters;
-    FullParamNames=fieldnames(Parameters); % all the different parameters
+    FullParamNames=fieldnames(Parameters);
     nFields=length(FullParamNames);
     for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-            end
-        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
+        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
+            names=fieldnames(Parameters.(FullParamNames{kField}));
+            Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{ii});
+        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
@@ -205,7 +170,6 @@ for ii=1:N_i
             end
         end
     end
-    % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
@@ -222,12 +186,15 @@ for ii=1:N_i
     end
     l_a_temp=length(n_a_temp);
     l_z_temp=length(n_z_temp);  
-%     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType]=PType_FnsToEvaluate(FnsToEvaluate,FnsToEvaluateParamNames,Names_i,ii,l_d_temp,l_a_temp,l_z_temp);
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     
     simoptions_temp.outputasstructure=0;
-    StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
-        
+    if isfinite(N_j_temp)
+        StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
+    else % PType actually allows for infinite horizon as well
+        StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
+    end
+    
     if simoptions.groupptypesforstats==1
         for kk=1:numFnsToEvaluate
             jj=WhichFnsForCurrentPType(kk);
