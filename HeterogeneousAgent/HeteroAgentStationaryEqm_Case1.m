@@ -49,10 +49,11 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.fminalgo=1;
+    heteroagentoptions.fminalgo=1;  % use fminsearch
     heteroagentoptions.verbose=0;
-    heteroagentoptions.maxiter=1000;
+    heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     heteroagentoptions.oldGE=1;
+    heteroagentoptions.outputGEform=0; % output GE conditions as scalar
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
@@ -69,7 +70,7 @@ else
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     end
     if isfield(heteroagentoptions,'toleranceGEcondns')==0
-        heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
+        heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     end
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
@@ -78,10 +79,13 @@ else
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
     if isfield(heteroagentoptions,'maxiter')==0
-        heteroagentoptions.maxiter=1000; % use fminsearch
+        heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     end
     if isfield(heteroagentoptions,'oldGE')==0
-        heteroagentoptions.oldGE=1; % use fminsearch
+        heteroagentoptions.oldGE=1;
+    end
+    if isfield(heteroagentoptions,'outputGEform')==0
+        heteroagentoptions.outputGEform=0; % output GE conditions as scalar
     end
 end
 
