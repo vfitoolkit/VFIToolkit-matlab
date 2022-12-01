@@ -52,31 +52,52 @@ for ii=1:N_i
     
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
-    d_grid_temp=d_grid;
+    if isa(n_d,'struct')
+        n_d_temp=n_d.(Names_i{ii});
+    else
+        n_d_temp=n_d;
+    end
+    if isa(n_a,'struct')
+        n_a_temp=n_a.(Names_i{ii});
+    else
+        n_a_temp=n_a;
+    end
+    if isa(n_z,'struct')
+        n_z_temp=n_z.(Names_i{ii});
+    else
+        n_z_temp=n_z;
+    end
+    if isa(N_j,'struct')
+        N_j_temp=N_j.(Names_i{ii});
+    else
+        N_j_temp=N_j;
+    end
     if isa(d_grid,'struct')
-        names=fieldnames(d_grid);
-        d_grid_temp=d_grid.(names{ii});
+        d_grid_temp=d_grid.(Names_i{ii});
+    else
+        d_grid_temp=d_grid;
     end
-    a_grid_temp=a_grid;
     if isa(a_grid,'struct')
-        names=fieldnames(a_grid);
-        a_grid_temp=a_grid.(names{ii});        
+        a_grid_temp=a_grid.(Names_i{ii});
+    else
+        a_grid_temp=a_grid;
     end
-    z_grid_temp=z_grid;
     if isa(z_grid,'struct')
-        names=fieldnames(z_grid);
-        z_grid_temp=z_grid.(names{ii});
+        z_grid_temp=z_grid.(Names_i{ii});
+    else
+        z_grid_temp=z_grid;
     end
-    pi_z_temp=pi_z;
     if isa(pi_z,'struct')
-        names=fieldnames(pi_z);
-        pi_z_temp=pi_z.(names{ii});
+        pi_z_temp=pi_z.(Names_i{ii});
+    else
+        pi_z_temp=pi_z;
     end
-    ReturnFn_temp=ReturnFn;
     if isa(ReturnFn,'struct')
-        names=fieldnames(ReturnFn);
-        ReturnFn_temp=ReturnFn.(names{ii});
+        ReturnFn_temp=ReturnFn.(Names_i{ii});
+    else
+        ReturnFn_temp=ReturnFn;
     end
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.
@@ -108,7 +129,11 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
+    if isfinite(N_j_temp)
+        [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
+    else % PType actually allows for infinite horizon as well
+        [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
+    end
     
     if vfoptions_temp.ptypestorecpu==1
         V.(Names_i{ii})=gather(V_ii);

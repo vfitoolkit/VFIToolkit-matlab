@@ -16,10 +16,6 @@ end
 a_grid=gpuArray(a_grid);
 e_grid=gpuArray(e_grid);
 
-% Z markov
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 % E iid
 eval('fieldexists_EiidShockFn=1;vfoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
 eval('fieldexists_EiidShockFnParamNames=1;vfoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
@@ -121,8 +117,7 @@ if all(vfoptions.parallel_e==0)
             e_val=e_gridvals(e_c,:);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            EV_e=VKronNext_j; % Note, no z
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV_e.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -142,11 +137,11 @@ elseif all(vfoptions.parallel_e==1)
     if fieldexists_pi_e_J==1
         e_grid=vfoptions.e_grid_J(:,N_j);
         pi_e=vfoptions.pi_e_J(:,N_j);
-        if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-            e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-        elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-            e_gridvals=e_grid;
-        end
+%         if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+%             e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+%         elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+%             e_gridvals=e_grid;
+%         end
     elseif fieldexists_EiidShockFn==1
         if fieldexists_EiidShockFnParamNames==1
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
@@ -160,11 +155,11 @@ elseif all(vfoptions.parallel_e==1)
             [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
             e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         end
-        if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-            e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-        elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-            e_gridvals=e_grid;
-        end
+%         if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
+%             e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
+%         elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
+%             e_gridvals=e_grid;
+%         end
     end
 
     pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
@@ -213,9 +208,8 @@ elseif all(vfoptions.parallel_e==1)
         VKronNext_j=sum(VKronNext_j.*pi_e,2);
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
-        EV=VKronNext_j; % Note, no z
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

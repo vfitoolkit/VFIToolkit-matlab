@@ -16,9 +16,53 @@ N_z=prod(n_z);
 %% Just do the standard case
 if vfoptions.parallel==2
     if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_no_d_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isfield(vfoptions,'n_e')
+            if isfield(vfoptions,'e_grid_J')
+                e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
+            else
+                e_grid=vfoptions.e_grid;
+            end
+            if isfield(vfoptions,'pi_e_J')
+                pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
+            else
+                pi_e=vfoptions.pi_e;
+            end
+            if N_z==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_z==0
+                error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
+            else
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
     else
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isfield(vfoptions,'n_e')
+            if isfield(vfoptions,'e_grid_J')
+                e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
+            else
+                e_grid=vfoptions.e_grid;
+            end
+            if isfield(vfoptions,'pi_e_J')
+                pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
+            else
+                pi_e=vfoptions.pi_e;
+            end
+            if N_z==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_z==0
+                error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
     end
 elseif vfoptions.parallel==0 || vfoptions.parallel==1
     error('Epstein-Zin currently only implemented for Parallel=2: email robertdkirkby@gmail.com')
@@ -32,8 +76,18 @@ elseif vfoptions.parallel==0 || vfoptions.parallel==1
 end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-V=reshape(VKron,[n_a,n_z,N_j]);
-Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+if isfield(vfoptions,'n_e')
+    if N_z==0
+        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+    else
+        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+    end
+else
+    V=reshape(VKron,[n_a,n_z,N_j]);
+    Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then
