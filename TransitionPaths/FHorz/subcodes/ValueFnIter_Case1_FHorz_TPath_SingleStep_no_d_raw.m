@@ -75,7 +75,7 @@ elseif vfoptions.lowmemory==2
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         for a_c=1:N_a
-            a_val=a_gridvals(z_c,:);
+            a_val=a_gridvals(a_c,:);
             ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_az);
@@ -190,8 +190,8 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
                         
             z_val=z_gridvals(z_c,:);
-            for a_c=1:N_z
-                a_val=a_gridvals(z_c,:);
+            for a_c=1:N_a
+                a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, ReturnFnParamsVec);
                 
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z;

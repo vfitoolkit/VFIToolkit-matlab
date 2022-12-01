@@ -282,16 +282,18 @@ if size(a_grid)~=[N_a, 1]
     fprintf('       a_grid is of size: %i by % i, while N_a is %i \n',size(a_grid,1),size(a_grid,2),N_a)
     dbstack
     return
-elseif size(z_grid)~=[N_z, 1]
-    fprintf('ERROR: z_grid is not the correct shape (should be of size N_z-by-1) \n')
-    fprintf('       z_grid is of size: %i by % i, while N_z is %i \n',size(z_grid,1),size(z_grid,2),N_z)
-    dbstack
-    return
-elseif size(pi_z)~=[N_z, N_z]
-    fprintf('ERROR: pi is not of size N_z-by-N_z \n')
-    fprintf('       pi is of size: %i by % i, while N_z is %i \n',size(pi_z,1),size(pi_z,2),N_z)
-    dbstack
-    return
+elseif N_z>0
+    if size(z_grid)~=[N_z, 1]
+        fprintf('ERROR: z_grid is not the correct shape (should be of size N_z-by-1) \n')
+        fprintf('       z_grid is of size: %i by % i, while N_z is %i \n',size(z_grid,1),size(z_grid,2),N_z)
+        dbstack
+        return
+    elseif size(pi_z)~=[N_z, N_z]
+        fprintf('ERROR: pi is not of size N_z-by-N_z \n')
+        fprintf('       pi is of size: %i by % i, while N_z is %i \n',size(pi_z,1),size(pi_z,2),N_z)
+        dbstack
+        return
+    end
 end
 if isstruct(GeneralEqmEqns)
     if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
@@ -307,6 +309,21 @@ else
         dbstack
         return
     end
+end
+
+%%
+if N_z==0
+    PricePath=TransitionPath_Case1_FHorz_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
+    % Switch the solution into structure for output.
+    for ii=1:length(PricePathNames)
+        PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+    end
+    if transpathoptions.usestockvars==1
+        for ii=1:length(StockVarsPathNames)
+            PricePath.(StockVarsPathNames{ii})=StockVarsPathOld(:,ii);
+        end
+    end
+    return
 end
 
 %%

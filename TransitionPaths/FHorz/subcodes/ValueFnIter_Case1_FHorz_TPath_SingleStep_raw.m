@@ -18,7 +18,7 @@ if vfoptions.lowmemory>0
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
 end
 
 
@@ -76,7 +76,7 @@ elseif vfoptions.lowmemory==2
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         for a_c=1:N_a
-            a_val=a_gridvals(z_c,:);
+            a_val=a_gridvals(a_c,:);
             ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_az);
@@ -193,8 +193,8 @@ for reverse_j=1:N_j-1
             entireEV_z=kron(EV_z,ones(N_d,1));
             
             z_val=z_gridvals(z_c,:);
-            for a_c=1:N_z
-                a_val=a_gridvals(z_c,:);
+            for a_c=1:N_a
+                a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
                 
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;

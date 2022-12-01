@@ -40,7 +40,7 @@ if simoptions.parallel~=2
     
     % Remove the existing age weights, then impose the new age weights at the end 
     % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
-    size((ones(N_a*N_z,1)*sum(AgentDist,1)))
+%     size((ones(N_a*N_z,1)*sum(AgentDist,1)))
     AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
 
     for jj=1:(N_j-1)
