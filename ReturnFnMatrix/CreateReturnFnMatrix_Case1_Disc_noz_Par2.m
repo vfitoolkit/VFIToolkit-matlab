@@ -3,10 +3,10 @@ function Fmatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
-    if ~all(ReturnFnParams(ii)==[1,1])
-        disp('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
+    if ~all(size(ReturnFnParams(ii))==[1,1])
+        fprintf('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar, problem with %i-th parameter',ii)
     end
-    ParamCell(ii,1)={ReturnFnParams(ii)};
+    ParamCell(ii)={ReturnFnParams(ii)};
 end
 
 N_d=prod(n_d);
@@ -68,7 +68,7 @@ elseif l_d==0 && l_a==3
 elseif l_d==0 && l_a==4 
     Fmatrix=arrayfun(ReturnFn, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, ParamCell{:});
 elseif l_d==1 && l_a==1 
-    d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
+%     d1vals(1,1,1)=d_grid(1); % Requires special treatment 
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals, a1vals, ParamCell{:});
 elseif l_d==1 && l_a==2 
     Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals, a1vals,a2vals, ParamCell{:});

@@ -7,8 +7,8 @@ end
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
-    if size(ReturnFnParams(ii))~=[1,1]
-        disp('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
+    if ~all(size(ReturnFnParams(ii))==[1,1])
+        fprintf('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar, problem with %i-th parameter',ii)
     end
     ParamCell(ii,1)={ReturnFnParams(ii)};
 end
