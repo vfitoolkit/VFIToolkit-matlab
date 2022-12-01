@@ -73,6 +73,12 @@ else
     end
 end
 
+if heteroagentoptions.fminalgo==5
+    if isfield(heteroagentoptions,'toleranceGEprices_percent')==0
+        heteroagentoptions.toleranceGEprices_percent=10^(-3); % one-tenth of one percent
+    end
+end
+
 AggVarNames=fieldnames(FnsToEvaluate);
 nGEprices=length(GEPriceParamNames);
 
@@ -92,7 +98,6 @@ PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total numbe
 % to read when you are looking at PTypeStructure (which only ever exists
 % internally to the VFI Toolkit)
 if iscell(Names_i)
-    fprintf('HERE \n')
     PTypeStructure.Names_i=Names_i;
     PTypeStructure.N_i=length(Names_i);
 else
@@ -111,14 +116,6 @@ end
 
 for ii=1:PTypeStructure.N_i
 
-%     % Create all the things specific for each Permanent type and store them all in PTypeStructure.
-%     if ii<10 % one digit
-%         iistr=['ptype00',num2str(ii)];
-%     elseif ii<100 % two digit
-%         iistr=['ptype0',num2str(ii)];
-%     elseif ii<1000 % three digit
-%         iistr=['ptype',num2str(ii)];
-%     end
     iistr=PTypeStructure.Names_i{ii};
     PTypeStructure.iistr{ii}=iistr;
     
@@ -304,10 +301,7 @@ for ii=1:PTypeStructure.N_i
             if ptypedim==1
                 PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
-                sprintf('Possible Warning: some parameters appear to have been imputted with dependence on permanent type indexed by column rather than row \n')
-                sprintf(['Specifically, parameter: ', FullParamNames{kField}, ' \n'])
-                sprintf('(it is possible this is just a coincidence of number of columns) \n')
-                dbstack
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(:,ii);
             end
         end
     end
@@ -378,6 +372,61 @@ if N_p~=0
 %     return
 end
 
+
+%% If using fminalgo=5, then need some further setup
+if heteroagentoptions.fminalgo==5
+    heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=5
+else
+    heteroagentoptions.outputGEform=0;
+end
+
+if heteroagentoptions.fminalgo==5
+    heteroagentoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
+    
+    if isstruct(GeneralEqmEqns) 
+        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
+        % Is same as order of fields in GeneralEqmEqns
+        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
+        temp=heteroagentoptions.fminalgo5.howtoupdate;
+        GEeqnNames=fieldnames(GeneralEqmEqns);
+        for tt=1:length(GEeqnNames)
+            for jj=1:size(temp,1)
+                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
+                    heteroagentoptions.fminalgo5.howtoupdate{tt,1}=temp{jj,1};
+                    heteroagentoptions.fminalgo5.howtoupdate{tt,2}=temp{jj,2};
+                    heteroagentoptions.fminalgo5.howtoupdate{tt,3}=temp{jj,3};
+                    heteroagentoptions.fminalgo5.howtoupdate{tt,4}=temp{jj,4};
+                end
+            end
+        end
+        nGeneralEqmEqns=length(GEeqnNames);
+    else
+        nGeneralEqmEqns=length(GeneralEqmEqns);
+    end
+    heteroagentoptions.fminalgo5.add=[heteroagentoptions.fminalgo5.howtoupdate{:,3}];
+    heteroagentoptions.fminalgo5.factor=[heteroagentoptions.fminalgo5.howtoupdate{:,4}];
+    heteroagentoptions.fminalgo5.keepold=ones(size(heteroagentoptions.fminalgo5.factor));
+    heteroagentoptions.fminalgo5.keepold=ones(size(heteroagentoptions.fminalgo5.factor));
+    
+    if size(heteroagentoptions.fminalgo5.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(GEPriceParamNames)
+        % do nothing, this is how things should be
+    else
+        fprintf('ERROR: heteroagentoptions.fminalgo5..howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+    end
+    heteroagentoptions.fminalgo5.permute=zeros(size(heteroagentoptions.fminalgo5.howtoupdate,1),1);
+    for tt=1:size(heteroagentoptions.fminalgo5.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for jj=1:length(GEPriceParamNames)
+            if strcmp(heteroagentoptions.fminalgo5.howtoupdate{tt,2},GEPriceParamNames{jj})
+                heteroagentoptions.fminalgo5.permute(tt)=jj;
+            end
+        end
+    end
+    if isfield(heteroagentoptions,'updateaccuracycutoff')==0
+        heteroagentoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
+    end
+end
+
+
 %%  Otherwise, use fminsearch to find the general equilibrium
 GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 
@@ -427,6 +476,58 @@ elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adap
     end
 	% This is a minor edit of cmaes, because I want to use 'GeneralEqmConditionsFnOpt' as a function_handle, but the original cmaes code only allows for 'GeneralEqmConditionsFnOpt' as a string
     [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,p0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
+elseif heteroagentoptions.fminalgo==5
+    % Update based on rules in heteroagentoptions.fminalgo5.howtoupdate
+    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+    GeneralEqmConditions=Inf;
+    % Get initial prices, p
+    p=nan(1,length(GEPriceParamNames));
+    for ii=1:length(GEPriceParamNames)
+        p(ii)=Parameters.(GEPriceParamNames{ii});
+    end
+    % Given current prices solve the model to get the general equilibrium conditions as a structure
+    p_percentchange=Inf;
+    while any(p_percentchange>heteroagentoptions.toleranceGEprices_percent) % GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
+        
+        p_i=GeneralEqmConditionsFnOpt(p); % using heteroagentoptions.outputGEform=1, so this is a vector
+
+        GeneralEqmConditionsVec=p_i; % Need later to look at convergence
+        
+        % Update prices based on GEstruct following the howtoupdate rules 
+        p_i=p_i(heteroagentoptions.fminalgo5.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+        I_makescutoff=(abs(p_i)>heteroagentoptions.updateaccuracycutoff);
+        p_i=I_makescutoff.*p_i;
+        p_new=(p.*heteroagentoptions.fminalgo5.keepold)+heteroagentoptions.fminalgo5.add.*heteroagentoptions.fminalgo5.factor.*p_i-(1-heteroagentoptions.fminalgo5.add).*heteroagentoptions.fminalgo5.factor.*p_i;
+
+        % Calculate GeneralEqmConditions which measures convergence
+        if heteroagentoptions.multiGEcriterion==0
+            GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
+        elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+            GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
+        end
+
+        % Put new prices into Parameters
+        for ii=1:length(GEPriceParamNames)
+            Parameters.(GEPriceParamNames{ii})=p_new(ii);
+        end
+        
+        fprintf('Current iteration \n')
+        p_percentchange
+        p_new
+        p
+        p_i
+        
+        p_percentchange=max(abs(p_new-p)./abs(p));
+        p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
+        % Update p for next iteration
+        p=p_new;
+    end
+    p_eqm_vec=p_new; % Need to put it in p_eqm_vec so that it can be used to create the final output
+elseif heteroagentoptions.fminalgo==6
+    if ~isfield(heteroagentoptions,'lb') || ~isfield(heteroagentoptions,'ub')
+        error('When using constrained optimization (heteroagentoptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using heteroagentoptions.lb and heteroagentoptions.ub') 
+    end
+    [p_eqm_vec,GeneralEqmConditions]=fmincon(GeneralEqmConditionsFnOpt,p0,[],[],[],[],heteroagentoptions.lb,heteroagentoptions.ub,[],minoptions);    
 end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless

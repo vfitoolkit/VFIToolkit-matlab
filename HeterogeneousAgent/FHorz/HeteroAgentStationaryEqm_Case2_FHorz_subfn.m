@@ -54,13 +54,24 @@ AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDistKron, Policy, FnsToE
 % find why matlab was treating output as complex
 GeneralEqmConditionsVec=real(GeneralEqmConditions_Case2(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
-if heteroagentoptions.multiGEcriterion==0 
-    GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));                                                                                                         
+% We might want to output GE conditions as a vector or structure
+if heteroagentoptions.outputGEform==0 % scalar
+    if heteroagentoptions.multiGEcriterion==0
+        GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
+    elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+        GeneralEqmConditions=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));
+    end
+    GeneralEqmConditions=gather(GeneralEqmConditions);
+elseif heteroagentoptions.outputGEform==1 % vector
+    GeneralEqmConditions=GeneralEqmConditionsVec;
+elseif heteroagentoptions.outputGEform==2 % structure
+    clear GeneralEqmConditions
+    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+    for ii=1:length(GeneralEqmEqnsNames)
+        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
+    end
 end
 
-GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
     fprintf('Current GE prices and GeneralEqmConditionsVec. \n')

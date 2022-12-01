@@ -25,13 +25,23 @@ else
     GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, simoptions.parallel)); % Note, the GeneralEqmConditions_Case1 actually has nothing to do with Case1 vs Case2
 end
 
-if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
-    GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));                                                                                                         
+% We might want to output GE conditions as a vector or structure
+if heteroagentoptions.outputGEform==0 % scalar
+    if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
+        GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
+    elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+        GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
+    end
+    GeneralEqmConditions=gather(GeneralEqmConditions);
+elseif heteroagentoptions.outputGEform==1 % vector
+    GeneralEqmConditions=GeneralEqmConditionsVec;
+elseif heteroagentoptions.outputGEform==2 % structure
+    clear GeneralEqmConditions
+    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+    for ii=1:length(GeneralEqmEqnsNames)
+        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
+    end
 end
-
-GeneralEqmConditions=gather(GeneralEqmConditions);
 
 if heteroagentoptions.verbose==1
     fprintf(' \n')
@@ -57,25 +67,5 @@ if heteroagentoptions.verbose==1
         end
     end
 end
-
-% % use of real() is a hack that could disguise errors, but I couldn't
-% % find why matlab was treating output as complex
-% GeneralEqmConditionsVec=real(GeneralEqmConditions_Case2(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames, simoptions.parallel));
-% 
-% if heteroagentoptions.multiGEcriterion==0 
-%     GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-% elseif heteroagentoptions.multiGEcriterion==1 %the measure of general eqm is to take the sum of squares of each of the general eqm conditions being satisfied 
-%     GeneralEqmConditions=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));                                                                                                         
-% end
-% 
-% GeneralEqmConditions=gather(GeneralEqmConditions);
-% 
-% if heteroagentoptions.verbose==1
-%     fprintf('Current Aggregates: \n')
-%     AggVars
-%     fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
-%     GEprices
-%     GeneralEqmConditionsVec
-% end
 
 end

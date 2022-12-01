@@ -1,4 +1,4 @@
-function GeneralEqmCondition=HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions)
 
 %%
 for pp=1:length(GEPriceParamNames) % Not sure this is needed, have it just in case they are used when calling 'GeneralEqmConditionsFn', but I am pretty sure they never would be.
@@ -72,17 +72,47 @@ end
 GeneralEqmConditionsVec=real(GeneralEqmConditionsFn(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 
 
-
-if heteroagentoptions.multiGEcriterion==0 
-    GeneralEqmCondition=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    GeneralEqmCondition=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));                                                                                                         
+% We might want to output GE conditions as a vector or structure
+if heteroagentoptions.outputGEform==0 % scalar
+    if heteroagentoptions.multiGEcriterion==0
+        GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
+    elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+        GeneralEqmConditions=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));
+    end
+    GeneralEqmConditions=gather(GeneralEqmConditions);
+elseif heteroagentoptions.outputGEform==1 % vector
+    GeneralEqmConditions=GeneralEqmConditionsVec;
+elseif heteroagentoptions.outputGEform==2 % structure
+    clear GeneralEqmConditions
+    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+    for ii=1:length(GeneralEqmEqnsNames)
+        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
+    end
 end
 
-GeneralEqmCondition=gather(GeneralEqmCondition);
-
 if heteroagentoptions.verbose==1
-    fprintf('Current GE prices and GeneralEqmConditionsVec. \n')
-    p
-    GeneralEqmConditionsVec
+    fprintf(' \n')
+    fprintf('Current GE prices: \n')
+    for ii=1:l_p
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},GEprices(ii))
+    end
+    fprintf('Current aggregate variables: \n')
+    if ~isstruct(AggVars)
+        AggVars
+    else
+        for ii=1:length(AggVarNames)
+            fprintf('	%s: %8.4f \n',AggVarNames{ii},AggVars.(AggVarNames{ii}).Mean)
+        end
+    end
+    fprintf('Current GeneralEqmEqns: \n')
+    if ~isstruct(GeneralEqmEqns)
+        GeneralEqmConditionsVec
+    else
+        GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
+        for ii=1:length(GeneralEqmEqnsNames)
+            fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
+        end
+    end
+end
+
 end
