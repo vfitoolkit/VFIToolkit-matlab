@@ -25,6 +25,10 @@ l_aprime=length(n_aprime);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+if N_z==0
+    N_z=1;
+end
+
 Policy=reshape(Policy,[size(Policy,1),N_a*N_z]); % Note: Policy will be (l_d+l_a,n_a,n_z)
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1

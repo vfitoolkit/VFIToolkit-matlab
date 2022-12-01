@@ -17,7 +17,7 @@ function options_temp=PType_Options(options,Names_i,ii)
 %                 options_temp.(OptionNames{ff})=temp(ii);
 %             end
         else % It is a structure
-            if isfield(options.dynasty.(OptionNames{ff}), Names_i{ii})
+            if isfield(options.(OptionNames{ff}), Names_i{ii})
                 options_temp.(OptionNames{ff})=options.(OptionNames{ff}).(Names_i{ii});  % Get the option specific to this type
 %             else
                 % Do nothing, this option is only relevant to other types
