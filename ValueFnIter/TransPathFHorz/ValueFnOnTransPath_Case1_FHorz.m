@@ -140,6 +140,13 @@ end
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
+N_z=prod(n_z);
+if N_z==0
+    [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_noz(PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, Policy_final, Parameters, n_d, n_a, N_j, d_grid, a_grid, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
+    return
+end
+    
+
 %% Create ReturnFnParamNames
 l_d=0;
 if ~isempty(n_d)
