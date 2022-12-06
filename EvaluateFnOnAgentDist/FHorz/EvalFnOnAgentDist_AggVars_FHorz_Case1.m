@@ -79,7 +79,7 @@ end
 if Parallel==2
     z_grid_J=gpuArray(z_grid_J);
 end
-if all(size(z_grid_J)==[sum(n_z),N_j])
+if ndims(z_grid_J)==2
     jointgridz=0;
 else % Joint-grid on shocks
     jointgridz=1;
@@ -119,7 +119,7 @@ if isfield(simoptions,'n_e')
             e_grid_J=repmat(simoptions.e_grid,1,1,N_j);
         end
     end
-    if all(size(simoptions.e_grid_J)==[sum(n_e),N_j])
+    if ndims(e_grid_J)==2
         jointgride=0;
     else % Joint-grid on shocks
         jointgride=1;
@@ -143,18 +143,12 @@ if isfield(simoptions,'n_e')
                 for jj=1:N_j
                     z_grid_J(:,:,jj)=[kron(ones(N_e,1),CreateGridvals(n_z,z_grid_J_temp(:,jj),1)),kron(e_grid_J(:,:,jj) ,ones(N_z,1))]; % replace e with the joint-grid version
                 end
-%                 z_grid_J_temp=zeros(N_z,l_z,N_j);
-%                 for jj=1:N_j
-%                     z_grid_J_temp(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1); % replace z with the joint-grid version
-%                 end
-%                 z_grid_J=[kron(ones(N_e,1),z_grid_J_temp),kron(e_grid_J,ones(N_z,1))];
             elseif jointgride==0 % just z is joint
                 z_grid_J_temp=z_grid_J;
                 z_grid_J=zeros(N_e*N_z,l_e+l_z,N_j);
                 for jj=1:N_j
                     z_grid_J(:,:,jj)=[kron(ones(N_e,1),z_grid_J_temp(:,:,jj)),kron(CreateGridvals(n_e,e_grid_J(:,jj),1),ones(N_z,1))]; % replace e with the joint-grid version
                 end
-%                 z_grid_J=[kron(ones(N_e,1),z_grid_J),kron(e_grid_J_temp,ones(N_z,1))];
             else % both joint grids
                 z_grid_J_temp=z_grid_J;
                 z_grid_J=zeros(N_e*N_z,l_e+l_z,N_j);
@@ -174,13 +168,18 @@ end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
+    if simoptions.lowmemory==0
+        l_z_temp=l_z;
+    elseif simoptions.lowmemory==1
+        l_z_temp=l_z+l_e;
+    end
     FnsToEvaluateStruct=1;
     clear FnsToEvaluateParamNames
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_d+l_a+l_a+l_z_temp)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -206,15 +205,15 @@ if Parallel==2
         % Loop over e
         AggVars=zeros(length(FnsToEvaluate),N_e,'gpuArray');
         StationaryDistVec=permute(reshape(StationaryDist,[N_a*N_z,N_e,N_j]),[1,3,2]); % permute moves e to last dimension
-        if N_d>0
-            PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_a,N_e,N_j]);
+        if n_d(1)>0
+            PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z,N_e,N_j]);
         else
-            PolicyIndexes=reshape(PolicyIndexes,[N_a,N_a,N_e,N_j]);
+            PolicyIndexes=reshape(PolicyIndexes,[N_a,N_z,N_e,N_j]);
         end
         
         for e_c=1:N_e
             StationaryDistVec_e=StationaryDistVec(:,:,e_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
-            if N_d>0
+            if n_d(1)>0
                 PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes(:,:,:,e_c,:),n_d,n_a,n_z,N_j,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
             else
                 PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes(:,:,e_c,:),n_d,n_a,n_z,N_j,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
@@ -233,7 +232,7 @@ if Parallel==2
                         z_grid=z_grid_J(:,jj);
                     end
                     if jointgride==1
-                        e_val=e_grid_J(e_c,:,jj)';
+                        e_val=e_grid_J(e_c,:,jj);
                     else
                         e_val=e_grid_J(e_c,jj);
                     end

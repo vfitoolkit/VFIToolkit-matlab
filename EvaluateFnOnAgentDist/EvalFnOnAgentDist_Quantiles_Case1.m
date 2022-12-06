@@ -56,15 +56,15 @@ if Parallel==2
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    for i=1:length(FnsToEvaluate)
+    for kk=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateParamNames)% || strcmp(SSvalueParamNames(1),'')) % check for 'SSvalueParamNames={}'
             FnToEvaluateParamsVec=[];
         else
-            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names);
         end
         
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{kk}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
         
         [SortedValues,SortedValues_index] = sort(Values);
@@ -99,52 +99,51 @@ if Parallel==2
         [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
-        QuantileCutOffs(i,:)=[minvalue, QuantileCutoffs_i, maxvalue];
-        QuantileMeans(i,:)=QuantileMeans_i;
+        QuantileCutOffs(kk,:)=[minvalue, QuantileCutoffs_i, maxvalue];
+        QuantileMeans(kk,:)=QuantileMeans_i;
     end
     
 else
     QuantileCutOffs=zeros(length(FnsToEvaluate),NumQuantiles+1); %Includes min and max
     QuantileMeans=zeros(length(FnsToEvaluate),NumQuantiles);
-
-    [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
+    
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
-    aprime_gridvals=a_gridvals;
     z_gridvals=CreateGridvals(n_z,z_grid,2);
     
-    for i=1:length(FnsToEvaluate)
+    for kk=1:length(FnsToEvaluate)
 
-        if isempty(FnsToEvaluateParamNames(i).Names) % check for 'FnsToEvaluateParamNames={}'
+        if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'FnsToEvaluateParamNames={}'
             Values=zeros(N_a*N_z,1);
             if l_d==0
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             else % l_d>0
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             end
         else
             Values=zeros(N_a*N_z,1);
             if l_d==0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             else % l_d>0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             end
         end
@@ -181,8 +180,8 @@ else
         [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
-        QuantileCutOffs(i,:)=[minvalue, QuantileCutoffs_i, maxvalue];
-        QuantileMeans(i,:)=QuantileMeans_i;
+        QuantileCutOffs(kk,:)=[minvalue, QuantileCutoffs_i, maxvalue];
+        QuantileMeans(kk,:)=QuantileMeans_i;
     end
     
 end

@@ -191,9 +191,9 @@ end
 
 %% For sure the following could be made faster by parallelizing some stuff.
 if simoptions.agententryandexit==0
-    SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
-    for ii=1:simoptions.numbersims
+    parfor ii=1:simoptions.numbersims
         SimPanel_ii=SimPanelIndexes(:,:,ii);
+        SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
         for t=1:simoptions.simperiods
             a_sub=SimPanel_ii(1:l_a,t);
             a_ind=sub2ind_homemade(n_a,a_sub);
@@ -222,8 +222,8 @@ if simoptions.agententryandexit==0
                     end
                 end
             end
-            SimPanelValues(:,:,ii)=SimPanelValues_ii;
         end
+        SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
     % Need to add check for nan relating to a_ind and z_ind around entry/exit
@@ -260,8 +260,8 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
                     end
                 end
             end
-            SimPanelValues(:,:,ii)=SimPanelValues_ii;
         end
+        SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
     % Need to add check for nan relating to a_ind and z_ind around entry/exit
@@ -301,8 +301,8 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
                     end
                 end
             end
-            SimPanelValues(:,:,ii)=SimPanelValues_ii;
         end
+        SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
     % NEED TO FILL THIS PART OUT!!!
@@ -373,8 +373,8 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
                     end
                 end
             end
-            SimPanelValues(:,:,ii)=SimPanelValues_ii;
         end
+        SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
 end
 

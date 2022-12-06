@@ -62,24 +62,21 @@ if Parallel==2
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     LorenzCurve=zeros(length(FnsToEvaluate),npoints,'gpuArray');
     
-    for i=1:length(FnsToEvaluate)
+    for kk=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+        if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'SSvalueParamNames={}'
             FnToEvaluateParamsVec=[];
         else
-            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names);
         end
         
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{kk}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
         
         WeightedValues=Values.*StationaryDistVec;
-        WeightedValues(isnan(WeightedValues))=0; % Values of -Inf times weight of zero give nan, we want them to be zeros.
-        AggVars(i)=sum(WeightedValues);
-        
+        WeightedValues(isnan(WeightedValues))=0; % Values of -Inf times weight of zero give nan, we want them to be zeros.        
         
         [~,SortedValues_index] = sort(Values);
         
@@ -121,60 +118,57 @@ if Parallel==2
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(i,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,2)';
+        LorenzCurve(kk,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,2)';
     end
     
 else
     StationaryDistVec=gather(StationaryDistVec);
     PolicyIndexes=gather(PolicyIndexes);
 
-    AggVars=zeros(length(FnsToEvaluate),1);
     LorenzCurve=zeros(length(FnsToEvaluate),npoints);
     
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
     
-    for i=1:length(FnsToEvaluate)
+    for kk=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names) % check for 'FnsToEvaluateParamNames={}'
+        if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'FnsToEvaluateParamNames={}'
             Values=zeros(N_a*N_z,1);
             if l_d==0
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             else % l_d>0
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             end
         else
             Values=zeros(N_a*N_z,1);
             if l_d==0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             else % l_d>0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             end
         end
                 
-        WeightedValues=Values.*StationaryDistVec;
-        AggVars(i)=sum(WeightedValues);
-        
+        WeightedValues=Values.*StationaryDistVec;        
         
         [~,SortedValues_index] = sort(Values);
         
@@ -213,7 +207,7 @@ else
 %         end
 %         
 %         SSvalues_LorenzCurve(i,:)=InverseCDF_SSvalues./SSvalues_AggVars(i);
-        LorenzCurve(i,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,1)';
+        LorenzCurve(kk,:)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedStationaryDistVec,npoints,1)';
     end
 end
 
