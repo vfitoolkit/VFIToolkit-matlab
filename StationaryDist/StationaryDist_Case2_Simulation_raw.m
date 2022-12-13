@@ -28,7 +28,7 @@ end
 
 %%
 
-if simoptions.parallel==1 || simoptions.parallel==3
+if simoptions.parallel>0 % Note that since this is simulation we will essentially always just want to use parallel cpu
     eachsimperiods=ceil(simoptions.simperiods/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
     StationaryDistKron=zeros(N_a*N_z,simoptions.ncores);

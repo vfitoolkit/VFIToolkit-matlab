@@ -77,6 +77,7 @@ if Case1orCase2==1
         aprimePolicy_gridvals=[a1prime_grid(rem(Policy_aprime-1,n_aprime(1))+1),a2prime_grid(rem(ceil(Policy_aprime/n_aprime(1))-1,n_aprime(2))+1),a3prime_grid(rem(ceil(Policy_aprime/prod(n_aprime(1:2)))-1,n_aprime(3))+1),a4prime_grid(ceil(Policy_aprime/prod(n_aprime(1:3))))];
     end
 else % Case1orCase2==2
+    aprimePolicy_gridvals=nan; % there is no aprime when using Case2
     Policy_d=reshape(PolicyKron,[N_a*N_z,1]);
     if l_d==1
         dPolicy_gridvals=d_grid(Policy_d);

@@ -77,6 +77,7 @@ if Case1orCase2==1
         aprimePolicy_gridvals=[a1prime_grid(Policy_aprime(:,1)),a2prime_grid(Policy_aprime(:,2)),a3prime_grid(Policy_aprime(:,3)),a4prime_grid(Policy_aprime(:,4))];
     end
 else % Case1orCase2==2
+    aprimePolicy_gridvals=nan; % there is no aprime when using Case2
     Policy_d=Policy';
     if l_d==1
         dPolicy_gridvals=d_grid(Policy_d);
