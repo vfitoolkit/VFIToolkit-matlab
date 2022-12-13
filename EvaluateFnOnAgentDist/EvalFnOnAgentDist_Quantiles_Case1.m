@@ -1,6 +1,6 @@
 function varargout=EvalFnOnAgentDist_Quantiles_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, NumQuantiles, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel)
-%Returns the cut-off values and the within percentile means from dividing
-%the StationaryDist into NumPercentiles percentiles.
+% Returns the cut-off values and the within percentile means from dividing
+% the StationaryDist into NumPercentiles percentiles.
 %
 % Parallel is an optional input
 
@@ -48,7 +48,10 @@ end
 %%
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
-if Parallel==2    
+if Parallel==2
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+    z_grid=gpuArray(z_grid);
     QuantileCutOffs=zeros(length(FnsToEvaluate),NumQuantiles+1,'gpuArray'); %Includes min and max
     QuantileMeans=zeros(length(FnsToEvaluate),NumQuantiles,'gpuArray');
     
@@ -79,7 +82,7 @@ if Parallel==2
         QuantileCutoffs_i=zeros(1,NumQuantiles-1,'gpuArray');
         QuantileMeans_i=zeros(1,NumQuantiles,'gpuArray');
         for ii=1:NumQuantiles-1
-            [~,tempindex]=find(CumSumSortedWeights>=ii/NumQuantiles,1,'first');
+            [tempindex,~]=find(CumSumSortedWeights>=ii/NumQuantiles,1,'first');
             QuantileIndexes_i(ii)=tempindex;
             QuantileCutoffs_i(ii)=SortedValues(tempindex);
             if ii==1
@@ -93,10 +96,10 @@ if Parallel==2
         end
         
         % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
+        [tempindex,~]=find(CumSumSortedWeights>=Tolerance,1,'first');
         minvalue=SortedValues(tempindex);
         % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
+        [tempindex,~]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
         QuantileCutOffs(kk,:)=[minvalue, QuantileCutoffs_i, maxvalue];
@@ -160,7 +163,7 @@ else
         QuantileCutoffs_i=zeros(1,NumQuantiles-1);
         QuantileMeans_i=zeros(1,NumQuantiles);
         for ii=1:NumQuantiles-1
-            [~,tempindex]=find(CumSumSortedWeights>=ii/NumQuantiles,1,'first');
+            [tempindex,~]=find(CumSumSortedWeights>=ii/NumQuantiles,1,'first');
             QuantileIndexes_i(ii)=tempindex;
             QuantileCutoffs_i(ii)=SortedValues(tempindex);
             if ii==1
@@ -174,10 +177,10 @@ else
         end
         
         % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
+        [tempindex,~]=find(CumSumSortedWeights>=Tolerance,1,'first');
         minvalue=SortedValues(tempindex);
         % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
+        [tempindex,~]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
         maxvalue=SortedValues(tempindex);
         
         QuantileCutOffs(kk,:)=[minvalue, QuantileCutoffs_i, maxvalue];
@@ -196,7 +199,7 @@ if FnsToEvaluateStruct==1
         Quantiles.(AggVarNames{ff}).QuantileCutOffs=QuantileCutOffs(ff,:);
     end
     
-    varargout=Quantiles;
+    varargout={Quantiles};
 else
     varargout={QuantileCutOffs, QuantileMeans};
 end
