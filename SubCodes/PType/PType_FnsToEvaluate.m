@@ -16,6 +16,7 @@ if FnsToEvaluate_StructToCell==0 % Structure
     numFnsToEvaluate=length(FnNames);
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
     FnsToEvaluateParamNames_temp=[]; % Ignore, is filled in by subcodes
+    FnsAndPTypeIndicator_ii=zeros(numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for ff=1:numFnsToEvaluate
         % Note: I keep it as a structure to avoid having to find the input names here (which needs to allow for things like using n_e)
@@ -45,6 +46,7 @@ elseif FnsToEvaluate_StructToCell==1 % Structure, but output as cell
     FnNames=fieldnames(FnsToEvaluate);
     numFnsToEvaluate=length(FnNames);
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
+    FnsAndPTypeIndicator_ii=zeros(numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for ff=1:numFnsToEvaluate
         if isstruct(FnsToEvaluate.(FnNames{ff}))

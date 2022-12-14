@@ -483,6 +483,11 @@ end
 
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization') 
+    if vfoptions.parallel==1 && vfoptions.lowmemory==2
+        fprintf('Use of vfoptions.lowmemory=2 in not supported for cpu, have switched to vfoptions.lowmemory=1 \n')
+        vfoptions.lowmemory=1;
+    end
+
     if vfoptions.lowmemory==0
         
         %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
@@ -527,8 +532,6 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             tic;
         end
         
-        %%
-        %     V0=reshape(V0,[N_a,N_z]);
         
         if n_d(1)==0
             if vfoptions.parallel==0     % On CPU
@@ -550,9 +553,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
         
     elseif vfoptions.lowmemory==1
-        
-        %     V0=reshape(V0,[N_a,N_z]);
-        
+                
         if vfoptions.verbose==1
             disp('Starting Value Function')
             tic;
@@ -577,9 +578,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
         
     elseif vfoptions.lowmemory==2
-        
-        %     V0=reshape(V0,[N_a,N_z]);
-        
+                
         if vfoptions.verbose==1
             disp('Starting Value Function')
             tic;
