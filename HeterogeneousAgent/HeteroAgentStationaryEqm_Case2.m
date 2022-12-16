@@ -47,6 +47,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.verbose=0;
     heteroagentoptions.fminalgo=1; % use fminsearch
+    heteroagentoptions.outputGEform=0; % output of subfn is a scalar
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
@@ -70,6 +71,9 @@ else
     end
     if isfield(heteroagentoptions,'fminalgo')==0
         heteroagentoptions.fminalgo=1; % use fminsearch
+    end
+    if isfield(heteroagentoptions,'outputGEform')==0
+        heteroagentoptions.outputGEform=0; % output of subfn is a scalar
     end
 end
 

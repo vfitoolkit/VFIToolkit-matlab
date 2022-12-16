@@ -184,19 +184,22 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
         PtransposeA=sparse(N_a,N_a*N_z*N_e);  % Start with P (a,z,e) to a' (Note, create P')
         PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=1; % Fill in the a' transitions based on Policy
         
-        
+        % Note: Create Ptranspose as (a,z,e)-to-(a',z') as best to use to
+        % multiply lag of agent dist, and then just iid distribute over e
+        % later in a 'seperate' step (is same line of code, but splits the
+        % steps)
         pi_z=sparse(pi_z);
         try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
             Ptranspose=kron(ones(1,N_e),kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),PtransposeA);
         catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
             pi_z=gather(pi_z); % The indexing used can only be done on cpu
-            Ptranspose=kron(ones(N_z*N_e,1),PtransposeA);
-            for ii=1:N_z
-                % NOT SURE ABOUT THIS LINE!!??
-                Ptranspose(:,(1:1:N_a)+N_a*(ii-1)+N_a*N_z*((1:1:N_e)-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)+N_a*N_z*((1:1:N_e)-1)).*kron(ones(N_e,N_e),kron(pi_z(ii,:)',ones(N_a,N_a)));
+            Ptranspose=sparse(N_a*N_z,N_a*N_z*N_e);
+            aaa=(kron(ones(1,N_z),(1:1:N_a))+N_a*kron(((1:1:N_z)-1),ones(1,N_a)));
+            for ii=1:N_e
+                Ptranspose(:,aaa+(ii-1)*N_a*N_z)=kron(ones(N_z,1),PtransposeA(:,aaa+(ii-1)*N_a*N_z)).*kron(pi_z',ones(N_a,N_a));
             end
         end
-
+        
         StationaryDistKron(:,jj+1)=kron(pi_e, Ptranspose*StationaryDistKron(:,jj));
     end
     
@@ -258,14 +261,11 @@ elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P
             Ptranspose=kron(ones(1,N_e),kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),PtransposeA);
         catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
             pi_z=gather(pi_z); % The indexing used can only be donoe on cpu
-            Ptranspose=kron(ones(N_z,1),PtransposeA);
-            for ii=1:N_z
-                for jj=1:N_e
-                    % NOT SURE ABOUT THIS LINE!!??
-                    Ptranspose(:,(1:1:N_a)+N_a*(ii-1)+N_a*N_z*(jj-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)+N_a*N_z*(jj-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
-                end
+            Ptranspose=sparse(N_a*N_z,N_a*N_z*N_e);
+            aaa=(kron(ones(1,N_z),(1:1:N_a))+N_a*kron(((1:1:N_z)-1),ones(1,N_a)));
+            for ii=1:N_e
+                Ptranspose(:,aaa+(ii-1)*N_a*N_z)=kron(ones(N_z,1),PtransposeA(:,aaa+(ii-1)*N_a*N_z)).*kron(pi_z',ones(N_a,N_a));
             end
-    
         end
         
         Ptranspose=gpuArray(Ptranspose);
