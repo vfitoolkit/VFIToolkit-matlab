@@ -34,16 +34,16 @@ elseif fieldexists_ExogShockFn==1
 end
 
 if simoptions.parallel~=2
+%   Implicitly: AgentDist(:,1)=AgentDist(:,1); % Assume that endowment characteristics of newborngeneration are not changing over the transition path.
     
     AgentDist=reshape(AgentDist,[N_a*N_z,N_j]);
-%   Implicitly: AgentDist(:,1)=AgentDist(:,1); % Assume that endowment characteristics of newborngeneration are not changing over the transition path.
     
     % Remove the existing age weights, then impose the new age weights at the end 
     % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
-%     size((ones(N_a*N_z,1)*sum(AgentDist,1)))
     AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
 
-    for jj=1:(N_j-1)
+    for jjr=1:(N_j-1)
+        jj=N_j-jjr; % It is important that this is in reverse order (due to just overwriting AgentDist)
         pi_z=pi_z_J(:,:,jj);
         
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
@@ -67,18 +67,16 @@ if simoptions.parallel~=2
     end
     
 elseif simoptions.parallel==2 % Using the GPU
-        
+    %   Implicitly: AgentDist(:,1)=AgentDist(:,1); % Assume that endowment characteristics of newborngeneration are not changing over the transition path.
+
     % Remove the existing age weights, then impose the new age weights at the end 
     % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
     AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
     
-%     AgentDist=zeros(N_a*N_z,N_j,'gpuArray');
-%     AgentDist(:,1)=AgentDist; % Assume that endowment characteristics of newborn
-%     generation are not changing over the transition path.
-    
     % First, generate the transition matrix P=g of Q (the convolution of the 
     % optimal policy function and the transition fn for exogenous shocks)
-    for jj=1:(N_j-1)
+    for jjr=1:(N_j-1)
+        jj=N_j-jjr; % It is important that this is in reverse order (due to just overwriting AgentDist)
         pi_z=pi_z_J(:,:,jj);
         
         if N_d==0 %length(n_d)==1 && n_d(1)==0
