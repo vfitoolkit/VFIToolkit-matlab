@@ -28,7 +28,7 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,znum,xnu
 %
 % Note: nMoments is hard-coded as 2 for z (conditional moments to be matched by Farmer-Toda method)
 % Note: method 'even' grid is hard-coded for z
-% Note: y uses default nMoments (2), and follows method (default depend on phi, see discretizeAR1_FarmerToda)
+% Note: z uses default nMoments (2), and follows method (default depend on phi, see discretizeAR1_FarmerToda)
 %
 % (c) 2016 Leland E. Farmer and Alexis Akira Toda (v1.2, 2019)
 % This version was lightly modified by Robert Kirkby
@@ -73,7 +73,7 @@ end
 z_grid = linspace(-farmertodaoptions.nSigmaZ*sigmaZ,farmertodaoptions.nSigmaZ*sigmaZ,znum);
 
 Nm = xnum*znum; % total number of state variable pairs
-%yxGrids = flipud(combvec(xGrid,yGrid))';
+%zxGrids = flipud(combvec(xGrid,zGrid))';
 temp1 = repmat(x_grid,1,znum);
 temp2 = kron(z_grid,ones(1,xnum));
 zx_grid = flipud([temp1; temp2])'; % avoid using combvec, which requires deep learning toolbox
