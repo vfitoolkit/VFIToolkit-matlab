@@ -23,6 +23,7 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,znum,xnu
 % Output: 
 %   z_grid:   - stacked column vector, x on top, z below (so z_grid(1:xnum)is the grid on x, z_grid(xnum+1:end) is the grid on z)
 %   P:        - joint transition matrix on (x,z)
+%     Note, the dimensions of the output are thus interpreted as [xnum,znum]
 %
 % Useful info: E[z_t]=mu (constant divided by 1-autocorrelation coeff; that is advantage of writing constant as (1-phi*mu).)
 %
@@ -40,12 +41,12 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,znum,xnu
 %% Set defaults
 if ~exist('farmertodaoptions','var')
     % If farmertodaoptions.method is not declared then just leave it to discretizeAR1_FarmerToda
-    farmertodaoptions.nSigmaZ = sqrt((znum-1)/2); % spacing parameter for z process
+    farmertodaoptions.nSigmaZ = min(sqrt((znum-1)/2),2); % spacing parameter for z process
     farmertodaoptions.parallel=1+(gpuDeviceCount>0);
 else
     % define grid spacing parameter if not provided (only used for 'even' method)
     if ~isfield(farmertodaoptions,'nSigmaZ') 
-        farmertodaoptions.nSigmaZ = sqrt((znum-1)/2); % spacing parameter for z process
+        farmertodaoptions.nSigmaZ = min(sqrt((znum-1)/2),2); % spacing parameter for z process
     end
     if ~isfield(farmertodaoptions,'parallel')
         farmertodaoptions.parallel=1+(gpuDeviceCount>0);
@@ -62,10 +63,12 @@ sigmaZ = sqrt(exp(xBar+sigmaX/2)/(1-rho^2)); % uncondtional standard deviation o
 %% Construct technology process approximation
 if farmertodaoptions.parallel==2
     farmertodaoptions.parallel=1;
-    [x_grid,Px] = discretizeAR1_FarmerToda(xBar*(1-phi),phi,sigmae,xnum,farmertodaoptions); % Note: uses farmertodaoptions.method and farmertodaoptions.nMoments
+    farmertodaoptions.nSigmas=2;
+    [x_grid,Px] = discretizeVAR1_FarmerToda(xBar*(1-phi),phi,sigmae^2,xnum,farmertodaoptions);
     farmertodaoptions.parallel=2;
 else
-    [x_grid,Px] = discretizeAR1_FarmerToda(xBar*(1-phi),phi,sigmae,xnum,farmertodaoptions); % Note: uses farmertodaoptions.method and farmertodaoptions.nMoments
+    farmertodaoptions.nSigmas=2;
+    [x_grid,Px] = discretizeVAR1_FarmerToda(xBar*(1-phi),phi,sigmae^2,xnum,farmertodaoptions);
 end
 % [Px,x_grid] = discreteVAR(xBar*(1-phi),phi,sigmae^2,xnum,2,farmertodaoptions.method); % discretization of variance process
 
@@ -74,8 +77,9 @@ z_grid = linspace(-farmertodaoptions.nSigmaZ*sigmaZ,farmertodaoptions.nSigmaZ*si
 
 Nm = xnum*znum; % total number of state variable pairs
 %zxGrids = flipud(combvec(xGrid,zGrid))';
-temp1 = repmat(x_grid,1,znum);
+temp1 = repmat(x_grid',1,znum);
 temp2 = kron(z_grid,ones(1,xnum));
+
 zx_grid = flipud([temp1; temp2])'; % avoid using combvec, which requires deep learning toolbox
 P = zeros(Nm);
 lambdaGuess = zeros(2,1);
@@ -102,7 +106,7 @@ end
 % Original Farmer-Toda code output zx_grid.
 % I instead output a stacked vector.
 
-z_grid=[x_grid';z_grid'];
+z_grid=[x_grid; z_grid'];
 
 %%
 
