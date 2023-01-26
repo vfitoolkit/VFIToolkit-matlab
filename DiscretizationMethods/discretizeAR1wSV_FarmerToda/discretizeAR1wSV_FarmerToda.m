@@ -1,4 +1,4 @@
-function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,znum,xnum,farmertodaoptions)
+function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
 %
 %  Discretize an AR(1) process with log AR(1) stochastic volatility using Farmer-Toda method
