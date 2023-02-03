@@ -30,6 +30,7 @@ if exist('vfoptions','var')==0
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
+    vfoptions.outputkron=0; % If 1 then leave output in Kron form
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
 %     if ~isfield(vfoptions,'exoticpreferences')
@@ -78,6 +79,9 @@ else
     end
     if isfield(vfoptions,'EiidShockFn')
         vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    end
+    if ~isfield(vfoptions,'outputkron')
+        vfoptions.outputkron=0; % If 1 then leave output in Kron form
     end
 end
 
@@ -388,22 +392,27 @@ else
 end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-if isfield(vfoptions,'n_e')
-    if N_z==0
-        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+if vfoptions.outputkron==0
+    if isfield(vfoptions,'n_e')
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        end
     else
-        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        if N_z==0
+            V=reshape(VKron,[n_a,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+        else
+            V=reshape(VKron,[n_a,n_z,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        end
     end
 else
-    if N_z==0
-        V=reshape(VKron,[n_a,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
-    else
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
-    end
+    V=VKron;
+    Policy=PolicyKron;
 end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean

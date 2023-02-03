@@ -46,6 +46,7 @@ if exist('simoptions','var')==0
     end
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
+    simoptions.outputkron=0; % If 1 then leave output in Kron form
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -75,6 +76,9 @@ else
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
+    if isfield(simoptions,'outputkron')==0
+        simoptions.outputkron=0; % If 1 then leave output in Kron form
+    end
 end
 
 jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
@@ -96,6 +100,11 @@ elseif simoptions.iterate==1
     StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_z,N_j,pi_z,Parameters,simoptions);
 end
 
-StationaryDist=reshape(StationaryDistKron,[n_a,n_z,N_j]);
+if simoptions.outputkron==0
+    StationaryDist=reshape(StationaryDistKron,[n_a,n_z,N_j]);
+else
+    % If 1 then leave output in Kron form
+    StationaryDist=reshape(StationaryDistKron,[N_a,N_z,N_j]);
+end
 
 end

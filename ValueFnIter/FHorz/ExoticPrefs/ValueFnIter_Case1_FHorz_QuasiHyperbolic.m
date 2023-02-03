@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function varargout=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % Let V_j be the standard (exponential discounting) solution to the value fn problem
@@ -43,15 +43,15 @@ if vfoptions.parallel==2
                 pi_e=vfoptions.pi_e;
             end
             if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     else
@@ -67,15 +67,15 @@ if vfoptions.parallel==2
                 pi_e=vfoptions.pi_e;
             end
             if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_noz_e_raw(n_d,n_a, vfoptions.n_e, N_j, d_grid, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_noz_e_raw(n_d,n_a, vfoptions.n_e, N_j, d_grid, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_e_raw(n_d,n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_e_raw(n_d,n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_noz_raw(n_d,n_a, N_j, d_grid, a_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_noz_raw(n_d,n_a, N_j, d_grid, a_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron,ValtKron]=ValueFnIter_Case1_FHorz_QuasiHyperbolic_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end
@@ -83,24 +83,44 @@ elseif vfoptions.parallel==0 || vfoptions.parallel==1
     error('Quasi-Hyperbolic currently only implemented for Parallel=2: email me')
 end
 
-
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-if isfield(vfoptions,'n_e')
-    if N_z==0
-        V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+if vfoptions.outputkron==0
+    if isfield(vfoptions,'n_e')
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        end
     else
-        V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        if N_z==0
+            V=reshape(VKron,[n_a,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+        else
+            V=reshape(VKron,[n_a,n_z,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        end
+    end
+    nOutputs = nargout;
+    if nOutputs==3 % Valt will be output, so also need to unkron it
+        if isfield(vfoptions,'n_e')
+            if N_z==0
+                Valt=reshape(ValtKron,[n_a,vfoptions.n_e,N_j]);
+            else
+                Valt=reshape(ValtKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            end
+        else
+            if N_z==0
+                Valt=reshape(ValtKron,[n_a,N_j]);
+            else
+                Valt=reshape(ValtKron,[n_a,n_z,N_j]);
+            end
+        end
     end
 else
-    if N_z==0
-        V=reshape(VKron,[n_a,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
-    else
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
-    end
+    V=VKron;
+    Policy=PolicyKron;
 end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
@@ -129,6 +149,15 @@ if vfoptions.policy_forceintegertype==1
 elseif vfoptions.policy_forceintegertype==2
     % Do the actual rounding to integers
     Policy=round(Policy);
+end
+
+% The basic version just returns two outputs, but it is possible to request
+% three as might want to see the 'other' value fn which is used in the expectations.
+nOutputs = nargout;
+if nOutputs==2
+    varargout={V,Policy}; % Policy will be Policytilde, value fn is Vtilde if naive, Vhat if sophisticated
+elseif nOutputs==3
+    varargout={V,Policy,Valt}; % Valt with be V if naive, Vunderbar if sophisticated
 end
 
 end

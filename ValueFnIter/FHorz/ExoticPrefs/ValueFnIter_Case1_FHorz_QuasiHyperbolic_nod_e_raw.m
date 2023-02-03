@@ -99,47 +99,190 @@ if vfoptions.lowmemory>0
     end
 end
 
-if vfoptions.lowmemory==0
-    
-    %if vfoptions.returnmatrix==2 % GPU
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
-    %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,:,N_j)=Vtemp;
-    Policy(:,:,:,N_j)=maxindex;
+if ~isfield(vfoptions,'V_Jplus1')
+    if vfoptions.lowmemory==0
 
-elseif vfoptions.lowmemory==1
-    
-    for e_c=1:N_e
-        e_val=e_gridvals(e_c,:);
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_grid, e_val, ReturnFnParamsVec);
-        % Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-        V(:,:,e_c,N_j)=Vtemp;
-        Policy(:,:,e_c,N_j)=maxindex;
-    end
-        
-elseif vfoptions.lowmemory==2
-    
-    for e_c=1:N_e
-        e_val=e_gridvals(e_c,:);
-        for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
-            ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
+        %if vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        V(:,:,:,N_j)=Vtemp;
+        Policy(:,:,:,N_j)=maxindex;
+
+    elseif vfoptions.lowmemory==1
+
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_grid, e_val, ReturnFnParamsVec);
             % Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
-            V(:,z_c,e_c,N_j)=Vtemp;
-            Policy(:,z_c,e_c,N_j)=maxindex;
+            [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+            V(:,:,e_c,N_j)=Vtemp;
+            Policy(:,:,e_c,N_j)=maxindex;
         end
+
+    elseif vfoptions.lowmemory==2
+
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            for z_c=1:N_z
+                z_val=z_gridvals(z_c,:);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
+                % Calc the max and it's index
+                [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
+                V(:,z_c,e_c,N_j)=Vtemp;
+                Policy(:,z_c,e_c,N_j)=maxindex;
+            end
+        end
+
     end
+
+    if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+        Vtilde=V;
+    else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+        Vunderbar=V;
+    end
+
+else
+    % Using V_Jplus1
+    % Note: The V_Jplus1 input should be V if naive, Vunderbar if sophisticated
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
+
+    % Preallocate Vtilde and Vunderbar
+    if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+        Vtilde=V;
+    else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+        Vunderbar=V;
+    end
+
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    if length(DiscountFactorParamsVec)>2
+        DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-1));DiscountFactorParamsVec(end)];
+    end
+    beta=prod(DiscountFactorParamsVec(1:end-1)); % Discount factor between any two future periods
+    beta0beta=prod(DiscountFactorParamsVec); % Discount factor between today and tomorrow.
+
+    VKronNext_j=sum(V_Jplus1.*pi_e,3); % Note: The V_Jplus1 input should be V if naive, Vunderbar if sophisticated
     
+    if vfoptions.lowmemory==0
+        
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
+
+        % Use sparse for a few lines until sum over zprime
+        EV=VKronNext_j.*shiftdim(pi_z',-1);
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+        
+        if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+            % For naive, we compute V which is the exponential discounter case, and then from this we get Vtilde and
+            % Policy (which is Policytilde) that correspond to the naive quasihyperbolic discounter
+            % First V
+            entireRHS=ReturnMatrix+beta*repmat(EV,1,N_a,1,N_e); % Use the two-future-periods discount factor
+            [Vtemp,~]=max(entireRHS,[],1);
+            V(:,:,:,N_j)=shiftdim(Vtemp,1);
+            % Now Vtilde and Policy
+            entireRHS=ReturnMatrix+beta0beta*repmat(EV,1,N_a,1,N_e); % Use today-to-tomorrow discount factor
+            [Vtemp,maxindex]=max(entireRHS,[],1);
+            Vtilde(:,:,:,N_j)=shiftdim(Vtemp,1); % Evaluate what would have done under exponential discounting
+            Policy(:,:,:,N_j)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
+        elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+            % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
+            % and then we compute Vunderbar.
+            % First Vhat
+            entireRHS=ReturnMatrix+beta0beta*repmat(EV,1,N_a,1,N_e);  % Use the today-to-tomorrow discount factor
+            [Vtemp,maxindex]=max(entireRHS,[],1);
+            V(:,:,:,N_j)=shiftdim(Vtemp,1); % Note that this is Vhat when sophisticated
+            Policy(:,:,:,N_j)=shiftdim(maxindex,1); % This is the policy from solving the problem of Vhat
+            % Now Vstar
+            entireRHS=ReturnMatrix+beta*repmat(EV,1,N_a,1,N_e); % Use the two-future-periods discount factor
+            maxindexfull=maxindex+N_a*(0:1:N_a-1);
+            Vunderbar(:,:,:,N_j)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
+        end
+        
+    elseif vfoptions.lowmemory==1
+        EV=VKronNext_j.*shiftdim(pi_z',-1);
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+                
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid, e_val, ReturnFnParamsVec);
+                       
+            if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+                % For naive, we compue V which is the exponential
+                % discounter case, and then from this we get Vtilde and
+                % Policy (which is Policytilde) that correspond to the
+                % naive quasihyperbolic discounter
+                % First V
+                entireRHS_e=ReturnMatrix_e+beta*EV*ones(1,N_a,1); % Use the two-future-periods discount factor                
+                [Vtemp,~]=max(entireRHS_e,[],1);
+                V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
+                % Now Vtilde and Policy
+                entireRHS_e=ReturnMatrix_e+beta0beta*EV*ones(1,N_a,1);
+                [Vtemp,maxindex]=max(entireRHS_e,[],1);
+                Vtilde(:,:,e_c,N_j)=shiftdim(Vtemp,1); % Evaluate what would have done under quasi-hyperbolic discounting
+                Policy(:,:,e_c,N_j)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
+            elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')  
+                % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat) 
+                % and then we compute Vunderbar.
+                % First Vhat
+                entireRHS_e=ReturnMatrix_e+beta0beta*EV*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+                [Vtemp,maxindex]=max(entireRHS_e,[],1);
+                V(:,:,e_c,N_j)=shiftdim(Vtemp,1); % Note that this is Vhat when sophisticated
+                Policy(:,:,e_c,N_j)=shiftdim(maxindex,1); % This is the policy from solving the problem of Vhat
+                % Now Vstar
+                entireRHS_e=ReturnMatrix_e+beta*EV*ones(1,N_a,1); % Use the two-future-periods discount factor
+                maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                Vunderbar(:,:,e_c,N_j)=entireRHS_e(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
+            end
+        end
+        
+    elseif vfoptions.lowmemory==2
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            for z_c=1:N_z
+                z_val=z_gridvals(z_c,:);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                
+                %Calc the condl expectation term (except beta), which depends on z but
+                %not on control variables
+                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z=sum(EV_z,2);
+                                
+                if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+                    % For naive, we compue V which is the exponential
+                    % discounter case, and then from this we get Vtilde and
+                    % Policy (which is Policytilde) that correspond to the
+                    % naive quasihyperbolic discounter
+                    % First V
+                    entireRHS_ez=ReturnMatrix_ze+beta*EV_z*ones(1,N_a,1); % Use the two-future-periods discount factor
+                    [Vtemp,~]=max(entireRHS_ez,[],1);
+                    V(:,z_c,e_c,N_j)=Vtemp;
+                    % Now Vtilde and Policy
+                    entireRHS_ez=ReturnMatrix_ze+beta0beta*EV_z*ones(1,N_a,1);
+                    [Vtemp,maxindex]=max(entireRHS_ez,[],1);
+                    Vtilde(:,z_c,e_c,N_j)=Vtemp; % Evaluate what would have done under quasi-hyperbolic discounting
+                    Policy(:,z_c,e_c,N_j)=maxindex; % Use the policy from solving the problem of Vtilde
+                elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+                    % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
+                    % and then we compute Vunderbar.
+                    % First Vhat
+                    entireRHS_ez=ReturnMatrix_ze+beta0beta*EV_z*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+                    [Vtemp,maxindex]=max(entireRHS_ez,[],1);
+                    V(:,z_c,e_c,N_j)=Vtemp; % Note that this is Vhat when sophisticated
+                    Policy(:,z_c,e_c,N_j)=maxindex; % This is the policy from solving the problem of Vhat
+                    % Now Vstar
+                    entireRHS_ez=ReturnMatrix_ze+beta*EV_z*ones(1,N_a,1); % Use the two-future-periods discount factor
+                    maxindexfull=maxindex+N_a*(0:1:N_a-1);
+                    Vunderbar(:,z_c,e_c,N_j)=entireRHS_ez(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
+                end
+            end
+            
+        end
+        
+    end
 end
 
-if strcmp(vfoptions.quasi_hyperbolic,'Naive')
-    Vtilde=V;
-else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-    Vunderbar=V;
-end
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
@@ -341,10 +484,21 @@ for reverse_j=1:N_j-1
     end
 end
 
-if strcmp(vfoptions.quasi_hyperbolic,'Naive')
-    varargout={Vtilde,Policy}; % Policy will be Policytilde
-else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-    varargout={V,Policy}; % Policy will be Policyhat, V will be Vhat
+% The basic version just returns two outputs, but it is possible to request
+% three as might want to see the 'other' value fn which is used in the expectations.
+nOutputs = nargout;
+if nOutputs==2
+    if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+        varargout={Vtilde,Policy}; % Policy will be Policytilde, value fn is Vtilde
+    else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+        varargout={V,Policy}; % Policy will be Policyhat, value fn is Vhat
+    end
+elseif nOutputs==3
+    if strcmp(vfoptions.quasi_hyperbolic,'Naive')
+        varargout={Vtilde,Policy,V}; % Policy will be Policytilde, value fns are Vtilde and V
+    else % strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+        varargout={V,Policy,Vunderbar}; % Policy will be Policyhat, value fns are Vhat and Vunderbar
+    end
 end
 
 

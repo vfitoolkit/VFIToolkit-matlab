@@ -215,7 +215,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Parallel_temp=1;
         end
         if isfield(simoptions_temp,'parallel')
-            Parallel_temp=simoptions.parallel;
+            Parallel_temp=simoptions_temp.parallel;
             if Parallel_temp~=2
                 PolicyIndexes_temp=gather(PolicyIndexes_temp);
                 StationaryDist_temp=gather(StationaryDist_temp);
@@ -317,8 +317,7 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         % Note: next line uses FnsToEvaluate_kk
         [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_kk,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
         FnsAndPTypeIndicator_kk(ii)=FnsAndPTypeIndicator_ii;
-
-
+        
         %% We have set up the current PType, now do some calculations for it.
         simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
         ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));

@@ -18,6 +18,7 @@ if exist('simoptions','var')==0
     end
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
+    simoptions.outputkron=0; % If 1 then leave output in Kron form
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -44,6 +45,9 @@ else
     if isfield(simoptions,'iterate')==0
         simoptions.iterate=1;
     end
+    if isfield(simoptions,'outputkron')==0
+        simoptions.outputkron=0; % If 1 then leave output in Kron form
+    end
 end
 
 jequaloneDistKron=reshape(jequaloneDist,[N_a,1]);
@@ -64,7 +68,8 @@ elseif simoptions.iterate==1
     StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_noz_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d,N_a,N_j,Parameters,simoptions);
 end
 
-StationaryDist=reshape(StationaryDistKron,[n_a,N_j]);
-
+if simoptions.outputkron==0 % If 1 then leave output in Kron form
+    StationaryDist=reshape(StationaryDistKron,[n_a,N_j]);
+end
 
 end

@@ -39,7 +39,6 @@ if length(DiscountFactorParamsVec)>3
     DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
 end
 
-
 if fieldexists_pi_e_J==1
     e_grid=vfoptions.e_grid_J(:,N_j);
     pi_e=vfoptions.pi_e_J(:,N_j);
@@ -69,38 +68,103 @@ if vfoptions.lowmemory>0
 end
 
 
+if ~isfield(vfoptions,'V_Jplus1')
+    if vfoptions.lowmemory==0
 
-if vfoptions.lowmemory==0
-    
-    %if vfoptions.returnmatrix==2 % GPU
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a,n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
-    % Modify the Return Function appropriately for Epstein-Zin Preferences
-    % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
-    % skip this and alter the (1-beta) term appropriately. Further, as this
-    % is just multiplying by a constant nor will it effect the argmax, so
-    % can just scale solution to the max directly.
-    %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
-    Policy(:,:,N_j)=maxindex;
-
-elseif vfoptions.lowmemory==1
-    
-    %if vfoptions.returnmatrix==2 % GPU
-    for e_c=1:N_e
-        e_val=e_gridvals(e_c,:);
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+        %if vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a,n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
         % skip this and alter the (1-beta) term appropriately. Further, as this
         % is just multiplying by a constant nor will it effect the argmax, so
         % can just scale solution to the max directly.
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-        V(:,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
-        Policy(:,e_c,N_j)=maxindex;
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        V(:,:,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+        Policy(:,:,N_j)=maxindex;
+
+    elseif vfoptions.lowmemory==1
+
+        %if vfoptions.returnmatrix==2 % GPU
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+            % Modify the Return Function appropriately for Epstein-Zin Preferences
+            % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
+            % skip this and alter the (1-beta) term appropriately. Further, as this
+            % is just multiplying by a constant nor will it effect the argmax, so
+            % can just scale solution to the max directly.
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+            V(:,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+            Policy(:,e_c,N_j)=maxindex;
+        end
+
     end
+else
+    % Using V_Jplus1
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+
+    VKronNext_j=sum(V_Jplus1.*pi_e,3);
     
+    if vfoptions.lowmemory==0
+        
+        %if vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+        
+        % Modify the Return Function appropriately for Epstein-Zin Preferences
+        temp2=ReturnMatrix;
+        temp2(isfinite(ReturnMatrix))=ReturnMatrix(isfinite(ReturnMatrix)).^(1-1/DiscountFactorParamsVec(3));
+
+        %Calc the expectation term (except beta)
+        temp=VKronNext_j;
+        temp(isfinite(VKronNext_j))=VKronNext_j(isfinite(VKronNext_j)).^(1-DiscountFactorParamsVec(2));
+        temp(VKronNext_j==0)=0;
+        
+        temp3=temp;
+        temp3(isfinite(temp3))=temp3(isfinite(temp3)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
+        temp3(temp==0)=0;
+        
+        entireRHS=(1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec(1)*temp3*ones(1,N_a,N_e);
+        % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
+        % the whole entireRHS. This will be a monotone function, so just find the max, and
+        % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
+        
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+        V(:,:,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        Policy(:,:,N_j)=maxindex;
+        
+    elseif vfoptions.lowmemory==1
+        
+        %Calc the expectation term (except beta)
+        temp=VKronNext_j;
+        temp(isfinite(VKronNext_j))=VKronNext_j(isfinite(VKronNext_j)).^(1-DiscountFactorParamsVec(2));
+        temp(VKronNext_j==0)=0;
+        
+        temp3=temp;
+        temp3(isfinite(temp3))=temp3(isfinite(temp3)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
+        temp3(EV==0)=0;
+        
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+            % Modify the Return Function appropriately for Epstein-Zin Preferences
+            temp2=ReturnMatrix_e;
+            temp2(isfinite(ReturnMatrix_e))=ReturnMatrix_e(isfinite(ReturnMatrix_e)).^(1-1/DiscountFactorParamsVec(3));
+            
+            entireRHS_e=(1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec(3)*temp3*ones(1,N_a,1);
+            % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
+            % the whole entireRHS. This will be a monotone function, so just find the max, and
+            % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
+            
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_e,[],1);
+            V(:,e_c,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            Policy(:,e_c,N_j)=maxindex;
+        end
+        
+    end
 end
 
 

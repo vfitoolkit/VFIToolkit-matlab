@@ -20,43 +20,79 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
-if vfoptions.lowmemory==0
-    
-    %if vfoptions.returnmatrix==2 % GPU
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, n_a, d_grid, a_grid, vfoptions.parallel,ReturnFnParamsVec,0);
-    %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,N_j)=Vtemp;
-    Policy(:,N_j)=maxindex;
+if ~isfield(vfoptions,'V_Jplus1')
+    if vfoptions.lowmemory==0
 
-elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
-
-    parfor a_c=1:N_a
-        a_val=a_gridvals(a_c,:);
-        ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, special_n_a, d_grid, a_val, 0,ReturnFnParamsVec,0);
+        %if vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, n_a, d_grid, a_grid, vfoptions.parallel,ReturnFnParamsVec,0);
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_a);
-        V(a_c,N_j)=Vtemp;
-        Policy(a_c,N_j)=maxindex;        
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        V(:,N_j)=Vtemp;
+        Policy(:,N_j)=maxindex;
+
+    elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
+
+        parfor a_c=1:N_a
+            a_val=a_gridvals(a_c,:);
+            ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, special_n_a, d_grid, a_val, 0,ReturnFnParamsVec,0);
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix_a);
+            V(a_c,N_j)=Vtemp;
+            Policy(a_c,N_j)=maxindex;
+        end
+
     end
+else
+    % Using V_Jplus1
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
+
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+    if vfoptions.lowmemory==0
+        
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, n_a, d_grid, a_grid, vfoptions.parallel, ReturnFnParamsVec,0);
     
+        entireEV=kron(V_Jplus1,ones(N_d,1));
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,1);
+    
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+        V(:,N_j)=Vtemp;
+        Policy(:,N_j)=maxindex;
+    
+    elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
+        
+        entireEV=kron(V_Jplus1,ones(N_d,1));
+        
+        parfor a_c=1:N_a
+            a_val=a_gridvals(a_c,:);
+            ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, d_grid, a_val, 0,ReturnFnParamsVec,0);
+            
+            entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*entireEV;
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_a);
+            V(a_c,N_j)=Vtemp;
+            Policy(a_c,N_j)=maxindex;
+        end
+    end
 end
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
-    j=N_j-reverse_j;
+    jj=N_j-reverse_j;
 
     if vfoptions.verbose==1
-        fprintf('Finite horizon: %i of %i \n',j, N_j)
+        fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
     
     
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,j+1);
+    VKronNext_j=V(:,:,jj+1);
     
     if vfoptions.lowmemory==0
         
@@ -67,8 +103,8 @@ for reverse_j=1:N_j-1
     
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,j)=Vtemp;
-        Policy(:,j)=maxindex;
+        V(:,jj)=Vtemp;
+        Policy(:,jj)=maxindex;
     
     elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
         
@@ -81,8 +117,8 @@ for reverse_j=1:N_j-1
             entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*entireEV;
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_a);
-            V(a_c,j)=Vtemp;
-            Policy(a_c,j)=maxindex;
+            V(a_c,jj)=Vtemp;
+            Policy(a_c,jj)=maxindex;
         end
     end
     

@@ -30,28 +30,61 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 % Note: There is no z, so no need to deal with z_grid and pi_z depending on age
 
-if vfoptions.lowmemory==0
-    
-    %if vfoptions.returnmatrix==2 % GPU
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-    %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,N_j)=Vtemp;
-    Policy(:,:,N_j)=maxindex;
-    
-elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
-    
-    parfor a_c=1:N_a
-        a_val=a_gridvals(a_c,:);
-        ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel, ReturnFnParamsVec);
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_az);
-        V(a_c,1,N_j)=Vtemp;
-        Policy(a_c,1,N_j)=maxindex;
-    end
-    
-end
+if ~isfield(vfoptions,'V_Jplus1')
+    if vfoptions.lowmemory==0
 
+        %if vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        V(:,:,N_j)=Vtemp;
+        Policy(:,:,N_j)=maxindex;
+
+    elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
+
+        parfor a_c=1:N_a
+            a_val=a_gridvals(a_c,:);
+            ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel, ReturnFnParamsVec);
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix_az);
+            V(a_c,1,N_j)=Vtemp;
+            Policy(a_c,1,N_j)=maxindex;
+        end
+
+    end
+else
+    % Using V_Jplus1
+    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
+
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    
+    if vfoptions.lowmemory==0
+        
+        %if vfoptions.returnmatrix==2 % GPU
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+        
+        entireRHS_z=ReturnMatrix(:,:,1)+DiscountFactorParamsVec*V_Jplus1*ones(1,N_a,1);
+        
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS_z,[],1);
+        V(:,1,N_j)=Vtemp;
+        Policy(:,1,N_j)=maxindex;
+        
+    elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
+        DiscountedVKronNext_j=DiscountFactorParamsVec*V_Jplus1;
+        parfor a_c=1:N_a
+            a_val=a_gridvals(a_c,:);
+            ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
+            
+            entireRHS_az=ReturnMatrix_az+DiscountedVKronNext_j;
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_az);
+            V(a_c,1,N_j)=Vtemp;
+            Policy(a_c,1,N_j)=maxindex;
+        end
+    end
+end
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1

@@ -245,14 +245,14 @@ if Parallel==2
                     end
                     Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, [FnToEvaluateParamsVec,e_val],reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
                 end
-                AggVars(ii)=sum(sum(Values.*StationaryDistVec_e));
+                AggVars(ii,e_c)=sum(sum(Values.*StationaryDistVec_e));
             end
         end
         AggVars=sum(AggVars,2); % sum over e (note that the weighting by pi_e is already implicit in the stationary dist)
 
     else % either no e vars, or just lowmemory=0
         AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-        
+
         StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
         
         PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid);

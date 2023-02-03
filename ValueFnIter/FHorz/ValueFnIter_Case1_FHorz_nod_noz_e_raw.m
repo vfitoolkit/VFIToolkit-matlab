@@ -57,13 +57,35 @@ if all(vfoptions.parallel_e==0)
 
     pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
     
-    for e_c=1:N_e
-        e_val=e_gridvals(e_c,:);
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
-        % Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-        V(:,e_c,N_j)=Vtemp;
-        Policy(:,e_c,N_j)=maxindex;
+    if ~isfield(vfoptions,'V_Jplus1')
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
+            % Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+            V(:,e_c,N_j)=Vtemp;
+            Policy(:,e_c,N_j)=maxindex;
+        end
+    else
+        % Using V_Jplus1
+        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+
+        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+        DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+        V_Jplus1=sum(V_Jplus1.*pi_e,2);
+        for e_c=1:N_e
+            e_val=e_gridvals(e_c,:);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
+
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,1);
+
+            % Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_e,[],1);
+
+            V(:,e_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,e_c,N_j)=shiftdim(maxindex,1);
+        end
     end
 
     %% Loop backward over age
@@ -164,11 +186,32 @@ elseif all(vfoptions.parallel_e==1)
 
     pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
-    %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,N_j)=Vtemp;
-    Policy(:,:,N_j)=maxindex;
+    if ~isfield(vfoptions,'V_Jplus1')
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        V(:,:,N_j)=Vtemp;
+        Policy(:,:,N_j)=maxindex;
+    else
+        % Using V_Jplus1
+        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+
+        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+        DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+        V_Jplus1=sum(V_Jplus1.*pi_e,2);
+
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,N_e);
+        
+        % Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+        
+        V(:,:,N_j)=shiftdim(Vtemp,1);
+        Policy(:,:,N_j)=shiftdim(maxindex,1);
+    end
+
 
     %% Loop backward over age
     for reverse_j=1:N_j-1
@@ -277,14 +320,42 @@ else
     pi_e1_prime=pi_e1'; % Move to second dimension
     pi_e2=shiftdim(pi_e2,-2); % Move to thrid dimension
 
-    for e2_c=1:N_e2
-        e2_val=e2_gridvals(e2_c,:);
-        ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, ReturnFnParamsVec); % Just treat e1 like z and e2 like e
-        % Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix_e2,[],1);
-        V(:,:,e2_c,N_j)=Vtemp;
-        Policy(:,:,e2_c,N_j)=maxindex;
+    if ~isfield(vfoptions,'V_Jplus1')
+        for e2_c=1:N_e2
+            e2_val=e2_gridvals(e2_c,:);
+            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, ReturnFnParamsVec); % Just treat e1 like z and e2 like e
+            % Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix_e2,[],1);
+            V(:,:,e2_c,N_j)=Vtemp;
+            Policy(:,:,e2_c,N_j)=maxindex;
+        end
+    else
+        % Using V_Jplus1
+        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+
+        DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+        DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+        V_Jplus1=sum(V_Jplus1.*pi_e2,3);
+
+        for e2_c=1:N_e2
+            e2_val=e2_gridvals(e2_c,:);
+            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
+
+            EV_e2=V_Jplus1.*pi_e1_prime;
+            EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
+
+            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
+
+            % Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_e2,[],1);
+
+            V(:,:,e2_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,:,e2_c,N_j)=shiftdim(maxindex,1);
+        end
     end
+
 
     %% Iterate backwards through j.
     for reverse_j=1:N_j-1
