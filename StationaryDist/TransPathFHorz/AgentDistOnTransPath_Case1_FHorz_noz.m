@@ -12,8 +12,8 @@ AgentDistPath=zeros(N_a,N_j,T);
 
 % Call AgentDist the current periods distn
 AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]);
-AgentDist=AgentDist_initial;
 AgentDistPath(:,:,1)=AgentDist_initial;
+AgentDist=AgentDist_initial;
 for tt=1:T-1
     
     %Get the current optimal policy

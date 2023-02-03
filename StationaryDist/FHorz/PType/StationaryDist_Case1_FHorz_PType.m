@@ -105,7 +105,11 @@ for ii=1:N_i
     for kField=1:nFields
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
             names=fieldnames(Parameters.(FullParamNames{kField}));
-            Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{ii});
+            for jj=1:length(names)
+                if strcmp(names{jj},Names_i{ii})
+                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{jj});
+                end
+            end
         elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
             [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.

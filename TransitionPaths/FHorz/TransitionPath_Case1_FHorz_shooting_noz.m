@@ -356,9 +356,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
-    if transpathoptions.verbose==1
-        fprintf('Number of iteration on the path: %i \n',pathcounter)
-        
+    if transpathoptions.verbose==1        
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}
@@ -442,6 +440,5 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     
 
 end
-
 
 end

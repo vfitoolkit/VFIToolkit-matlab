@@ -314,15 +314,7 @@ end
 %%
 if N_z==0
     PricePath=TransitionPath_Case1_FHorz_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions);
-    % Switch the solution into structure for output.
-    for ii=1:length(PricePathNames)
-        PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
-    end
-    if transpathoptions.usestockvars==1
-        for ii=1:length(StockVarsPathNames)
-            PricePath.(StockVarsPathNames{ii})=StockVarsPathOld(:,ii);
-        end
-    end
+    % noz already switched the solution into structure for output.
     return
 end
 

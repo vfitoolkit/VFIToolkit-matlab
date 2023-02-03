@@ -94,7 +94,6 @@ if transpathoptions.parallel==2
             end
             
             PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(Policy, n_d, n_a, N_j,simoptions);
-            
             AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_noz(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, N_j, d_grid, a_grid, 2, simoptions); % The 2 is for Parallel (use GPU)
             
             AggVarsPath(tt,:)=AggVars;
@@ -107,7 +106,7 @@ if transpathoptions.parallel==2
             AggVarsPath.(AggVarNames{ff}).Mean=zeros(T,1,'gpuArray');
         end
 
-        for tt=1:T%-1
+        for tt=1:T
             AgentDist=AgentDistPath(:,:,tt);
             %Get the current optimal policy
             if N_d>0
@@ -140,7 +139,7 @@ else
         %the AggVarsPath.
         AggVarsPath=zeros(T,length(FnsToEvaluate));
 
-        for tt=1:T%-1
+        for tt=1:T
             AgentDist=AgentDistPath(:,:,tt);
             %Get the current optimal policy
             if N_d>0
@@ -169,7 +168,7 @@ else
             AggVarsPath.(AggVarNames{ff}).Mean=zeros(T,1);
         end
 
-        for tt=1:T%-1
+        for tt=1:T
             AgentDist=AgentDistPath(:,:,tt);
             %Get the current optimal policy
             if N_d>0

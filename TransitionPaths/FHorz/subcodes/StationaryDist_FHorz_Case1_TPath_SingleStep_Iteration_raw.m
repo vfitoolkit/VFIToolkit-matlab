@@ -40,7 +40,8 @@ if simoptions.parallel~=2
     
     % Remove the existing age weights, then impose the new age weights at the end 
     % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
-    AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
+    temp=sum(AgentDist,1); % Do a little bit to allow for possibility that mass of a given jj is zero as otherwise get divided by zero: (the +(temp==0) term on next line is about avoiding dividing by zero, we instead divide by one and since what will be the numerator is zero the one itself is just arbitrary)
+    AgentDist=AgentDist./(ones(N_a*N_z,1)*(temp+(temp==0))); % Note: sum(AgentDist,1) are the current age weights
 
     for jjr=1:(N_j-1)
         jj=N_j-jjr; % It is important that this is in reverse order (due to just overwriting AgentDist)
@@ -71,7 +72,8 @@ elseif simoptions.parallel==2 % Using the GPU
 
     % Remove the existing age weights, then impose the new age weights at the end 
     % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
-    AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
+    temp=sum(AgentDist,1); % Do a little bit to allow for possibility that mass of a given jj is zero as otherwise get divided by zero: (the +(temp==0) term on next line is about avoiding dividing by zero, we instead divide by one and since what will be the numerator is zero the one itself is just arbitrary)
+    AgentDist=AgentDist./(ones(N_a*N_z,1)*(temp+(temp==0))); % Note: sum(AgentDist,1) are the current age weights
     
     % First, generate the transition matrix P=g of Q (the convolution of the 
     % optimal policy function and the transition fn for exogenous shocks)
