@@ -27,7 +27,7 @@ eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockF
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
-
+jointgrid_z=0;
 if fieldexists_pi_z_J==1
     z_grid_J=simoptions.z_grid_J;
 elseif fieldexists_ExogShockFn==1
@@ -53,8 +53,12 @@ else
         z_grid_J=repmat(z_grid,1,N_j);
     end
 end
-if Parallel==2
-    z_grid_J=gpuArray(z_grid_J);
+if Parallel==2 
+    if jointgrid_z==0
+        z_grid_J=gpuArray(z_grid_J);
+    else %if jointgrid_z==1
+        z_grid=gpuArray(z_grid);
+    end
 end
 
 if isfield(simoptions,'n_e')
@@ -71,7 +75,7 @@ if isfield(simoptions,'n_e')
     N_e=prod(simoptions.n_e);
     l_e=length(simoptions.n_e);
     
-
+    jointgrid_e=0;
     if fieldexists_pi_e_J==1
         e_grid_J=simoptions.e_grid_J;
     elseif fieldexists_EiidShockFn==1
@@ -115,19 +119,18 @@ if isfield(simoptions,'n_e')
         n_z=[n_z,simoptions.n_e];
         z_gridvals=[kron(ones(N_e,1),z_grid),kron(simoptions.e_grid,ones(N_z,1))];
         jointgrids=1;
+        z_grid_J=[]; % This is just needed in case use parfor as Matlab otherwise throws an error that it cannot find it
     else
         error('Have not yet implemented a mix where only one of z and e uses joint-grids and the other does not. Email me and I will')
     end
 
     N_z=prod(n_z);
-        
 end
 
-% NEED TO HANDLE JOINT GRIDS!!!
-n_z
-simoptions.n_e
+jointgrid_z
+jointgrid_e
 jointgrids
-size(z_gridvals)
+Parallel
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -193,6 +196,10 @@ elseif Parallel==0
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     
+    if jointgrids==1
+        z_gridvals=num2cell(z_gridvals);
+    end
+    
     for ff=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
         if l_d==0
@@ -200,7 +207,7 @@ elseif Parallel==0
                 if jointgrids==0
                     z_grid=z_grid_J(:,jj);
                     z_gridvals=CreateGridvals(n_z,z_grid,2);
-                % else jointgrids==1
+                % elseif  jointgrids==1
                 %    z_gridvals is independent of age and already created above
                 end
                 
@@ -224,7 +231,7 @@ elseif Parallel==0
                 if jointgrids==0
                     z_grid=z_grid_J(:,jj);
                     z_gridvals=CreateGridvals(n_z,z_grid,2);
-                % else jointgrids==1
+                % elseif jointgrids==1
                 %    z_gridvals is independent of age and already created above
                 end
                 
@@ -257,18 +264,24 @@ else
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
     end
     
-%     parfor ff=1:length(FnsToEvaluate) % Probably not the best level at which to implement the parfor, but will do for now
-    for ff=1:length(FnsToEvaluate) % Probably not the best level at which to implement the parfor, but will do for now
+    z_gridvals_J=cell(N_z,l_z,N_j);
+    if jointgrids==1
+        for jj=1:N_j
+            z_gridvals_J(:,:,jj)=num2cell(z_gridvals);
+        end
+    else
+        for jj=1:N_j
+            z_grid=z_grid_J(:,jj);
+            z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid,2);
+        end
+    end
+    
+    parfor ff=1:length(FnsToEvaluate) % Probably not the best level at which to implement the parfor, but will do for now
         FnToEvaluateParamsCell={}; % This line was just needed to stop Matlab complaining
         Values=zeros(N_a,N_z,N_j);
         if l_d==0
             for jj=1:N_j
-                if jointgrids==0
-                    z_grid=z_grid_J(:,jj);
-                    z_gridvals=CreateGridvals(n_z,z_grid,2);
-                    % else jointgrids==1
-                    %    z_gridvals is independent of age and already created above
-                end
+                z_gridvals=z_gridvals_J(:,:,jj);
 
                 [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ff).Names)
@@ -287,12 +300,7 @@ else
             end
         else
             for jj=1:N_j
-                if jointgrids==0
-                    z_grid=z_grid_J(:,jj);
-                    z_gridvals=CreateGridvals(n_z,z_grid,2);
-                    % else jointgrids==1
-                    %    z_gridvals is independent of age and already created above
-                end
+                z_gridvals=z_gridvals_J(:,:,jj);
 
                 [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
                 if ~isempty(FnsToEvaluateParamNames(ff).Names)

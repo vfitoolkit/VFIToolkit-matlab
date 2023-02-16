@@ -116,7 +116,7 @@ catch % Otherwise do something slower but which is sparse regardless of whether 
         Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
     end
 end
-    
+
 if simoptions.parallel==2
     Ptranspose=gpuArray(Ptranspose);
     pi_z=gpuArray(pi_z);
