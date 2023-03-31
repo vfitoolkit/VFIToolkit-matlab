@@ -18,7 +18,7 @@ if simoptions.parallel<2
     for jj=1:(N_j-1)
         
         if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
 
         if fieldexists_pi_z_J==1
@@ -75,7 +75,7 @@ elseif simoptions.parallel==2 % Using the GPU
     for jj=1:(N_j-1)
         
         if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
 
         if fieldexists_pi_z_J==1
@@ -115,7 +115,7 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
     for jj=1:(N_j-1)
         
         if simoptions.verbose==1
-            sprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
         
         if fieldexists_pi_z_J==1
@@ -173,7 +173,7 @@ elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P
     for jj=1:(N_j-1)
         
         if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i (counting backwards to 1) \n',jj, N_j)
+            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
 
         if fieldexists_pi_z_J==1
@@ -221,21 +221,17 @@ elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P
     
 end
 
-% Reweight the different ages based on 'AgeWeightParamNames'. (it is
-% assumed there is only one Age Weight Parameter (name))
-FullParamNames=fieldnames(Parameters);
-nFields=length(FullParamNames);
-found=0;
-for iField=1:nFields
-    if strcmp(AgeWeightParamNames{1},FullParamNames{iField})
-        AgeWeights=Parameters.(FullParamNames{iField});
-        found=1;
-    end
+% Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
+try
+    AgeWeights=Parameters.(AgeWeightParamNames{1});
+catch
+    error('Unable to find the AgeWeightParamNames in the parameter structure')
 end
-if found==0 % Have added this check so that user can see if they are missing a parameter
-    fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
+% I assume AgeWeights is a row vector
+if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
+    AgeWeights=AgeWeights';
 end
 
-StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z,1)*AgeWeights);
+StationaryDistKron=StationaryDistKron.*AgeWeights;
 
 end
