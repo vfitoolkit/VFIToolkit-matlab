@@ -47,13 +47,13 @@ end
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.npoints=100;
-    simoptions.groupptypesforstats=1;
+    simoptions.groupptypesforstats=1; % Set default of grouping all the PTypes together when reporting statistics
     simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     simoptions.verbose=0;
     simoptions.verboseparams=0;
 else
     if ~isfield(simoptions,'groupptypesforstats')
-        simoptions.groupptypesforstats=1;
+        simoptions.groupptypesforstats=1; % Set default of grouping all the PTypes together when reporting statistics
     end
     if ~isfield(simoptions,'ptypestorecpu')
         if simoptions.groupptypesforstats==1
@@ -79,15 +79,6 @@ else
     numFnsToEvaluate=length(FnsToEvaluate);
 end
 FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
-
-% Set default of grouping all the PTypes together when reporting statistics
-if ~exist('simoptions','var')
-    simoptions.groupptypesforstats=1;
-else
-    if ~isfield(simoptions,'groupptypesforstats')
-       simoptions.groupptypesforstats=1;
-    end
-end
 
 FnNames=fieldnames(FnsToEvaluate);
 
@@ -460,6 +451,13 @@ else %simoptions.groupptypesforstats==1
 
     end
 end
+
+% C_ii
+% Cmerge'
+% C_kk'
+% % digestweights_kk
+% % qlimitvec_kk
+% simoptions
 
 % If using FnsToEvaluate as structure need to get in appropriate form for output
 if isstruct(FnsToEvaluate) && simoptions.groupptypesforstats==0

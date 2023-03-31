@@ -1,20 +1,31 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions, AgeDependentGridParamNames) %pi_z,p_val
-% Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluateFn
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions, AgeDependentGridParamNames)
+% Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 % options and AgeDependentGridParamNames is only needed when you are using Age Dependent Grids, otherwise this is not a required input.
+
+if ~exist('simoptions', 'var')
+    simoptions=struct();
+end
 
 if isa(StationaryDist,'struct')
     % Using Age Dependent Grids so send there
     % Note that in this case: d_grid is d_gridfn, a_grid is a_gridfn,
     % z_grid is z_gridfn. Parallel is options. AgeDependentGridParamNames is also needed. 
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluateFn, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions, AgeDependentGridParamNames);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case2_AgeDepGrids(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, simoptions, AgeDependentGridParamNames);
     return
 end
 
-% l_d=length(n_d);
+l_d=length(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
+
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0);
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0);
+end
+simoptions.parallel=Parallel;
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if exist('simoptions','var')
@@ -96,26 +107,36 @@ end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
+    FnsToEvaluate_copy=FnsToEvaluate; % keep a copy in case needed for conditional restrictions
     FnsToEvaluateStruct=1;
     clear FnsToEvaluateParamNames
-    AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    FnsToEvalNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(FnsToEvalNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+        if length(temp)>(l_d+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
-        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+        FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
     end    
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
 end
+if isfield(simoptions,'outputasstructure')
+    if simoptions.outputasstructure==1
+        FnsToEvaluateStruct=1;
+        FnsToEvalNames=simoptions.AggVarNames;
+    elseif simoptions.outputasstructure==0
+        FnsToEvaluateStruct=0;
+    end
+end
+
 
 %%
 if isa(StationaryDist,'gpuArray')% Parallel==2
-    AggVars=zeros(length(FnsToEvaluateFn),1,'gpuArray');
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
     
@@ -123,7 +144,7 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
-    for i=1:length(FnsToEvaluateFn)
+    for i=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
             z_grid=z_grid_J(:,jj);
@@ -134,17 +155,14 @@ if isa(StationaryDist,'gpuArray')% Parallel==2
             else
                 FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names,jj);
             end
-            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluateFn{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
+            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
         end
 %         Values=reshape(Values,[N_a*N_z,N_j]);
         AggVars(i)=sum(sum(Values.*StationaryDistVec));
     end
     
 else
-    AggVars=zeros(length(FnsToEvaluateFn),1);
-%     d_val=zeros(l_d,1);
-%     a_val=zeros(l_a,1);
-%     z_val=zeros(l_z,1);
+    AggVars=zeros(length(FnsToEvaluate),1);
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
     
     a_gridvals=CreateGridvals(n_a,a_grid,1);
@@ -154,7 +172,7 @@ else
         dPolicy_gridvals(:,jj)=CreateGridvals_Policy(PolicyIndexes(:,:,jj),n_d,[],n_a,n_z,d_grid,[],2,1);
     end
     
-    for i=1:length(FnsToEvaluateFn)
+    for i=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
         for jj=1:N_j
             z_grid=z_grid_J(:,jj);
@@ -181,7 +199,7 @@ else
                             tempcell{temp_c}=tempv(temp_c);
                         end
                     end
-                    Values(a_c,z_c,jj)=FnsToEvaluateFn{i}(tempcell{:});
+                    Values(a_c,z_c,jj)=FnsToEvaluate{i}(tempcell{:});
                 end
             end
         end

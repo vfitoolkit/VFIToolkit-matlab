@@ -26,6 +26,11 @@ if nargin<4
     presorted=0;
 end
 
+% Before we start, just throw out all the points with weight of zero. [Helps make the rest faster]
+temp=(weights~=0);
+values=values(temp);
+weights=weights(temp);
+
 if presorted==0
     % Sort the values, use the same index to sort the weights
     [values,sortindex]=sort(values);

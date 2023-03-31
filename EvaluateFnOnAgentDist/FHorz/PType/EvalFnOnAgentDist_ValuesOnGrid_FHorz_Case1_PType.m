@@ -235,7 +235,11 @@ for ii=1:N_i % First set up simoptions
         for kk=1:numFnsToEvaluate
             jj=WhichFnsForCurrentPType(kk);
             if jj>0
-                ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]);
+                if simoptions.ptypestorecpu==0
+                    ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]);
+                else
+                    ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]));
+                end
             end
         end
         
@@ -246,7 +250,11 @@ for ii=1:N_i % First set up simoptions
                 ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
             end
         end
-        ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]);
+        if simoptions.ptypestorecpu==0
+            ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]);
+        else
+            ValuesOnGrid.(Names_i{ii})=gather(reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]));
+        end
     end
     
 end

@@ -1,4 +1,4 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel,simoptions)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case2(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel,simoptions)
 % Parallel is an optional input.
 
 if n_d(1)==0
@@ -46,7 +46,7 @@ elseif fieldexists_ExogShockFn==1
         z_grid_J(:,jj)=z_grid;
     end
 else
-    if all(size(z_grid)==[N_z,l_z]) && l_z>1  % joint grid (correlated z shocks) 
+    if all(size(z_grid)==[N_z,l_z]) && l_z>1 % joint grid (correlated z shocks) 
         jointgrid_z=1;
     else
         jointgrid_z=0;
@@ -140,8 +140,8 @@ if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_d+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -162,12 +162,12 @@ end
 %%
 if Parallel==2
     ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate),'gpuArray');
-    
-    PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid);
+        
+    PolicyValues=PolicyInd2Val_FHorz_Case2(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d,N_j]
     
-    PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
+    PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*l_d,N_j]);
     for ff=1:length(FnsToEvaluate)        
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
@@ -182,7 +182,7 @@ if Parallel==2
             else
                 FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
             end
-            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ff}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case2(FnsToEvaluate{ff}, FnToEvaluateParamsVec,reshape(PolicyValuesPermuteVec(:,jj),[n_a,n_z,l_d]),n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
         end
         ValuesOnGrid(:,:,ff)=Values;
     end
@@ -200,54 +200,28 @@ elseif Parallel==0
     if jointgrids==1
         z_gridvals=num2cell(z_gridvals);
     end
-    
+
     for ff=1:length(FnsToEvaluate)
         Values=zeros(N_a,N_z,N_j);
-        if l_d==0
-            for jj=1:N_j
-                if jointgrids==0
-                    z_grid=z_grid_J(:,jj);
-                    z_gridvals=CreateGridvals(n_z,z_grid,2);
-                % elseif  jointgrids==1
-                %    z_gridvals is independent of age and already created above
-                end
-                
-                [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-                if ~isempty(FnsToEvaluateParamNames(ff).Names)
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-                end
-                for a_c=1:N_a
-                    for z_c=1:N_z
-                        % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(ff).Names)
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
-                        else
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
-                        end
-                    end
-                end
-            end
-        else
-            for jj=1:N_j
-                if jointgrids==0
-                    z_grid=z_grid_J(:,jj);
-                    z_gridvals=CreateGridvals(n_z,z_grid,2);
+        for jj=1:N_j
+            if jointgrids==0
+                z_grid=z_grid_J(:,jj);
+                z_gridvals=CreateGridvals(n_z,z_grid,2);
                 % elseif jointgrids==1
                 %    z_gridvals is independent of age and already created above
-                end
-                
-                [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-                if ~isempty(FnsToEvaluateParamNames(ff).Names)
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-                end
-                for a_c=1:N_a
-                    for z_c=1:N_z
-                        % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(ff).Names)
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
-                        else
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
-                        end
+            end
+
+            [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
+            if ~isempty(FnsToEvaluateParamNames(ff).Names)
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
+            end
+            for a_c=1:N_a
+                for z_c=1:N_z
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(FnsToEvaluateParamNames(ff).Names)
+                        Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
+                    else
+                        Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
                     end
                 end
             end
@@ -255,7 +229,7 @@ elseif Parallel==0
         ValuesOnGrid(:,:,ff)=reshape(Values,[N_a*N_z,N_j,1]);
     end
     
-else
+elseif Parallel==1
     ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate));
 
     a_gridvals=CreateGridvals(n_a,a_grid,2);
@@ -280,41 +254,20 @@ else
     parfor ff=1:length(FnsToEvaluate) % Probably not the best level at which to implement the parfor, but will do for now
         FnToEvaluateParamsCell={}; % This line was just needed to stop Matlab complaining
         Values=zeros(N_a,N_z,N_j);
-        if l_d==0
-            for jj=1:N_j
-                z_gridvals=z_gridvals_J(:,:,jj);
+        for jj=1:N_j
+            z_gridvals=z_gridvals_J(:,:,jj);
 
-                [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-                if ~isempty(FnsToEvaluateParamNames(ff).Names)
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-                end
-                for a_c=1:N_a
-                    for z_c=1:N_z
-                        % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(ff).Names)
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
-                        else
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
-                        end
-                    end
-                end
+            [d_gridvals, ~]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,2, 2);
+            if ~isempty(FnsToEvaluateParamNames(ff).Names)
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
             end
-        else
-            for jj=1:N_j
-                z_gridvals=z_gridvals_J(:,:,jj);
-
-                [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-                if ~isempty(FnsToEvaluateParamNames(ff).Names)
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-                end
-                for a_c=1:N_a
-                    for z_c=1:N_z
-                        % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(ff).Names)
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
-                        else
-                             Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
-                        end
+            for a_c=1:N_a
+                for z_c=1:N_z
+                    % Includes check for cases in which no parameters are actually required
+                    if isempty(FnsToEvaluateParamNames(ff).Names)
+                        Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
+                    else
+                        Values(a_c,z_c,jj)=FnsToEvaluate{ff}(d_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
                     end
                 end
             end
