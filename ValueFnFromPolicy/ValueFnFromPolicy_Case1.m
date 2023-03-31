@@ -1,4 +1,4 @@
-function V=ValueFnFromPolicy_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParams, vfoptions)
+function V=ValueFnFromPolicy_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 
 if exist('vfoptions','var')==1
     if isfield(vfoptions,'polindorval')==1
@@ -20,6 +20,28 @@ if exist('vfoptions','var')==1
 else
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     vfoptions.tolerance=10^(-9);
+end
+
+%% Implement new way of handling ReturnFn inputs
+if n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_a_temp=l_a;
+l_z=length(n_z);
+l_e=0;
+if isfield(vfoptions,'n_e')
+    l_e=length(vfoptions.n_e);
+end
+l_z_temp=l_z+l_e;
+% Figure it out from ReturnFn
+temp=getAnonymousFnInputNames(ReturnFn);
+if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
+    ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+else
+    ReturnFnParamNames={};
 end
 
 %% Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
@@ -46,7 +68,7 @@ if vfoptions.parallel==2
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParams);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 
     FofPolicy=EvalFnOnAgentDist_Grid_Case1(ReturnFn, ReturnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
     
@@ -113,7 +135,7 @@ else
     z_gridvals=CreateGridvals(n_z,z_grid,2);
 
     if l_d>0
-        ReturnFnParamsCell=num2cell(CreateVectorFromParams(Parameters,ReturnFnParams));
+        ReturnFnParamsCell=num2cell(CreateVectorFromParams(Parameters,ReturnFnParamNames));
         FofPolicy=zeros(N_a*N_z,1);
         for ii=1:N_a*N_z
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
@@ -122,7 +144,7 @@ else
             FofPolicy(ii)=ReturnFn(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},ReturnFnParamsCell{:});
         end
     else %l_d=0
-        ReturnFnParamsCell=num2cell(CreateVectorFromParams(Parameters,ReturnFnParams));
+        ReturnFnParamsCell=num2cell(CreateVectorFromParams(Parameters,ReturnFnParamNames));
         FofPolicy=zeros(N_a*N_z,1);
         for ii=1:N_a*N_z
             %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
