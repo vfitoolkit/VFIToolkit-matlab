@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case2_3_FHorz_EpsteinZin_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_grid,e_grid, pi_z,pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case2_3_FHorz_EpsteinZin_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_grid,e_grid, pi_z,pi_e, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
 % DiscountFactorParamNames contains the names for the three parameters relating to
 % Epstein-Zin preferences. Calling them beta, gamma, and psi,
 % respectively the Epstein-Zin preferences are given by
