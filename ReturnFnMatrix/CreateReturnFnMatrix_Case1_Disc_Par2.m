@@ -101,7 +101,6 @@ elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
     end
 end
 
-
 if l_d==0 && l_a==1 && l_z==1
     Fmatrix=arrayfun(ReturnFn, aprime1vals, a1vals, z1vals, ParamCell{:});
 elseif l_d==0 && l_a==1 && l_z==2

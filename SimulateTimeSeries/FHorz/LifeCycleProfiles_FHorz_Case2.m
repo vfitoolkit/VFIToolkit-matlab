@@ -90,6 +90,33 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+%% Implement new way of handling FnsToEvaluate
+if isstruct(FnsToEvaluate)
+    FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
+    AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+        if length(temp)>(l_d+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            FnsToEvaluateParamNames(ff).Names={};
+        end
+        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    end    
+    FnsToEvaluate=FnsToEvaluate2;
+else
+    FnsToEvaluateStruct=0;
+end
+if isfield(simoptions,'keepoutputasmatrix')
+    if simoptions.keepoutputasmatrix==1
+        FnsToEvaluateStruct=0;
+    elseif simoptions.keepoutputasmatrix==2
+        FnsToEvaluateStruct=2;
+    end
+end
+
+%%
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
