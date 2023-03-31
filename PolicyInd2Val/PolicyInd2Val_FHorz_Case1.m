@@ -74,6 +74,7 @@ if Parallel==2
 end
 
 if Parallel~=2
+    PolicyIndexes=KronPolicyIndexes_FHorz_Case1(PolicyIndexes, n_d, n_a, n_z, N_j);
     if n_d(1)==0
         PolicyValues=zeros(l_a,N_a,N_z,N_j);
         for jj=1:N_j

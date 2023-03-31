@@ -384,7 +384,7 @@ elseif Case2_Type==11  || Case2_Type==12 % (d,a,z') || (d,a,z)
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals,a3vals,a4vals, zp1vals,zp2vals,zp3vals,zp4vals,ParamCell{:});
     end
     Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_a,N_zprime]);
-if Case2_Type==2 % (d,z',z)
+elseif Case2_Type==2 % (d,z',z)
     if l_d>=1
         d1vals=d_grid(1:n_d(1));
         if l_d>=2
@@ -449,6 +449,7 @@ if Case2_Type==2 % (d,z',z)
         Phi_aprimeMatrix=arrayfun(Phi_aprime, d1vals,d2vals,d3vals,d4vals, zp1vals,zp2vals,zp3vals,zp4vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
     end
     Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d,N_zprime,N_z]);
+    
 elseif Case2_Type==3 % (d,z')
     if l_d>=1
         d1vals=d_grid(1:n_d(1));
