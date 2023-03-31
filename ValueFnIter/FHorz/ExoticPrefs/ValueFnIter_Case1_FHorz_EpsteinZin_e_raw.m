@@ -173,17 +173,18 @@ else
         %Calc the expectation term (except beta)
         temp=VKronNext_j;
         temp(isfinite(VKronNext_j))=VKronNext_j(isfinite(VKronNext_j)).^(1-DiscountFactorParamsVec(2));
-        temp(VKronNext_j==0)=0;
+        temp(VKronNext_j==0)=0; % SURELY THIS LINE IS REDUNDANT???
         % Use sparse for a few lines until sum over zprime
         EV=temp.*shiftdim(pi_z',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
+        % NOTE TO SELF. I SHOULD MODIFY, AND AFTER THAT DO THE repelem()
         entireEV=repelem(EV,N_d,1,1);
 
         temp4=entireEV;
         temp4(isfinite(temp4))=temp4(isfinite(temp4)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
-        temp4(entireEV==0)=0;
+        temp4(entireEV==0)=0; % SURELY THIS LINE IS REDUNDANT???
         
         entireRHS=(1-DiscountFactorParamsVec(1)).*temp2+DiscountFactorParamsVec(1).*temp4.*ones(1,N_a,1,N_e);
         % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of

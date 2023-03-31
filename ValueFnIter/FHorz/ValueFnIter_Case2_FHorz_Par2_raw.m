@@ -53,11 +53,6 @@ end
 
 
 if vfoptions.lowmemory==0
-    
-    ReturnFn
-    n_z
-    z_grid
-    %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -65,8 +60,6 @@ if vfoptions.lowmemory==0
     Policy(:,:,N_j)=maxindex;
     
 elseif vfoptions.lowmemory==1
-    
-    %if vfoptions.returnmatrix==2 % GPU
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
@@ -77,20 +70,14 @@ elseif vfoptions.lowmemory==1
     end
     
 elseif vfoptions.lowmemory==2
-    
-    %if vfoptions.returnmatrix==2 % GPU
-%     for z_c=1:N_z
-%         z_val=z_gridvals(z_c,:);
-        for a_c=1:N_a
-            a_val=a_gridvals(a_c,:);
-            ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_a,[],1);
-            V(a_c,:,N_j)=Vtemp;
-            Policy(a_c,:,N_j)=maxindex;
-            
-        end
-%     end
+    for a_c=1:N_a
+        a_val=a_gridvals(a_c,:);
+        ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, n_z, d_grid, a_val, z_grid, ReturnFnParamsVec);
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(ReturnMatrix_a,[],1);
+        V(a_c,:,N_j)=Vtemp;
+        Policy(a_c,:,N_j)=maxindex;
+    end
     
 end
 
@@ -248,7 +235,7 @@ if Case2_Type==11 % phi_a'(d,a,z')
         end
         
         Vnextj=V(:,:,jj+1);
-    
+        
         if vfoptions.lowmemory==0 % CAN PROBABLY IMPROVE THIS (lowmemory=0 is just doing same as lowmemory=1 for Case2_Type=11)
             % Current Case2_Type=11: phi_a'(d,a,z') 
             if vfoptions.phiaprimedependsonage==1
@@ -286,30 +273,13 @@ if Case2_Type==11 % phi_a'(d,a,z')
             Phi_aprimeMatrix_z=reshape(Phi_aprimeMatrix_z,[N_d*N_a*N_z,1]);
             aaaVnextj=kron(ones(N_d,1),Vnextj);
             for z_c=1:N_z
-%                 z_c
                 z_val=z_gridvals(z_c,:); % Value of z (not of z')
                 aaa=kron(pi_z(z_c,:),ones(N_d*N_a,1,'gpuArray'));
-%                 size(aaa)
-%                 z_val
                 
                 zprime_ToMatchPhi=kron((1:1:N_z)',ones(N_d*N_a,1));
-%                 size(zprime_ToMatchPhi)
-%                 zprime_ToMatchPhi(1:(2*N_z))
-%                 zprime_ToMatchPhi([1,N_d*N_a+1,N_d*N_a+2,2*N_d*N_a+1])
-% zprime_ToMatchPhi SEEMS OKAY
                 
                 ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
-%                 size(ReturnMatrix_z)
-%                 EV_z=zeros(N_d*N_a,1,'gpuArray'); %z dimension is covered by for loop (zprime folded away by Expectation)
-                
-%                 Phi_aprimeMatrix_z=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec); %z_grid as doing all of zprime
-%                 max(Phi_aprimeMatrix_z)
-%                 max(zprime_ToMatchPhi)
-%                 max(Phi_aprimeMatrix_z+(N_d*N_a)*(zprime_ToMatchPhi-1))
-%                 [N_d,N_a,N_z]
                 EV_z=aaaVnextj(Phi_aprimeMatrix_z+(N_d*N_a)*(zprime_ToMatchPhi-1)); %*aaa;
-                
-%                 size(EV_z)
                 
                 EV_z=reshape(EV_z,[N_d*N_a,N_z]);
                 EV_z=EV_z.*aaa;

@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case2_FHorz_PType(n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case2_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 %
 % Allows for different permanent (fixed) types of agent. The only 'extra'
 % input required (compared to ValueFnIter_Case2_FHorz, is N_i. But many
@@ -33,65 +33,104 @@ function [V, Policy]=ValueFnIter_Case2_FHorz_PType(n_d,n_a,n_z,N_j,N_i,d_grid, a
 % functions only use them internally for some but not for other permanent types.
 % The other option is to set them up as structures in the same way as is
 % done elsewhere.
-%
+
+
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
+    for ii=2:N_i
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
+    end
+end
 
 for ii=1:N_i
+        
     % First set up vfoptions
     if exist('vfoptions','var')
         vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
+        if ~isfield(vfoptions_temp,'verbose')
+            vfoptions_temp.verbose=0;
+        end
+        if ~isfield(vfoptions_temp,'verboseparams')
+            vfoptions_temp.verboseparams=0;
+        end
+        if ~isfield(vfoptions_temp,'ptypestorecpu')
+            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        end
     else
         vfoptions_temp.verbose=0;
+        vfoptions_temp.verboseparams=0;
+        vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end 
     
     if vfoptions_temp.verbose==1
-        fprintf('Permanent type: %i of %i',ii, N_i)
+        fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     
     % Go through everything which might be dependent on fixed type (PType)
-    % Notice that the way this is coded the grids (etc.) could be either
-    % fixed, or a function (that depends on age, and possibly on fixed
-    % type), or they could be a structure. Only in the case where they are
-    % a structure is there a need to take just a specific part and send
-    % only that to the 'non-PType' version of the command.
-    % [THIS could be better coded]
-    d_grid_temp=d_grid;
+    % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
+    if isa(n_d,'struct')
+        n_d_temp=n_d.(Names_i{ii});
+    else
+        n_d_temp=n_d;
+    end
+    if isa(n_a,'struct')
+        n_a_temp=n_a.(Names_i{ii});
+    else
+        n_a_temp=n_a;
+    end
+    if isa(n_z,'struct')
+        n_z_temp=n_z.(Names_i{ii});
+    else
+        n_z_temp=n_z;
+    end
+    if isa(N_j,'struct')
+        N_j_temp=N_j.(Names_i{ii});
+    else
+        N_j_temp=N_j;
+    end
     if isa(d_grid,'struct')
-        names=fieldnames(d_grid);
-        d_grid_temp=d_grid.(names{ii});
+        d_grid_temp=d_grid.(Names_i{ii});
+    else
+        d_grid_temp=d_grid;
     end
-    a_grid_temp=a_grid;
     if isa(a_grid,'struct')
-        names=fieldnames(a_grid);
-        a_grid_temp=a_grid.(names{ii});        
+        a_grid_temp=a_grid.(Names_i{ii});
+    else
+        a_grid_temp=a_grid;
     end
-    z_grid_temp=z_grid;
     if isa(z_grid,'struct')
-        names=fieldnames(z_grid);
-        z_grid_temp=z_grid.(names{ii});
+        z_grid_temp=z_grid.(Names_i{ii});
+    else
+        z_grid_temp=z_grid;
     end
-    pi_z_temp=pi_z;
-    % If using 'agedependentgrids' then pi_z will actually be the  AgeDependentGridParamNames, which is a structure. 
-    % But in this case it is necessary to pass the entire structure.    
-    if exist('vfoptions','var')
-        if isfield(vfoptions,'agedependentgrids')
-            % Do nothing.
-        elseif isa(pi_z,'struct')
-            names=fieldnames(pi_z);
-            pi_z_temp=pi_z.(names{ii});
-        end
-    else isa(pi_z,'struct')
-        names=fieldnames(pi_z);
-        pi_z_temp=pi_z.(names{ii});
+    if isa(pi_z,'struct')
+        pi_z_temp=pi_z.(Names_i{ii});
+    else
+        pi_z_temp=pi_z;
     end
-    ReturnFn_temp=ReturnFn;
     if isa(ReturnFn,'struct')
-        names=fieldnames(ReturnFn);
-        ReturnFn_temp=ReturnFn.(names{ii});
+        ReturnFn_temp=ReturnFn.(Names_i{ii});
+    else
+        ReturnFn_temp=ReturnFn;
     end
-    Phi_aprime_temp=Phi_aprime;
-    if isa(Phi_aprime,'struct')
-        names=fieldnames(Phi_aprime);
-        Phi_aprime_temp=Phi_aprime.(names{ii});
+    if isa(ReturnFn,'struct')
+        Phi_aprime_temp=Phi_aprime.(Names_i{ii});
+    else
+        Phi_aprime_temp=Phi_aprime;
+    end
+    if isa(Case2_Type,'struct')
+        Case2_Type_temp=Case2_Type.(Names_i{ii});
+    else
+        Case2_Type_temp=Case2_Type;
     end
     
     % Parameters are allowed to be given as structure, or as vector/matrix
@@ -103,8 +142,12 @@ for ii=1:N_i
     for kField=1:nFields
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
             names=fieldnames(Parameters.(FullParamNames{kField}));
-            Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{ii});
-        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)==1 % Check for permanent type in vector/matrix form.
+            for jj=1:length(names)
+                if strcmp(names{jj},Names_i{ii})
+                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{jj});
+                end
+            end
+        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
             [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
             if ptypedim==1
@@ -114,30 +157,25 @@ for ii=1:N_i
             end
         end
     end
-    
-    % The parameter names can be made to depend on the permanent-type
     DiscountFactorParamNames_temp=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
         names=fieldnames(DiscountFactorParamNames);
-        DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{ii});
-    end
-    ReturnFnParamNames_temp=ReturnFnParamNames;
-    if isa(ReturnFnParamNames,'struct')
-        names=fieldnames(ReturnFnParamNames);
-        ReturnFnParamNames_temp=ReturnFnParamNames.(names{ii});
-    end
-    PhiaprimeParamNames_temp=PhiaprimeParamNames;
-    if isa(PhiaprimeParamNames,'struct')
-        names=fieldnames(PhiaprimeParamNames);
-        PhiaprimeParamNames_temp=PhiaprimeParamNames.(names{ii});
+        for jj=1:length(names)
+            if strcmp(names{jj},Names_i{ii})
+                DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{jj});
+            end
+        end
     end
     
-    [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d,n_a,n_z,N_j,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfoptions_temp);
+    [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], [], vfoptions_temp);
     
-    ftstring=['ft',num2str(ii)];
-    
-    V.(ftstring)=V_ii;
-    Policy.(ftstring)=Policy_ii;    
+    if vfoptions_temp.ptypestorecpu==1
+        V.(Names_i{ii})=gather(V_ii);
+        Policy.(Names_i{ii})=gather(Policy_ii);
+    else
+        V.(Names_i{ii})=V_ii;
+        Policy.(Names_i{ii})=Policy_ii;
+    end 
 
 end
 
