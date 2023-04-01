@@ -719,7 +719,7 @@ else
 end
 
 if vfoptions.polindorval==2
-    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid, a_grid,vfoptions.parallel);
+    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid, a_grid);
 end
     
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
