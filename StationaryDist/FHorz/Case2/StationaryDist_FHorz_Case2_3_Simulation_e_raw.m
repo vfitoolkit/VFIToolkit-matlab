@@ -76,7 +76,6 @@ if simoptions.phiaprimedependsonage==0
         Phi_aprimeMatrix=CreatePhiaprimeMatrix_Case2_Disc_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid, PhiaprimeParamsVec);
     end
     
-    nsimspercore=ceil(simoptions.nsims/simoptions.ncores); % Create simoptions.ncores different steady state distns, then combine them
     StationaryDistKron=zeros(N_a,N_z,N_e,N_j,simoptions.ncores);
     cumsum_pi_z_J=cumsum(pi_z_J,2);
     cumsum_pi_e_J=cumsum(pi_e_J,1);
@@ -87,13 +86,13 @@ if simoptions.phiaprimedependsonage==0
         parfor ncore_c=1:simoptions.ncores
             SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_e,N_j);
             % Pull a random start point from jequaloneDistKron
-            currstate=max(jequaloneDistKroncumsum>rand(1,1)); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
             currstate=ind2sub_homemade([N_a,N_z,N_e],currstate); % (a,z,e)
             SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)+1;
             for jj=1:(N_j-1)
                 dindex=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj);
-                currstate(2)=max(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1)); % zprime
-                currstate(3)=max(cumsum_pi_e_J(:,jj)>rand(1,1)); % eprime
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
+                currstate(3)=find(cumsum_pi_e_J(:,jj)>rand(1,1),'first'); % eprime
                 currstate(1)=Phi_aprimeMatrix(dindex,currstate(2)); % Case2_Type=3: aprime(d,z')
                 SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)+1;
             end
@@ -106,13 +105,13 @@ if simoptions.phiaprimedependsonage==0
         for ncore_c=1:simoptions.nsims
             SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_e,N_j);
             % Pull a random start point from jequaloneDistKron
-            currstate=max(jequaloneDistKroncumsum>rand(1,1)); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
             currstate=ind2sub_homemade([N_a,N_z,N_e],currstate); % (a,z,e)
             SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)+1;
             for jj=1:(N_j-1)
                 dindex=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj);
-                currstate(2)=max(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1)); % zprime
-                currstate(3)=max(cumsum_pi_e_J(:,jj)>rand(1,1)); % eprime
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
+                currstate(3)=find(cumsum_pi_e_J(:,jj)>rand(1,1),'first'); % eprime
                 currstate(1)=Phi_aprimeMatrix(dindex,currstate(2)); % Case2_Type=3: aprime(d,z')
                 SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)+1;
             end
@@ -138,7 +137,7 @@ for iField=1:nFields
     end
 end
 if found==0 % Have added this check so that user can see if they are missing a parameter
-    fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
+    error(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
 end
 % I assume AgeWeights is a row vector
 StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z*N_e,1)*AgeWeights);

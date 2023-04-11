@@ -82,8 +82,6 @@ if simoptions.parallel<2
                     optd=PolicyKron(a_c,z_c,e_c,jj);
                     for zprime_c=1:N_z
                         optaprime=Phi_aprimeMatrix(optd,zprime_c); % Case2_Type==3; a'(d,z')
-                    end
-                    for zprime_c=1:N_z
                         P(a_c,z_c,e_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
                     end
                 end
@@ -225,11 +223,11 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
         
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         optd=reshape(PolicyKron(:,:,:,jj),[1,N_a*N_z*N_e]);
+        PtransposeA=sparse(N_a,N_a*N_z*N_e);  % Start with P (a,z,e) to a' (Note, create P')
         for zprime_c=1:N_z
             optaprime_jj=Phi_aprimeMatrix(optd,zprime_c); % Case2_Type==3; a'(d,z')
+            PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))+1/N_z; % Fill in the a' transitions based on Policy
         end
-        PtransposeA=sparse(N_a,N_a*N_z*N_e);  % Start with P (a,z,e) to a' (Note, create P')
-        PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=1; % Fill in the a' transitions based on Policy
         
         % Note: Create Ptranspose as (a,z,e)-to-(a',z') as best to use to
         % multiply lag of agent dist, and then just iid distribute over e
@@ -308,11 +306,11 @@ elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P
         
         %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
         optd=reshape(PolicyKron(:,:,:,jj),[1,N_a*N_z*N_e]);
+        PtransposeA=sparse(N_a,N_a*N_z*N_e);
         for zprime_c=1:N_z
             optaprime_jj=Phi_aprimeMatrix(optd,zprime_c); % Case2_Type==3; a'(d,z')
+            PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))+1/N_z;
         end
-        PtransposeA=sparse(N_a,N_a*N_z*N_e);
-        PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=1;
         
         pi_z=sparse(pi_z);
         try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
@@ -506,7 +504,7 @@ elseif simoptions.parallel==6 % Same as 4, except loops over e (uses full cpu ma
             fullindex=kron(ones(N_z*N_z,1),(1:1:N_a)')+kron(kron(ones(N_z,1),N_a*((1:1:N_z)-1)'),ones(N_a,1))+N_a*N_z*(optaprime_jj-1)+kron(N_a*N_a*N_z*((1:1:N_z)-1)',ones(N_a*N_z,1));
 
             P=zeros(N_a*N_z,N_a*N_z);
-            P(fullindex)=1;   
+            P(fullindex)=1;
             
             StatDisttemp=StatDisttemp+(bigpi_zt.*(P'))*StationaryDistKron(:,e_c,jj);
         end

@@ -59,8 +59,6 @@ if simoptions.parallel~=2
                 optd=PolicyKron(a_c,z_c,jj);
                 for zprime_c=1:N_z
                     optaprime=Phi_aprimeMatrix(optd,zprime_c); % Case2_Type==3; a'(d,z')
-                end
-                for zprime_c=1:N_z
                     P(a_c,z_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
                 end
             end
