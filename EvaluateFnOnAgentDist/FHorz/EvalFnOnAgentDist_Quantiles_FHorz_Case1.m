@@ -3,12 +3,32 @@ function  varargout=EvalFnOnAgentDist_Quantiles_FHorz_Case1(StationaryDist,Polic
 %
 % Uses digests.
 
+if exist('Parallel','var')==0
+    if isa(StationaryDist, 'gpuArray')
+        Parallel=2;
+    else
+        Parallel=1;
+    end
+else
+    if isempty(Parallel)
+        if isa(StationaryDist, 'gpuArray')
+            Parallel=2;
+        else
+            Parallel=1;
+        end
+    end
+end
+
 if ~exist('simoptions','var')
     simoptions.nquantiles=100;
 else
     if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=100;
     end
+end
+
+if isfield('simoptions','n_semiz') % If using semi-exogenous shocks
+    n_z=[n_z,simoptions.n_semiz]; % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
 end
 
 Tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
@@ -25,22 +45,6 @@ l_a=length(n_a);
 l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
-
-if exist('Parallel','var')==0
-    if isa(StationaryDist, 'gpuArray')
-        Parallel=2;
-    else
-        Parallel=1;
-    end
-else
-    if isempty(Parallel)
-        if isa(StationaryDist, 'gpuArray')
-            Parallel=2;
-        else
-            Parallel=1;
-        end
-    end
-end
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if exist('simoptions','var')

@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case3(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,n_u,N_j,d_grid, a_grid, z_grid,u_grid,pi_z,pi_u,aprimeFn,Params,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case3(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,n_u,N_j,d_grid, a_grid,u_grid,pi_z,pi_u,aprimeFn,Parameters,simoptions)
 % Note: Case2 stationary distribution commands require grids to be able to evaluate Phi_aprime (not for the actual stationary distribution calculations)
 
 if ~exist('simoptions','var')
@@ -60,7 +60,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_u=prod(n_u);
-        
+
 if isfield(simoptions,'n_e')
     N_e=prod(simoptions.n_e);
     jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z*N_e,1]);
@@ -102,20 +102,18 @@ end
 
 %%
 if simoptions.iterate==0
-    error('Simulation of agent distribution not yet implemented for Case3, contact me if you want/need')
     if isfield(simoptions,'n_e')
-        StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,simoptions.pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames, simoptions)
+        StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,simoptions.n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,simoptions.pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames, simoptions);
     else
-        StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_u,aprimeFn,Params,aprimeFnParamNames,simoptions);
+        StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
     end
 elseif simoptions.iterate==1
     if isfield(simoptions,'n_e')
-        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
+        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,simoptions.n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,simoptions.pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
     else
-%         StationaryDistKron=StationaryDist_FHorz_Case2_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid,pi_z,Phi_aprime,Case2_Type,Params,PhiaprimeParamNames,simoptions);
+        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,N_j,d_grid, a_grid, u_grid,pi_z,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
     end
 end
-
 if isfield(simoptions,'n_e')
     StationaryDist=reshape(StationaryDistKron,[n_a,n_z,simoptions.n_e,N_j]);    
 else

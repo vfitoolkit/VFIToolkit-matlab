@@ -80,7 +80,6 @@ end
 %%
 if simoptions.parallel==1
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
-    %     disp('Create simoptions.ncores different steady state distns, then combine them')
     StationaryDistKron=zeros(N_a,N_z,N_e,N_j,simoptions.ncores);
     cumsum_pi_z_J=cumsum(pi_z_J,2);
     cumsum_pi_e_J=cumsum(pi_e_J,1);
@@ -88,7 +87,6 @@ if simoptions.parallel==1
     %Create simoptions.ncores different steady state distn's, then combine them.
     if N_d==0
         parfor ncore_c=1:simoptions.ncores
-%         for ncore_c=1:simoptions.ncores
             StationaryDistKron_ncore_c=zeros(N_a,N_z,N_e,N_j);
             for ii=1:nsimspercore
                 % Pull a random start point from jequaloneDistKron

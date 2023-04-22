@@ -28,6 +28,10 @@ else
     end
 end
 
+if isfield('simoptions','n_semiz') % If using semi-exogenous shocks
+    n_z=[n_z,simoptions.n_semiz]; % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+end
+
 if n_d(1)==0
     l_d=0;
 else

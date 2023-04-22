@@ -18,9 +18,6 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups);
 
-% N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
 
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
@@ -71,6 +68,16 @@ else
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
 end
+
+if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+    n_z=[n_z,simoptions.n_semiz];
+    z_grid=[z_grid;simoptions.semiz_grid];
+end
+
+% N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
 
 if isempty(n_d)
     l_d=0;

@@ -12,6 +12,11 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
 end
 
 %%
+if isfield(simoptions,'SemiExoStateFn')
+    StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+    return
+end
+
 if isfield(simoptions,'n_e')
     if n_z(1)==0
         error('Not yet implemented n_z=0 with n_e, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')

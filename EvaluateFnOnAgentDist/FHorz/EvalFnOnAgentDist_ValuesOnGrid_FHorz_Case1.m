@@ -1,6 +1,20 @@
 function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel,simoptions)
 % Parallel is an optional input.
 
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+end
+
+if ~exist('simoptions','var')
+    simoptions=struct();
+end
+
+if isfield('simoptions','n_semiz') % If using semi-exogenous shocks
+    n_z=[n_z,simoptions.n_semiz]; % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+end
+
 if n_d(1)==0
     l_d=0;
 else
@@ -11,18 +25,11 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+%% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
+if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+    simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
 end
 
-%% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
-if exist('simoptions','var')
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-end
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')

@@ -1,15 +1,5 @@
 function MeanMedianStdDev=EvalFnOnAgentDist_MeanMedianStdDev_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-l_a=length(n_a);
-l_z=length(n_z);
-N_a=prod(n_a);
-N_z=prod(n_z);
-
 if ~exist('Parallel','var')
     if isa(StationaryDist, 'gpuArray')
         Parallel=2;
@@ -29,6 +19,20 @@ end
 if ~exist('simoptions','var')
     simoptions=struct();
 end
+
+if isfield('simoptions','n_semiz') % If using semi-exogenous shocks
+    n_z=[n_z,simoptions.n_semiz]; % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+end
+
+if n_d(1)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+l_z=length(n_z);
+N_a=prod(n_a);
+N_z=prod(n_z);
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names

@@ -148,6 +148,9 @@ l_z=length(n_z);
 if n_z(1)==0
     l_z=0;
 end
+if isfield(vfoptions,'SemiExoStateFn')
+    l_z=l_z+length(vfoptions.n_semiz);
+end
 if isfield(vfoptions,'n_e')
     l_e=length(vfoptions.n_e);
 else
@@ -298,6 +301,87 @@ if vfoptions.dynasty==1
         %     Policy=double(Policy);
     end
     
+    return
+end
+
+%% Semi-exogenous state
+% The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable.
+if isfield(vfoptions,'SemiExoStateFn')
+    if ~isfield(vfoptions,'n_semiz')
+        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.n_semiz')
+    end
+    if ~isfield(vfoptions,'semiz_grid')
+        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.semiz_grid')
+    end
+    n_d1=n_d(1:end-1);
+    n_d2=n_d(end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
+    d1_grid=d_grid(1:sum(n_d1));
+    d2_grid=d_grid(sum(n_d1)+1:end);
+    % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
+    N_semiz=prod(vfoptions.n_semiz);
+    l_semiz=length(vfoptions.n_semiz);
+    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+    if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
+        SemiExoStateFnParamNames={temp{1+l_semiz+l_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
+    else
+        SemiExoStateFnParamNames={};
+    end
+    pi_semiz_J=zeros(N_semiz,N_semiz,n_d2,N_j);
+    for jj=1:N_j
+        SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
+        pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,vfoptions.n_semiz,d2_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues);
+    end
+    % Now that we have pi_semiz_J we are ready to compute the value function.
+    if vfoptions.parallel==2
+        if n_d1==0
+            error('Have not implemented semi-exogenous shocks without at least two decision variables (one of which is that which determines the semi-exog transitions)')
+        else
+            if isfield(vfoptions,'n_e')
+                if isfield(vfoptions,'e_grid_J')
+                    e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
+                else
+                    e_grid=vfoptions.e_grid;
+                end
+                if isfield(vfoptions,'pi_e_J')
+                    pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
+                else
+                    pi_e=vfoptions.pi_e;
+                end
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_grid, a_grid, z_grid, vfoptions.semiz_grid, e_grid, pi_z, pi_semiz_J, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                if N_z==0
+                    error('Have not implemented semi-exogenous shocks without at least one exogenous variable (not counting the semi-exogenous one) [you could fake it adding a single-valued z with pi_z=1]')
+                else
+                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, a_grid, z_grid, vfoptions.semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        end
+    end
+
+    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+    if vfoptions.outputkron==0
+        if isfield(vfoptions,'n_e')
+            if N_z==0
+                V=reshape(VKron,[n_a,vfoptions.n_semiz, vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_a, vfoptions.n_semiz, vfoptions.n_e, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_z,vfoptions.n_semiz,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1, n_a, [n_z, vfoptions.n_semiz], vfoptions.n_e, N_j, vfoptions);
+            end
+        else
+            if N_z==0
+                V=reshape(VKron,[n_a,vfoptions.n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_noz(Policy3, n_d1, n_a, vfoptions.n_semiz, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_z,vfoptions.n_semiz,N_j]);
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_a, [n_z,vfoptions.n_semiz], N_j, vfoptions);
+            end
+        end
+    else
+        V=VKron;
+        Policy=Policy3;
+    end
+
     return
 end
 
