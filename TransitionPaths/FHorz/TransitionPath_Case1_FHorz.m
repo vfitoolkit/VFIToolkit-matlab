@@ -24,7 +24,6 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
-    transpathoptions.verbosegraphs=0;
     transpathoptions.graphpricepath=0;
     transpathoptions.graphaggvarspath=0;
     transpathoptions.historyofpricepath=0;
@@ -62,9 +61,6 @@ else
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
-    end
-    if isfield(transpathoptions,'verbosegraphs')==0
-        transpathoptions.verbosegraphs=0;
     end
     if isfield(transpathoptions,'graphpricepath')==0
         transpathoptions.graphpricepath=0;
@@ -174,45 +170,49 @@ if exist('vfoptions','var')==0
     vfoptions.endotype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    if isfield(vfoptions,'lowmemory')==0
+    if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if isfield(vfoptions,'verbose')==0
+    if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
-    if isfield(vfoptions,'returnmatrix')==0
+    if ~isfield(vfoptions,'returnmatrix')
         if isa(ReturnFn,'function_handle')==1
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
     end
-    if isfield(vfoptions,'exoticpreferences')==0
+    if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
     end
     if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
         if ~isfield(vfoptions,'quasi_hyperbolic')
             vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
         elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-            fprintf('ERROR: when using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
-            dbstack
-            return
+            error('When using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated ')
         end
     end
-    if isfield(vfoptions,'polindorval')==0
+    if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if isfield(vfoptions,'policy_forceintegertype')==0
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
     end
-    if isfield(vfoptions,'endotype')==0
+    if ~isfield(vfoptions,'endotype')
         vfoptions.endotype=0;
+    end
+    if isfield(vfoptions,'ExogShockFn')
+        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    end
+    if isfield(vfoptions,'EiidShockFn')
+        vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
     end
 end
 
@@ -235,19 +235,19 @@ if exist('simoptions','var')==0
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
-    if isfield(simoptions,'tolerance')==0
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
-    if isfield(simoptions,'nsims')==0
+    if ~isfield(simoptions,'nsims')
         simoptions.nsims=10^4;
     end
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=transpathoptions.parallel;
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'ncores')==0
+    if ~isfield(simoptions,'ncores')
         try
             PoolDetails=gcp;
             simoptions.ncores=PoolDetails.NumWorkers;
@@ -255,7 +255,7 @@ else
             simoptions.ncores=1;
         end
     end
-    if isfield(simoptions,'iterate')==0
+    if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;
     end
 end
@@ -359,6 +359,42 @@ if transpathoptions.usestockvars==1
     end
 end
 
+%% Handle ReturnFn and FnsToEvaluate structures
+l_d=length(n_d);
+if n_d(1)==0
+    l_d=0;
+end
+l_a=length(n_a);
+l_z=length(n_z);
+l_a_temp=l_a;
+l_z_temp=l_z;
+if max(vfoptions.endotype)==1
+    l_a_temp=l_a-sum(vfoptions.endotype);
+    l_z_temp=l_z+sum(vfoptions.endotype);
+end
+if ~isfield(vfoptions,'n_e')
+    using_e_var=0;
+    l_e=0;
+elseif vfoptions.n_e(1)==0
+    using_e_var=0;
+    l_e=0;
+else
+    using_e_var=1;
+    l_e=length(vfoptions.n_e);
+end
+% Create ReturnFnParamNames
+temp=getAnonymousFnInputNames(ReturnFn);
+if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
+    ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+else
+    ReturnFnParamNames={};
+end
+
+if ~isstruct(FnsToEvaluate)
+    error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
+end
+
+
 %% Check if z_grid and/or pi_z depend on prices. If not then create pi_z_J and z_grid_J for the entire transition before we start
 % If 'exogenous shock fn' is used, then precompute it to save evaluating it numerous times
 % Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
@@ -370,6 +406,7 @@ if isfield(vfoptions,'pi_z_J')
 elseif isfield(vfoptions,'ExogShockFn')
     % Note: If ExogShockFn depends on the path, it must be done via a parameter
     % that depends on the path (i.e., via ParamPath or PricePath)
+    vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
     overlap=0;
     for ii=1:length(vfoptions.ExogShockFnParamNames)
         if strcmp(vfoptions.ExogShockFnParamNames{ii},PricePathNames)
@@ -392,16 +429,12 @@ elseif isfield(vfoptions,'ExogShockFn')
             pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
             z_grid_J=zeros(N_z,N_j,'gpuArray');
             for jj=1:N_j
-                if isfield(vfoptions,'ExogShockFnParamNames')
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                 pi_z_J(:,:,jj)=gpuArray(pi_z);
                 z_grid_J(:,jj)=gpuArray(z_grid);
             end
@@ -422,16 +455,12 @@ elseif isfield(vfoptions,'ExogShockFn')
                 end
                 % Note, we know the PricePath is irrelevant for the current purpose
                 for jj=1:N_j
-                    if isfield(vfoptions,'ExogShockFnParamNames')
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for ii=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                        end
-                        [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    else
-                        [z_grid,pi_z]=simoptions.ExogShockFn(jj);
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for ii=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                     end
+                    [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     pi_z_J(:,:,jj)=gpuArray(pi_z);
                     z_grid_J(:,jj)=gpuArray(z_grid);
                 end
@@ -442,30 +471,81 @@ elseif isfield(vfoptions,'ExogShockFn')
     end
 end
 
+%% If using e variables do the same for e as we just did for z
+if using_e_var==1
+    % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
 
-%% Handle ReturnFn and FnsToEvaluate structures
-l_d=length(n_d);
-if n_d(1)==0
-    l_d=0;
-end
-l_a=length(n_a);
-l_z=length(n_z);
-l_a_temp=l_a;
-l_z_temp=l_z;
-if max(vfoptions.endotype)==1
-    l_a_temp=l_a-sum(vfoptions.endotype);
-    l_z_temp=l_z+sum(vfoptions.endotype);
-end
-% Create ReturnFnParamNames
-temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
-    ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
-else
-    ReturnFnParamNames={};
-end
+    transpathoptions.epathprecomputed=0;
+    if isfield(vfoptions,'pi_e_J')
+        transpathoptions.epathprecomputed=1;
+        transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
+    elseif isfield(vfoptions,'EiidShockFn')
+        % Note: If EiidShockFn depends on the path, it must be done via a parameter
+        % that depends on the path (i.e., via ParamPath or PricePath)
+        vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+        overlap=0;
+        for ii=1:length(vfoptions.EiidShockFnParamNames)
+            if strcmp(vfoptions.EiidShockFnParamNames{ii},PricePathNames)
+                overlap=1;
+            end
+        end
+        if overlap==0
+            transpathoptions.epathprecomputed=1;
+            % If ExogShockFn does not depend on any of the prices (in PricePath), then
+            % we can simply create it now rather than within each 'subfn' or 'p_grid'
 
-if ~isstruct(FnsToEvaluate)
-    error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
+            % Check if it depends on the ParamPath
+            transpathoptions.epathtrivial=1;
+            for ii=1:length(vfoptions.EiidShockFnParamNames)
+                if strcmp(vfoptions.EiidShockFnParamNames{ii},ParamPathNames)
+                    transpathoptions.epathtrivial=0;
+                end
+            end
+            if transpathoptions.epathtrivial==1
+                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                e_grid_J=zeros(N_e,N_j,'gpuArray');
+                for jj=1:N_j
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
+                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                    for ii=1:length(EiidShockFnParamsVec)
+                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                    end
+                    [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                    pi_e_J(:,jj)=gpuArray(pi_e);
+                    e_grid_J(:,jj)=gpuArray(e_grid);
+                end
+                % Now store them in vfoptions and simoptions
+                vfoptions.pi_e_J=pi_e_J;
+                vfoptions.e_grid_J=e_grid_J;
+                simoptions.pi_e_J=pi_e_J;
+                simoptions.e_grid_J=e_grid_J;
+            elseif transpathoptions.epathtrivial==0
+                % e_grid_J and/or pi_e_J varies along the transition path (but only depending on ParamPath, not PricePath)
+                transpathoptions.pi_e_J_T=zeros(N_e,N_e,N_j,T,'gpuArray');
+                transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
+                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
+                for tt=1:T
+                    for ii=1:length(ParamPathNames)
+                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
+                    end
+                    % Note, we know the PricePath is irrelevant for the current purpose
+                    for jj=1:N_j
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for ii=1:length(ExogShockFnParamsVec)
+                            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                        end
+                        [e_grid,pi_e]=vfoptions.ExogShockFn(EiidShockFnParamsCell{:});
+                        pi_e_J(:,jj)=gpuArray(pi_e);
+                        e_grid_J(:,jj)=gpuArray(e_grid);
+                    end
+                    transpathoptions.pi_e_J_T(:,:,tt)=pi_e_J;
+                    transpathoptions.e_grid_J_T(:,:,tt)=e_grid_J;
+                end
+            end
+        end
+    end
 end
 
 
@@ -474,10 +554,19 @@ transpathoptions
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
         if transpathoptions.usestockvars==0
-            if transpathoptions.fastOLG==0
-                PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-            else % use fastOLG setting
-                PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+            if using_e_var==1
+                if transpathoptions.fastOLG==0
+                    PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                else % use fastOLG setting
+                    PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                end
+            else
+                if transpathoptions.fastOLG==0
+                    PricePathOld=TransitionPath_Case1_FHorz_e_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, vfoptions.n_e, N_j, pi_z, vfoptions.pi_e, d_grid,a_grid,z_grid, vfoptions.e_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                else % use fastOLG setting
+                    error('fastOLG with e variables not yet implemented. email me if you need/want it')
+                    % PricePathOld=TransitionPath_Case1_FHorz_e_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, n_z, vfoptions.n_e, N_j, pi_z, vfoptions.pi_e,d_grid,a_grid,z_grid, vfoptions.e_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                end
             end
         else % transpathoptions.usestockvars==1
             warning('StockVars does not yet work correctly')

@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, ParamPath, Parameters, T, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, transpathoptions, simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, ParamPath, Parameters, T, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, transpathoptions, simoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values.
 % 
 % 
@@ -139,7 +139,7 @@ for tt=1:length(ParamPathNames)
 end
 
 if N_z==0
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_noz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, Parameters, T, n_d, n_a, N_j, d_grid, a_grid, DiscountFactorParamNames, transpathoptions, simoptions);
+    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_noz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, Parameters, T, n_d, n_a, N_j, d_grid, a_grid, transpathoptions, simoptions);
     return
 end
 
@@ -195,7 +195,6 @@ if transpathoptions.verbose==1
     transpathoptions
 end
 if transpathoptions.verbose==1
-    DiscountFactorParamNames
     ParamPathNames
     PricePathNames
 end

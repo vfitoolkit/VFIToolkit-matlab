@@ -24,21 +24,6 @@ l_z=length(n_z);
 if transpathoptions.verbose==1
     transpathoptions
 end
-if transpathoptions.verbosegraphs==1
-    valuefnfig=figure;
-    title('Value Function')
-    
-    pricepathfig=figure;
-    title('Price Path') 
-    plot(PricePathOld)
-    legend(PricePathNames{:})
-
-    agentdistfig=figure;
-    title('Agent Dist')
-    
-    timeperiodstoplot=[1,2,3,round(T/3),round(T/2),round(2*T/3),T-2,T-1,T];
-    agestoplot=[1,floor(N_j/5),floor(2*N_j/5),floor(3*N_j/5),floor(4*N_j/5),N_j]; % When plotting agent distribution
-end
 if transpathoptions.verbose==1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));
@@ -213,18 +198,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
-
-        % Following just does a little bit of graphing Value function over
-        % the transition path (for median value of a variables and z variables)
-        if transpathoptions.verbosegraphs==1 && ismember(T-tt,timeperiodstoplot)
-            [~,subplotindex] = ismember(T-tt,timeperiodstoplot);
-            figure(valuefnfig)
-            subplot(3,3,subplotindex);  plot(reshape(V(max(1,floor(N_a/2)),max(1,floor(N_z/2)),:),[1,N_j])) % I am not sure why this is subplotindex-1, but the -1 seems needed
-            
-            if subplotindex==8
-                subplot(3,3,9); plot(reshape(V_final(max(1,floor(N_a/2)),max(1,floor(N_z/2)),:),[1,N_j]))
-            end
-        end
         
         if N_d>0
             PolicyIndexesPath(:,:,:,:,T-tt)=Policy;
@@ -349,29 +322,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
-        
-%         if transpathoptions.verbosegraphs==1 && ismember(i,timeperiodstoplot)
-%             [~,subplotindex] = ismember(i,timeperiodstoplot);
-%             figure(agentdistfig)
-%             
-%             if subplotindex==3 % Don't actually want this one
-%                 AgentDistPlot=reshape(AgentDist_initial,[N_a,N_z,N_j]);
-%                 subplot(6,3,1); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-%                 subplot(6,3,4); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-%             elseif subplotindex==1 || subplotindex==2
-%                 AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
-%                 subplot(6,3,1+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-%                 subplot(6,3,4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-%             elseif subplotindex==4 || subplotindex==5 || subplotindex==6
-%                 AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
-%                 subplot(6,3,7-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-%                 subplot(6,3,10-4+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-%             elseif subplotindex==7 || subplotindex==8 || subplotindex==9
-%                 AgentDistPlot=reshape(AgentDist,[N_a,N_z,N_j]);
-%                 subplot(6,3,13-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),2),1))) % Marginal distribution of endog states
-%                 subplot(6,3,16-7+subplotindex); plot(squeeze(cumsum(sum(AgentDistPlot(:,:,agestoplot),1),2))) % Marginal distribution of exog states
-%             end
-%         end
     end
 %     % Free up space on GPU by deleting things no longer needed
 %     clear AgentDist

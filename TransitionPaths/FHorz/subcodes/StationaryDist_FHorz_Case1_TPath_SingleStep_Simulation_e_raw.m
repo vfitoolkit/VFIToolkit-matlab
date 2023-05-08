@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Simulation_raw(AgentDist,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z, Parameters, simoptions)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Simulation_e_raw(AgentDist,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_e,N_j,pi_z,pi_e, Parameters, simoptions)
 
 % Options needed
 %    simoptions.nsims (will do nsims per age)
@@ -16,6 +16,7 @@ if simoptions.parallel==2
     % For anything but ridiculously short simulations it is more than worth the overhead to switch to CPU and back.
     PolicyIndexesKron=gather(PolicyIndexesKron);
     pi_z=gather(pi_z);
+    pi_e=gather(pi_e);
     % Use parallel cpu for these simulations
     simoptions.parallel=1;
     
@@ -42,88 +43,107 @@ elseif fieldexists_ExogShockFn==1
         pi_z_J(:,:,jj)=gpuArray(pi_z);
     end
 end
+eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+eval('fieldexists_EiidShockFn=1;vfoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+eval('fieldexists_EiidShockFnParamNames=1;vfoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+if fieldexists_pi_e_J==0 && fieldexists_EiidShockFn==0
+    pi_e_J=pi_e.*ones(1,N_j);
+elseif fieldexists_pi_e_J==1
+    pi_e_J=vfoptions.pi_e_J;
+elseif fieldexists_EiidShockFn==1
+    pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+    for jj=1:N_j
+        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
+        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+        for ii=1:length(EiidShockFnParamsVec)
+            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+        end
+        [~,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
+        pi_e_J(:,jj)=gpuArray(pi_e);
+    end
+end
+
 
 % Remove the existing age weights, then impose the new age weights at the end
 % (note, this is unnecessary overhead when the age weights are unchanged, but can't be bothered doing a clearer version)
-AgentDist=AgentDist./(ones(N_a*N_z,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
+AgentDist=AgentDist./(ones(N_a*N_z*N_e,1)*sum(AgentDist,1)); % Note: sum(AgentDist,1) are the current age weights
 jequaloneDistKroncumsum=cumsum(AgentDist); % This period. Will then wipe AgentDist so as to use it for next period
 cumsum_pi_z_J=cumsum(pi_z_J,2);
+cumsum_pi_e_J=cumsum(pi_e_J,1);
 
 if simoptions.parallel==1
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
     %     disp('Create simoptions.ncores different steady state distns, then combine them')
-    AgentDist=zeros(N_a,N_z,N_j,simoptions.ncores);
+    AgentDist=zeros(N_a,N_z,N_e,N_j,simoptions.ncores);
     %Create simoptions.ncores different steady state distn's, then combine them.
     if N_d==0
         parfor ncore_c=1:simoptions.ncores
-            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_j);
+            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_e,N_j);
             for ii=1:nsimspercore
                 % Pull a random start point from jequaloneDistKron
                 currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-                currstate=ind2sub_homemade([N_a,N_z],currstate);
-                StationaryDistKron_ncore_c(currstate(1),currstate(2),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+                currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
+                StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)+1;
                 for jj=1:(N_j-1)
-                    currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj);
+                    currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj);
                     currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
-                    StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                    currstate(3)=find(cumsum_pi_e_J(:,jj)>rand(1,1),1,'first');
+                    StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)+1;
                 end
             end
-            AgentDist(:,:,:,ncore_c)=StationaryDistKron_ncore_c;
+            AgentDist(:,:,:,:,ncore_c)=StationaryDistKron_ncore_c;
         end
-        AgentDist=sum(AgentDist,4);
-        AgentDist=AgentDist./sum(sum(AgentDist,1),2);
     else
         optaprime=2;
         parfor ncore_c=1:simoptions.ncores
-            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_j);
+            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_e,N_j);
             for ii=1:nsimspercore
                 % Pull a random start point from jequaloneDistKron
                 currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-                currstate=ind2sub_homemade([N_a,N_z],currstate);
-                StationaryDistKron_ncore_c(currstate(1),currstate(2),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+                currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
+                StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)+1;
                 for jj=1:(N_j-1)
-                    currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),jj);
+                    currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),currstate(3),jj);
                     currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
-                    StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                    currstate(3)=find(cumsum_pi_e_J(,:,jj)>rand(1,1),1,'first');
+                    StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)+1;
                 end
             end
-            AgentDist(:,:,:,ncore_c)=StationaryDistKron_ncore_c;
+            AgentDist(:,:,:,:,ncore_c)=StationaryDistKron_ncore_c;
         end
-        AgentDist=sum(AgentDist,4);
-        AgentDist=AgentDist./sum(sum(AgentDist,1),2);
     end
+    AgentDist=sum(AgentDist,5);
+    AgentDist=AgentDist./sum(sum(sum(AgentDist,1),2),3);
 elseif simoptions.parallel==0
-    AgentDist=zeros(N_a,N_z,N_j);
+    AgentDist=zeros(N_a,N_z,N_e,N_j);
     if N_d==0
-%         StationaryDistKron=zeros(N_a,N_z,N_j);
         for ii=1:simoptions.nsims
             % Pull a random start point from jequaloneDistKron
             currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-            currstate=ind2sub_homemade([N_a,N_z],currstate);
-            AgentDist(currstate(1),currstate(2),1)=AgentDist(currstate(1),currstate(2),1)+1;
+            currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
+            AgentDist(currstate(1),currstate(2),currstate(3),1)=AgentDist(currstate(1),currstate(2),currstate(3),1)+1;
             for jj=1:(N_j-1)
-                currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj);
+                currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),currstate(3),jj);
                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
-                AgentDist(currstate(1),currstate(2),jj+1)=AgentDist(currstate(1),currstate(2),jj+1)+1;
+                currstate(3)=find(cumsum_pi_e_J(:,jj)>rand(1,1),1,'first');
+                AgentDist(currstate(1),currstate(2),currstate(3),jj+1)=AgentDist(currstate(1),currstate(2),currstate(3),jj+1)+1;
             end
-        end
-        AgentDist=AgentDist./sum(sum(AgentDist,1),2);
     else
         optaprime=2;
-%         StationaryDistKron=zeros(N_a,N_z,N_j);
         for ii=1:simoptions.nsims
             % Pull a random start point from jequaloneDistKron
             currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-            currstate=ind2sub_homemade([N_a,N_z],currstate);
-            AgentDist(currstate(1),currstate(2),1)=AgentDist(currstate(1),currstate(2),1)+1;
+            currstate=ind2sub_homemade([N_a,N_z,N_e],currstate);
+            AgentDist(currstate(1),currstate(2),currstate(3),1)=AgentDist(currstate(1),currstate(2),currstate(3),1)+1;
             for jj=1:(N_j-1)
-                currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),jj);
+                currstate(1)=PolicyIndexesKron(optaprime,currstate(1),currstate(2),currstate(3),jj);
                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
-                AgentDist(currstate(1),currstate(2),jj+1)=AgentDist(currstate(1),currstate(2),jj+1)+1;
+                currstate(3)=find(cumsum_pi_e_J(,:,jj)>rand(1,1),1,'first');
+                AgentDist(currstate(1),currstate(2),currstate(3),jj+1)=AgentDist(currstate(1),currstate(2),currstate(3),jj+1)+1;
             end
         end
-        AgentDist=AgentDist./sum(sum(AgentDist,1),2);
     end
+    AgentDist=AgentDist./sum(sum(sum(AgentDist,1),2),3);
 end
 
 
@@ -150,7 +170,7 @@ end
 % Need to remove the old age weights, and impose the new ones
 % Already removed the old age weights earlier, so now just impose the new ones.
 % I assume AgeWeights is a row vector
-AgentDist=AgentDist.*(ones(N_a*N_z,1)*AgeWeights);
+AgentDist=AgentDist.*(ones(N_a*N_z*N_e,1)*AgeWeights);
 
 if MoveSSDKtoGPU==1
     AgentDist=gpuArray(AgentDist);

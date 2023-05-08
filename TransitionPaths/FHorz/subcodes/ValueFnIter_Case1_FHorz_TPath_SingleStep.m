@@ -50,6 +50,9 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+if isfield(vfoptions,'n_e')
+    N_e=prod(vfoptions.n_e);
+end
 
 %% Check the sizes of some of the inputs
 if size(d_grid)~=[N_d, 1]
@@ -72,19 +75,13 @@ end
 
 
 %% 
-if vfoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   pi_z=gpuArray(pi_z);
-   d_grid=gpuArray(d_grid);
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
-else
-   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-   % This may be completely unnecessary.
-   pi_z=gather(pi_z);
-   d_grid=gather(d_grid);
-   a_grid=gather(a_grid);
-   z_grid=gather(z_grid);
+% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
+if N_e>0
+    vfoptions.e_grid=gpuArray(vfoptions.e_grid);
 end
 
 if vfoptions.verbose==1
@@ -143,9 +140,17 @@ end
 
 %% If get to here then not using exoticpreferences nor StateDependentVariables_z
 if N_d==0
-    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    if N_e==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_e_raw(VKron,n_a, n_z,vfoptions.n_e, N_j, a_grid, z_grid, vfoptions.e_grid, pi_z, vfoptions.pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
 else
-    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    if N_e==0
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_e_raw(VKron,n_d,n_a,n_z,vfoptions.n_e, N_j, d_grid, a_grid, z_grid, vfoptions.e_grid, pi_z, vfoptions.pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
 end
 
 

@@ -18,18 +18,13 @@ elseif fieldexists_pi_z_J==1
 elseif fieldexists_ExogShockFn==1
     pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
     for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            pi_z_J(:,jj)=gpuArray(pi_z);
-        else
-            [~,pi_z]=vfoptions.ExogShockFn(jj);
-            pi_z_J(:,:,jj)=gpuArray(pi_z);
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
         end
+        [~,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        pi_z_J(:,:,jj)=gpuArray(pi_z);
     end
 end
 

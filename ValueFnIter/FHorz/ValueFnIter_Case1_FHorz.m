@@ -7,8 +7,6 @@ Policy=nan;
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences=0;
-    vfoptions.dynasty=0;
     vfoptions.parallel=1+(gpuDeviceCount>0);
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
@@ -31,14 +29,11 @@ if exist('vfoptions','var')==0
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.outputkron=0; % If 1 then leave output in Kron form
+    vfoptions.exoticpreferences='None';
+    vfoptions.dynasty=0;
+    vfoptions.experienceasset=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-%     if ~isfield(vfoptions,'exoticpreferences')
-%         vfoptions.exoticpreferences='None';
-%     end
-    if ~isfield(vfoptions,'dynasty')
-        vfoptions.dynasty=0;
-    end
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
     end
@@ -83,6 +78,16 @@ else
     if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0; % If 1 then leave output in Kron form
     end
+    if ~isfield(vfoptions,'exoticpreferences')
+        vfoptions.exoticpreferences='None';
+    end
+    if ~isfield(vfoptions,'dynasty')
+        vfoptions.dynasty=0;
+    end
+    if ~isfield(vfoptions,'experienceasset')
+        vfoptions.experienceasset=0;
+    end
+
 end
 
 if isempty(n_d)
@@ -156,6 +161,11 @@ if isfield(vfoptions,'n_e')
 else
     l_e=0;
 end
+if vfoptions.experienceasset==1
+    % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable
+    l_z=l_z+1;
+    l_a=l_a-1;
+end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
     temp=getAnonymousFnInputNames(ReturnFn);
@@ -165,6 +175,7 @@ if isempty(ReturnFnParamNames)
         ReturnFnParamNames={};
     end
 end
+% clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 
 %% 
 if vfoptions.parallel==2 
@@ -186,22 +197,37 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-if isfield(vfoptions,'exoticpreferences')
-    if strcmp(vfoptions.exoticpreferences,'None')
-        % Just ignore and will then continue on.
-    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-       [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-       return
-    elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        if vfoptions.dynasty==0
-            [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            return
-        else
-            error('CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
-        end
+%% Deal with Exotic preferences if need to do that.
+if strcmp(vfoptions.exoticpreferences,'None')
+    % Just ignore and will then continue on.
+elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+    [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+    if vfoptions.dynasty==0
+        [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        return
+    else
+        error('CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
     end
 end
 
+%% Deal with Experience Asset if need to do that
+if vfoptions.experienceasset==1
+    % Split endogenous assets into the standard ones and the experience asset
+    n_a1=n_a(1:end-1);
+    n_a2=n_a(end); % n_a2 is the experience asset
+    a1_grid=a_grid(1:sum(n_a1));
+    a2_grid=a_grid(sum(n_a1)+1:end);
+    % Split decision variables into the standard ones and the one relevant to the experience asset
+    n_d1=n_d(1:end-1);
+    n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+    d1_grid=d_grid(1:sum(n_d1));
+    d2_grid=d_grid(sum(n_d1)+1:end);
+    % Now just send all this to the right value fn iteration command
+    [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+end
 
 %% Deal with StateDependentVariables_z if need to do that.
 if isfield(vfoptions,'StateDependentVariables_z')==1

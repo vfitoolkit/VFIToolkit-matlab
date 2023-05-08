@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_FHorz_PType(PricePathOld, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, transpathoptions, simoptions, vfoptions)
+function PricePath=TransitionPath_Case1_FHorz_PType(PricePathOld, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -38,11 +38,12 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
-    transpathoptions.verbosegraphs=0;
-    transpathoptions.fastOLG=0;
-    transpathoptions.GEnewprice=2;
-    transpathoptions.historyofpricepath=0;
-    transpathoptions.stockvars=0;
+    transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
+    transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
+    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.    transpathoptions.fastOLG=0;
+    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
+                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up    transpathoptions.historyofpricepath=0;
+    transpathoptions.usestockvars=0;
     transpathoptions.fastOLG=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
@@ -67,11 +68,18 @@ else
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
     end
-    if isfield(transpathoptions,'verbosegraphs')==0
-        transpathoptions.verbosegraphs=0;
+    if isfield(transpathoptions,'graphpricepath')==0
+        transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
+    end
+    if isfield(transpathoptions,'graphaggvarspath')==0
+        transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
+    end
+    if isfield(transpathoptions,'graphGEcondns')==0
+        transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     end
     if isfield(transpathoptions,'GEnewprice')==0
-        transpathoptions.GEnewprice=2;
+        transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
+                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up    
     end
     if isfield(transpathoptions,'fastOLG')==0
         transpathoptions.fastOLG=0;
@@ -104,6 +112,15 @@ else
 end
 
 
+%% Some internal commands require a few vfoptions and simoptions to be set
+if exist('vfoptions','var')==0
+    vfoptions.policy_forceintegertype=0;
+else
+    if isfield(vfoptions,'policy_forceintegertype')==0
+        vfoptions.policy_forceintegertype=0;
+    end
+end
+
 %% Create PTypeStructure
 
 % PTypeStructure.Names_i never really gets used. Just makes things easier
@@ -128,6 +145,10 @@ end
 
 PTypeStructure.FnsAndPTypeIndicator=zeros(length(FnsToEvaluate),PTypeStructure.N_i,'gpuArray');
 
+if transpathoptions.verbose==1
+    fprintf('Setting up the permanent types for transition \n')
+end
+
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
@@ -141,19 +162,19 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
     end
 
-    if isfield(PTypeStructure.(iistr).vfoptions,'verbose')
-        if PTypeStructure.(iistr).vfoptions.verbose==1
-            sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-        elseif isfield(PTypeStructure.(iistr).simoptions,'verbose')
-            if PTypeStructure.(iistr).simoptions.verbose==1
-                sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-            end
-        end
-    elseif isfield(PTypeStructure.(iistr).simoptions,'verbose')
-        if PTypeStructure.(iistr).simoptions.verbose==1
-            sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
-        end
-    end
+    % if isfield(PTypeStructure.(iistr).vfoptions,'verbose')
+    %     if PTypeStructure.(iistr).vfoptions.verbose==1
+    %         sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
+    %     elseif isfield(PTypeStructure.(iistr).simoptions,'verbose')
+    %         if PTypeStructure.(iistr).simoptions.verbose==1
+    %             sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
+    %         end
+    %     end
+    % elseif isfield(PTypeStructure.(iistr).simoptions,'verbose')
+    %     if PTypeStructure.(iistr).simoptions.verbose==1
+    %         sprintf('Permanent type: %i of %i',ii, PTypeStructure.N_i)
+    %     end
+    % end
     % Need to fill in some defaults
     if ~isfield(PTypeStructure.(iistr).vfoptions,'parallel')
         PTypeStructure.(iistr).vfoptions.parallel=transpathoptions.parallel;
@@ -192,39 +213,16 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).n_d=n_d;
     if isa(n_d,'struct')
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
-    else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            PTypeStructure.(iistr).n_d=n_d(ii,:);
-        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-        end
     end
     PTypeStructure.(iistr).N_d=prod(PTypeStructure.(iistr).n_d);
     PTypeStructure.(iistr).n_a=n_a;
     if isa(n_a,'struct')
         PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
-    else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            PTypeStructure.(iistr).n_a=n_a(ii,:);
-        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
     end
     PTypeStructure.(iistr).N_a=prod(PTypeStructure.(iistr).n_a);
     PTypeStructure.(iistr).n_z=n_z;
     if isa(n_z,'struct')
         PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
-    else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            PTypeStructure.(iistr).n_z=n_z(ii,:);
-        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
     end
     PTypeStructure.(iistr).N_z=prod(PTypeStructure.(iistr).n_z);
     
@@ -322,18 +320,45 @@ for ii=1:PTypeStructure.N_i
     if isa(DiscountFactorParamNames,'struct')
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
     end
-    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
-    if isa(ReturnFnParamNames,'struct')
-        PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames.(Names_i{ii});
+
+    % Implement new way of handling ReturnFn inputs (note l_d, l_a, l_z are just created for this and then not used for anything else later)
+    if PTypeStructure.(iistr).n_d(1)==0
+        l_d=0;
+    else
+        l_d=length(PTypeStructure.(iistr).n_d);
     end
+    l_a=length(PTypeStructure.(iistr).n_a);
+    l_z=length(PTypeStructure.(iistr).n_z);
+    if PTypeStructure.(iistr).n_z(1)==0
+        l_z=0;
+    end
+    if isfield(PTypeStructure.(iistr).vfoptions,'SemiExoStateFn')
+        l_z=l_z+length(PTypeStructure.(iistr).vfoptions.n_semiz);
+    end
+    l_e=0;
+    if isfield(PTypeStructure.(iistr).vfoptions,'n_e')
+        if PTypeStructure.(iistr).vfoptions.n_e(1)~=0
+            l_e=length(PTypeStructure.(iistr).vfoptions.n_e);
+            using_e_var=1;
+        end
+    end
+    % Figure out ReturnFnParamNames from ReturnFn
+    temp=getAnonymousFnInputNames(PTypeStructure.(iistr).ReturnFn);
+    if length(temp)>(l_d+l_a+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
+        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        ReturnFnParamNames={};
+    end
+    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
+
+    
     PTypeStructure.(iistr).AgeWeightsParamNames=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
         if isfield(AgeWeightsParamNames,Names_i{ii})
             PTypeStructure.(iistr).AgeWeightsParamNames=AgeWeightsParamNames.(Names_i{ii});
         else
             if isfinite(PTypeStructure.(iistr).N_j)
-                sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
+                error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
             end
         end
     end
@@ -343,19 +368,19 @@ for ii=1:PTypeStructure.N_i
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are
     % necessarily the same.
     PTypeStructure.(iistr).FnsToEvaluate={};
-    PTypeStructure.(iistr).FnsToEvaluateParamNames=struct(); %(1).Names={}; % This is just an initialization value and will be overwritten
-    PTypeStructure.numFnsToEvaluate=length(FnsToEvaluate);
+
+
+    FnNames=fieldnames(FnsToEvaluate);
+    PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
     PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for kk=1:PTypeStructure.numFnsToEvaluate
-        if isa(FnsToEvaluate{kk},'struct')
-            if isfield(FnsToEvaluate{kk}, Names_i{ii})
-                PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate{kk}.(Names_i{ii});
-                if isa(FnsToEvaluateParamNames(kk).Names,'struct')
-                    PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names.(Names_i{ii});
-                else
-                    PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
-                end
+        if isa(FnsToEvaluate.(FnNames{kk}),'struct')
+            if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
+                PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
+                % Figure out FnsToEvaluateParamNames
+                temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
+                PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
                 PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
                 % else
@@ -364,207 +389,263 @@ for ii=1:PTypeStructure.N_i
             end
         else
             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate{kk};
-            PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names=FnsToEvaluateParamNames(kk).Names;
+            PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate.(FnNames{kk});
+            % Figure out FnsToEvaluateParamNames
+            temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}));
+            PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
             PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
             PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
         end
     end
-    
-%     if isa(PTypeDistParamNames, 'array')
-%         PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
-%     else
-%         PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
-%     end
+
+
+
+    %% Check if pi_z and z_grid can be precomputed
+    % Note: cannot handle that whether not not they can be precomputed differs across ptypes
+    transpathoptions.zpathprecomputed=0;
+    if isfield(PTypeStructure.(iistr).vfoptions,'pi_z_J')
+        transpathoptions.zpathprecomputed=1;
+        transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
+    elseif isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
+        N_z=prod(PTypeStructure.(iistr).n_z);
+        % Note: If ExogShockFn depends on the path, it must be done via a parameter
+        % that depends on the path (i.e., via ParamPath or PricePath)
+        PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.ExogShockFn);
+        overlap=0;
+        for pp=1:length(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames)
+            if strcmp(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames{pp},PricePathNames)
+                overlap=1;
+            end
+        end
+        if overlap==0
+            transpathoptions.zpathprecomputed=1;
+            % If ExogShockFn does not depend on any of the prices (in PricePath), then
+            % we can simply create it now rather than within each 'subfn' or 'p_grid'
+
+            % Check if it depends on the ParamPath
+            transpathoptions.zpathtrivial=1;
+            for pp=1:length(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames)
+                if strcmp(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames{pp},ParamPathNames)
+                    transpathoptions.zpathtrivial=0;
+                end
+            end
+            if transpathoptions.zpathtrivial==1
+                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
+                z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
+                for jj=1:N_j
+                    ExogShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for pp=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
+                    end
+                    [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                    pi_z_J(:,:,jj)=gpuArray(pi_z);
+                    z_grid_J(:,jj)=gpuArray(z_grid);
+                end
+                % Now store them in vfoptions and simoptions
+                PTypeStructure.(iistr).vfoptions.pi_z_J=pi_z_J;
+                PTypeStructure.(iistr).vfoptions.z_grid_J=z_grid_J;
+                PTypeStructure.(iistr).simoptions.pi_z_J=pi_z_J;
+                PTypeStructure.(iistr).simoptions.z_grid_J=z_grid_J;
+            elseif transpathoptions.zpathtrivial==0
+                % z_grid_J and/or pi_z_J varies along the transition path (but only depending on ParamPath, not PricePath
+                transpathoptions.(iistr).pi_z_J_T=zeros(N_z,N_z,N_j,T,'gpuArray');
+                transpathoptions.(iistr).z_grid_J_T=zeros(sum(n_z),N_j,T,'gpuArray');
+                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
+                z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
+                for tt=1:T
+                    for pp=1:length(ParamPathNames)
+                        PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
+                    end
+                    % Note, we know the PricePath is irrelevant for the current purpose
+                    for jj=1:N_j
+                        ExogShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames,jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for pp=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
+                        end
+                        [z_grid,pi_z]=PTypeStructure.(iistr).vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                        pi_z_J(:,:,jj)=gpuArray(pi_z);
+                        z_grid_J(:,jj)=gpuArray(z_grid);
+                    end
+                    transpathoptions.(iistr).pi_z_J_T(:,:,:,tt)=pi_z_J;
+                    transpathoptions.(iistr).z_grid_J_T(:,:,tt)=z_grid_J;
+                end
+            end
+        end
+    end
+    %% If used, check if pi_e and e_grid can be procomputed
+    % Note: cannot handle that whether not not they can be precomputed differs across ptypes
+    if using_e_var==1
+        % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
+
+        transpathoptions.epathprecomputed=0;
+        if isfield(PTypeStructure.(iistr).vfoptions,'pi_e_J')
+            transpathoptions.epathprecomputed=1;
+            transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
+        elseif isfield(PTypeStructure.(iistr).vfoptions,'EiidShockFn')
+            N_e=prod(PTypeStructure.(iistr).vfoptions.n_e);
+            % Note: If EiidShockFn depends on the path, it must be done via a parameter
+            % that depends on the path (i.e., via ParamPath or PricePath)
+            PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.EiidShockFn);
+            overlap=0;
+            for pp=1:length(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames)
+                if strcmp(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames{pp},PricePathNames)
+                    overlap=1;
+                end
+            end
+            if overlap==0
+                transpathoptions.epathprecomputed=1;
+                % If ExogShockFn does not depend on any of the prices (in PricePath), then
+                % we can simply create it now rather than within each 'subfn' or 'p_grid'
+
+                % Check if it depends on the ParamPath
+                transpathoptions.epathtrivial=1;
+                for pp=1:length(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames)
+                    if strcmp(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames{pp},ParamPathNames)
+                        transpathoptions.epathtrivial=0;
+                    end
+                end
+                if transpathoptions.epathtrivial==1
+                    pi_e_J=zeros(N_e,N_j,'gpuArray');
+                    e_grid_J=zeros(sum(PTypeStructure.(iistr).vfoptions.n_e),N_j,'gpuArray');
+                    for jj=1:N_j
+                        EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames,jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for pp=1:length(EiidShockFnParamsVec)
+                            EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
+                        end
+                        [e_grid,pi_e]=PTypeStructure.(iistr).vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                        pi_e_J(:,jj)=gpuArray(pi_e);
+                        e_grid_J(:,jj)=gpuArray(e_grid);
+                    end
+                    % Now store them in vfoptions and simoptions
+                    PTypeStructure.(iistr).vfoptions.pi_e_J=pi_e_J;
+                    PTypeStructure.(iistr).vfoptions.e_grid_J=e_grid_J;
+                    PTypeStructure.(iistr).simoptions.pi_e_J=pi_e_J;
+                    PTypeStructure.(iistr).simoptions.e_grid_J=e_grid_J;
+                elseif transpathoptions.epathtrivial==0
+                    % e_grid_J and/or pi_e_J varies along the transition path (but only depending on ParamPath, not PricePath)
+                    transpathoptions.(iistr).pi_e_J_T=zeros(N_e,N_j,T,'gpuArray');
+                    transpathoptions.(iistr).e_grid_J_T=zeros(sum(PTypeStructure.(iistr).vfoptions.n_e),N_j,T,'gpuArray');
+                    pi_e_J=zeros(N_e,N_j,'gpuArray');
+                    e_grid_J=zeros(sum(PTypeStructure.(iistr).vfoptions.n_e),N_j,'gpuArray');
+                    for tt=1:T
+                        for pp=1:length(ParamPathNames)
+                            PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
+                        end
+                        % Note, we know the PricePath is irrelevant for the current purpose
+                        for jj=1:N_j
+                            EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, vPTypeStructure.(iistr).foptions.EiidShockFnParamNames,jj);
+                            EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                            for pp=1:length(ExogShockFnParamsVec)
+                                EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
+                            end
+                            [e_grid,pi_e]=PTypeStructure.(iistr).vfoptions.ExogShockFn(EiidShockFnParamsCell{:});
+                            pi_e_J(:,jj)=gpuArray(pi_e);
+                            e_grid_J(:,jj)=gpuArray(e_grid);
+                        end
+                        transpathoptions.(iistr).pi_e_J_T(:,:,tt)=pi_e_J;
+                        transpathoptions.(iistr).e_grid_J_T(:,:,tt)=e_grid_J;
+                    end
+                end
+            end
+        end
+    end
+   
 end
 
-%%
-% Have now finished creating PTypeStructure. 
-
-
-
-
-
-
-
-% 
-% %% Check which vfoptions have been used, set all others to defaults 
-% if exist('vfoptions','var')==0
-%     disp('No vfoptions given, using defaults')
-%     %If vfoptions is not given, just use all the defaults
-% %     vfoptions.exoticpreferences=0;
-%     vfoptions.parallel=transpathoptions.parallel;
-%     vfoptions.returnmatrix=2;
-%     vfoptions.verbose=0;
-%     vfoptions.lowmemory=0;
-%     vfoptions.exoticpreferences=0;
-%     vfoptions.polindorval=1;
-%     vfoptions.policy_forceintegertype=0;
-% else
-%     %Check vfoptions for missing fields, if there are some fill them with the defaults
-%     if isfield(vfoptions,'parallel')==0
-%         vfoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
-%     end
-%     if vfoptions.parallel==2
-%         vfoptions.returnmatrix=2; % On GPU, must use this option
-%     end
-%     if isfield(vfoptions,'lowmemory')==0
-%         vfoptions.lowmemory=0;
-%     end
-%     if isfield(vfoptions,'verbose')==0
-%         vfoptions.verbose=0;
-%     end
-%     if isfield(vfoptions,'returnmatrix')==0
-%         if isa(ReturnFn,'function_handle')==1
-%             vfoptions.returnmatrix=0;
-%         else
-%             vfoptions.returnmatrix=1;
-%         end
-%     end
-%     if isfield(vfoptions,'exoticpreferences')==0
-%         vfoptions.exoticpreferences=0;
-%     end
-%     if isfield(vfoptions,'polindorval')==0
-%         vfoptions.polindorval=1;
-%     end
-%     if isfield(vfoptions,'policy_forceintegertype')==0
-%         vfoptions.policy_forceintegertype=0;
-%     end
-% end
-% 
-% %% Check which simoptions have been used, set all others to defaults 
-% if isfield(transpathoptions,'simoptions')==1
-%     simoptions=transpathoptions.simoptions;
-% end
-% if exist('simoptions','var')==0
-%     simoptions.nsims=10^4;
-%     simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
-%     simoptions.verbose=0;
-%     try 
-%         PoolDetails=gcp;
-%         simoptions.ncores=PoolDetails.NumWorkers;
-%     catch
-%         simoptions.ncores=1;
-%     end
-%     simoptions.iterate=1;
-%     simoptions.tolerance=10^(-9);
-% else
-%     %Check vfoptions for missing fields, if there are some fill them with
-%     %the defaults
-%     if isfield(simoptions,'tolerance')==0
-%         simoptions.tolerance=10^(-9);
-%     end
-%     if isfield(simoptions,'nsims')==0
-%         simoptions.nsims=10^4;
-%     end
-%     if isfield(simoptions,'parallel')==0
-%         simoptions.parallel=transpathoptions.parallel;
-%     end
-%     if isfield(simoptions,'verbose')==0
-%         simoptions.verbose=0;
-%     end
-%     if isfield(simoptions,'ncores')==0
-%         try
-%             PoolDetails=gcp;
-%             simoptions.ncores=PoolDetails.NumWorkers;
-%         catch
-%             simoptions.ncores=1;
-%         end
-%     end
-%     if isfield(simoptions,'iterate')==0
-%         simoptions.iterate=1;
-%     end
-% end
-
-%% Check the sizes of some of the inputs
-% N_d=prod(n_d);
-% N_z=prod(n_z);
-% N_a=prod(n_a);
-% 
-% if N_d>0
-%     if size(d_grid)~=[N_d, 1]
-%         disp('ERROR: d_grid is not the correct shape (should be of size N_d-by-1)')
-%         dbstack
-%         return
-%     end
-% end
-% if size(a_grid)~=[N_a, 1]
-%     disp('ERROR: a_grid is not the correct shape (should be of size N_a-by-1)')
-%     dbstack
-%     return
-% elseif size(z_grid)~=[N_z, 1]
-%     disp('ERROR: z_grid is not the correct shape (should be of size N_z-by-1)')
-%     dbstack
-%     return
-% elseif size(pi_z)~=[N_z, N_z]
-%     disp('ERROR: pi is not of size N_z-by-N_z')
-%     dbstack
-%     return
-% end
-% if length(PricePathNames)~=length(GeneralEqmEqns)
-%     disp('ERROR: Initial PricePath contains less variables than GeneralEqmEqns')
-%     dbstack
-%     return
-% end
 
 %%
 if transpathoptions.parallel==2 
-%    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-%    pi_z=gpuArray(pi_z);
-%    if exists('d_grid','var')
-%        d_grid=gpuArray(d_grid);
-%    end
-%    a_grid=gpuArray(a_grid);
-%    z_grid=gpuArray(z_grid);
    PricePathOld=gpuArray(PricePathOld);
-% else
-%    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-%    % This may be completely unnecessary.
-%    pi_z=gather(pi_z);
-%    if exists('d_grid','var')
-%        d_grid=gather(d_grid);
-%    end
-%    a_grid=gather(a_grid);
-%    z_grid=gather(z_grid);
-%    PricePathOld=gather(PricePathOld);
 end
 
+% GeneralEqmEqnNames=fieldnames(GeneralEqmEqns);
+% for gg=1:length(GeneralEqmEqnNames)
+%     GeneralEqmEqnParamNames{gg}=getAnonymousFnInputNames(GeneralEqmEqns.(GeneralEqmEqnNames{gg}));
+% end
 
 %%
 if transpathoptions.usestockvars==1 
-    fprinf('ERROR: transpathoptions.usestockvars=1 not yet implemented with PType \n')
-    dbstack
-%     % Get the stock variable objects out of transpathoptions.
-%     StockVariable_init=transpathoptions.stockvarinit;
-% %     StockVariableEqns=transpathoptions.stockvareqns.lawofmotion;
-%     % and switch from structure/names to matrix for VFI Toolkit internals.
-%     StockVarsPathNames=fieldnames(transpathoptions.stockvarpath0);
-%     StockVarsStruct=transpathoptions.stockvarpath0;
-%     StockVarsPathOld=zeros(T,length(StockVarsPathNames));
-%     StockVariableEqns=cell(1,length(StockVarsPathNames));
-%     for ii=1:length(StockVarsPathNames)
-%         StockVarsPathOld(:,ii)=StockVarsStruct.(StockVarsPathNames{ii});
-%         StockVariableEqnParamNames(ii).Names=transpathoptions.stockvareqns.Names.(StockVarsPathNames{ii}); % Really, what I should do is redesign the way the GeneralEqm equations and names work so they are in a structure, and then just leave this in it's structure form as well.
-%         StockVariableEqns{ii}=transpathoptions.stockvareqns.lawofmotion.(StockVarsPathNames{ii});
-%     end
-%     if transpathoptions.parallel==2
-%         StockVarsPathOld=gpuArray(StockVarsPathOld);
-%     end
+    error('transpathoptions.usestockvars=1 not yet implemented with PType \n')
 end
 
+if transpathoptions.verbose==1
+    fprintf('Completed setup, beginning transition computination \n')
+end
+
+%% Set up GEnewprice==3 (if relevant)
+if transpathoptions.GEnewprice==3
+    transpathoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
+    
+    if isstruct(GeneralEqmEqns) 
+        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
+        % Is same as order of fields in GeneralEqmEqns
+        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
+        temp=transpathoptions.GEnewprice3.howtoupdate;
+        GEeqnNames=fieldnames(GeneralEqmEqns);
+        for tt=1:length(GEeqnNames)
+            for jj=1:size(temp,1)
+                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
+                    transpathoptions.GEnewprice3.howtoupdate{tt,1}=temp{jj,1};
+                    transpathoptions.GEnewprice3.howtoupdate{tt,2}=temp{jj,2};
+                    transpathoptions.GEnewprice3.howtoupdate{tt,3}=temp{jj,3};
+                    transpathoptions.GEnewprice3.howtoupdate{tt,4}=temp{jj,4};
+                end
+            end
+        end
+        nGeneralEqmEqns=length(GEeqnNames);
+    else
+        nGeneralEqmEqns=length(GeneralEqmEqns);
+    end
+    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
+    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    tempweight=transpathoptions.oldpathweight;
+    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
+    for tt=1:length(transpathoptions.GEnewprice3.factor)
+        if transpathoptions.GEnewprice3.factor(tt)==Inf
+            transpathoptions.GEnewprice3.factor(tt)=1;
+            transpathoptions.GEnewprice3.keepold(tt)=0;
+            transpathoptions.oldpathweight(tt)=tempweight;
+        end
+    end
+    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
+        % do nothing, this is how things should be
+    else
+        fprintf('ERROR: transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+    end
+    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
+    for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for jj=1:length(PricePathNames)
+            if strcmp(transpathoptions.GEnewprice3.howtoupdate{tt,2},PricePathNames{jj})
+                transpathoptions.GEnewprice3.permute(tt)=jj;
+            end
+        end
+    end
+    if isfield(transpathoptions,'updateaccuracycutoff')==0
+        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
+    end
+end
+
+
 %%
-if transpathoptions.GEnewprice==1
+if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
         if transpathoptions.usestockvars==0
-            PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, GeneralEqmEqns, GeneralEqmEqnParamNames, transpathoptions, PTypeStructure);
+            if ~isfield(vfoptions,'n_e')
+                PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+            else
+                PricePathOld=TransitionPath_Case1_FHorz_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+            end
         else % transpathoptions.usestockvars==1
             % NOT YET IMPLEMENTED
 %             [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_PType_shooting(PricePathOld, PricePathNames, StockVarsPathOld, StockVarsPathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, StockVariableEqnParamNames, vfoptions, simoptions, transpathoptions);
         end
     else
-        fprintf('ERROR: transpathoptions can only be used on GPU (transpathoptions.parallel=2) \n')
-        dbstack
-        return
+        error('transpathoptions can only be used on GPU (transpathoptions.parallel=2) \n')
 %         PricePathOld=TransitionPath_Case1_FHorz_Par1_PType, shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
     end
     % Switch the solution into structure for output.
@@ -591,36 +672,6 @@ if transpathoptions.verbose==1
     ParamPathNames
     PricePathNames
 end
-
-% %% Set up transition path as minimization of a function (default is to use as objective the weighted sum of squares of the general eqm conditions)
-% PricePathVec=gather(reshape(PricePathOld,[T*length(PricePathNames),1])); % Has to be vector of fminsearch. Additionally, provides a double check on sizes.
-% 
-% if transpathoptions.GEnewprice==2 % Function minimization
-%     % CURRENTLY ONLY WORKS WITH GPU (PARALLEL==2)
-%     if n_d(1)==0
-%         GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_FHorz_no_d_subfn(pricepathPricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions,transpathoptions);
-%     else
-%         GeneralEqmConditionsPathFn=@(pricepath) TransitionPath_Case1_FHorz_subfn(pricepath, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions,transpathoptions);
-%     end
-% end
-% 
-% % if transpathoptions.GEnewprice2algo==0
-% [PricePath,~]=fminsearch(GeneralEqmConditionsPathFn,PricePathVec);
-% % else
-% %     [PricePath,~]=fminsearch(GeneralEqmConditionsPathFn,PricePathOld);
-% % end
-% 
-% % LOOK INTO USING 'SURROGATE OPTIMIZATION'
-% 
-% if transpathoptions.parallel==2
-%     PricePath=gpuArray(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
-% else
-%     PricePath=gather(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)    
-% end
-% 
-% for ii=1:length(PricePathNames)
-%     PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
-% end
 
 
 end

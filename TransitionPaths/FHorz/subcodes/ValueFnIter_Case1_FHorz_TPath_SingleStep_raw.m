@@ -14,7 +14,7 @@ eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fie
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -34,17 +34,19 @@ if fieldexists_pi_z_J==1
     z_grid=vfoptions.z_grid_J(:,N_j);
     pi_z=vfoptions.pi_z_J(:,:,N_j);
 elseif fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
+    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+    for ii=1:length(ExogShockFnParamsVec)
+        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+    end
+    [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+    z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+end
+if vfoptions.lowmemory>0
+    if all(size(z_grid)==[sum(n_z),1])
+        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    elseif all(size(z_grid)==[prod(n_z),l_z])
+        z_gridvals=z_grid;
     end
 end
 
@@ -90,39 +92,41 @@ end
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
-    j=N_j-reverse_j;
+    jj=N_j-reverse_j;
 
     if vfoptions.verbose==1
-        sprintf('Finite horizon: %i of %i',j, N_j)
+        sprintf('Finite horizon: %i of %i',jj, N_j)
     end
     
     
     % Create a vector containing all the return function parameters (in order)
-    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,j);
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,j);
+    ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     if fieldexists_pi_z_J==1
         z_grid=vfoptions.z_grid_J(:,jj);
         pi_z=vfoptions.pi_z_J(:,:,jj);
     elseif fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        end
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
+    end
+    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
+        if all(size(z_grid)==[sum(n_z),1])
+            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+        elseif all(size(z_grid)==[prod(n_z),l_z])
+            z_gridvals=z_grid;
         end
     end
-    
+
     VKronNext_j=Vtemp_j; % Has been presaved before it was
 %     VKronNext_j=V(:,:,j+1);
-    Vtemp_j=V(:,:,j); % Grab this before it is replaced/updated
+    Vtemp_j=V(:,:,jj); % Grab this before it is replaced/updated
 
     
     if vfoptions.lowmemory==0
@@ -130,36 +134,41 @@ for reverse_j=1:N_j-1
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
         
-%         %Calc the condl expectation term (except beta), which depends on z but
-%         %not on control variables
-%         EV=VKronNext_j.*(ones(N_a,1,'gpuArray')*dimshift(pi_z,1)); %THIS LINE IS LIKELY INCORRECT
-%         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-%         EV=sum(EV,2);
-%         
-%         entireEV=kron(EV,ones(N_d,1,1));
-%         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,N_z);
-%         
-%         %Calc the max and it's index
-%         [Vtemp,maxindex]=max(entireRHS,[],3);
-%         V(:,:,j)=Vtemp;
-%         PolicyIndexes(:,:,j)=maxindex;
-
-         for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+        if vfoptions.paroverz==1
             
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+            EV=VKronNext_j.*shiftdim(pi_z',-1);
+            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
             
-            entireEV_z=kron(EV_z,ones(N_d,1));
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+            entireEV=kron(EV,ones(N_d,1));
+%             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,j)=Vtemp;
-            Policy(:,z_c,j)=maxindex;
+            [Vtemp,maxindex]=max(entireRHS,[],1);
+            
+            V(:,:,jj)=shiftdim(Vtemp,1);
+            Policy(:,:,jj)=shiftdim(maxindex,1);
+            
+            
+        elseif vfoptions.paroverz==0
+            
+            for z_c=1:N_z
+                ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+                
+                %Calc the condl expectation term (except beta), which depends on z but not on control variables
+                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z=sum(EV_z,2);
+                
+                entireEV_z=kron(EV_z,ones(N_d,1));
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                
+                %Calc the max and it's index
+                [Vtemp,maxindex]=max(entireRHS_z,[],1);
+                V(:,z_c,jj)=Vtemp;
+                Policy(:,z_c,jj)=maxindex;
+            end
         end
         
     elseif vfoptions.lowmemory==1
@@ -178,8 +187,8 @@ for reverse_j=1:N_j-1
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,j)=Vtemp;
-            Policy(:,z_c,j)=maxindex;
+            V(:,z_c,jj)=Vtemp;
+            Policy(:,z_c,jj)=maxindex;
         end
         
     elseif vfoptions.lowmemory==2
@@ -200,8 +209,8 @@ for reverse_j=1:N_j-1
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,j)=Vtemp;
-                Policy(a_c,z_c,j)=maxindex;
+                V(a_c,z_c,jj)=Vtemp;
+                Policy(a_c,z_c,jj)=maxindex;
             end
         end
         

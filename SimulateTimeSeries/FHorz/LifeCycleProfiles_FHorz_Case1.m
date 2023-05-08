@@ -74,6 +74,10 @@ if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
     n_z=[n_z,simoptions.n_semiz];
     z_grid=[z_grid;simoptions.semiz_grid];
 end
+if simoptions.parallel==2
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+end
 
 % N_d=prod(n_d);
 N_a=prod(n_a);
