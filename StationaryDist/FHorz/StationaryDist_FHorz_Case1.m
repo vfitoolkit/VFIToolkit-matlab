@@ -13,7 +13,15 @@ end
 
 %%
 if isfield(simoptions,'SemiExoStateFn')
+    if isfield(simoptions,'experienceasset')
+        StationaryDist=StationaryDist_FHorz_Case1_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,simoptions.aprimeFn,Parameters,simoptions);
+        return
+    end
     StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+    return
+end
+if isfield(simoptions,'experienceasset')
+    StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,simoptions.aprimeFn,Parameters,simoptions);
     return
 end
 
@@ -31,7 +39,7 @@ if n_z(1)==0
     return
 end
 
-
+%%
 if isempty(n_d)
     n_d=0;
 end

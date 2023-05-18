@@ -54,7 +54,9 @@ if exist('simoptions','var')==1
         end
         simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn);
     end
-    
+    if isfield(simoptions,'experienceasset')==0    
+        simoptions.experienceasset=0;
+    end
 else
     %If options is not given, just use all the defaults
     if isgpuarray(StationaryDist)
@@ -67,16 +69,7 @@ else
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-end
-
-if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
-    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-    n_z=[n_z,simoptions.n_semiz];
-    z_grid=[z_grid;simoptions.semiz_grid];
-end
-if simoptions.parallel==2
-    d_grid=gpuArray(d_grid);
-    a_grid=gpuArray(a_grid);
+    simoptions.experienceasset=0;
 end
 
 % N_d=prod(n_d);
@@ -104,6 +97,26 @@ else
     l_z=length(n_z);
 end
 
+%%
+if simoptions.experienceasset==1
+    % Just rejig the decision variables and send off as a Case2
+    n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
+    d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    return
+end
+
+if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+    n_z=[n_z,simoptions.n_semiz];
+    z_grid=[z_grid;simoptions.semiz_grid];
+end
+if simoptions.parallel==2
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+end
+
+%% z_grid (and e_grid where appropriate)
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
 eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')

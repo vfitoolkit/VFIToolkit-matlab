@@ -1,8 +1,4 @@
 function StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z, Parameters, simoptions)
-%Simulates path based on PolicyIndexes of length 'periods' after a burn
-%in of length 'burnin' (burn-in are the initial run of points that are then
-%dropped)
-
 % Options needed
 %    simoptions.nsims
 %    simoptions.parallel

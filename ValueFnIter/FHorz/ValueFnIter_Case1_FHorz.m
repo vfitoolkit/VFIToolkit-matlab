@@ -150,6 +150,8 @@ else
 end
 l_a=length(n_a);
 l_z=length(n_z);
+% [n_d,n_a,n_z]
+% [l_d,l_a,l_z]
 if n_z(1)==0
     l_z=0;
 end
@@ -176,6 +178,7 @@ if isempty(ReturnFnParamNames)
     end
 end
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
+% [l_d,l_a,l_z,l_e]
 
 %% 
 if vfoptions.parallel==2 
@@ -212,18 +215,80 @@ elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     end
 end
 
+%% Using both Experience Asset and Semi-Exogenous state
+if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
+    % First, sort out splitting up the decision variables (other, semiexo, experienceasset)
+    if length(n_d)>2
+        n_d1=n_d(1:end-2);
+    else
+        n_d1=0;
+    end
+    n_d2=n_d(end-1); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
+    n_d3=n_d(end); % n_d3 is the decision variable that influences the experience asset
+    d1_grid=d_grid(1:sum(n_d1));
+    d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
+    d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
+    % Split endogenous assets into the standard ones and the experience asset
+    if length(n_a)==1
+        n_a1=0;
+    else
+        n_a1=n_a(1:end-1);
+    end
+    n_a2=n_a(end); % n_a2 is the experience asset
+    a1_grid=a_grid(1:sum(n_a1));
+    a2_grid=a_grid(sum(n_a1)+1:end);
+
+    % Second, set up the semi-exogenous state
+    if ~isfield(vfoptions,'n_semiz')
+        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.n_semiz')
+    end
+    if ~isfield(vfoptions,'semiz_grid')
+        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.semiz_grid')
+    end
+    % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
+    N_semiz=prod(vfoptions.n_semiz);
+    l_semiz=length(vfoptions.n_semiz);
+    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
+    if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
+        SemiExoStateFnParamNames={temp{1+l_semiz+l_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
+    else
+        SemiExoStateFnParamNames={};
+    end
+    pi_semiz_J=zeros(N_semiz,N_semiz,n_d2,N_j);
+    for jj=1:N_j
+        SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
+        pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,vfoptions.n_semiz,d2_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues);
+    end
+
+    % Now just send it off
+    [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_grid, vfoptions.semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+
+end
+
 %% Deal with Experience Asset if need to do that
 if vfoptions.experienceasset==1
+    % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
+    
     % Split endogenous assets into the standard ones and the experience asset
-    n_a1=n_a(1:end-1);
+    if length(n_a)==1
+        n_a1=0;
+    else
+        n_a1=n_a(1:end-1);
+    end
     n_a2=n_a(end); % n_a2 is the experience asset
     a1_grid=a_grid(1:sum(n_a1));
     a2_grid=a_grid(sum(n_a1)+1:end);
     % Split decision variables into the standard ones and the one relevant to the experience asset
-    n_d1=n_d(1:end-1);
+    if length(n_d)==1
+        n_d1=0;
+    else
+        n_d1=n_d(1:end-1);
+    end
     n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
     d1_grid=d_grid(1:sum(n_d1));
     d2_grid=d_grid(sum(n_d1)+1:end);
+
     % Now just send all this to the right value fn iteration command
     [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return

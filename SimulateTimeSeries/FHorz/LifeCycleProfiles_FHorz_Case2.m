@@ -28,9 +28,7 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy
 %% Check which option have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check options for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=2;
-    end
+    simoptions.parallel=2; % Case2 is only on gpu
     if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
     end
@@ -55,9 +53,12 @@ if exist('simoptions','var')==1
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
+    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
+    end
 else
     %If options is not given, just use all the defaults
-    simoptions.parallel=2;
+    simoptions.parallel=2; % Case2 is only on gpu
     simoptions.verbose=0;
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
@@ -76,6 +77,11 @@ if prod(simoptions.agedependentgrids)~=0
     return
 end
 
+if simoptions.parallel==2
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+end
+
 l_d=length(n_d);
 l_a=length(n_a);
 l_z=length(n_z);
@@ -89,6 +95,157 @@ end
 % N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+
+%% z_grid (and e_grid where appropriate)
+eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
+eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
+eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+
+if fieldexists_pi_z_J==1
+    z_grid_J=simoptions.z_grid_J;
+elseif fieldexists_ExogShockFn==1
+    if size(z_grid,2)==1 % kronecker-grid
+        z_grid_J=zeros(sum(n_z),N_j);
+        for jj=1:N_j
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            else
+                [z_grid,~]=simoptions.ExogShockFn(jj);
+            end
+            z_grid_J(:,jj)=gather(z_grid);
+        end
+    elseif size(z_grid,2)==l_z % joint-grids
+        z_grid_J=zeros(N_z,l_z,N_j);
+        for jj=1:N_j
+            if fieldexists_ExogShockFnParamNames==1
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            else
+                [z_grid,~]=simoptions.ExogShockFn(jj);
+            end
+            z_grid_J(:,:,jj)=gather(z_grid);
+        end
+    end
+else
+    if size(z_grid,2)==1 % kronecker-grid
+        z_grid_J=repmat(z_grid,1,N_j);
+    elseif size(z_grid,2)==l_z % joint-grids
+        z_grid_J=zeros(N_z,l_z,N_j);
+        for jj=1:N_j
+            z_grid_J(:,:,jj)=z_grid;
+        end
+    end
+end
+if ndims(z_grid_J)==2
+    jointzgrid=0;
+elseif ndims(z_grid_J)==3
+    jointzgrid=1;
+end
+
+if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+    n_z=[n_z,simoptions.n_semiz];
+    l_z=length(n_z);
+    N_z=prod(n_z);
+    if jointzgrid==0
+        z_grid_Jold=z_grid_J;
+        z_grid_J=zeros(sum(n_z),N_j);
+        for jj=1:N_j
+            z_grid_J(:,jj)=[z_grid_Jold(:,jj);simoptions.semiz_grid];
+        end
+    else % jointzgrid==1
+        error('Have not implemented joint z_grid being used at same time as semi-exogenous states')
+    end
+end
+
+if isfield(simoptions,'n_e')
+    % Because of how FnsToEvaluate works I can just get the e variables and
+    % then 'combine' them with z
+    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
+    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
+    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+    
+    n_e=simoptions.n_e;
+    N_e=prod(n_e);
+    l_e=length(n_e);
+    
+    if fieldexists_pi_e_J==1
+        e_grid_J=simoptions.e_grid_J;
+    elseif fieldexists_EiidShockFn==1
+        if size(simoptions.e_grid,2)==1 % kronecker-grid
+            e_grid_J=zeros(sum(simoptions.n_e),N_j);
+            for jj=1:N_j
+                if fieldexists_EiidShockFnParamNames==1
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                    for ii=1:length(EiidShockFnParamsVec)
+                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                    end
+                    [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                else
+                    [e_grid,~]=simoptions.EiidShockFn(jj);
+                end
+                e_grid_J(:,jj)=gather(e_grid);
+            end
+        elseif size(simoptions.e_grid,2)==l_e % joint-grids
+            e_grid_J=zeros(N_e,l_e,N_j);
+            for jj=1:N_j
+                if fieldexists_EiidShockFnParamNames==1
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                    for ii=1:length(EiidShockFnParamsVec)
+                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                    end
+                    [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                else
+                    [e_grid,~]=simoptions.EiidShockFn(jj);
+                end
+                e_grid_J(:,:,jj)=gather(e_grid);
+            end
+        end
+    else
+        if size(simoptions.e_grid,2)==1 % kronecker-grid
+            e_grid_J=repmat(simoptions.e_grid,1,N_j);
+        elseif size(simoptions.e_grid,2)==l_z % joint-grids
+            e_grid_J=zeros(N_e,l_e,N_j);
+            for jj=1:N_j
+                e_grid_J(:,:,jj)=simoptions.e_grid;
+            end
+        end
+    end
+    
+    if ndims(e_grid_J)==2
+        jointegrid=0;
+    elseif ndims(e_grid_J)==3
+        jointegrid=1;
+    end
+
+    
+    % Now combine into z
+    if n_z(1)==0
+        l_ze=l_e;
+        n_ze=simoptions.n_e;
+    else
+        l_ze=l_z+l_e;
+        n_ze=[n_z,n_e];
+    end
+    N_ze=prod(n_ze);
+else
+    N_e=0;
+    n_ze=n_z;
+    N_ze=N_z;
+    l_ze=l_z;
+end
+
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -116,34 +273,8 @@ if isfield(simoptions,'keepoutputasmatrix')
     end
 end
 
-%%
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-
-if fieldexists_pi_z_J==1
-    z_grid_J=simoptions.z_grid_J;
-elseif fieldexists_ExogShockFn==1
-    z_grid_J=zeros(N_z,N_j);
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        else
-            [z_grid,~]=simoptions.ExogShockFn(jj);
-        end
-        z_grid_J(:,jj)=gather(z_grid);
-    end
-else
-    z_grid_J=repmat(z_grid,1,N_j);
-end
-
 %% Create a different 'Values' for each of the variable to be evaluated
-PolicyValues=PolicyInd2Val_FHorz_Case2(Policy,n_d,n_a,n_z,N_j,d_grid,simoptions.parallel);
+PolicyValues=PolicyInd2Val_FHorz_Case2(Policy,n_d,n_a,n_z,N_j,d_grid);
 permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
 
@@ -206,7 +337,7 @@ for kk=1:length(simoptions.agegroupings)
         
         if simoptions.npoints>0
             % Calculate the 'age conditional' lorenz curve
-            AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints);
+            AgeConditionalStats(ii).LorenzCurve(:,kk)=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2);
             % Calculate the 'age conditional' gini
             AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
         end
@@ -273,17 +404,43 @@ end
 if simoptions.crosssectioncorrelation==1
     % Just to make it easier to call the output later (turns upper triangular matrix into a full matrix)
     for kk=1:length(simoptions.agegroupings)
-        for ii=1:length(FnsToEvaluate)
-            for aa=ii:length(FnsToEvaluate)
-                if aa==ii
-                    AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk)=1;
+        for ff1=1:length(FnsToEvaluate)
+            for ff2=ff1:length(FnsToEvaluate)
+                if ff2==ff1
+                    AgeConditionalStats(ff1,ff2).CrossSectionalCorrelation(kk)=1;
                 else
-                    AgeConditionalStats(aa,ii).CrossSectionalCorrelation(kk)=AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk); % Note, set (aa,ii) to (ii,aa)
+                    AgeConditionalStats(ff2,ff1).CrossSectionalCorrelation(kk)=AgeConditionalStats(ff1,ff2).CrossSectionalCorrelation(kk); % Note, set (ff2,ff1) to (ff1,ff2)
                 end
             end
         end
     end
 end
+
+if FnsToEvaluateStruct==1
+    % Change the output into a structure
+    AgeConditionalStats2=AgeConditionalStats;
+    clear AgeConditionalStats
+    AgeConditionalStats=struct();
+%     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        AgeConditionalStats.(AggVarNames{ff}).Mean=AgeConditionalStats2(ff).Mean;
+        AgeConditionalStats.(AggVarNames{ff}).Median=AgeConditionalStats2(ff).Median;
+        AgeConditionalStats.(AggVarNames{ff}).Variance=AgeConditionalStats2(ff).Variance;
+        AgeConditionalStats.(AggVarNames{ff}).LorenzCurve=AgeConditionalStats2(ff).LorenzCurve;
+        AgeConditionalStats.(AggVarNames{ff}).Gini=AgeConditionalStats2(ff).Gini;
+        AgeConditionalStats.(AggVarNames{ff}).QuantileCutoffs=AgeConditionalStats2(ff).QuantileCutoffs;
+        AgeConditionalStats.(AggVarNames{ff}).QuantileMeans=AgeConditionalStats2(ff).QuantileMeans;
+    end
+    if simoptions.crosssectioncorrelation==1
+        for ff1=1:length(FnsToEvaluate)
+            for ff2=ff1:length(FnsToEvaluate)
+                AgeConditionalStats(ff2,ff1).CrossSectionalCorrelation=AgeConditionalStats2(ff2,ff1).CrossSectionalCorrelation;
+            end
+        end
+    end
+end
+
+
 
 end
 

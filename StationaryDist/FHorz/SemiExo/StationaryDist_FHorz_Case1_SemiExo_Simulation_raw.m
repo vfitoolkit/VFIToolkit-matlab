@@ -70,7 +70,7 @@ if simoptions.parallel==1
                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
                 dsub=ind2sub_homemade([n_d1,n_d2],PolicyIndexesKron(1,currstate(1),currstate(2)+N_z*(currstate(3)-1),jj));
                 currstate(3)=find(cumsum_pi_semiz_J(currstate(2),:,dsub(end),jj)>rand(1,1),1,'first');
-                StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),jj+1)+1;
             end
         end
         StationaryDistKron(:,:,:,:,ncore_c)=StationaryDistKron_ncore_c;
@@ -119,7 +119,7 @@ end
 if length(AgeWeights)~=size(AgeWeights,2)
     AgeWeights=AgeWeights';
 end
-StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-1);
+StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-2);  % -2 because of the semi-exogenous shocks
 
 if MoveSSDKtoGPU==1
     StationaryDistKron=gpuArray(StationaryDistKron);

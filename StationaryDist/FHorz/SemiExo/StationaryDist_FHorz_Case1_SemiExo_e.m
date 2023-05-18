@@ -78,9 +78,9 @@ if simoptions.iterate==0
         % Sparse matrix is not relevant for the simulation methods, only for iteration method
         simoptions.parallel=2; % will simulate on parallel cpu, then transfer solution to gpu
     end
-    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z,pi_semiz_J,pi_e,Parameters,simoptions);
+    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d1,n_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z,pi_semiz_J,pi_e,Parameters,simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z,pi_semiz_J,pi_e,Parameters,simoptions);
+    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d1,n_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z,pi_semiz_J,pi_e,Parameters,simoptions);
 end
 
 if simoptions.outputkron==0

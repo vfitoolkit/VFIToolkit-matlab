@@ -59,45 +59,40 @@ if simoptions.phiaprimedependsonage==0
         jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
         %Create simoptions.ncores different steady state distn's, then combine them.
         parfor ncore_c=1:simoptions.ncores
-            SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_j);
+            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_j);
             % Pull a random start point from jequaloneDistKron
-            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
             currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
-            SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+            StationaryDistKron_ncore_c(currstate(1),currstate(2),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
                 dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % zprime
                 currstate(1)=Phi_aprimeMatrix(dindex,currstate(2)); % Case2_Type=3: aprime(d,z')
-                SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
             end
-            StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
+            StationaryDistKron(:,:,:,ncore_c)=StationaryDistKron_ncore_c;
         end
         StationaryDistKron=sum(StationaryDistKron,4);
-        StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
-        StationaryDistKron=StationaryDistKron./sum(StationaryDistKron,1); % Normalize conditional on age
     elseif simoptions.parallel==0 % Only different is for instead of parfor
-        StationaryDistKron=zeros(N_a,N_z,N_j,simoptions.ncores);
+        StationaryDistKron=zeros(N_a,N_z,N_j);
         cumsum_pi_z_J=cumsum(pi_z_J,2);
         jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
         %Create simoptions.ncores different steady state distn's, then combine them.
-        for ncore_c=1:simoptions.ncores
-            SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_j);
+        for ii=1:simoptions.ncores
             % Pull a random start point from jequaloneDistKron
-            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
             currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
-            SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+            StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
                 dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % zprime
                 currstate(1)=Phi_aprimeMatrix(dindex,currstate(2)); % Case2_Type=3: aprime(d,z')
-                SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
             end
-            StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
         end
-        StationaryDistKron=sum(StationaryDistKron,4);
-        StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
-        StationaryDistKron=StationaryDistKron./sum(StationaryDistKron,1); % Normalize conditional on age
     end
+    StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,N_j]);
+    StationaryDistKron=StationaryDistKron./sum(StationaryDistKron,1); % Normalize conditional on age
 else
     error('Phi_aprime depending on age is not presently supported when simulating agent dist, please contact me if you want/need it')
 end
@@ -117,6 +112,9 @@ if found==0 % Have added this check so that user can see if they are missing a p
     error(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
 end
 % I assume AgeWeights is a row vector
+if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
+    AgeWeights=AgeWeights';
+end
 StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z,1)*AgeWeights);
 
 if MoveSSDKtoGPU==1

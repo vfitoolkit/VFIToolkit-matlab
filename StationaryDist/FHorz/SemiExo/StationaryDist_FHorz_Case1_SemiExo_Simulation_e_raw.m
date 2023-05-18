@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z,pi_semiz_J,pi_e, Parameters, simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,n_d1,n_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z,pi_semiz_J,pi_e, Parameters, simoptions)
 % Simulates path based on PolicyIndexes of length 'periods' after a burn
 % in of length 'burnin' (burn-in are the initial run of points that are then dropped)
 %
@@ -127,7 +127,6 @@ elseif simoptions.parallel==0 % Note: You probably never want to actually use th
         end
     end
     StationaryDistKron=StationaryDistKron./sum(sum(sum(sum(StationaryDistKron,1),2),3),4);
-    end
 end
 
 
@@ -149,7 +148,7 @@ end
 if length(AgeWeights)~=size(AgeWeights,2)
     AgeWeights=AgeWeights';
 end
-StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-2);
+StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-3);  % -3 because of the semi-exogenous shocks and e vars
 
 if MoveSSDKtoGPU==1
     StationaryDistKron=gpuArray(StationaryDistKron);
