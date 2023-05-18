@@ -82,7 +82,6 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiterations=1000;
     transpathoptions.verbose=0;
-    transpathoptions.verbosegraphs=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
@@ -125,9 +124,6 @@ else
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
-    end
-    if isfield(transpathoptions,'verbosegraphs')==0
-        transpathoptions.verbosegraphs=0;
     end
     if isfield(transpathoptions,'graphpricepath')==0
         transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
