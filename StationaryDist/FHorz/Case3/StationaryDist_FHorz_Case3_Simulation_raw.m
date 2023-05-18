@@ -57,48 +57,50 @@ if simoptions.aprimedependsonage==0
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,1);
     [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_Case3(aprimeFn, n_d, n_a, n_u, d_grid, a_grid, u_grid, aprimeFnParamsVec,0); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
 
-    StationaryDistKron=zeros(N_a,N_z,N_j,simoptions.ncores);
     cumsum_pi_z_J=cumsum(pi_z_J,2);
     cumsum_pi_u_J=cumsum(pi_u_J,1);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
-    %Create simoptions.ncores different steady state distn's, then combine them.
     if simoptions.parallel==1
+        StationaryDistKron=zeros(N_a,N_z,N_j,simoptions.ncores);
+        %Create simoptions.ncores different steady state distn's, then combine them.
+        nsimspercore=ceil(simoptions.nsims/simoptions.ncores); % Create simoptions.ncores different steady state distns, then combine them
         parfor ncore_c=1:simoptions.ncores
-            SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_j);
-            % Pull a random start point from jequaloneDistKron
-            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-            currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
-            SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
-            for jj=1:(N_j-1)
-                dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
-                u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),'first'); % u
-                u_lowerupper=max(aprimeProbs(u_ind)>rand(1,1)); % value not index (hence max not find)
-                currstate(1)=aprimeIndex(dindex,u_ind+u_lowerupper); % Case3: aprime(d,u)
-                SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_j);
+            for ii=1:nsimspercore
+                % Pull a random start point from jequaloneDistKron
+                currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+                currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
+                StationaryDistKron_ncore_c(currstate(1),currstate(2),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+                for jj=1:(N_j-1)
+                    dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
+                    currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % zprime
+                    u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),1,'first'); % u
+                    u_lowerupper=max(aprimeProbs(u_ind)>rand(1,1)); % value not index (hence max not find)
+                    currstate(1)=aprimeIndex(dindex,u_ind)+u_lowerupper; % Case3: aprime(d,u)
+                    StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                end
             end
-            StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
+            StationaryDistKron(:,:,:,ncore_c)=StationaryDistKron_ncore_c;
         end
-    elseif simoptions.parallel==0 % Only different is for instead of parfor
-        for ncore_c=1:simoptions.ncores
-            SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_j);
+        StationaryDistKron=sum(StationaryDistKron,4);
+    elseif simoptions.parallel==0
+        StationaryDistKron=zeros(N_a,N_z,N_j);
+        for ii=1:simoptions.nsims
             % Pull a random start point from jequaloneDistKron
-            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
             currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
-            SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+            StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
                 dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
-                u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),'first'); % u
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % zprime
+                u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),1,'first'); % u
                 u_lowerupper=max(aprimeProbs(u_ind)>rand(1,1)); % value not index (hence max not find)
-                currstate(1)=aprimeIndex(dindex,u_ind+u_lowerupper); % Case3: aprime(d,u)
-                SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                currstate(1)=aprimeIndex(dindex,u_ind)+u_lowerupper; % Case3: aprime(d,u)
+                StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
             end
-            StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
         end
     end
-    StationaryDistKron=sum(StationaryDistKron,4);
-    StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
+    StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,N_j]);
     StationaryDistKron=StationaryDistKron./sum(StationaryDistKron,1); % Normalize conditional on age
 else % simoptions.aprimedependsonage==1
     aprimeIndex_J=zeros(N_d,N_u,N_j);
@@ -110,48 +112,50 @@ else % simoptions.aprimedependsonage==1
         aprimeProbs_J(:,:,jj)=aprimeProbs;
     end
 
-    StationaryDistKron=zeros(N_a,N_z,N_j,simoptions.ncores);
     cumsum_pi_z_J=cumsum(pi_z_J,2);
     cumsum_pi_u_J=cumsum(pi_u_J,1);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
-    %Create simoptions.ncores different steady state distn's, then combine them.
     if simoptions.parallel==1
+        StationaryDistKron=zeros(N_a,N_z,N_j,simoptions.ncores);
+        %Create simoptions.ncores different steady state distn's, then combine them.
+        nsimspercore=ceil(simoptions.nsims/simoptions.ncores); % Create simoptions.ncores different steady state distns, then combine them
         parfor ncore_c=1:simoptions.ncores
-            SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_j);
-            % Pull a random start point from jequaloneDistKron
-            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-            currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
-            SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
-            for jj=1:(N_j-1)
-                dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
-                u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),'first'); % u
-                u_lowerupper=max(aprimeProbs(u_ind)>rand(1,1)); % value not index (hence max not find)
-                currstate(1)=aprimeIndex_J(dindex,u_ind+u_lowerupper,jj); % Case3: aprime(d,u)
-                SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+            StationaryDistKron_ncore_c=zeros(N_a,N_z,N_j);
+            for ii=1:nsimspercore
+                % Pull a random start point from jequaloneDistKron
+                currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+                currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
+                StationaryDistKron_ncore_c(currstate(1),currstate(2),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+                for jj=1:(N_j-1)
+                    dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
+                    currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % zprime
+                    u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),1,'first'); % u
+                    u_lowerupper=max(aprimeProbs(u_ind)>rand(1,1)); % value not index (hence max not find)
+                    currstate(1)=aprimeIndex_J(dindex,u_ind,jj)+u_lowerupper; % Case3: aprime(d,u)
+                    StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                end
             end
-            StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
+            StationaryDistKron(:,:,:,ncore_c)=StationaryDistKron_ncore_c;
         end
+        StationaryDistKron=sum(StationaryDistKron,4);
     elseif simoptions.parallel==0
-        for ncore_c=1:simoptions.ncores
-            SteadyStateDistKron_ncore_c=zeros(N_a,N_z,N_j);
+        StationaryDistKron=zeros(N_a,N_z,N_j);
+        for ii=1:simoptions.nsims
             % Pull a random start point from jequaloneDistKron
-            currstate=find(jequaloneDistKroncumsum>rand(1,1),'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
+            currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
             currstate=ind2sub_homemade([N_a,N_z],currstate); % (a,z)
-            SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),1)+1;
+            StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
                 dindex=PolicyIndexesKron(currstate(1),currstate(2),jj);
-                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),'first'); % zprime
-                u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),'first'); % u
+                currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first'); % zprime
+                u_ind=find(cumsum_pi_u_J(:,jj)>rand(1,1),1,'first'); % u
                 u_lowerupper=max(aprimeProbs(u_ind)>rand(1,1)); % value not index (hence max not find)
-                currstate(1)=aprimeIndex_J(dindex,u_ind+u_lowerupper,jj); % Case3: aprime(d,u)
-                SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)=SteadyStateDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
+                currstate(1)=aprimeIndex_J(dindex,u_ind,jj)+u_lowerupper; % Case3: aprime(d,u)
+                StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
             end
-            StationaryDistKron(:,:,:,ncore_c)=SteadyStateDistKron_ncore_c;
         end
     end
-    StationaryDistKron=sum(StationaryDistKron,4);
-    StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
+    StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,N_j]);
     StationaryDistKron=StationaryDistKron./sum(StationaryDistKron,1); % Normalize conditional on age
 end
 
@@ -170,6 +174,9 @@ if found==0 % Have added this check so that user can see if they are missing a p
     error(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
 end
 % I assume AgeWeights is a row vector
+if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
+    AgeWeights=AgeWeights';
+end
 StationaryDistKron=StationaryDistKron.*(ones(N_a*N_z,1)*AgeWeights);
 
 if MoveSSDKtoGPU==1
