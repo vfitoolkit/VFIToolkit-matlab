@@ -114,7 +114,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % can just scale solution to the max directly.
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,:,:,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+        V(:,:,:,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
         Policy(:,:,:,N_j)=maxindex;
 
     elseif vfoptions.lowmemory==1
@@ -125,12 +125,9 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid, e_val, ReturnFnParamsVec);
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
-            % skip this and alter the (1-beta) term appropriately. Further, as this
-            % is just multiplying by a constant nor will it effect the argmax, so
-            % can just scale solution to the max directly.
-            %Calc the max and it's index
+            % skip this and alter the (1-beta) term appropriately.
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-            V(:,:,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+            V(:,:,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
             Policy(:,:,e_c,N_j)=maxindex;
         end
 
@@ -149,7 +146,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % can just scale solution to the max directly.
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-                V(:,z_c,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+                V(:,z_c,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
                 Policy(:,z_c,e_c,N_j)=maxindex;
             end
         end
@@ -192,8 +189,8 @@ else
         % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
         
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,:,:,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        V(:,:,:,N_j)=Vtemp;
         Policy(:,:,:,N_j)=maxindex;
         
     elseif vfoptions.lowmemory==1
@@ -224,8 +221,8 @@ else
             entireRHS_e=(1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,:,e_c,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS_e.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,:,e_c,N_j)=Vtemp;
             Policy(:,:,e_c,N_j)=maxindex;
         end
         
@@ -260,8 +257,8 @@ else
                 
                 entireRHS_ze=(1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec(1)*temp4;
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_ze);
-                V(:,z_c,e_c,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+                [Vtemp,maxindex]=max(entireRHS_ze.^(1/(1-1/DiscountFactorParamsVec(3))));
+                V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(:,z_c,e_c,N_j)=maxindex;
             end
         end
@@ -373,8 +370,8 @@ for reverse_j=1:N_j-1
         % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
         
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,:,:,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        V(:,:,:,jj)=Vtemp;
         Policy(:,:,:,jj)=maxindex;
         
     elseif vfoptions.lowmemory==1
@@ -405,8 +402,8 @@ for reverse_j=1:N_j-1
             entireRHS_e=(1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,:,e_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS_e.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,:,e_c,jj)=Vtemp;
             Policy(:,:,e_c,jj)=maxindex;
         end
         
@@ -441,8 +438,8 @@ for reverse_j=1:N_j-1
                 
                 entireRHS_ze=(1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec(1)*temp4;
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_ze);
-                V(:,z_c,e_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+                [Vtemp,maxindex]=max(entireRHS_ze.^(1/(1-1/DiscountFactorParamsVec(3))));
+                V(:,z_c,e_c,jj)=Vtemp;
                 Policy(:,z_c,e_c,jj)=maxindex;
             end
         end

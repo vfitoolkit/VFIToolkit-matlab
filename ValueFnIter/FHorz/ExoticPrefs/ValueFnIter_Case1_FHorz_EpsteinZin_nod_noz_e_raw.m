@@ -80,7 +80,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % can just scale solution to the max directly.
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,:,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+        V(:,:,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
         Policy(:,:,N_j)=maxindex;
 
     elseif vfoptions.lowmemory==1
@@ -96,7 +96,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % can just scale solution to the max directly.
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-            V(:,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+            V(:,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
             Policy(:,e_c,N_j)=maxindex;
         end
 
@@ -131,8 +131,8 @@ else
         % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
         
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,:,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
         
     elseif vfoptions.lowmemory==1
@@ -159,8 +159,8 @@ else
             % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,e_c,N_j)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS_e.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,e_c,N_j)=Vtemp;
             Policy(:,e_c,N_j)=maxindex;
         end
         
@@ -243,8 +243,8 @@ for reverse_j=1:N_j-1
         % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
         
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,:,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        V(:,:,jj)=Vtemp;
         Policy(:,:,jj)=maxindex;
         
     elseif vfoptions.lowmemory==1
@@ -271,8 +271,8 @@ for reverse_j=1:N_j-1
             % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,e_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS_e.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,e_c,jj)=Vtemp;
             Policy(:,e_c,jj)=maxindex;
         end
         

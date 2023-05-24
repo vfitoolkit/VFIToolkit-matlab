@@ -200,13 +200,10 @@ for reverse_j=1:N_j-1
             temp3(EV_z==0)=0;
             
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec(1)*EV_z*ones(1,N_a,1);
-            % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-            % the whole entireRHS. This will be a monotone function, so just find the max, and
-            % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
-            
+
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS_z.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
         
@@ -234,13 +231,10 @@ for reverse_j=1:N_j-1
             temp3(EV_z==0)=0;
             
             entireRHS_z=temp2+DiscountFactorParamsVec(3)*temp3*ones(1,N_a,1);
-            % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-            % the whole entireRHS. This will be a monotone function, so just find the max, and
-            % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
             
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS_z.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
         
@@ -269,13 +263,10 @@ for reverse_j=1:N_j-1
                 temp2=(1-DiscountFactorParamsVec(1))*temp2;
 
                 entireRHS_az=temp2+DiscountFactorParamsVec(3)*temp3;
-                % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-                % the whole entireRHS. This will be a monotone function, so just find the max, and
-                % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
-                
+
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+                [Vtemp,maxindex]=max(entireRHS_az.^(1/(1-1/DiscountFactorParamsVec(3))));
+                V(a_c,z_c,jj)=Vtemp;
                 Policy(a_c,z_c,jj)=maxindex;
             end
         end

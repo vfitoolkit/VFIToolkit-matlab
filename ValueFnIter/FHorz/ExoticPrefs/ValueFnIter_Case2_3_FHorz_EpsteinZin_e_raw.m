@@ -114,7 +114,7 @@ if vfoptions.lowmemory==0
     % can just scale solution to the max directly.
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,:,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+    V(:,:,:,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
     Policy(:,:,:,N_j)=maxindex;
 
 elseif vfoptions.lowmemory==1
@@ -128,7 +128,7 @@ elseif vfoptions.lowmemory==1
         % can just scale solution to the max directly.
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-        V(:,:,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+        V(:,:,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
         Policy(:,:,e_c,N_j)=maxindex;
     end
 elseif vfoptions.lowmemory==2
@@ -144,7 +144,7 @@ elseif vfoptions.lowmemory==2
             % can just scale solution to the max directly.
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
-            V(:,z_c,e_c,N_j)=((1-DiscountFactorParamsVec(1))*Vtemp.^(1/(1-1/DiscountFactorParamsVec(3))));
+            V(:,z_c,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
             Policy(:,z_c,e_c,N_j)=maxindex;
         end
     end
@@ -254,12 +254,8 @@ for reverse_j=1:N_j-1
         entireRHS=(1-DiscountFactorParamsVec(1)).*ReturnMatrix+DiscountFactorParamsVec(1)*repmat(EV,1,N_a,1,N_e);
 
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-        % the whole entireRHS. This will be a monotone function, so just find the max, and
-        % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
-
-        V(:,:,:,jj)=shiftdim(Vtemp,1).^(1/(1-1/DiscountFactorParamsVec(3)));
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
@@ -287,12 +283,8 @@ for reverse_j=1:N_j-1
             entireRHS=(1-DiscountFactorParamsVec(1)).*ReturnMatrix_e+DiscountFactorParamsVec(1)*repmat(EV,1,N_a,1);
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-            % the whole entireRHS. This will be a monotone function, so just find the max, and
-            % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
-
-            V(:,:,e_c,jj)=shiftdim(Vtemp,1).^(1/(1-1/DiscountFactorParamsVec(3)));
+            [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+            V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
         end
     elseif vfoptions.lowmemory==2
@@ -321,11 +313,8 @@ for reverse_j=1:N_j-1
                 entireRHS=(1-DiscountFactorParamsVec(1)).*ReturnMatrix_ze+DiscountFactorParamsVec(1)*EV_z.*ones(1,N_a); %d by a (by z)
 
                 %calculate in order, the maximizing aprime indexes
-                [Vtemp,Policy(:,z_c,e_c,jj)]=max(entireRHS,[],1);
-                % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-                % the whole entireRHS. This will be a monotone function, so just find the max, and
-                % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
-                V(:,z_c,e_c,jj)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+                [Vtemp,Policy(:,z_c,e_c,jj)]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+                V(:,z_c,e_c,jj)=Vtemp;
             end
         end
     end
