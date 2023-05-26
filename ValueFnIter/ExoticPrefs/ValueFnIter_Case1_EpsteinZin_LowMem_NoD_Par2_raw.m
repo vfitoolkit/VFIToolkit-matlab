@@ -47,15 +47,12 @@ while currdist>Tolerance
         temp3=EV_z;
         temp3(isfinite(temp3))=temp3(isfinite(temp3)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
         temp3(EV_z==0)=0;
-        entireRHS=ReturnMatrix_z+DiscountFactorParamsVec(1)*temp3;        
-        % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-        % the whole entireRHS. This will be a monotone function, so just find the max, and
-        % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
+        entireRHS=ReturnMatrix_z+DiscountFactorParamsVec(1)*temp3;
         
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
         
-        VKron(isfinite(Vtemp),z_c)=Vtemp(isfinite(Vtemp)).^(1/(1-1/DiscountFactorParamsVec(3))); % Need the isfinite() as otherwise the -Inf throw errors
+        VKron(isfinite(Vtemp),z_c)=Vtemp(isfinite(Vtemp));
         VKron(~isfinite(Vtemp),z_c)=-Inf;
         PolicyIndexes(:,z_c)=maxindex;
         

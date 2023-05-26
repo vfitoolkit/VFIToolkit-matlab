@@ -51,8 +51,7 @@ while currdist>Tolerance
         temp(isfinite(VKronold))=VKronold(isfinite(VKronold)).^(1-DiscountFactorParamsVec(2));
         temp(VKronold==0)=0;
          % When using GPU matlab objects to switching between real and
-         % complex numbers when evaluating powers. Using temp avoids this
-         % issue.
+         % complex numbers when evaluating powers. Using temp avoids this issue.
         EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
 %        EV_z=(VKronold.^(1-DiscountFactorParamsVec(2))).*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -66,35 +65,23 @@ while currdist>Tolerance
         temp4(isfinite(temp4))=temp4(isfinite(temp4)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
         temp4(temp3==0)=0;
         entireRHS=temp2_z+DiscountFactorParamsVec(1)*temp4*ones(1,N_a,1);
-%        entireRHS=( (1-DiscountFactorParamsVec(1))*temp2+DiscountFactorParamsVec(1)*temp4 );
-        % No need to compute the .^(1/(1-1/DiscountFactorParamsVec(3))) of
-        % the whole entireRHS. This will be a monotone function, so just find the max, and
-        % then compute .^(1/(1-1/DiscountFactorParamsVec(3))) of the max.
-%         entireRHS(isfinite(entireRHS))=entireRHS(isfinite(entireRHS)).^(1/(1-1/DiscountFactorParamsVec(3)));
-%        entireRHS=( (1-DiscountFactorParamsVec(1))*ReturnMatrix_z.^(1-1/DiscountFactorParamsVec(3))+DiscountFactorParamsVec(1)*(entireEV_z*ones(1,N_a,1).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)))) ).^(1/(1-1/DiscountFactorParamsVec(3)));
 
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        VKron(:,z_c)=Vtemp.^(1/(1-1/DiscountFactorParamsVec(3)));
+        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
              
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
 %         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
         Ftemp(:,z_c)=temp2_z(tempmaxindex); 
     end
-%     time1=toc;
-% 
-%     tic;
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-%     time2=toc;
-%     tic;
 
 
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
-%             VKrontemp=VKron;
-%             EVKrontemp=VKrontemp(ceil(PolicyIndexes/N_d),:);
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
             
             EVKrontemp=(EVKrontemp.^(1-DiscountFactorParamsVec(2))).*aaa;
@@ -109,9 +96,7 @@ while currdist>Tolerance
             VKron=(Ftemp+DiscountFactorParamsVec(1)*temp3).^(1/(1-1/DiscountFactorParamsVec(3)));
         end
     end
-    
-%     time3=toc;
-    
+        
 %     if vfoptions.verbose==1
 %         if rem(tempcounter,10)==0
 %             disp(tempcounter)
