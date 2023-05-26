@@ -303,6 +303,13 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         else
             z_grid_temp=z_grid;
         end
+
+
+        % Check for semi-exogenous shocks, if these are being used then need to add them to n_z_temp and z_grid_temp
+        if isfield(simoptions_temp,'SemiExoStateFn')
+            n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
+            z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
+        end
         
         % Parameters are allowed to be given as structure, or as vector/matrix
         % (in terms of their dependence on permanent type). So go through each of

@@ -4,7 +4,7 @@ function [V,Policy2]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z,N_j, d_g
 % respectively the Epstein-Zin preferences are given by
 % U_t= [ (1-beta)*u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
 % where
-%  u_t is per-period utility function. c_t if just consuption, or ((c_t)^v(1-l_t)^(1-v)) if consumption and leisure (1-l_t)
+%  u_t is per-period utility function. c_t if just consuption, or ((c_t)^v (1-l_t)^(1-v)) if consumption and leisure (1-l_t)
 %  psi is the elasticity of intertemporal solution
 %  gamma is a measure of risk aversion, bigger gamma is more risk averse
 %  beta is the standard marginal rate of time preference (discount factor)

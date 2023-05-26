@@ -114,6 +114,17 @@ else
     ngroups=length(simoptions.agegroupings);
 end
 
+if isstruct(simoptions.experienceasset)
+    error('Have not yet implemented handling when some agents use experience asset and others do not')
+elseif simoptions.experienceasset==1
+    % Just rejig the decision variables and send off as a Case2
+    n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
+    d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    return
+end
+
+
 % Set default of grouping all the PTypes together when reporting statistics
 % AllStats reports both
 % simoptions.groupptypesforstats=0;
@@ -279,8 +290,8 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
         % Check for semi-exogenous shocks, if these are being used then need to add them to n_z_temp and z_grid_temp
         if isfield(simoptions_temp,'SemiExoStateFn')
-            n_z_temp=[n_z_temp,simoptions.n_semiz];
-            z_grid_temp=[z_grid_temp; simoptions.semiz_grid];
+            n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
+            z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
         end
         
         % Parameters are allowed to be given as structure, or as vector/matrix
