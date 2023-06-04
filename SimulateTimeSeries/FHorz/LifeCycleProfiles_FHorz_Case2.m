@@ -386,14 +386,14 @@ for kk=1:length(simoptions.agegroupings)
                 
                 Values2=reshape(Values2,[N_a*N_z*(jend-j1+1),1]);
                 
-                SSvalues_Mean1=sum(Values.*StationaryDistVec_kk);
-                SSvalues_Mean2=sum(Values2.*StationaryDistVec_kk);
-                SSvalues_StdDev1=sqrt(sum(StationaryDistVec_kk.*((Values-SSvalues_Mean1.*ones(N_a*N_z*(jend-j1+1),1)).^2)));
-                SSvalues_StdDev2=sqrt(sum(StationaryDistVec_kk.*((Values2-SSvalues_Mean2.*ones(N_a*N_z*(jend-j1+1),1)).^2)));
+                Mean1=sum(Values.*StationaryDistVec_kk);
+                Mean2=sum(Values2.*StationaryDistVec_kk);
+                StdDev1=sqrt(sum(StationaryDistVec_kk.*((Values-Mean1.*ones(N_a*N_z*(jend-j1+1),1)).^2)));
+                StdDev2=sqrt(sum(StationaryDistVec_kk.*((Values2-Mean2.*ones(N_a*N_z*(jend-j1+1),1)).^2)));
                 
-                Numerator=sum((Values-SSvalues_Mean1*ones(N_a*N_z*(jend-j1+1),1,'gpuArray')).*(Values2-SSvalues_Mean2*ones(N_a*N_z*(jend-j1+1),1,'gpuArray')).*StationaryDistVec_kk);
+                Numerator=sum((Values-Mean1*ones(N_a*N_z*(jend-j1+1),1,'gpuArray')).*(Values2-Mean2*ones(N_a*N_z*(jend-j1+1),1,'gpuArray')).*StationaryDistVec_kk);
                 
-                AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk)=Numerator/(SSvalues_StdDev1*SSvalues_StdDev2);
+                AgeConditionalStats(ii,aa).CrossSectionalCorrelation(kk)=Numerator/(StdDev1*StdDev2);
             end
         end
         

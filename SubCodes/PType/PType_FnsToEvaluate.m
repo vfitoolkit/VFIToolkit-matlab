@@ -1,7 +1,7 @@
 function [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d,l_a,l_z,FnsToEvaluate_StructToCell,Case1orCase2)
 % Figure out which functions are actually relevant to the present PType. 
 % Only the relevant ones need to be evaluated.
-% The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
+% The dependence of FnsToEvaluate and FnsToEvaluateParamNames are necessarily the same.
 
 FnsToEvaluate_temp={};
 

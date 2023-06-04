@@ -290,9 +290,8 @@ elseif FnsToEvaluateStruct==0
     % 'FnsToEvaluate'.
     ValuesOnGrid=permute(ValuesOnGrid,[3,1,2]);
     ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z,N_j]);
-elseif FnsToEvaluateStruct==2 % Just a rearranged version of FnsToEvaluateStruct=0 for use internally when length(FnsToEvaluate)==1
-%     ValuesOnGrid=reshape(ValuesOnGrid,[N_a*N_z,N_j]);
-    % The output is already in this shape anyway, so no need to actually reshape it at all
+elseif FnsToEvaluateStruct==2
+    % Just output ValuesOnGrid as is
 end
 
 end

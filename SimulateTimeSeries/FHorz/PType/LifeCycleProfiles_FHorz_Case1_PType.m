@@ -49,7 +49,7 @@ computeForThesei=ones(N_i,1); % Used to omit the infinite horizon PTypes from co
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
-    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+    simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     simoptions.nquantiles=20; % by default gives ventiles
@@ -71,11 +71,7 @@ else
         simoptions.groupptypesforstats=1;
     end
     if ~isfield(simoptions,'ptypestorecpu')
-        if simoptions.groupptypesforstats==1
-            simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        elseif simoptions.groupptypesforstats==0
-            simoptions.ptypestorecpu=0;
-        end
+        simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=100;

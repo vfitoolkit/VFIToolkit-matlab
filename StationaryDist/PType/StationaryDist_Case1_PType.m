@@ -49,12 +49,12 @@ for ii=1:N_i
             simoptions_temp.verboseparams=0;
         end
         if ~isfield(simoptions_temp,'ptypestorecpu')
-            simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+            simoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
         end
     else
         simoptions_temp.verbose=0;
         simoptions_temp.verboseparams=0;
-        simoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        simoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     end 
     
     if simoptions_temp.verbose==1
