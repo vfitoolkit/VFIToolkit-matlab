@@ -92,7 +92,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,jj+1);
+    VKronNext_j=V(:,jj+1);
     
     if vfoptions.lowmemory==0
         
