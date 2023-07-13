@@ -553,7 +553,7 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                             % basicValues(kk,ii)=0;
                             %% Otherwise, use t-Digest
                             %% Create digest
-                            [C_jj,digestweights_jj,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1=presorted, as we sorted these above
+                            [C_jj,digestweights_jj,~]=createDigest(gather(SortedValues), gather(SortedWeights),delta,1); % 1=presorted, as we sorted these above
 
                             %% Keep the digests so far as a stacked vector that can then merge later
                             % Note that this will be automatically created such that it only contains the agents for whom it is relevant.
@@ -1076,7 +1076,7 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
 
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-                ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case2(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+                ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case2(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
                 N_a_temp=prod(n_a_temp);
                 if isfield(simoptions_temp,'n_e')
                     n_z_temp=[n_z_temp,simoptions_temp.n_e];

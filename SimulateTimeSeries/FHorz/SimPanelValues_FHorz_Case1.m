@@ -133,10 +133,29 @@ d_grid=gather(d_grid);
 a_grid=gather(a_grid);
 
 % NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
-if isfield(simoptions,'n_e')
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+if isfield(simoptions,'n_semiz')
+    error('Have not yet implemented panel data simulation with semi-exogenous shocks')
+    % if isfield(simoptions,'numd_semiz')
+    %     n_d2=n_d(end-simoptions.numd_semiz+1:end);
+    % else
+    %     n_d2=n_d(end);
+    % end
+    % if length(n_d)>length(n_d2)
+    %     n_d1=n_d(1:end-length(n_d2));
+    % else
+    %     n_d1=0;
+    % end
+    % if isfield(simoptions,'n_e')
+    %     PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_semiz(Policy, n_d1, n_d2, n_a, n_z, simoptions.n_semiz, N_j, simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    % else
+    %     PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_semiz(Policy, n_d1, n_d2, n_a, n_z, simoptions.n_semiz, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    % end
 else
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    if isfield(simoptions,'n_e')
+        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    else
+        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    end
 end
 PolicyIndexesKron=gather(PolicyIndexesKron);
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values

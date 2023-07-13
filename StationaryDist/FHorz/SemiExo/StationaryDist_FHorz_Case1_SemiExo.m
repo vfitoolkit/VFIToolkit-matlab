@@ -31,7 +31,8 @@ if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShoc
 else
     SemiExoStateFnParamNames={};
 end
-N_semiz=prod(simoptions.n_semiz);
+n_semiz=simoptions.n_semiz;
+N_semiz=prod(n_semiz);
 pi_semiz_J=zeros(N_semiz,N_semiz,n_d2,N_j);
 for jj=1:N_j
     SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);

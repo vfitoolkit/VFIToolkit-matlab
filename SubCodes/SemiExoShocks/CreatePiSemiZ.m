@@ -10,16 +10,19 @@ end
 
 N_semiz=prod(n_semiz);
 
+l_d=length(n_d);
 l_semiz=length(n_semiz);
 if l_semiz>5
     error('ERROR: Using GPU for the return fn does not allow for more than five semi-exogenous state variables (you have vfoptions.semiexostates>5 (or simoptions))')
 end
-
+if length(n_d)>2
+    error('Do not currently allow more than two decision variables that influence semi-exo state (contact me if you need/want more; vfoptions.vfoptions.numd_semiz is greater than 3)')
+end
 % Note: l_d is hardcoded to one during setup of semi-exogenous state
 % problems (only the relevant decision variable for the semi-exogenous
 % states is passed to CreatePiSemiZ()).
 N_d=prod(n_d);
-dvals=d_grid;
+% dvals=d_grid;
 
 if all(size(semiz_grid)==[sum(n_semiz),1]) % kroneker product semiz_grid
     if l_semiz>=1
@@ -42,7 +45,12 @@ if all(size(semiz_grid)==[sum(n_semiz),1]) % kroneker product semiz_grid
             end
         end
     end
-    dvals=shiftdim(dvals,-l_semiz-l_semiz);
+    if l_d==1
+        d1vals=shiftdim(d_grid,-l_semiz-l_semiz);
+    elseif l_d==2
+        d1vals=shiftdim(kron(ones(n_d(2),1),d_grid(1:n_d(1))),-l_semiz-l_semiz); % Note, I am just going to create an N_d dimension
+        d2vals=shiftdim(kron(d_grid(n_d(1)+1:end),ones(n_d(1),1)),-l_semiz-l_semiz);
+    end
 elseif all(size(semiz_grid)==[prod(n_semiz),l_semiz]) % joint semiz_grid
     if l_semiz>=1
         z1vals=semiz_grid(:,1);
@@ -64,22 +72,39 @@ elseif all(size(semiz_grid)==[prod(n_semiz),l_semiz]) % joint semiz_grid
             end
         end
     end
-    dvals=shiftdim(dvals,-2);
+    if l_d==1
+        d1vals=shiftdim(kron(ones(n_d(2),1),d_grid(1:n_d(1))),-2);
+    elseif l_d==2
+        d2vals=shiftdim(kron(d_grid(n_d(1)+1:end),ones(n_d(1),1)),-2);
+    end
 end
 
 % SemiExoStateFn(z,zprime,d,paremeters)
-if l_semiz==1
-    pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, dvals, ParamCell{:}); % Note: z1primevals is just z1vals
-elseif l_semiz==2
-    pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, dvals, ParamCell{:});
-elseif l_semiz==3
-    pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, dvals, ParamCell{:});
-elseif l_semiz==4
-    pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, dvals, ParamCell{:});
-elseif l_semiz==5
-    pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, dvals, ParamCell{:});
+if l_d==1
+    if l_semiz==1
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, d1vals, ParamCell{:}); % Note: z1primevals is just z1vals
+    elseif l_semiz==2
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, d1vals, ParamCell{:});
+    elseif l_semiz==3
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, d1vals, ParamCell{:});
+    elseif l_semiz==4
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, d1vals, ParamCell{:});
+    elseif l_semiz==5
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, d1vals, ParamCell{:});
+    end
+elseif l_d==2 % Note, I am just going to create an N_d dimension
+    if l_semiz==1
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, d1vals,d2vals, ParamCell{:}); % Note: z1primevals is just z1vals
+    elseif l_semiz==2
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, d1vals,d2vals, ParamCell{:});
+    elseif l_semiz==3
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, d1vals,d2vals, ParamCell{:});
+    elseif l_semiz==4
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, d1vals,d2vals, ParamCell{:});
+    elseif l_semiz==5
+        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, d1vals,d2vals, ParamCell{:});
+    end
 end
-
 pi_semiz=reshape(pi_semiz,[N_semiz,N_semiz,N_d]);
 
 

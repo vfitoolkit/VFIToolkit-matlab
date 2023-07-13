@@ -79,7 +79,7 @@ if simoptions.parallel<2
     
 elseif simoptions.parallel==2 % Using the GPU
     
-    StationaryDistKron=zeros(N_a*N_z*N_e,N_j,'gpuArray');
+    StationaryDistKron=zeros(N_a*N_bothz*N_e,N_j,'gpuArray');
     StationaryDistKron(:,1)=jequaloneDistKron;
     
     % First, generate the transition matrix P=g of Q (the convolution of the 
@@ -144,7 +144,7 @@ elseif simoptions.parallel==2 % Using the GPU
     
 elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P, on cpu
     
-    StationaryDistKron=sparse(N_a*N_z*N_e,N_j);
+    StationaryDistKron=sparse(N_a*N_bothz*N_e,N_j);
     StationaryDistKron(:,1)=jequaloneDistKron;
     
     for jj=1:(N_j-1)
@@ -322,7 +322,7 @@ elseif simoptions.parallel==5 % Same as 2, except loops over e
         
         % Take advantage of fact that for each (a,z,e) we can map into
         % (a',z'), looping over e
-        StatDisttemp=zeros(N_a*N_z,1,'gpuArray');
+        StatDisttemp=zeros(N_a*N_bothz,1,'gpuArray');
         for e_c=1:N_e
             % z transitions based on semiz
             optdprime=reshape(PolicyIndexesKron(1,:,:,e_c,jj),[N_a*N_bothz,1]); % Note has to be column vector to use in next line
@@ -349,8 +349,8 @@ elseif simoptions.parallel==5 % Same as 2, except loops over e
     
 elseif simoptions.parallel==6 % Same as 4, except loops over e
     
-    StationaryDistKron=zeros(N_a*N_z,N_e,N_j,'gpuArray');
-    StationaryDistKron(:,:,1)=reshape(jequaloneDistKron,[N_a*N_z,N_e]);
+    StationaryDistKron=zeros(N_a*N_bothz,N_e,N_j,'gpuArray');
+    StationaryDistKron(:,:,1)=reshape(jequaloneDistKron,[N_a*N_bothz,N_e]);
     
     % First, generate the transition matrix P=g of Q (the convolution of the 
     % optimal policy function and the transition fn for exogenous shocks)

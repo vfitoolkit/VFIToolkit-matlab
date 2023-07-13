@@ -136,7 +136,6 @@ elseif all(size(e_grid)==[prod(n_e),l_e]) % joint z_grid
     end
 end
 
-
 if l_e==1
     if l_d==0
         if l_a==1 && l_z==1
@@ -1203,6 +1202,7 @@ elseif l_e==5
         end
     end
 end
+
 
 if l_d==0
     Fmatrix=reshape(Fmatrix,[N_a,N_a,N_z,N_e]);

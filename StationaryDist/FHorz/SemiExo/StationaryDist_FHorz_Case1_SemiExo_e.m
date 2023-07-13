@@ -71,7 +71,7 @@ if simoptions.parallel~=2 && simoptions.parallel~=4
     pi_e=gather(pi_e);
 end
 
-PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [n_z,n_semiz],N_j,n_e);
+PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy, [n_d1,n_d2], n_a, [n_z,n_semiz],N_j,n_e);
 
 if simoptions.iterate==0
     if simoptions.parallel>=3

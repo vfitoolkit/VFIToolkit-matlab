@@ -72,6 +72,11 @@ else
     simoptions.experienceasset=0;
 end
 
+if simoptions.parallel==2 % just make sure things are on gpu as they should be
+    StationaryDist=gpuArray(StationaryDist);
+    Policy=gpuArray(Policy);
+end
+
 % N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -106,11 +111,6 @@ if simoptions.experienceasset==1
     return
 end
 
-if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
-    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-    n_z=[n_z,simoptions.n_semiz];
-    z_grid=[z_grid;simoptions.semiz_grid];
-end
 if simoptions.parallel==2
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
@@ -171,6 +171,15 @@ elseif ndims(z_grid_J)==3
     jointzgrid=1;
 end
 
+%
+if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+    n_z=[n_z,simoptions.n_semiz];
+    z_grid_J=[z_grid_J;simoptions.semiz_grid.*ones(1,N_j)];
+    l_z=length(n_z);
+end
+
+%
 if isfield(simoptions,'n_e')
     % Because of how FnsToEvaluate works I can just get the e variables and
     % then 'combine' them with z
@@ -282,6 +291,7 @@ StationaryDistVec=reshape(StationaryDist,[N_a*N_ze,N_j]);
 ngroups=length(simoptions.agegroupings);
 if simoptions.parallel==2
     PolicyValues=PolicyInd2Val_FHorz_Case1(Policy,n_d,n_a,n_ze,N_j,d_grid,a_grid);
+
     permuteindexes=[1+(1:1:(l_a+l_ze)),1,1+l_a+l_ze+1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
 
@@ -299,6 +309,7 @@ if simoptions.parallel==2
     end
     
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_ze*(l_d+l_a),N_j]);  % I reshape here, and THEN JUST RESHAPE AGAIN WHEN USING. THIS IS STUPID AND SLOW.
+    
     for kk=1:length(simoptions.agegroupings)
         j1=simoptions.agegroupings(kk);
         if kk<length(simoptions.agegroupings)

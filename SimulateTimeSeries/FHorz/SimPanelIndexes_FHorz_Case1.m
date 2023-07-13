@@ -66,6 +66,19 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
+%% Some setups need to get sent off to alternative commands
+if ~isfield(simoptions, 'n_semiz')
+    simoptions.n_semiz=0;
+end
+if simoptions.n_semiz(1)>0
+    if n_z(1)==0
+        SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,Policy,n_d,n_a,N_j, simoptions);
+        return
+    else
+        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z, simoptions);
+        return
+    end
+end
 
 %%
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
