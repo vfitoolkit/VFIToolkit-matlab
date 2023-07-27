@@ -11,7 +11,7 @@ function [z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodao
 %       normal innovations. Notice that SigmaSq is the variance-covariance matrix.
 %
 % Usage:
-%       [P,Z_grid] = discretizeVAR1_FarmerToda(Mew,Rho,Sigma,znum,farmertodaoptions)
+%       [z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodaoptions)
 %
 % Inputs:
 %   Mew       - (M x 1) constant vector
