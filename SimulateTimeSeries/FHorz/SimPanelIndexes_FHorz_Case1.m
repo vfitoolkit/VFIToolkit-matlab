@@ -137,24 +137,23 @@ if ~isfield(simoptions,'n_e')
     if numel(InitialDist)==N_a*N_z % Has just been given for age j=1
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z,1]));
         parfor ii=1:simoptions.numbersims
-            seedpointvec=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointvec),1];
+            [~,seedpointind]=max(cumsumInitialDistVec>rand(1));
+            seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointind),1];
         end
     else % Distribution across ages as well
         cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_j,1]));
         parfor ii=1:simoptions.numbersims
-            seedpointvec=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointvec);
+            [~,seedpointind]=max(cumsumInitialDistVec>rand(1));
+            seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointind);
         end
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-    
-    
+        
     if simoptions.simpanelindexkron==0 % For some VFI Toolkit commands the kron is faster to use
         SimPanel=nan(l_a+l_z+1,simperiods,simoptions.numbersims); % (a,z,j)
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
+                seedpoint=seedpoints(ii,:);                
                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
                 
                 SimPanel_ii=nan(l_a+l_z+1,simperiods);
@@ -217,15 +216,15 @@ if ~isfield(simoptions,'n_e')
                 seedpoints=nan(newbirthsvector(birthperiod),3); % 3 as a,z,j (vectorized)
                 if numel(BirthDist)==N_a*N_z % Has just been given for age j=1
                     cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,numbersims,1));
+                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,numbersims,1));
                     for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointvec(ii)),1];
+                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointind(ii)),1];
                     end
                 else % Distribution across simperiods as well
                     cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*simperiods,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
+                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
                     for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointvec(ii));
+                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointind(ii));
                     end
                 end
                 seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
@@ -286,15 +285,15 @@ if ~isfield(simoptions,'n_e')
                 seedpoints=nan(newbirthsvector(birthperiod),3); % 3 as a,z,j (vectorized)
                 if numel(BirthDist)==N_a*N_z % Has just been given for age j=1
                     cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,numbersims,1));
+                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,numbersims,1));
                     for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointvec(ii)),1];
+                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointind(ii)),1];
                     end
                 else % Distribution across simperiods as well
                     cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*simperiods,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
+                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
                     for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointvec(ii));
+                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointind(ii));
                     end
                 end
                 seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.

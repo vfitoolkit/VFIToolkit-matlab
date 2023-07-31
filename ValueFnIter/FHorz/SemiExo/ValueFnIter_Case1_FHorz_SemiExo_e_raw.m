@@ -4,7 +4,7 @@ n_bothz=[n_z,n_semiz]; % These are the return function arguments
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
-N_d=prod([n_d1,n_2d]); % Needed at end to reshape output
+N_d=prod([n_d1,n_d2]); % Needed at end to reshape output
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_semiz=prod(n_semiz);
@@ -19,7 +19,7 @@ end
 
 V=zeros(N_a,N_z*N_semiz,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
-Policy3=zeros(3,N_a,N_z*N_semiz,N_j,'gpuArray');
+Policy3=zeros(3,N_a,N_z*N_semiz,N_e,N_j,'gpuArray');
 
 %%
 d1_grid=gpuArray(d1_grid);
@@ -112,33 +112,39 @@ end
 
 pi_e=shiftdim(pi_e,-2); % Move to third dimension
 
-if vfoptions.lowmemory>0
+if vfoptions.lowmemory==2 % to be able to loop over z
     if (vfoptions.paroverz==1 || vfoptions.lowmemory==2) && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
         if all(size(z_grid)==[sum(n_z),1])
             z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
         elseif all(size(z_grid)==[prod(n_z),l_z])
             z_gridvals=z_grid;
         end
-        bothz_gridvals=[kron(z_gridvals,ones(N_semiz,1)),kron(ones(N_z,1),semiz_gridvals)];
+        bothz_gridvals=[kron(ones(N_semiz,1),z_gridvals),kron(semiz_gridvals,ones(N_z,1))];
     end
+end
+if vfoptions.lowmemory>0 % to be able to loop over e
     if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
         e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
     elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
         e_gridvals=e_grid;
     end
-else
+end
+if vfoptions.lowmemory<2 % to parallel over z
     if all(size(z_grid)==[sum(n_z),1]) % if z are not using correlated/joint grid, then it is assumed semiz is not either
-        bothz_grid=[z_grid,semiz_grid];
+        bothz_grid=[z_grid; semiz_grid];
     elseif all(size(z_grid)==[prod(n_z),l_z])
         % Joint z_gridvals with semiz_gridvals (note that because z_grid is a joint/correlated grid z_gridvals is anyway just z_grid)
-        bothz_grid=[kron(z_grid,ones(N_semiz,1)),kron(ones(N_z,1),semiz_gridvals)];
+        bothz_grid=[kron(ones(N_semiz,1),z_grid),kron(semiz_gridvals,ones(N_z,1))];
         bothz_gridvals=both_zgrid;
     end
 end
 
+
 if ~isfield(vfoptions,'V_Jplus1')
+
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, n_e, d_grid, a_grid, bothz_grid, e_grid, ReturnFnParamsVec);
+        
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, n_bothz, n_e, [d1_grid; d2_grid], a_grid, bothz_grid, e_grid, ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
@@ -151,7 +157,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals(e_c,:);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_bothz, special_n_e, d_grid, a_grid, bothz_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, n_bothz, special_n_e, [d1_grid; d2_grid], a_grid, bothz_grid, e_val, ReturnFnParamsVec);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
@@ -167,7 +173,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals(e_c,:);
             for z_c=1:N_z*N_semiz
                 z_val=bothz_gridvals(z_c,:);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_bothz, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, special_n_bothz, special_n_e, [d1_grid; d2_grid], a_grid, z_val, e_val, ReturnFnParamsVec);
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
                 V(:,z_c,e_c,N_j)=Vtemp;
@@ -193,7 +199,7 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_semiz_J(:,:,d2_c,N_j),pi_z);
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid,d2_grid(d2_c)], a_grid, bothz_grid, e_grid, ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_grid, e_grid, ReturnFnParamsVec);
             % (d,aprime,a,z,e)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -212,11 +218,11 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_z*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_z*N_semiz*N_e)'+(N_a*N_z*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_z*N_semiz*N_e]);
-        Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -231,7 +237,7 @@ else
 
             for e_c=1:N_e
                 e_val=e_gridvals(e_c,:);
-                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid,d2_grid(d2_c)], a_grid, bothz_grid, e_val, ReturnFnParamsVec);
+                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_grid, e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
                 entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV.*ones(1,N_a,1);
@@ -246,11 +252,11 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_z*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_z*N_semiz*N_e)'+(N_a*N_z*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_z*N_semiz*N_e]);
-        Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 
     elseif vfoptions.lowmemory==2
         for d2_c=1:N_d2
@@ -269,7 +275,7 @@ else
                 for e_c=1:N_e
                     e_val=e_gridvals(e_c,:);
 
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid,d2_grid(d2_c)], a_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, z_val, e_val, ReturnFnParamsVec);
 
                     entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
 
@@ -284,11 +290,11 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_z*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_z*N_semiz*N_e)'+(N_a*N_z*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_z*N_semiz*N_e]);
-        Policy3(1,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
     end
 end
 
@@ -350,7 +356,7 @@ for reverse_j=1:N_j-1
             elseif all(size(z_grid)==[prod(n_z),l_z])
                 z_gridvals=z_grid;
             end
-            bothz_gridvals=[kron(z_gridvals,ones(N_semiz,1)),kron(ones(N_z,1),semiz_gridvals)];
+            bothz_gridvals=[kron(ones(N_semiz,1),z_gridvals),kron(semiz_gridvals,ones(N_z,1))];
         end
         if (fieldexists_pi_e_J==1 || fieldexists_EiidShockFn==1)
             if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
@@ -361,10 +367,10 @@ for reverse_j=1:N_j-1
         end
     else
         if all(size(z_grid)==[sum(n_z),1]) % if z are not using correlated/joint grid, then it is assumed semiz is not either
-            bothz_grid=[z_grid,semiz_grid];
+            bothz_grid=[z_grid; semiz_grid];
         elseif all(size(z_grid)==[prod(n_z),l_z])
             % Joint z_gridvals with semiz_gridvals (note that because z_grid is a joint/correlated grid z_gridvals is anyway just z_grid)
-            bothz_grid=[kron(z_grid,ones(N_semiz,1)),kron(ones(N_z,1),semiz_gridvals)];
+            bothz_grid=[kron(ones(N_semiz,1),z_grid),kron(semiz_gridvals,ones(N_z,1))];
             bothz_gridvals=both_zgrid;
         end
     end
@@ -376,9 +382,9 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=kron(pi_semiz_J(:,:,d2_c,N_j),pi_z);
+            pi_bothz=kron(pi_semiz_J(:,:,d2_c,jj),pi_z);
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid,d2_grid(d2_c)], a_grid, bothz_grid, e_grid, ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_grid, e_grid, ReturnFnParamsVec);
             % (d,aprime,a,z,e)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
@@ -396,17 +402,17 @@ for reverse_j=1:N_j-1
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
-        V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        V(:,:,:,jj)=V_jj;
+        Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_z*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_z*N_semiz*N_e)'+(N_a*N_z*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_z*N_semiz*N_e]);
-        Policy3(1,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(1,:,:,:,jj)=reshape(rem(d1aprime_ind-1,N_d1)+1,[N_a,N_z*N_semiz,N_e]);
+        Policy3(3,:,:,:,jj)=reshape(ceil(d1aprime_ind/N_d1),[N_a,N_z*N_semiz,N_e]);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=kron(pi_semiz_J(:,:,d2_c,N_j),pi_z);
+            pi_bothz=kron(pi_semiz_J(:,:,d2_c,jj),pi_z);
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -416,7 +422,7 @@ for reverse_j=1:N_j-1
 
             for e_c=1:N_e
                 e_val=e_gridvals(e_c,:);
-                ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid,d2_grid(d2_c)], a_grid, bothz_grid, e_val, ReturnFnParamsVec);
+                ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_grid, e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
                 entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV.*ones(1,N_a,1);
@@ -430,17 +436,17 @@ for reverse_j=1:N_j-1
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
-        V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        V(:,:,:,jj)=V_jj;
+        Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_z*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_z*N_semiz*N_e)'+(N_a*N_z*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_z*N_semiz*N_e]);
-        Policy3(1,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(1,:,:,:,jj)=reshape(rem(d1aprime_ind-1,N_d1)+1,[N_a,N_z*N_semiz,N_e]);
+        Policy3(3,:,:,:,jj)=reshape(ceil(d1aprime_ind/N_d1),[N_a,N_z*N_semiz,N_e]);
         
     elseif vfoptions.lowmemory==2
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=kron(pi_semiz_J(:,:,d2_c,N_j),pi_z);
+            pi_bothz=kron(pi_semiz_J(:,:,d2_c,jj),pi_z);
             
             for z_c=1:N_bothz
                 z_val=bothz_gridvals(z_c,:);
@@ -454,7 +460,7 @@ for reverse_j=1:N_j-1
                 for e_c=1:N_e
                     e_val=e_gridvals(e_c,:);
 
-                    ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid,d2_grid(d2_c)], a_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, z_val, e_val, ReturnFnParamsVec);
 
                     entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
 
@@ -468,12 +474,12 @@ for reverse_j=1:N_j-1
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
-        V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        V(:,:,:,jj)=V_jj;
+        Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_z*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_z*N_semiz*N_e)'+(N_a*N_z*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_z*N_semiz*N_e]);
-        Policy3(1,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(1,:,:,:,jj)=reshape(rem(d1aprime_ind-1,N_d1)+1,[N_a,N_z*N_semiz,N_e]);
+        Policy3(3,:,:,:,jj)=reshape(ceil(d1aprime_ind/N_d1),[N_a,N_z*N_semiz,N_e]);
     end
 
 end

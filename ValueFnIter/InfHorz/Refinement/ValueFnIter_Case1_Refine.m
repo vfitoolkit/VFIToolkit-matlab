@@ -1,6 +1,8 @@
 function [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions)
 % When using refinement, lowmemory is implemented in the first state (return fn) but not the second (the actual iteration).
 
+N_a=prod(n_a);
+N_a=prod(n_z);
 
 %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
 % Since the return function is independent of time creating it once and

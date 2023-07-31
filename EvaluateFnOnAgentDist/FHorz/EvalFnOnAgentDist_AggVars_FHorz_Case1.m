@@ -25,8 +25,14 @@ else
     end
 end
 
-if isfield('simoptions','n_semiz') % If using semi-exogenous shocks
-    n_z=[n_z,simoptions.n_semiz]; % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+%%
+if n_z(1)==0
+   if isfield('simoptions','SemiExoStateFn') % If using semi-exogenous shocks
+       error('Have not yet implemented for semiz with no z, contact me and I will implement it')
+   else
+       AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_noz(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames, n_d,n_a,N_j,d_grid,a_grid,Parallel,simoptions);
+       return
+   end
 end
 
 if isempty(n_d)
@@ -42,11 +48,6 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%%
-if N_z==0
-   AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_noz(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames, n_d,n_a,N_j,d_grid,a_grid,Parallel,simoptions);
-   return
-end
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
@@ -88,6 +89,16 @@ if ndims(z_grid_J)==2
 else % Joint-grid on shocks
     jointgridz=1;
 end
+
+%
+if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+    % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+    n_z=[n_z,simoptions.n_semiz];
+    z_grid_J=[z_grid_J;simoptions.semiz_grid.*ones(1,N_j)];
+    l_z=length(n_z);
+    N_z=prod(n_z);
+end
+
 
 if isfield(simoptions,'n_e')
     % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z

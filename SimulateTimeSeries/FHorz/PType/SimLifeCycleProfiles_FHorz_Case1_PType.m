@@ -1,4 +1,4 @@
-function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_Case1_PType(InitialDist,Policy,ValuesFns,ValuesFnsParamNames,Parameters,n_d,n_a,n_z,N_j,N_i,d_grid,a_grid,z_grid,pi_z, simoptions)
+function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_Case1_PType(InitialDist,PTypeDistParamNames,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. Then based on
 % this it computes life-cycle profiles for the 'VaulesFns' and reports
@@ -12,6 +12,24 @@ function SimLifeCycleProfiles=SimLifeCycleProfiles_FHorz_Case1_PType(InitialDist
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
+
+
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
+    for ii=2:N_i
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
+    end
+end
+
 
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
@@ -52,24 +70,15 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 %%
-numelInitialDist=gather(numel(InitialDist)); % Use it multiple times so precalculate once here for speed
-if N_a*N_z*N_i==numelInitialDist %Does not depend on N_j
-    InitialDist=reshape(InitialDist,[N_a,N_z,N_i]);
-    PType_mass=permute(sum(sum(InitialDist,1),2),[3,2,1]);
-else % Depends on N_j
-    InitialDist=reshape(InitialDist,[N_a,N_z,N_j,N_i]);
-    PType_mass=permute(sum(sum(sum(InitialDist,1),2),3),[4,3,2,1]);
-end
-PType_numbersims=round(PType_mass*simoptions.numbersims);
-
-
+PTypeWeights=Parameters.(PTypeDistParamNames{1});
 
 for ii=1:N_i
     simoptions_ii=simoptions;
     if simoptions_ii.verbose==1
         sprintf('Fixed type: %i of %i',ii, N_i)
     end
-    simoptions_ii.numbersims=PType_numbersims(ii);
+
+    simoptions_ii.numbersims=round(PTypeWeights(ii)*simoptions.numbersims);
     if isfield(simoptions,'ExogShockFn') % If this exists, so will ExogShockFnParamNames, but I still treat them seperate as makes the code easier to read
         if length(simoptions.ExogShockFn)==1
             if simoptions_ii.ExogShockFn==1
@@ -118,12 +127,10 @@ for ii=1:N_i
         names=fieldnames(Policy);
         Policy_temp=Policy.(names{ii});
     end
-    if N_a*N_z*N_i==numelInitialDist %Does not depend on N_j
-        InitialDist_temp=InitialDist(:,:,ii);
-        InitialDist_temp=InitialDist_temp./(sum(sum(InitialDist_temp)));
-    else % Depends on N_j
-        InitialDist_temp=InitialDist(:,:,:,ii);
-        InitialDist_temp=InitialDist_temp./(sum(sum(sum(InitialDist_temp))));
+    if isstruct(InitialDist)
+        InitialDist_temp=InitialDist.(Names_i{ii});
+    else
+        InitialDist_temp=InitialDist; % Any dependence on permanent type must be done as a structure
     end
     if isfield(simoptions,'ExogShockFnParamNames')==1
         disp('WARNING: ExogShockFn not yet implemented for PType (in SimPanelValues_FHorz_PType_Case1)')
@@ -150,7 +157,9 @@ for ii=1:N_i
         end
     end
     
-    SimLifeCycleProfiles.(names{ii})=SimLifeCycleProfiles_FHorz_Case1(InitialDist_temp,Policy_temp,ValuesFns,ValuesFnsParamNames,Parameters_temp,n_d,n_a,n_z,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_ii);   
+    Parameters_temp
+
+    SimLifeCycleProfiles.(names{ii})=SimLifeCycleProfiles_FHorz_Case1(InitialDist_temp,Policy_temp,FnsToEvaluate,[],Parameters_temp,n_d,n_a,n_z,N_j,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_ii);   
     
 end
 

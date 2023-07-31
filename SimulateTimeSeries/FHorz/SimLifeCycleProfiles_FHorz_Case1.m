@@ -66,7 +66,9 @@ PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);%,si
 %     PolicyIndexesKron=gather(PolicyIndexesKron);
 % end
 % Move everything to cpu for what remains.
-simoptions.parallel=1;
+if simoptions.parallel>2 % If trying to use GPU or similar
+    simoptions.parallel=1; % Then force parallel CPU
+end
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
 z_grid=gather(z_grid);

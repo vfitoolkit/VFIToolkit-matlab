@@ -23,6 +23,7 @@ if fieldexists_pi_z_J==0
     if N_d==0
         SimLifeCycleKron=nan(3,N_j);
         for jj=1:periods
+
             SimLifeCycleKron(1,jj+initialage-1)=currstate(1); % a_c
             SimLifeCycleKron(2,jj+initialage-1)=currstate(2); % z_c
             

@@ -4,6 +4,8 @@ function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,Names_i,d_gr
 % vfoptions.verbose=1 will give feedback
 % vfoptions.verboseparams=1 will give further feedback on the param values of each permanent type
 %
+V=struct();
+Policy=struct();
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
@@ -144,7 +146,7 @@ for ii=1:N_i
     end
     
     if vfoptions_temp.ptypestorecpu==1
-        V.(Names_i{ii})=gather(V_ii);
+        V.(Names_i{ii})=gather(V_ii); 
         Policy.(Names_i{ii})=gather(Policy_ii);
     else
         V.(Names_i{ii})=V_ii;
