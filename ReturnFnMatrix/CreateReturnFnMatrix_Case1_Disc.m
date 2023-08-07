@@ -15,8 +15,21 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_a=length(n_a);
+l_d=length(n_d);
+if N_d==0
+    l_d=0;
+end
+l_a=length(n_a); 
 l_z=length(n_z);
+if l_d>4
+    error('ERROR: Using CPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
+end
+if l_a>4
+    error('ERROR: Using CPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
+end
+if l_z>5
+    error('ERROR: Using CPU for the return fn does not allow for more than four of z variable (you have length(n_z)>5)')
+end
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 if all(size(z_grid)==[sum(n_z),1])

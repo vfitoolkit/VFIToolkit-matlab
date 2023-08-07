@@ -117,6 +117,9 @@ elseif ~isequal(size(pi_z), [N_z, N_z])
         error('pi is not of size N_z-by-N_z')
     end
 elseif isfield(vfoptions,'n_e')
+    if vfoptions.parallel<2
+        error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
+    end
     if ~isfield(vfoptions,'e_grid') && ~isfield(vfoptions,'e_grid_J')
         error('When using vfoptions.n_e you must declare vfoptions.e_grid (or vfoptions.e_grid_J)')
     elseif ~isfield(vfoptions,'pi_e') && ~isfield(vfoptions,'pi_e_J')
