@@ -1,14 +1,8 @@
-function [V,Policy]=ValueFnIter_Case2_3_FHorz_EpsteinZin_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_grid,e_grid, pi_z,pi_e, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions)
-% DiscountFactorParamNames contains the names for the three parameters relating to
-% Epstein-Zin preferences. Calling them beta, gamma, and psi,
-% respectively the Epstein-Zin preferences are given by
-% U_t= [ (1-beta)*u_t^(1-1/psi) + beta (E[(U_{t+1}^(1-gamma)])^((1-1/psi)/(1-gamma))]^(1/(1-1/psi))
-% where
-%  u_t is per-period utility function. c_t if just consuption, or ((c_t)^v(1-l_t)^(1-v)) if consumption and leisure (1-l_t)
-%  psi is the elasticity of intertemporal solution
-%  gamma is a measure of risk aversion, bigger gamma is more risk averse
-%  beta is the standard marginal rate of time preference (discount factor)
-%  When 1/(1-psi)=1-gamma, i.e., we get standard von-Neumann-Morgenstern
+function [V,Policy]=ValueFnIter_Case2_3_FHorz_EpsteinZin_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_grid,e_grid, pi_z,pi_e, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+
+if warmglow==1
+    error('Have not yet implemented warm-glow of bequests for Epstein-Zin when using Case2=3, email me if you need/want this')
+end
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -17,11 +11,6 @@ N_e=prod(n_e);
 
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-
-%%
-if length(DiscountFactorParamNames)<3
-    error('There should be at least three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
-end
 
 %%
 
@@ -52,8 +41,9 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-if length(DiscountFactorParamsVec)>3
-    DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
+DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+if vfoptions.EZoneminusbeta==1
+    ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
 end
 
 if fieldexists_pi_z_J==1
@@ -107,28 +97,30 @@ end
 
 if vfoptions.lowmemory==0
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid, e_grid, ReturnFnParamsVec);
+
     % Modify the Return Function appropriately for Epstein-Zin Preferences
-    % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
-    % skip this and alter the (1-beta) term appropriately. Further, as this
-    % is just multiplying by a constant nor will it effect the argmax, so
-    % can just scale solution to the max directly.
-    %Calc the max and it's index
+    becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
+    ReturnMatrix(becareful)=(ezc1*ReturnMatrix(becareful).^ezc2).^ezc7; % Otherwise can get things like 0 to negative power equals infinity
+    ReturnMatrix(ReturnMatrix==0)=-Inf;
+
+    % Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,:,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
+    V(:,:,:,N_j)=Vtemp;
     Policy(:,:,:,N_j)=maxindex;
 
 elseif vfoptions.lowmemory==1
     for e_c=1:N_e
         e_val=e_gridvals(e_c,:);
         ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid, e_val, ReturnFnParamsVec);
+
         % Modify the Return Function appropriately for Epstein-Zin Preferences
-        % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
-        % skip this and alter the (1-beta) term appropriately. Further, as this
-        % is just multiplying by a constant nor will it effect the argmax, so
-        % can just scale solution to the max directly.
-        %Calc the max and it's index
+        becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
+        ReturnMatrix_e(becareful)=(ezc1*ReturnMatrix_e(becareful).^ezc2).^ezc7; % Otherwise can get things like 0 to negative power equals infinity
+        ReturnMatrix_e(ReturnMatrix_e==0)=-Inf;
+
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
-        V(:,:,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
+        V(:,:,e_c,N_j)=Vtemp;
         Policy(:,:,e_c,N_j)=maxindex;
     end
 elseif vfoptions.lowmemory==2
@@ -137,14 +129,15 @@ elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
             ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            % Note: would raise to 1-1/psi, and then to 1/(1-1/psi). So can just
-            % skip this and alter the (1-beta) term appropriately. Further, as this
-            % is just multiplying by a constant nor will it effect the argmax, so
-            % can just scale solution to the max directly.
-            %Calc the max and it's index
+            becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
+            ReturnMatrix_ze(becareful)=(ezc1*ReturnMatrix_ze(becareful).^ezc2).^ezc7; % Otherwise can get things like 0 to negative power equals infinity
+            ReturnMatrix_ze(ReturnMatrix_ze==0)=-Inf;
+
+            % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
-            V(:,z_c,e_c,N_j)=((1-DiscountFactorParamsVec(1)).^(1/(1-1/DiscountFactorParamsVec(3))))*Vtemp;
+            V(:,z_c,e_c,N_j)=Vtemp;
             Policy(:,z_c,e_c,N_j)=maxindex;
         end
     end
@@ -167,9 +160,11 @@ for reverse_j=1:N_j-1
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
-    if length(DiscountFactorParamsVec)>3
-        DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    if vfoptions.EZoneminusbeta==1
+        ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
     end
+
 
     if vfoptions.phiaprimedependsonage==1
         PhiaprimeParamsVec=CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj);
@@ -230,46 +225,66 @@ for reverse_j=1:N_j-1
         end
     end
 
-    Vnextj=V(:,:,:,jj+1);
-    Vnextj=sum(Vnextj.*pi_e,3);
+    VKronNext_j=V(:,:,:,jj+1);
+
+    % Part of Epstein-Zin is before taking expectation
+    temp=VKronNext_j;
+    temp(isfinite(VKronNext_j))=(ezc4*VKronNext_j(isfinite(VKronNext_j))).^ezc5;
+    temp(VKronNext_j==0)=0; % otherwise zero to negative power is set to infinity
+
+    % Expectation over e
+    temp=sum(temp.*pi_e,3);
 
     if vfoptions.lowmemory==0
         Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d*N_z,1]);
         zprime_ToMatchPhi=kron((1:1:N_z)',ones(N_d,1));
-        EV=Vnextj(Phi_aprimeMatrix+N_a*(zprime_ToMatchPhi-1));
-        EV(isfinite(EV))=EV(isfinite(EV)).^(1-DiscountFactorParamsVec(2));
+        EV=temp(Phi_aprimeMatrix+N_a*(zprime_ToMatchPhi-1));
+        EV(isfinite(EV))=EV(isfinite(EV)).^ezc5;
         EV=reshape(EV,[N_d,N_z]);
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid, e_grid, ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
-        ReturnMatrix(isfinite(ReturnMatrix))=ReturnMatrix(isfinite(ReturnMatrix)).^(1-1/DiscountFactorParamsVec(3));
+        becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
+        temp2=ReturnMatrix;
+        temp2(becareful)=ReturnMatrix(becareful).^ezc2;
+        temp2(ReturnMatrix==0)=-Inf;
 
+        % Calc the expectation term (except beta)
         EV=EV.*shiftdim(pi_z',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        EV(isfinite(EV))=EV(isfinite(EV)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2))); % More of the Epstein-Zin preferences
+        temp4=EV;
+        temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6;
+        temp4(EV==0)=0;
 
-        entireRHS=(1-DiscountFactorParamsVec(1)).*ReturnMatrix+DiscountFactorParamsVec(1)*repmat(EV,1,N_a,1,N_e);
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4*ones(1,N_a,1,N_e);
+
+        temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
+        entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS(entireRHS==0)=-Inf;
 
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
-        V(:,:,:,jj)=shiftdim(Vtemp,1);
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+        V(:,:,:,jj)=ezc1*shiftdim(Vtemp,1);
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
         Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d*N_z,1]);
         zprime_ToMatchPhi=kron((1:1:N_z)',ones(N_d,1));
-        EV=Vnextj(Phi_aprimeMatrix+N_a*(zprime_ToMatchPhi-1));
-        EV(isfinite(EV))=EV(isfinite(EV)).^(1-DiscountFactorParamsVec(2));
+        EV=temp(Phi_aprimeMatrix+N_a*(zprime_ToMatchPhi-1));
+        EV(isfinite(EV))=EV(isfinite(EV)).^ezc5;
         EV=reshape(EV,[N_d,N_z]);
 
+        % Calc the expectation term (except beta)
         EV=EV.*shiftdim(pi_z',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-        EV(isfinite(EV))=EV(isfinite(EV)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2))); % More of the Epstein-Zin preferences
+        temp4=EV;
+        temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6;
+        temp4(EV==0)=0;
 
         for e_c=1:N_e
             e_val=e_gridvals(e_c,:); % Value of e (not of e')
@@ -277,21 +292,27 @@ for reverse_j=1:N_j-1
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid, e_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
-            ReturnMatrix_e(isfinite(ReturnMatrix_e))=ReturnMatrix_e(isfinite(ReturnMatrix_e)).^(1-1/DiscountFactorParamsVec(3));
+            becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
+            temp2=ReturnMatrix_e;
+            temp2(becareful)=ReturnMatrix_e(becareful).^ezc2;
+            temp2(ReturnMatrix_e==0)=-Inf;
 
-            %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
-            entireRHS=(1-DiscountFactorParamsVec(1)).*ReturnMatrix_e+DiscountFactorParamsVec(1)*repmat(EV,1,N_a,1);
+            entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4*ones(1,N_a,1);
+
+            temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
+            entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_e(entireRHS_e==0)=-Inf;
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
-            V(:,:,e_c,jj)=shiftdim(Vtemp,1);
+            [Vtemp,maxindex]=max(entireRHS_e,[],1);
+            V(:,:,e_c,jj)=ezc1*shiftdim(Vtemp,1);
             Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
         end
     elseif vfoptions.lowmemory==2
         Phi_aprimeMatrix=reshape(Phi_aprimeMatrix,[N_d*N_z,1]);
         zprime_ToMatchPhi=kron((1:1:N_z)',ones(N_d,1));
-        EV=Vnextj(Phi_aprimeMatrix+N_a*(zprime_ToMatchPhi-1));
-        EV(isfinite(EV))=EV(isfinite(EV)).^(1-DiscountFactorParamsVec(2));
+        EV=temp(Phi_aprimeMatrix+N_a*(zprime_ToMatchPhi-1));
+        EV(isfinite(EV))=EV(isfinite(EV)).^ezc5;
         EV=reshape(EV,[N_d,N_z]);
 
         for e_c=1:N_e
@@ -302,18 +323,27 @@ for reverse_j=1:N_j-1
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
-                ReturnMatrix_ze(isfinite(ReturnMatrix_ze))=ReturnMatrix_ze(isfinite(ReturnMatrix_ze)).^(1-1/DiscountFactorParamsVec(3));
+                becareful=logical(isfinite(ReturnMatrix_ze).*(ReturnMatrix_ze~=0)); % finite and not zero
+                temp2=ReturnMatrix_ze;
+                temp2(becareful)=ReturnMatrix_ze(becareful).^ezc2;
+                temp2(ReturnMatrix_ze==0)=-Inf;
 
                 EV_z=EV.*kron(pi_z(z_c,:),ones(N_d,1,'gpuArray'));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=reshape(sum(EV_z,2),[N_d,1]);
 
-                EV_z(isfinite(EV_z))=EV_z(isfinite(EV_z)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2))); % More of the Epstein-Zin preferences
+                temp4=EV_z;
+                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6;
+                temp4(EV_z==0)=0;
 
-                entireRHS=(1-DiscountFactorParamsVec(1)).*ReturnMatrix_ze+DiscountFactorParamsVec(1)*EV_z.*ones(1,N_a); %d by a (by z)
+                entireRHS_ez=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4*ones(1,N_a);
+
+                temp5=logical(isfinite(entireRHS_ez).*(entireRHS_ez~=0));
+                entireRHS_ez(temp5)=ezc1*entireRHS_ez(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_ez(entireRHS_ez==0)=-Inf;
 
                 %calculate in order, the maximizing aprime indexes
-                [Vtemp,Policy(:,z_c,e_c,jj)]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+                [Vtemp,Policy(:,z_c,e_c,jj)]=max(entireRHS_ez,[],1);
                 V(:,z_c,e_c,jj)=Vtemp;
             end
         end

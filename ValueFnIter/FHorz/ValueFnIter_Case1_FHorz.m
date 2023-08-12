@@ -183,6 +183,13 @@ end
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 % [l_d,l_a,l_z,l_e]
 
+%% Implement new way of handling warm-glow of bequests (currently only used by Epstein-Zin preferences)
+if isfield(vfoptions,'WarmGlowBequestsFn')
+    temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+    vfoptions.WarmGlowBequestsFnParamsNames={temp{l_a+1:end}}; % the first inputs will always be aprime
+end
+% clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
+
 %% 
 if vfoptions.parallel==2 
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)

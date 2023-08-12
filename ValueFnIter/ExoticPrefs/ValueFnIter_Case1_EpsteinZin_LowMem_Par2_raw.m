@@ -12,6 +12,8 @@ bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
 
+DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
 %%
 l_z=length(n_z);
 if all(size(z_grid)==[sum(n_z),1])
@@ -30,29 +32,35 @@ while currdist>Tolerance
         
         zvals=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParamsVec);
-        ReturnMatrix_z(isfinite(ReturnMatrix_z))=ReturnMatrix_z(isfinite(ReturnMatrix_z)).^(1-1/DiscountFactorParamsVec(3));
-        ReturnMatrix_z=(1-DiscountFactorParamsVec(1))*ReturnMatrix_z;
-        
-        %Calc the condl expectation term (except beta), which depends on z but not on control variables
+        % Modify the Return Function appropriately for Epstein-Zin Preferences
+        becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite but not zero
+        temp2_z=ReturnMatrix_z;
+        temp2_z(becareful)=ReturnMatrix_z(becareful).^ezc2; % Otherwise can get things like 0 to negative power equals infinity
+        temp2_z(ReturnMatrix_z==0)=-Inf; % Otherwise these ReturnMatrix=zero points get a finite amount added to them (from expectations) and were mishandled later
+
+        % Part of Epstein-Zin is before taking expectation
         temp=VKronold;
-        temp(isfinite(VKronold))=VKronold(isfinite(VKronold)).^(1-DiscountFactorParamsVec(2));
+        temp(isfinite(VKronold))=(ezc4*VKronold(isfinite(VKronold))).^ezc5;
         temp(VKronold==0)=0;
-         % When using GPU matlab objects to switching between real and
-         % complex numbers when evaluating powers. Using temp avoids this
-         % issue.
+
+        %Calc the expectation term (except beta)
         EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV_z=sum(EV_z,2);
+        EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
         
-        entireEV_z=kron(EV_z,ones(N_d,1));
-        temp3=entireEV_z*ones(1,N_a,1); 
-        temp4=temp3;
-        temp4(isfinite(temp4))=temp4(isfinite(temp4)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
-        temp4(temp3==0)=0;
-        entireRHS=ReturnMatrix_z+DiscountFactorParamsVec(1)*temp4;
+        entireEV_z=repelem(EV_z,N_d,1);
+        temp4=entireEV_z;
+        temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
+        temp4(entireEV_z==0)=0;
+        
+        entireRHS_z=ezc1*temp2_z+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
+
+        temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
+        entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+        entireRHS_z(entireRHS_z==0)=-Inf; % Dont want to consider these
 
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS.^(1/(1-1/DiscountFactorParamsVec(3))),[],1);
+        [Vtemp,maxindex]=max(entireRHS_z,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;
              
@@ -62,30 +70,39 @@ while currdist>Tolerance
 
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-
+    
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
+
+            % Part of Epstein-Zin is before taking expectation
+            temp=EVKrontemp;
+            temp(isfinite(EVKrontemp))=(ezc4*EVKrontemp(isfinite(EVKrontemp))).^ezc5;
+            temp(EVKrontemp==0)=0;
             
-            EVKrontemp=(EVKrontemp.^(1-DiscountFactorParamsVec(2))).*aaa;
+            EVKrontemp=temp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             
-            temp3=EVKrontemp;
-            temp3(isfinite(temp3))=temp3(isfinite(temp3)).^((1-1/DiscountFactorParamsVec(3))/(1-DiscountFactorParamsVec(2)));
-            temp3(EVKrontemp==0)=0;
+            temp4=EVKrontemp;
+            temp4(isfinite(temp4))=temp4(isfinite(temp4)).^ezc6;
+            temp4(EVKrontemp==0)=0;
             
             % Note that Ftemp already includes all the relevant Epstein-Zin modifications
-            VKron=(Ftemp+DiscountFactorParamsVec(1)*temp3).^(1/(1-1/DiscountFactorParamsVec(3)));
+            VKron=ezc1*Ftemp+ezc3*DiscountFactorParamsVec*temp4; 
+
+            temp5=logical(isfinite(VKron).*(VKron~=0));
+            VKron(temp5)=ezc1*VKron(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            VKron(VKron==0)=-Inf;
         end
     end
     
 %     if Verbose==1
-        if rem(tempcounter,100)==0
-            disp(tempcounter)
-            disp(currdist)
-        end
-        tempcounter=tempcounter+1;
+        % if rem(tempcounter,100)==0
+        %     disp(tempcounter)
+        %     disp(currdist)
+        % end
+        % tempcounter=tempcounter+1;
 %     end
     tempcounter=tempcounter+1;
 end
