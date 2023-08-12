@@ -138,6 +138,8 @@ for jj=1:N_j
 end
 
 if simoptions.iterate==0
+    PolicyProbs=gather(PolicyProbs); % simulation is always with cpu
+    Policy_aprime=gather(Policy_aprime);
     if simoptions.parallel>=3
         % Sparse matrix is not relevant for the simulation methods, only for iteration method
         simoptions.parallel=2; % will simulate on parallel cpu, then transfer solution to gpu

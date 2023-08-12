@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_aprime, n_a, n_z, d_grid, a_grid, avals, zvals,ReturnFnParamsVec,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_aprime, n_a, n_z, d_grid, aprime_grid, avals, zvals,ReturnFnParamsVec,Refine) % Refine is an optional input
 %If there is no d variable, just input n_d=0 and d_grid=0
 
 if ~exist('Refine','var')
@@ -26,7 +26,7 @@ end
 
 if N_d==0
     if l_a==1
-        aprimevals=a_grid;
+        aprimevals=aprime_grid;
         avals=shiftdim(avals,-1);
         if l_z==1
             zvals=shiftdim(zvals,-2);
@@ -48,8 +48,8 @@ if N_d==0
             Fmatrix=arrayfun(ReturnFn, aprimevals, avals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
         end
     elseif l_a==2 
-        a1primevals=a_grid(1:n_aprime(1));
-        a2primevals=shiftdim(a_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-1);
+        a1primevals=aprime_grid(1:n_aprime(1));
+        a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-1);
         a1vals=shiftdim(avals(1:n_a(1)),-2);
         a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-3);
         if l_z==1
@@ -72,9 +72,9 @@ if N_d==0
             Fmatrix=arrayfun(ReturnFn, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
         end
     elseif l_a==3
-        a1primevals=a_grid(1:n_aprime(1));
-        a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-1);
-        a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-2);
+        a1primevals=aprime_grid(1:n_aprime(1));
+        a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-1);
+        a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-2);
         a1vals=shiftdim(avals(1:n_a(1)),-3);
         a2vals=shiftdim(avals(n_a(1)+1:sum(n_a(1:2))),-4);
         a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-5);
@@ -98,10 +98,10 @@ if N_d==0
             Fmatrix=arrayfun(ReturnFn, a1primevals, a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
         end
     elseif l_a==4
-        a1primevals=a_grid(1:n_aprime(1));
-        a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-1);
-        a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-2);
-        a4primevals=shiftdim(a_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-3);
+        a1primevals=aprime_grid(1:n_aprime(1));
+        a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-1);
+        a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-2);
+        a4primevals=shiftdim(aprime_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-3);
         a1vals=shiftdim(avals(1:n_a(1)),-4);
         a2vals=shiftdim(avals(n_a(1)+1:sum(n_a(1:2))),-5);
         a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-6);
@@ -140,7 +140,7 @@ else
     if l_d==1 
         dvals=d_grid; dvals(1,1,1)=d_grid(1);
         if l_a==1
-            aprimevals=shiftdim(a_grid,-1);
+            aprimevals=shiftdim(aprime_grid,-1);
             avals=shiftdim(avals,-2);
             if l_z==1
                 zvals=shiftdim(zvals,-3);
@@ -162,8 +162,8 @@ else
                 Fmatrix=arrayfun(ReturnFn, dvals, aprimevals, avals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==2 
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-1);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-2);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-1);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-2);
             a1vals=shiftdim(avals(1:n_a(1)),-3);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-4);
             if l_z==1
@@ -186,9 +186,9 @@ else
                 Fmatrix=arrayfun(ReturnFn, dvals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==3
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-1);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-2);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-3);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-1);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-2);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-3);
             a1vals=shiftdim(avals(1:n_a(1)),-4);
             a2vals=shiftdim(avals(n_a(1)+1:sum(n_a(1:2))),-5);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-6);
@@ -212,10 +212,10 @@ else
                 Fmatrix=arrayfun(ReturnFn, dvals, a1primevals, a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==4
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-1);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-2);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-3);
-            a4primevals=shiftdim(a_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-4);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-1);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-2);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-3);
+            a4primevals=shiftdim(aprime_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-4);
             a1vals=shiftdim(avals(1:n_a(1)),-5);
             a2vals=shiftdim(avals(n_a(1)+1:sum(n_a(1:2))),-6);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-7);
@@ -244,7 +244,7 @@ else
         d1vals=d_grid(1:n_d(1));
         d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
         if l_a==1
-            aprimevals=shiftdim(a_grid,-2);
+            aprimevals=shiftdim(aprime_grid,-2);
             avals=shiftdim(avals,-3);
             if l_z==1
                 zvals=shiftdim(zvals,-4);
@@ -266,8 +266,8 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprimevals, avals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==2
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-2);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-3);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-2);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-3);
             a1vals=shiftdim(avals(1:n_a(1)),-4);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-5);
             if l_z==1
@@ -290,9 +290,9 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==3
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-2);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-3);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-4);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-2);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-3);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-4);
             a1vals=shiftdim(avals(1:n_a(1)),-5);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-6);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-7);
@@ -316,10 +316,10 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1primevals, a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==4
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-2);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-3);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-4);
-            a4primevals=shiftdim(a_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-5);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-2);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-3);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-4);
+            a4primevals=shiftdim(aprime_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-5);
             a1vals=shiftdim(avals(1:n_a(1)),-6);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-7);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-8);
@@ -349,7 +349,7 @@ else
         d2vals=shiftdim(d_grid(n_d(1)+1:n_d(1)+n_d(2)),-1);
         d3vals=shiftdim(d_grid(n_d(2)+1:n_d(2)+n_d(3)),-2);
         if l_a==1
-            aprimevals=shiftdim(a_grid,-3);
+            aprimevals=shiftdim(aprime_grid,-3);
             avals=shiftdim(avals,-4);
             if l_z==1
                 zvals=shiftdim(zvals,-5);
@@ -371,8 +371,8 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprimevals, avals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==2
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-3);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-4);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-3);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-4);
             a1vals=shiftdim(avals(1:n_a(1)),-5);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-6);
             if l_z==1
@@ -395,9 +395,9 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==3
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-3);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-4);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-5);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-3);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-4);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-5);
             a1vals=shiftdim(avals(1:n_a(1)),-6);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-7);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-8);
@@ -421,10 +421,10 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1primevals, a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==4
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-3);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-4);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-5);
-            a4primevals=shiftdim(a_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-6);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-3);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-4);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-5);
+            a4primevals=shiftdim(aprime_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-6);
             a1vals=shiftdim(avals(1:n_a(1)),-7);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-8);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-9);
@@ -455,8 +455,8 @@ else
         d3vals=shiftdim(d_grid(n_d(2)+1:n_d(2)+n_d(3)),-2);
         d4vals=shiftdim(d_grid(n_d(3)+1:n_d(3)+n_d(4)),-3);
         if l_a==1
-            aprimevals=shiftdim(a_grid,-4);
-            avals=shiftdim(a_grid,-5);
+            aprimevals=shiftdim(aprime_grid,-4);
+            avals=shiftdim(aprime_grid,-5);
             if l_z==1
                 zvals=shiftdim(zvals,-6);
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprimevals, avals, zvals,ParamCell{:});
@@ -477,8 +477,8 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprimevals, avals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==2
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-4);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-5);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-4);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2)),-5);
             a1vals=shiftdim(avals(1:n_a(1)),-6);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-7);
             if l_z==1
@@ -501,9 +501,9 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, a1primevals, a2primevals, a1vals,a2vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==3
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-4);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-5);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-6);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-4);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-5);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-6);
             a1vals=shiftdim(avals(1:n_a(1)),-7);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-8);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-9);
@@ -527,10 +527,10 @@ else
                 Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, a1primevals, a2primevals,a3primevals, a1vals,a2vals,a3vals, z1vals,z2vals,z3vals,z4vals,ParamCell{:});
             end
         elseif l_a==4
-            a1primevals=shiftdim(a_grid(1:n_aprime(1)),-4);
-            a2primevals=shiftdim(a_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-5);
-            a3primevals=shiftdim(a_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-6);
-            a4primevals=shiftdim(a_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-7);
+            a1primevals=shiftdim(aprime_grid(1:n_aprime(1)),-4);
+            a2primevals=shiftdim(aprime_grid(n_aprime(1)+1:sum(n_aprime(1:2))),-5);
+            a3primevals=shiftdim(aprime_grid(sum(n_aprime(1:2))+1:sum(n_aprime(1:3))),-6);
+            a4primevals=shiftdim(aprime_grid(sum(n_aprime(1:3))+1:sum(n_aprime(1:4))),-7);
             a1vals=shiftdim(avals(1:n_a(1)),-8);
             a2vals=shiftdim(avals(n_a(1)+1:n_a(1)+n_a(2)),-9);
             a3vals=shiftdim(avals(sum(n_a(1:2))+1:sum(n_a(1:3))),-10);

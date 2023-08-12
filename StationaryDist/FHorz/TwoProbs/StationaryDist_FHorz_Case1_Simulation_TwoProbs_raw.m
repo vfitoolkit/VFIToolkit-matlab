@@ -43,7 +43,6 @@ else
     pi_z_J=repmat(pi_z,1,1,N_j);
 end
 
-simoptions.parallel
 
 if simoptions.parallel==1
     nsimspercore=ceil(simoptions.nsims/simoptions.ncores);
@@ -71,7 +70,6 @@ if simoptions.parallel==1
     StationaryDistKron=sum(StationaryDistKron,4);
     StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);
 elseif simoptions.parallel==0
-    disp('NOW IN APPROPRIATE PART OF STATDIST') %DEBUGGING
     StationaryDistKron=zeros(N_a,N_z,N_j);
     cumsum_pi_z_J=cumsum(pi_z_J,2);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
