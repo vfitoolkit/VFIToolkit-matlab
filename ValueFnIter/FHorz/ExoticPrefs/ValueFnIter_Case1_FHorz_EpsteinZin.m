@@ -51,6 +51,8 @@ end
 % Declare warmglow indicator
 if isfield(vfoptions,'WarmGlowBequestsFn')
     warmglow=1;
+    temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+    vfoptions.WarmGlowBequestsFnParamsNames={temp{2:end}};
 else
     warmglow=0;
 end
@@ -97,6 +99,8 @@ end
 if vfoptions.EZoneminusbeta==1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 
     ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
+
+    
 end
 
 if vfoptions.EZutils==0

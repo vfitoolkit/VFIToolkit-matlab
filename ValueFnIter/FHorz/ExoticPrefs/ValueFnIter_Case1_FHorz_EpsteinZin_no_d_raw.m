@@ -198,7 +198,7 @@ for reverse_j=1:N_j-1
                 max(max(abs(temp4)))
             end
             
-            entireRHS_z=ezc2*temp2_z+DiscountFactorParamsVec*temp4*ones(1,N_a,1);
+            entireRHS_z=ezc2*temp2_z+DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z.^ezc7,[],1);
@@ -225,7 +225,7 @@ for reverse_j=1:N_j-1
             temp4(isfinite(temp4))=(ezc4*sj(N_j)*temp4(isfinite(temp4))).^ezc6;
             temp4(EV_z==0)=0;
             
-            entireRHS_z=ezc2*temp2+DiscountFactorParamsVec*temp4*ones(1,N_a,1);
+            entireRHS_z=ezc2*temp2+DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z.^ezc7,[],1);

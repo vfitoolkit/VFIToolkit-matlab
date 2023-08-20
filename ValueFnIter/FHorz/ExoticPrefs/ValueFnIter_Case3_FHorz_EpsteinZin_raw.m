@@ -37,6 +37,8 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 if vfoptions.EZoneminusbeta==1
     ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+elseif vfoptions.EZoneminusbeta==2
+    ezc1=1-sj(N_j)*DiscountFactorParamsVec;
 end
 
 if fieldexists_pi_z_J==1
@@ -81,10 +83,12 @@ if warmglow==1
     % Apply the aprimeProbs
     WG1=reshape(WG1,[N_d,N_u]).*aprimeProbs; % probability of lower grid point
     WG2=reshape(WG2,[N_d,N_u]).*(1-aprimeProbs); % probability of upper grid point
+    % If WG1 or WG2 is infinite, and probability is zero, we will get a nan, so get rid of these
+    WG1(isnan(WG1))=0;
+    WG2(isnan(WG2))=0;
     % Expectation over u (using pi_u), and then add the lower and upper
     WGmatrix=sum((WG1.*pi_u'),2)+sum((WG2.*pi_u'),2); % (d,1), sum over u
     % WGmatrix is over (d,1)
-
     if ~isfield(vfoptions,'V_Jplus1')
         WGmatrix(isfinite(WGmatrixraw))=ezc3*DiscountFactorParamsVec*(((1-sj(N_j))*WGmatrix(isfinite(WGmatrixraw))).^ezc6);
         WGmatrix(WGmatrixraw==0)=0;
@@ -110,6 +114,11 @@ if warmglow==1
 else
     WGmatrix=0;
 end
+
+disp('here')
+[N_j, min(WGmatrix(:)), max(WGmatrix(:))]
+sum(sum(sum(isnan(WGmatrix))))
+sum(sum(sum(~isfinite(WGmatrix))))
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
@@ -246,12 +255,12 @@ else
                 EV_z=sum(EV_z,2);
                 
                 % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-                EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-                EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+                EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+                EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
                 % Already applied the probabilities from interpolating onto grid
                 
                 % Expectation over u (using pi_u), and then add the lower and upper
-                EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+                EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
                 % EV_z is over (d,1)
                 
                 % Part of Epstein-Zin is after taking expectation
@@ -302,12 +311,12 @@ else
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
             
             % Part of Epstein-Zin is after taking expectation
@@ -348,12 +357,12 @@ else
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
             
             % Part of Epstein-Zin is after taking expectation
@@ -408,6 +417,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     if vfoptions.EZoneminusbeta==1
         ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+    elseif vfoptions.EZoneminusbeta==2
+        ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
     
     if fieldexists_pi_z_J==1
@@ -453,6 +464,9 @@ for reverse_j=1:N_j-1
         % Apply the aprimeProbs
         WG1=reshape(WG1,[N_d,N_u]).*aprimeProbs; % probability of lower grid point
         WG2=reshape(WG2,[N_d,N_u]).*(1-aprimeProbs); % probability of upper grid point
+        % If WG1 or WG2 is infinite, and probability is zero, we will get a nan, so get rid of these
+        WG1(isnan(WG1))=0;
+        WG2(isnan(WG2))=0;
         % Expectation over u (using pi_u), and then add the lower and upper
         WGmatrix=sum((WG1.*pi_u'),2)+sum((WG2.*pi_u'),2); % (d,1), sum over u
         % WGmatrix is over (d,1)
@@ -463,6 +477,11 @@ for reverse_j=1:N_j-1
             % WGmatrix=WGmatrix;
         end
     end
+
+    disp('here')
+    [jj, min(WGmatrix(:)), max(WGmatrix(:))]
+    sum(sum(sum(isnan(WGmatrix))))
+    sum(sum(sum(~isfinite(WGmatrix))))
     
     VKronNext_j=V(:,:,jj+1);
     
@@ -527,19 +546,19 @@ for reverse_j=1:N_j-1
             
             for z_c=1:N_z
                 temp2_z=temp2(:,:,z_c);
-                
+
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=temp2_z.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 
                 % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-                EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-                EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+                EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+                EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
                 % Already applied the probabilities from interpolating onto grid
                 
                 % Expectation over u (using pi_u), and then add the lower and upper
-                EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+                EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
                 % EV_z is over (d,1)
                 
                 % Part of Epstein-Zin is after taking expectation
@@ -590,12 +609,12 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
             
             % Part of Epstein-Zin is after taking expectation
@@ -636,12 +655,12 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
             
             % Part of Epstein-Zin is after taking expectation

@@ -175,8 +175,7 @@ if isfield(vfoptions,'exoticpreferences')
     if strcmp(vfoptions.exoticpreferences,'None')
         % Just ignore and will then continue on.
     elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-%        [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%        return
+        error('Quasi-Hyperbolic preferences in Case3 have not been implemented')
     elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
         [V, Policy]=ValueFnIter_Case3_FHorz_EpsteinZin(n_d,n_a,n_z,n_u,N_j,d_grid, a_grid, z_grid, u_grid, pi_z, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         return

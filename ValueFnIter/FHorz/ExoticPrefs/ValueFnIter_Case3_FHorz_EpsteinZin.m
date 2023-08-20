@@ -49,6 +49,8 @@ end
 % Declare warmglow indicator
 if isfield(vfoptions,'WarmGlowBequestsFn')
     warmglow=1;
+    temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
+    vfoptions.WarmGlowBequestsFnParamsNames={temp{2:end}};
 else
     warmglow=0;
 end
@@ -94,6 +96,10 @@ end
 if vfoptions.EZoneminusbeta==1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 
     ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
+elseif vfoptions.EZoneminusbeta==2
+    % This is because some formulations using bequests multiply the period utility function by (1-sj*beta) 
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    ezc1=1-sj(N_j)*prod(DiscountFactorParamsVec);
 end
 
 if vfoptions.EZutils==0
@@ -121,15 +127,15 @@ if vfoptions.parallel==2
             pi_e=vfoptions.pi_e;
         end
         if N_z==0
-            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, n_u, N_j, d_grid, a_grid, e_grid, u_grid, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglowweight, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, n_u, N_j, d_grid, a_grid, e_grid, u_grid, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         else
-            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, n_u, N_j, d_grid, a_grid, z_grid, e_grid, u_grid, pi_z, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglowweight, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, n_u, N_j, d_grid, a_grid, z_grid, e_grid, u_grid, pi_z, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         end
     else
         if N_z==0
             error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
         else
-            [VKron, PolicyKron]=ValueFnIter_Cas31_FHorz_EpsteinZin_raw(n_d,n_a,n_z,n_u, N_j, d_grid, a_grid, z_grid, u_grid, pi_z, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglowweight, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron, PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_raw(n_d,n_a,n_z,n_u, N_j, d_grid, a_grid, z_grid, u_grid, pi_z, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         end
     end
 else

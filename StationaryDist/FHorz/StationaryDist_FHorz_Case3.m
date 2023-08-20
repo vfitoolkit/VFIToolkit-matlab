@@ -98,20 +98,31 @@ else
     aprimeFnParamNames={};
 end
 
+% to evaluate the aprimeFn we need the grids on gpu
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+u_grid=gpuArray(u_grid);
 
+if isfield(simoptions,'n_e')
+    if isfield(simoptions,'pi_e')
+        pi_e=simoptions.pi_e;
+    else
+        pi_e=simoptions.pi_e_J(:,1); % just a placeholder
+    end
+end
 
 %%
 if simoptions.iterate==0
     if isfield(simoptions,'n_e')
-        StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,simoptions.n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,simoptions.pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames, simoptions);
+        StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,simoptions.n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames, simoptions);
     else
         StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
     end
 elseif simoptions.iterate==1
     if isfield(simoptions,'n_e')
-        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,simoptions.n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,simoptions.pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
+        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,simoptions.n_e,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_e,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
     else
-        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,N_j,d_grid, a_grid, u_grid,pi_z,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
+        StationaryDistKron=StationaryDist_FHorz_Case3_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_u,N_j,d_grid,a_grid,u_grid,pi_z,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions);
     end
 end
 if isfield(simoptions,'n_e')

@@ -48,6 +48,8 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 if vfoptions.EZoneminusbeta==1
     ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+elseif vfoptions.EZoneminusbeta==2
+    ezc1=1-sj(N_j)*DiscountFactorParamsVec;
 end
 
 if fieldexists_pi_z_J==1
@@ -327,12 +329,12 @@ else
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid      
             
             % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV is over (d,1)
             
             % Part of Epstein-Zin is after taking expectation
@@ -389,6 +391,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     if vfoptions.EZoneminusbeta==1
         ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
+    elseif vfoptions.EZoneminusbeta==2
+        ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
 
     
@@ -602,12 +606,12 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*EV_z(aprimeIndex); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*EV_z(aprimeIndex+1); % (d,u), the upper aprime
+            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid      
             
             % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((aprimeProbs.*EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
+            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
             % EV_z is over (d,1)
             
             % Part of Epstein-Zin is after taking expectation

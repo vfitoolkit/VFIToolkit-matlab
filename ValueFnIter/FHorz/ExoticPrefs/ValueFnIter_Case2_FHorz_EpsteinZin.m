@@ -125,9 +125,9 @@ if Case2_Type==3 % Note: it is not possible with Case2_Type=3 that there is no z
             else
                 pi_e=vfoptions.pi_e;
             end
-            [VKron,PolicyKron]=ValueFnIter_Case2_3_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions, sj, warmglowweight, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron,PolicyKron]=ValueFnIter_Case2_3_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         else
-            [VKron, PolicyKron]=ValueFnIter_Case2_3_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions, sj, warmglowweight, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron, PolicyKron]=ValueFnIter_Case2_3_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, Phi_aprime, Case2_Type, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
         end
     elseif vfoptions.parallel==0 || vfoptions.parallel==1
         error('Epstein-Zin currently only implemented for Parallel=2')
