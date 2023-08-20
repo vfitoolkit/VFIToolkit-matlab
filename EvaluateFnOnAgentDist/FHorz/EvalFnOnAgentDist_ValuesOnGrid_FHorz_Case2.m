@@ -1,6 +1,16 @@
 function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case2(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, Parallel,simoptions)
 % Parallel is an optional input.
 
+if exist('Parallel','var')==0
+    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+elseif isempty(Parallel)
+    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+end
+
+if ~exist('simoptions','var')
+    simoptions=struct();
+end
+
 if n_d(1)==0
     l_d=0;
 else
@@ -11,11 +21,6 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-end
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if exist('simoptions','var')
@@ -158,6 +163,7 @@ if isfield(simoptions,'keepoutputasmatrix')
         FnsToEvaluateStruct=2;
     end
 end
+
 
 %%
 if Parallel==2

@@ -230,7 +230,7 @@ elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P
             pi_z=gather(pi_z); % The indexing used can only be donoe on cpu
             Ptranspose=sparse(N_a*N_z,N_a*N_z);
             aaa=(kron(ones(1,N_z),(1:1:N_a))+N_a*kron(((1:1:N_z)-1),ones(1,N_a)));
-            Ptranspose(:,aaa)=kron(ones(N_z,1),PtransposeA(:,aaa).*kron(pi_z',ones(N_a,N_a));
+            Ptranspose(:,aaa)=kron(ones(N_z,1),PtransposeA(:,aaa)).*kron(pi_z',ones(N_a,N_a));
         end
         
         Ptranspose=gpuArray(Ptranspose);

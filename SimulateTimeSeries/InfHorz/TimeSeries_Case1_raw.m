@@ -33,6 +33,7 @@ end
 
 %%
 if l_d==0
+
     parfor t=1:T
         
         TimeSeriesKron_t=zeros(numFnsToEvaluate,1);
@@ -61,6 +62,7 @@ if l_d==0
     end
 
 else % l_d>0
+
     parfor t=1:T
         
         TimeSeriesKron_t=zeros(numFnsToEvaluate,1);
