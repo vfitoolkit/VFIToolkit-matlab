@@ -62,9 +62,6 @@ else
     end
 end
 
-size(PolicyKron)
-disp('MIN')
-min(PolicyKron(:))
 
 %%
 if vfoptions.outputkron==0

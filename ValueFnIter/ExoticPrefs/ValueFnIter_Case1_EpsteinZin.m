@@ -70,7 +70,7 @@ elseif vfoptions.EZutils==1
 end
 
 if vfoptions.EZoneminusbeta==1
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames); 
     ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
 end
 
