@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case3_FHorz_EpsteinZin_noz_e_raw(n_d,n_a,n_e,n_u, N_j, d_grid, a_grid, e_grid, u_grid, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [V,Policy]=ValueFnIter_Case3_FHorz_EpsteinZin_noz_e_raw(n_d,n_a,n_e,n_u, N_j, d_grid, a_grid, e_grid, u_grid, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -78,8 +78,9 @@ if warmglow==1
     % WGmatrix is over (d,1)
 
     if ~isfield(vfoptions,'V_Jplus1')
-        WGmatrix(isfinite(WGmatrixraw))=ezc3*DiscountFactorParamsVec*(((1-sj(N_j))*WGmatrix(isfinite(WGmatrixraw))).^ezc6);
-        WGmatrix(WGmatrixraw==0)=0;
+        becareful=(WGmatrix==0);
+        WGmatrix(isfinite(WGmatrix))=ezc3*DiscountFactorParamsVec*(((1-sj(N_j))*WGmatrix(isfinite(WGmatrix)).^ezc8).^ezc6);
+        WGmatrix(becareful)=0;
     end
     % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
     if ~isfield(vfoptions,'V_Jplus1')
@@ -159,10 +160,10 @@ else
     temp4=EV;
     if warmglow==1
         becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-        temp4(becareful)=(sj(N_j)*temp4(becareful)+(1-sj(N_j))*WGmatrix(becareful)).^ezc6;
+        temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8+(1-sj(N_j))*WGmatrix(becareful).^ezc8).^ezc6;
         temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
     else % not using warmglow
-        temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4))).^ezc6;
+        temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8).^ezc6;
         temp4(EV==0)=0;
     end
     
@@ -299,10 +300,10 @@ for reverse_j=1:N_j-1
     temp4=EV;
     if warmglow==1
         becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-        temp4(becareful)=(sj(jj)*temp4(becareful)+(1-sj(jj))*WGmatrix(becareful)).^ezc6;
+        temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8+(1-sj(jj))*WGmatrix(becareful).^ezc8).^ezc6;
         temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
     else % not using warmglow
-        temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4))).^ezc6;
+        temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8).^ezc6;
         temp4(EV==0)=0;
     end
 

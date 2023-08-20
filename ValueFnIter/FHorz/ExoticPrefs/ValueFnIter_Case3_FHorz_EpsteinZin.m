@@ -30,7 +30,9 @@ else
     end
 end
 if ~isfield(vfoptions,'EZoneminusbeta')
-    vfoptions.EZoneminusbeta=0; % Put a (1-beta)* term on the this period return (sometimes people want this for traditional EZ, I don't actually know why)
+    vfoptions.EZoneminusbeta=0; % default essentially does nothing
+    %=1 Put a (1-beta)* term on the this period return
+    %=2 Put a (1-sj*beta)* term on the this period return
 end
 % Set up sj
 if isfield(vfoptions,'survivalprobability')
@@ -92,12 +94,37 @@ elseif vfoptions.EZutils==1
     end
     ezc7=1;
 end
+% Can do a double Epstein-Zin, this involves changing a fair few of these
+% (inner EZ is about risk, outer EZ is about mortality-risk)
+if isfield(vfoptions,'EZmortalityriskaversion')
+    mrisk=Parameters.(vfoptions.EZmortalityriskaversion);
+    if vfoptions.EZutils==0
+    ezc6=(1-1/ceis)/(1-mrisk);
+    ezc8=(1-mrisk)/(1-crisk);
+    elseif vfoptions.EZutils==1
+        if vfoptions.EZpositiveutility==1
+            ezc6=1/(1-mrisk);
+            ezc8=(1-mrisk)/(1-crisk);
+        elseif vfoptions.EZpositiveutility==0
+            ezc6=1/(1+mrisk);
+            ezc8=(1+mrisk)/(1+crisk);
+        end
+    end
+    % Note: the baseline codes apply ezc5 to the warm-glow, so we also want
+    % to use ezc8 on the warm-glow to get rid of this (even though in Case1
+    % raising to ezc5 and then getting rid of it as part of ezc8 is just a
+    % waste, I don't feel like recoding the whole thing)
+else
+    % This wont do anything
+    ezc8=1;
+end
+
 
 if vfoptions.EZoneminusbeta==1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 
     ezc1=1-prod(DiscountFactorParamsVec); % (This will be changed later if it depends on age)
 elseif vfoptions.EZoneminusbeta==2
-    % This is because some formulations using bequests multiply the period utility function by (1-sj*beta) 
+    % Some formulations using bequests multiply the period utility function by (1-sj*beta) 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     ezc1=1-sj(N_j)*prod(DiscountFactorParamsVec);
 end
@@ -127,15 +154,15 @@ if vfoptions.parallel==2
             pi_e=vfoptions.pi_e;
         end
         if N_z==0
-            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, n_u, N_j, d_grid, a_grid, e_grid, u_grid, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, n_u, N_j, d_grid, a_grid, e_grid, u_grid, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         else
-            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, n_u, N_j, d_grid, a_grid, z_grid, e_grid, u_grid, pi_z, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron,PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, n_u, N_j, d_grid, a_grid, z_grid, e_grid, u_grid, pi_z, pi_e, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         end
     else
         if N_z==0
             error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
         else
-            [VKron, PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_raw(n_d,n_a,n_z,n_u, N_j, d_grid, a_grid, z_grid, u_grid, pi_z, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+            [VKron, PolicyKron]=ValueFnIter_Case3_FHorz_EpsteinZin_raw(n_d,n_a,n_z,n_u, N_j, d_grid, a_grid, z_grid, u_grid, pi_z, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         end
     end
 else
