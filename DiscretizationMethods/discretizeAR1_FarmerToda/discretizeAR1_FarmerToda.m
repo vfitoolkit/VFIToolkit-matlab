@@ -1,4 +1,4 @@
-function [z_grid,P] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodaoptions)
+function [z_grid,pi_z] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
 % [If you use this to discretize and iid normal (rho=0) then instead please cite
 % Tanaka & Toda (2013) - "Discrete approximations of continuous distributions by maximum entropy" instead.]
@@ -18,7 +18,7 @@ function [z_grid,P] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodaopti
 %   parallel:      - set equal to 2 to use GPU, 0 to use CPU
 % Outputs
 %   z_grid         - column vector containing the znum states of the discrete approximation of z
-%   P              - transition matrix of the discrete approximation of z;
+%   pi_z           - transition matrix of the discrete approximation of z;
 %                    transmatrix(i,j) is the probability of transitioning from state i to state j
 %
 % Helpful info:
@@ -44,9 +44,9 @@ end
 if ~exist('farmertodaoptions','var')
     farmertodaoptions.nMoments=2;
     if abs(rho) <= 1-2/(znum-1)
-        farmertodaoptions.nSigmas = min(sqrt(2*(znum-1)),4);
+        farmertodaoptions.nSigmas = min(sqrt(2*(znum-1)),3);
     else
-        farmertodaoptions.nSigmas = min(sqrt(znum-1),4); % Set max of 4
+        farmertodaoptions.nSigmas = min(sqrt(znum-1),3); % Set max of 3
     end
     if rho<=0.8
         farmertodaoptions.method='gauss-hermite';
@@ -56,14 +56,14 @@ if ~exist('farmertodaoptions','var')
     farmertodaoptions.parallel=1+(gpuDeviceCount>0);
 else
     if ~isfield(farmertodaoptions,'nMoments')
-        farmertodaoptions.nMoments = 2; % Default number of moments to match is 2        
+        farmertodaoptions.nMoments = 2; % Default number of moments to match is 2      
     end
     % define grid spacing parameter if not provided
     if ~isfield(farmertodaoptions,'nSigmas') % This is just direct from Farmer-Toda code. I am not aware of any results showing it performs 'better'
         if abs(rho) <= 1-2/(znum-1)
-            farmertodaoptions.nSigmas = min(sqrt(2*(znum-1)),4);
+            farmertodaoptions.nSigmas = min(sqrt(2*(znum-1)),3);
         else
-            farmertodaoptions.nSigmas = min(sqrt(znum-1),4);
+            farmertodaoptions.nSigmas = min(sqrt(znum-1),3);
         end
     end
     % Set method based on findings of paper of Farmer & Toda (2017): last para on pg 678
@@ -79,6 +79,7 @@ else
         farmertodaoptions.parallel=1+(gpuDeviceCount>0);
     end
 end
+% Note: the choice of setting nSigmas to sqrt(znum-1) is based on asymptotic theory in Corrallary 3.5(ii) of Farmer & Toda (2017)
 
 %% Check inputs are correctly formatted
 % Check that Nm is a valid number of grid points
@@ -92,21 +93,22 @@ if ~isnumeric(farmertodaoptions.nMoments) || farmertodaoptions.nMoments < 1 || f
 end
 
 sigmaz = sigma/sqrt(1-rho^2); % unconditional standard deviation
+mewz=mew/(1-rho); % unconditional mean
 
 switch farmertodaoptions.method
     case 'even'
-        z_grid = linspace(mew-farmertodaoptions.nSigmas*sigmaz,mew+farmertodaoptions.nSigmas*sigmaz,znum);
+        z_grid = linspace(mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz,znum);
         W = ones(1,znum);
     case 'gauss-legendre'
-        [z_grid,W] = legpts(znum,[mew-farmertodaoptions.nSigmas*sigmaz,mew+farmertodaoptions.nSigmas*sigmaz]);
+        [z_grid,W] = legpts(znum,[mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz]);
         z_grid = z_grid';
     case 'clenshaw-curtis'
-        [z_grid,W] = fclencurt(znum,mew-farmertodaoptions.nSigmas*sigmaz,mew+farmertodaoptions.nSigmas*sigmaz);
+        [z_grid,W] = fclencurt(znum,mewz-farmertodaoptions.nSigmas*sigmaz,mewz+farmertodaoptions.nSigmas*sigmaz);
         z_grid = fliplr(z_grid');
         W = fliplr(W');
     case 'gauss-hermite'
         [z_grid,W] = GaussHermite(znum);
-        z_grid = mew+sqrt(2)*sigma*z_grid';
+        z_grid = mewz+sqrt(2)*sigma*z_grid';
         W = W'./sqrt(pi);
 end
 
@@ -120,13 +122,13 @@ TBar = [T1 T2 T3 T4]'; % vector of conditional central moments
 
 
 %% Farmer-Toda method
-P = NaN(znum);
+pi_z = NaN(znum);
 scalingFactor = max(abs(z_grid));
 kappa = 1e-8;
 
 for ii = 1:znum
     
-    condMean = mew*(1-rho)+rho*z_grid(ii); % conditional mean
+    condMean = mew+rho*z_grid(ii); % conditional mean
     if strcmp(farmertodaoptions.method,'gauss-hermite')  % define prior probabilities
         q = W;
     else
@@ -138,25 +140,25 @@ for ii = 1:znum
     end
     
     if farmertodaoptions.nMoments == 1 % match only 1 moment
-        P(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
+        pi_z(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
     else % match 2 moments first
         [p,lambda,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
             ((x-condMean)./scalingFactor).^2],...
             TBar(1:2)./(scalingFactor.^(1:2)'),q,zeros(2,1));
         if norm(momentError) > 1e-5 % if 2 moments fail, then just match 1 moment
             warning('Failed to match first 2 moments. Just matching 1.')
-            P(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,0,q,0);
+            pi_z(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,0,q,0);
         elseif farmertodaoptions.nMoments == 2
-            P(ii,:) = p;
+            pi_z(ii,:) = p;
         elseif farmertodaoptions.nMoments == 3 % 3 moments
             [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
                 ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                 TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
             if norm(momentError) > 1e-5
                 warning('Failed to match first 3 moments.  Just matching 2.')
-                P(ii,:) = p;
+                pi_z(ii,:) = p;
             else
-                P(ii,:) = pnew;
+                pi_z(ii,:) = pnew;
             end
         elseif farmertodaoptions.nMoments == 4 % 4 moments
             [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
@@ -169,13 +171,13 @@ for ii = 1:znum
                     TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
                 if norm(momentError) > 1e-5
                     warning('Failed to match first 3 moments.  Just matching 2.')
-                    P(ii,:) = p;
+                    pi_z(ii,:) = p;
                 else
-                    P(ii,:) = pnew;
+                    pi_z(ii,:) = pnew;
                     warning('Failed to match first 4 moments.  Just matching 3.')
                 end
             else
-                P(ii,:) = pnew;
+                pi_z(ii,:) = pnew;
             end
         end
     end
@@ -185,7 +187,7 @@ end
 % CREATE ON GPU OR CPU AS APPROPRIATE. (AVOID THE OVERHEAD OF MOVING TO GPU)
 if farmertodaoptions.parallel==2 
     z_grid=gpuArray(z_grid);
-    P=gpuArray(P); %(z,zprime)  
+    pi_z=gpuArray(pi_z); %(z,zprime)  
 end
 
 z_grid=z_grid'; % Output as column vector
