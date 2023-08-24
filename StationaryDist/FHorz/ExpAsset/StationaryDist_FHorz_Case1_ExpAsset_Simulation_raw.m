@@ -64,7 +64,7 @@ else
     optaprime=3;
 end
 for jj=1:N_j
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeLowerProb]=CreatePolicyExperienceAssetFnMatrix_Case1(PolicyIndexesKron,aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     
     % = normal asset + experience asset

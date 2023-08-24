@@ -26,7 +26,9 @@ elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hy
     error('vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
 end
 
-% CANNOT YET DEAL WITH DYNASTY WHEN USING QUASI-HYPERBOLIC
+if ~isfield(vfoptions,'QHadditionaldiscount')
+    error('You must declare vfoptions.QHadditionaldiscount when using quasi-hyperbolic discouting (you have vfoptions.exoticpreferences set to QuasiHyperbolic)')
+end
 
 %% Just do the standard case
 if vfoptions.parallel==2
@@ -80,7 +82,7 @@ if vfoptions.parallel==2
         end
     end
 elseif vfoptions.parallel==0 || vfoptions.parallel==1
-    error('Quasi-Hyperbolic currently only implemented for Parallel=2: email me')
+    error('Quasi-Hyperbolic is only implemented for Parallel=2')
 end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form

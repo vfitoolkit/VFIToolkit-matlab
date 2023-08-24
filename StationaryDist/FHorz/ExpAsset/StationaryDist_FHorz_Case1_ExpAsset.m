@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,aprimeFn,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions)
 
 %% Check for the age weights parameter, and make sure it is a row vector
 if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
@@ -115,7 +115,7 @@ Policy_aprime=zeros(N_a,N_z,N_j,2,'gpuArray'); % The fourth dimension is lower/u
 PolicyProbs=zeros(N_a,N_z,N_j,2,'gpuArray'); % The fourth dimension is lower/upper grid point
 whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),aprimeFn, whichisdforexpasset, n_a, N_z, gpuArray(simoptions.a_grid), aprimeFnParamsVec);
     if l_a==1
         Policy_aprime(:,:,jj,1)=aprimeIndexes;

@@ -32,6 +32,7 @@ if exist('vfoptions','var')==0
     vfoptions.exoticpreferences='None';
     vfoptions.dynasty=0;
     vfoptions.experienceasset=0;
+    vfoptions.residualasset=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
@@ -87,7 +88,9 @@ else
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
     end
-
+    if ~isfield(vfoptions,'residualasset')
+        vfoptions.residualasset=0;
+    end
 end
 
 if isempty(n_d)
@@ -167,6 +170,11 @@ else
     l_e=0;
 end
 if vfoptions.experienceasset==1
+    % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable
+    l_z=l_z+1;
+    l_a=l_a-1;
+end
+if vfoptions.residualasset==1
     % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable
     l_z=l_z+1;
     l_a=l_a-1;
@@ -301,6 +309,23 @@ if vfoptions.experienceasset==1
 
     % Now just send all this to the right value fn iteration command
     [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+end
+
+%% Deal with residual asset if need to do that
+if vfoptions.residualasset==1
+    % Split endogenous assets into the standard ones and the experience asset
+    if length(n_a)==1
+        n_a1=0;
+    else
+        n_a1=n_a(1:end-1);
+    end
+    n_r=n_a(end); % n_a2 is the experience asset
+    a1_grid=a_grid(1:sum(n_a1));
+    r_grid=a_grid(sum(n_a1)+1:end);
+    
+    % Now just send all this to the right value fn iteration command
+    [V,Policy]=ValueFnIter_Case1_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 

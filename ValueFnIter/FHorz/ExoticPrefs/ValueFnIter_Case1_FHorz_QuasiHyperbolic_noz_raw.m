@@ -17,10 +17,6 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); % indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-if length(DiscountFactorParamNames)<3
-    error('There should be at least three variables in DiscountFactorParamNames when using Epstein-Zin Preferences')
-end
-
 if vfoptions.lowmemory>0
     special_n_a=ones(1,length(n_a));
     a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
@@ -75,11 +71,8 @@ else
     end
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    if length(DiscountFactorParamsVec)>2
-        DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-1));DiscountFactorParamsVec(end)];
-    end
-    beta=prod(DiscountFactorParamsVec(1:end-1)); % Discount factor between any two future periods
-    beta0beta=prod(DiscountFactorParamsVec); % Discount factor between today and tomorrow.
+    beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
+    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta; % Discount factor between today and tomorrow.
 
     VKronNext_j=V_Jplus1; % Note: The V_Jplus1 input should be V if naive, Vunderbar if sophisticated
 
@@ -96,11 +89,11 @@ else
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
             % First V
-            entireRHS=ReturnMatrix+beta*entireEV*ones(1,N_a,1); % Use the two-future-periods discount factor
+            entireRHS=ReturnMatrix+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
             [Vtemp,~]=max(entireRHS,[],1);
             V(:,N_j)=Vtemp;
             % Now Vtilde and Policy
-            entireRHS=ReturnMatrix+beta0beta*entireEV*ones(1,N_a,1);
+            entireRHS=ReturnMatrix+beta0beta*entireEV.*ones(1,N_a,1);
             [Vtemp,maxindex]=max(entireRHS,[],1);
             Vtilde(:,N_j)=Vtemp; % Evaluate what would have done under exponential discounting
             Policy(:,N_j)=maxindex; % Use the policy from solving the problem of Vtilde
@@ -108,13 +101,13 @@ else
             % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
             % and then we compute Vunderbar.
             % First Vhat
-            entireRHS=ReturnMatrix+beta0beta*entireEV*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+            entireRHS=ReturnMatrix+beta0beta*entireEV.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
             [Vtemp,maxindex]=max(entireRHS,[],1);
             V(:,N_j)=Vtemp; % Note that this is Vhat when sophisticated
             Policy(:,N_j)=maxindex; % This is the policy from solving the problem of Vhat
             % Now Vstar
-            entireRHS=ReturnMatrix+beta*entireEV*ones(1,N_a,1); % Use the two-future-periods discount factor
-            maxindexfull=maxindex+N_a*(0:1:N_a-1);
+            entireRHS=ReturnMatrix+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
+            maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1);
             Vunderbar(:,N_j)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
         end
         
@@ -128,7 +121,7 @@ else
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
             % First V
-            for a_c=1:N_z
+            for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
                 ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, special_n_a, d_grid, a_val, ReturnFnParamsVec);
                 
@@ -174,11 +167,8 @@ for reverse_j=1:N_j-1
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
-    if length(DiscountFactorParamsVec)>2
-        DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-1));DiscountFactorParamsVec(end)];
-    end
-    beta=prod(DiscountFactorParamsVec(1:end-1)); % Discount factor between any two future periods
-    beta0beta=prod(DiscountFactorParamsVec); % Discount factor between today and tomorrow.
+    beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
+    beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta; % Discount factor between today and tomorrow.
 
     
     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
@@ -200,11 +190,11 @@ for reverse_j=1:N_j-1
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
             % First V
-            entireRHS=ReturnMatrix+beta*entireEV*ones(1,N_a,1); % Use the two-future-periods discount factor
+            entireRHS=ReturnMatrix+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
             [Vtemp,~]=max(entireRHS,[],1);
             V(:,jj)=Vtemp;
             % Now Vtilde and Policy
-            entireRHS=ReturnMatrix+beta0beta*entireEV*ones(1,N_a,1);
+            entireRHS=ReturnMatrix+beta0beta*entireEV.*ones(1,N_a,1);
             [Vtemp,maxindex]=max(entireRHS,[],1);
             Vtilde(:,jj)=Vtemp; % Evaluate what would have done under exponential discounting
             Policy(:,jj)=maxindex; % Use the policy from solving the problem of Vtilde
@@ -212,13 +202,13 @@ for reverse_j=1:N_j-1
             % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
             % and then we compute Vunderbar.
             % First Vhat
-            entireRHS=ReturnMatrix+beta0beta*entireEV*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+            entireRHS=ReturnMatrix+beta0beta*entireEV.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
             [Vtemp,maxindex]=max(entireRHS,[],1);
             V(:,jj)=Vtemp; % Note that this is Vhat when sophisticated
             Policy(:,jj)=maxindex; % This is the policy from solving the problem of Vhat
             % Now Vstar
-            entireRHS=ReturnMatrix+beta*entireEV*ones(1,N_a,1); % Use the two-future-periods discount factor
-            maxindexfull=maxindex+N_a*(0:1:N_a-1);
+            entireRHS=ReturnMatrix+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
+            maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1);
             Vunderbar(:,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
         end
         
@@ -232,7 +222,7 @@ for reverse_j=1:N_j-1
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
             % First V
-            for a_c=1:N_z
+            for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
                 ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, special_n_a, d_grid, a_val, ReturnFnParamsVec);
                 

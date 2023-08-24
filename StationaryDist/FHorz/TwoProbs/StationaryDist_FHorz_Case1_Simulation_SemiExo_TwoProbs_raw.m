@@ -60,7 +60,7 @@ if simoptions.parallel==1
             currstate=ind2sub_homemade([N_a,N_z,N_semiz],currstate);
             StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),currstate(3),1)+1;
             for jj=1:(N_j-1)
-                whichoftwo=1+(PolicyProbs(currstate(1),currstate(2),currstate(3),jj,1)>0.5);
+                whichoftwo=2-(PolicyProbs(currstate(1),currstate(2),jj,1)>rand(1)); % if the random number is less than the probability, then first, otherwise second
                 d_semiexo=Policy_dsemiexo(currstate(1),currstate(2),currstate(3));
                 currstate(1)=Policy_aprime(currstate(1),currstate(2),currstate(3),jj,whichoftwo);
                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
@@ -83,7 +83,7 @@ elseif simoptions.parallel==0
         currstate=ind2sub_homemade([N_a,N_z,N_semiz],currstate);
         StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
         for jj=1:(N_j-1)
-            whichoftwo=1+(PolicyProbs(currstate(1),currstate(2),currstate(3),jj,1)>0.5);
+            whichoftwo=2-(PolicyProbs(currstate(1),currstate(2),jj,1)>rand(1)); % if the random number is less than the probability, then first, otherwise second
             d_semiexo=Policy_dsemiexo(currstate(1),currstate(2),currstate(3));
             currstate(1)=Policy_aprime(currstate(1),currstate(2),currstate(3),jj,whichoftwo);
             currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');

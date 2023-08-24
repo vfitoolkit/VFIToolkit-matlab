@@ -155,7 +155,7 @@ elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P
         StationaryDistKron=gpuArray(StationaryDistKron);
     end
     
-elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on cpu
+elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on gpu
     % StationaryDistKron is a gpuArray
     % StationaryDistKron_jj and Ptranspose are treated as sparse gpu arrays.    
     

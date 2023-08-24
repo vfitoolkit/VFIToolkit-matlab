@@ -3,6 +3,7 @@ function StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_TwoProbs_raw(j
 % Policy_aprime has an additional final dimension of length 2 which is
 % the two points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these two.
+% (Iteration needs both PolicyProbs, here only the first is ever used)
 
 MoveSSDKtoGPU=0;
 if simoptions.parallel==2
@@ -59,7 +60,7 @@ if simoptions.parallel==1
             currstate=ind2sub_homemade([N_a,N_z],currstate);
             StationaryDistKron_ncore_c(currstate(1),currstate(2),1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),1)+1;
             for jj=1:(N_j-1)
-                whichoftwo=1+(PolicyProbs(currstate(1),currstate(2),jj,1)>0.5);
+                whichoftwo=2-(PolicyProbs(currstate(1),currstate(2),jj,1)>rand(1)); % if the random number is less than the probability, then first, otherwise second
                 currstate(1)=Policy_aprime(currstate(1),currstate(2),jj,whichoftwo);
                 currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
                 StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
@@ -70,6 +71,7 @@ if simoptions.parallel==1
     StationaryDistKron=sum(StationaryDistKron,4);
     StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);
 elseif simoptions.parallel==0
+    disp('HERE')
     StationaryDistKron=zeros(N_a,N_z,N_j);
     cumsum_pi_z_J=cumsum(pi_z_J,2);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
@@ -79,10 +81,15 @@ elseif simoptions.parallel==0
         currstate=ind2sub_homemade([N_a,N_z],currstate);
         StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
         for jj=1:(N_j-1)
-            whichoftwo=1+(PolicyProbs(currstate(1),currstate(2),jj,1)>0.5);
+            whichoftwo=2-(PolicyProbs(currstate(1),currstate(2),jj,1)>rand(1)); % if the random number is less than the probability, then first, otherwise second
             currstate(1)=Policy_aprime(currstate(1),currstate(2),jj,whichoftwo);
             currstate(2)=find(cumsum_pi_z_J(currstate(2),:,jj)>rand(1,1),1,'first');
             StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
+
+            if jj==30 % DEBUG
+                PolicyProbs(currstate(1),currstate(2),jj,1)
+                whichoftwo
+            end
         end
     end
     StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);

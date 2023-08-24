@@ -57,6 +57,9 @@ if exist('simoptions','var')==1
     if isfield(simoptions,'experienceasset')==0    
         simoptions.experienceasset=0;
     end
+    if isfield(simoptions,'residualasset')==0
+        simoptions.residualasset=0;
+    end
 else
     %If options is not given, just use all the defaults
     if isgpuarray(StationaryDist)
@@ -107,6 +110,17 @@ if simoptions.experienceasset==1
     % Just rejig the decision variables and send off as a Case2
     n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
     d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    return
+elseif simoptions.residualasset==1
+    % Just rejig the decision variables and send off as a Case2
+    if n_d(1)==0
+        n_d=n_a(1:end-1); % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the residual asset
+        d_grid=a_grid(1:sum(n_a(1:end-1)));
+    else
+        n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the residual asset
+        d_grid=[d_grid; a_grid(1:sum(n_a(1:end-1)))];
+    end
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
     return
 end

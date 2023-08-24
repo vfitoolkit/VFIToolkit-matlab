@@ -153,8 +153,8 @@ else
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
-            V(:,z_c,jj)=Vtemp;
-            Policy(:,z_c,jj)=maxindex;
+            V(:,z_c,N_j)=Vtemp;
+            Policy(:,z_c,N_j)=maxindex;
         end
 
     elseif vfoptions.lowmemory==2
@@ -173,8 +173,8 @@ else
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z;
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,jj)=Vtemp;
-                Policy(a_c,z_c,jj)=maxindex;
+                V(a_c,z_c,N_j)=Vtemp;
+                Policy(a_c,z_c,N_j)=maxindex;
             end
         end
 
