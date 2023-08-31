@@ -231,6 +231,9 @@ elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     else
         error('CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
     end
+elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
+    [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
 end
 
 %% Using both Experience Asset and Semi-Exogenous state
