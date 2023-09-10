@@ -33,6 +33,7 @@ if exist('vfoptions','var')==0
     vfoptions.dynasty=0;
     vfoptions.experienceasset=0;
     vfoptions.residualasset=0;
+    vfoptions.n_ambiguity=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
@@ -111,7 +112,10 @@ if ~all(size(d_grid)==[sum(n_d), 1])
     end
 elseif ~all(size(a_grid)==[sum(n_a), 1])
     error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
-elseif ~all(size(z_grid)==[sum(n_z), 1]) && ~all(size(z_grid)==[prod(n_z),length(n_z)])
+elseif ~all(size(z_grid)==[sum(n_z), 1]) && ~all(size(z_grid)==[prod(n_z),length(n_z)]) && ~all(size(z_grid)==[n_z(1),length(n_z)])
+    % all(size(z_grid)==[sum(n_z), 1]) is the grid as a stacked vector
+    % all(size(z_grid)==[prod(n_z),length(n_z)]) is a joint-grid
+    % all(size(z_grid)==[n_z(1),length(n_z)]) is a joint-grid
     if N_z>0
         error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
     end
@@ -147,6 +151,18 @@ elseif isfield(vfoptions,'n_e')
         end
     end
 end
+
+%% Exogenous shock grids
+% When using a joint-grid, change n_z to the form I always use internally: first element is N_z, followed by a bunch of ones (that way prod(n_z) still gives N_z)
+jointgrid=0;
+if all(size(z_grid)==[prod(n_z),length(n_z)])
+    jointgrid=1;
+    n_z=[prod(n_z,ones(1,length(n_z)-1))];
+elseif all(size(z_grid)==[n_z(1),length(n_z)])
+    % already in this form
+    jointgrid=1;
+end
+
 
 %% Implement new way of handling ReturnFn inputs
 if n_d(1)==0
@@ -233,6 +249,9 @@ elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     end
 elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
     [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+elseif strcmp(vfoptions.exoticpreferences,'AmbiguityAversion')
+    [V, Policy]=ValueFnIter_Case1_FHorz_Ambiguity(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 
@@ -559,8 +578,8 @@ end
 
 
 %% Just do the standard case
-if N_d==0
-    if vfoptions.parallel==2
+if vfoptions.parallel==2
+    if N_d==0
         if isfield(vfoptions,'n_e')
             if isfield(vfoptions,'e_grid_J')
                 e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
@@ -584,17 +603,7 @@ if N_d==0
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
-    elseif vfoptions.parallel==1
-        if N_z==0
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_Par1_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        else
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        end
-    elseif vfoptions.parallel==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Par0_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    end
-else
-    if vfoptions.parallel==2
+    else % N_d
         if isfield(vfoptions,'n_e')
             if isfield(vfoptions,'e_grid_J')
                 e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
@@ -606,26 +615,43 @@ else
             else
                 pi_e=vfoptions.pi_e;
             end
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
         else
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);                
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
-    elseif vfoptions.parallel==1
+    end
+elseif vfoptions.parallel==1
+    if N_d==0
+        if N_z==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_Par1_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Par1_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    else % N_d
         if N_z==0
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_Par1_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else 
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Par1_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    elseif vfoptions.parallel==0
+    end
+elseif vfoptions.parallel==0
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Par0_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Par0_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 end
 
-%Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+
+%% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if vfoptions.outputkron==0
     if isfield(vfoptions,'n_e')
         if N_z==0

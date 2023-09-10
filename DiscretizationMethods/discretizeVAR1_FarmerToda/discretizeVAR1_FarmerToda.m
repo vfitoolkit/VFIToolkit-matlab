@@ -283,7 +283,7 @@ end
 
 z_grid = C*D + repmat(mu,1,znum^M); % map grids back to original space
 z_grid=z_grid';
-% Z_grid is (znum^M)-by-M
+% z_grid is (znum^M)-by-M
 % It is NOT a kronecker-product grid.
 
 warning on MATLAB:singularMatrix

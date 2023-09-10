@@ -1,4 +1,4 @@
-function  [V,Policy]=ValueFnIter_Case1_FHorz_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function  [V,Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, TemptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
 % Note: have no z variable, do have e variables
 
 N_a=prod(n_a);
@@ -30,7 +30,8 @@ if all(vfoptions.parallel_e==0)
     %% N_j
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
-    
+    TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames, N_j);
+
     if fieldexists_pi_e_J==1
         e_grid=vfoptions.e_grid_J(:,N_j);
         pi_e=vfoptions.pi_e_J(:,N_j);
@@ -61,8 +62,13 @@ if all(vfoptions.parallel_e==0)
         for e_c=1:N_e
             e_val=e_gridvals(e_c,:);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
+
+            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, special_n_e, 0, a_grid, e_val, TemptationFnParamsVec);
+            MostTempting_e=max(TemptationMatrix_e,[],1);
+            entireRHS_e=ReturnMatrix_e+TemptationMatrix_e-ones(N_a,1).*MostTempting_e;
+
             % Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
+            [Vtemp,maxindex]=max(entireRHS_e,[],1);
             V(:,e_c,N_j)=Vtemp;
             Policy(:,e_c,N_j)=maxindex;
         end
@@ -78,7 +84,9 @@ if all(vfoptions.parallel_e==0)
             e_val=e_gridvals(e_c,:);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,1);
+            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, special_n_e, 0, a_grid, e_val, TemptationFnParamsVec);
+            MostTempting_e=max(TemptationMatrix_e,[],1);
+            entireRHS_e=ReturnMatrix_e+TemptationMatrix_e-ones(N_a,1).*MostTempting_e+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -87,7 +95,7 @@ if all(vfoptions.parallel_e==0)
             Policy(:,e_c,N_j)=shiftdim(maxindex,1);
         end
     end
-
+    
     %% Loop backward over age
     for reverse_j=1:N_j-1
         jj=N_j-reverse_j;
@@ -98,6 +106,7 @@ if all(vfoptions.parallel_e==0)
 
         % Create a vector containing all the return function parameters (in order)
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+        TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,jj);
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
@@ -139,7 +148,9 @@ if all(vfoptions.parallel_e==0)
             e_val=e_gridvals(e_c,:);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,1);
+            TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, special_n_e, 0, a_grid, e_val, TemptationFnParamsVec);
+            MostTempting_e=max(TemptationMatrix_e,[],1);
+            entireRHS_e=ReturnMatrix_e+TemptationMatrix_e-ones(N_a,1).*MostTempting_e+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -155,15 +166,12 @@ elseif all(vfoptions.parallel_e==1)
     %% N_j
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
+    TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,N_j);
+
     
     if fieldexists_pi_e_J==1
         e_grid=vfoptions.e_grid_J(:,N_j);
         pi_e=vfoptions.pi_e_J(:,N_j);
-%         if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-%             e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-%         elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-%             e_gridvals=e_grid;
-%         end
     elseif fieldexists_EiidShockFn==1
         if fieldexists_EiidShockFnParamNames==1
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
@@ -177,19 +185,19 @@ elseif all(vfoptions.parallel_e==1)
             [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
             e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
         end
-%         if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-%             e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-%         elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-%             e_gridvals=e_grid;
-%         end
     end
 
     pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
     
     if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
+
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_grid, TemptationFnParamsVec);
+        MostTempting=max(TemptationMatrix,[],1);
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting;
+        
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
     else
@@ -203,7 +211,9 @@ elseif all(vfoptions.parallel_e==1)
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,N_e);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_grid, TemptationFnParamsVec);
+        MostTempting=max(TemptationMatrix,[],1);
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -223,6 +233,7 @@ elseif all(vfoptions.parallel_e==1)
 
         % Create a vector containing all the return function parameters (in order)
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+        TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,jj);
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
@@ -252,7 +263,9 @@ elseif all(vfoptions.parallel_e==1)
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,N_e);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_grid, TemptationFnParamsVec);
+        MostTempting=max(TemptationMatrix,[],1);
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -302,6 +315,7 @@ else
 
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
+    TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,N_j);
 
     if fieldexists_pi_e_J==1
         e1_grid=vfoptions.e1_grid_J(:,N_j);
@@ -346,8 +360,10 @@ else
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
-            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
-
+            TemptationMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, TemptationFnParamsVec); % Just treat e1 as z and e2 as e
+            MostTempting_e2=max(TemptationMatrix_e2,[],1);
+            entireRHS_e2=ReturnMatrix_e2+TemptationMatrix_e2-ones(N_a,1).*MostTempting_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
+            
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e2,[],1);
 
@@ -368,6 +384,7 @@ else
 
         % Create a vector containing all the return function parameters (in order)
         ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
+        TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,jj);
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
@@ -399,7 +416,9 @@ else
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
-            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
+            TemptationMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, TemptationFnParamsVec); % Just treat e1 as z and e2 as e
+            MostTempting_e2=max(TemptationMatrix_e2,[],1);
+            entireRHS_e2=ReturnMatrix_e2+TemptationMatrix_e2-ones(N_a,1).*MostTempting_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e2,[],1);

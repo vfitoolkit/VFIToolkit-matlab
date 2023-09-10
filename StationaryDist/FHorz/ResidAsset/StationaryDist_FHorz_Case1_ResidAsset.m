@@ -42,8 +42,6 @@ else
     rprimeFnParamNames={};
 end
 
-rprimeFnParamNames
-
 %%
 if isfield(simoptions,'n_e')
     if n_z(1)==0
@@ -138,20 +136,7 @@ for jj=1:N_j
     Policy_rprime(:,:,jj)=rprimeIndexes;
     PolicyProbs(:,:,jj,1)=rprimeProbs;
     PolicyProbs(:,:,jj,2)=1-rprimeProbs;
-
-    if jj==30 % DEBUG
-        max(rprimeIndexes)
-        rprimeIndexes(end-5:end)
-        rprimeProbs(end-5:end)
-    end
 end
-
-max(max(max(Policy_aprime(:,:,30))))
-
-% size(Policy_aprime)
-% size(Policy_rprime)
-% max(max(max(abs((Policy_aprime-Policy_rprime).*(PolicyProbs(:,:,:,1)>0)))))
-% max(max(max(abs(Policy_aprime-shiftdim(Policy(1,:,:,:),1)))))
 
 Policy_arprime=zeros(N_a*N_r,N_z,N_j,2,'gpuArray');
 Policy_arprime(:,:,:,1)=Policy_aprime+N_a*(Policy_rprime-1);

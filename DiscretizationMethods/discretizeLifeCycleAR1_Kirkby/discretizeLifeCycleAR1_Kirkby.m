@@ -181,7 +181,7 @@ for jj = 2:J
     sigmaz(jj) = sqrt(rho(jj)^2*sigmaz(jj-1)^2+sigma(jj)^2);
 end
 for jj=2:J
-    mewz(jj)=mew(jj)+rho(jj)*mewz(jj);
+    mewz(jj)=mew(jj)+rho(jj)*mewz(jj-1);
 end
 
 z_grid_J=zeros(znum,J);
