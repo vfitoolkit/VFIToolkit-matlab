@@ -10,7 +10,7 @@ function StationaryDistKron=StationaryDist_Case1_IterationTan_raw(StationaryDist
 
 % tic;
 % simoptions.parallel=1; 
-% Cannot reshape() with sparse gpuArrays.
+% Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]
 % Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
 % Hence, just force sparse cpu arrays.
 

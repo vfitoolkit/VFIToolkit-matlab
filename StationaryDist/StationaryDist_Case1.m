@@ -197,16 +197,24 @@ end
 % Eigenvector method is terribly slow for sparse matrices, so if the Ptranspose matrix (transition matrix on AxZ) does not fit in memory as a
 % full matrix then better to just use simulation and iteration (or for really big state space possibly just simulation).
 
-%% Tan improvement can only be done on the cpu 
-% (because it involves some reshape(), and cannot reshape sparse gpuArrays; using full gpuArray is marginally slower than just using sparse cpu array)
-
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
-if ~isfield(simoptions, 'initialdist')
-    % tic;
-    StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
-    % simtime=toc
+% Except that Tan improvement makes iteration so fast that when using that
+% (which is the default) then I just start from a really mediocre initial guess.
+if isfield(simoptions, 'initialdist')
+    StationaryDistKron=reshape(simoptions.initialdist,[N_a*N_z,1]);
 else
-    StationaryDistKron=reshape(simoptions.initialdist,[N_a,N_z]);
+    if simoptions.tanimprovement==1 % Improvement of Tan (2020)
+        % Tan improvement is very fast, so decided to try using poor initial guesses
+        StationaryDistKron=zeros(N_a,N_z);
+        z_stat=ones(N_z,1)/N_z;
+        for jj=1:10
+            z_stat=pi_z'*z_stat;
+        end
+        StationaryDistKron(ceil(N_a/2),:)=z_stat';
+        StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
+    else
+        StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+    end
 end
 
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
