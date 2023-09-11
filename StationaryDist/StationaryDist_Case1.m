@@ -197,6 +197,9 @@ end
 % Eigenvector method is terribly slow for sparse matrices, so if the Ptranspose matrix (transition matrix on AxZ) does not fit in memory as a
 % full matrix then better to just use simulation and iteration (or for really big state space possibly just simulation).
 
+%% Tan improvement can only be done on the cpu 
+% (because it involves some reshape(), and cannot reshape sparse gpuArrays; using full gpuArray is marginally slower than just using sparse cpu array)
+
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
 if ~isfield(simoptions, 'initialdist')
     % tic;
