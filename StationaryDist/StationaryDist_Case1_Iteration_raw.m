@@ -136,7 +136,7 @@ currdist=full(sum(abs(StationaryDistKron-StationaryDistKronOld)));
 counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab objects to using currdist here if I don't 'full' it
     
-    for jj=1:100
+    for jj=1:simoptions.multiiter
         StationaryDistKron=Ptranspose*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
     end
     StationaryDistKronOld=StationaryDistKron;
