@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_shooting_no_d(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_shooting_no_d(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
 
 
 if transpathoptions.verbose==1
@@ -151,16 +151,13 @@ PricePathDist=Inf;
 pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z]);
-AgentDist_initial=reshape(StationaryDist_init,[N_a*N_z,1]);
-% V=zeros(size(V_final),'gpuArray');
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-% Policy=zeros(N_a,N_z,'gpuArray');
+% if transpathoptions.tanimprovement==0
+%     AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
+% elseif transpathoptions.tanimprovement==1
+AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
+pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
-% beta=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-% IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-% ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
-% IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-% IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
+PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
@@ -201,10 +198,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         optaprime=reshape(Policy,[1,N_a*N_z]);
         
-        Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
-        Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
-        AgentDistnext=Ptran*AgentDist;
+        % Commented out lines are without Tan improvement
+        %     Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
+        %     Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+        %     Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+        %     AgentDistnext=Ptran*AgentDist;
+
+        Gammatranspose=sparse(N_a*N_z,N_a*N_z);
+        firststep=gather(optaprime)+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+        Gammatranspose(firststep+N_a*N_z*(0:1:N_a*N_z-1))=1;
+        % Two steps of the Tan improvement
+        AgentDistnext=reshape(Gammatranspose*AgentDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+        AgentDistnext=reshape(AgentDistnext*pi_z_sparse,[N_a*N_z,1]);
         
         GEprices=PricePathOld(tt,:);
         
@@ -240,9 +245,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
         
-        PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2,simoptions);
-
+        Policy=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2,simoptions);
+        
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae

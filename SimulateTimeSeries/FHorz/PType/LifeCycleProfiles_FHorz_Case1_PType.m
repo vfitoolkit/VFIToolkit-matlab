@@ -132,14 +132,16 @@ if max(simoptions.agejshifter)>0 && defaultagegroupings==0
     error('You cannot use agejshifter together with any age grouping other than the default (each period seperately)')
 end
 
-if isstruct(simoptions.experienceasset)
-    error('Have not yet implemented handling when some agents use experience asset and others do not')
-elseif simoptions.experienceasset==1
-    % Just rejig the decision variables and send off as a Case2
-    n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
-    d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
-    AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
-    return
+if isfield(simoptions,'experienceasset')
+    if isstruct(simoptions.experienceasset)
+        error('Have not yet implemented handling when some agents use experience asset and others do not')
+    elseif simoptions.experienceasset==1
+        % Just rejig the decision variables and send off as a Case2
+        n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
+        d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
+        AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+        return
+    end
 end
 
 

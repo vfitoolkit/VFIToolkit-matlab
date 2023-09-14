@@ -191,10 +191,7 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
-% V=zeros(size(V_final),'gpuArray');
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-% Policy=zeros(N_a,N_z,'gpuArray');
-
 
 beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
 IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
@@ -244,24 +241,32 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         Policy=PolicyIndexesPath(:,:,:,tt);
         
         optaprime=reshape(shiftdim(Policy(2,:,:),-1),[1,N_a*N_z]); % This shipting of dimensions is probably not necessary
-    
-        Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
-        Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        try % Try full matrix
-            Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
-        catch % Otherwise, use sparse matrix
-%             Ptemp=sparse(Ptemp);
-%             pi_z=sparse(pi_z);
-%             warning('This is about to error because kron() does not yet support sparse gpuArray. I am leaving the code in the hope Matlab implement this')
-%             Ptran=kron(pi_z',sparse(ones(N_a,N_a,'gpuArray'))).*(kron(sparse(ones(N_z,1,'gpuArray')),Ptemp));
+        
+        % Commented out lines are without Tan improvement
+%         Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
+%         Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+%         try % Try full matrix
+%             Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+%         catch % Otherwise, use sparse matrix
+% %             Ptemp=sparse(Ptemp);
+% %             pi_z=sparse(pi_z);
+% %             warning('This is about to error because kron() does not yet support sparse gpuArray. I am leaving the code in the hope Matlab implement this')
+% %             Ptran=kron(pi_z',sparse(ones(N_a,N_a,'gpuArray'))).*(kron(sparse(ones(N_z,1,'gpuArray')),Ptemp));
+% 
+%             % kron() does not yet support sparse gpuArray (as of R2022a). So going to have to switch to sparse cpu, do kron(), switch back.
+%             Ptemp=sparse(gather(Ptemp));
+%             pi_z_cpu=sparse(gather(pi_z));
+%             Ptran=kron(pi_z_cpu',sparse(ones(N_a,N_a))).*(kron(sparse(ones(N_z,1)),Ptemp));
+%             Ptran=gpuArray(Ptran);
+%         end
+%         AgentDistnext=Ptran*AgentDist;
 
-            % kron() does not yet support sparse gpuArray (as of R2022a). So going to have to switch to sparse cpu, do kron(), switch back.
-            Ptemp=sparse(gather(Ptemp));
-            pi_z_cpu=sparse(gather(pi_z));
-            Ptran=kron(pi_z_cpu',sparse(ones(N_a,N_a))).*(kron(sparse(ones(N_z,1)),Ptemp));
-            Ptran=gpuArray(Ptran);
-        end
-        AgentDistnext=Ptran*AgentDist;
+        Gammatranspose=sparse(N_a*N_z,N_a*N_z);
+        firststep=gather(optaprime)+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+        Gammatranspose(firststep+N_a*N_z*(0:1:N_a*N_z-1))=1;
+        % Two steps of the Tan improvement
+        AgentDistnext=reshape(Gammatranspose*AgentDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+        AgentDistnext=reshape(AgentDistnext*pi_z_sparse,[N_a*N_z,1]);
         
         GEprices=PricePathOld(tt,:);
                 
@@ -306,7 +311,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Current approach is likely way suboptimal speedwise.
 
         Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
 
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.

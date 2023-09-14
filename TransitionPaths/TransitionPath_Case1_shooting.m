@@ -7,7 +7,6 @@ end
 
 unkronoptions.parallel=2;
 
-N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 
@@ -151,7 +150,9 @@ PricePathDist=Inf;
 pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
-AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
+AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
+pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
+
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
 AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
@@ -209,10 +210,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         optaprime=reshape(shiftdim(Policy(2,:,:),-1),[1,N_a*N_z]); % This shifting of dimensions is probably not necessary
     
-        Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
-        Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
-        AgentDistnext=Ptran*AgentDist;
+        % Commented out lines are without Tan improvement
+        %     Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
+        %     Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
+        %     Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
+        %     AgentDistnext=Ptran*AgentDist;
+
+        Gammatranspose=sparse(N_a*N_z,N_a*N_z);
+        firststep=gather(optaprime)+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+        Gammatranspose(firststep+N_a*N_z*(0:1:N_a*N_z-1))=1;
+        % Two steps of the Tan improvement
+        AgentDistnext=reshape(Gammatranspose*AgentDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+        AgentDistnext=reshape(AgentDistnext*pi_z_sparse,[N_a*N_z,1]);
         
         GEprices=PricePathOld(tt,:);
         
@@ -256,8 +265,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Current approach is likely way suboptimal speedwise.
         
         Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
-
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
+        
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae

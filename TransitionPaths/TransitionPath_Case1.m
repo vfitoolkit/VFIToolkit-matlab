@@ -88,60 +88,64 @@ if exist('transpathoptions','var')==0
     transpathoptions.historyofpricepath=0;
     transpathoptions.stockvars=0;
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
+    transpathoptions.tanimprovement=1;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
+    if ~isfield(transpathoptions,'tolerance')
         transpathoptions.tolerance=10^(-5);
     end
-    if isfield(transpathoptions,'updateaccuracycutoff')==0
+    if ~isfield(transpathoptions,'updateaccuracycutoff')
         transpathoptions.updateaccuracycutoff=10^(-9);
     end
-    if isfield(transpathoptions,'parallel')==0
+    if ~isfield(transpathoptions,'parallel')
         transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(transpathoptions,'lowmemory')==0
+    if ~isfield(transpathoptions,'lowmemory')
         transpathoptions.lowmemory=0;
     end
-    if isfield(transpathoptions,'GEnewprice')==0
+    if ~isfield(transpathoptions,'GEnewprice')
         transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                        % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
     end
-    if isfield(transpathoptions,'oldpathweight')==0
+    if ~isfield(transpathoptions,'oldpathweight')
         if transpathoptions.GEnewprice==3
             transpathoptions.oldpathweight=0; % user has to specify them as part of setup
         else
             transpathoptions.oldpathweight=0.9;
         end
     end
-    if isfield(transpathoptions,'weightscheme')==0
+    if ~isfield(transpathoptions,'weightscheme')
         transpathoptions.weightscheme=1;
     end
-    if isfield(transpathoptions,'Ttheta')==0
+    if ~isfield(transpathoptions,'Ttheta')
         transpathoptions.Ttheta=1;
     end
-    if isfield(transpathoptions,'maxiterations')==0
+    if ~isfield(transpathoptions,'maxiterations')
         transpathoptions.maxiterations=1000;
     end
-    if isfield(transpathoptions,'verbose')==0
+    if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;
     end
-    if isfield(transpathoptions,'graphpricepath')==0
+    if ~isfield(transpathoptions,'graphpricepath')
         transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     end
-    if isfield(transpathoptions,'graphaggvarspath')==0
+    if ~isfield(transpathoptions,'graphaggvarspath')
         transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     end
-    if isfield(transpathoptions,'graphGEcondns')==0
+    if ~isfield(transpathoptions,'graphGEcondns')
         transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     end
-    if isfield(transpathoptions,'historyofpricepath')==0
+    if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
     end
-    if isfield(transpathoptions,'stockvars')==0
+    if ~isfield(transpathoptions,'stockvars')
         transpathoptions.stockvars=0;
     end
-    if isfield(transpathoptions,'weightsforpath')==0
+    if ~isfield(transpathoptions,'weightsforpath')
         transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns));
+    end
+    if ~isfield(transpathoptions,'tanimprovement')
+        transpathoptions.tanimprovement=1;
     end
 end
 

@@ -8,7 +8,7 @@ V=nan; % Matlab was complaining that V was not assigned
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-    vfoptions.solnmethod='purediscretization_refinement';
+    vfoptions.solnmethod='purediscretization_refinement'; % if no d variable, will be set to 'purediscretization' below
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
@@ -38,7 +38,7 @@ if exist('vfoptions','var')==0
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'solnmethod')==0
-        vfoptions.solnmethod='purediscretization_refinement';
+        vfoptions.solnmethod='purediscretization_refinement'; % if no d variable, will be set to 'purediscretization' below
     end
     if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
@@ -481,6 +481,14 @@ if max(vfoptions.incrementaltype==1) && strcmp(vfoptions.solnmethod,'purediscret
     [VKron,Policy]=ValueFnIter_Case1_Increment(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
+%% If setting refinement without a d variable, then just shift to standard purediscretization
+% (as refinement only makes sense if there is a d variable)
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
+    if n_d(1)==0
+        vfoptions.solnmethod='purediscretization';
+    end
+end
+
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization') 
     if vfoptions.parallel==1 && vfoptions.lowmemory==2
@@ -615,18 +623,13 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
 end
 
 %%
+% If we get to refinement and refinement2 then there is no d variable
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
-    if n_d(1)==0
-        warning('You are using purediscretization_refinement as the vfoptions.solnmethod, but you have no decision (d) variables, this is likely innappropriate (will work but unnecessary overhead/slower)')
-    end
     % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
     [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
-    if n_d(1)==0
-        warning('You are using purediscretization_refinement2 as the vfoptions.solnmethod, but you have no decision (d) variables, this is likely innappropriate (will work but unnecessary overhead/slower)')
-    end
     % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
     % Refinement 2: Multigrid approach when presolving for dstar(aprime,a,z).
     
