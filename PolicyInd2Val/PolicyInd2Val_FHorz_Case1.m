@@ -6,9 +6,7 @@ else
     Parallel=1;
 end
 
-if isempty(n_d)
-    l_d=0;
-elseif n_d(1)==0
+if n_d(1)==0
     l_d=0;
 else
     l_d=length(n_d);
@@ -20,6 +18,12 @@ cumsum_n_d=cumsum(n_d);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
+
+if N_z==0
+    % codes still work if we prentend z is a single point (as the sizes are not really affected)
+    n_z=1; 
+    N_z=1;
+end
 
 if Parallel==2
     if l_d==0

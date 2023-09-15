@@ -95,10 +95,10 @@ else
 end
 
 if isempty(n_d)
-    n_d=0;
+    error('If you have no d (decision) variables, set n_d=0;')
 end
 if isempty(n_z)
-    n_z=0;
+    error('If you have no z (exogenous markov) variables, set n_z=0;')
 end
 N_d=prod(n_d);
 N_a=prod(n_a);
