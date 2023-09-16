@@ -1,422 +1,140 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_e,N_j,pi_z,pi_e,Parameters,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,Parameters,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
 %  simoptions.maxit
 %  simoptions.tolerance
 %  simoptions.parallel
+%  simoptions.parovere
 
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
-eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
+% Ran a bunch of runtime tests. Tan improvement is always faster.
+% Seems loop over e vs parallel over e is essentially break-even.
 
-if simoptions.parallel<2
-    
+if simoptions.loopovere==0
+
+    if N_d==0
+        PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z*N_e,N_j]));
+    else
+        PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z*N_e,N_j]));
+    end
+
     StationaryDistKron=zeros(N_a*N_z*N_e,N_j);
-    StationaryDistKron(:,1)=jequaloneDistKron;
+    StationaryDistKron(:,1)=gather(jequaloneDistKron);
+
+    StationaryDist_jj=sparse(gather(jequaloneDistKron));
+
     
     for jj=1:(N_j-1)
-        
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
 
-        if fieldexists_pi_z_J==1
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-            end
-        end
-        if fieldexists_pi_e_J==1
-            pi_e=simoptions.pi_e_J(:,jj);
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e]=simoptions.EiidShockFn(jj);
-            end
-        end
-           
-        %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-        P=zeros(N_a,N_z,N_e,N_a,N_z); %P(a,ze,,aprime,zprime)=proby of going to (a',z') given in (a,z,e)
-        for a_c=1:N_a
-            for z_c=1:N_z
-                for e_c=1:N_e
-                    if N_d==0 %length(n_d)==1 && n_d(1)==0
-                        optaprime=PolicyIndexesKron(a_c,z_c,e_c,jj);
-                    else
-                        optaprime=PolicyIndexesKron(2,a_c,z_c,e_c,jj);
-                    end
-                    for zprime_c=1:N_z
-                        P(a_c,z_c,e_c,optaprime,zprime_c)=pi_z(z_c,zprime_c)/sum(pi_z(z_c,:));
-                    end
-                end
-            end
-        end
-        P=reshape(P,[N_a*N_z*N_e,N_a*N_z]);
-        P=P';
-        
-        StationaryDistKron(:,jj+1)=kron(pi_e,(P*StationaryDistKron(:,jj)));
-    end
-    
-elseif simoptions.parallel==2 % Using the GPU
-    
-    StationaryDistKron=zeros(N_a*N_z*N_e,N_j,'gpuArray');
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    % First, generate the transition matrix P=g of Q (the convolution of the 
-    % optimal policy function and the transition fn for exogenous shocks)
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
+        optaprime=PolicyIndexesKron(1,:,jj);
 
-        if fieldexists_pi_z_J==1
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                pi_z=gpuArray(pi_z);
-            else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-                pi_z=gpuArray(pi_z);
-            end
-        end
-        if fieldexists_pi_e_J==1
-            pi_e=simoptions.pi_e_J(:,jj);
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e]=simoptions.EiidShockFn(jj);
-            end
-        end
-        
-        if N_d==0 %length(n_d)==1 && n_d(1)==0
-            optaprime=reshape(PolicyIndexesKron(:,:,:,jj),[1,N_a*N_z*N_e]);
-        else
-            optaprime=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_z*N_e]);
-        end
-        Ptran=zeros(N_a,N_a*N_z*N_e,'gpuArray'); % Start with P (a,z,e) to a' (Note, create P')
-        Ptran(optaprime+N_a*(gpuArray(0:1:N_a*N_z*N_e-1)))=1; % Fill in the a' transitions based on Policy
-        
-        % Now use pi_z to switch to P (a,z,e) to (a',z')
-        Ptran=(kron(ones(1,N_e),kron(pi_z',ones(N_a,N_a,'gpuArray')))).*(kron(ones(N_z,1,'gpuArray'),Ptran));
-                
-        StationaryDistKron(:,jj+1)=kron(pi_e, Ptran*StationaryDistKron(:,jj) );
-    end
-    
-elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P, on cpu
-    
-    StationaryDistKron=sparse(N_a*N_z*N_e,N_j);
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
-        
-        if fieldexists_pi_z_J==1
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-            end
-        end
-        if fieldexists_pi_e_J==1
-            pi_e=simoptions.pi_e_J(:,jj);
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e]=simoptions.EiidShockFn(jj);
-            end
-        end
-        
+        firststep=optaprime+kron(ones(1,N_e),kron(N_a*(0:1:N_z-1),ones(1,N_a))); % Turn into index for (a',z)
+        Gammatranspose=sparse(firststep,1:1:N_a*N_z*N_e,ones(N_a*N_z*N_e,1),N_a*N_z,N_a*N_z*N_e);
 
-        %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-        if N_d==0 %length(n_d)==1 && n_d(1)==0
-            optaprime_jj=reshape(PolicyIndexesKron(:,:,:,jj),[1,N_a*N_z*N_e]);
-        else
-            optaprime_jj=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_z*N_e]);
-        end
-        PtransposeA=sparse(N_a,N_a*N_z*N_e);  % Start with P (a,z,e) to a' (Note, create P')
-        PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=1; % Fill in the a' transitions based on Policy
-        
-        % Note: Create Ptranspose as (a,z,e)-to-(a',z') as best to use to
-        % multiply lag of agent dist, and then just iid distribute over e
-        % later in a 'seperate' step (is same line of code, but splits the
-        % steps)
-        pi_z=sparse(pi_z);
-        try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
-            Ptranspose=kron(ones(1,N_e),kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),PtransposeA);
-        catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-            pi_z=gather(pi_z); % The indexing used can only be done on cpu
-            Ptranspose=sparse(N_a*N_z,N_a*N_z*N_e);
-            aaa=(kron(ones(1,N_z),(1:1:N_a))+N_a*kron(((1:1:N_z)-1),ones(1,N_a)));
-            for ii=1:N_e
-                Ptranspose(:,aaa+(ii-1)*N_a*N_z)=kron(ones(N_z,1),PtransposeA(:,aaa+(ii-1)*N_a*N_z)).*kron(pi_z',ones(N_a,N_a));
-            end
-        end
-        
-        StationaryDistKron(:,jj+1)=kron(pi_e, Ptranspose*StationaryDistKron(:,jj));
-    end
-    
-    StationaryDistKron=full(StationaryDistKron); % Why do I do this? Why not just leave it sparse?
-    % Move the solution to the gpu
-    StationaryDistKron=gpuArray(StationaryDistKron);
-    
-elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on cpu
-    
-    StationaryDistKron=sparse(N_a*N_z*N_e,N_j);
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
+        pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+        pi_e=sparse(gather(pi_e_J(:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
-        if fieldexists_pi_z_J==1
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-            end
-        end
-        if fieldexists_pi_e_J==1
-            pi_e=simoptions.pi_e_J(:,jj);
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e]=simoptions.EiidShockFn(jj);
-            end
-        end
-        
-        %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-        if N_d==0 %length(n_d)==1 && n_d(1)==0
-            optaprime_jj=reshape(PolicyIndexesKron(:,:,:,jj),[1,N_a*N_z*N_e]);
-        else
-            optaprime_jj=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_z*N_e]);
-        end
-        PtransposeA=sparse(N_a,N_a*N_z*N_e);
-        PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z*N_e-1))=1;
-        
-        pi_z=sparse(pi_z);
-        try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
-            Ptranspose=kron(ones(1,N_e),kron(pi_z',ones(N_a,N_a))).*kron(ones(N_z,1),PtransposeA);
-        catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-            pi_z=gather(pi_z); % The indexing used can only be donoe on cpu
-            Ptranspose=sparse(N_a*N_z,N_a*N_z*N_e);
-            aaa=(kron(ones(1,N_z),(1:1:N_a))+N_a*kron(((1:1:N_z)-1),ones(1,N_a)));
-            for ii=1:N_e
-                Ptranspose(:,aaa+(ii-1)*N_a*N_z)=kron(ones(N_z,1),PtransposeA(:,aaa+(ii-1)*N_a*N_z)).*kron(pi_z',ones(N_a,N_a));
-            end
-        end
-        
-        Ptranspose=gpuArray(Ptranspose);
-        pi_z=gpuArray(pi_z);
-        
-        try
-            StationaryDistKron(:,jj+1)=kron(pi_e, Ptranspose*StationaryDistKron(:,jj));
-        catch
-            error('The transition matrix is big, please use simoptions.parallel=3 (instead of 4) \n')
-        end
+        % Two steps of the Tan improvement
+        StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
+        StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
+
+        StationaryDist_jj=kron(pi_e,StationaryDist_jj);
+
+        StationaryDistKron(:,jj+1)=full(StationaryDist_jj);
     end
-    StationaryDistKron=full(StationaryDistKron);
-    
-    if simoptions.parallel==4 % Move solution to gpu
+    if simoptions.parallel==2 % Move result to gpu
         StationaryDistKron=gpuArray(StationaryDistKron);
+        % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
     end
+
+elseif simoption.loopovere==1
+    StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
+    StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
+    StationaryDistKron(:,:,1)=StationaryDist_jj;
+    StationaryDist_jj=sparse(StationaryDist_jj);
     
-elseif simoptions.parallel==5 % Same as 2, except loops over e
-    
-    StationaryDistKron=zeros(N_a*N_z,N_e,N_j,'gpuArray');
-    StationaryDistKron(:,:,1)=reshape(jequaloneDistKron,[N_a*N_z,N_e]);
-    
-    % First, generate the transition matrix P=g of Q (the convolution of the 
-    % optimal policy function and the transition fn for exogenous shocks)
+    if N_d==0
+        PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]));
+    else
+        PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z,N_e,N_j]));
+    end
+
     for jj=1:(N_j-1)
-        
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
 
-        if fieldexists_pi_z_J==1
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                pi_z=gpuArray(pi_z);
-            else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-                pi_z=gpuArray(pi_z);
-            end
-        end
-        if fieldexists_pi_e_J==1
-            pi_e=simoptions.pi_e_J(:,jj);
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e]=simoptions.EiidShockFn(jj);
-            end
-        end
-        
-        % Take advantage of fact that for each (a,z,e) we can map into
-        % (a',z'), looping over e
-        StatDisttemp=zeros(N_a*N_z,1,'gpuArray');
-        for e_c=1:N_e
-            % Following is essentially just the code for simoptions.parallel=2 where there is no e
-            % Because conditional on e, we are looking for transitions
-            % from (a,z) to (a',z'). We can add these up across the e, and
-            % then once finish the for-loop we distribute them across e'
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime=reshape(PolicyIndexesKron(:,:,e_c,jj),[1,N_a*N_z]);
-            else
-                optaprime=reshape(PolicyIndexesKron(2,:,:,e_c,jj),[1,N_a*N_z]);
-            end
-            Ptran=zeros(N_a,N_a*N_z,'gpuArray');
-            Ptran(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-            Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptran));
-        
-            StatDisttemp=StatDisttemp+Ptran*StationaryDistKron(:,e_c,jj);
-        end
-        % And now just distribute over the e'
-        StationaryDistKron(:,:,jj+1)=StatDisttemp.*pi_e';
+        for e_c=1:N_e % you can probably parfor this?
+            optaprime=PolicyIndexesKron(1,:,e_c,jj);
+            StationaryDist_jjee=StationaryDist_jj(:,e_c);
 
+            firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+            Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
+
+            pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+
+            % Two steps of the Tan improvement
+            StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
+            StationaryDist_jjee=reshape(StationaryDist_jjee*pi_z,[N_a*N_z,1]);
+
+            StationaryDist_jj(:,e_c)=StationaryDist_jjee;
+        end
+
+        StationaryDist_jj=sum(StationaryDist_jj,2);
+        StationaryDist_jj=StationaryDist_jj.*pi_e_J(:,jj)';
+
+        StationaryDistKron(:,:,jj+1)=full(StationaryDist_jj);
     end
-    
-elseif simoptions.parallel==6 % Same as 4, except loops over e
-    
-    StationaryDistKron=zeros(N_a*N_z,N_e,N_j,'gpuArray');
-    StationaryDistKron(:,:,1)=reshape(jequaloneDistKron,[N_a*N_z,N_e]);
-    
-    % First, generate the transition matrix P=g of Q (the convolution of the 
-    % optimal policy function and the transition fn for exogenous shocks)
+    if simoptions.parallel==2 % Move result to gpu
+        StationaryDistKron=gpuArray(StationaryDistKron);
+        % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
+    end
+elseif simoption.loopovere==2 % loop over e, but using a parfor loop
+    StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
+    StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
+    StationaryDistKron(:,:,1)=StationaryDist_jj;
+    StationaryDist_jj=sparse(StationaryDist_jj);
+
+    if N_d==0
+        PolicyIndexesKron=reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]);
+    else
+        PolicyIndexesKron=reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z,N_e,N_j]);
+    end
+
     for jj=1:(N_j-1)
-        
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
 
-        if fieldexists_pi_z_J==1
-            pi_z=simoptions.pi_z_J(:,:,jj);
-        elseif fieldexists_ExogShockFn==1
-            if fieldexists_ExogShockFnParamNames==1
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                pi_z=gpuArray(pi_z);
-            else
-                [~,pi_z]=simoptions.ExogShockFn(jj);
-                pi_z=gpuArray(pi_z);
-            end
-        end
-        if fieldexists_pi_e_J==1
-            pi_e=simoptions.pi_e_J(:,jj);
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e]=simoptions.EiidShockFn(jj);
-            end
-        end
-        
-        % Take advantage of fact that for each (a,z,e) we can map into (a',z'), looping over e
-        StatDisttemp=sparse(N_a*N_z,1);
-        for e_c=1:N_e
-            %First, generate the transition matrix P=g of Q (the convolution of the optimal policy function and the transition fn for exogenous shocks)
-            if N_d==0 %length(n_d)==1 && n_d(1)==0
-                optaprime_jj=reshape(PolicyIndexesKron(:,:,e_c,jj),[1,N_a*N_z]);
-            else
-                optaprime_jj=reshape(PolicyIndexesKron(2,:,:,e_c,jj),[1,N_a*N_z]);
-            end
-            PtransposeA=sparse(N_a,N_a*N_z);
-            PtransposeA(optaprime_jj+N_a*(0:1:N_a*N_z-1))=1;
-            
-            pi_z=sparse(pi_z);
-            Ptranspose=kron(pi_z',ones(N_a,N_a)).*kron(ones(N_z,1),PtransposeA);
-            
-            StatDisttemp=StatDisttemp+Ptranspose*StationaryDistKron(:,e_c,jj);
-        end
-        % And now just distribute over the e'
-        StationaryDistKron(:,:,jj+1)=full(gpuArray(StatDisttemp.*pi_e'));
+        parfor e_c=1:N_e % you can probably parfor this?
+            optaprime=PolicyIndexesKron(1,:,e_c,jj);
+            StationaryDist_jjee=StationaryDist_jj(:,e_c);
 
+            firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+            Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
+
+            pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+
+            % Two steps of the Tan improvement
+            StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
+            StationaryDist_jjee=reshape(StationaryDist_jjee*pi_z,[N_a*N_z,1]);
+
+            StationaryDist_jj(:,e_c)=StationaryDist_jjee;
+        end
+
+        StationaryDist_jj=sum(StationaryDist_jj,2);
+        StationaryDist_jj=StationaryDist_jj.*pi_e_J(:,jj)';
+
+        StationaryDistKron(:,:,jj+1)=full(StationaryDist_jj);
     end
-    
+    if simoptions.parallel==2 % Move result to gpu
+        StationaryDistKron=gpuArray(StationaryDistKron);
+        % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
+    end
 end
 
 
@@ -431,7 +149,7 @@ if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
     AgeWeights=AgeWeights';
 end
 
-if simoptions.parallel==5 || simoptions.parallel==6 
+if simoptions.loopovere>0
     StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-1); %.*repmat(shiftdim(AgeWeights,-1),N_a*N_z,N_e,1);
 else
     StationaryDistKron=StationaryDistKron.*AgeWeights;

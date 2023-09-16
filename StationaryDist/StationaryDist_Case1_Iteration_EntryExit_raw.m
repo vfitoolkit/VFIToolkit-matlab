@@ -118,13 +118,6 @@ elseif simoptions.endogenousexit==1
         temp=optaprime+N_a*(gpuArray(0:1:N_a*N_z-1));
         temp=temp(optaprime>0); % temp is just optaprime conditional on staying
         Ptranspose(temp)=1;
-%         if simoptions.endogenousexit==1 % I originally used unique, but
-%         then realised that the above three lines are a much more computationally
-%         efficient way to acheive the same thing.
-%             Ptranspose(unique(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1))))=1; % Relates to part of code above when creating optaprime. See explanation there for why have to treat these two cases seperately and add 'unique()' for this case.
-%         else
-%             Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-%         end
         if isscalar(CondlProbOfSurvival) % Put CondlProbOfSurvival where it seems likely to involve the least extra multiplication operations (so hopefully fastest).
             Ptranspose=kron(pi_z',ones(N_a,N_a,'gpuArray')).*kron(CondlProbOfSurvival*ones(N_z,1,'gpuArray'),Ptranspose);
         else
@@ -180,45 +173,41 @@ if simoptions.parallel==2
 else
     StationaryDistKronOld=zeros(N_a*N_z,1);
 end
-SScurrdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
-SScounter=0;
+currdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
+counter=0;
 
 % Switch into 'mass times pdf' form, and work with that until get
-% convergence, then switch solution back into seperate mass and pdf form
-% for output.
-StationaryDistKron.pdf=StationaryDistKron.mass*StationaryDistKron.pdf; % Make it the pdf
+% convergence, then switch solution back into seperate mass and pdf form for output.
+StationaryDistKron_pdf=StationaryDistKron.mass*StationaryDistKron.pdf; % Make it the pdf
 
-while SScurrdist>simoptions.tolerance && SScounter<simoptions.maxit
+while currdist>simoptions.tolerance && counter<simoptions.maxit
 
-%     StationaryDistKron.pdf=StationaryDistKron.mass*StationaryDistKron.pdf; % Actually work with mass*pdf for next few lines. Makes adding in the new agents and removing the dying much easier.
     for jj=1:100
        %% Following line is essentially the only change that entry and exit require to the actual iteration
-        % Note that it works with cdf, rather than pdf. So there are also
-        % some lines just pre and post to do that.
-%         StationaryDistKron.pdf=(MassOfNewAgents/StationaryDistKron.mass)*DistOfNewAgentsKron+Ptranspose*(CondlProbOfSurvival.*StationaryDistKron.pdf); %No point checking distance every single iteration. Do 100, then check.
-        StationaryDistKron.pdf=MassOfNewAgents*DistOfNewAgentsKron+Ptranspose*StationaryDistKron.pdf; %No point checking distance every single iteration. Do 100, then check.
-        % Note: Exit, captured in the CondlProbOfSurvival is already included into Ptranspose when it is created.
-%         StationaryDistKron.mass=sum(sum(StationaryDistKron.pdf));
-%         StationaryDistKron.pdf=StationaryDistKron.pdf./StationaryDistKron.mass; % Make it the pdf
-%         StationaryDistKron.mass=MassOfNewAgents+sum(CondlProbOfSurvival.*StationaryDistKron.pdf)*StationaryDistKron.mass;
-    end
-%     StationaryDistKron.mass=sum(sum(StationaryDistKron.pdf));
-%     StationaryDistKron.pdf=StationaryDistKron.pdf/StationaryDistKron.mass; % Make it the pdf
+        % Note that it works with cdf, rather than pdf. So there are also some lines just pre and post to do that.
 
-    StationaryDistKronOld=StationaryDistKron.pdf;
-%     StationaryDistKron.pdf=Ptranspose*StationaryDistKron.pdf; % Base the tolerance on 10 iterations. (For some reason just using one iteration worked perfect on gpu, but was not accurate enough on cpu)
-    StationaryDistKron.pdf=MassOfNewAgents*DistOfNewAgentsKron+Ptranspose*StationaryDistKron.pdf; %No point checking distance every single iteration. Do 100, then check.
-    SScurrdist=sum(abs(StationaryDistKron.pdf-StationaryDistKronOld));
-    % Note: I just look for convergence in the pdf and 'assume' the mass
-    % will also have converged by then. I should probably correct this.
+        % Two steps of the Tan improvement [Has not yet been implemented for firm entry/exit]
+        % StationaryDistKron_pdf=reshape(Gammatranspose*StationaryDistKron_pdf,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+        % StationaryDistKron_pdf=reshape(StationaryDistKron_pdf*pi_z_sparse,[N_a*N_z,1]);
+
+        StationaryDistKron_pdf=MassOfNewAgents*DistOfNewAgentsKron+Ptranspose*StationaryDistKron_pdf; %No point checking distance every single iteration. Do 100, then check.
+        % Note: Exit, captured in the CondlProbOfSurvival is already included into Ptranspose when it is created.
+    end
+    StationaryDistKronOld=StationaryDistKron_pdf;
+
+    StationaryDistKron_pdf=MassOfNewAgents*DistOfNewAgentsKron+Ptranspose*StationaryDistKron_pdf; %No point checking distance every single iteration. Do 100, then check.
     
-    SScounter=SScounter+1;
+    currdist=sum(abs(StationaryDistKron_pdf-StationaryDistKronOld));
+    % Note: I just look for convergence in the pdf and 'assume' the mass will also have converged by then. I should probably correct this.
+    
+    counter=counter+1;
     if simoptions.verbose==1
-        if rem(SScounter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', SScounter, SScurrdist, simoptions.tolerance)            
+        if rem(counter,50)==0
+            fprintf('StationaryDist_Case1: after %i iterations the current distance is %8.4f (tolerance=%8.4f) \n', counter, currdist, simoptions.tolerance)            
         end
     end
 end
+counter
 
 % Turn it into the 'mass and pdf' format required for output.
 StationaryDistKron.mass=sum(sum(StationaryDistKron.pdf));
@@ -232,7 +221,7 @@ if simoptions.parallel>=3 % Solve with sparse matrix
     end
 end
 
-if ~((100*SScounter)<simoptions.maxit)
+if ~((100*counter)<simoptions.maxit)
     disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
 end 
 

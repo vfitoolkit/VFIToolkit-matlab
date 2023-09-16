@@ -191,6 +191,7 @@ if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
     n_z=[n_z,simoptions.n_semiz];
     z_grid_J=[z_grid_J;simoptions.semiz_grid.*ones(1,N_j)];
     l_z=length(n_z);
+    N_z=prod(n_z);
 end
 
 %

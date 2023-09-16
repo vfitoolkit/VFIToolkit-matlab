@@ -261,7 +261,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         %Get the current optimal policy
         Policy=PolicyIndexesPath(:,:,:,tt);
         
-        optaprime=reshape(shiftdim(Policy(2,:,:),-1),[1,N_a*N_z]); % This shipting of dimensions is probably not necessary
+        optaprime=gather(reshape(shiftdim(Policy(2,:,:),-1),[1,N_a*N_z])); % This shipting of dimensions is probably not necessary
     
         % Commented out lines are without Tan improvement
         % Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
@@ -269,9 +269,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
         % AgentDistnext=Ptran*AgentDist;
         
-        Gammatranspose=sparse(N_a*N_z,N_a*N_z);
-        firststep=gather(optaprime)+kron(N_a*(0:1:N_z-1),ones(1,N_a));
-        Gammatranspose(firststep+N_a*N_z*(0:1:N_a*N_z-1))=1;
+        firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+        Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
         % Two steps of the Tan improvement
         AgentDistnext=reshape(Gammatranspose*AgentDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
         AgentDistnext=reshape(AgentDistnext*pi_z_sparse,[N_a*N_z,1]);

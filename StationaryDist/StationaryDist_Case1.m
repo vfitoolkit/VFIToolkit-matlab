@@ -103,7 +103,7 @@ if simoptions.policyalreadykron==0
     PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
 end
 
-%% First deal with entry and exit if that is being used
+%% First deal with entry and exit if that is being used [COMMENT: I SHOULD IMPLEMENT THE TAN IMPROVEMENT FOR THESE BUT HAVE NOT YET DONE SO]
 if simoptions.agententryandexit==1 % If there is entry and exit use the command for that, otherwise just continue as usual.
     % It is assumed that the 'entry' distribution is suitable initial guess
     % for stationary distribution (rather than usual approach of simulating a few agents)
