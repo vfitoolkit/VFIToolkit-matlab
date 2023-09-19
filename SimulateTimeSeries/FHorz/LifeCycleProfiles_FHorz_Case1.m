@@ -27,37 +27,37 @@ if exist('simoptions','var')==1
     else
         simoptions.parallel=1;
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'nquantiles')==0
+    if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
     end
-    if isfield(simoptions,'agegroupings')==0
+    if ~isfield(simoptions,'agegroupings')
         simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     end
-    if isfield(simoptions,'npoints')==0
+    if ~isfield(simoptions,'npoints')
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     end
-    if isfield(simoptions,'tolerance')==0    
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+    if ~isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
-    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+    if ~isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
-    if isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
+    if ~isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
         if ~isfield(simoptions,'SampleRestrictionFn_include')
             simoptions.SampleRestrictionFn_include=1; % By default, include observations that meet the sample restriction (if zero, then exclude observations meeting this criterion)
         end
         simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn);
     end
-    if isfield(simoptions,'experienceasset')==0    
+    if ~isfield(simoptions,'experienceasset')    
         simoptions.experienceasset=0;
     end
-    if isfield(simoptions,'residualasset')==0
+    if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
     end
 else
@@ -73,6 +73,7 @@ else
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.experienceasset=0;
+    simoptions.residualasset=0;
 end
 
 if simoptions.parallel==2 % just make sure things are on gpu as they should be

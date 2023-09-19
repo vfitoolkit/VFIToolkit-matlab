@@ -67,6 +67,7 @@ elseif simoption.loopovere==1
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
+        pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
         for e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
@@ -75,7 +76,6 @@ elseif simoption.loopovere==1
             firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
             Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
 
-            pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
             % Two steps of the Tan improvement
             StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
@@ -109,6 +109,7 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
+        pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
         parfor e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
@@ -116,8 +117,6 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
 
             firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
             Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
-
-            pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
             % Two steps of the Tan improvement
             StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
