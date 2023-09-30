@@ -96,6 +96,12 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+if N_z==0
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_noz(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,N_j,d_grid,a_grid,simoptions);
+    return
+end
+
+
 %% z_grid (and e_grid where appropriate)
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
 eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')

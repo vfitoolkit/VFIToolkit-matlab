@@ -21,16 +21,6 @@ for ii=1:length(FnToEvaluateParams)
     ParamCell(ii,1)={FnToEvaluateParams(ii)};
 end
 
-% if l_d>4
-%     error
-% end
-% if l_a>4
-%     error
-% end
-% if l_z>4
-%     error
-% end
-
 if l_a>=1
     a1vals=a_grid(1:n_a(1));
     if l_a>=2
@@ -76,6 +66,7 @@ elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
         end
     end
 end
+
 
 if l_a+l_z==2
     if l_d>=1

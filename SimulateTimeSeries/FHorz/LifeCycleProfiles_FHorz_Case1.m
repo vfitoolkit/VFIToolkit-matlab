@@ -42,13 +42,13 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    if ~isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
-    if ~isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
+    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
     end
-    if ~isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
+    if isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
         if ~isfield(simoptions,'SampleRestrictionFn_include')
             simoptions.SampleRestrictionFn_include=1; % By default, include observations that meet the sample restriction (if zero, then exclude observations meeting this criterion)
         end
@@ -95,11 +95,6 @@ else
 end
 l_a=length(n_a);
 
-if N_z==0
-    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,N_j,d_grid,a_grid,simoptions);
-    return
-end
-
 if n_z(1)==0
     l_z=0;
 else
@@ -130,6 +125,13 @@ if simoptions.parallel==2
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
 end
+
+%%
+if N_z==0
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,N_j,d_grid,a_grid,simoptions);
+    return
+end
+
 
 %% z_grid (and e_grid where appropriate)
 eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')

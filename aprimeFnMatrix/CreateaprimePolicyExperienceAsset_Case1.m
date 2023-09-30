@@ -33,14 +33,21 @@ if nargin(aprimeFn)~=1+1+length(aprimeFnParams)
 end
 
 % Note: hardcodes that the relevant a for experience asset is just the last a
-a1vals=kron(a_grid(end-n_a(end)+1:end), ones(sum(n_a(1:end-1)),1) ); % Experience asset is the last asset
+if length(n_a)==1
+    a2vals=a_grid;
+else
+    a2vals=kron(a_grid(end-n_a(end)+1:end), ones(sum(n_a(1:end-1)),1) ); % Experience asset is the last asset
+end
 
 % Note: the relevant d for experience asset is just the
 % 'whichisdforexpasset' d (this is l_d if using just experience asset, but
 % needs to be something else, e.g., when combining experience asset with
 % semi-exogenous state)
-aprimeVals=arrayfun(aprimeFn, shiftdim(Policy(whichisdforexpasset,:,:),1), a1vals, ParamCell{:});  % [N_a,N_z]
-
+if N_z==1
+    aprimeVals=arrayfun(aprimeFn, shiftdim(Policy(whichisdforexpasset,:),1), a2vals, ParamCell{:});  % [N_a,1]
+else
+    aprimeVals=arrayfun(aprimeFn, shiftdim(Policy(whichisdforexpasset,:,:),1), a2vals, ParamCell{:});  % [N_a,N_z]
+end
 
 %% Calcuate grid indexes and probs from the values
 aprimeVals=reshape(aprimeVals,[1,N_a*N_z]);

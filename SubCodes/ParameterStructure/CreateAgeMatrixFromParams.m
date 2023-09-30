@@ -1,4 +1,4 @@
-function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j); %,index1,index2)
+function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j) %,index1,index2)
 %
 % AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j)
 % AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,N_j,index1)
@@ -12,7 +12,7 @@ function AgeMatrixOfParamValues=CreateAgeMatrixFromParams(Parameters,ParamNames,
 % Some parameters are stored in the Parameters structure as vectors or
 % matrices (eg., because the parameter values depends on age). In these 
 % cases 'index1' (and 'index2') can be used to specify which is the relevant element.
-%
+
 
 nCalibParams=length(ParamNames);
 FullParamNames=fieldnames(Parameters);
@@ -29,7 +29,7 @@ AgeMatrixOfParamValues=zeros(N_j,nCalibParams);
             end
         end
         if found==0 % Have added this check so that user can see if they are missing a parameter
-            fprintf(['FAILED TO FIND PARAMETER ',ParamNames{iCalibParam}])
+            error(['Failed to find parameter ',ParamNames{iCalibParam}])
         end
     end
 % elseif nargin==3

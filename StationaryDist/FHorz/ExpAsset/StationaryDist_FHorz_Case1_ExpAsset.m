@@ -12,9 +12,7 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
 end
 
 %% Setup related to experience asset
-if isfield(simoptions,'aprimeFn')
-    aprimeFn=simoptions.aprimeFn;
-else
+if ~isfield(simoptions,'aprimeFn')
     error('To use an experience asset you must define simoptions.aprimeFn')
 end
 if ~isfield(simoptions,'a_grid')
@@ -27,25 +25,11 @@ n_a2=n_a(end);
 % aprimeFnParamNames in same fashion
 l_d2=length(n_d2);
 l_a2=length(n_a2);
-temp=getAnonymousFnInputNames(aprimeFn);
+temp=getAnonymousFnInputNames(simoptions.aprimeFn);
 if length(temp)>(l_d2+l_a2)
     aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
 else
     aprimeFnParamNames={};
-end
-
-%%
-if isfield(simoptions,'n_e')
-    if n_z(1)==0
-        error('Not yet implemented n_z=0 with n_e and experienceasset, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
-    else
-%         StationaryDist=StationaryDist_FHorz_Case1_ExpAsset_e(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,n_a,n_z,N_j,pi_z,aprimeFn,Parameters,simoptions);
-    end
-    return
-end
-
-if n_z(1)==0
-    error('Not yet implemented n_z=0 with experienceasset, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
 end
 
 l_d=length(n_d);
@@ -54,6 +38,7 @@ l_a=length(n_a);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+%%
 if exist('simoptions','var')==0
     simoptions.nsims=10^4;
     simoptions.parallel=3-(gpuDeviceCount>0); % 3 (sparse) if cpu, 2 if gpu
@@ -101,6 +86,24 @@ else
     end
 end
 
+
+%%
+if n_z(1)==0
+    StationaryDist=StationaryDist_FHorz_Case1_ExpAsset_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+    return
+end
+
+if isfield(simoptions,'n_e')
+    if n_z(1)==0
+        error('Not yet implemented n_z=0 with n_e and experienceasset, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
+    else
+%         StationaryDist=StationaryDist_FHorz_Case1_ExpAsset_e(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,n_a,n_z,N_j,pi_z,aprimeFn,Parameters,simoptions);
+    end
+    return
+end
+
+
+%%
 jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
 if simoptions.parallel~=2 && simoptions.parallel~=4
     Policy=gather(Policy);
@@ -116,7 +119,7 @@ PolicyProbs=zeros(N_a,N_z,N_j,2,'gpuArray'); % The fourth dimension is lower/upp
 whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),aprimeFn, whichisdforexpasset, n_a, N_z, gpuArray(simoptions.a_grid), aprimeFnParamsVec);
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_a, N_z, gpuArray(simoptions.a_grid), aprimeFnParamsVec);
     if l_a==1
         Policy_aprime(:,:,jj,1)=aprimeIndexes;
         Policy_aprime(:,:,jj,2)=aprimeIndexes+1;

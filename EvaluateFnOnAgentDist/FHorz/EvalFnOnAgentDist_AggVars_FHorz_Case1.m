@@ -77,6 +77,8 @@ elseif fieldexists_ExogShockFn==1
 else
     if all(size(z_grid)==[sum(n_z),1])
         z_grid_J=repmat(z_grid,1,N_j);
+    elseif all(size(z_grid)==[sum(n_z),N_j])
+        z_grid_J=z_grid; % input is z_grid_J
     else % Joint-grid on shocks
         z_grid_J=repmat(z_grid,1,1,N_j);
     end
