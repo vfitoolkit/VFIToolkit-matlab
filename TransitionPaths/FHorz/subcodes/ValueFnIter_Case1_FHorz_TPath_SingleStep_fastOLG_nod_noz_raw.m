@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames)
 
 N_a=prod(n_a);
 
@@ -14,17 +14,14 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG_noz(ReturnFn, 0, n_a, N_j, [], a_grid, ReturnFnParamsAgeMatrix);
 
-ReturnMatrix=reshape(ReturnMatrix,[N_a,N_a*N_j]);
-
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
 DiscountFactorParamsVec=DiscountFactorParamsVec';
-% DiscountFactorParamsVec=kron(ones(N_a,1),DiscountFactorParamsVec);
 
 VKronNext=zeros(N_a,N_j,'gpuArray');
 VKronNext(:,1:N_j-1)=V(:,2:end); % Swap j and z
 
-entirediscountedEV=ReturnMatrix+DiscountFactorParamsVec*kron(VKronNext,ones(1,N_a)); %(aprime)-by-(a,j)
+entirediscountedEV=ReturnMatrix+kron(DiscountFactorParamsVec.*VKronNext,ones(1,N_a)); %(aprime)-by-(a,j)
 
 %Calc the max and it's index
 [Vtemp,maxindex]=max(entirediscountedEV,[],1);

@@ -1,46 +1,22 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, ParamPath, Parameters, T, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid,z_grid, transpathoptions, simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, ParamPath, Parameters, T, n_d, n_a, n_z, N_j, d_grid, a_grid,z_grid, transpathoptions, simoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values.
-% 
-% 
+%
+%
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
-% only if it is a 'surprise', not anticipated changes) 
+% only if it is a 'surprise', not anticipated changes)
 
 % PricePath is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
-% Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
+% Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
-%% Check which transpathoptions have been used, set all others to defaults 
-if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
-    transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.exoticpreferences='None';
-    transpathoptions.lowmemory=0;
-else
-    %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences='None';
-    end
-    if isfield(transpathoptions,'lowmemory')==0
-        transpathoptions.lowmemory=0;
-    end
-end
-
-%% Check which simoptions have been used, set all others to defaults 
-if isfield(transpathoptions,'simoptions')==1
-    simoptions=transpathoptions.simoptions;
-end
-
+%% Check which simoptions have been used, set all others to defaults
 if exist('simoptions','var')==0
     simoptions.nsims=10^4;
-    simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
+    simoptions.parallel=2;
     simoptions.verbose=0;
-    try 
+    try
         PoolDetails=gcp;
         simoptions.ncores=PoolDetails.NumWorkers;
     catch
@@ -48,22 +24,23 @@ if exist('simoptions','var')==0
     end
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
+    simoptions.fastOLG=1;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
+    %Check simoptions for missing fields, if there are some fill them with
     %the defaults
-    if isfield(simoptions,'tolerance')==0
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
-    if isfield(simoptions,'nsims')==0
+    if ~isfield(simoptions,'nsims')
         simoptions.nsims=10^4;
     end
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=transpathoptions.parallel;
+    if ~isfield(simoptions,'parallel')
+        simoptions.parallel=2;
     end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'ncores')==0
+    if ~isfield(simoptions,'ncores')
         try
             PoolDetails=gcp;
             simoptions.ncores=PoolDetails.NumWorkers;
@@ -71,11 +48,13 @@ else
             simoptions.ncores=1;
         end
     end
-    if isfield(simoptions,'iterate')==0
+    if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;
     end
+    if ~isfield(simoptions,'fastOLG')
+        simoptions.fastOLG=1;
+    end
 end
-
 
 %%
 N_d=prod(n_d);
@@ -87,18 +66,28 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
-l_z=length(n_z);
+if N_z==0
+    l_z=0;
+else
+    l_z=length(n_z);
+end
+
+N_e=0;
+if isfield(simoptions,'n_e')
+    N_e=prod(simoptions.n_e);
+end
+
 
 %% Note: Internally PricePath is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
 % Actually, some of those prices are 1-by-N_j, so is more subtle than this.
 PricePathNames=fieldnames(PricePath);
-PricePathStruct=PricePath; 
+PricePathStruct=PricePath;
 PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-for tt=1:length(PricePathNames)
-    temp=PricePathStruct.(PricePathNames{tt});
+for ii=1:length(PricePathNames)
+    temp=PricePathStruct.(PricePathNames{ii});
     tempsize=size(temp);
-    PricePathSizeVec(tt)=tempsize(tempsize~=T); % Get the dimension which is not T
+    PricePathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
 end
 PricePathSizeVec=cumsum(PricePathSizeVec);
 if length(PricePathNames)>1
@@ -107,21 +96,21 @@ else
     PricePathSizeVec=[1;PricePathSizeVec];
 end
 PricePath=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for tt=1:length(PricePathNames)
-    if size(PricePathStruct.(PricePathNames{tt}),1)==T
-        PricePath(:,PricePathSizeVec(1,tt):PricePathSizeVec(2,tt))=PricePathStruct.(PricePathNames{tt});
+for ii=1:length(PricePathNames)
+    if size(PricePathStruct.(PricePathNames{ii}),1)==T
+        PricePath(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii});
     else % Need to transpose
-        PricePath(:,PricePathSizeVec(1,tt):PricePathSizeVec(2,tt))=PricePathStruct.(PricePathNames{tt})';
+        PricePath(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii})';
     end
 end
 
 ParamPathNames=fieldnames(ParamPath);
 ParamPathStruct=ParamPath;
 ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for tt=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{tt});
+for ii=1:length(ParamPathNames)
+    temp=ParamPathStruct.(ParamPathNames{ii});
     tempsize=size(temp);
-    ParamPathSizeVec(tt)=tempsize(tempsize~=T); % Get the dimension which is not T
+    ParamPathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
 end
 ParamPathSizeVec=cumsum(ParamPathSizeVec);
 if length(ParamPathNames)>1
@@ -130,202 +119,352 @@ else
     ParamPathSizeVec=[1;ParamPathSizeVec];
 end
 ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for tt=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{tt}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,tt):ParamPathSizeVec(2,tt))=ParamPathStruct.(ParamPathNames{tt});
+for ii=1:length(ParamPathNames)
+    if size(ParamPathStruct.(ParamPathNames{ii}),1)==T
+        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii});
     else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,tt):ParamPathSizeVec(2,tt))=ParamPathStruct.(ParamPathNames{tt})';
+        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii})';
     end
 end
 
-if N_z==0
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_noz(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, Parameters, T, n_d, n_a, N_j, d_grid, a_grid, transpathoptions, simoptions);
-    return
+%% Check if using _tminus1 and/or _tplus1 variables.
+if isstruct(FnsToEvaluate)
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames);
+    if transpathoptions.verbose>1
+        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+    end
+else
+    tplus1priceNames=[];
+    tminus1priceNames=[];
+    tminus1AggVarsNames=[];
+    tplus1pricePathkk=[];
+end
+ 
+use_tplus1price=0;
+if length(tplus1priceNames)>0
+    use_tplus1price=1;
+end
+use_tminus1price=0;
+if length(tminus1priceNames)>0
+    use_tminus1price=1;
+    for ii=1:length(tminus1priceNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
+        end
+    end
+end
+use_tminus1AggVars=0;
+if length(tminus1AggVarsNames)>0
+    use_tminus1AggVars=1;
+    for ii=1:length(tminus1AggVarsNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+        end
+    end
+end
+% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
+
+
+%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
+AggVarNames=fieldnames(FnsToEvaluate);
+for ff=1:length(AggVarNames)
+    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if length(temp)>(l_d+l_a+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        FnsToEvaluateParamNames(ff).Names={};
+    end
+    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+end
+FnsToEvaluate=FnsToEvaluate2;
+% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+simoptions.outputasstructure=1;
+simoptions.AggVarNames=AggVarNames;
+
+
+
+%% Check if z_grid and/or pi_z depend on prices. If not then create pi_z_J and z_grid_J for the entire transition before we start
+% If 'exogenous shock fn' is used, then precompute it to save evaluating it numerous times
+% Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
+pi_z=[];
+if N_z>0
+    % transpathoptions.zpathprecomputed=1; % Hardcoded: I do not presently allow for z to be determined by an ExogShockFn which includes parameters from PricePath
+
+    if ismatrix(pi_z) % (z,zprime)
+        % Just a basic pi_z, but convert to pi_z_J for codes
+        z_grid_J=z_grid.*ones(1,N_j);
+        pi_z_J=pi_z.*ones(1,1,N_j);
+        transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
+        if isfield(simoptions,'pi_z_J') % This is just legacy, intend to depreciate it
+            z_grid_J=simoptions.z_grid_J;
+            pi_z_J=simoptions.pi_z_J;
+        end
+    elseif ndims(pi_z)==3 % (z,zprime,j)
+        % Inputs are already z_grid_J and pi_z_J
+        z_grid_J=z_grid;
+        pi_z_J=pi_z;
+        transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
+    elseif ndims(pi_z)==4 % (z,zprime,j,t)
+        transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J var over the path
+        transpathoptions.pi_z_J_T=pi_z;
+        transpathoptions.z_grid_J_T=z_grid;
+        z_grid_J=z_grid(:,:,1); % placeholder
+        pi_z_J=pi_z(:,:,:,1); % placeholder
+    end
+    % These inputs get overwritten if using simoptions.ExogShockFn
+    if isfield(simoptions,'ExogShockFn')
+        % Note: If ExogShockFn depends on the path, it must be done via a parameter
+        % that depends on the path (i.e., via ParamPath or PricePath)
+        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+        overlap=0;
+        for ii=1:length(simoptions.ExogShockFnParamNames)
+            if strcmp(simoptions.ExogShockFnParamNames{ii},PricePathNames)
+                overlap=1;
+            end
+        end
+        if overlap==1
+            error('It is not allowed for z to be determined by an ExogShockFn which includes parameters from PricePath')
+        else % overlap==0
+            % If ExogShockFn does not depend on any of the prices (in PricePath), then
+            % we can simply create it now rather than within each 'subfn' or 'p_grid'
+
+            % Check if it depends on the ParamPath
+            transpathoptions.zpathtrivial=1;
+            for ii=1:length(simoptions.ExogShockFnParamNames)
+                if strcmp(simoptions.ExogShockFnParamNames{ii},ParamPathNames)
+                    transpathoptions.zpathtrivial=0;
+                end
+            end
+            if transpathoptions.zpathtrivial==1
+                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
+                z_grid_J=zeros(N_z,N_j,'gpuArray');
+                for jj=1:N_j
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for ii=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                    end
+                    [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                    pi_z_J(:,:,jj)=gpuArray(pi_z);
+                    z_grid_J(:,jj)=gpuArray(z_grid);
+                end
+                % Now store them in simoptions and simoptions
+                simoptions.pi_z_J=pi_z_J;
+                simoptions.z_grid_J=z_grid_J;
+                simoptions.pi_z_J=pi_z_J;
+                simoptions.z_grid_J=z_grid_J;
+            elseif transpathoptions.zpathtrivial==0
+                % z_grid_J and/or pi_z_J varies along the transition path (but only depending on ParamPath, not PricePath
+                transpathoptions.pi_z_J_T=zeros(N_z,N_z,N_j,T,'gpuArray');
+                transpathoptions.z_grid_J_T=zeros(sum(n_z),N_j,T,'gpuArray');
+                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
+                z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
+                for tt=1:T
+                    for ii=1:length(ParamPathNames)
+                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
+                    end
+                    % Note, we know the PricePath is irrelevant for the current purpose
+                    for jj=1:N_j
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for ii=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                        end
+                        [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                        pi_z_J(:,:,jj)=gpuArray(pi_z);
+                        z_grid_J(:,jj)=gpuArray(z_grid);
+                    end
+                    transpathoptions.pi_z_J_T(:,:,:,tt)=pi_z_J;
+                    transpathoptions.z_grid_J_T(:,:,tt)=z_grid_J;
+                end
+            end
+        end
+    end
+
+    % if simoptions.lowmemory>0
+    %     % Need z_gridvals_J instead of z_grid_J
+    %     z_gridvals_J=zeros(N_z,l_z,N_j,'gpuArray');
+    %     for jj=1:N_j
+    %         z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1);
+    %     end
+    %     simoptions.z_gridvals_J=z_gridvals_J;
+    % end
+
 end
 
+%% If using e variables do the same for e as we just did for z
+if N_e>0
+    % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
 
-%% Implement new way of handling FnsToEvaluate
-if isstruct(FnsToEvaluate)
-    FnsToEvaluateStruct=1;
-    clear FnsToEvaluateParamNames
-    AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
-        else
-            FnsToEvaluateParamNames(ff).Names={};
+    transpathoptions.epathprecomputed=0;
+    if isfield(simoptions,'pi_e_J')
+        e_grid_J=simoptions.e_grid_J;
+        pi_e_J=simoptions.pi_e_J;
+        transpathoptions.epathprecomputed=1;
+        transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
+    elseif isfield(simoptions,'EiidShockFn')
+        % Note: If EiidShockFn depends on the path, it must be done via a parameter
+        % that depends on the path (i.e., via ParamPath or PricePath)
+        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
+        overlap=0;
+        for ii=1:length(simoptions.EiidShockFnParamNames)
+            if strcmp(simoptions.EiidShockFnParamNames{ii},PricePathNames)
+                overlap=1;
+            end
         end
-        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
-    end    
-    FnsToEvaluate=FnsToEvaluate2;
-else
-    FnsToEvaluateStruct=0;
+        if overlap==0
+            transpathoptions.epathprecomputed=1;
+            % If ExogShockFn does not depend on any of the prices (in PricePath), then
+            % we can simply create it now rather than within each 'subfn' or 'p_grid'
+
+            % Check if it depends on the ParamPath
+            transpathoptions.epathtrivial=1;
+            for ii=1:length(simoptions.EiidShockFnParamNames)
+                if strcmp(simoptions.EiidShockFnParamNames{ii},ParamPathNames)
+                    transpathoptions.epathtrivial=0;
+                end
+            end
+            if transpathoptions.epathtrivial==1
+                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                e_grid_J=zeros(N_e,N_j,'gpuArray');
+                for jj=1:N_j
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                    for ii=1:length(EiidShockFnParamsVec)
+                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                    end
+                    [e_grid,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                    pi_e_J(:,jj)=gpuArray(pi_e);
+                    e_grid_J(:,jj)=gpuArray(e_grid);
+                end
+                % Now store them in simoptions and simoptions
+                simoptions.pi_e_J=pi_e_J;
+                simoptions.e_grid_J=e_grid_J;
+                simoptions.pi_e_J=pi_e_J;
+                simoptions.e_grid_J=e_grid_J;
+            elseif transpathoptions.epathtrivial==0
+                % e_grid_J and/or pi_e_J varies along the transition path (but only depending on ParamPath, not PricePath)
+                transpathoptions.pi_e_J_T=zeros(N_e,N_e,N_j,T,'gpuArray');
+                transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
+                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
+                e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
+                for tt=1:T
+                    for ii=1:length(ParamPathNames)
+                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
+                    end
+                    % Note, we know the PricePath is irrelevant for the current purpose
+                    for jj=1:N_j
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for ii=1:length(ExogShockFnParamsVec)
+                            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                        end
+                        [e_grid,pi_e]=simoptions.ExogShockFn(EiidShockFnParamsCell{:});
+                        pi_e_J(:,jj)=gpuArray(pi_e);
+                        e_grid_J(:,jj)=gpuArray(e_grid);
+                    end
+                    transpathoptions.pi_e_J_T(:,:,tt)=pi_e_J;
+                    transpathoptions.e_grid_J_T(:,:,tt)=e_grid_J;
+                end
+            end
+        end
+    end
 end
 
 %%
-if transpathoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   pi_z=gpuArray(pi_z);
-   if N_d>0
-       d_grid=gpuArray(d_grid);
-   end
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
-else
-   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-   % This may be completely unnecessary.
-   pi_z=gather(pi_z);
-   if N_d>0
-       d_grid=gather(d_grid);
-   end
-   a_grid=gather(a_grid);
-   z_grid=gather(z_grid);
-end
 
-if ~strcmp(transpathoptions.exoticpreferences,'None')
-    disp('ERROR: Only transpathoptions.exoticpreferences==None is supported by TransitionPath_Case1')
-    dbstack
-end
+AggVarsPath=struct();
 
+if N_z==0
+    AgentDistPath=reshape(AgentDistPath,[N_a,N_j,T]);
+    PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j,T);
 
-l_p=size(PricePath,2);
+    for tt=1:T
 
-if transpathoptions.verbose==1
-    transpathoptions
-end
-if transpathoptions.verbose==1
-    ParamPathNames
-    PricePathNames
-end
-
-AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_j,T]);
-PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j,T);
-
-
-if transpathoptions.parallel==2
-    
-    if FnsToEvaluateStruct==0
-        %Now we have the full PolicyIndexesPath, we go forward in time from 1
-        %to T using the policies to update the agents distribution and generate
-        %the AggVarsPath.
-        AggVarsPath=zeros(T,length(FnsToEvaluate),'gpuArray');
-        for tt=1:T
-            AgentDist=AgentDistPath(:,:,:,tt);
-            %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,:,tt);
-            end
-                        
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            
-            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
-            
-            AggVarsPath(tt,:)=AggVars;
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
-    else % FnsToEvaluateStruct==1
-        %Now we have the full PolicyIndexesPath, we go forward in time from 1
-        %to T using the policies to update the agents distribution and generate
-        %the AggVarsPath.
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        end
+
+        if use_tminus1price==1
+            for pp=1:length(tminus1priceNames)
+                if tt>1
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+                else
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                end
+            end
+        end
+        if use_tplus1price==1
+            for pp=1:length(tplus1priceNames)
+                kk=tplus1pricePathkk(pp);
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+            end
+        end
+
+        if N_d==0
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyPath(:,:,tt), n_d, n_a, N_j,simoptions);
+        else
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyPath(:,:,:,tt), n_d, n_a, N_j,simoptions);
+        end
+
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, 2, simoptions); % The 2 is for Parallel (use GPU)
+
         for ff=1:length(AggVarNames)
-            AggVarsPath.(AggVarNames{ff}).Mean=zeros(T,1,'gpuArray');
-        end
-
-        for tt=1:T%-1
-            AgentDist=AgentDistPath(:,:,:,tt);
-            %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,:,tt);
-            end
-                        
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            
-            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2); % The 2 is for Parallel (use GPU)
-            
-            for ff=1:length(AggVarNames)
-                AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars(ff);
-            end
+            AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
         end
     end
+else % N_z>0
+    AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_j,T]);
+    PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j,T);
 
-else
-         
-    
-    if FnsToEvaluateStruct==0
-        %Now we have the full PolicyIndexesPath, we go forward in time from 1
-        %to T using the policies to update the agents distribution and generate
-        %the AggVarsPath.
-        AggVarsPath=zeros(T,length(FnsToEvaluate));
+    for tt=1:T
 
-        for tt=1:T%-1
-            AgentDist=AgentDistPath(:,:,:,tt);
-            %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,:,tt);
-            end
-                        
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            
-            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 1); % The 1 is for Parallel (use CPU)
-            
-            AggVarsPath(tt,:)=AggVars;
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
-    else % FnsToEvaluateStruct==1
-        %Now we have the full PolicyIndexesPath, we go forward in time from 1
-        %to T using the policies to update the agents distribution and generate
-        %the AggVarsPath.
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        end
+
+        if use_tminus1price==1
+            for pp=1:length(tminus1priceNames)
+                if tt>1
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+                else
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                end
+            end
+        end
+        if use_tplus1price==1
+            for pp=1:length(tplus1priceNames)
+                kk=tplus1pricePathkk(pp);
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+            end
+        end
+
+        if transpathoptions.zpathtrivial==0
+            z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
+        end
+
+        if N_d==0
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(PolicyPath(:,:,:,tt), n_d, n_a, n_z, N_j,simoptions);
+        else
+            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(PolicyPath(:,:,:,:,tt), n_d, n_a, n_z, N_j,simoptions);
+        end
+
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, 2, simoptions); % The 2 is for Parallel (use GPU)
+        
         for ff=1:length(AggVarNames)
-            AggVarsPath.(AggVarNames{ff}).Mean=zeros(T,1);
-        end
-
-        for tt=1:T%-1
-            AgentDist=AgentDistPath(:,:,:,tt);
-            %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,:,tt);
-            end
-                        
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            
-            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,simoptions);
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 1); % The 1 is for Parallel (use CPU)
-            
-            for ff=1:length(AggVarNames)
-                AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars(tt,ff);
-            end
+            AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
         end
     end
 end
+
+
+
+
 
 end

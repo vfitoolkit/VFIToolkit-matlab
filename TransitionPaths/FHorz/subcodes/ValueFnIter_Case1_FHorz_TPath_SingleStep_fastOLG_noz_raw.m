@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_noz_raw(V,n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_noz_raw(V,n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames)
 % fastOLG just means parallelize over "age" (j)
 
 N_d=prod(n_d);
@@ -16,17 +16,14 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG_noz(ReturnFn, n_d, n_a, N_j, d_grid, a_grid, ReturnFnParamsAgeMatrix);
 
-ReturnMatrix=reshape(ReturnMatrix,[N_d*N_a,N_a*N_j]);
-
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
 DiscountFactorParamsVec=DiscountFactorParamsVec';
-% DiscountFactorParamsVec=kron(ones(N_a,1),DiscountFactorParamsVec);
 
 VKronNext=zeros(N_a,N_j,'gpuArray');
 VKronNext(:,1:N_j-1)=V(:,2:end);
 
-RHS=ReturnMatrix+DiscountFactorParamsVec*kron(VKronNext,ones(N_d,N_a)); %(d,aprime)-by-(a,j)
+RHS=ReturnMatrix+kron(DiscountFactorParamsVec.*VKronNext,ones(N_d,N_a)); %(d,aprime)-by-(a,j)
 
 %Calc the max and it's index
 [Vtemp,maxindex]=max(RHS,[],1);

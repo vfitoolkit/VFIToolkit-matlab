@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Simulation_noz_raw(AgentDist,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z, Parameters, simoptions)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Simulation_noz_raw(AgentDist,AgeWeights,PolicyIndexesKron,N_d,N_a,N_j, simoptions)
 
 % Options needed
 %    simoptions.nsims (will do nsims per age)
@@ -91,31 +91,10 @@ elseif simoptions.parallel==0
     end
 end
 
-
-% Reweight the different ages based on 'AgeWeightParamNames'. (it is
-% assumed there is only one Age Weight Parameter (name))
-FullParamNames=fieldnames(Parameters);
-nFields=length(FullParamNames);
-found=0;
-for iField=1:nFields
-    if strcmp(AgeWeightParamNames{1},FullParamNames{iField})
-        AgeWeights=Parameters.(FullParamNames{iField});
-        found=1;
-    end
-end
-if found==0 % Have added this check so that user can see if they are missing a parameter
-    fprintf(['FAILED TO FIND PARAMETER ',AgeWeightParamNames{1}])
-end
-% I assume AgeWeights is a row vector, if it has been given as column then
-% transpose it.
-if length(AgeWeights)~=size(AgeWeights,2)
-    AgeWeights=AgeWeights';
-end
-
 % Need to remove the old age weights, and impose the new ones
 % Already removed the old age weights earlier, so now just impose the new ones.
-% I assume AgeWeights is a row vector
-AgentDist=AgentDist.*(ones(N_a,1)*AgeWeights);
+% AgeWeights is a row vector
+AgentDist=AgentDist.*AgeWeights;
 
 if MoveSSDKtoGPU==1
     AgentDist=gpuArray(AgentDist);

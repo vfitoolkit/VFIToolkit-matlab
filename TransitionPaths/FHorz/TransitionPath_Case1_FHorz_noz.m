@@ -1,4 +1,7 @@
 function PricePath=TransitionPath_Case1_FHorz_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
+error('THIS SHOULD NOT BE BEING CALLED (PLEASE CONTACT ME AND LET ME KNOW SO I CAN FIX)')
+% I PUT THIS ERROR HERE RATHER THAN JUST DELETING THE FUNCTION.
+
 % This code will work for all transition paths
 %
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
@@ -79,20 +82,11 @@ end
 transpathoptions
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
-        if transpathoptions.usestockvars==0
             if transpathoptions.fastOLG==0
                 PricePathOld=TransitionPath_Case1_FHorz_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             else % use fastOLG setting
                 PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, StationaryDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
             end
-        else % transpathoptions.usestockvars==1
-            warning('StockVars does not yet work correctly')
-            error('Not yet implemented StockVars without z varialbes')
-%             if transpathoptions.fastOLG==0                
-%                 [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-%             else % use fastOLG setting
-%                 [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-%             end
         end
     else
         error('VFI Toolkit does not offer transition path without gpu. Would be too slow to be useful.')
@@ -142,15 +136,6 @@ end
 %
 % LOOK INTO USING 'SURROGATE OPTIMIZATION'
 
-if transpathoptions.parallel==2
-    PricePath=gpuArray(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)
-else
-    PricePath=gather(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)    
-end
-
-for ii=1:length(PricePathNames)
-    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
-end
 
 
 end

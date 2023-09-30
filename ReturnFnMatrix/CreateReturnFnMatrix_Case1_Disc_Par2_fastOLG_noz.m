@@ -105,9 +105,9 @@ elseif l_d==4 && l_a==4
 end
 
 if l_d==0
-    Fmatrix=reshape(Fmatrix,[N_a,N_a,N_j]);
+    Fmatrix=reshape(Fmatrix,[N_a,N_a*N_j]); % fastOLG uses N_a*N_j instead of N_a,N_j
 else
-    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_j]);
+    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a*N_j]); % fastOLG uses N_a*N_j instead of N_a,N_j
 end
 
 

@@ -1,24 +1,19 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(V,n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_raw(V,n_a,n_z,N_j, a_grid, z_grid_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
 
-N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-Policy=zeros(N_a*N_j,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
-
-% z_grid_J=z_grid_J'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
-% pi_z_J=permute(pi_z_J,[3,2,1]); % Give it the size best for the loop below: (j,z',z)
+Policy=zeros(N_a*N_j,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=DiscountFactorParamsVec';
-% DiscountFactorParamsVec=repelem(DiscountFactorParamsVec,N_a,1);
+DiscountFactorParamsVec=repelem(DiscountFactorParamsVec,N_a,1);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -28,35 +23,31 @@ VKronNext=[V(N_a+1:end,:); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so
 
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, ReturnFnParamsAgeMatrix);
-    % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z, N_j, [], a_grid, z_grid_J, ReturnFnParamsAgeMatrix);
+    % fastOLG: ReturnMatrix is [aprime,a,j,z]
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronNext.*repelem(pi_z_J,N_a,1,1);
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
-    
+
     discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
 
-    entirediscountedEV=repelem(discountedEV,N_d,N_a,1); % (d,aprime)-by-(a,j)-by-z
+    entirediscountedEV=repelem(discountedEV,1,N_a,1); % (d,aprime)-by-(a,j)-by-z
 
-    entirediscountedEV=ReturnMatrix+entirediscountedEV; %(d,aprime)-by-(a,j)
+    entirediscountedEV=ReturnMatrix+entirediscountedEV; %(aprime)-by-(a,j,z)
 
     %Calc the max and it's index
     [V,Policy]=max(entirediscountedEV,[],1);
 
-    V=shiftdim(V,1);
-    Policy=shiftdim(Policy,1);
-
 elseif vfoptions.lowmemory==1
 
     n_z_special=ones(1,length(n_z));
-
+    
     for z_c=1:N_z
-        z_vals=vfoptions.z_gridvals_J(z_c,:,:);
-
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, n_z_special, N_j, d_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix);
-        % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
+        z_vals=z_gridvals_J(z_c,:,:);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z_special, N_j, [], a_grid, z_vals, ReturnFnParamsAgeMatrix);
+        % fastOLG: ReturnMatrix is [aprime,a,j,z]
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronNext.*repelem(pi_z_J(:,:,z_c),N_a,1,1);
@@ -65,21 +56,17 @@ elseif vfoptions.lowmemory==1
 
         discountedEV_z=DiscountFactorParamsVec.*reshape(EV_z,[N_a,N_j]); % aprime-j
 
-        entirediscountedEV_z=repelem(discountedEV_z,N_d,N_a); % (d,aprime)-by-(a,j)
+        entirediscountedEV_z=repelem(discountedEV_z,1,N_a); % (d,aprime)-by-(a,j)
 
-        entirediscountedEV_z=ReturnMatrix_z+entirediscountedEV_z; %(d,aprime)-by-(a,j)
+        entirediscountedEV_z=ReturnMatrix_z+entirediscountedEV_z; %(aprime)-by-(a,j)
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entirediscountedEV_z,[],1);
         V(:,z_c)=Vtemp;
         Policy(:,z_c)=maxindex;
     end
+
 end
 
-
-%%
-% Policy2=zeros(2,N_a*N_j,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-% Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

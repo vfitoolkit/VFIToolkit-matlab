@@ -29,10 +29,7 @@ end
 
 ParamCell=cell(nReturnFnParams,1);
 for ii=1:nReturnFnParams
-%     if ~prod(size(ReturnFnParamsAgeMatrix(:,ii))==[N_j,1]) % ~prod(size(ReturnFnParamsAgeMatrix(:,ii))==[1,1]) && 
-%         disp('ERROR: Using GPU for the fastOLG return fn does not allow for any of ReturnFnParams to be anything but a vector dependent on age)')
-%     end
-    ParamCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_d-l_a-l_a)};%-l_z)};
+    ParamCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_d-l_a-l_a)};
 end
 
 if l_d>=1
@@ -245,9 +242,9 @@ elseif l_d==4 && l_a==4 && l_z==4
 end
 
 if l_d==0
-    Fmatrix=reshape(Fmatrix,[N_a,N_a,N_j,N_z]);
+    Fmatrix=reshape(Fmatrix,[N_a,N_a*N_j,N_z]);
 else
-    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_j,N_z]);
+    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a*N_j,N_z]);
 end
 
 
