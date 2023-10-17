@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case3_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,n_d,n_a,n_z,n_u,N_j,d_grid, a_grid, u_grid,pi_z,pi_u,aprimeFn,Parameters,aprimeFnParamNames, simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case1_RiskyAsset_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,n_d,n_a,n_z,n_u,N_j,d_grid, a_grid, u_grid,pi_z_J,pi_u,aprimeFn,Parameters,aprimeParamNames, simoptions)
 % Case3: aprime(d,u)
 %
 % Options needed
@@ -19,33 +19,11 @@ if simoptions.parallel==2
     % So instead, switch to CPU.
     % For anything but ridiculously short simulations it is more than worth the overhead to switch to CPU and back.
     PolicyIndexesKron=gather(PolicyIndexesKron);
-    pi_z=gather(pi_z);
+    pi_z_J=gather(pi_z_J);
     % Use parallel cpu for these simulations
     simoptions.parallel=1;
     
     MoveSSDKtoGPU=1;
-end
-
-% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-
-if fieldexists_pi_z_J==1
-    pi_z_J=simoptions.pi_z_J;
-elseif fieldexists_ExogShockFn==1
-    pi_z_J=zeros(N_z,N_z,N_j);
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsVec);
-        else
-            [~,pi_z]=simoptions.ExogShockFn(jj);
-        end
-        pi_z_J(:,:,jj)=pi_z;
-    end
-else
-    pi_z_J=repmat(pi_z,1,1,N_j);
 end
 
 pi_u_J=zeros(N_u,N_j); % Not yet meaningfully implemented

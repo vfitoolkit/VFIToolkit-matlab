@@ -52,7 +52,6 @@ elseif simoption.loopovere==1
     StationaryDistKron=zeros(N_a,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
-    StationaryDist_jj=sparse(StationaryDist_jj);
     
     if N_d==0
         PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a,N_e,N_j]));
@@ -67,14 +66,14 @@ elseif simoption.loopovere==1
 
         for e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
-            StationaryDist_jjee=StationaryDist_jj(:,e_c);
+            StationaryDist_jjee=sparse(StationaryDist_jj(:,e_c));
 
             Gammatranspose=sparse(optaprime,1:1:N_a,ones(N_a,1),N_a,N_a); % from a to a' (but transpose)
 
             % Tan improvement not really relevant for without z shock
             StationaryDist_jjee=Gammatranspose*StationaryDist_jjee; %No point checking distance every single iteration. Do 100, then check.
 
-            StationaryDist_jj(:,e_c)=StationaryDist_jjee;
+            StationaryDist_jj(:,e_c)=full(StationaryDist_jjee);
         end
 
         StationaryDist_jj=sum(StationaryDist_jj,2);
@@ -90,7 +89,6 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
     StationaryDistKron=zeros(N_a,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
-    StationaryDist_jj=sparse(StationaryDist_jj);
 
     if N_d==0
         PolicyIndexesKron=reshape(PolicyIndexesKron,[1,N_a,N_e,N_j]);
@@ -105,14 +103,14 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
 
         parfor e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
-            StationaryDist_jjee=StationaryDist_jj(:,e_c);
+            StationaryDist_jjee=sparse(StationaryDist_jj(:,e_c));
 
             Gammatranspose=sparse(optaprime,1:1:N_a,ones(N_a,1),N_a,N_a); % from a to a' (but transpose)
 
             % Tan improvement not really relevant for without z shock
             StationaryDist_jjee=Gammatranspose*StationaryDist_jjee;
 
-            StationaryDist_jj(:,e_c)=StationaryDist_jjee;
+            StationaryDist_jj(:,e_c)=full(StationaryDist_jjee);
         end
 
         StationaryDist_jj=sum(StationaryDist_jj,2);

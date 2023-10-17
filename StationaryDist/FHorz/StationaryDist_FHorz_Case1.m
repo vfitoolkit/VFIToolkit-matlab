@@ -23,14 +23,14 @@ if exist('simoptions','var')==0
     catch
         simoptions.ncores=1;
     end
+    simoptions.experienceasset=0;
+    simoptions.riskyasset=0;
+    simoptions.residualasset=0;
     simoptions.tolerance=10^(-9);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
-    if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-9);
-    end
     if ~isfield(simoptions,'nsims')
         simoptions.nsims=10^4;
     end
@@ -60,6 +60,18 @@ else
     end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'riskyasset')
+        simoptions.riskyasset=0;
+    end
+    if ~isfield(simoptions,'residualasset')
+        simoptions.residualasset=0;
+    end
+    if ~isfield(simoptions,'tolerance')
+        simoptions.tolerance=10^(-9);
     end
     if ~isfield(simoptions,'outputkron')
         simoptions.outputkron=0; % If 1 then leave output in Kron form
@@ -118,12 +130,16 @@ if isfield(simoptions,'SemiExoStateFn')
     end
     return
 end
-if isfield(simoptions,'experienceasset')
-    StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+if simoptions.experienceasset==1
+    StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
 end
-if isfield(simoptions,'residualasset')
-    StationaryDist=StationaryDist_FHorz_Case1_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+if simoptions.riskyasset==1
+    StationaryDist=StationaryDist_FHorz_Case1_RiskyAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+    return
+end
+if simoptions.residualasset==1
+    StationaryDist=StationaryDist_FHorz_Case1_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
 end
 

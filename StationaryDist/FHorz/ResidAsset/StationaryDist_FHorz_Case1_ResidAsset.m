@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case1_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
 %% Check for the age weights parameter, and make sure it is a row vector
 if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
@@ -60,58 +60,11 @@ N_a=prod(n_a);
 N_r=prod(n_r);
 N_z=prod(n_z);
 
-if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
-    simoptions.parallel=3-(gpuDeviceCount>0); % 3 (sparse) if cpu, 2 if gpu
-    simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
-    simoptions.iterate=1;
-    simoptions.tolerance=10^(-9);
-    simoptions.outputkron=0; % If 1 then leave output in Kron form
-else
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
-    if isfield(simoptions,'tolerance')==0
-        simoptions.tolerance=10^(-9);
-    end
-    if isfield(simoptions,'nsims')==0
-        simoptions.nsims=10^4;
-    end
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=3-(gpuDeviceCount>0); % 3 (sparse) if cpu, 2 if gpu
-    end
-    if isfield(simoptions,'verbose')==0
-        simoptions.verbose=0;
-    end
-    if isfield(simoptions,'ncores')==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
-    end
-    if isfield(simoptions,'iterate')==0
-        simoptions.iterate=1;
-    end
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-    if isfield(simoptions,'outputkron')==0
-        simoptions.outputkron=0; % If 1 then leave output in Kron form
-    end
-end
-
 jequaloneDistKron=reshape(jequaloneDist,[N_a*N_r*N_z,1]);
 if simoptions.parallel~=2 && simoptions.parallel~=4
     Policy=gather(Policy);
     jequaloneDistKron=gather(jequaloneDistKron);    
-    pi_z=gather(pi_z);
+    pi_z_J=gather(pi_z_J);
 end
 
 % Get policy for aprime, then get policy for rprime, then combine (all just in terms of current state)
@@ -126,21 +79,22 @@ elseif l_a==3
 elseif l_a==4
     Policy_aprime=shiftdim(Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:,:)-1),1);
 end
+Policy_aprime=reshape(Policy_aprime,[N_a*N_r,N_z,1,N_j]);
 
-Policy_rprime=zeros(N_a*N_r,N_z,N_j,'gpuArray'); % the lower grid point
-PolicyProbs=zeros(N_a*N_r,N_z,N_j,2,'gpuArray'); % The fourth dimension is lower/upper grid point
+Policy_rprime=zeros(N_a*N_r,N_z,1,N_j,'gpuArray'); % the lower grid points
+PolicyProbs=zeros(N_a*N_r,N_z,2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
 for jj=1:N_j
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,jj);
     [rprimeIndexes, rprimeProbs]=CreaterprimePolicyResidualAsset_Case1(Policy(:,:,:,jj),rprimeFn, n_d, n_a, n_r, n_z, gpuArray(simoptions.d_grid), a_grid, r_grid, gpuArray(simoptions.z_grid), rprimeFnParamsVec);
     % rprimeIndexes is [N_a*N_r,N_z], rprimeProbs is [N_a*N_r,N_z]
-    Policy_rprime(:,:,jj)=rprimeIndexes;
-    PolicyProbs(:,:,jj,1)=rprimeProbs;
-    PolicyProbs(:,:,jj,2)=1-rprimeProbs;
+    Policy_rprime(:,:,1,jj)=rprimeIndexes;
+    PolicyProbs(:,:,1,jj)=rprimeProbs;
+    PolicyProbs(:,:,2,jj)=1-rprimeProbs;
 end
 
-Policy_arprime=zeros(N_a*N_r,N_z,N_j,2,'gpuArray');
-Policy_arprime(:,:,:,1)=Policy_aprime+N_a*(Policy_rprime-1);
-Policy_arprime(:,:,:,2)=Policy_aprime+N_a*(Policy_rprime+1-1);
+Policy_arprime=zeros(N_a*N_r,N_z,2,N_j,'gpuArray');
+Policy_arprime(:,:,1,:)=Policy_aprime+N_a*(Policy_rprime-1);
+Policy_arprime(:,:,2,:)=Policy_aprime+N_a*(Policy_rprime+1-1);
 
 if simoptions.iterate==0
     PolicyProbs=gather(PolicyProbs); % simulation is always with cpu
@@ -149,9 +103,9 @@ if simoptions.iterate==0
         % Sparse matrix is not relevant for the simulation methods, only for iteration method
         simoptions.parallel=2; % will simulate on parallel cpu, then transfer solution to gpu
     end
-    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z, Parameters, simoptions);
+    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z_J, Parameters, simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.outputkron==0

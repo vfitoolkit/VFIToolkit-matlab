@@ -23,7 +23,6 @@ if simoptions.loopovere==0
     StationaryDistKron(:,1)=gather(jequaloneDistKron);
 
     StationaryDist_jj=sparse(gather(jequaloneDistKron));
-
     
     for jj=1:(N_j-1)
         if simoptions.verbose==1
@@ -55,7 +54,6 @@ elseif simoption.loopovere==1
     StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
-    StationaryDist_jj=sparse(StationaryDist_jj);
     
     if N_d==0
         PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]));
@@ -71,7 +69,7 @@ elseif simoption.loopovere==1
 
         for e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
-            StationaryDist_jjee=StationaryDist_jj(:,e_c);
+            StationaryDist_jjee=sparse(StationaryDist_jj(:,e_c));
 
             firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
             Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
@@ -81,7 +79,7 @@ elseif simoption.loopovere==1
             StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
             StationaryDist_jjee=reshape(StationaryDist_jjee*pi_z,[N_a*N_z,1]);
 
-            StationaryDist_jj(:,e_c)=StationaryDist_jjee;
+            StationaryDist_jj(:,e_c)=full(StationaryDist_jjee);
         end
 
         StationaryDist_jj=sum(StationaryDist_jj,2);
@@ -97,7 +95,6 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
     StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
-    StationaryDist_jj=sparse(StationaryDist_jj);
 
     if N_d==0
         PolicyIndexesKron=reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]);
@@ -113,7 +110,7 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
 
         parfor e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
-            StationaryDist_jjee=StationaryDist_jj(:,e_c);
+            StationaryDist_jjee=sparse(StationaryDist_jj(:,e_c));
 
             firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
             Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
@@ -122,7 +119,7 @@ elseif simoption.loopovere==2 % loop over e, but using a parfor loop
             StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
             StationaryDist_jjee=reshape(StationaryDist_jjee*pi_z,[N_a*N_z,1]);
 
-            StationaryDist_jj(:,e_c)=StationaryDist_jjee;
+            StationaryDist_jj(:,e_c)=full(StationaryDist_jjee);
         end
 
         StationaryDist_jj=sum(StationaryDist_jj,2);

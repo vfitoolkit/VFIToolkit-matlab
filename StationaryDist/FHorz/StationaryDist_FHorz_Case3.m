@@ -98,6 +98,7 @@ else
     aprimeFnParamNames={};
 end
 
+
 % to evaluate the aprimeFn we need the grids on gpu
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
