@@ -17,6 +17,7 @@ function output1 = ImportPSIDdata(jobname)
 % Output:
 %  PSIDexplore: a structure that contains all the data and metadata
 
+output1=struct();
 
 %%
 disp(['Starting import of PSID data for jobname ', jobname])
@@ -60,8 +61,7 @@ end
 % this. So I get them from '_format.sps' instead (which has to be renamed
 % '_format_sps.txt' to enable Matlab to access it).
 if exist([jobname,'_formats_sps.txt'],'file')~=2
-    disp(['Matlab cannot access the data inside ',jobname,'_formats.sps directly. Please rename this file to ',jobname,'formats_sps.txt (or create a duplicate copy renamed in this manner)'])
-    return
+    error(['Matlab cannot access the data inside ',jobname,'_formats.sps directly. Please rename this file to ',jobname,'formats_sps.txt (or create a duplicate copy renamed in this manner)'])
 end
 fid = fopen(filename_listcodes,'r');
 tline = fgetl(fid);
@@ -101,8 +101,7 @@ disp(['Import of PSID data for jobname ', jobname, ' currently at step 2 of 4'])
 % then renaming it.
 
 if exist([jobname,'_sps.txt'],'file')~=2
-    disp(['Matlab cannot access the data inside ',jobname,'.sps directly. Please rename this file to ',jobname,'_sps.txt (or create a duplicate copy renamed in this manner)'])
-    return
+    error(['Matlab cannot access the data inside ',jobname,'.sps directly. Please rename this file to ',jobname,'_sps.txt (or create a duplicate copy renamed in this manner)'])
 end
 
 
@@ -239,6 +238,45 @@ for ii=1:nPSIDvariables
 end
 % Given that PSIDexplore is largely just a combination of PSIDsummary of PSIDdata I should really
 % take advantage of this to speed up these loops.
+
+%% Currently 'value' contains the data. But it is all cells of strings while much of the actual data is numerical.
+% I therefore have decided to also create 'value2' which converts it all
+% into numerical data (and puts NaN where there are missing numbers), as
+% well as converting to matrix (instead of cell)
+
+disp('The field called value is the actual data, where there is a value2 it is an attempt to automatically convert to a numerical array (it is advised to compare value and value2 before using value2)')
+for ii=1:nPSIDvariables
+    name=PSIDsummary.name{ii};
+    if isfield(PSIDexplore.(name{:}),'value')
+        % First, check out the first 3 entries, to guess if this is actually numerical data
+        seems_like_a_number=1;
+        try % try the first
+            str2double(PSIDexplore.(name{:}).value(1));
+        catch
+            seems_like_a_number=0; % if failed, probably not a number
+        end
+        try % try the second
+            str2double(PSIDexplore.(name{:}).value(2));
+        catch
+            seems_like_a_number=0; % if failed, probably not a number
+        end
+        try % try the third
+            str2double(PSIDexplore.(name{:}).value(3));
+        catch
+            seems_like_a_number=0; % if failed, probably not a number
+        end
+
+        if seems_like_a_number==1 % If it seems that it is numerical data
+            % Currently MyPSIDdataset.V3.value are strings, so we need to convert them to numbers
+            temp=cellfun(@str2num,PSIDexplore.(name{:}).value,'un',0); % not sure what ,'un',0) does here, copy-pasted it from internet
+            % Before converting to a matrix, we have to replace the empty cells with nan
+            empties = cellfun('isempty',temp);
+            % Now change all the empty cells in temp from empty strings '' to double NaN
+            temp(empties) = {NaN};
+            PSIDexplore.(name{:}).value2=cell2mat(temp);
+        end
+    end
+end
 
 %% 
 output1=PSIDexplore;

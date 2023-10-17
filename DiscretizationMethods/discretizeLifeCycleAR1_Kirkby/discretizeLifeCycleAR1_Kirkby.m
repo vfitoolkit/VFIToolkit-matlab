@@ -94,13 +94,31 @@ if J < 2
 end
 
 if size(mew,2)~=J
-    error('mew_j must have J columns')
+    if isscalar(mew)
+        mew=mew*ones(1,J); % assume that scalars are simply age-independent parameters
+        % No warning, as good odds this is just a zero
+    else
+        error('mew_j must have J columns')
+    end
 end
 if any(sigma < 0)
     error('standard deviations must be positive')
 end
 if size(sigma,2)~=J
-    error('sigma_j must have J columns')
+    if isscalar(sigma)
+        warning('Input for sigma (std dev) was scalar. Interpreting as a constant vector.')
+        sigma=sigma*ones(1,J); % assume that scalars are simply age-independent parameters
+    else
+        error('sigma_j must have J columns')
+    end
+end
+if size(rho,2)~=J
+    if isscalar(rho)
+        warning('Input for autocorrelation was scalar. Interpreting as a constant vector.')
+        rho=rho*ones(1,J); % assume that scalars are simply age-independent parameters
+    else
+        error('rho_j must have J columns')
+    end
 end
 % if any(rho >= 1)
 %     error('autocorrelation coefficient (spectral radius) must be less than one')

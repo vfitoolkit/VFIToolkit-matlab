@@ -75,7 +75,7 @@ else
         l_da=length(n_d)+length(n_a);
         n_da=[n_d,n_a];
         PolicyTemp=zeros(l_da,N_a,N_z,N_e,N_j,'gpuArray');
-        
+
         for jj=1:N_j
             PolicyTemp(1,:,:,:,jj)=rem(Policy(1,:,:,:,jj)-1,n_da(1))+1;
             if l_d>1
