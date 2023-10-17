@@ -357,9 +357,10 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
         %% We have set up the current PType, now do some calculations for it.
         N_a_temp=prod(n_a_temp);
         if isfield(simoptions_temp,'n_e')
-            n_z_temp=[n_z_temp,simoptions_temp.n_e];
+            N_z_temp=prod([n_z_temp,simoptions_temp.n_e]);
+        else
+            N_z_temp=prod(n_z_temp);
         end
-        N_z_temp=prod(n_z_temp);
 
         % Reshape the stationary dist
         StationaryDist_ii=reshape(StationaryDist_temp,[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)

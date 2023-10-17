@@ -32,6 +32,7 @@ if exist('vfoptions','var')==0
     vfoptions.exoticpreferences='None';
     vfoptions.dynasty=0;
     vfoptions.experienceasset=0;
+    vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
 else
@@ -88,6 +89,9 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
+    end
+    if ~isfield(vfoptions,'riskyasset')
+        vfoptions.riskyasset=0;
     end
     if ~isfield(vfoptions,'residualasset')
         vfoptions.residualasset=0;
@@ -171,41 +175,41 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
+l_aprime=l_a;
 l_z=length(n_z);
-% [n_d,n_a,n_z]
-% [l_d,l_a,l_z]
 if n_z(1)==0
     l_z=0;
 end
 if isfield(vfoptions,'SemiExoStateFn')
     l_z=l_z+length(vfoptions.n_semiz);
 end
+l_e=0;
 if isfield(vfoptions,'n_e')
     l_e=length(vfoptions.n_e);
-else
-    l_e=0;
 end
 if vfoptions.experienceasset==1
-    % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable
-    l_z=l_z+1;
-    l_a=l_a-1;
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-1;
+end
+if vfoptions.riskyasset==1
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-1;
 end
 if vfoptions.residualasset==1
-    % One of the endogenous states should only be counted once. I fake this by pretending it is a z rather than a variable
-    l_z=l_z+1;
-    l_a=l_a-1;
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-1;
 end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
     temp=getAnonymousFnInputNames(ReturnFn);
-    if length(temp)>(l_d+l_a+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
-        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
+        ReturnFnParamNames={temp{l_d+l_aprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z,e)
     else
         ReturnFnParamNames={};
     end
 end
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
-% [l_d,l_a,l_z,l_e]
+% [l_d,l_aprime,l_a,l_z,l_e]
 
 %% Implement new way of handling warm-glow of bequests (currently only used by Epstein-Zin preferences)
 if isfield(vfoptions,'WarmGlowBequestsFn')
@@ -240,13 +244,9 @@ if strcmp(vfoptions.exoticpreferences,'None')
 elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
-elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-    if vfoptions.dynasty==0
-        [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        return
-    else
-        error('CANNOT USE EPSTEIN-ZIN PREFERENCES TOGETHER WITH DYNASTY (email robertdkirkby@gmail.com if you need this option)')
-    end
+elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
+    [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
 elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
     [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
@@ -331,6 +331,40 @@ if vfoptions.experienceasset==1
 
     % Now just send all this to the right value fn iteration command
     [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+end
+
+%% Deal with risky asset if need to do that
+if vfoptions.riskyasset==1
+    % It is simply assumed that the experience asset is the last asset, and that all decisions influence it.
+
+    % Split endogenous assets into the standard ones and the experience asset
+    if length(n_a)==1
+        n_a1=0;
+    else
+        n_a1=n_a(1:end-1);
+    end
+    n_a2=n_a(end); % n_a2 is the experience asset
+    a1_grid=a_grid(1:sum(n_a1));
+    a2_grid=a_grid(sum(n_a1)+1:end);
+
+    % Check that aprimeFn is inputted
+    if ~isfield(vfoptions,'aprimeFn')
+        error('You have vfoptions.riskyasset=1, but have not setup vfoptions.aprimeFn')
+    end    
+    % Check that the u shocks are inputted
+    if ~isfield(vfoptions,'n_u')
+        error('You have vfoptions.riskyasset=1, but have not setup vfoptions.n_u')
+    end
+    if ~isfield(vfoptions,'u_grid')
+        error('You have vfoptions.riskyasset=1, but have not setup vfoptions.u_grid')
+    end
+    if ~isfield(vfoptions,'pi_u') % && ~isfield(vfoptions,'pi_u_J')
+        error('You have vfoptions.riskyasset=1, but have not setup vfoptions.pi_u')
+    end
+
+    % Now just send all this to the right value fn iteration command
+    [V,Policy]=ValueFnIter_Case1_FHorz_RiskyAsset(n_d,n_a1,n_a2,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, z_grid, vfoptions.u_grid, pi_z, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 

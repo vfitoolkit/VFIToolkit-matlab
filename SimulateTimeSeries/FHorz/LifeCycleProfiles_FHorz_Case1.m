@@ -20,7 +20,22 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 
 
 %% Check which simoptions have been declared, set all others to defaults 
-if exist('simoptions','var')==1
+if ~exist('simoptions','var')
+    %If options is not given, just use all the defaults
+    if isgpuarray(StationaryDist)
+        simoptions.parallel=2;
+    else
+        simoptions.parallel=1;
+    end
+    simoptions.verbose=0;
+    simoptions.nquantiles=20; % by default gives ventiles
+    simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+    simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
+    simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    simoptions.experienceasset=0;
+    simoptions.riskyasset=0;
+    simoptions.residualasset=0;
+else
     %Check options for missing fields, if there are some fill them with the defaults
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
         simoptions.parallel=2;
@@ -57,23 +72,12 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions,'experienceasset')    
         simoptions.experienceasset=0;
     end
+    if ~isfield(simoptions,'riskyasset')
+        simoptions.riskyasset=0;
+    end
     if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
     end
-else
-    %If options is not given, just use all the defaults
-    if isgpuarray(StationaryDist)
-        simoptions.parallel=2;
-    else
-        simoptions.parallel=1;
-    end
-    simoptions.verbose=0;
-    simoptions.nquantiles=20; % by default gives ventiles
-    simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
-    simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
-    simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.experienceasset=0;
-    simoptions.residualasset=0;
 end
 
 if simoptions.parallel==2 % just make sure things are on gpu as they should be
@@ -105,6 +109,12 @@ end
 if simoptions.experienceasset==1
     % Just rejig the decision variables and send off as a Case2
     n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
+    d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    return
+elseif simoptions.riskyasset==1
+    % Just rejig the decision variables and send off as a Case2
+    n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the risky asset
     d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case2(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
     return
