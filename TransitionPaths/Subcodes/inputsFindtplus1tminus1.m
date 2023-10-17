@@ -1,7 +1,8 @@
-function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames)
+function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames)
 % Subscript that is used to determine if there are any '_tminus1' or
 % '_tplus1' variables used as inputs to FnsToEvaluate or GeneralEqmEqns
 % (Used as part of transition path codes)
+% Look for the _tplus1 in PircePath, and for _tminus1 in AggVars, PricePath, and ParamPath
 
 % Check for using _tminus1 (for price or AggVars) or _tplus1
 FnInputNames={};
@@ -50,6 +51,7 @@ tplus1UsedAsPriceOrAggVar=zeros(ntplus1,1); % I replace the zeros with ones as I
 tminus1UsedAsPriceOrAggVar=zeros(ntminus1,1); % I replace the zeros with ones as I find them
 tplus1priceNames={}; ntplus1prices=0;
 tminus1priceNames={}; ntminus1prices=0;
+tminus1paramNames={}; ntminus1params=0;
 tminus1AggVarsNames={}; ntminus1AggVars=0;
 tplus1pricePathkk=[];
 
@@ -72,6 +74,15 @@ for ii=1:ntminus1
         if strcmp(tminus1Names{ii},PricePathNames{kk})
             ntminus1prices=ntminus1prices+1;
             tminus1priceNames{ntminus1prices}=tminus1Names{ii};
+            tminus1UsedAsPriceOrAggVar(ii)=1;
+        end
+    end
+end
+for ii=1:ntminus1
+    for kk=1:length(ParamPathNames)
+        if strcmp(tminus1Names{ii},ParamPathNames{kk})
+            ntminus1params=ntminus1params+1;
+            tminus1paramNames{ntminus1params}=tminus1Names{ii};
             tminus1UsedAsPriceOrAggVar(ii)=1;
         end
     end

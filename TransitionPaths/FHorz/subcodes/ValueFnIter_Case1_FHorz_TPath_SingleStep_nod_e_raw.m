@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_e_raw(V,n_a,n_z,n_e, N_j, a_grid, z_grid_J, e_grid_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_e_raw(V,n_a,n_z,n_e, N_j, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -6,22 +6,21 @@ N_e=prod(n_e);
 
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
-pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
+Vnext=sum(V.*shiftdim(pi_e_J,-2),3); % Take expectations over e
 
 %%
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
-    % e_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_z=ones(1,length(n_z));
-    % z_gridvals is created below
 end
+
 
 %% j=N_j
 
-% Temporarily save the time period of V that is being replaced
-Vtemp_j=V(:,:,N_j);
+% % % Temporarily save the time period of V that is being replaced
+% % Vtemp_j=V(:,:,N_j);
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
@@ -29,7 +28,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 if vfoptions.lowmemory==0
     
     %if vfoptions.returnmatrix==2 % GPU
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z,n_e, 0, a_grid, z_grid_J(:,N_j), e_grid_J(:,N_j), ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z,n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,:,N_j)=Vtemp;
@@ -38,8 +37,8 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
     
     for e_c=1:N_e
-        e_val=vfoptions.e_gridvals_J(e_c,:,N_j);
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_grid_J(:,N_j), e_val, ReturnFnParamsVec);
+        e_val=e_gridvals_J(e_c,:,N_j);
+        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
         V(:,:,e_c,N_j)=Vtemp;
@@ -48,10 +47,10 @@ elseif vfoptions.lowmemory==1
     
 elseif vfoptions.lowmemory==2
     for z_c=1:N_z
-        z_val=vfoptions.z_gridvals_J(z_c,:,N_j);
+        z_val=z_gridvals_J(z_c,:,N_j);
         for e_c=1:N_e
-            e_val=vfoptions.e_gridvals_J(e_c,:,jN_);
-            ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z,special_n_e, 0, a_grid, z_val,e_val ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
             V(:,z_c,e_c,N_j)=Vtemp;
@@ -74,14 +73,16 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    VKronNext_j=Vtemp_j; % Has been presaved before it was
-    VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3); % Take expectations over e
+    % % VKronNext_j=Vtemp_j; % Has been presaved before it was
+    % % VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj+1),3); % Take expectations over e
+    % % 
+    % % Vtemp_j=V(:,:,:,jj); % Grab this before it is replaced/updated
 
-    Vtemp_j=V(:,:,:,jj); % Grab this before it is replaced/updated
+    VKronNext_j=Vnext(:,:,1,jj+1);
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z,n_e, 0, a_grid, z_grid_J(:,jj),e_grid_J(:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z,n_e, 0, a_grid, z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -101,8 +102,8 @@ for reverse_j=1:N_j-1
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         for e_c=1:N_e
-            e_val=vfoptions.e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_grid_J(:,jj), e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,jj);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
 
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
 
@@ -115,7 +116,7 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            z_val=vfoptions.z_gridvals_J(z_c,:,jj);
+            z_val=z_gridvals_J(z_c,:,jj);
             
             %Calc the condl expectation term (except beta) which depends on z but not control variables
             EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
@@ -123,7 +124,7 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,2);
             
             for e_c=1:N_e
-                e_val=vfoptions.e_gridvals_J(e_c,:,jj);
+                e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
 
                 entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);

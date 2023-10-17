@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_e_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_grid_J,e_grid_J, pi_z_J,pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_e_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J,e_gridvals_J, pi_z_J,pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % fastOLG: fastOLG uses (a,j,z,e) instead of the standard (a,z,e,j)
 % This (a,j,z,e) is important for ability to implement codes based on matrix
 % multiplications (especially for Tan improvement)
@@ -43,17 +43,18 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
     if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
     end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
+    tminus1paramNames=[];
     tminus1AggVarsNames=[];
     tplus1pricePathkk=[];
 end
- 
+
 use_tplus1price=0;
 if length(tplus1priceNames)>0
     use_tplus1price=1;
@@ -66,6 +67,15 @@ if length(tminus1priceNames)>0
             fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
             dbstack
             break
+        end
+    end
+end
+use_tminus1params=0;
+if length(tminus1paramNames)>0
+    use_tminus1params=1;
+    for ii=1:length(tminus1paramNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
         end
     end
 end
@@ -83,9 +93,12 @@ end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 if transpathoptions.verbose>1
+    use_tplus1price
     use_tminus1price
+    use_tminus1params
     use_tminus1AggVars
 end
+
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 AggVarNames=fieldnames(FnsToEvaluate);
@@ -152,7 +165,7 @@ end
 PricePathDist=Inf;
 pathcounter=1;
 
-% fastOLG so everything is (a,j,z)
+% fastOLG so everything is (a,j,z,e)
 V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
 V=zeros(size(V_final),'gpuArray'); %preallocate space
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
@@ -161,6 +174,8 @@ if N_d>0
 else
     Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
 end
+% reshape pi_e_J and e_grid_J for use in fastOLG value fn
+
 
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
 AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
@@ -189,28 +204,29 @@ II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
 II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
 pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
 % and we now need additional pi_e_J_sim
-pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(pi_e_J(:,2:end))'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e (but only for jj=2:end)
+temp=reshape(pi_e_J,[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
+pi_e_J_sim=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); % (a,j,z)-by-e (but only for jj=2:end)
 
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
 daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-z_gridvals_J=zeros(1,N_j,N_z,l_z,'gpuArray'); % z_gridvals_J is [1,N_j,N_z,l_z]
-for jj=1:N_j
-    z_gridvals_J(1,jj,:,:)=shiftdim(CreateGridvals(n_z,z_grid_J(jj,:)',1),2); % Note: z_grid_J is unusual shape as fastOLG
-end
-
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     
-    PolicyIndexesPath=zeros(N_a*N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+    PolicyIndexesPath=zeros(N_a*N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
     
     %First, go from T-1 to 1 calculating the Value function and Optimal
     %policy function at each step. Since we won't need to keep the value
     %functions for anything later we just store the next period one in
     %Vnext, and the current period one to be calculated in V
     V=V_final;
+
+    % % % disp('HereFinal')
+    % % % temp=reshape(permute(reshape(V_final,[N_a,N_j,N_z,N_e]),[1,3,4,2]),[N_a,N_z,N_e,N_j]);
+    % % % temp(1:100)
+
     for ttr=1:T-1 %so tt=T-ttr
         
         for kk=1:length(PricePathNames)
@@ -222,23 +238,34 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         if transpathoptions.zpathtrivial==0
             pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
-            z_grid_J=transpathoptions.z_grid_J_T(:,:,T-ttr);
+            z_gridvals_J=transpathoptions.z_gridvals_J(:,:,T-ttr);
         end
         if transpathoptions.epathtrivial==0
-            vfoptions.pi_e_J=transpathoptions.pi_e_J_T(1,1,:,:,T-ttr); % Has been shiftdim( ,-2) already
-            vfoptions.e_grid_J=transpathoptions.e_grid_J_T(:,:,T-ttr);
+            vfoptions.pi_e_J=transpathoptions.pi_e_J_T(:,1,:,T-ttr);
+            vfoptions.e_grid_J=transpathoptions.e_gridvals_J_T(:,:,:,:,T-ttr);
         end
         % transpathoptions.epathtrivial==1 % Does not depend on T        
 
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
-        PolicyIndexesPath(:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
+
+        % if ttr==1
+        %     disp('Here')
+        %     temp=reshape(permute(reshape(V,[N_a,N_j,N_z,N_e]),[1,3,4,2]),[N_a,N_z,N_e,N_j]);
+        %     temp(1:100)
+        % end
 
     end
+
+    % disp('Here')
+    % temp=reshape(permute(reshape(V,[N_a,N_j,N_z,N_e]),[1,3,4,2]),[N_a,N_z,N_e,N_j]);
+    % temp(1:100)
+
     % Free up space on GPU by deleting things no longer needed
-    clear V Vnext    
+    clear V    
     
     %Now we have the full PolicyIndexesPath, we go forward in time from 1
     %to T using the policies to update the agents distribution generating a
@@ -251,7 +278,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     for tt=1:T-1
                 
         %Get the current optimal policy
-        Policy=PolicyIndexesPath(:,:,tt); % fastOLG: so (a,j)-by-z
+        Policy=PolicyIndexesPath(:,:,:,tt); % fastOLG: so (a,j)-by-z
         
         GEprices=PricePathOld(tt,:);
         
@@ -267,6 +294,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
                 else
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                end
+            end
+        end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
                 end
             end
         end
@@ -289,26 +325,22 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         if transpathoptions.zpathtrivial==0
             pi_z_J=transpathoptions.pi_z_J_T_alt(:,:,:,tt); % fastOLG value function uses (j,z,z')
-            z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
+            z_gridvals_J=transpathoptions.z_gridvals_J(:,:,tt);
             pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
             pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
         end
         % transpathoptions.zpathtrivial==1 % Does not depend on tt
         if transpathoptions.epathtrivial==0
-            simoptions.pi_e_J=transpathoptions.pi_e_J_T(1,1,:,:,tt); % Has been shiftdim( ,-2) already
-            simoptions.e_grid_J=transpathoptions.e_grid_J_T(:,:,tt);
-            if simoptions.fastOLG==1
-                pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(simoptions.pi_e_J)'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e
-            end
+            e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,tt);
+            pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % (a,j,z)-by-e
         end
         % transpathoptions.epathtrivial==1 % Does not depend on T
 
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J);
 
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J);
-
-        if tt<4
-            [AggVars.H.Mean, AggVars.L.Mean, AggVars.K.Mean, AggVars.PensionSpending.Mean, AggVars.AccidentalBeqLeft.Mean]
-        end
+        % if tt<4
+        %     [AggVars.H.Mean, AggVars.L.Mean, AggVars.K.Mean, AggVars.PensionSpending.Mean, AggVars.AccidentalBeqLeft.Mean]
+        % end
 
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
@@ -358,10 +390,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         % if simoptions.fastOLG=1 is hardcoded
         if N_d==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(permute(Policy(:,:,:,1:end-1),[1,4,2,3]),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj);
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(1:end-N_a,:,:),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj);
         else
             % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(permute(ceil(Policy(:,:,:,1:end-1)/N_d),[1,2,5,3,4]),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj);
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(1:end-N_a,:,:)/N_d),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj);
         end
     end
     % Free up space on GPU by deleting things no longer needed
@@ -371,9 +403,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
-    if transpathoptions.verbose==1
-        fprintf('Number of iteration on the path: %i \n',pathcounter)
-        
+    if transpathoptions.verbose==1     
+        pathcounter
+        disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}

@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep(VKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep(VKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 
 % VKron=reshape(VKron,[prod(n_a),prod(n_z),N_j]);
@@ -40,15 +40,15 @@ end
 % N_z==0 is handled by a different command
 if N_d==0
     if N_e==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_e_raw(VKron,n_a, n_z,vfoptions.n_e, N_j, a_grid, z_grid_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_e_raw(VKron,n_a, n_z,vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 else
     if N_e==0
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_e_raw(VKron,n_d,n_a,n_z,vfoptions.n_e, N_j, d_grid, a_grid, z_grid_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_e_raw(VKron,n_d,n_a,n_z,vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 end
 

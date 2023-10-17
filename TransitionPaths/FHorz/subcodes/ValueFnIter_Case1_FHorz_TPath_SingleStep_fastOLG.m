@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(VKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(VKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 % 'fastOLG' just means parallelizing across all of the "ages" (j) at once.
 
@@ -6,13 +6,25 @@ function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(VK
 PolicyKron=nan;
 
 N_d=prod(n_d);
+N_e=0;
+if isfield(vfoptions,'n_e')
+    N_e=prod(vfoptions.n_e);
+end
 % N_z=0 is handled elsewhere
 
 if strcmp(vfoptions.exoticpreferences,'None')
-    if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    if N_e==0
+        if N_d==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
     else
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if N_d==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_e_raw(VKron,n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_e_raw(VKron,n_d,n_a,n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
     end
 else 
     error('Not yet implemented exoticpreferences for transtion paths (email me :)')

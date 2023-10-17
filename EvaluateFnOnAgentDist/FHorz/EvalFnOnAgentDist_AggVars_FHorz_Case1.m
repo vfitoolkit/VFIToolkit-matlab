@@ -75,12 +75,17 @@ elseif fieldexists_ExogShockFn==1
         z_grid_J(:,jj)=z_grid;
     end
 else
-    if all(size(z_grid)==[sum(n_z),1])
-        z_grid_J=repmat(z_grid,1,N_j);
-    elseif all(size(z_grid)==[sum(n_z),N_j])
-        z_grid_J=z_grid; % input is z_grid_J
-    else % Joint-grid on shocks
-        z_grid_J=repmat(z_grid,1,1,N_j);
+    if ndims(z_grid)==3
+         % Already an age-dependent joint-grid on shocks
+         z_grid_J=z_grid;
+    else
+        if all(size(z_grid)==[sum(n_z),1])
+            z_grid_J=repmat(z_grid,1,N_j);
+        elseif all(size(z_grid)==[sum(n_z),N_j])
+            z_grid_J=z_grid; % input is z_grid_J
+        else % Joint-grid on shocks
+            z_grid_J=repmat(z_grid,1,1,N_j);
+        end
     end
 end
 if Parallel==2
@@ -156,7 +161,7 @@ if isfield(simoptions,'n_e')
                 z_grid_J=[z_grid_J; e_grid_J];
             elseif jointgridz==0 % just e is joint
                 z_grid_J_temp=z_grid_J;
-                z_grid_J=zeros(N_e*N_z,l_e+l_z,N_j);
+                z_grid_J=zeros(N_e*N_z,l_e+l_z,N_j);                
                 for jj=1:N_j
                     z_grid_J(:,:,jj)=[kron(ones(N_e,1),CreateGridvals(n_z,z_grid_J_temp(:,jj),1)),kron(e_grid_J(:,:,jj) ,ones(N_z,1))]; % replace e with the joint-grid version
                 end

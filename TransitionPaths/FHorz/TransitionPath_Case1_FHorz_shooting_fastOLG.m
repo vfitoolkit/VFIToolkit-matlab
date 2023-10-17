@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, N_j, d_grid,a_grid,z_grid_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % fastOLG: fastOLG uses (a,j,z) instead of the standard (a,z,j)
 % This (a,j,z) is important for ability to implement codes based on matrix
 % multiplications (especially for Tan improvement)
@@ -41,17 +41,18 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
     if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
     end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
+    tminus1paramNames=[];
     tminus1AggVarsNames=[];
     tplus1pricePathkk=[];
 end
- 
+
 use_tplus1price=0;
 if length(tplus1priceNames)>0
     use_tplus1price=1;
@@ -64,6 +65,15 @@ if length(tminus1priceNames)>0
             fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
             dbstack
             break
+        end
+    end
+end
+use_tminus1params=0;
+if length(tminus1paramNames)>0
+    use_tminus1params=1;
+    for ii=1:length(tminus1paramNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
         end
     end
 end
@@ -81,9 +91,12 @@ end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 if transpathoptions.verbose>1
+    use_tplus1price
     use_tminus1price
+    use_tminus1params
     use_tminus1AggVars
 end
+
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 AggVarNames=fieldnames(FnsToEvaluate);
@@ -167,7 +180,7 @@ if transpathoptions.ageweightstrivial==0
     % AgeWeights_T is N_a*N_j*N_z-by-T
     AgeWeights_T=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights',ones(N_a,1,'gpuArray'))); % Vectorized as N_a*N_j*N_z-by-T
 elseif transpathoptions.ageweightstrivial==1
-    if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
+    if max(abs(AgeWeights_initial-AgeWeights))>10^(-9) % I first put this at 10^(-13), but this turned out to be problematic
         error('AgeWeights differs from the weights implicit in the initial agent distribution (get different weights if calculate from AgentDist_initial vs if look in Parameters at AgeWeightsParamNames)')
     end
     AgeWeights_initial=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_initial',ones(N_a,1,'gpuArray'))); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
@@ -190,10 +203,6 @@ pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
 daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-z_gridvals_J=zeros(1,N_j,N_z,l_z,'gpuArray'); % z_gridvals_J is [1,N_j,N_z,l_z]
-for jj=1:N_j
-    z_gridvals_J(1,jj,:,:)=shiftdim(CreateGridvals(n_z,z_grid_J(jj,:)',1),2); % Note: z_grid_J is unusual shape as fastOLG
-end
 
 
 %%
@@ -217,10 +226,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         if transpathoptions.zpathtrivial==0
             pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
-            z_grid_J=transpathoptions.z_grid_J_T(:,:,T-ttr);
+            z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
         end
         
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
@@ -260,6 +269,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 end
             end
         end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+                end
+            end
+        end
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
@@ -279,7 +297,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         if transpathoptions.zpathtrivial==0
             pi_z_J=transpathoptions.pi_z_J_T_alt(:,:,:,tt); % fastOLG value function uses (j,z,z')
-            z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
+            z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
             pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
             pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
         end
@@ -287,17 +305,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J);
 
-        if tt<4
-            % pathcounter
-            % tt
-            % Policytemp=permute(reshape(Policy,[N_a,N_j,N_z]),[1,3,2]);
-            % Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-            % Policy2(1,:,:,:)=shiftdim(rem(Policytemp-1,N_d)+1,-1);
-            % Policy2(2,:,:,:)=shiftdim(ceil(Policytemp/N_d),-1);
-            % Policy2(1:100)
-            % AgentDist(301:400)'
-            [AggVars.H.Mean, AggVars.L.Mean, AggVars.K.Mean, AggVars.PensionSpending.Mean, AggVars.AccidentalBeqLeft.Mean]
-        end
+        % % if tt<4
+        % %     [AggVars.H.Mean, AggVars.L.Mean, AggVars.K.Mean, AggVars.PensionSpending.Mean, AggVars.AccidentalBeqLeft.Mean]
+        % % end
 
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
@@ -374,9 +384,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
-    if transpathoptions.verbose==1
-        fprintf('Number of iteration on the path: %i \n',pathcounter)
-        
+    if transpathoptions.verbose==1     
+        pathcounter
+        disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}

@@ -34,13 +34,14 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
     if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
     end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
+    tminus1paramNames=[];
     tminus1AggVarsNames=[];
     tplus1pricePathkk=[];
 end
@@ -58,6 +59,15 @@ if length(tminus1priceNames)>0
         end
     end
 end
+use_tminus1params=0;
+if length(tminus1paramNames)>0
+    use_tminus1params=1;
+    for ii=1:length(tminus1paramNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
+        end
+    end
+end
 use_tminus1AggVars=0;
 if length(tminus1AggVarsNames)>0
     use_tminus1AggVars=1;
@@ -70,7 +80,9 @@ end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 if transpathoptions.verbose>1
+    use_tplus1price
     use_tminus1price
+    use_tminus1params
     use_tminus1AggVars
 end
 
@@ -247,6 +259,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 end
             end
         end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+                end
+            end
+        end
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
@@ -328,7 +349,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
-    if transpathoptions.verbose==1        
+    if transpathoptions.verbose==1     
+        pathcounter
+        disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}

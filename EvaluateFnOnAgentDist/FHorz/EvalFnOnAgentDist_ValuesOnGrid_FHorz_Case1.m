@@ -266,7 +266,7 @@ else
     ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate));
 
     a_gridvals=CreateGridvals(n_a,a_grid,2);
-        
+    
     sizePolicyIndexes=size(PolicyIndexes);
     if ~all(sizePolicyIndexes(2:4)==[N_a,N_z,N_j]) % If not in vectorized form
         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);

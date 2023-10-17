@@ -513,26 +513,30 @@ if N_z>0
         end
     end
 
-    if vfoptions.lowmemory>0
-        % Need z_gridvals_J instead of z_grid_J
-        z_gridvals_J=zeros(N_z,l_z,N_j,'gpuArray');
-        for jj=1:N_j
-            z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1);
-        end
-        vfoptions.z_gridvals_J=z_gridvals_J;
+    % Transition path only ever uses z_gridvals_J, not z_grid_J
+    z_gridvals_J=zeros(N_z,l_z,N_j,'gpuArray');
+    for jj=1:N_j
+        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1);
     end
 
     if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-        z_grid_J=z_grid_J'; % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
+        z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
         pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function 
         transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
         if transpathoptions.zpathtrivial==0
-            transpathoptions.z_grid_J_T=permute(transpathoptions.z_grid_J_T,[2,1,3]); % from (j,z,t) to (z,j,t)
+            temp=transpathoptions.z_grid_J_T;
+            transpathoptions=rmfield(transpathoptions,'z_grid_J_T');
+            transpathoptions.z_gridvals_J_T=zeros(N_z,l_z,N_j,T,'gpuArray');
+            for tt=1:T
+                for jj=1:N_j
+                    z_gridvals_J(:,:,jj,tt)=CreateGridvals(n_z,temp(:,jj,tt),1);
+                end
+            end
+            transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from (j,z,t) to (z,j,t)
             transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,1,2,4]);  % We want it to be (j,z,z',t)
             transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % We want it to be (j,z',z,t) [note, this permute is off the previous one]
         end
     end
-    
 end
 
 %% If using e variables do the same for e as we just did for z
@@ -614,9 +618,39 @@ if N_e>0
         end
     end
 
-    vfoptions.e_grid_J=e_grid_J;
+    % Transition path only ever uses e_gridvals_J, not e_grid_J
+    e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
+    for jj=1:N_j
+        e_gridvals_J(:,:,jj)=CreateGridvals(n_e,e_grid_J(:,jj),1);
+    end
+    
+    if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
+        e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
+        pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
+        % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
+        if transpathoptions.epathtrivial==0
+            temp=transpathoptions.e_grid_J_T;
+            transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
+            transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
+            for tt=1:T
+                for jj=1:N_j
+                    e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                end
+            end
+            transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
+            transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
+            transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
+            for tt=1:T
+                temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
+                transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); 
+            end
+        end
+    end
+
+
+    vfoptions.e_grid_J=e_gridvals_J;
     vfoptions.pi_e_J=pi_e_J;
-    simoptions.e_grid_J=e_grid_J;
+    simoptions.e_grid_J=e_gridvals_J;
     simoptions.pi_e_J=pi_e_J;
 end
 
@@ -633,9 +667,9 @@ if transpathoptions.GEnewprice~=2
                     PricePathOld=TransitionPath_Case1_FHorz_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                 else
                     if N_e==0
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_grid_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     else
-                        PricePathOld=TransitionPath_Case1_FHorz_e_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_grid_J, e_grid_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_e_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     end
                 end
             else % use fastOLG setting
@@ -643,10 +677,9 @@ if transpathoptions.GEnewprice~=2
                     PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                 else
                     if N_e==0
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_grid_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     else % use fastOLG setting
-                        error('NOT IMPLEMENTED YET')
-                        PricePathOld=TransitionPath_Case1_FHorz_e_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_grid_J, e_grid_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_e_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     end
                 end
             end
@@ -713,7 +746,7 @@ else
 end
 
 for ii=1:length(PricePathNames)
-    PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+    PricePath.(PricePathNames{ii})=PricePathOld(:,ii)'; % Output as 1-by-T
 end
 
 

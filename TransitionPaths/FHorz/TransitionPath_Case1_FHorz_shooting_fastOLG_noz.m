@@ -39,17 +39,18 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
     if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
     end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
+    tminus1paramNames=[];
     tminus1AggVarsNames=[];
     tplus1pricePathkk=[];
 end
- 
+
 use_tplus1price=0;
 if length(tplus1priceNames)>0
     use_tplus1price=1;
@@ -62,6 +63,15 @@ if length(tminus1priceNames)>0
             fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
             dbstack
             break
+        end
+    end
+end
+use_tminus1params=0;
+if length(tminus1paramNames)>0
+    use_tminus1params=1;
+    for ii=1:length(tminus1paramNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
         end
     end
 end
@@ -79,9 +89,12 @@ end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 if transpathoptions.verbose>1
+    use_tplus1price
     use_tminus1price
+    use_tminus1params
     use_tminus1AggVars
 end
+
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 AggVarNames=fieldnames(FnsToEvaluate);
@@ -239,6 +252,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 end
             end
         end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+                end
+            end
+        end
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
@@ -319,8 +341,44 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     if transpathoptions.verbose==1
         pathcounter
         disp('Old, New')
+        % Would be nice to have a way to get the iteration count without having the whole
+        % printout of path values (I think that would be useful?)
+        pathnametitles{:}
         [PricePathOld,PricePathNew]
     end
+
+    if transpathoptions.graphpricepath==1
+        if length(PricePathNames)>12
+            ncolumns=4;
+        elseif length(PricePathNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(PricePathNames)/ncolumns);
+        fig1=figure(1);
+        for pp=1:length(PricePathNames)
+            subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
+            title(PricePathNames{pp})
+        end
+    end
+    if transpathoptions.graphaggvarspath==1
+        % Do an additional graph, this one of the AggVars
+        if length(AggVarNames)>12
+            ncolumns=4;
+        elseif length(AggVarNames)>6
+            ncolumns=3;
+        else
+            ncolumns=2;
+        end
+        nrows=ceil(length(AggVarNames)/ncolumns);
+        fig2=figure(2);
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(AggVarNames{pp})
+        end
+    end
+    
 
     %Set price path to be 9/10ths the old path and 1/10th the new path (but
     %making sure to leave prices in periods 1 & T unchanged).

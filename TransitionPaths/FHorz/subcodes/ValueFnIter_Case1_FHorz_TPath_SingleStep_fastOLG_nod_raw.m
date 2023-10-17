@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_raw(V,n_a,n_z,N_j, a_grid, z_grid_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_raw(V,n_a,n_z,N_j, a_grid, z_gridvals_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
@@ -23,7 +23,7 @@ VKronNext=[V(N_a+1:end,:); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so
 
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z, N_j, [], a_grid, z_grid_J, ReturnFnParamsAgeMatrix);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z, N_j, [], a_grid, z_gridvals_J, ReturnFnParamsAgeMatrix);
     % fastOLG: ReturnMatrix is [aprime,a,j,z]
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
@@ -45,7 +45,7 @@ elseif vfoptions.lowmemory==1
     n_z_special=ones(1,length(n_z));
     
     for z_c=1:N_z
-        z_vals=z_gridvals_J(z_c,:,:);
+        z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, 0, n_a, n_z_special, N_j, [], a_grid, z_vals, ReturnFnParamsAgeMatrix);
         % fastOLG: ReturnMatrix is [aprime,a,j,z]
 

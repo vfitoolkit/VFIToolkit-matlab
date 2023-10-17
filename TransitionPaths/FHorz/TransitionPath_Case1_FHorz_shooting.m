@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, N_j, d_grid,a_grid,z_grid_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -38,13 +38,14 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
     if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
     end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
+    tminus1paramNames=[];
     tminus1AggVarsNames=[];
     tplus1pricePathkk=[];
 end
@@ -62,6 +63,15 @@ if length(tminus1priceNames)>0
         end
     end
 end
+use_tminus1params=0;
+if length(tminus1paramNames)>0
+    use_tminus1params=1;
+    for ii=1:length(tminus1paramNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1paramNames{ii})
+        end
+    end
+end
 use_tminus1AggVars=0;
 if length(tminus1AggVarsNames)>0
     use_tminus1AggVars=1;
@@ -74,7 +84,9 @@ end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 if transpathoptions.verbose>1
+    use_tplus1price
     use_tminus1price
+    use_tminus1params
     use_tminus1AggVars
 end
 
@@ -221,11 +233,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         if transpathoptions.zpathtrivial==0
             pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
-            z_grid_J=transpathoptions.z_grid_J_T(:,:,T-ttr);
+            z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
         end
         % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in vfoptions already
         
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
         
@@ -273,6 +285,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 end
             end
         end
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+                end
+            end
+        end
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
                 kk=tplus1pricePathkk(pp);
@@ -292,7 +313,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         if transpathoptions.zpathtrivial==0
             pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-            z_grid_J=transpathoptions.z_grid_J_T(:,:,tt);
+            z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
             if simoptions.fastOLG==1
                 pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
                 pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
@@ -302,10 +323,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
         if simoptions.fastOLG==0
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, 2, simoptions); % The 2 is for Parallel (use GPU)
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, 2, simoptions); % The 2 is for Parallel (use GPU)
         else % simoptions.fastOLG==1
             % AgentDist has to be reshaped before passing
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(permute(reshape(AgentDist,[N_a,N_j,N_z]),[1,3,2]), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, 2, simoptions); % The 2 is for Parallel (use GPU)
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(permute(reshape(AgentDist,[N_a,N_j,N_z]),[1,3,2]), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, 2, simoptions); % The 2 is for Parallel (use GPU)
         end
         
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
@@ -375,9 +396,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
-    if transpathoptions.verbose==1
-        fprintf('Number of iteration on the path: %i \n',pathcounter)
-        
+    if transpathoptions.verbose==1     
+        pathcounter
+        disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}
