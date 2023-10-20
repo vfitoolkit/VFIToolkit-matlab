@@ -168,14 +168,15 @@ end
 
 %%
 if Parallel==2
+
     ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate),'gpuArray');
-    
+
     PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1,1+l_a+l_z+1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
-    
+
     PolicyValuesPermuteVec=reshape(PolicyValuesPermute,[N_a*N_z*(l_d+l_a),N_j]);
-    for ff=1:length(FnsToEvaluate)        
+    for ff=1:length(FnsToEvaluate)
         Values=nan(N_a*N_z,N_j,'gpuArray');
         for jj=1:N_j
             if jointgrids==0
@@ -193,7 +194,7 @@ if Parallel==2
         end
         ValuesOnGrid(:,:,ff)=Values;
     end
-    
+
 elseif Parallel==0
     ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate));
 

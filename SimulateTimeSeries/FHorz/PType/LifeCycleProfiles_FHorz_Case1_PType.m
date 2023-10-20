@@ -109,9 +109,12 @@ else
     end
 end
 if isstruct(simoptions.agegroupings)
-    ngroups=length(simoptions.agegroupings.(Names_i{ii}));
+    ngroups=zeros(N_i,1);
+    for ii=1:N_i
+        ngroups(ii)=length(simoptions.agegroupings.(Names_i{ii}));
+    end
 else
-    ngroups=length(simoptions.agegroupings);
+    ngroups=length(simoptions.agegroupings)*ones(N_i,1);
 end
 maxngroups=max(ngroups(isfinite(ngroups)));
 if isstruct(simoptions.agejshifter) % if using agejshifter
@@ -357,13 +360,22 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
         %% We have set up the current PType, now do some calculations for it.
         N_a_temp=prod(n_a_temp);
         if isfield(simoptions_temp,'n_e')
-            N_z_temp=prod([n_z_temp,simoptions_temp.n_e]);
+            n_ze_temp=[n_z_temp,simoptions_temp.n_e];
+            N_ze_temp=prod([n_z_temp,simoptions_temp.n_e]);
         else
-            N_z_temp=prod(n_z_temp);
+            n_ze_temp=n_z_temp;
+            N_ze_temp=prod(n_z_temp);
         end
+        l_ze_temp=length(n_ze_temp);
+
+        % Create PolicyValues
+        PolicyValues_temp=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_ze_temp,N_j_temp,d_grid_temp,a_grid_temp);
+        permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1,1+l_a_temp+l_ze_temp+1];
+        PolicyValues_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
+        PolicyValues_temp=reshape(PolicyValues_temp,[N_a_temp*N_ze_temp,(l_d_temp+l_a_temp),N_j_temp]);
 
         % Reshape the stationary dist
-        StationaryDist_ii=reshape(StationaryDist_temp,[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
+        StationaryDist_ii=reshape(StationaryDist_temp,[N_a_temp*N_ze_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
         FnNames_ii=fieldnames(FnsToEvaluate_ii);
         for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
@@ -372,7 +384,8 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
             
             % Evaluate the FnsToEvaluate that are relevant for the current ptype
             simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-            ValuesOnGrid_kkii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_iikk, Parameters_temp, FnsToEvaluateParamNames_ii, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+            % ValuesOnGrid_kkii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_iikk, Parameters_temp, FnsToEvaluateParamNames_ii, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+            ValuesOnGrid_kkii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iikk, Parameters_temp, FnsToEvaluateParamNames_ii, n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_grid_temp,simoptions_temp);
 
             if simoptions_temp.verbose==1
                 fprintf('Life-Cycle Profiles: Permanent type: %i of %i, FnsToEvaluate: %i of %i \n',ii, N_i, kk, numFnsToEvaluate)
@@ -397,6 +410,7 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
             end
 
             if WhichFnsForCurrentPType_ii(kk)>0
+
                 % Because of how we loop over both kk (FnsToEvaluate) and ii (PType),
                 % WhichFnsForCurrentPType_ii(kk) will be a scalar 1 or 0. If zero then we
                 % can just skip the function for this agent permanent type, so only do things when it is one.
@@ -406,9 +420,9 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                 % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).
                 % Mean, Median, Variance, StdDev, Gini, Top1share, Top5share, Top10share,
                 % Bottom50share,Percentile50th, Percentile 90th, Percentile95th, Percentile99th
-                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,1,'gpuArray');
-                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,1,'gpuArray'); % Includes the min and max values
-                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,1,'gpuArray');
+                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
+                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
+                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
 
                 for jj=1:length(simoptions_temp.agegroupings)
 
@@ -421,8 +435,8 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                     % simoptions.agejshifter
 
                     % Calculate the individual stats
-                    StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
-                    Values_jj=reshape(ValuesOnGrid_kkii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
+                    StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_ze_temp*(jend-j1+1),1]);
+                    Values_jj=reshape(ValuesOnGrid_kkii(:,j1:jend),[N_a_temp*N_ze_temp*(jend-j1+1),1]);
 
                     % Eliminate all the zero-weights from these (this would
                     % increase run times if we only do exact calculations, but
@@ -434,13 +448,8 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                     % If doing groupstats we will later want the unique values (we use t-Digests if there are more than 100,000 unique values) so just do it now
                     if simoptions.groupptypesforstats==1
                         [Values_jj,~,uind]=unique(Values_jj);
-                        StationaryDistVec_jjOLD=StationaryDistVec_jj;
-                        StationaryDistVec_jj=zeros(length(Values_jj),1);
-                        for vv=1:length(Values_jj)
-                            StationaryDistVec_jj(vv)=sum(StationaryDistVec_jjOLD(uind==vv));
-                        end
+                        StationaryDistVec_jj = accumarray(uind,StationaryDistVec_jj);
                     end
-
 
                     % Should be mass one, but just enforce to reduce numerical rounding errors
                     StationaryDistVec_jj=StationaryDistVec_jj./sum(StationaryDistVec_jj); % Normalize to sum to one for this 'agegrouping'
@@ -503,6 +512,7 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                         AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini(jj)=1;
                     end
 
+
                     % Top X share indexes
                     Top1cutpoint=round(0.99*simoptions_temp.npoints);
                     Top5cutpoint=round(0.95*simoptions_temp.npoints);
@@ -556,8 +566,8 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                     
                     if simoptions.groupptypesforstats==1
                         jjageshifted=jj+simoptions.agejshifter(ii);
-                        %% When the stat has less than 100000 unique values I just keep them
-                        if length(Values_jj)<10^6
+                        %% When the stat has less than 10^9 unique values I just keep them
+                        if length(Values_jj)<10^9
                             basicValues(kk,ii)=1;
                             FullBasicValues(kk,ii,jjageshifted).Values=Values_jj;
                             FullBasicValues(kk,ii,jjageshifted).StationaryDistVec=StationaryDistVec_jj;
@@ -582,6 +592,7 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                     end
 
                 end
+
 
                 if simoptions.groupptypesforstats==1
                     MeanVec(ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+ngroups(ii),kk)=AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean; % Note: if ngroups(ii)<max(ngroups) there will just be some NaN left at the end of the row

@@ -18,7 +18,8 @@ while currdist>Tolerance
 
     VKronold=VKron;
 
-    parfor z_c=1:N_z
+    % parfor z_c=1:N_z
+    for z_c=1:N_z
         pi_z_z=pi_z(z_c,:);
         VKron_z=zeros(N_a,1);
         PolicyIndexes_z=zeros(N_a,1);
