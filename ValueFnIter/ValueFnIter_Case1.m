@@ -107,11 +107,6 @@ else
     end
 end
 
-% TEMPORARY HACK
-if vfoptions.parallel~=2
-    vfoptions.solnmethod='purediscretization'; %
-end
-
 %% Check the sizes of some of the inputs
 if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'localpolicysearch')
     if size(d_grid)~=[sum(n_d), 1]
@@ -552,7 +547,6 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron,Policy]=ValueFnIter_Case1_NoD_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             elseif vfoptions.parallel==2 % On GPU
-%                 [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_Alt_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
                 [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
             end
         else

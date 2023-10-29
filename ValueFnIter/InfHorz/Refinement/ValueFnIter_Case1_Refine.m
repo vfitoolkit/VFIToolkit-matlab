@@ -15,7 +15,7 @@ end
 
 if vfoptions.lowmemory==0
     if vfoptions.returnmatrix==0     % On CPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec,1);
     elseif vfoptions.returnmatrix==1
         ReturnMatrix=ReturnFn;
     elseif vfoptions.returnmatrix==2 % GPU

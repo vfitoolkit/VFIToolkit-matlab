@@ -41,10 +41,9 @@ while currdist>Tolerance
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
+    
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
-            %VKrontemp=VKron;
-            %EVKrontemp=VKrontemp(PolicyIndexes,:);
             EVKrontemp=VKron(PolicyIndexes,:);
             
             EVKrontemp=EVKrontemp.*aaa;
@@ -54,13 +53,6 @@ while currdist>Tolerance
         end
     end
 
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
 
 end
