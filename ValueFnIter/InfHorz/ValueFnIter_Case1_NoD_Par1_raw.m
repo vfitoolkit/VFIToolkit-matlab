@@ -10,10 +10,10 @@ function [VKron, Policy]=ValueFnIter_Case1_NoD_Par1_raw(VKron, N_a, N_z, pi_z, b
 
 PolicyIndexes=zeros(N_a,N_z);
 
-Ftemp=zeros(N_a,N_z,'gpuArray');
+Ftemp=zeros(N_a,N_z);
 
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-ccc=kron(ones(N_a,1,'gpuArray'),bbb);
+ccc=kron(ones(N_a,1),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
 
 tempcounter=1;
