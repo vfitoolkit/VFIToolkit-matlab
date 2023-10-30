@@ -1,238 +1,51 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,n_d1,n_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z_J,pi_semiz_J,pi_e_J,Parameters,simoptions)
-%Will treat the agents as being on a continuum of mass 1.
-
-% Options needed
-%  simoptions.maxit
-%  simoptions.tolerance
-%  simoptions.parallel
+function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,pi_z_J,pi_semiz_J,pi_e_J,Parameters,simoptions)
+% Will treat the agents as being on a continuum of mass 1.
 
 N_bothz=N_z*N_semiz;
 
-if simoptions.parallel<2
-    
-    StationaryDistKron=zeros(N_a*N_bothz*N_e,N_j);
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
+optdprime=gather(reshape(PolicyIndexesKron(1,:,:,:),[N_a*N_bothz*N_e,N_j])); % Note: column vector (conditional on jj)
+optaprime=gather(reshape(PolicyIndexesKron(2,:,:,:),[N_a*N_bothz*N_e,N_j])); % Note: column vector (conditional on jj)
 
-        pi_semiz_jj=pi_semiz_J(:,:,:,jj);
-           
-        % z transitions based on semiz
-        optdprime=reshape(PolicyIndexesKron(1,:,:,:,jj),[N_a*N_bothz*N_e,1]); % Note has to be column vector to use in next line
-        dsub=ind2sub_vec_homemade([n_d1,n_d2],optdprime);
-        d2_c=dsub(:,end); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
-        % Get the right part of pi_semiz_J % d2 depends on (a,z,semiz,e), and
-        % pi_semiz is going to be about (semiz,semiz'), so I need to put it all
-        % together as (a,z,semiz,e,semiz').
-        semizindexcorrespondingtod2_c=kron(kron(ones(N_e,1),(1:1:N_semiz)'),ones(N_a*N_z,1));
-        fullindex=semizindexcorrespondingtod2_c+N_semiz*((1:1:N_semiz)-1)+(N_semiz*N_semiz)*(d2_c-1);
-        semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
+%% Tan improvement verion
 
-        optaprime=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_bothz*N_e]);
-        Ptranspose=zeros(N_a,N_a*N_bothz*N_e);  % Start with P (a,z,semiz,e) to a' (Note, create P')
-        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_bothz*N_e-1)))=1;
-        Ptranspose=kron(kron(ones(N_semiz,N_semiz*N_e),pi_z_J(:,:,jj)'),ones(N_a,N_a)).*kron(semiztransitions',ones(N_a*N_z*N_e,1)).*kron(ones(N_bothz,1),Ptranspose);  % Now use pi_z and pi_semiz to switch to P (a,z,semiz,e) to (a',z',semiz')
-        
-        StationaryDistKron(:,jj+1)=kron(pi_e_J(:,:,jj),(Ptranspose*StationaryDistKron(:,jj)));
-    end
-    
-elseif simoptions.parallel==2 % Using the GPU
-    
-    StationaryDistKron=zeros(N_a*N_bothz*N_e,N_j,'gpuArray');
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    % First, generate the transition matrix P=g of Q (the convolution of the 
-    % optimal policy function and the transition fn for exogenous shocks)
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
+% To do Tan improvement with semiz shocks we treat the first step as
+% (a,semiz,z) to (a',semiz',z) and then the second is the standard just
+% updating z to z'.
+StationaryDistKron=zeros(N_a*N_bothz*N_e,N_j,'gpuArray');
+StationaryDistKron(:,1)=jequaloneDistKron;
+StationaryDistKron_jj=sparse(gather(jequaloneDistKron));
 
-        pi_semiz_jj=pi_semiz_J(:,:,:,jj);
+for jj=1:(N_j-1)
+    firststep=optaprime(:,jj)+kron(ones(N_e,1),kron(N_a*N_semiz*(0:1:N_z-1)',ones(N_a*N_semiz,1)))+N_a*(0:1:N_semiz-1); % (a',semiz',z',e)-by-semiz
+    % Note: optaprime and the z are columns, while semiz is a row that adds every semiz
 
-        % z transitions based on semiz
-        optdprime=reshape(PolicyIndexesKron(1,:,:,:,jj),[N_a*N_bothz*N_e,1]); % Note has to be column vector to use in next line
-        dsub=ind2sub_vec_homemade([n_d1,n_d2],optdprime);
-        d2_c=dsub(:,end); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
-        % Get the right part of pi_semiz_J % d2 depends on (a,z,semiz,e), and
-        % pi_semiz is going to be about (semiz,semiz'), so I need to put it all
-        % together as (a,z,semiz,e,semiz').
-        semizindexcorrespondingtod2_c=kron(kron(ones(N_e,1,'gpuArray'),(1:1:N_semiz)'),ones(N_a*N_z,1,'gpuArray'));
-        fullindex=semizindexcorrespondingtod2_c+N_semiz*((1:1:N_semiz)-1)+(N_semiz*N_semiz)*(d2_c-1);
-        semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
+    % Get the semiz transition probabilities into needed form
+    pi_semiz_jj=pi_semiz_J(:,:,:,jj);
+    % z transitions based on semiz
+    dsub=ind2sub_vec_homemade([N_d1,N_d2],optdprime(:,jj));
+    d2_c=dsub(:,2); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
+    % Get the right part of pi_semiz_J 
+    % d2 depends on (a,z,semiz), and pi_semiz is going to be about (semiz,semiz'), so I need to put it all together as (a,z,semiz,semiz').
+    semizindexcorrespondingtod2_c=kron(ones(N_z*N_e,1),kron((1:1:N_semiz)',ones(N_a,1)));
+    fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(d2_c-1);
+    semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
 
-        optaprime=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_bothz*N_e]);
-        Ptranspose=zeros(N_a,N_a*N_bothz*N_e,'gpuArray');  % Start with P (a,z,semiz,e) to a' (Note, create P')
-        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_bothz*N_e-1)))=1;
-        Ptranspose=kron(kron(ones(N_semiz,N_semiz*N_e,'gpuArray'),pi_z_J(:,:,jj)'),ones(N_a,N_a,'gpuArray')).*kron(semiztransitions',ones(N_a*N_z*N_e,1,'gpuArray')).*kron(ones(N_bothz,1,'gpuArray'),Ptranspose);  % Now use pi_z and pi_semiz to switch to P (a,z,semiz,e) to (a',z',semiz')
+    Gammatranspose=sparse(firststep',repelem((1:1:N_a*N_bothz*N_e),N_semiz,1),semiztransitions',N_a*N_bothz,N_a*N_bothz*N_e); % From (a,semiz,z) to (a',semiz',z)
+    % Note: repelem((1:1:N_a*N_bothz*N_e),N_semiz,1) is just a simpler way to write repelem((1:1:N_a*N_bothz*N_e)',1,N_semiz)'
 
-        StationaryDistKron(:,jj+1)=kron(pi_e_J(:,:,jj), Ptranspose*StationaryDistKron(:,jj) );
-    end
-    
-elseif simoptions.parallel==3 % Sparse matrix instead of a standard matrix for P, on cpu
-    
-    StationaryDistKron=sparse(N_a*N_bothz*N_e,N_j);
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
+    % First step of Tan improvment
+    StationaryDistKron_jj=reshape(Gammatranspose*StationaryDistKron_jj,[N_a*N_semiz,N_z]);
 
-        pi_semiz_jj=pi_semiz_J(:,:,:,jj);
+    % Second step of Tan improvement
+    pi_z=sparse(gather(pi_z_J(:,:,jj)));
+    StationaryDistKron_jj=reshape(StationaryDistKron_jj*pi_z,[N_a*N_bothz,1]);
 
+    % Now do e variable transitions
+    pi_e=sparse(gather(pi_e_J(:,jj)));
+    StationaryDistKron_jj=kron(pi_e,StationaryDistKron_jj);
 
-        % z transitions based on semiz
-        optdprime=reshape(PolicyIndexesKron(1,:,:,:,jj),[N_a*N_bothz*N_e,1]); % Note has to be column vector to use in next line
-        dsub=ind2sub_vec_homemade([n_d1,n_d2],optdprime);
-        d2_c=dsub(:,end); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
-        % Get the right part of pi_semiz_J % d2 depends on (a,z,semiz,e), and
-        % pi_semiz is going to be about (semiz,semiz'), so I need to put it all
-        % together as (a,z,semiz,e,semiz').
-        semizindexcorrespondingtod2_c=kron(kron(ones(N_e,1),(1:1:N_semiz)'),ones(N_a*N_z,1));
-        fullindex=semizindexcorrespondingtod2_c+N_semiz*((1:1:N_semiz)-1)+(N_semiz*N_semiz)*(d2_c-1);
-        semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
-
-        optaprime=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_bothz*N_e]);
-        Ptranspose=zeros(N_a,N_a*N_bothz*N_e);  % Start with P (a,z,semiz,e) to a' (Note, create P')
-        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_bothz*N_e-1)))=1;
-        Ptranspose=kron(kron(ones(N_semiz,N_semiz*N_e),sparse(pi_z_J(:,:,jj))'),ones(N_a,N_a)).*kron(sparse(semiztransitions'),ones(N_a*N_z*N_e,1)).*kron(ones(N_bothz,1),Ptranspose);  % Now use pi_z and pi_semiz to switch to P (a,z,semiz,e) to (a',z',semiz')
-
-        StationaryDistKron(:,jj+1)=kron(pi_e_J(:,:,jj), Ptranspose*StationaryDistKron(:,jj) );
-    end
-    
-    StationaryDistKron=full(StationaryDistKron); % Why do I do this? Why not just leave it sparse?
-    % Move the solution to the gpu
-    StationaryDistKron=gpuArray(StationaryDistKron);
-    
-elseif simoptions.parallel==4 % Sparse matrix instead of a standard matrix for P, on cpu
-    
-    StationaryDistKron=sparse(N_a*N_bothz*N_e,N_j);
-    StationaryDistKron(:,1)=jequaloneDistKron;
-    
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
-
-        pi_semiz_jj=pi_semiz_J(:,:,:,jj);
-        
-        % z transitions based on semiz
-        optdprime=reshape(PolicyIndexesKron(1,:,:,:,jj),[N_a*N_bothz*N_e,1]); % Note has to be column vector to use in next line
-        dsub=ind2sub_vec_homemade([n_d1,n_d2],optdprime);
-        d2_c=dsub(:,end); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
-        % Get the right part of pi_semiz_J % d2 depends on (a,z,semiz,e), and
-        % pi_semiz is going to be about (semiz,semiz'), so I need to put it all
-        % together as (a,z,semiz,e,semiz').
-        semizindexcorrespondingtod2_c=kron(kron(ones(N_e,1),(1:1:N_semiz)'),ones(N_a*N_z,1));
-        fullindex=semizindexcorrespondingtod2_c+N_semiz*((1:1:N_semiz)-1)+(N_semiz*N_semiz)*(d2_c-1);
-        semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
-
-        optaprime=reshape(PolicyIndexesKron(2,:,:,:,jj),[1,N_a*N_bothz*N_e]);
-        Ptranspose=zeros(N_a,N_a*N_bothz*N_e);  % Start with P (a,z,semiz,e) to a' (Note, create P')
-        Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_bothz*N_e-1)))=1;
-        Ptranspose=kron(kron(ones(N_semiz,N_semiz*N_e),sparse(pi_z_J(:,:,jj))'),ones(N_a,N_a)).*kron(sparse(semiztransitions'),ones(N_a*N_z*N_e,1)).*kron(ones(N_bothz,1),Ptranspose);  % Now use pi_z and pi_semiz to switch to P (a,z,semiz,e) to (a',z',semiz')
-
-        StationaryDistKron(:,jj+1)=kron(pi_e_J(:,:,jj), Ptranspose*StationaryDistKron(:,jj) );
-    end
-    StationaryDistKron=full(StationaryDistKron);
-    
-    if simoptions.parallel==4 % Move solution to gpu
-        StationaryDistKron=gpuArray(StationaryDistKron);
-    end
-    
-elseif simoptions.parallel==5 % Same as 2, except loops over e
-    
-    StationaryDistKron=zeros(N_a*N_bothz,N_e,N_j,'gpuArray');
-    StationaryDistKron(:,:,1)=reshape(jequaloneDistKron,[N_a*N_bothz,N_e]);
-    
-    % First, generate the transition matrix P=g of Q (the convolution of the 
-    % optimal policy function and the transition fn for exogenous shocks)
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
-
-        pi_semiz_jj=pi_semiz_J(:,:,:,jj);
-        
-        % Take advantage of fact that for each (a,z,e) we can map into
-        % (a',z'), looping over e
-        StatDisttemp=zeros(N_a*N_bothz,1,'gpuArray');
-        for e_c=1:N_e
-            % z transitions based on semiz
-            optdprime=reshape(PolicyIndexesKron(1,:,:,e_c,jj),[N_a*N_bothz,1]); % Note has to be column vector to use in next line
-            dsub=ind2sub_vec_homemade([n_d1,n_d2],optdprime);
-            d2_c=dsub(:,end); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
-            % Get the right part of pi_semiz_J % d2 depends on (a,z,semiz,e), and
-            % pi_semiz is going to be about (semiz,semiz'), so I need to put it all
-            % together as (a,z,semiz,e,semiz').
-            semizindexcorrespondingtod2_c=kron((1:1:N_semiz)',ones(N_a*N_z,1,'gpuArray'));
-            fullindex=semizindexcorrespondingtod2_c+N_semiz*((1:1:N_semiz)-1)+(N_semiz*N_semiz)*(d2_c-1);
-            semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
-
-            optaprime=reshape(PolicyIndexesKron(2,:,:,e_c,jj),[1,N_a*N_bothz]);
-            Ptranspose=zeros(N_a,N_a*N_bothz,'gpuArray');  % Start with P (a,z,semiz,e) to a' (Note, create P')
-            Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_bothz-1)))=1;
-            Ptranspose=kron(kron(ones(N_semiz,N_semiz,'gpuArray'),pi_z_J(:,:,jj)'),ones(N_a,N_a,'gpuArray')).*kron(semiztransitions',ones(N_a*N_z,1,'gpuArray')).*kron(ones(N_bothz,1,'gpuArray'),Ptranspose);  % Now use pi_z and pi_semiz to switch to P (a,z,semiz,e) to (a',z',semiz')
-            
-            StatDisttemp=StatDisttemp+Ptranspose*StationaryDistKron(:,e_c,jj);
-        end
-        % And now just distribute over the e'
-        StationaryDistKron(:,:,jj+1)=StatDisttemp.*pi_e_J(:,:,jj)';
-
-    end
-    
-elseif simoptions.parallel==6 % Same as 4, except loops over e
-    
-    StationaryDistKron=zeros(N_a*N_bothz,N_e,N_j,'gpuArray');
-    StationaryDistKron(:,:,1)=reshape(jequaloneDistKron,[N_a*N_bothz,N_e]);
-    
-    % First, generate the transition matrix P=g of Q (the convolution of the 
-    % optimal policy function and the transition fn for exogenous shocks)
-    for jj=1:(N_j-1)
-        
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
-
-        pi_semiz_jj=pi_semiz_J(:,:,:,jj);
-        
-        % Take advantage of fact that for each (a,z,e) we can map into (a',z'), looping over e
-        StatDisttemp=sparse(N_a*N_bothz,1);
-        for e_c=1:N_e
-            % z transitions based on semiz
-            optdprime=reshape(PolicyIndexesKron(1,:,:,e_c,jj),[N_a*N_bothz,1]); % Note has to be column vector to use in next line
-            dsub=ind2sub_vec_homemade([n_d1,n_d2],optdprime);
-            d2_c=dsub(:,end); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
-            % Get the right part of pi_semiz_J % d2 depends on (a,z,semiz,e), and
-            % pi_semiz is going to be about (semiz,semiz'), so I need to put it all
-            % together as (a,z,semiz,e,semiz').
-            semizindexcorrespondingtod2_c=kron((1:1:N_semiz)',ones(N_a*N_z,1));
-            fullindex=semizindexcorrespondingtod2_c+N_semiz*((1:1:N_semiz)-1)+(N_semiz*N_semiz)*(d2_c-1);
-            semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
-
-            optaprime=reshape(PolicyIndexesKron(2,:,:,e_c,jj),[1,N_a*N_bothz]);
-            Ptranspose=zeros(N_a,N_a*N_bothz);  % Start with P (a,z,semiz,e) to a' (Note, create P')
-            Ptranspose(optaprime+N_a*(gpuArray(0:1:N_a*N_bothz-1)))=1;
-            Ptranspose=kron(kron(ones(N_semiz,N_semiz),pi_z_J(:,:,jj)'),ones(N_a,N_a)).*kron(semiztransitions',ones(N_a*N_z,1)).*kron(ones(N_bothz,1),Ptranspose);  % Now use pi_z and pi_semiz to switch to P (a,z,semiz,e) to (a',z',semiz')
-            
-            StatDisttemp=StatDisttemp+Ptranspose*StationaryDistKron(:,e_c,jj);
-        end
-        % And now just distribute over the e'
-        StationaryDistKron(:,:,jj+1)=full(gpuArray(StatDisttemp.*pi_e_J(:,:,jj)'));
-
-    end
-    
+    StationaryDistKron(:,jj+1)=gpuArray(full(StationaryDistKron_jj));
 end
-
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 try

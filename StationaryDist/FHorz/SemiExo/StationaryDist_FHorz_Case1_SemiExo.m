@@ -32,12 +32,14 @@ for jj=1:N_j
 end
 
 %%
+N_d1=prod(n_d1);
+N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_z=prod(n_z);
 % N_semiz=prod(n_semiz);
 
-jequaloneDist=reshape(jequaloneDist,[N_a*N_z*N_semiz,1]);
-Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [n_z,simoptions.n_semiz],N_j);
+jequaloneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z,1]);
+Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z],N_j);
 if simoptions.iterate==0
     Policy=gather(Policy);
     jequaloneDist=gather(jequaloneDist);    
@@ -47,14 +49,14 @@ pi_z_J=gather(pi_z_J);
 if simoptions.iterate==0
     StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Simulation_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions);
+    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions);
 end
 
 if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_z,simoptions.n_semiz,N_j]);
+    StationaryDist=reshape(StationaryDistKron,[n_a,simoptions.n_semiz,n_z,N_j]);
 else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[N_a,N_z,N_semiz,N_j]);
+    StationaryDist=reshape(StationaryDistKron,[N_a,N_semiz,N_z,N_j]);
 end
 
 end

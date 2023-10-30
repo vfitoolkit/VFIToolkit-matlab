@@ -201,8 +201,8 @@ end
 %
 if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
     % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-    n_z=[n_z,simoptions.n_semiz];
-    z_grid_J=[z_grid_J;simoptions.semiz_grid.*ones(1,N_j)];
+    n_z=[simoptions.n_semiz, n_z];
+    z_grid_J=[simoptions.semiz_grid.*ones(1,N_j); z_grid_J];
     l_z=length(n_z);
     N_z=prod(n_z);
 end
@@ -311,6 +311,7 @@ if isfield(simoptions,'keepoutputasmatrix')
         FnsToEvaluateStruct=0;
     end
 end
+
 
 %% Create a different 'Values' for each of the variable to be evaluated
 

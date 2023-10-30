@@ -553,14 +553,13 @@ if isfield(vfoptions,'SemiExoStateFn')
             else
                 if N_z==0
                     [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, vfoptions.semiz_grid, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                    % error('Have not implemented semi-exogenous shocks without at least one exogenous variable (not counting the semi-exogenous one) [you could fake it adding a single-valued z with pi_z=1]')
                 else
                     [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, z_grid, vfoptions.semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
         end
     end
-
+    
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if vfoptions.outputkron==0
         if isfield(vfoptions,'n_e')
@@ -568,16 +567,16 @@ if isfield(vfoptions,'SemiExoStateFn')
                 V=reshape(VKron,[n_a,vfoptions.n_semiz, vfoptions.n_e,N_j]);
                 Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, vfoptions.n_semiz, vfoptions.n_e, N_j, vfoptions);
             else
-                V=reshape(VKron,[n_a,n_z,vfoptions.n_semiz,vfoptions.n_e,N_j]);
-                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, [n_z, vfoptions.n_semiz], vfoptions.n_e, N_j, vfoptions);
+                V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
             end
         else
             if N_z==0
                 V=reshape(VKron,[n_a,vfoptions.n_semiz,N_j]);
                 Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, vfoptions.n_semiz, N_j, vfoptions);
             else
-                V=reshape(VKron,[n_a,n_z,vfoptions.n_semiz,N_j]);
-                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, [n_z,vfoptions.n_semiz], N_j, vfoptions);
+                V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,N_j]);
+                Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, [vfoptions.n_semiz,n_z], N_j, vfoptions);
             end
         end
     else

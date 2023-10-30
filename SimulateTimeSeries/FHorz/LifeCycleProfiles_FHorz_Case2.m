@@ -159,15 +159,11 @@ end
 
 if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
     % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-    n_z=[n_z,simoptions.n_semiz];
+    n_z=[simoptions.n_semiz,n_z];
     l_z=length(n_z);
     N_z=prod(n_z);
     if jointzgrid==0
-        z_grid_Jold=z_grid_J;
-        z_grid_J=zeros(sum(n_z),N_j);
-        for jj=1:N_j
-            z_grid_J(:,jj)=[z_grid_Jold(:,jj);simoptions.semiz_grid];
-        end
+        z_grid_J=[simoptions.semiz_grid.*ones(1,N_j); z_grid_J];
     else % jointzgrid==1
         error('Have not implemented joint z_grid being used at same time as semi-exogenous states')
     end
