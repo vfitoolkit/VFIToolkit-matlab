@@ -46,27 +46,25 @@ if simoptions.parallel==1
         StationaryDistKron(:,:,:,ncore_c)=StationaryDistKron_ncore_c;
     end
     StationaryDistKron=sum(StationaryDistKron,4);
-    StationaryDistKron=StationaryDistKron./sum(sum(sum(StationaryDistKron,1),2),3);
+    StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);
 elseif simoptions.parallel==0
-    StationaryDistKron=zeros(N_a,N_semiz,N_z,N_j);
-    cumsum_pi_z_J=cumsum(pi_z_J,2);
+    StationaryDistKron=zeros(N_a,N_semiz,N_j);
     cumsum_pi_semiz_J=cumsum(pi_semiz_J,2);
     jequaloneDistKroncumsum=cumsum(jequaloneDistKron);
 
     for ii=1:simoptions.nsims
         % Pull a random start point from jequaloneDistKron
         currstate=find(jequaloneDistKroncumsum>rand(1,1),1,'first'); %Pick a random start point on the (vectorized) (a,z) grid for j=1
-        currstate=ind2sub_homemade([N_a,N_semiz,N_z],currstate);
-        StationaryDistKron(currstate(1),currstate(2),currstate(3),1)=StationaryDistKron(currstate(1),currstate(2),currstate(3),1)+1;
+        currstate=ind2sub_homemade([N_a,N_semiz],currstate);
+        StationaryDistKron(currstate(1),currstate(2),1)=StationaryDistKron(currstate(1),currstate(2),1)+1;
         for jj=1:(N_j-1)
-            dsub=ind2sub_homemade([n_d1,n_d2],PolicyIndexesKron(1,currstate(1),currstate(2)+N_semiz*(currstate(3)-1),jj));
-            currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2)+N_semiz*(currstate(3)-1),jj);
+            dsub=ind2sub_homemade([n_d1,n_d2],PolicyIndexesKron(1,currstate(1),currstate(2),jj));
+            currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj);
             currstate(2)=find(cumsum_pi_semiz_J(currstate(2),:,dsub(end),jj)>rand(1,1),1,'first');
-            currstate(3)=find(cumsum_pi_z_J(currstate(3),:,jj)>rand(1,1),1,'first');
-            StationaryDistKron(currstate(1),currstate(2),currstate(3),jj+1)=StationaryDistKron(currstate(1),currstate(2),currstate(3),jj+1)+1;
+            StationaryDistKron(currstate(1),currstate(2),jj+1)=StationaryDistKron(currstate(1),currstate(2),jj+1)+1;
         end
     end
-    StationaryDistKron=StationaryDistKron./sum(sum(sum(StationaryDistKron,1),2),3);
+    StationaryDistKron=StationaryDistKron./sum(sum(StationaryDistKron,1),2);
 end
 
 

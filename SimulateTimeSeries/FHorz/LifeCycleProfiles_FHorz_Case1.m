@@ -137,7 +137,7 @@ if simoptions.parallel==2
 end
 
 %%
-if N_z==0
+if N_z==0 && ~isfield(simoptions,'SemiExoStateFn')
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,N_j,d_grid,a_grid,simoptions);
     return
 end
@@ -201,10 +201,18 @@ end
 %
 if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
     % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-    n_z=[simoptions.n_semiz, n_z];
-    z_grid_J=[simoptions.semiz_grid.*ones(1,N_j); z_grid_J];
-    l_z=length(n_z);
-    N_z=prod(n_z);
+    if N_z==0
+        n_z=[simoptions.n_semiz];
+        z_grid_J=simoptions.semiz_grid.*ones(1,N_j);
+        l_z=length(n_z);
+        N_z=prod(n_z);
+        jointzgrid=0;
+    else
+        n_z=[simoptions.n_semiz, n_z];
+        z_grid_J=[simoptions.semiz_grid.*ones(1,N_j); z_grid_J];
+        l_z=length(n_z);
+        N_z=prod(n_z);
+    end
 end
 
 %
