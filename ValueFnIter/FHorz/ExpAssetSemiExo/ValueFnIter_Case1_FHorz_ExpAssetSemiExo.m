@@ -67,7 +67,7 @@ end
 
 %%
 if vfoptions.outputkron==0
-    n_bothz=[n_z,vfoptions.n_semiz];
+    n_bothz=[vfoptions.n_semiz,n_z];
     if n_d1>0
         n_d=[n_d1,n_d2,n_d3];
     else 

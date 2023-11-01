@@ -15,6 +15,9 @@ StationaryDistKron=zeros(N_a*N_bothz,N_j,'gpuArray');
 StationaryDistKron(:,1)=jequaloneDistKron;
 StationaryDistKron_jj=sparse(gather(jequaloneDistKron));
 
+II2=repelem((1:1:N_a*N_bothz),N_semiz,1);
+% Note: repelem((1:1:N_a*N_bothz),N_semiz,1) is just a simpler way to write repelem((1:1:N_a*N_bothz)',1,N_semiz)'
+
 for jj=1:(N_j-1)
     firststep=optaprime(:,jj)+kron(N_a*N_semiz*(0:1:N_z-1)',ones(N_a*N_semiz,1))+N_a*(0:1:N_semiz-1); % (a',semiz',z')-by-semiz
     % Note: optaprime and the z are columns, while semiz is a row that adds every semiz
@@ -30,8 +33,7 @@ for jj=1:(N_j-1)
     fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(d2_c-1);
     semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
 
-    Gammatranspose=sparse(firststep',repelem((1:1:N_a*N_bothz),N_semiz,1),semiztransitions',N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
-    % Note: repelem((1:1:N_a*N_bothz),N_semiz,1) is just a simpler way to write repelem((1:1:N_a*N_bothz)',1,N_semiz)'
+    Gammatranspose=sparse(firststep',II2,semiztransitions',N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
 
     % First step of Tan improvment
     StationaryDistKron_jj=reshape(Gammatranspose*StationaryDistKron_jj,[N_a*N_semiz,N_z]);

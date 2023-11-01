@@ -72,13 +72,13 @@ if vfoptions.lowmemory>0
     elseif all(size(z_grid)==[prod(n_z),l_z])
         z_gridvals=z_grid;
     end
-    bothz_gridvals=[kron(ones(N_semiz,1),z_gridvals),kron(semiz_gridvals,ones(N_z,1))];
+    bothz_gridvals=[kron(ones(N_z,1),semiz_gridvals),kron(z_gridvals,ones(N_semiz,1))];
 else
     if all(size(z_grid)==[sum(n_z),1]) % if z are not using correlated/joint grid, then it is assumed semiz is not either
         bothz_grid=[semiz_grid; z_grid];
     elseif all(size(z_grid)==[prod(n_z),l_z])
         % Joint z_gridvals with semiz_gridvals (note that because z_grid is a joint/correlated grid z_gridvals is anyway just z_grid)
-        bothz_grid=[kron(semiz_gridvals,ones(N_z,1)),kron(ones(N_semiz,1),z_grid)];
+        bothz_grid=[kron(ones(N_z,1),semiz_gridvals),kron(z_grid,ones(N_semiz,1))];
         bothz_gridvals=both_zgrid;
     end
 end
@@ -247,13 +247,13 @@ for reverse_j=1:N_j-1
         elseif all(size(z_grid)==[prod(n_z),l_z])
             z_gridvals=z_grid;
         end
-        bothz_gridvals=[kron(semiz_gridvals,ones(N_z,1)),kron(ones(N_semiz,1),z_gridvals)];
+        bothz_gridvals=[kron(ones(N_z,1),semiz_gridvals),kron(z_gridvals,ones(N_semiz,1))];
     else
         if all(size(z_grid)==[sum(n_z),1]) % if z are not using correlated/joint grid, then it is assumed semiz is not either
             bothz_grid=[semiz_grid; z_grid];
         elseif all(size(z_grid)==[prod(n_z),l_z])
             % Joint z_gridvals with semiz_gridvals (note that because z_grid is a joint/correlated grid z_gridvals is anyway just z_grid)
-            bothz_grid=[kron(semiz_gridvals,ones(N_z,1)),kron(ones(N_semiz,1),z_grid)];
+            bothz_grid=[kron(ones(N_z,1),semiz_gridvals),kron(z_grid,ones(N_semiz,1))];
             bothz_gridvals=both_zgrid;
         end
     end

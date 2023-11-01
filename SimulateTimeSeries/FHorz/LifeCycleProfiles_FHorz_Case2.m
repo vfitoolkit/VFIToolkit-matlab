@@ -343,7 +343,7 @@ for kk=1:length(simoptions.agegroupings)
             % Calculate the 'age conditional' gini
             AgeConditionalStats(ii).Gini(kk)=Gini_from_LorenzCurve(AgeConditionalStats(ii).LorenzCurve(:,kk));
         end
-        
+
         % Calculate the 'age conditional' quantile means (ventiles by default)
         % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
         QuantileIndexes=zeros(1,simoptions.nquantiles-1,'gpuArray');
