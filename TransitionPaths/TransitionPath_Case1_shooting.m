@@ -33,12 +33,13 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
-    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
     tminus1AggVarsNames=[];
+    tminus1paramNames=[];
     tplus1pricePathkk=[];
 end
 
@@ -72,6 +73,7 @@ end
 
 use_tminus1price
 use_tminus1AggVars
+use_tplus1price
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 AggVarNames=fieldnames(FnsToEvaluate);
