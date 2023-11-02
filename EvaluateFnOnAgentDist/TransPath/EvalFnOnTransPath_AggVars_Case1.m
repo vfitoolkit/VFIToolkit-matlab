@@ -1,20 +1,5 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames,transpathoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid,simoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
-
-if exist('transpathoptions','var')==0
-    disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
-    transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    transpathoptions.lowmemory=0;
-else
-    %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'parallel')==0
-        transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    end
-    if isfield(transpathoptions,'lowmemory')==0
-        transpathoptions.lowmemory=0;
-    end
-end
 
 if ~exist('simoptions','var')
     %If simoptions is not given, just use all the defaults
@@ -123,7 +108,7 @@ use_tminus1price=0;
 if length(tminus1priceNames)>0
     use_tminus1price=1;
     for tt=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{tt})
+        if ~isfield(simoptions.initialvalues,tminus1priceNames{tt})
             fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
             dbstack
             break
@@ -134,7 +119,7 @@ use_tminus1AggVars=0;
 if length(tminus1AggVarsNames)>0
     use_tminus1AggVars=1;
     for tt=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{tt})
+        if ~isfield(simoptions.initialvalues,tminus1AggVarsNames{tt})
             fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
             dbstack
             break
@@ -163,7 +148,7 @@ if simoptions.parallel==2
                 if tt>1
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
                 else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
                 end
             end
         end
@@ -213,7 +198,7 @@ elseif simoptions.parallel==1
                     if tt>1
                         Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=Parameters_tt.(tminus1priceNames{pp});
                     else
-                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
                     end
                 end
             end
@@ -255,7 +240,7 @@ elseif simoptions.parallel==1
                     if tt>1
                         Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=Parameters_tt.(tminus1priceNames{pp});
                     else
-                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
                     end
                 end
             end
@@ -298,7 +283,7 @@ elseif simoptions.parallel==o
                 if tt>1
                     Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
                 else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
                 end
             end
         end

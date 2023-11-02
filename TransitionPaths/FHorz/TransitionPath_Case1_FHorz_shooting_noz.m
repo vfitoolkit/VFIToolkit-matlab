@@ -187,8 +187,16 @@ if transpathoptions.ageweightstrivial==0
         AgeWeights_T=AgeWeights;
     end
 elseif transpathoptions.ageweightstrivial==1
-    if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
-        error('AgeWeights differs from the weights implicit in the initial agent distribution')
+    if simoptions.fastOLG==0 % Do an input check, making sure AgeWeights match those of the initial distribution (unless they are expected to anyway vary over the transition path)
+        if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
+            dbstack
+            error('AgeWeights differs from the weights implicit in the initial agent distribution')
+        end
+    else
+        if max(abs(AgeWeights_initial(1:N_a:N_a*N_j)'-AgeWeights))>10^(-13)
+            dbstack
+            error('AgeWeights differs from the weights implicit in the initial agent distribution')
+        end
     end
     AgeWeights=AgeWeights_initial;
     AgeWeightsOld=AgeWeights;

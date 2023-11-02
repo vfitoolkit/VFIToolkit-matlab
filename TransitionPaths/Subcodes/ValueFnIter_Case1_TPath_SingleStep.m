@@ -55,24 +55,24 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%% Check the sizes of some of the inputs
-if size(d_grid)~=[N_d, 1]
-    disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
-    dbstack
-    return
-elseif size(a_grid)~=[N_a, 1]
-    disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
-    dbstack
-    return
-elseif size(z_grid)~=[N_z, 1]
-    disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
-    dbstack
-    return
-elseif size(pi_z)~=[N_z, N_z]
-    disp('ERROR: pi is not of size N_z-by-N_z')
-    dbstack
-    return
-end
+% %% Check the sizes of some of the inputs
+% if size(d_grid)~=[N_d, 1]
+%     disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
+%     dbstack
+%     return
+% elseif size(a_grid)~=[N_a, 1]
+%     disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
+%     dbstack
+%     return
+% elseif size(z_grid)~=[N_z, 1]
+%     disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
+%     dbstack
+%     return
+% elseif size(pi_z)~=[N_z, N_z]
+%     disp('ERROR: pi is not of size N_z-by-N_z')
+%     dbstack
+%     return
+% end
 
 
 %% 
@@ -98,27 +98,9 @@ end
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     dbstack
     error('Not yet supported')
-%     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
-%         if N_d==0
-%             [VKron, PolicyKron]=ValueFnIter_Case1_NQHyperbolic_SingleStep_no_d_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         else
-%             [VKron, PolicyKron]=ValueFnIter_Case1_NQHyperbolic_SingleStep_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         end
-%     elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-%         if N_d==0
-%             [VKron, PolicyKron]=ValueFnIter_Case1_SQHyperbolic_SingleStep_no_d_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         else
-%             [VKron, PolicyKron]=ValueFnIter_Case1_SQHyperbolic_SingleStep_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         end
-%     end
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     dbstack
     error('Not yet supported')
-%     if N_d==0
-%         [VKron,PolicyKron]=ValueFnIter_Case1_EpZin_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%     else
-%         [VKron, PolicyKron]=ValueFnIter_Case1_EpZin_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%     end
 end
 
 %%

@@ -148,7 +148,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     
     
     % Note: Cannot do transition paths in which the mass of each agent type changes.
-    AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath(:,:,ii).*shiftdim(StationaryDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
+    AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath.*shiftdim(StationaryDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
     AggVarNames=fieldnames(FullFnsToEvaluate);
 
     for tt=1:T-1
