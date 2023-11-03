@@ -79,15 +79,6 @@ else
     aprimeFnParamNames={};
 end
 
-if isfield(simoptions,'n_e')
-    if isfield(simoptions,'pi_e')
-        pi_e_J=simoptions.pi_e.*ones(1,N_j,'gpuArray');
-    else
-        pi_e_J=simoptions.pi_e_J(:,1); % just a placeholder
-    end
-end
-
-
 %%
 Policy_a2prime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
@@ -125,7 +116,7 @@ if N_a1==0
         % end
     elseif simoptions.iterate==1
         if isfield(simoptions,'n_e')
-            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,pi_e_J,Parameters);
+            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
         else
             StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
         end
@@ -133,7 +124,7 @@ if N_a1==0
 else
     if simoptions.iterate==1
         if isfield(simoptions,'n_e')
-            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,pi_e_J,Parameters);
+            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
         else
             StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
         end

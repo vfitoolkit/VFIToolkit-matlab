@@ -117,6 +117,15 @@ elseif isfield(simoptions,'ExogShockFn')
     end
 end
 
+%% Set up pi_e_J (if relevant)
+if isfield(simoptions,'n_e')
+    if isfield(simoptions,'pi_e')
+        simoptions.pi_e_J=simoptions.pi_e.*ones(1,N_j,'gpuArray');
+    else
+        % simoptions.pi_e_J=simoptions.pi_e_J;
+    end
+end
+
 %%
 if isfield(simoptions,'SemiExoStateFn')
     if simoptions.experienceasset==1
@@ -126,7 +135,7 @@ if isfield(simoptions,'SemiExoStateFn')
     if N_z==0
         StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
     elseif isfield(simoptions,'n_e')
-        StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
     else
         StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     end
@@ -149,7 +158,7 @@ if isfield(simoptions,'n_e')
     if n_z(1)==0
         StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
     else
-        StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
     end
     return
 end

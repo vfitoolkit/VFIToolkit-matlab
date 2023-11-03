@@ -323,6 +323,9 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean=Mean;
         % Standard Deviation
         Variance=sum((ValuesOnGrid_ii.^2).*StationaryDist_ii)-Mean^2;  % Weighted square of values - mean^2
+        if Variance<0 && Variance>-10^(-9) % is zero, except numerical error
+            Variance=0;
+        end
         StdDev=sqrt(Variance);
         StdDevVec(ii)=StdDev; % This is used later for the grouped stat
         AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=StdDev;

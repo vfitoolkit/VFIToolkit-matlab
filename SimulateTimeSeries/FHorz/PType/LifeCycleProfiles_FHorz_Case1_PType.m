@@ -48,11 +48,12 @@ computeForThesei=ones(N_i,1); % Used to omit the infinite horizon PTypes from co
 
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
-    simoptions.groupptypesforstats=0;
+    simoptions.groupptypesforstats=1;
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     simoptions.nquantiles=20; % by default gives ventiles
+    defaultagegroupings=1;
     if isstruct(N_j)
         for ii=1:N_i
             if isfinite(N_j.(Names_i{ii}))
@@ -69,7 +70,7 @@ if ~exist('simoptions','var')
     simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
 else
     if ~isfield(simoptions,'groupptypesforstats')
-        simoptions.groupptypesforstats=0;
+        simoptions.groupptypesforstats=1;
     end
     if ~isfield(simoptions,'ptypestorecpu')
         simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
@@ -84,6 +85,7 @@ else
         simoptions.nquantiles=20; % by default gives ventiles
     end
     if isfield(simoptions,'agegroupings')==0
+        defaultagegroupings=1;
         if isstruct(N_j)
             for ii=1:N_i
                 if isfinite(N_j.(Names_i{ii}))
@@ -95,6 +97,8 @@ else
         else
             simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
         end
+    else
+        defaultagegroupings=0;
     end
     if isfield(simoptions,'npoints')==0
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
@@ -367,9 +371,9 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
             N_ze_temp=prod(n_z_temp);
         end
         l_ze_temp=length(n_ze_temp);
-
+        
         % Create PolicyValues
-        PolicyValues_temp=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_ze_temp,N_j_temp,d_grid_temp,a_grid_temp);
+        PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_ze_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp);
         permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1,1+l_a_temp+l_ze_temp+1];
         PolicyValues_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
         PolicyValues_temp=reshape(PolicyValues_temp,[N_a_temp*N_ze_temp,(l_d_temp+l_a_temp),N_j_temp]);
@@ -384,7 +388,6 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
             
             % Evaluate the FnsToEvaluate that are relevant for the current ptype
             simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-            % ValuesOnGrid_kkii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_iikk, Parameters_temp, FnsToEvaluateParamNames_ii, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
             ValuesOnGrid_kkii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iikk, Parameters_temp, FnsToEvaluateParamNames_ii, n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_grid_temp,simoptions_temp);
 
             if simoptions_temp.verbose==1

@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,pi_e_J,Parameters,simoptions)
 
 n_e=simoptions.n_e;
 
@@ -12,25 +12,6 @@ N_e=prod(n_e);
 
 if ~isfield(simoptions,'loopovere')
     simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
-end
-
-%% Set up pi_e_J (transition matrix for iid exogenous state e, depending on age)
-if isfield(simoptions,'pi_e')
-    pi_e_J=simoptions.pi_e.*ones(1,N_j);
-elseif isfield(simoptions,'pi_e_J')
-    pi_e_J=simoptions.pi_e_J;
-elseif isfield(simoptions,'EiidShockFn')
-    pi_e_J=zeros(N_e,N_e,N_j);
-    for jj=1:N_j
-        EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
-        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, EiidShockFnParamNames,jj);
-        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-        for ii=1:length(EiidShockFnParamsVec)
-            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-        end
-        [~,pi_e]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-        pi_e_J(:,jj)=pi_e;
-    end
 end
 
 %%
