@@ -1,9 +1,13 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_d2,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions)
 % Will treat the agents as being on a continuum of mass 1.
 
 % simoptions.tanimprovement=1
 
-optdprime=gather(reshape(PolicyIndexesKron(1,:,:,:),[N_a*N_semiz,N_j])); % Note: column vector (conditional on jj)
+if N_d1==0
+    optd2prime=gather(reshape(PolicyIndexesKron(1,:,:,:),[N_a*N_semiz,N_j])); % Note: column vector (conditional on jj)
+else
+    optd2prime=reshape(ceil(PolicyIndexesKron(1,:,:,:)/N_d1),[N_a*N_semiz,N_j]);   
+end
 optaprime=gather(reshape(PolicyIndexesKron(2,:,:,:),[N_a*N_semiz,N_j])); % Note: column vector (conditional on jj)
 
 %% Tan improvement verion
@@ -24,13 +28,10 @@ for jj=1:(N_j-1)
 
     % Get the semiz transition probabilities into needed form
     pi_semiz_jj=pi_semiz_J(:,:,:,jj);
-    % z transitions based on semiz
-    dsub=ind2sub_vec_homemade([N_d1,N_d2],optdprime(:,jj));
-    d2_c=dsub(:,2); % This is the decision variable that is determining the transition probabilities for the semi-exogenous state
     % Get the right part of pi_semiz_J 
     % d2 depends on (a,z,semiz), and pi_semiz is going to be about (semiz,semiz'), so I need to put it all together as (a,z,semiz,semiz').
     semizindexcorrespondingtod2_c=kron((1:1:N_semiz)',ones(N_a,1));
-    fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(d2_c-1);
+    fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(optd2prime(:,jj)-1);
     semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
 
     Gammatranspose=sparse(firststep',II2,semiztransitions',N_a*N_semiz,N_a*N_semiz); % From (a,semiz) to (a',semiz')
