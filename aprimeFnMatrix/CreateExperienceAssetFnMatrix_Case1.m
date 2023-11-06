@@ -6,8 +6,6 @@ function [aprimeIndexes,aprimeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeF
 % just aprimeIndexes+1, so no need to waste memory storing them), and the
 % aprimeProbs are the probability of this lower point (prob of upper point
 % is just 1 minus this).
-%
-% Remark: this function is identical to CreateaprimeFnMatrix_Case3(), except u is here a
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
