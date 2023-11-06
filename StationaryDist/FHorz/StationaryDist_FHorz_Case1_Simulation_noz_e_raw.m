@@ -39,7 +39,7 @@ if simoptions.parallel==1
                 for jj=1:(N_j-1)
                     currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj); % a
                     currstate(2)=find(cumsum_pi_e_J(:,jj)>rand(1,1),1,'first'); % e
-                    StationaryDistKron_ncore_c(currstate(1),currstate(2),,jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),,jj+1)+1;
+                    StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)=StationaryDistKron_ncore_c(currstate(1),currstate(2),jj+1)+1;
                 end
             end
             StationaryDistKron(:,:,:,ncore_c)=StationaryDistKron_ncore_c;

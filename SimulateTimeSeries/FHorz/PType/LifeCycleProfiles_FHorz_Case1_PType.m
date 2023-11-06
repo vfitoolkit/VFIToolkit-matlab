@@ -931,7 +931,11 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
         N_a_temp=prod(n_a_temp);
         simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
         if isfield(simoptions_temp,'SemiExoStateFn')
-            n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
+            if prod(n_z_temp)==0
+                n_z_temp=simoptions_temp.n_semiz;
+            else
+                n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
+            end
         end
         if isfield(simoptions_temp,'n_e')
             n_z_temp=[n_z_temp,simoptions_temp.n_e];
@@ -1046,8 +1050,13 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
 
             % Check for semi-exogenous shocks, if these are being used then need to add them to n_z_temp and z_grid_temp
             if isfield(simoptions_temp,'SemiExoStateFn')
-                n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
-                z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
+                if prod(n_z_temp)==0
+                    n_z_temp=simoptions_temp.n_semiz;
+                    z_grid_temp=simoptions_temp.semiz_grid;
+                else
+                    n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
+                    z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
+                end
             end
 
             % Parameters are allowed to be given as structure, or as vector/matrix
