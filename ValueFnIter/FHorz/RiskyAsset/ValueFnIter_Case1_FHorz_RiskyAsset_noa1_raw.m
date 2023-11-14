@@ -196,7 +196,6 @@ else
 end
 
 
-
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
     jj=N_j-reverse_j;
@@ -216,15 +215,12 @@ for reverse_j=1:N_j-1
 
     VKronNext_j=V(:,:,jj+1);
 
-    % if jj==80
-    %     VKronNext_j(1:5,1)
-    % end
     
     if vfoptions.lowmemory==0
         
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
-        
+
         if vfoptions.paroverz==1
             
             EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
@@ -254,9 +250,6 @@ for reverse_j=1:N_j-1
             
         elseif vfoptions.paroverz==0
 
-            %  if jj==80
-            %     ReturnMatrix(1:10,1:10,1)
-            % end
 
             for z_c=1:N_z
                 ReturnMatrix_z=ReturnMatrix(:,:,z_c);
@@ -281,6 +274,7 @@ for reverse_j=1:N_j-1
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V(:,z_c,jj)=Vtemp;
                 Policy(:,z_c,jj)=maxindex;
+
             end
         end
         

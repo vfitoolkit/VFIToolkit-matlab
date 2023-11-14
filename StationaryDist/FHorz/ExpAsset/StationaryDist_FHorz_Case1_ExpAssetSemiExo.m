@@ -49,7 +49,7 @@ end
 % aprimeFnParamNames in same fashion
 l_d2=length(n_d2);
 l_a2=length(n_a2);
-temp=getAnonymousFnInputNames(aprimeFn);
+temp=getAnonymousFnInputNames(simoptions.aprimeFn);
 if length(temp)>(l_d2+l_a2)
     aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
 else
@@ -64,7 +64,7 @@ end
 if ~isfield(simoptions,'semiz_grid')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
 end
-d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
+d3_grid=gpuArray(d_grid(sum(n_d1)+sum(n_d2)+1:end));
 % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
 l_semiz=length(simoptions.n_semiz);
 temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
@@ -77,7 +77,7 @@ N_semiz=prod(simoptions.n_semiz);
 pi_semiz_J=zeros(N_semiz,N_semiz,n_d3,N_j);
 for jj=1:N_j
     SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d3,simoptions.n_semiz,d3_grid,simoptions.semiz_grid,simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
+    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d3,simoptions.n_semiz,d3_grid,gpuArray(simoptions.semiz_grid),simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
 end
 
 
@@ -165,7 +165,7 @@ PolicyProbs=zeros(N_a,N_bothz,2,N_j,'gpuArray'); % The fourth dimension is lower
 whichisdforexpasset=length(n_d)-1;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),aprimeFn, whichisdforexpasset, n_a1,n_a2, n_d, N_bothz, d_grid, a2_grid, aprimeFnParamsVec);
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_bothz, d_grid, a2_grid, aprimeFnParamsVec);
     if l_a==1
         Policy_aprime(:,:,1,jj)=aprimeIndexes;
         Policy_aprime(:,:,2,jj)=aprimeIndexes+1;

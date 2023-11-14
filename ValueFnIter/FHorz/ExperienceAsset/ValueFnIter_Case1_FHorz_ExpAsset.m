@@ -21,28 +21,30 @@ else
 end
 
 N_z=prod(n_z);
+N_d1=prod(n_d1);
+N_a1=prod(n_a1);
 
 if isfield(vfoptions,'n_e')
-    if prod(n_d1)==0
-        if prod(n_a1)==0
-            error('Have not implemented experience assets without at least one other endogenous variable [you could fake it adding a single-valued z with pi_z=1]')
-        else
+    if N_a1==0
+        error('Have not implemented experience assets without at least one other endogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+    else
+        if N_d1==0
             if N_z==0
                 error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
-        end
-    else % d1 variable
-        if N_z==0
-            error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
-        else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else % d1 variable
+            if N_z==0
+                error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
         end
     end
 else % no e variable
-    if prod(n_a1)==0
-        if prod(n_d1)==0
+    if N_a1==0
+        if N_d1==0
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noa1_noz_raw(n_d2,n_a2, N_j , d2_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
@@ -51,8 +53,8 @@ else % no e variable
         else
             error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         end
-    else % n_a1
-        if prod(n_d1)==0
+    else % N_a1
+        if N_d1==0
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noz_raw(n_d2,n_a1,n_a2, N_j , d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else

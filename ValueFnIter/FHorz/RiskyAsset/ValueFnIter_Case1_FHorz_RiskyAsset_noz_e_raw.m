@@ -57,11 +57,13 @@ else
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
+    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
     aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
-    
+    % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
+
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(V_Jplus1(aprimeIndex),[N_d*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeIndex+1),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeplus1Index),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper
@@ -118,11 +120,13 @@ for reverse_j=1:N_j-1
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
+    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
     aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
+    % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(VKronNext_j(aprimeIndex),[N_d*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeIndex+1),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeplus1Index),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper

@@ -75,6 +75,7 @@ else
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
     aprimeIndex=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
+    aprimeplus1Index=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
     if vfoptions.lowmemory>0 || vfoptions.paroverz==0
         aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2]
     else % lowmemory=0 and paroverz=1
@@ -102,7 +103,7 @@ else
 
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the lower aprime
-            EV2=EV((aprimeIndex+1)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
+            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
 
             % Apply the aprimeProbs
             entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_z]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_z]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
@@ -130,7 +131,7 @@ else
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
                 EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                EV2=EV_z(aprimeIndex+1); % (d2,a1prime,a2), the upper aprime
+                EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
 
                 % Apply the aprimeProbs
                 entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
@@ -159,7 +160,7 @@ else
 
             % Switch EV_z from being in terms of aprime to being in terms of d and a
             EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-            EV2=EV_z(aprimeIndex+1); % (d2,a1prime,a2), the upper aprime
+            EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
 
             % Apply the aprimeProbs
             entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
@@ -226,6 +227,7 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
     aprimeIndex=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
+    aprimeplus1Index=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
     if vfoptions.lowmemory>0 || vfoptions.paroverz==0
         aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2]
     else % lowmemory=0 and paroverz=1
@@ -248,7 +250,7 @@ for reverse_j=1:N_j-1
             
             % Switch EV from being in terms of aprime to being in terms of d and a
             EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the lower aprime
-            EV2=EV((aprimeIndex+1)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
+            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
 
             % Apply the aprimeProbs
             entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_z]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_z]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
@@ -276,7 +278,7 @@ for reverse_j=1:N_j-1
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
                 EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                EV2=EV_z(aprimeIndex+1); % (d2,a1prime,a2), the upper aprime
+                EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
 
                 % Apply the aprimeProbs
                 entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
@@ -304,7 +306,7 @@ for reverse_j=1:N_j-1
             
             % Switch EV_z from being in terms of aprime to being in terms of d and a
             EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-            EV2=EV_z(aprimeIndex+1); % (d2,a1prime,a2), the upper aprime
+            EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
 
             % Apply the aprimeProbs
             entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point

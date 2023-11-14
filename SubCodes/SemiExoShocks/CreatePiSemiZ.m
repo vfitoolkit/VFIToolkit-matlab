@@ -79,6 +79,7 @@ elseif all(size(semiz_grid)==[prod(n_semiz),l_semiz]) % joint semiz_grid
     end
 end
 
+
 % SemiExoStateFn(z,zprime,d,paremeters)
 if l_d==1
     if l_semiz==1

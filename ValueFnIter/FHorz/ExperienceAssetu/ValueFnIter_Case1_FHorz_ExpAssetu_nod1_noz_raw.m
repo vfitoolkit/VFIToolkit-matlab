@@ -41,12 +41,13 @@ else
     % Note: aprimeIndex is [N_d2*N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
     aprimeIndex=kron(ones(N_d2*N_a2,N_u),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
+    aprimeplus1Index=kron(ones(N_d2*N_a2,N_u),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
     aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2,N_u]
     
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(V_Jplus1(aprimeIndex),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeIndex+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the upper aprime
+    EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeplus1Index),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
 
     % Expectation over u (using pi_u), and then add the lower and upper
@@ -82,6 +83,7 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex is [N_d2*N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
     aprimeIndex=repelem(repmat((1:1:N_a1)',N_d2,1),N_a2,N_u)+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
+    aprimeplus1Index=kron(ones(N_d2*N_a2,N_u),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_u]
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d2, n_a1,n_a2, d2_grid, a1_grid, a2_grid, ReturnFnParamsVec);

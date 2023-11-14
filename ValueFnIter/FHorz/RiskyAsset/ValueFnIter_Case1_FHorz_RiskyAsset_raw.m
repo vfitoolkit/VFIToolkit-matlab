@@ -79,6 +79,7 @@ else
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
+    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
     aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
     
     if vfoptions.lowmemory==0
@@ -94,7 +95,7 @@ else
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,a1prime,u,z), the lower aprime
-            EV2=EV((aprimeIndex+1)+N_a*((1:1:N_z)-1)); % (d,a1prime,u,z), the upper aprime
+            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,a1prime,u,z), the upper aprime
             
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -125,7 +126,7 @@ else
                 
                 % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
                 EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,a1prime,u), the lower aprime
-                EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d*N_a1,N_u]); % (d,a1prime,u), the upper aprime
+                EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,a1prime,u), the upper aprime
                 % Already applied the probabilities from interpolating onto grid
                 
                 % Expectation over u (using pi_u), and then add the lower and upper
@@ -154,7 +155,7 @@ else
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d*N_a1,N_u]); % (d,u), the upper aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
@@ -179,7 +180,7 @@ else
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d*N_a1,N_u]); % (d,u), the upper aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
@@ -202,6 +203,8 @@ else
     end
 end
 
+
+
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
     jj=N_j-reverse_j;
@@ -220,13 +223,11 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
 
     aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
+    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
     aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
-
+    % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
+    
     VKronNext_j=V(:,:,jj+1);
-
-    if jj==80
-        VKronNext_j(1:10,1)
-    end
 
     
     if vfoptions.lowmemory==0
@@ -242,7 +243,7 @@ for reverse_j=1:N_j-1
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-            EV2=EV((aprimeIndex+1)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
             
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
@@ -253,7 +254,7 @@ for reverse_j=1:N_j-1
             % EV is over (d&a1prime,1,z)
             
             entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(EV,1,N_a,1);
-            
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
             
@@ -262,11 +263,6 @@ for reverse_j=1:N_j-1
             
             
         elseif vfoptions.paroverz==0
-
-            if jj==80
-                ReturnMatrix(1:10,1:10,1)
-                ReturnMatrix(end-9:end,1:10,1)
-            end
 
             for z_c=1:N_z
                 ReturnMatrix_z=ReturnMatrix(:,:,z_c);
@@ -278,7 +274,7 @@ for reverse_j=1:N_j-1
                 
                 % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
                 EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,a1prime,u), the lower aprime
-                EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d*N_a1,N_u]); % (d,a1prime,u), the upper aprime
+                EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,a1prime,u), the upper aprime
                 % Already applied the probabilities from interpolating onto grid
                 
                 % Expectation over u (using pi_u), and then add the lower and upper
@@ -286,11 +282,12 @@ for reverse_j=1:N_j-1
                 % EV_z is over (d&a1prime,1)
                 
                 entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
-                
+
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V(:,z_c,jj)=Vtemp;
                 Policy(:,z_c,jj)=maxindex;
+
             end
         end
         
@@ -307,7 +304,7 @@ for reverse_j=1:N_j-1
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d*N_a1,N_u]); % (d,u), the upper aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
@@ -332,7 +329,7 @@ for reverse_j=1:N_j-1
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
             EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d*N_a1,N_u]); % (d,u), the upper aprime
+            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
             % Already applied the probabilities from interpolating onto grid
             
             % Expectation over u (using pi_u), and then add the lower and upper
