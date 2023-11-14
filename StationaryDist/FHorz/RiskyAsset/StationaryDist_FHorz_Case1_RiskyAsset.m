@@ -12,14 +12,14 @@ if ~isfield(simoptions,'d_grid')
     error('To use an risky asset you must define simoptions.d_grid')
 end
 
-% Split endogenous assets into the standard ones and the experience asset
+% Split endogenous assets into the standard ones and the risky asset
 if length(n_a)==1
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
 end
 n_a2=n_a(end); % n_a2 is the experience asset
-a1_grid=simoptions.a_grid(1:sum(n_a1));
+% a1_grid=simoptions.a_grid(1:sum(n_a1));
 a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
 
 %%
@@ -58,17 +58,18 @@ if isfield(simoptions,'n_e')
     N_e=prod(simoptions.n_e);
     jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z*N_e,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z*N_e,N_j]);
+    n_ze=[n_z,simoptions.n_e];
     N_ze=N_z*N_e;
 else
     jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
+    n_ze=n_z;
     N_ze=N_z;
 end
 % NOTE: have rolled e into z
 
 %%
 l_d=length(n_d);
-l_u=length(n_a);
 
 % aprimeFnParamNames in same fashion
 l_u=length(simoptions.n_u);
@@ -79,13 +80,14 @@ else
     aprimeFnParamNames={};
 end
 
+
 %%
 Policy_a2prime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
-whichisdforriskyasset=N_a1+1:1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
+whichisdforriskyasset=1:1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndexes,a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a, N_ze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+    [a2primeIndexes,a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a, N_ze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
     % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z,N_u]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
     Policy_a2prime(:,:,:,1,jj)=a2primeIndexes; % lower grid point
@@ -96,8 +98,8 @@ for jj=1:N_j
 end
 
 if N_a1>0
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(1,:,:,:),[size(Policy,1),N_a,N_ze,1,N_j])+N_a1*(Policy_a2prime(:,:,:,1,jj)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(1,:,:,:),[size(Policy,1),N_a,N_ze,1,N_j])+N_a1*Policy_a2prime(:,:,:,1,jj); % Note: upper grid point minus 1 is anyway just lower grid point
+    Policy_aprime(:,:,:,1,:)=reshape(Policy(end,:,:,:),[N_a,N_ze,1,1,N_j])+N_a1*(Policy_a2prime(:,:,:,1,:)-1);
+    Policy_aprime(:,:,:,2,:)=reshape(Policy(end,:,:,:),[N_a,N_ze,1,1,N_j])+N_a1*Policy_a2prime(:,:,:,1,:); % Note: upper grid point minus 1 is anyway just lower grid point
     if length(n_a1)>1
         error('Only one asset other than the risky asset is allowed (email if you need this)')
     end
@@ -122,7 +124,9 @@ if N_a1==0
         end
     end
 else
-    if simoptions.iterate==1
+    if simoptions.iterate==0
+        error('simulation of agent distribution is not yet supported with riskyasset')
+    elseif simoptions.iterate==1
         if isfield(simoptions,'n_e')
             StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
         else
@@ -131,10 +135,11 @@ else
     end
 end
 
-if isfield(simoptions,'n_e')
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_z,simoptions.n_e,N_j]);    
+if simoptions.outputkron==0
+    StationaryDist=reshape(StationaryDistKron,[n_a,n_ze,N_j]);
 else
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_z,N_j]);
+    % If 1 then leave output in Kron form
+    StationaryDist=reshape(StationaryDistKron,[N_a,N_ze,N_j]);
 end
 
 end

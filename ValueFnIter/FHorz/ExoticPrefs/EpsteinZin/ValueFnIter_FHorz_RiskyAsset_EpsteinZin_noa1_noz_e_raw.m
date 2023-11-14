@@ -1,19 +1,15 @@
-function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noz_e_raw(n_d,n_a1,n_a2,n_e,n_u, N_j, d_grid, a1_grid,a2_grid, e_gridvals_J, u_grid, pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
+function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_noz_e_raw(n_d,n_a2,n_e,n_u, N_j, d_grid, a2_grid, e_gridvals_J, u_grid, pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
 
 N_d=prod(n_d);
-N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 N_e=prod(n_e);
 N_u=prod(n_u);
 
-N_a=N_a1*N_a2;
-
-V=zeros(N_a,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+V=zeros(N_a2,N_e,N_j,'gpuArray');
+Policy=zeros(N_a2,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
 d_grid=gpuArray(d_grid);
-a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
 u_grid=gpuArray(u_grid);
 
@@ -40,14 +36,10 @@ if warmglow==1
     WGmatrix=WGmatrixraw;
     WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5;
     WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
-    
-    % Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
+    %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
-
     WG1=WGmatrix(aprimeIndex); % (d,u), the lower aprime
     WG2=WGmatrix(aprimeIndex+1); % (d,u), the upper aprime
     % Apply the aprimeProbs
@@ -83,7 +75,7 @@ end
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], n_e,[d_grid; a1_grid], [a1_grid; a2_grid],e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2,n_e, d_grid, a2_grid,e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -98,7 +90,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(a_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], special_n_e, [d_grid; a1_grid], [a1_grid; a2_grid], e_val, ReturnFnParamsVec,0);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2, special_n_e, d_grid, a2_grid, e_val, ReturnFnParamsVec,0);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
@@ -116,10 +108,8 @@ else
     V_Jplus1=vfoptions.V_Jplus1;
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
 
     % Part of Epstein-Zin is before taking expectation
     temp=V_Jplus1;
@@ -130,13 +120,13 @@ else
     temp=sum(reshape(temp,[N_a2,N_e]).*pi_e_J(:,:,N_j)',2);    % First, switch V_Jplus1 into Kron form ,take expecation over e
         
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(temp(aprimeIndex),[N_d*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(temp(aprimeIndex+1),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EV1=aprimeProbs.*reshape(temp(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+    EV2=(1-aprimeProbs).*reshape(temp(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper
-    EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u), sum over u
-    % EV is over (d&a1prime,1)
+    EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
+    % EV is over (d,1)
     
     % Part of Epstein-Zin is after taking expectation
     temp4=EV;
@@ -150,7 +140,7 @@ else
     end
     
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2],n_e, [d_grid; a1_grid], [a1_grid; a2_grid],e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2,n_e, d_grid, a2_grid,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,a,e)
         
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -159,7 +149,7 @@ else
         temp2(becareful)=ReturnMatrix(becareful).^ezc2;
         temp2(ReturnMatrix==0)=-Inf;
 
-        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,N_e); % d-by-a-by-e
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2,N_e); % d-by-a-by-e
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -171,31 +161,28 @@ else
         Policy(:,:,N_j)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
+       for e_c=1:N_e
+           e_val=e_gridvals_J(e_c,:,N_j);
+           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d,n_a2, n_e, special_n_e, d_grid, a2_grid, e_val, ReturnFnParamsVec);
+           
+           % Modify the Return Function appropriately for Epstein-Zin Preferences
+           becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
+           temp2=ReturnMatrix_e;
+           temp2(becareful)=ReturnMatrix_e(becareful).^ezc2;
+           temp2(ReturnMatrix_e==0)=-Inf;
 
-        betaEV=DiscountFactorParamsVec*temp4.*ones(1,N_a);
+           entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2); % d-by-a
 
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], n_e, special_n_e, [d_grid; a1_grid], [a1_grid; a2_grid], e_val, ReturnFnParamsVec);
-
-            % Modify the Return Function appropriately for Epstein-Zin Preferences
-            becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
-            temp2=ReturnMatrix_e;
-            temp2(becareful)=ReturnMatrix_e(becareful).^ezc2;
-            temp2(ReturnMatrix_e==0)=-Inf;
-
-            entireRHS_e=ezc1*temp2+ezc3*betaEV; % d-by-a
-
-            temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
-            entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
-            entireRHS_e(entireRHS_e==0)=-Inf;
-
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,e_c,N_j)=Vtemp;
-            Policy(:,e_c,N_j)=maxindex;
+           temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
+           entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+           entireRHS_e(entireRHS_e==0)=-Inf;
+           
+           %Calc the max and it's index
+           [Vtemp,maxindex]=max(entireRHS_e,[],1);
+           V(:,e_c,N_j)=Vtemp;
+           Policy(:,e_c,N_j)=maxindex;
         end
-
+        
     end
 end
 
@@ -218,10 +205,8 @@ for reverse_j=1:N_j-1
     end
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [aprimeIndex,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
     
     % If there is a warm-glow, evaluate the warmglowfn
     if warmglow==1
@@ -254,13 +239,13 @@ for reverse_j=1:N_j-1
     temp=sum(temp.*pi_e_J(:,:,jj)',2); % Expectation over e
     
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(temp(aprimeIndex),[N_d*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(temp(aprimeIndex+1),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EV1=aprimeProbs.*reshape(temp(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
+    EV2=(1-aprimeProbs).*reshape(temp(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
     
     % Expectation over u (using pi_u), and then add the lower and upper
-    EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u), sum over u
-    % EV is over (d&a1prime,1)
+    EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
+    % EV is over (d,1)
     
     % Part of Epstein-Zin is after taking expectation
     temp4=EV;
@@ -275,7 +260,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], n_e, [d_grid; a1_grid], [a1_grid; a2_grid], e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2, n_e, d_grid, a2_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,a,e)
         
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -284,7 +269,7 @@ for reverse_j=1:N_j-1
         temp2(becareful)=ReturnMatrix(becareful).^ezc2;
         temp2(ReturnMatrix==0)=-Inf;
 
-        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,N_e); % d-by-a-by-e
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2,N_e); % d-by-a-by-e
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -297,11 +282,11 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==1
        
-       betaEV=DiscountFactorParamsVec*temp4.*ones(1,N_a);
+       betaEV=DiscountFactorParamsVec*temp4.*ones(1,N_a2,1);
         
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,jj);
-           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], special_n_e, [d_grid; a1_grid], [a1_grid; a2_grid], e_val, ReturnFnParamsVec);
+           ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2, special_n_e, d_grid, a2_grid, e_val, ReturnFnParamsVec);
            
            % Modify the Return Function appropriately for Epstein-Zin Preferences
            becareful=logical(isfinite(ReturnMatrix_e).*(ReturnMatrix_e~=0)); % finite and not zero
@@ -309,7 +294,7 @@ for reverse_j=1:N_j-1
            temp2(becareful)=ReturnMatrix_e(becareful).^ezc2;
            temp2(ReturnMatrix_e==0)=-Inf;
 
-           entireRHS_e=ezc1*temp2+ezc3*betaEV; % d-by-a
+           entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2); % d-by-a
 
            temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
            entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity

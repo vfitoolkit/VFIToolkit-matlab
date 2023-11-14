@@ -1,15 +1,30 @@
 function StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
 %% Setup related to experience asset
+n_d2=n_d(end);
+% Split endogenous assets into the standard ones and the experience asset
+if length(n_a)==1
+    n_a1=0;
+else
+    n_a1=n_a(1:end-1);
+end
+n_a2=n_a(end); % n_a2 is the experience asset
+
 if ~isfield(simoptions,'aprimeFn')
     error('To use an experience asset you must define simoptions.aprimeFn')
 end
-if ~isfield(simoptions,'a_grid')
+if isfield(simoptions,'a_grid')
+    % a_grid=simoptions.a_grid;
+    % a1_grid=simoptions.a_grid(1:sum(n_a1));
+    a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
+else
     error('To use an experience asset you must define simoptions.a_grid')
 end
-
-n_d2=n_d(end);
-n_a2=n_a(end);
+if isfield(simoptions,'d_grid')
+    d_grid=simoptions.d_grid;
+else
+    error('To use an experience asset you must define simoptions.d_grid')
+end
 
 % aprimeFnParamNames in same fashion
 l_d2=length(n_d2);
@@ -29,7 +44,7 @@ N_z=prod(n_z);
 
 %%
 if n_z(1)==0
-    StationaryDist=StationaryDist_FHorz_Case1_ExpAsset_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_ExpAsset_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,d_grid,a2_grid,Parameters,simoptions);
     return
 end
 
@@ -59,7 +74,7 @@ PolicyProbs=zeros(N_a,N_z,2,N_j,'gpuArray'); % The fourth dimension is lower/upp
 whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_a, N_z, gpuArray(simoptions.a_grid), aprimeFnParamsVec);
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParamsVec);
     if l_a==1
         Policy_aprime(:,:,1,jj)=aprimeIndexes;
         Policy_aprime(:,:,2,jj)=aprimeIndexes+1;

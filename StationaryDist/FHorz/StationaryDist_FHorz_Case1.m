@@ -24,6 +24,7 @@ if exist('simoptions','var')==0
         simoptions.ncores=1;
     end
     simoptions.experienceasset=0;
+    simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
     simoptions.tolerance=10^(-9);
@@ -63,6 +64,9 @@ else
     end
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetu')
+        simoptions.experienceassetu=0;
     end
     if ~isfield(simoptions,'riskyasset')
         simoptions.riskyasset=0;
@@ -143,6 +147,10 @@ if isfield(simoptions,'SemiExoStateFn')
 end
 if simoptions.experienceasset==1
     StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+    return
+end
+if simoptions.experienceassetu==1
+    StationaryDist=StationaryDist_FHorz_Case1_ExpAssetu(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
 end
 if simoptions.riskyasset==1

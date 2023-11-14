@@ -912,13 +912,21 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
         end
         N_z_temp=prod(n_z_temp);
 
-        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]);
+        if N_z_temp==0
+            StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}),[N_a_temp,N_j_temp]);
+        else
+            StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]);
+        end
 
         if ii==1
             StationaryDist_full=zeros(N_a_temp*N_z_temp*N_i,N_j_temp);
         end
 
-        StationaryDist_full(N_a_temp*N_z_temp*(ii-1)+1:N_a_temp*N_z_temp*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=StationaryDist.(Names_i{ii}) *StationaryDist.ptweights(ii);
+        if N_z_temp==0
+            StationaryDist_full(N_a_temp*(ii-1)+1:N_a_temp*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=StationaryDist.(Names_i{ii}) *StationaryDist.ptweights(ii);
+        else
+            StationaryDist_full(N_a_temp*N_z_temp*(ii-1)+1:N_a_temp*N_z_temp*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=StationaryDist.(Names_i{ii}) *StationaryDist.ptweights(ii);
+        end
     end
     
     %% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
@@ -1082,6 +1090,9 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
                     n_z_temp=[n_z_temp,simoptions_temp.n_e];
                 end
                 N_z_temp=prod(n_z_temp);
+                if N_z_temp==0
+                    N_z_temp=1; % easier than recoding
+                end
 
                 % ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]); % Is already in this form because using simoptions_temp.keepoutputasmatrix=2
                 

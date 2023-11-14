@@ -1,7 +1,7 @@
-function [aprimeIndexes, aprimeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy,aprimeFn, whichisdforriskyasset, n_d, n_a, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
+function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy,aprimeFn, whichisdforriskyasset, n_d, n_a, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
 % The input Policy will contain aprime (except for the risky asset)
 % and the decision variables (d2, and where applicable d1). The output is
-% just the Policy for aprime (for all endogenous states). As well as the
+% just the Policy for a2prime (the risky asset). As well as the
 % related probabilities.
 
 % Note: aprimeIndex is [N_a,N_z,N_u], so is aprimeProbs which only reports the probability for the lower grid point.
@@ -36,27 +36,14 @@ if nargin(aprimeFn)~=l_drisky+l_u+length(aprimeFnParams)
     error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
-% Note: hardcodes that there is just one u shock
-if l_u==1
-    u1vals=shiftdim(u_grid,-1);
-else
-    u_gridvals=CreateGridvals(n_u,u_grid,1);
-    u1vals=u_gridvals(:,1);
-    if l_u>=2
-        u2vals=u_gridvals(:,2);
-    else
-        error('Max of two u variables supported (contact if you need more)')
-    end
-end
-
 if N_z==0 % To save writing a seperate script for without z
     if l_drisky>=1
         if whichisdforriskyasset(1)==1
-            d1grid=d_grid(1:n_d(1));
+            d1_grid=d_grid(1:n_d(1));
         else
-            d1grid=d_grid(sum(n_d(1:whichisdforriskyasset(1)-1))+1:sum(n_d(1:whichisdforriskyasset(1))));
+            d1_grid=d_grid(sum(n_d(1:whichisdforriskyasset(1)-1))+1:sum(n_d(1:whichisdforriskyasset(1))));
         end
-        d1vals=reshape(d1grid(Policy(whichisdforriskyasset(1),:)),[N_a,1]);
+        d1vals=reshape(d1_grid(Policy(whichisdforriskyasset(1),:)),[N_a,1]);
         if l_drisky>=2
             d2grid=d_grid(sum(n_d(1:whichisdforriskyasset(2)-1))+1:sum(n_d(1:whichisdforriskyasset(2))));
             d2vals=reshape(d2grid(Policy(whichisdforriskyasset(2),:)),[N_a,1]);
@@ -73,11 +60,11 @@ if N_z==0 % To save writing a seperate script for without z
 else
     if l_drisky>=1
         if whichisdforriskyasset(1)==1
-            d1grid=d_grid(1:n_d(1));
+            d1_grid=d_grid(1:n_d(1));
         else
-            d1grid=d_grid(sum(n_d(1:whichisdforriskyasset(1)-1))+1:sum(n_d(1:whichisdforriskyasset(1))));
+            d1_grid=d_grid(sum(n_d(1:whichisdforriskyasset(1)-1))+1:sum(n_d(1:whichisdforriskyasset(1))));
         end
-        d1vals=reshape(d1grid(Policy(whichisdforriskyasset(1),:,:)),[N_a*N_z,1]);
+        d1vals=reshape(d1_grid(Policy(whichisdforriskyasset(1),:,:)),[N_a*N_z,1]);
         if l_drisky>=2
             d2grid=d_grid(sum(n_d(1:whichisdforriskyasset(2)-1))+1:sum(n_d(1:whichisdforriskyasset(2))));
             d2vals=reshape(d2grid(Policy(whichisdforriskyasset(2),:,:)),[N_a*N_z,1]);
@@ -93,8 +80,18 @@ else
     end
 end
 
-% Note: the relevant d for risky asset is just the
-% 'whichisdforriskyasset' d (this is typically all d)
+u_gridvals=CreateGridvals(n_u,u_grid,1);
+if l_u>=1
+    u1vals=shiftdim(u_gridvals(:,1),-1);
+    if l_u>=2
+        u2vals=shiftdim(u_gridvals(:,2),-1);
+        if l_u>=3
+            error('Max of two u variables supported (contact if you need more)')
+        end
+    end
+end
+
+% Note: the relevant d for risky asset is just the 'whichisdforriskyasset' d (this is typically all d)
 % riskyasset: aprime(d,u)
 if l_u==1
     if l_drisky==1
@@ -118,8 +115,13 @@ elseif l_u==2
     end
 end
 
+
 %% Calcuate grid indexes and probs from the values
-aprimeVals=reshape(aprimeVals,[1,N_a*N_z*N_u]);
+if N_z==0
+    aprimeVals=reshape(aprimeVals,[1,N_a*N_u]);
+else
+    aprimeVals=reshape(aprimeVals,[1,N_a*N_z*N_u]);
+end
 
 riskyasset_grid=a2_grid; % hardcodes that there is only one risky asset
 
@@ -128,28 +130,33 @@ a_griddiff=riskyasset_grid(2:end)-riskyasset_grid(1:end-1); % Distance between p
 temp=riskyasset_grid-aprimeVals;
 temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
 
-[~,aprimeIndexes]=max(temp,[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
+[~,a2primeIndexes]=max(temp,[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
 % Note, this is going to find the 'first' grid point such that aprimeVals is smaller than or equal to that grid point
 % This is the 'upper' grid point
 
 % Switch to lower grid point index
-aprimeIndexes=aprimeIndexes-1;
-aprimeIndexes(aprimeIndexes==0)=1;
+a2primeIndexes=a2primeIndexes-1;
+a2primeIndexes(a2primeIndexes==0)=1;
 
 % Now, find the probabilities
-aprime_residual=aprimeVals'-riskyasset_grid(aprimeIndexes);
+aprime_residual=aprimeVals'-riskyasset_grid(a2primeIndexes);
 % Probability of the 'lower' points
-aprimeProbs=1-aprime_residual./a_griddiff(aprimeIndexes);
+a2primeProbs=1-aprime_residual./a_griddiff(a2primeIndexes);
 
 % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
 offTopOfGrid=(aprimeVals>=riskyasset_grid(end));
-aprimeProbs(offTopOfGrid)=0;
+a2primeProbs(offTopOfGrid)=0;
 % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
 offBottomOfGrid=(aprimeVals<=riskyasset_grid(1));
-aprimeProbs(offBottomOfGrid)=1;
+a2primeProbs(offBottomOfGrid)=1;
 
-aprimeIndexes=reshape(aprimeIndexes,[N_a,N_z,N_u]); % Index of lower grid point
+if N_z==0
+    a2primeIndexes=reshape(a2primeIndexes,[N_a,1,N_u]); % Index of lower grid point
+    a2primeProbs=reshape(a2primeProbs,[N_a,1,N_u]); % Probability of lower grid point
+else
+    a2primeIndexes=reshape(a2primeIndexes,[N_a,N_z,N_u]); % Index of lower grid point
+    a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_u]); % Probability of lower grid point
+end
 
-aprimeProbs=reshape(aprimeProbs,[N_a,N_z,N_u]); % Probability of lower grid point
 
 end

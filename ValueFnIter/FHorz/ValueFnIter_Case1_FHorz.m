@@ -32,6 +32,7 @@ if exist('vfoptions','var')==0
     vfoptions.exoticpreferences='None';
     vfoptions.dynasty=0;
     vfoptions.experienceasset=0;
+    vfoptions.experienceassetu=0;
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
@@ -89,6 +90,9 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
+    end
+    if ~isfield(vfoptions,'experienceassetu')
+        vfoptions.experienceassetu=0;
     end
     if ~isfield(vfoptions,'riskyasset')
         vfoptions.riskyasset=0;
@@ -157,6 +161,7 @@ elseif isfield(vfoptions,'n_e')
 end
 
 %% Exogenous shock grids
+
 % When using a joint-grid, change n_z to the form I always use internally: first element is N_z, followed by a bunch of ones (that way prod(n_z) still gives N_z)
 jointgrid=0;
 if all(size(z_grid)==[prod(n_z),length(n_z)])
@@ -165,6 +170,125 @@ if all(size(z_grid)==[prod(n_z),length(n_z)])
 elseif all(size(z_grid)==[n_z(1),length(n_z)])
     % already in this form
     jointgrid=1;
+end
+
+% NOTE: If vfoptions.parallel~=2 (so using cpu), then only simply stacked columns that do not depend on age are allowed for z_grid
+if vfoptions.parallel==2
+    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+    % Gradually rolling these out so that all the commands build off of these
+    z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
+    pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
+    if prod(n_z)==0 % no z
+        z_gridvals_J=[];
+    elseif ndims(z_grid)==3 % already an age-dependent joint-grid
+        if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+            z_gridvals_J=z_grid;
+        end
+        pi_z_J=pi_z;
+    elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
+        for jj=1:N_j
+            z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
+        end
+        pi_z_J=pi_z;
+    elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
+        z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
+        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+    elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
+        z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+    end
+    if isfield(vfoptions,'ExogShockFn')
+        if isfield(vfoptions,'ExogShockFnParamNames')
+            for jj=1:N_j
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                pi_z_J(:,jj)=gpuArray(pi_z);
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
+            end
+        else
+            for jj=1:N_j
+                [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
+                pi_z_J(:,jj)=gpuArray(pi_z);
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
+            end
+        end
+    end
+
+    % If using e variable, do same for this
+    if isfield(vfoptions,'n_e')
+        if prod(vfoptions.n_e)==0
+            vfoptions=rmfield(vfoptions,'n_e');
+        else
+            if isfield(vfoptions,'e_grid_J')
+                error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
+            end
+            if ~isfield(vfoptions,'e_grid') % && ~isfield(vfoptions,'e_grid_J')
+                error('You are using an e (iid) variable, and so need to declare vfoptions.e_grid')
+            elseif ~isfield(vfoptions,'pi_e')
+                error('You are using an e (iid) variable, and so need to declare vfoptions.pi_e')
+            end
+            
+            vfoptions.e_gridvals_J=zeros(prod(vfoptions.n_e),length(vfoptions.n_e),'gpuArray');
+            vfoptions.pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
+            if ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
+                if all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
+                    vfoptions.e_gridvals_J=vfoptions.e_grid;
+                end
+                vfoptions.pi_e_J=vfoptions.pi_e;
+            elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),N_j]) % age-dependent grid
+                for jj=1:N_j
+                    vfoptions.e_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_e,vfoptions.e_grid(:,jj),1);
+                end
+                vfoptions.pi_e_J(:,jj)=vfoptions.pi_e;
+            elseif all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) % joint grid
+                vfoptions.e_gridvals_J=vfoptions.e_grid.*ones(1,1,N_j,'gpuArray');
+                vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
+            elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1]) % basic grid
+                vfoptions.e_gridvals_J=CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
+                vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
+            end
+            if isfield(vfoptions,'ExogShockFn')
+                if isfield(vfoptions,'ExogShockFnParamNames')
+                    for jj=1:N_j
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for ii=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                        end
+                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
+                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
+                        else % already joint-grid
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
+                        end
+                    end
+                else
+                    for jj=1:N_j
+                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.ExogShockFn(N_j);
+                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
+                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
+                        else % already joint-grid
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 
@@ -187,17 +311,21 @@ l_e=0;
 if isfield(vfoptions,'n_e')
     l_e=length(vfoptions.n_e);
 end
-if vfoptions.experienceasset==1
+if vfoptions.experienceasset>0
     % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-1;
+    l_aprime=l_aprime-vfoptions.experienceasset;
 end
-if vfoptions.riskyasset==1
+if vfoptions.experienceassetu>0
     % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-1;
+    l_aprime=l_aprime-vfoptions.experienceassetu;
 end
-if vfoptions.residualasset==1
+if vfoptions.riskyasset>0
     % One of the endogenous states should only be counted once.
-    l_aprime=l_aprime-1;
+    l_aprime=l_aprime-vfoptions.riskyasset;
+end
+if vfoptions.residualasset>0
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-vfoptions.residualasset;
 end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
@@ -208,8 +336,9 @@ if isempty(ReturnFnParamNames)
         ReturnFnParamNames={};
     end
 end
-% clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 % [l_d,l_aprime,l_a,l_z,l_e]
+% ReturnFnParamNames
+% clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 
 %% Implement new way of handling warm-glow of bequests (currently only used by Epstein-Zin preferences)
 if isfield(vfoptions,'WarmGlowBequestsFn')
@@ -307,7 +436,11 @@ if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
 end
 
 %% Deal with Experience Asset if need to do that
-if vfoptions.experienceasset==1
+% experienceasset: aprime(d,a)
+% experienceassetu: aprime(d,a,u)
+% experienceassetz: aprime(d,a,z)
+
+if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     
     % Split endogenous assets into the standard ones and the experience asset
@@ -330,9 +463,14 @@ if vfoptions.experienceasset==1
     d2_grid=d_grid(sum(n_d1)+1:end);
 
     % Now just send all this to the right value fn iteration command
-    [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    if vfoptions.experienceasset==1
+        [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    elseif vfoptions.experienceassetu==1
+        [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
     return
 end
+
 
 %% Deal with risky asset if need to do that
 if vfoptions.riskyasset==1
@@ -364,7 +502,7 @@ if vfoptions.riskyasset==1
     end
 
     % Now just send all this to the right value fn iteration command
-    [V,Policy]=ValueFnIter_Case1_FHorz_RiskyAsset(n_d,n_a1,n_a2,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, z_grid, vfoptions.u_grid, pi_z, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_Case1_FHorz_RiskyAsset(n_d,n_a1,n_a2,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.u_grid, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 
@@ -614,50 +752,30 @@ end
 if vfoptions.parallel==2
     if N_d==0
         if isfield(vfoptions,'n_e')
-            if isfield(vfoptions,'e_grid_J')
-                e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
-            else
-                e_grid=vfoptions.e_grid;
-            end
-            if isfield(vfoptions,'pi_e_J')
-                pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
-            else
-                pi_e=vfoptions.pi_e;
-            end
             if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     else % N_d
         if isfield(vfoptions,'n_e')
-            if isfield(vfoptions,'e_grid_J')
-                e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
-            else
-                e_grid=vfoptions.e_grid;
-            end
-            if isfield(vfoptions,'pi_e_J')
-                pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
-            else
-                pi_e=vfoptions.pi_e;
-            end
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end

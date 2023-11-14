@@ -5,7 +5,7 @@ function StationaryDist=StationaryDist_FHorz_Case1_Iteration_TwoProbs_noz_raw(je
 % PolicyProbs are the corresponding probabilities of each of these two.
 
 Policy_aprime=gather(Policy_aprime); %  (a,2,j)
-PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,2,N_j])); % (a,z,2,j)
+PolicyProbs=gather(reshape(PolicyProbs,[N_a,2,N_j])); % (a,z,2,j)
 
 %% Use Tan improvement
 % Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]

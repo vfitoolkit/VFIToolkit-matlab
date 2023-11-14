@@ -21,6 +21,11 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+if N_z==0
+    ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case2_noz(PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, N_j, d_grid, a_grid, Parallel,simoptions);
+    return
+end
+
 
 %% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
 if exist('simoptions','var')

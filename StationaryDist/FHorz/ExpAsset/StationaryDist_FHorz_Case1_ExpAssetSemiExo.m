@@ -11,18 +11,40 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
     error('The jequaloneDist must be of mass one')
 end
 
-%% Setup related to experience asset
-if isfield(simoptions,'aprimeFn')
-    aprimeFn=simoptions.aprimeFn;
+%% Experience asset and semi-exogenous state
+n_d3=n_d(end); % decision variable that controls semi-exogenous state
+n_d2=n_d(end-1); % decision variables that controls experience asset
+if length(n_d)>2
+    n_d1=n_d(1:end-2);
 else
-    error('To use an experience asset you must define simoptions.aprimeFn')
-end
-if ~isfield(simoptions,'a_grid')
-    error('To use an experience asset you must define simoptions.a_grid')
+    n_d1=0;
 end
 
-n_d2=n_d(end);
-n_a2=n_a(end);
+%% Setup related to experience asset
+% Split endogenous assets into the standard ones and the experience asset
+if length(n_a)==1
+    n_a1=0;
+else
+    n_a1=n_a(1:end-1);
+end
+n_a2=n_a(end); % n_a2 is the experience asset
+
+if ~isfield(simoptions,'aprimeFn')
+    error('To use an experience asset you must define simoptions.aprimeFn')
+end
+if isfield(simoptions,'a_grid')
+    % a_grid=simoptions.a_grid;
+    % a1_grid=simoptions.a_grid(1:sum(n_a1));
+    a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
+else
+    error('To use an experience asset you must define simoptions.a_grid')
+end
+if isfield(simoptions,'d_grid')
+    d_grid=simoptions.d_grid;
+else
+    error('To use an experience asset you must define simoptions.d_grid')
+end
+
 
 % aprimeFnParamNames in same fashion
 l_d2=length(n_d2);
@@ -42,10 +64,7 @@ end
 if ~isfield(simoptions,'semiz_grid')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
 end
-n_d1=n_d(1:end-1);
-n_d2=n_d(end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-% d1_grid=simoptions.d_grid(1:sum(n_d1));
-d2_grid=gpuArray(simoptions.d_grid(sum(n_d1)+1:end));
+d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
 % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
 l_semiz=length(simoptions.n_semiz);
 temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
@@ -55,10 +74,10 @@ else
     SemiExoStateFnParamNames={};
 end
 N_semiz=prod(simoptions.n_semiz);
-pi_semiz_J=zeros(N_semiz,N_semiz,n_d2,N_j);
+pi_semiz_J=zeros(N_semiz,N_semiz,n_d3,N_j);
 for jj=1:N_j
     SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,simoptions.n_semiz,d2_grid,simoptions.semiz_grid,simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
+    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d3,simoptions.n_semiz,d3_grid,simoptions.semiz_grid,simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
 end
 
 
@@ -143,10 +162,10 @@ end
 Policy=reshape(Policy,[size(Policy,1),N_a,N_bothz,N_j]);
 Policy_aprime=zeros(N_a,N_bothz,2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
 PolicyProbs=zeros(N_a,N_bothz,2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
-whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+whichisdforexpasset=length(n_d)-1;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),aprimeFn, whichisdforexpasset, n_a, N_bothz, gpuArray(simoptions.a_grid), aprimeFnParamsVec);
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),aprimeFn, whichisdforexpasset, n_a1,n_a2, n_d, N_bothz, d_grid, a2_grid, aprimeFnParamsVec);
     if l_a==1
         Policy_aprime(:,:,1,jj)=aprimeIndexes;
         Policy_aprime(:,:,2,jj)=aprimeIndexes+1;

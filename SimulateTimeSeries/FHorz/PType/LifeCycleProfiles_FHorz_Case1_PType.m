@@ -569,8 +569,8 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
                     
                     if simoptions.groupptypesforstats==1
                         jjageshifted=jj+simoptions.agejshifter(ii);
-                        %% When the stat has less than 10^9 unique values I just keep them
-                        if length(Values_jj)<10^9
+                        %% When the stat has less than 10^8 unique values I just keep them
+                        if length(Values_jj)<10^8
                             basicValues(kk,ii)=1;
                             FullBasicValues(kk,ii,jjageshifted).Values=Values_jj;
                             FullBasicValues(kk,ii,jjageshifted).StationaryDistVec=StationaryDistVec_jj;

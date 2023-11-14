@@ -37,6 +37,28 @@ else
     end
 end
 
+if ~isstruct(jequaloneDist)
+    % Using matrix, reshape now to save multiple reshapes later
+    % (Note that matrix implies same grids for all agents)
+    if prod(n_z)==0
+        if all(size(jequaloneDist)==[n_a,1])
+            jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
+            idiminj1dist=0;
+        elseif all(size(jequaloneDist)==[n_a,N_i])
+            jequaloneDist=reshape(jequaloneDist,[prod(n_a),N_i]);
+            idiminj1dist=1;
+        end
+    else
+        if all(size(jequaloneDist)==[n_a,n_z])
+            jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z)]);
+            idiminj1dist=0;
+        elseif all(size(jequaloneDist)==[n_a,n_z,N_i])
+            jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),N_i]);
+            idiminj1dist=1;
+        end
+    end
+end
+
 for ii=1:N_i
 
     % First set up simoptions
@@ -126,7 +148,6 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    jequaloneDist_temp=jequaloneDist;
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
             jequaloneDist_temp=jequaloneDist.(Names_i{ii});
@@ -141,6 +162,16 @@ for ii=1:N_i
             end
         end
     else
+        % Note: when jequaloneDist is not a structure all ptypes must have the same grids
+        if idiminj1dist==0
+            jequaloneDist_temp=jequaloneDist;
+        else
+            if prod(n_z_temp)==0
+                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
+            else
+                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(jequaloneDist(:,:,ii)); % includes renormalizing so mass of one conditional on ptype
+            end
+        end
         if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
             error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
         end

@@ -81,7 +81,6 @@ elseif all(size(u_grid)==[prod(n_u),l_u]) % joint u_grid
     end
 end
 
-
 if l_d==1
     if l_u==1
         d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
@@ -142,6 +141,9 @@ if l_a==1
     
     temp=a_grid-aprimeVals;
     temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
+
+    % size(a_grid)
+    % size(aprimeVals)
     
     [~,aprimeIndexes]=max(temp,[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
     % Note, this is going to find the 'first' grid point such that aprimeVals is smaller than or equal to that grid point
@@ -150,9 +152,10 @@ if l_a==1
     % Switch to lower grid point index
     aprimeIndexes=aprimeIndexes-1;
     aprimeIndexes(aprimeIndexes==0)=1;
-        
+    
     % Now, find the probabilities
     aprime_residual=aprimeVals'-a_grid(aprimeIndexes);
+
     % Probability of the 'lower' points
     aprimeProbs=1-aprime_residual./a_griddiff(aprimeIndexes);
         

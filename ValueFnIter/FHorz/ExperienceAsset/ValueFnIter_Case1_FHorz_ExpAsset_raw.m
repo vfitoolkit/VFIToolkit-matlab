@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset_raw(n_d1,n_d2,n_a1,n_a2,n_z,N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset_raw(n_d1,n_d2,n_a1,n_a2,n_z,N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -15,15 +15,10 @@ d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
-z_grid=gpuArray(z_grid);
 
 % For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
 n_d=[n_d1,n_d2];
 d_grid=[d1_grid;d2_grid];
-
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if vfoptions.lowmemory>0
     l_z=length(n_z);
@@ -41,35 +36,10 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
-if fieldexists_pi_z_J==1
-    z_grid=vfoptions.z_grid_J(:,N_j);
-    pi_z=vfoptions.pi_z_J(:,:,N_j);
-elseif fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    end
-end
-if vfoptions.lowmemory>0
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        z_gridvals=z_grid;
-    end
-end
-
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -78,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, special_n_z, d_grid, a1_grid, a2_grid, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
@@ -89,7 +59,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==2
 
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             for a1_c=1:N_a1
                 a1_val=a1_gridvals(a1_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, special_n_a1,n_a2, special_n_z, d_grid, a1_val, a2_grid, z_val, ReturnFnParamsVec);
@@ -123,12 +93,12 @@ else
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
         
         if vfoptions.paroverz==1
             
-            EV=V_Jplus1.*shiftdim(pi_z',-1);
+            EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -156,7 +126,7 @@ else
                 ReturnMatrix_z=ReturnMatrix(:,:,z_c);
                 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
@@ -178,20 +148,14 @@ else
         end
         
     elseif vfoptions.lowmemory==1
-        if vfoptions.lowmemory>0
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(z_grid)==[prod(n_z),l_z])
-                z_gridvals=z_grid;
-            end
-        end
+
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, special_n_z, d_grid, a1_grid, a2_grid, z_val, ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+            EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
 
@@ -259,31 +223,6 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    if fieldexists_pi_z_J==1
-        z_grid=vfoptions.z_grid_J(:,jj);
-        pi_z=vfoptions.pi_z_J(:,:,jj);
-    elseif fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        end
-    end
-    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
-        if all(size(z_grid)==[sum(n_z),1])
-            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-        elseif all(size(z_grid)==[prod(n_z),l_z])
-            z_gridvals=z_grid;
-        end
-    end
-
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
@@ -299,12 +238,12 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
         
         if vfoptions.paroverz==1
             
-            EV=VKronNext_j.*shiftdim(pi_z',-1);
+            EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
             
@@ -332,7 +271,7 @@ for reverse_j=1:N_j-1
                 ReturnMatrix_z=ReturnMatrix(:,:,z_c);
                 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
@@ -355,12 +294,12 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,jj);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, special_n_z, d_grid, a1_grid, a2_grid, z_val, ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
