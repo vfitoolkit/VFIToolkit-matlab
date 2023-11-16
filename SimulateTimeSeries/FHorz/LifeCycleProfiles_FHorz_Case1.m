@@ -1,4 +1,4 @@
-function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,PolicyIndexes,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,PolicyIndexes,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 % Similar to SimLifeCycleProfiles but works from StationaryDist rather than
 % simulating panel data. Where applicable it is faster and more accurate.
 % options.agegroupings can be used to do conditional on 'age bins' rather than age
