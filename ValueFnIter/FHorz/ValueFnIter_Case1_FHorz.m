@@ -120,41 +120,75 @@ if ~all(size(d_grid)==[sum(n_d), 1])
     end
 elseif ~all(size(a_grid)==[sum(n_a), 1])
     error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
-elseif ~all(size(z_grid)==[sum(n_z), 1]) && ~all(size(z_grid)==[prod(n_z),length(n_z)]) && ~all(size(z_grid)==[n_z(1),length(n_z)])
-    % all(size(z_grid)==[sum(n_z), 1]) is the grid as a stacked vector
-    % all(size(z_grid)==[prod(n_z),length(n_z)]) is a joint-grid
-    % all(size(z_grid)==[n_z(1),length(n_z)]) is a joint-grid
-    if N_z>0
-        error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
+end
+% Check z_grid inputs
+if isa(z_grid,'function_handle')
+    % okay
+elseif ndims(z_grid)==2
+    if ~all(size(z_grid)==[sum(n_z),1]) && ~all(size(z_grid)==[prod(n_z),length(n_z)]) && ~all(size(z_grid)==[n_z(1),length(n_z)]) && ~all(size(z_grid)==[sum(n_z),N_j])
+        % all(size(z_grid)==[sum(n_z), 1]) is the grid as a stacked vector
+        % all(size(z_grid)==[prod(n_z),length(n_z)]) is a joint-grid
+        % all(size(z_grid)==[n_z(1),length(n_z)]) is a joint-grid
+        % all(size(z_grid)==[sum(n_z), N_j]) is the grid as an age-dependent stacked vector
+        if N_z>0
+            error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-1)')
+        end
     end
-elseif ~isequal(size(pi_z), [N_z, N_z])
-    if N_z>0
-        error('pi is not of size N_z-by-N_z')
+elseif ndims(z_grid)==3
+    if ~all(size(z_grid)==[prod(n_z),length(n_z),N_j]) && ~all(size(z_grid)==[n_z(1),length(n_z),N_j])
+        % all(size(z_grid)==[prod(n_z),length(n_z),N_j]) is an age-dependent joint-grid
+        % all(size(z_grid)==[n_z(1),length(n_z),N_j]) is an age-dependent joint-grid
+        if N_z>0
+            error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-N_j)')
+        end
     end
-elseif isfield(vfoptions,'n_e')
+else
+    error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-1)')
+end
+% Check pi_z inputs
+if isa(z_grid,'function_handle')
+    % okay (dont need to check pi_z
+elseif ndims(pi_z)==2
+    if ~isequal(size(pi_z), [N_z, N_z])
+        if N_z>0
+            error('pi_z is not of size N_z-by-N_z')
+        end 
+    end
+elseif ndims(pi_z)==3
+    if ~isequal(size(pi_z), [N_z, N_z,N_j])
+        if N_z>0
+            error('pi_z is not of size N_z-by-N_z-by-N_j')
+        end 
+    end
+end
+
+
+if isfield(vfoptions,'n_e')
     if vfoptions.parallel<2
         error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
     end
-    if ~isfield(vfoptions,'e_grid') && ~isfield(vfoptions,'e_grid_J')
-        error('When using vfoptions.n_e you must declare vfoptions.e_grid (or vfoptions.e_grid_J)')
-    elseif ~isfield(vfoptions,'pi_e') && ~isfield(vfoptions,'pi_e_J')
-        error('When using vfoptions.n_e you must declare vfoptions.pi_e (or vfoptions.pi_e_J)')
+    if ~isfield(vfoptions,'e_grid')
+        error('When using vfoptions.n_e you must declare vfoptions.e_grid')
+    elseif ~isfield(vfoptions,'pi_e')
+        error('When using vfoptions.n_e you must declare vfoptions.pi_e')
     else
         % check size of e_grid and pi_e
         if isfield(vfoptions,'e_grid')
-            if  ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), 1]) && ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)])
-                error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1)')
+            if ndims(vfoptions.e_grid)==2
+                if ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), 1]) && ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) && ~all(size(vfoptions.e_grid)==[sum(vfoptions.n_e), N_j])
+                    error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1; or sum(n_e)-by-N_j or N_e-by-l_e or N_e-by-l_e-by_N_j )')
+                end
+            elseif ndims(vfoptions.e_grid)==3
+                if ~all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
+                    error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1; or sum(n_e)-by-N_j or N_e-by-l_e or N_e-by-l_e-by_N_j )')
+                end
+            else
+                error('vfoptions.e_grid is not the correct shape (should be of size sum(n_e)-by-1; or sum(n_e)-by-N_j or N_e-by-l_e or N_e-by-l_e-by_N_j )')
             end
-        else % using e_grid_J
-            % HAVE NOT YET IMPLEMENTED A CHECK OF THE SIZE OF e_grid_J
         end
         if isfield(vfoptions,'pi_e')
-            if ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),1])
-                error('vfoptions.pi_e is not the correct shape (should be of size N_e-by-1)')
-            end
-        else % using pi_e_J
-            if ~all(size(vfoptions.pi_e_J)==[prod(vfoptions.n_e),N_j])
-                error('vfoptions.pi_e_J is not the correct shape (should be of size N_e-by-N_j)')
+            if ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),1]) && ~all(size(vfoptions.pi_e)==[prod(vfoptions.n_e),N_j])
+                error('vfoptions.pi_e is not the correct shape (should be of size N_e-by-1 or N_e-by-N_j)')
             end
         end
     end
@@ -247,11 +281,11 @@ if vfoptions.parallel==2
                     vfoptions.e_gridvals_J=vfoptions.e_grid;
                 end
                 vfoptions.pi_e_J=vfoptions.pi_e;
-            elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),N_j]) % age-dependent grid
+            elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),N_j]) % age-dependent stacked-grid
                 for jj=1:N_j
                     vfoptions.e_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_e,vfoptions.e_grid(:,jj),1);
                 end
-                vfoptions.pi_e_J(:,jj)=vfoptions.pi_e;
+                vfoptions.pi_e_J=vfoptions.pi_e;
             elseif all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) % joint grid
                 vfoptions.e_gridvals_J=vfoptions.e_grid.*ones(1,1,N_j,'gpuArray');
                 vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');

@@ -423,7 +423,7 @@ else %simoptions.groupptypesforstats==1
             FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
             simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-            ValuesOnDist_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+            ValuesOnDist_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp));
             N_a_temp=prod(n_a_temp);
             if isfield(simoptions_temp,'n_e')
                 n_z_temp=[n_z_temp,simoptions_temp.n_e];

@@ -37,43 +37,88 @@ else
     end
 end
 
+
+if ~exist('simoptions','var')
+    simoptions=struct(); % defaults are filled in later
+end
+
 if ~isstruct(jequaloneDist)
     % Using matrix, reshape now to save multiple reshapes later
     % (Note that matrix implies same grids for all agents)
-    if isfield(simoptions,'n_semiz')
-        if prod(n_z)==0
-            if all(size(jequaloneDist)==[n_a,simoptions.n_semiz])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)]);
-                idiminj1dist=0;
-            elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,N_i])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz),N_i]);
-                idiminj1dist=1;
+    if isfield(simoptions,'n_e')
+        if isfield(simoptions,'n_semiz')
+            if prod(n_z)==0
+                if all(size(jequaloneDist)==[n_a,simoptions.n_semiz,simoptions.n_e])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz),prod(simoptions.n_e)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,simoptions.n_e,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz),prod(simoptions.n_e),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
+            else
+                if all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z,simoptions.n_e])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z)*prod(simoptions.n_e)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z)*prod(simoptions.n_e),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
             end
         else
-            if all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z)]);
-                idiminj1dist=0;
-            elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z,N_i])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z),N_i]);
-                idiminj1dist=1;
+            if prod(n_z)==0
+                if all(size(jequaloneDist)==[n_a,simoptions.n_e])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_e)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,simoptions.n_e,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_e),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
+            else
+                if all(size(jequaloneDist)==[n_a,n_z,simoptions.n_e])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),prod(simoptions.n_e)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,n_z,simoptions.n_e,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),prod(simoptions.n_e),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
             end
         end
-    else
-        if prod(n_z)==0
-            if all(size(jequaloneDist)==[n_a,1])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
-                idiminj1dist=0;
-            elseif all(size(jequaloneDist)==[n_a,N_i])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),N_i]);
-                idiminj1dist=1;
+    else % no e variable
+        if isfield(simoptions,'n_semiz')
+            if prod(n_z)==0
+                if all(size(jequaloneDist)==[n_a,simoptions.n_semiz])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
+            else
+                if all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,simoptions.n_semiz,n_z,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(simoptions.n_semiz)*prod(n_z),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
             end
         else
-            if all(size(jequaloneDist)==[n_a,n_z])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z)]);
-                idiminj1dist=0;
-            elseif all(size(jequaloneDist)==[n_a,n_z,N_i])
-                jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),N_i]);
-                idiminj1dist=1;
+            if prod(n_z)==0
+                if all(size(jequaloneDist)==[n_a,1])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
+            else
+                if all(size(jequaloneDist)==[n_a,n_z])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z)]);
+                    idiminj1dist=0;
+                elseif all(size(jequaloneDist)==[n_a,n_z,N_i])
+                    jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z),N_i]);
+                    idiminj1dist=1; % ptype is a dimension of the jequaloneDist
+                end
             end
         end
     end

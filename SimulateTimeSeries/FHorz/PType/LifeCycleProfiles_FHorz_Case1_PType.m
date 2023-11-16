@@ -941,14 +941,19 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
             n_z_temp=[n_z_temp,simoptions_temp.n_e];
         end
         N_z_temp=prod(n_z_temp);
-
-        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]);
-
-        if ii==1
-            StationaryDist_full=zeros(N_a_temp*N_z_temp*N_i,N_j_temp);
+        if N_z_temp==0
+            N_z_temp_dim=1;
+        else
+            N_z_temp_dim=N_z_temp;
         end
 
-        StationaryDist_full(N_a_temp*N_z_temp*(ii-1)+1:N_a_temp*N_z_temp*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=StationaryDist.(Names_i{ii}) *StationaryDist.ptweights(ii);
+        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp_dim,N_j_temp]);
+
+        if ii==1
+            StationaryDist_full=zeros(N_a_temp*N_z_temp_dim*N_i,N_j_temp);
+        end
+
+        StationaryDist_full(N_a_temp*N_z_temp_dim*(ii-1)+1:N_a_temp*N_z_temp_dim*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=StationaryDist.(Names_i{ii}) *StationaryDist.ptweights(ii);
     end
     
     %% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
@@ -965,7 +970,7 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
         FnsAndPTypeIndicator_kk=zeros(1,N_i,'gpuArray');
 
         % Use the full distribution over all agent ptypes
-        ValuesOnGrid=zeros(N_a_temp*N_z_temp*N_i,N_j_temp); 
+        ValuesOnGrid=zeros(N_a_temp*N_z_temp_dim*N_i,N_j_temp); 
 
         MeanVec=zeros(N_i,maxngroups);
         StdDevVec=zeros(N_i,maxngroups);
@@ -1110,14 +1115,19 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
             if WhichFnsForCurrentPType==1
 
                 %% We have set up the current PType, now do some calculations for it.
-                simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-                ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+                simoptions_temp.outputasstructure=0; %0: is a matrix
+                ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp,FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
 
                 N_a_temp=prod(n_a_temp);
                 if isfield(simoptions_temp,'n_e')
                     n_z_temp=[n_z_temp,simoptions_temp.n_e];
                 end
                 N_z_temp=prod(n_z_temp);
+                if N_z_temp==0
+                    N_z_temp_dim=1;
+                else
+                    N_z_temp_dim=N_z_temp;
+                end
 
                 % ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]); % Is already in this form because using simoptions_temp.keepoutputasmatrix=2
                 
@@ -1125,7 +1135,7 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
                 
                 % Store the big groupings over all ptypes
-                ValuesOnGrid(N_a_temp*N_z_temp*(ii-1)+1:N_a_temp*N_z_temp*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=ValuesOnGrid_ii;
+                ValuesOnGrid(N_a_temp*N_z_temp_dim*(ii-1)+1:N_a_temp*N_z_temp_dim*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=ValuesOnGrid_ii;
                 % Precreated the big stationary dist
 
                 for jj=1:length(simoptions_temp.agegroupings)
@@ -1139,8 +1149,8 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
 
 
                     % Calculate the individual stats
-                    StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
-                    Values_jj=reshape(ValuesOnGrid_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
+                    StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp_dim*(jend-j1+1),1]);
+                    Values_jj=reshape(ValuesOnGrid_ii(:,j1:jend),[N_a_temp*N_z_temp_dim*(jend-j1+1),1]);
 
                     % Eliminate all the zero-weights from these (this would
                     % increase run times if we only do exact calculations, but
@@ -1346,8 +1356,8 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
                 % simoptions.agejshifter
 
                 % Calculate the individual stats
-                StationaryDistVec=reshape(StationaryDist_full(:,j1:jend),[N_a_temp*N_z_temp*N_i*(jend-j1+1),1]);
-                Values=reshape(ValuesOnGrid(:,j1:jend),[N_a_temp*N_z_temp*N_i*(jend-j1+1),1]);
+                StationaryDistVec=reshape(StationaryDist_full(:,j1:jend),[N_a_temp*N_z_temp_dim*N_i*(jend-j1+1),1]);
+                Values=reshape(ValuesOnGrid(:,j1:jend),[N_a_temp*N_z_temp_dim*N_i*(jend-j1+1),1]);
 
                 % Eliminate all the zero-weights from these (this would
                 % increase run times if we only do exact calculations, but

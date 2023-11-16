@@ -42,8 +42,6 @@ if nargin(aprimeFn)~=l_dexp+1+l_u+length(aprimeFnParams)
 end
 
 
-
-
 if N_z==0 % To save writing a seperate script for without z
     if l_dexp>=1
         if whichisdforexpasset(1)==1
@@ -88,10 +86,18 @@ else
     end
 end
 
-if N_a1==0
-    a2vals=kron(ones(N_z,1),a2_grid);
+if N_z==0
+    if N_a1==0
+        a2vals=a2_grid;
+    else
+        a2vals=kron(a2_grid,ones(N_a1,1));
+    end
 else
-    a2vals=kron(ones(N_z,1),kron(a2_grid,ones(N_a1,1)));
+    if N_a1==0
+        a2vals=kron(ones(N_z,1),a2_grid);
+    else
+        a2vals=kron(ones(N_z,1),kron(a2_grid,ones(N_a1,1)));
+    end
 end
 
 u_gridvals=CreateGridvals(n_u,u_grid,1);

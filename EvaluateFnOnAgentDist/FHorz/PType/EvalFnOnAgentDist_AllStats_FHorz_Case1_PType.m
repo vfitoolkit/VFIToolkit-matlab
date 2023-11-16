@@ -278,8 +278,8 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         FnsAndPTypeIndicator_kk(ii)=FnsAndPTypeIndicator_ii;
 
         %% We have set up the current PType, now do some calculations for it.
-        simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
+        simoptions_temp.outputasstructure=0;
+        ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp));
         N_a_temp=prod(n_a_temp);
         if isfield(simoptions_temp,'n_e')
             n_z_temp=[n_z_temp,simoptions_temp.n_e];
@@ -298,89 +298,20 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         StationaryDist_ii=StationaryDist_ii(temp);
         ValuesOnGrid_ii=ValuesOnGrid_ii(temp);
         
-        % Many of the stats require sorted versions
+        %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
+        AllStats.(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(ValuesOnGrid_ii,StationaryDist_ii,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+
+        % For later, put the mean and std dev in a convenient place
+        MeanVec(ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean;
+        StdDevVec(ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDeviation;
+        % Do the same with the minimum and maximum
+        minvaluevec(ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Minimum;
+        maxvaluevec(ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Maximum;
+
+        %% Create digest
         [SortedValues,SortedValues_index]=sort(ValuesOnGrid_ii);
         SortedWeights=StationaryDist_ii(SortedValues_index);
-        CumSumSortedWeights=cumsum(SortedWeights);
-        SortedWeightedValues=SortedValues.*SortedWeights;
         
-        %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
-
-        % Min value
-        tempindex=find(CumSumSortedWeights>=simoptions.tolerance,1,'first');
-        minvalue=SortedValues(tempindex);
-        % Max value
-        tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
-        if isempty(tempindex) % tolerance was not satisfied
-            CumSumSortedWeights=(CumSumSortedWeights/(CumSumSortedWeights(end))); % Normalize the total mass to one (it is out due to numerical rounding error)
-            tempindex=find(CumSumSortedWeights>=(1-simoptions.tolerance),1,'first');
-        end
-        maxvalue=SortedValues(tempindex);
-        
-        % Mean
-        Mean=sum(SortedWeightedValues);
-        MeanVec(ii)=Mean; % This is used later for the grouped stat
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean=Mean;
-        % Standard Deviation
-        Variance=sum((ValuesOnGrid_ii.^2).*StationaryDist_ii)-Mean^2;  % Weighted square of values - mean^2
-        if Variance<0 && Variance>-10^(-9) % is zero, except numerical error
-            Variance=0;
-        end
-        StdDev=sqrt(Variance);
-        StdDevVec(ii)=StdDev; % This is used later for the grouped stat
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=StdDev;
-        
-        % Some stats bassed on Lorenz curve
-        if SortedWeightedValues(1)<0
-            warning('Lorenz curve for the %i-th FnsToEvaluate is complicated as it takes some negative values \n',kk)
-        end
-        LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,1);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=LorenzCurve;
-        % Top X share indexes (simoptions_temp.npoints will be number of points in Lorenz Curve)
-        Top1cutpoint=round(0.99*simoptions_temp.npoints);
-        Top5cutpoint=round(0.95*simoptions_temp.npoints);
-        Top10cutpoint=round(0.90*simoptions_temp.npoints);
-        Top50cutpoint=round(0.50*simoptions_temp.npoints);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top1share=1-LorenzCurve(Top1cutpoint);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top5share=1-LorenzCurve(Top5cutpoint);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top10share=1-LorenzCurve(Top10cutpoint);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Bottom50share=LorenzCurve(Top50cutpoint);
-        % Now some cutoffs
-        index_median=find(CumSumSortedWeights>=0.5,1,'first');
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median=SortedValues(index_median);
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile50th=SortedValues(index_median);
-        index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile90th=SortedValues(index_p90);
-        index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile95th=SortedValues(index_p95);
-        index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile99th=SortedValues(index_p99);
-        
-        % Now do quantile cutoffs and quantile means.
-        QuantileIndexes_ii=zeros(1,simoptions_temp.nquantiles-1,'gpuArray');
-        QuantileCutoffs_ii=zeros(1,simoptions_temp.nquantiles-1,'gpuArray');
-        QuantileMeans_ii=zeros(1,simoptions_temp.nquantiles,'gpuArray');
-        for qq=1:simoptions_temp.nquantiles-1
-            [tempindex,~]=find(CumSumSortedWeights>=qq/simoptions_temp.nquantiles,1,'first');
-            QuantileIndexes_ii(qq)=tempindex;
-            QuantileCutoffs_ii(qq)=SortedValues(tempindex);
-            if qq==1
-                QuantileMeans_ii(qq)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-            elseif (1<qq) && (qq<(simoptions_temp.nquantiles-1))
-                QuantileMeans_ii(qq)=sum(SortedWeightedValues(QuantileIndexes_ii(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_ii(qq-1)));
-            elseif qq==(simoptions_temp.nquantiles-1)
-                QuantileMeans_ii(qq)=sum(SortedWeightedValues(QuantileIndexes_ii(qq-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_ii(qq-1)));
-                QuantileMeans_ii(qq+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-            end
-        end
-        
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=[minvalue, QuantileCutoffs_ii, maxvalue];
-        AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=QuantileMeans_ii;
-
-        minvaluevec(ii)=minvalue; % Keep so that we can calculate the grouped min directly from this
-        maxvaluevec(ii)=maxvalue; % Keep so that we can calculate the grouped max directly from this
-        
-        %% Create digest
         [C_ii,digestweights_ii,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1 is presorted
 
         merge_nsofar2=merge_nsofar+length(C_ii);
@@ -398,36 +329,9 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     % Merge the digests
     [C_kk,digestweights_kk,qlimitvec_kk]=mergeDigest(Cmerge, digestweightsmerge, delta);
     
-    % Top X share indexes (simoptions_temp.npoints will be number of points in Lorenz Curve)
-    Top1cutpoint=round(0.99*simoptions_temp.npoints);
-    Top5cutpoint=round(0.95*simoptions_temp.npoints);
-    Top10cutpoint=round(0.90*simoptions_temp.npoints);
-    Top50cutpoint=round(0.50*simoptions_temp.npoints);
+    AllStats.(FnsToEvalNames{kk})=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);    
     
-    if C_kk(1)<0
-        warning('Lorenz curve for the %i-th FnsToEvaluate is complicated as it takes some negative values \n',kk)
-    end
-    % Calculate the quantiles
-    LorenzCurve=LorenzCurve_subfunction_PreSorted(C_kk.*digestweights_kk,qlimitvec_kk,simoptions_temp.npoints,1);
-    AllStats.(FnsToEvalNames{kk}).LorenzCurve=LorenzCurve;
-    AllStats.(FnsToEvalNames{kk}).Top1share=1-LorenzCurve(Top1cutpoint);
-    AllStats.(FnsToEvalNames{kk}).Top5share=1-LorenzCurve(Top5cutpoint);
-    AllStats.(FnsToEvalNames{kk}).Top10share=1-LorenzCurve(Top10cutpoint);
-    AllStats.(FnsToEvalNames{kk}).Bottom50share=LorenzCurve(Top50cutpoint);
-    
-    cumsumdigestweights_kk=cumsum(digestweights_kk);
-    % Now some cutoffs (note: qlimitvec is effectively already the cumulative sum)
-    index_median=find(cumsumdigestweights_kk>=0.5,1,'first');
-    AllStats.(FnsToEvalNames{kk}).Median=C_kk(index_median);
-    AllStats.(FnsToEvalNames{kk}).Percentile50th=C_kk(index_median);
-    index_p90=find(cumsumdigestweights_kk>=0.90,1,'first');
-    AllStats.(FnsToEvalNames{kk}).Percentile90th=C_kk(index_p90);
-    index_p95=find(cumsumdigestweights_kk>=0.95,1,'first');
-    AllStats.(FnsToEvalNames{kk}).Percentile95th=C_kk(index_p95);
-    index_p99=find(cumsumdigestweights_kk>=0.99,1,'first');
-    AllStats.(FnsToEvalNames{kk}).Percentile99th=C_kk(index_p99);
-    
-    % Grouped mean and standard deviation
+    % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
     SigmaNxi=sum(FnsAndPTypeIndicator_kk.*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
     
     % Mean
@@ -447,22 +351,10 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     end
     AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
     
-    % Calculate the quantiles directly from the digest
-    quantiles=(1:1:simoptions_temp.nquantiles-1)/simoptions_temp.nquantiles;
-    quantilecutoffs=interp1(qlimitvec_kk,C_kk,quantiles);
-    quantilemeans=zeros(length(quantilecutoffs)+1,1);
-    Ctimesdisgestweights=C_kk.*digestweights_kk;
-    quantilemeans(1)=sum(Ctimesdisgestweights(qlimitvec_kk<quantiles(1)))/sum(digestweights_kk(qlimitvec_kk<quantiles(1)));
-    for qq=2:length(quantilecutoffs)
-        quantilemeans(qq)=sum(Ctimesdisgestweights(logical((qlimitvec_kk>quantiles(qq-1)).*(qlimitvec_kk<quantiles(qq)))))/sum(digestweights_kk(logical((qlimitvec_kk>quantiles(qq-1)).*(qlimitvec_kk<quantiles(qq)))));
-    end
-    quantilemeans(end)=sum(Ctimesdisgestweights(qlimitvec_kk>quantiles(end)))/sum(digestweights_kk(qlimitvec_kk>quantiles(end)));
-    
-    % The minvalue and maxvalue can just be calculated direct from the invididual agent ones
-    % Note: the nan in minvaluevec and maxvaluevec are the preallocated size (which we then only partly fill)
-    AllStats.(FnsToEvalNames{kk}).QuantileCutoffs=[min(minvaluevec,[],'omitnan'), quantilecutoffs, max(maxvaluevec,[],'omitnan')]; 
-    AllStats.(FnsToEvalNames{kk}).QuantileMeans=quantilemeans;
-    
+    % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
+    AllStats.(FnsToEvalNames{kk}).Maximum=max(maxvaluevec);
+    AllStats.(FnsToEvalNames{kk}).Minimum=min(minvaluevec);
+
 end
 
 

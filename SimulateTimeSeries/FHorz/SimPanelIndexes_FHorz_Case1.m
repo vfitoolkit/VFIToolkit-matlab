@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. (If you use the
 % newbirths option you will get more than 'numbersims', due to the extra births)
@@ -75,38 +75,12 @@ if simoptions.n_semiz(1)>0
         SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,Policy,n_d,n_a,N_j, simoptions);
         return
     else
-        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z, simoptions);
+        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
         return
     end
 end
 
-%%
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-
-if fieldexists_pi_z_J==1
-    cumsumpi_z=gather(cumsum(simoptions.pi_z_J,2));
-elseif fieldexists_ExogShockFn==1
-    cumsumpi_z=nan(N_z,N_z,N_j);
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for kk=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-            end
-            [~,pi_z_jj]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        else
-            [~,pi_z_jj]=simoptions.ExogShockFn(jj);
-        end
-        cumsumpi_z(:,:,jj)=gather(cumsum(pi_z_jj,2));
-    end
-    fieldexists_pi_z_J=1; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
-else
-    fieldexists_pi_z_J=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
-    cumsumpi_z=cumsum(pi_z,2);
-end
+cumsumpi_z_J=cumsum(pi_z_J,2);
 
 %%
 MoveOutputtoGPU=0;
@@ -114,7 +88,7 @@ if simoptions.parallel==2
     % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
     % back. For anything but ridiculously short simulations it is more than worth the overhead.
     Policy=gather(Policy);
-    cumsumpi_z=gather(cumsumpi_z);
+    cumsumpi_z_J=gather(cumsumpi_z_J);
     MoveOutputtoGPU=1;
 end
 
@@ -154,7 +128,7 @@ if ~isfield(simoptions,'n_e')
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);                
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
                 
                 SimPanel_ii=nan(l_a+l_z+1,simperiods);
                 
@@ -180,7 +154,7 @@ if ~isfield(simoptions,'n_e')
         else
             parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
                 
                 SimPanel_ii=nan(l_a+l_z+1,simperiods);
                 
@@ -231,7 +205,7 @@ if ~isfield(simoptions,'n_e')
                 
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods-birthperiod+1,fieldexists_pi_z_J);
+                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods-birthperiod+1);
                     
                     SimPanel_ii=nan(l_a+l_z+1,simperiods);
                     
@@ -264,12 +238,12 @@ if ~isfield(simoptions,'n_e')
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
+                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
             end
         else
             parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods,fieldexists_pi_z_J);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
                 SimPanel(:,:,ii)=SimLifeCycleKron;
             end
         end
@@ -300,7 +274,7 @@ if ~isfield(simoptions,'n_e')
                 
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_a,N_z,N_j,cumsumpi_z, seedpoint, simperiods-birthperiod+1,fieldexists_pi_z_J);
+                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods-birthperiod+1);
                     SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
                 end
             end
@@ -312,35 +286,10 @@ if ~isfield(simoptions,'n_e')
 else %if isfield(simoptions,'n_e')
     %% this time with e variables
     % If e variables are used they are treated seperately as this is faster/better
-    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-    
     N_e=prod(simoptions.n_e);
     l_e=length(simoptions.n_e);
     
-    if fieldexists_pi_e_J==1
-        cumsumpi_e=gather(cumsum(simoptions.pi_e_J,1));
-    elseif fieldexists_EiidShockFn==1
-        cumsumpi_e=nan(N_e,N_j);
-        for jj=1:N_j
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for kk=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(kk,1)={EiidShockFnParamsVec(kk)};
-                end
-                [~,pi_e_jj]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e_jj]=simoptions.EiidShockFn(jj);
-            end
-            cumsumpi_e(:,jj)=gather(cumsum(pi_e_jj));
-        end
-        fieldexists_pi_e_J=1; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
-    else
-        fieldexists_pi_e_J=0; % Needed below for use in SimLifeCycleIndexes_FHorz_Case1_raw()
-        cumsumpi_e=cumsum(simoptions.pi_e);
-    end
+    cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
         
     % Check if the inputted Policy is already in form of PolicyIndexesKron. If
     % so this saves a big chunk of the run time of 'SimPanelIndexes_FHorz_Case1',
@@ -377,7 +326,7 @@ else %if isfield(simoptions,'n_e')
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
                 
                 SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
                 
@@ -407,7 +356,7 @@ else %if isfield(simoptions,'n_e')
         else
             parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0                
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);               
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);               
                 
                 SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
                 
@@ -462,7 +411,7 @@ else %if isfield(simoptions,'n_e')
                 
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
                     
                     SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
                     
@@ -500,12 +449,12 @@ else %if isfield(simoptions,'n_e')
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
             end
         else
             parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
                 SimPanel(:,:,ii)=SimLifeCycleKron; 
             end
         end
@@ -537,7 +486,7 @@ else %if isfield(simoptions,'n_e')
                 
                 for ii=1:newbirthsvector(birthperiod)
                     seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z,cumsumpi_e,seedpoint,simperiods,fieldexists_pi_z_J,fieldexists_pi_e_J);
+                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
                     SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
                 end
             end

@@ -1,42 +1,28 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,Parallel,simoptions)
-% Parallel is an optional input. If not given, will guess based on where StationaryDist
-
-if ~exist('Parallel','var')
-    if isa(StationaryDist, 'gpuArray')
-        Parallel=2;
-    else
-        Parallel=1;
-    end
-else
-    if isempty(Parallel)
-        if isa(StationaryDist, 'gpuArray')
-            Parallel=2;
-        else
-            Parallel=1;
-        end
-    end
-end
+function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    simoptions.nquantiles=20; % by default gives ventiles
+    simoptions.npoints=100; % number of points for lorenz curve
+    simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
     end
+    if ~isfield(simoptions,'nquantiles')
+        simoptions.nquantiles=20; % by default gives ventiles
+    end
+    if ~isfield(simoptions,'npoints')
+        simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
+    end
+    if ~isfield(simoptions,'tolerance')
+        simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    end
 end
 
-if Parallel==1
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
-end
 
 %%
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
-l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
@@ -183,7 +169,6 @@ l_daprime=size(PolicyIndexes,1);
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
-    clear FnsToEvaluateParamNames
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
@@ -209,9 +194,9 @@ end
 
 
 %%
+AllStats=struct();
 if N_z==0
     if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
 
@@ -240,17 +225,16 @@ if N_z==0
             end
             
             Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
-            AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
+            AllStats.(AggVarNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
         end
 
     elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
 
         PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
 
-        for ii=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             Values=nan(N_a,N_j,'gpuArray');
             for jj=1:N_j
 
@@ -262,14 +246,13 @@ if N_z==0
                 end
                 Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,0,a_grid,[]);
             end
-            AggVars(ii)=sum(sum(Values.*StationaryDist));
+            AllStats.(AggVarNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
         end
     end
 
 else % N_z
 
     if simoptions.lowmemory==0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
 
@@ -298,17 +281,16 @@ else % N_z
             end
 
             Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
-            AggVars(ff)=sum(sum(sum(Values.*StationaryDist)));
+            AllStats.(AggVarNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
         end
 
     elseif simoptions.lowmemory==1 % Loop over age j
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
 
         PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
 
-        for ii=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             Values=nan(N_a*N_z,N_j,'gpuArray');
             for jj=1:N_j
 
@@ -320,55 +302,8 @@ else % N_z
                 end
                 Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_grid,z_gridvals_J(:,:,jj));
             end
-            AggVars(ii)=sum(sum(Values.*StationaryDist));
+            AllStats.(AggVarNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
         end
-    elseif simoptions.lowmemory==2 % loop over age j, and over the exogenous state
-        % Loop over z (which is all exogenous states, if there is an e or semiz variable it has just been rolled into z)
-        AggVars=zeros(length(FnsToEvaluate),N_z,'gpuArray');
-        StationaryDist=permute(reshape(StationaryDist,[N_a,N_z,N_j]),[1,3,2]); % permute moves z to last dimension
-        if n_d(1)>0
-            PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z,N_j]);
-        else
-            PolicyIndexes=reshape(PolicyIndexes,[N_a,N_z,N_j]);
-        end
-
-        for z_c=1:N_z
-            StationaryDistVec_z=StationaryDist(:,:,z_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
-            if n_d(1)>0
-                PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes(:,:,z_c,:),n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
-            else
-                PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes(:,z_c,:),n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
-            end
-
-            for ii=1:length(FnsToEvaluate)
-                Values=nan(N_a*N_z,N_j,'gpuArray');
-                for jj=1:N_j
-                    % Includes check for cases in which no parameters are actually required
-                    if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                        FnToEvaluateParamsVec=[];
-                    else
-                        FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                    end
-                    Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, [e_gridvals_J(e_c,:,jj),FnToEvaluateParamsVec],PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_grid,z_gridvals_J(:,:,jj));
-                end
-                AggVars(ii,z_c)=sum(sum(Values.*StationaryDistVec_z));
-            end
-        end
-        AggVars=sum(AggVars,2); % sum over e (note that the weighting by pi_e is already implicit in the stationary dist)
-    end
-end
-
-
-
-%%
-if FnsToEvaluateStruct==1
-    % Change the output into a structure
-    AggVars2=AggVars;
-    clear AggVars
-    AggVars=struct();
-%     AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
     end
 end
 
