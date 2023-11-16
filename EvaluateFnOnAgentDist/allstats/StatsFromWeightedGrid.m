@@ -41,6 +41,8 @@ if SortedValues(1)==SortedValues(end)
     AllStats.Gini=0;
     AllStats.QuantileCutoffs=nan(nquantiles+1,1,'gpuArray');
     AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
+    AllStats.Maximum=SortedValues(1);
+    AllStats.Minimum=SortedValues(1);
 else
     % Calculate the 'age conditional' variance
     AllStats.Variance=sum((Values.^2).*Weights)-(AllStats.Mean)^2; % Weighted square of values - mean^2
