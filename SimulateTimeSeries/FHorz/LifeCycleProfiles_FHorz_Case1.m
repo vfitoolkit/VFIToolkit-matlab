@@ -18,6 +18,11 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups);
 
+%% Temporary warning due to changing function input order
+if isempty(Parameters)
+    warning('LifeCycleProfiles_FHorz_Case1 has changed the order of the fourth and fifth inputs (should now be something like Params,[] when previously it would have been [],Params)')
+    warning('Annoying, but it makes inputs to LifeCycleProfiles_FHorz_Case1 have same order as those of similar functions')
+end
 
 %% Check which simoptions have been declared, set all others to defaults 
 if ~exist('simoptions','var')
