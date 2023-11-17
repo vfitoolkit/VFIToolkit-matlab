@@ -373,7 +373,7 @@ if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Dig
         l_ze_temp=length(n_ze_temp);
         
         % Create PolicyValues
-        PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_ze_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp);
+        PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp);
         permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1,1+l_a_temp+l_ze_temp+1];
         PolicyValues_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
         PolicyValues_temp=reshape(PolicyValues_temp,[N_a_temp*N_ze_temp,(l_d_temp+l_a_temp),N_j_temp]);
@@ -1108,6 +1108,15 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
             [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_kk,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0,2);
             FnsAndPTypeIndicator_kk(ii)=FnsAndPTypeIndicator_ii;
 
+
+            N_a_temp=prod(n_a_temp);
+            if isfield(simoptions_temp,'n_e')
+                n_z_temp_alt=[n_z_temp,simoptions_temp.n_e];
+            else
+                n_z_temp_alt=n_z_temp;
+            end
+            N_z_temp_dim=max(prod(n_z_temp_alt),1); % max here is just so it takes value of 1 when there is no z variable (so prod(n_z_temp_alt)==0)
+
             % Because of how we loop over both kk (FnsToEvaluate) and ii (PType),
             % WhichFnsForCurrentPType will be a scalar 1 or 0. If zero then we
             % can just skip everything for this agent permanent type, so only
@@ -1118,19 +1127,7 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
                 simoptions_temp.outputasstructure=0; %0: is a matrix
                 ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp,FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
 
-                N_a_temp=prod(n_a_temp);
-                if isfield(simoptions_temp,'n_e')
-                    n_z_temp=[n_z_temp,simoptions_temp.n_e];
-                end
-                N_z_temp=prod(n_z_temp);
-                if N_z_temp==0
-                    N_z_temp_dim=1;
-                else
-                    N_z_temp_dim=N_z_temp;
-                end
-
-                % ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]); % Is already in this form because using simoptions_temp.keepoutputasmatrix=2
-                
+                % ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]); % Is already in this form because using simoptions_temp.outputasstructure=0                
                 StationaryDist_ii=StationaryDist.(Names_i{ii}); % The commented out reshape on next line was already done
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
                 

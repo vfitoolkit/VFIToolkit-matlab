@@ -294,11 +294,14 @@ if FnsToEvaluateStruct==0
     clear ValuesOnGrid
     if N_z==0
         ValuesOnGrid=zeros(N_a,N_j,length(FnsToEvaluate),'gpuArray');
+        for ff=1:length(AggVarNames)
+            ValuesOnGrid(:,:,ff)=reshape(ValuesOnGrid2.(AggVarNames{ff}),[N_a,N_j]);
+        end
     else
         ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate),'gpuArray');
-    end
-    for ff=1:length(AggVarNames)
-        ValuesOnGrid(:,:,ff)=reshape(ValuesOnGrid2.(AggVarNames{ff}),[N_a*N_z,N_j]);
+        for ff=1:length(AggVarNames)
+            ValuesOnGrid(:,:,ff)=reshape(ValuesOnGrid2.(AggVarNames{ff}),[N_a*N_z,N_j]);
+        end
     end
 end
 
