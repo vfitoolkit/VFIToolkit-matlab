@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_noz_e_raw(n_a,n_e,N_j, a_grid,e_grid, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
+function [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_noz_e_raw(n_a,n_e,N_j, a_grid,e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
 
 N_a=prod(n_a);
 N_e=prod(n_e);
@@ -7,14 +7,11 @@ V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-eval('fieldexists_EiidShockFn=1;vfoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-eval('fieldexists_EiidShockFnParamNames=1;vfoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
-    % e_gridvals is created below
 end
+
+pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
 %% j=N_j
 
@@ -26,34 +23,6 @@ if vfoptions.EZoneminusbeta==1
     ezc1=1-DiscountFactorParamsVec; % Just in case it depends on age
 elseif vfoptions.EZoneminusbeta==2
     ezc1=1-sj(N_j)*DiscountFactorParamsVec;
-end
-
-if fieldexists_pi_e_J==1
-    e_grid=vfoptions.e_grid_J(:,N_j);
-    pi_e=vfoptions.pi_e_J(:,N_j);
-elseif fieldexists_EiidShockFn==1
-    if fieldexists_EiidShockFnParamNames==1
-        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
-        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-        for ii=1:length(EiidShockFnParamsVec)
-            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-        end
-        [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-        e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-    else
-        [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-        e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-    end
-end
-
-pi_e=shiftdim(pi_e,-2); % Move to third dimension
-
-if vfoptions.lowmemory>0
-    if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-        e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-        e_gridvals=e_grid;
-    end
 end
 
 
@@ -90,7 +59,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
         %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a,n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a,n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -106,7 +75,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         %if vfoptions.returnmatrix==2 % GPU
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -131,12 +100,12 @@ else
     temp(V_Jplus1==0)=0;
 
     % Take expectation over e
-    temp=sum(temp.*pi_e,3);
+    temp=sum(temp.*pi_e_J(1,1,:,N_j),3);
     
     if vfoptions.lowmemory==0
         
         %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -180,7 +149,7 @@ else
         end
         
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
             
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -224,37 +193,6 @@ for reverse_j=1:N_j-1
         ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
     
-    if fieldexists_pi_e_J==1
-        e_grid=vfoptions.e_grid_J(:,jj);
-        pi_e=vfoptions.pi_e_J(:,jj);
-        pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
-    elseif fieldexists_EiidShockFn==1
-        if fieldexists_EiidShockFnParamNames==1
-            EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-            EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-            for ii=1:length(EiidShockFnParamsVec)
-                EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-            end
-            [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        else
-            [e_grid,pi_e]=vfoptions.EiidShockFn(jj);
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        end
-        pi_e=shiftdim(pi_e,-2); % Move to third dimension
-    end
-    
-    if vfoptions.lowmemory>0
-        if (fieldexists_pi_e_J==1 || fieldexists_EiidShockFn==1)
-            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-                e_gridvals=e_grid;
-            end
-        end
-    end
-    
-
     % If there is a warm-glow, evaluate the warmglowfn
     if warmglow==1
         WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,jj);
@@ -274,12 +212,12 @@ for reverse_j=1:N_j-1
     temp(VKronNext_j==0)=0;
     
     % Take expectation over e
-    temp=sum(temp.*pi_e,3);
+    temp=sum(temp.*pi_e_J(1,1,:,jj),3);
     
     if vfoptions.lowmemory==0
         
         %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -323,7 +261,7 @@ for reverse_j=1:N_j-1
         end
         
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
             
             % Modify the Return Function appropriately for Epstein-Zin Preferences

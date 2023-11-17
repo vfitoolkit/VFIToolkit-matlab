@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
+function [V,Policy2]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -8,14 +8,9 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-
 if vfoptions.lowmemory>0
     l_z=length(n_z);
     special_n_z=ones(1,l_z);
-    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_a=ones(1,length(n_a));
@@ -38,30 +33,6 @@ elseif vfoptions.EZoneminusbeta==2
     ezc1=1-sj(N_j)*DiscountFactorParamsVec;
 end
 
-if fieldexists_pi_z_J==1
-    z_grid=vfoptions.z_grid_J(:,N_j);
-    pi_z=vfoptions.pi_z_J(:,:,N_j);
-elseif fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    end
-end
-if vfoptions.lowmemory>0
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        z_gridvals=z_grid;
-    end
-end
 
 % If there is a warm-glow at end of the final period, evaluate the warmglowfn
 if warmglow==1
@@ -99,7 +70,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
         %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
@@ -115,7 +86,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         %if vfoptions.returnmatrix==2 % GPU
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -133,7 +104,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         %if vfoptions.returnmatrix==2 % GPU
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_a, special_n_a, special_n_z, d_grid, a_grid, a_val, z_val, ReturnFnParamsVec);
@@ -163,7 +134,7 @@ else
     if vfoptions.lowmemory==0
         
         %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
@@ -172,7 +143,7 @@ else
         temp2(ReturnMatrix==0)=-Inf;
     
         %Calc the expectation term (except beta)
-        EV=temp.*shiftdim(pi_z',-1);
+        EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
@@ -200,7 +171,7 @@ else
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
             
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -209,7 +180,7 @@ else
             temp2(becareful)=ReturnMatrix_z(becareful).^ezc2;
             temp2(ReturnMatrix_z==0)=-Inf;
 
-            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
@@ -240,7 +211,7 @@ else
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
@@ -255,7 +226,7 @@ else
                 temp4(entireEV_z==0)=0;
             end
 
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_a, special_n_a, special_n_z, d_grid, a_grid, a_val, z_val, ReturnFnParamsVec);
@@ -301,31 +272,6 @@ for reverse_j=1:N_j-1
         ezc1=1-sj(jj)*DiscountFactorParamsVec;
     end
 
-    if fieldexists_pi_z_J==1
-        z_grid=vfoptions.z_grid_J(:,jj);
-        pi_z=vfoptions.pi_z_J(:,:,jj);
-    elseif fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        end
-    end
-    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
-        if all(size(z_grid)==[sum(n_z),1])
-            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-        elseif all(size(z_grid)==[prod(n_z),l_z])
-            z_gridvals=z_grid;
-        end
-    end
-    
     % If there is a warm-glow, evaluate the warmglowfn
     if warmglow==1
         WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,jj);
@@ -350,7 +296,7 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         
         %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite but not zero
@@ -359,7 +305,7 @@ for reverse_j=1:N_j-1
         temp2(ReturnMatrix==0)=-Inf; % Otherwise these ReturnMatrix=zero points get a finite amount added to them (from expectations) and were mishandled later
 
         %Calc the expectation term (except beta)
-        EV=temp.*shiftdim(pi_z',-1);
+        EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
@@ -387,7 +333,7 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,jj);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
             
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -397,7 +343,7 @@ for reverse_j=1:N_j-1
             temp2(ReturnMatrix_z==0)=-Inf;
 
             %Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
@@ -428,7 +374,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+            EV_z=temp.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
@@ -443,7 +389,7 @@ for reverse_j=1:N_j-1
                 temp4(entireEV_z==0)=0;
             end
             
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,jj);
             for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_a, special_n_a, special_n_z, d_grid, a_grid, a_val, z_val, ReturnFnParamsVec);

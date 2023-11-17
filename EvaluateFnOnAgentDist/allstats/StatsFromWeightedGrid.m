@@ -12,9 +12,15 @@ AllStats=struct();
 % AllStats.QuantileCutoffs=nan(nquantiles+1,1); % Includes the min and max values
 % AllStats.QuantileMeans=nan(nquantiles,1);
 
-%% DO I WANT TO ADD unique() HERE????
+%%
+% Do I want to add unique() here???? No, you should unique before passing when appropriate (too much run time to do when unnecessary)
 Values=reshape(Values,[numel(Values),1]);
 Weights=reshape(Weights,[numel(Weights),1]);
+
+% Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
+temp=logical(Weights~=0);
+Weights=Weights(temp);
+Values=Values(temp);
 
 %% Sorted weighted values
 [SortedValues,SortedValues_index] = sort(Values);
@@ -31,6 +37,7 @@ AllStats.Mean=sum(WeightedValues);
 % Calculate the 'age conditional' median
 [~,index_median]=min(abs(SortedWeights-0.5));
 AllStats.Median=SortedValues(index_median); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
+
 
 %% Deal with case where all the values are just the same anyway
 if SortedValues(1)==SortedValues(end)

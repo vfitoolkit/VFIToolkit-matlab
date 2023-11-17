@@ -28,7 +28,7 @@ if N_d==0
         currstate(1)=PolicyIndexesKron(currstate(1),currstate(2),jj+initialage-1);
         [~,currstate(2)]=max(cumsumpi_z_J(currstate(2),:,jj)>rand(1,1));
     end
-    SimLifeCycleKron(3,:)=seedpoint(3):1:N_j;
+    SimLifeCycleKron(3,seedpoint(3):end)=seedpoint(3):1:N_j;
 else
     if ~exist('include_daprime','var')
         include_daprime=0;
@@ -42,7 +42,7 @@ else
             currstate(1)=PolicyIndexesKron(2,currstate(1),currstate(2),jj+initialage-1);
             [~,currstate(2)]=max(cumsumpi_z_J(currstate(2),:,jj)>rand(1,1));
         end
-        SimLifeCycleKron(3,:)=seedpoint(3):1:N_j;
+        SimLifeCycleKron(3,seedpoint(3):end)=seedpoint(3):1:N_j;
     else
         SimLifeCycleKron=nan(5,N_j);
         for jj=1:periods
@@ -57,7 +57,7 @@ else
 
             SimLifeCycleKron(2,jj+initialage-1)=currstate(1); % aprime
         end
-        SimLifeCycleKron(5,:)=seedpoint(3):1:N_j;
+        SimLifeCycleKron(5,seedpoint(3):end)=seedpoint(3):1:N_j;
     end
 end
 

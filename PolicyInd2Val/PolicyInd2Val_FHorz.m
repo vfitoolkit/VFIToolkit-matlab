@@ -66,6 +66,35 @@ end
 cumsum_n_aprime=cumsum(n_aprime);
 cumsum_n_d=cumsum(n_d);
 
+% When there is an e or semiz variable, can just pretend it is a z for
+% current purposes
+if isfield(simoptions,'n_e')
+    if prod(simoptions.n_e)==0
+        % do nothing
+    else
+        if N_z==0
+            n_z=simoptions.n_e;
+        else
+            n_z=[n_z,simoptions.n_e];
+        end
+        N_z=prod(n_z);
+    end
+end
+if isfield(simoptions,'n_semiz')
+    if prod(simoptions.n_semiz)==0
+        % do nothing
+    else
+        if N_z==0
+            n_z=simoptions.n_semiz;
+        else
+            n_z=[n_z,simoptions.n_semiz];
+        end
+        N_z=prod(n_z);
+    end
+end
+
+
+%%
 if Parallel==2
     if N_z==0
         if l_d==0

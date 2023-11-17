@@ -11,6 +11,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
+
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with
@@ -178,7 +179,8 @@ if ~isfield(simoptions,'n_e')
                 SimPanel(:,:,ii)=SimPanel_ii;
             end
         end
-        
+
+
         if simoptions.newbirths==1
             cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
             newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
@@ -241,7 +243,8 @@ if ~isfield(simoptions,'n_e')
                 SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
             end
         else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            % parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
                 seedpoint=seedpoints(ii,:);
                 SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
                 SimPanel(:,:,ii)=SimLifeCycleKron;

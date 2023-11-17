@@ -212,7 +212,34 @@ if vfoptions.parallel==2
     % Gradually rolling these out so that all the commands build off of these
     z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
     pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
-    if prod(n_z)==0 % no z
+    if isfield(vfoptions,'ExogShockFn')
+        if isfield(vfoptions,'ExogShockFnParamNames')
+            for jj=1:N_j
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                pi_z_J(:,:,jj)=gpuArray(pi_z);
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
+            end
+        else
+            for jj=1:N_j
+                [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
+                pi_z_J(:,:,jj)=gpuArray(pi_z);
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
+            end
+        end
+    elseif prod(n_z)==0 % no z
         z_gridvals_J=[];
     elseif ndims(z_grid)==3 % already an age-dependent joint-grid
         if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
@@ -231,34 +258,6 @@ if vfoptions.parallel==2
         z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
         pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
     end
-    if isfield(vfoptions,'ExogShockFn')
-        if isfield(vfoptions,'ExogShockFnParamNames')
-            for jj=1:N_j
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                pi_z_J(:,jj)=gpuArray(pi_z);
-                if all(size(z_grid)==[sum(n_z),1])
-                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-                else % already joint-grid
-                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-                end
-            end
-        else
-            for jj=1:N_j
-                [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-                pi_z_J(:,jj)=gpuArray(pi_z);
-                if all(size(z_grid)==[sum(n_z),1])
-                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-                else % already joint-grid
-                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-                end
-            end
-        end
-    end
 
     % If using e variable, do same for this
     if isfield(vfoptions,'n_e')
@@ -276,7 +275,35 @@ if vfoptions.parallel==2
             
             vfoptions.e_gridvals_J=zeros(prod(vfoptions.n_e),length(vfoptions.n_e),'gpuArray');
             vfoptions.pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
-            if ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
+
+            if isfield(vfoptions,'EiidShockFn')
+                if isfield(vfoptions,'EiidShockFnParamNames')
+                    for jj=1:N_j
+                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
+                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                        for ii=1:length(EiidShockFnParamsVec)
+                            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+                        end
+                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
+                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
+                        else % already joint-grid
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
+                        end
+                    end
+                else
+                    for jj=1:N_j
+                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(N_j);
+                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
+                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
+                        else % already joint-grid
+                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
+                        end
+                    end
+                end
+            elseif ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
                 if all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
                     vfoptions.e_gridvals_J=vfoptions.e_grid;
                 end
@@ -292,34 +319,6 @@ if vfoptions.parallel==2
             elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1]) % basic grid
                 vfoptions.e_gridvals_J=CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
                 vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-            end
-            if isfield(vfoptions,'ExogShockFn')
-                if isfield(vfoptions,'ExogShockFnParamNames')
-                    for jj=1:N_j
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for ii=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                        end
-                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                        else % already joint-grid
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                        end
-                    end
-                else
-                    for jj=1:N_j
-                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.ExogShockFn(N_j);
-                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                        else % already joint-grid
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                        end
-                    end
-                end
             end
         end
     end
@@ -408,7 +407,7 @@ elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
-    [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
     [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

@@ -62,6 +62,8 @@ if isfield(simoptions,'ExogShockFn')
     end
 end
 
+n_z_raw=n_z; % before n_z is potentially overwritten (needed for PolicyInd2Val_FHorz)
+
 % If using e variable, do same for this
 if isfield(simoptions,'n_e')
     n_e=simoptions.n_e;
@@ -237,7 +239,7 @@ else % N_z
 
     if simoptions.lowmemory==0
 
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z_raw,N_j,d_grid,a_grid,simoptions,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 
         a_gridvals=CreateGridvals(n_a,a_grid,1);
@@ -266,7 +268,7 @@ else % N_z
 
     elseif simoptions.lowmemory==1 % Loop over age j
 
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z_raw,N_j,d_grid,a_grid,simoptions,1);
 
         for ff=1:length(FnsToEvaluate)
             Values=nan(N_a*N_z,N_j,'gpuArray');

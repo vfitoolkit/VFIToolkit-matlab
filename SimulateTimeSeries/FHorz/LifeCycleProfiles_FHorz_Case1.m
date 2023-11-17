@@ -152,7 +152,7 @@ if isfield(simoptions,'n_e')
     n_e=simoptions.n_e;
     N_e=prod(n_e);
     if N_e==0
-        simoptions=rmfield(simoptions,'n_e');
+        % Do nothing
     else
         if isfield(simoptions,'e_grid_J')
             error('No longer use simoptions.e_grid_J, instead just put the age-dependent grid in simoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
@@ -215,10 +215,12 @@ if isfield(simoptions,'n_e')
             N_z=prod(n_z);
         end
     end
+    % Because we added e into z, we need to strip them out of simoptions
+    simoptions=rmfield(simoptions,'n_e');
 end
 
 % Also semiz if that is used
-if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+if isfield(simoptions,'n_semiz') % If using semi-exogenous shocks
     if N_z==0
         n_z=simoptions.n_semiz;
         z_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1);
@@ -227,6 +229,8 @@ if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
         n_z=[simoptions.n_semiz,n_z];
         z_gridvals_J=[repmat(CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray'),N_z,1),repelem(z_gridvals_J,prod(simoptions.n_semiz),1)];
     end
+    % Because we added semiz into z, we need to strip them out of simoptions
+    simoptions=rmfield(simoptions,'n_semiz');
 end
 N_z=prod(n_z);
 if N_z==0
@@ -234,6 +238,7 @@ if N_z==0
 else
     l_z=length(n_z);
 end
+
 
 
 %% Implement new way of handling FnsToEvaluate
@@ -341,20 +346,23 @@ if N_z==0
             AgeConditionalStats(ii).Mean(kk)=AllStats.Mean;
             AgeConditionalStats(ii).Median(kk)=AllStats.Median;
             AgeConditionalStats(ii).Variance(kk)=AllStats.Variance;
-            AgeConditionalStats(ii).LorenzCurve(kk)=AllStats.LorenzCurve;
+            AgeConditionalStats(ii).LorenzCurve(:,kk)=AllStats.LorenzCurve;
             AgeConditionalStats(ii).Gini(kk)=AllStats.Gini;
             if isnan(AllStats.Gini)
                 AgeConditionalStats(ii).LorenzCurveComment(kk)={'Lorenz curve cannot be calculated as some values are negative'};
                 AgeConditionalStats(ii).GiniComment(kk)={'Gini cannot be calculated as some values are negative'};
             end
-            AgeConditionalStats(ii).QuantileCutoffs(kk)=AllStats.QuantileCutoffs;
-            AgeConditionalStats(ii).QuantileMeans(kk)=AllStats.QuantileMeans;
+            AgeConditionalStats(ii).QuantileCutoffs(:,kk)=AllStats.QuantileCutoffs;
+            AgeConditionalStats(ii).QuantileMeans(:,kk)=AllStats.QuantileMeans;
         end
     end
 
 else % N_z
     %%
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
+
+    size(PolicyIndexes)
+    n_z
 
     PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
     a_gridvals=CreateGridvals(n_a,a_grid,1);
@@ -414,7 +422,7 @@ else % N_z
                 else
                     FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                 end
-                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
+                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));                
             end
 
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
