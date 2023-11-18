@@ -77,22 +77,21 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-if isempty(n_d)
-    l_d=0;
-    n_d=0;
-elseif n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
 
 ngroups=length(simoptions.agegroupings);
 
+if isstruct(FnsToEvaluate)
+    FnsToEvalNames=fieldnames(FnsToEvaluate);
+    numFnsToEvaluate=length(FnsToEvalNames);
+else
+    numFnsToEvaluate=length(FnsToEvaluate);
+end
+
 
 %%
 if simoptions.parallel==1
-    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_cpu(StationaryDist,PolicyIndexes,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_cpu(StationaryDist,PolicyIndexes,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
     return
 end
 % just make sure things are on gpu as they should be
@@ -125,8 +124,8 @@ if isfield(simoptions,'ExogShockFn')
         for jj=1:N_j
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+            for ff=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ff,1)={ExogShockFnParamsVec(ff)};
             end
             [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
             if all(size(z_grid)==[sum(n_z),1])
@@ -182,8 +181,8 @@ if isfield(simoptions,'n_e')
                 for jj=1:N_j
                     ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
                     ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                    for ff=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ff,1)={ExogShockFnParamsVec(ff)};
                     end
                     [simoptions.e_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
                     if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
@@ -223,7 +222,7 @@ end
 if isfield(simoptions,'n_semiz') % If using semi-exogenous shocks
     if N_z==0
         n_z=simoptions.n_semiz;
-        z_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1);
+        z_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
     else
         % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
         n_z=[simoptions.n_semiz,n_z];
@@ -249,15 +248,15 @@ l_daprime=size(PolicyIndexes,1);
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
     clear FnsToEvaluateParamNames
-    AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    % FnsToEvalNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(FnsToEvalNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
         if length(temp)>(l_daprime+l_a+l_z)
             FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
-        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+        FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
     end    
     FnsToEvaluate=FnsToEvaluate2;
 else
@@ -269,6 +268,31 @@ if isfield(simoptions,'keepoutputasmatrix')
     end
 end
 
+% Preallocate various things for the stats (as many will have jj as a dimension)
+% Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
+for ff=1:numFnsToEvaluate
+    AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
+    AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
+end
+
+
+
 
 %% Create a different 'Values' for each of the variable to be evaluated
 if N_z==0
@@ -277,20 +301,7 @@ if N_z==0
     PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
     a_gridvals=CreateGridvals(n_a,a_grid,1);
 
-    % Do some preallocation of the output structure
-    AgeConditionalStats=struct();
-    for ii=length(FnsToEvaluate):-1:1 % Backwards as preallocating
-        % length(FnsToEvaluate)
-        AgeConditionalStats(ii).Mean=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).Median=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).Variance=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
-        AgeConditionalStats(ii).Gini=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-        AgeConditionalStats(ii).QuantileMeans=nan(simoptions.nquantiles,ngroups,'gpuArray');
-    end
-    
-    for kk=1:length(simoptions.agegroupings)
+    for kk=1:ngroups
         j1=simoptions.agegroupings(kk);
         if kk<length(simoptions.agegroupings)
             jend=simoptions.agegroupings(kk+1)-1;
@@ -323,16 +334,16 @@ if N_z==0
         end
 
         %%
-        for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
+        for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Values=nan(N_a,jend-j1+1,'gpuArray'); % Preallocate
             for jj=j1:jend
                 % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names)% check for 'FnsToEvaluateParamNames={}'
+                if isempty(FnsToEvaluateParamNames(ff).Names)% check for 'FnsToEvaluateParamNames={}'
                     FnsToEvaluateParamsVec=[];
                 else
-                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
+                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
                 end
-                Values(:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValues(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
+                Values(:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnsToEvaluateParamsVec,PolicyValues(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
             end
 
             Values=reshape(Values,[N_a*(jend-j1+1),1]);
@@ -342,18 +353,28 @@ if N_z==0
                 % Note: stationary dist has already been restricted (if relevant)
             end
 
-            AllStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
-            AgeConditionalStats(ii).Mean(kk)=AllStats.Mean;
-            AgeConditionalStats(ii).Median(kk)=AllStats.Median;
-            AgeConditionalStats(ii).Variance(kk)=AllStats.Variance;
-            AgeConditionalStats(ii).LorenzCurve(:,kk)=AllStats.LorenzCurve;
-            AgeConditionalStats(ii).Gini(kk)=AllStats.Gini;
-            if isnan(AllStats.Gini)
-                AgeConditionalStats(ii).LorenzCurveComment(kk)={'Lorenz curve cannot be calculated as some values are negative'};
-                AgeConditionalStats(ii).GiniComment(kk)={'Gini cannot be calculated as some values are negative'};
-            end
-            AgeConditionalStats(ii).QuantileCutoffs(:,kk)=AllStats.QuantileCutoffs;
-            AgeConditionalStats(ii).QuantileMeans(:,kk)=AllStats.QuantileMeans;
+            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+            
+            % Store them in AgeConditionalStats
+            AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
+            AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(kk)=tempStats.Minimum;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(kk)=tempStats.Maximum;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share(kk)=tempStats.MoreInequality.Top1share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share(kk)=tempStats.MoreInequality.Top5share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share(kk)=tempStats.MoreInequality.Top10share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share(kk)=tempStats.MoreInequality.Bottom50share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th(kk)=tempStats.MoreInequality.Percentile50th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th(kk)=tempStats.MoreInequality.Percentile90th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,kk)=tempStats.LorenzCurve;
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,kk)=tempStats.QuantileCutoffs;
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,kk)=tempStats.QuantileMeans;
+
         end
     end
 
@@ -361,26 +382,10 @@ else % N_z
     %%
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
 
-    size(PolicyIndexes)
-    n_z
-
     PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
     a_gridvals=CreateGridvals(n_a,a_grid,1);
 
-    % Do some preallocation of the output structure
-    AgeConditionalStats=struct();
-    for ii=length(FnsToEvaluate):-1:1 % Backwards as preallocating
-        % length(FnsToEvaluate)
-        AgeConditionalStats(ii).Mean=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).Median=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).Variance=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).LorenzCurve=nan(simoptions.npoints,ngroups,'gpuArray');
-        AgeConditionalStats(ii).Gini=nan(1,ngroups,'gpuArray');
-        AgeConditionalStats(ii).QuantileCutoffs=nan(simoptions.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-        AgeConditionalStats(ii).QuantileMeans=nan(simoptions.nquantiles,ngroups,'gpuArray');
-    end
-    
-    for kk=1:length(simoptions.agegroupings)
+    for kk=1:ngroups
         j1=simoptions.agegroupings(kk);
         if kk<length(simoptions.agegroupings)
             jend=simoptions.agegroupings(kk+1)-1;
@@ -413,16 +418,17 @@ else % N_z
         end
 
         %%
-        for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
+        for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Values=nan(N_a,N_z,jend-j1+1,'gpuArray'); % Preallocate
             for jj=j1:jend
                 % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names)% check for 'FnsToEvaluateParamNames={}'
+                if isempty(FnsToEvaluateParamNames(ff).Names)% check for 'FnsToEvaluateParamNames={}'
                     FnsToEvaluateParamsVec=[];
                 else
-                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
+                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
                 end
-                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnsToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));                
+
+                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnsToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));                
             end
 
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
@@ -432,40 +438,49 @@ else % N_z
                 % Note: stationary dist has already been restricted (if relevant)
             end
 
-            AllStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
-            AgeConditionalStats(ii).Mean(kk)=AllStats.Mean;
-            AgeConditionalStats(ii).Median(kk)=AllStats.Median;
-            AgeConditionalStats(ii).Variance(kk)=AllStats.Variance;
-            AgeConditionalStats(ii).LorenzCurve(:,kk)=AllStats.LorenzCurve;
-            AgeConditionalStats(ii).Gini(kk)=AllStats.Gini;
-            if isnan(AllStats.Gini)
-                AgeConditionalStats(ii).LorenzCurveComment(kk)={'Lorenz curve cannot be calculated as some values are negative'};
-                AgeConditionalStats(ii).GiniComment(kk)={'Gini cannot be calculated as some values are negative'};
-            end
-            AgeConditionalStats(ii).QuantileCutoffs(:,kk)=AllStats.QuantileCutoffs;
-            AgeConditionalStats(ii).QuantileMeans(:,kk)=AllStats.QuantileMeans;
+            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+
+            % Store them in AgeConditionalStats
+            AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
+            AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(kk)=tempStats.Minimum;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(kk)=tempStats.Maximum;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share(kk)=tempStats.MoreInequality.Top1share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share(kk)=tempStats.MoreInequality.Top5share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share(kk)=tempStats.MoreInequality.Top10share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share(kk)=tempStats.MoreInequality.Bottom50share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th(kk)=tempStats.MoreInequality.Percentile50th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th(kk)=tempStats.MoreInequality.Percentile90th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,kk)=tempStats.LorenzCurve;
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,kk)=tempStats.QuantileCutoffs;
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,kk)=tempStats.QuantileMeans;
         end
     end
 end
 
 
-
-if FnsToEvaluateStruct==1
-    % Change the output into a structure
-    AgeConditionalStats2=AgeConditionalStats;
-    clear AgeConditionalStats
-    AgeConditionalStats=struct();
-%     AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        AgeConditionalStats.(AggVarNames{ff}).Mean=AgeConditionalStats2(ff).Mean;
-        AgeConditionalStats.(AggVarNames{ff}).Median=AgeConditionalStats2(ff).Median;
-        AgeConditionalStats.(AggVarNames{ff}).Variance=AgeConditionalStats2(ff).Variance;
-        AgeConditionalStats.(AggVarNames{ff}).LorenzCurve=AgeConditionalStats2(ff).LorenzCurve;
-        AgeConditionalStats.(AggVarNames{ff}).Gini=AgeConditionalStats2(ff).Gini;
-        AgeConditionalStats.(AggVarNames{ff}).QuantileCutoffs=AgeConditionalStats2(ff).QuantileCutoffs;
-        AgeConditionalStats.(AggVarNames{ff}).QuantileMeans=AgeConditionalStats2(ff).QuantileMeans;
-    end
-end
+% 
+% if FnsToEvaluateStruct==1
+%     % Change the output into a structure
+%     AgeConditionalStats2=AgeConditionalStats;
+%     clear AgeConditionalStats
+%     AgeConditionalStats=struct();
+% %     AggVarNames=fieldnames(FnsToEvaluate);
+%     for ff=1:length(FnsToEvalNames)
+%         AgeConditionalStats.(FnsToEvalNames{ff}).Mean=AgeConditionalStats2(ff).Mean;
+%         AgeConditionalStats.(FnsToEvalNames{ff}).Median=AgeConditionalStats2(ff).Median;
+%         AgeConditionalStats.(FnsToEvalNames{ff}).Variance=AgeConditionalStats2(ff).Variance;
+%         AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=AgeConditionalStats2(ff).LorenzCurve;
+%         AgeConditionalStats.(FnsToEvalNames{ff}).Gini=AgeConditionalStats2(ff).Gini;
+%         AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=AgeConditionalStats2(ff).QuantileCutoffs;
+%         AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=AgeConditionalStats2(ff).QuantileMeans;
+%     end
+% end
 
 
 end

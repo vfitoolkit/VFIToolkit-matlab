@@ -1,148 +1,169 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, a_grid, z_grid, simoptions)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, a_grid, z_grid, simoptions,keepoutputasmatrix)
 % subfn version is GPU only, and uses PolicyValues instead of PolicyIndexes
 % Still loops over j, I could speed it further by parallel over j
 
 if ~exist('simoptions','var')
     simoptions=struct();
 end
-
-if isfield('simoptions','n_semiz') % If using semi-exogenous shocks
-    n_z=[simoptions.n_semiz,n_z]; % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+if ~exist('keepoutputasmatrix','var')
+    keepoutputasmatrix=0;
 end
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
-l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-%% This implementation is slightly inefficient when shocks are not age dependent, but speed loss is fairly trivial
-if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-    simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-end
+a_gridvals=CreateGridvals(n_a,a_grid,1);
 
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
+%% Exogenous shock grids
 
-jointgrid_z=0;
-if fieldexists_pi_z_J==1
-    z_grid_J=simoptions.z_grid_J;
-elseif fieldexists_ExogShockFn==1
-    z_grid_J=zeros(sum(n_z),N_j);
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        else
-            [z_grid,~]=simoptions.ExogShockFn(jj);
+% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+% Gradually rolling these out so that all the commands build off of these
+if N_z>0
+    z_gridvals_J=zeros(prod(n_z),length(n_z),N_j,'gpuArray');
+    if ndims(z_grid)==3 % already an age-dependent joint-grid
+        if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+            z_gridvals_J=z_grid;
         end
-        z_grid_J(:,jj)=z_grid;
-    end
-else
-    if all(size(z_grid)==[N_z,l_z]) && l_z>1  % joint grid (correlated z shocks) 
-        jointgrid_z=1;
-    else
-        jointgrid_z=0;
-        z_grid_J=repmat(z_grid,1,N_j);
-    end
-end
-if jointgrid_z==0
-    z_grid_J=gpuArray(z_grid_J);
-else %if jointgrid_z==1
-    z_grid=gpuArray(z_grid);
-end
-
-if isfield(simoptions,'n_e')
-    % Because of how FnsToEvaluate works I can just get the e variables and then 'combine' them with z
-
-    if isfield(simoptions,'EiidShockFn') % If using EiidShockFn then figure out the parameter names
-        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
-    end
-    
-    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-    
-    N_e=prod(simoptions.n_e);
-    l_e=length(simoptions.n_e);
-    
-    jointgrid_e=0;
-    if fieldexists_pi_e_J==1
-        e_grid_J=simoptions.e_grid_J;
-    elseif fieldexists_EiidShockFn==1
-        e_grid_J=zeros(sum(simoptions.n_e),N_j);
+    elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
         for jj=1:N_j
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
+            z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
+        end
+    elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
+        z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
+    elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
+        z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+    end
+    if isfield(simoptions,'ExogShockFn')
+        if isfield(simoptions,'ExogShockFnParamNames')
+            for jj=1:N_j
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
                 end
-                [e_grid,~]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [e_grid,~]=simoptions.EiidShockFn(jj);
+                [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
             end
-            e_grid_J(:,jj)=gather(e_grid);
-        end
-    else
-        if all(size(simoptions.e_grid)==[N_e,l_e]) && l_e>1 % joint grid (correlated e shocks)
-            jointgrid_e=1;
         else
-            jointgrid_e=0;
-            e_grid_J=repmat(simoptions.e_grid,1,N_j);
+            for jj=1:N_j
+                [z_grid,~]=simoptions.ExogShockFn(N_j);
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
+            end
         end
     end
-    
-    % Now combine into z
-    if jointgrid_e==0 && jointgrid_z==0
-        if n_z(1)==0
-            l_z=l_e;
-            n_z=simoptions.n_e;
-            z_grid_J=e_grid_J;
-        else
-            l_z=l_z+l_e;
-            n_z=[n_z,simoptions.n_e];
-            z_grid_J=[z_grid_J; e_grid_J];
-        end
-        jointgrids=0;
-    elseif jointgrid_e==1 && jointgrid_z==1
-        l_z=l_z+l_e;
-        n_z=[n_z,simoptions.n_e];
-        z_gridvals=[kron(ones(N_e,1),z_grid),kron(simoptions.e_grid,ones(N_z,1))];
-        jointgrids=1;
-        z_grid_J=[]; % This is just needed in case use parfor as Matlab otherwise throws an error that it cannot find it
-    else
-        error('Have not yet implemented a mix where only one of z and e uses joint-grids and the other does not. Email me and I will')
-    end
+end
 
-    N_z=prod(n_z);
-else
-    jointgrids=0;
-    if jointgrid_z==1
-        jointgrids=1;
-        z_gridvals=z_grid; % Note: Does not yet permit age-dependent joint grids
+% If using e variable, do same for this
+if isfield(simoptions,'n_e')
+    n_e=simoptions.n_e;
+    N_e=prod(n_e);
+    if N_e==0
+        simoptions=rmfield(simoptions,'n_e');
+    else
+        if isfield(simoptions,'e_grid_J')
+            error('No longer use simoptions.e_grid_J, instead just put the age-dependent grid in simoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
+        end
+        if ~isfield(simoptions,'e_grid') % && ~isfield(simoptions,'e_grid_J')
+            error('You are using an e (iid) variable, and so need to declare simoptions.e_grid')
+        elseif ~isfield(simoptions,'pi_e')
+            error('You are using an e (iid) variable, and so need to declare simoptions.pi_e')
+        end
+
+        e_gridvals_J=zeros(prod(simoptions.n_e),length(simoptions.n_e),'gpuArray');
+        if ndims(simoptions.e_grid)==3 % already an age-dependent joint-grid
+            if all(size(simoptions.e_grid)==[prod(simoptions.n_e),length(simoptions.n_e),N_j])
+                e_gridvals_J=simoptions.e_grid;
+            end
+        elseif all(size(simoptions.e_grid)==[sum(simoptions.n_e),N_j]) % age-dependent grid
+            for jj=1:N_j
+                e_gridvals_J(:,:,jj)=CreateGridvals(simoptions.n_e,simoptions.e_grid(:,jj),1);
+            end
+        elseif all(size(simoptions.e_grid)==[prod(simoptions.n_e),length(simoptions.n_e)]) % joint grid
+            e_gridvals_J=simoptions.e_grid.*ones(1,1,N_j,'gpuArray');
+        elseif all(size(simoptions.e_grid)==[sum(simoptions.n_e),1]) % basic grid
+            e_gridvals_J=CreateGridvals(simoptions.n_e,simoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
+        end
+        if isfield(simoptions,'ExogShockFn')
+            if isfield(simoptions,'ExogShockFnParamNames')
+                for jj=1:N_j
+                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                    for ii=1:length(ExogShockFnParamsVec)
+                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                    end
+                    [simoptions.e_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                    if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
+                        e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(simoptions.n_e,simoptions.e_grid,1));
+                    else % already joint-grid
+                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid,1);
+                    end
+                end
+            else
+                for jj=1:N_j
+                    [simoptions.e_grid,simoptions.pi_e]=simoptions.ExogShockFn(N_j);
+                    if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
+                        e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(simoptions.n_e,simoptions.e_grid,1));
+                    else % already joint-grid
+                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid,1);
+                    end
+                end
+            end
+        end
+
+        % Now put e into z as that is easiest way to handle it from now on
+        if N_z==0
+            z_gridvals_J=e_gridvals_J;
+            n_z=n_e;
+            N_z=prod(n_z);
+        else
+            z_gridvals_J=[repmat(z_gridvals_J,N_e,1),repelem(e_gridvals_J,N_z,1)];
+            n_z=[n_z,n_e];
+            N_z=prod(n_z);
+        end
     end
+end
+
+% Also semiz if that is used
+if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
+    if N_z==0
+        n_z=simoptions.n_semiz;
+        z_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1);
+    else
+        % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
+        n_z=[simoptions.n_semiz,n_z];
+        z_gridvals_J=[repmat(CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray'),N_z,1),repelem(z_gridvals_J,prod(simoptions.n_semiz),1)];
+    end
+end
+N_z=prod(n_z);
+if N_z==0
+    l_z=0;
+else
+    l_z=length(n_z);
 end
 
 
 %% Implement new way of handling FnsToEvaluate
+% Figure out l_daprime from Policy
+l_daprime=size(PolicyValues,1);
+
+
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
     clear FnsToEvaluateParamNames
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -160,33 +181,40 @@ if isfield(simoptions,'keepoutputasmatrix')
     end
 end
 
-%%
-% Create PolicyValues
-% PolicyValues_temp=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_ze_temp,N_j_temp,d_grid_temp,a_grid_temp);
-% permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1,1+l_a_temp+l_ze_temp+1];
-% PolicyValues_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
-% PolicyValues_temp=reshape(PolicyValues_temp,[N_a_temp*N_ze_temp,(l_d_temp+l_a_temp),N_j_temp]);
 
 %% Loop over j
-ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate),'gpuArray');
+if N_z==0
+    ValuesOnGrid=zeros(N_a,N_j,length(FnsToEvaluate),'gpuArray');
 
-for ff=1:length(FnsToEvaluate)
-    Values=nan(N_a*N_z,N_j,'gpuArray');
-    for jj=1:N_j
-        if jointgrids==0
-            z_grid=z_grid_J(:,jj);
-        else % jointgrids==1
-            z_grid=z_gridvals;
+    for ff=1:length(FnsToEvaluate)
+        Values=nan(N_a,N_j,'gpuArray');
+        for jj=1:N_j
+            % Includes check for cases in which no parameters are actually required
+            if isempty(FnsToEvaluateParamNames(ff).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
+                FnToEvaluateParamsVec=[];
+            else
+                FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
+            end
+            Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsVec,PolicyValues(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
         end
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(ff).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-            FnToEvaluateParamsVec=[];
-        else
-            FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-        end
-        Values(:,jj)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ff}, FnToEvaluateParamsVec,reshape(PolicyValues(:,:,:,jj),[n_a,n_z,l_d+l_a]),n_d,n_a,n_z,a_grid,z_grid,2),[N_a*N_z,1]);
+        ValuesOnGrid(:,:,ff)=Values;
     end
-    ValuesOnGrid(:,:,ff)=Values;
+else
+    ValuesOnGrid=zeros(N_a*N_z,N_j,length(FnsToEvaluate),'gpuArray');
+
+    for ff=1:length(FnsToEvaluate)
+        Values=nan(N_a*N_z,N_j,'gpuArray');
+        for jj=1:N_j
+            % Includes check for cases in which no parameters are actually required
+            if isempty(FnsToEvaluateParamNames(ff).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
+                FnToEvaluateParamsVec=[];
+            else
+                FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
+            end
+            Values(:,jj)=reshape(EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj)),[N_a*N_z,1]);
+        end
+        ValuesOnGrid(:,:,ff)=Values;
+    end
 end
 
 
@@ -194,18 +222,28 @@ if FnsToEvaluateStruct==1
     ValuesOnGrid2=ValuesOnGrid;
     clear ValuesOnGrid
     ValuesOnGrid=struct();
-    for ff=1:length(AggVarNames)
-        ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid2(:,:,ff),[n_a,n_z,N_j]);
-        % Change the ordering and size so that ProbDensityFns has same kind of shape as StationaryDist
+    if N_z==0
+        for ff=1:length(AggVarNames)
+            ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid2(:,:,ff),[n_a,N_j]);
+            % Change the ordering and size so that ProbDensityFns has same kind of shape as StationaryDist
+        end
+    else
+        for ff=1:length(AggVarNames)
+            ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid2(:,:,ff),[n_a,n_z,N_j]);
+            % Change the ordering and size so that ProbDensityFns has same kind of shape as StationaryDist
+        end
     end
 elseif FnsToEvaluateStruct==0
     % Change the ordering and size so that ProbDensityFns has same kind of
-    % shape as StationaryDist, except first dimension indexes the
-    % 'FnsToEvaluate'.
+    % shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
     ValuesOnGrid=permute(ValuesOnGrid,[3,1,2]);
-    ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z,N_j]);
+    if N_z==0
+        ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,N_j]);
+    else
+        ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z,N_j]);
+    end
 elseif FnsToEvaluateStruct==2 % Just a rearranged version of FnsToEvaluateStruct=0 for use internally when length(FnsToEvaluate)==1
-%     ValuesOnGrid=reshape(ValuesOnGrid,[N_a*N_z,N_j]);
+    %     ValuesOnGrid=reshape(ValuesOnGrid,[N_a,N_z,N_j]);
     % The output is already in this shape anyway, so no need to actually reshape it at all
 end
 

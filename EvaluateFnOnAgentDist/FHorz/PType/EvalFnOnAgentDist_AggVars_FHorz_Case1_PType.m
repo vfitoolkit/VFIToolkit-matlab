@@ -47,7 +47,7 @@ end
 if isstruct(FnsToEvaluate)
     numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
 else
-    numFnsToEvaluate=length(FnsToEvaluate);
+    error('You can only use PType when FnsToEvaluate is a structure')
 end
 
 % Set default of grouping all the PTypes together when reporting statistics

@@ -1,4 +1,4 @@
-function AllStats=StatsFromWeightedGrid(Values,Weights,npoints,nquantiles,tolerance)
+function AllStats=StatsFromWeightedGrid(Values,Weights,npoints,nquantiles,tolerance, presorted)
 % Inputs: Values is a grid of values, Weights is a grid of corresponding weights
 
 % Output takes following form
@@ -12,28 +12,40 @@ AllStats=struct();
 % AllStats.QuantileCutoffs=nan(nquantiles+1,1); % Includes the min and max values
 % AllStats.QuantileMeans=nan(nquantiles,1);
 
+if ~exist('presorted','var')
+    presorted=0; % Optional input when you know that values and weights are already sorted (and zero weighted points eliminated) [and are column vectors]
+end
+
 %%
-% Do I want to add unique() here???? No, you should unique before passing when appropriate (too much run time to do when unnecessary)
-Values=reshape(Values,[numel(Values),1]);
-Weights=reshape(Weights,[numel(Weights),1]);
+if presorted==0
+    % Do I want to add unique() here???? No, you should unique before passing when appropriate (too much run time to do when unnecessary)
+    Values=reshape(Values,[numel(Values),1]);
+    Weights=reshape(Weights,[numel(Weights),1]);
 
-% Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
-temp=logical(Weights~=0);
-Weights=Weights(temp);
-Values=Values(temp);
+    % Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
+    temp=logical(Weights~=0);
+    Weights=Weights(temp);
+    Values=Values(temp);
 
-%% Sorted weighted values
-[SortedValues,SortedValues_index] = sort(Values);
+    %% Sorted weighted values
+    [SortedValues,SortedValues_index] = sort(Values);
 
-SortedWeights = Weights(SortedValues_index);
+    SortedWeights = Weights(SortedValues_index);
+
+    % WeightedValues=Values.*Weights;
+    % SortedWeightedValues=WeightedValues(SortedValues_index);
+elseif presorted==1
+    SortedValues=Values;
+    SortedWeights=Weights;
+end
+SortedWeightedValues=SortedValues.*SortedWeights;
 CumSumSortedWeights=cumsum(SortedWeights);
 
-WeightedValues=Values.*Weights;
-SortedWeightedValues=WeightedValues(SortedValues_index);
+
 
 %% Now the stats themselves
 % Calculate the 'age conditional' mean
-AllStats.Mean=sum(WeightedValues);
+AllStats.Mean=sum(SortedWeightedValues);
 % Calculate the 'age conditional' median
 [~,index_median]=min(abs(SortedWeights-0.5));
 AllStats.Median=SortedValues(index_median); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
@@ -50,6 +62,14 @@ if SortedValues(1)==SortedValues(end)
     AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
     AllStats.Maximum=SortedValues(1);
     AllStats.Minimum=SortedValues(1);
+    AllStats.MoreInequality.Top1share=0.01;
+    AllStats.MoreInequality.Top5share=0.05;
+    AllStats.MoreInequality.Top10share=0.1;
+    AllStats.MoreInequality.Bottom50share=0.5;
+    AllStats.MoreInequality.Percentile50th=SortedValues(1);
+    AllStats.MoreInequality.Percentile90th=SortedValues(1);
+    AllStats.MoreInequality.Percentile95th=SortedValues(1);
+    AllStats.MoreInequality.Percentile99th=SortedValues(1);
 else
     % Calculate the 'age conditional' variance
     AllStats.Variance=sum((Values.^2).*Weights)-(AllStats.Mean)^2; % Weighted square of values - mean^2
@@ -78,6 +98,7 @@ else
 
     for ll=1:nquantiles-1
         tempindex=find(CumSumSortedWeights>=ll/nquantiles,1,'first');
+
         QuantileIndexes(ll)=tempindex;
         QuantileCutoffs(ll)=SortedValues(tempindex);
         if ll==1
@@ -112,15 +133,13 @@ else
     AllStats.MoreInequality.Top10share=1-AllStats.LorenzCurve(Top10cutpoint);
     AllStats.MoreInequality.Bottom50share=AllStats.LorenzCurve(Top50cutpoint);
     % Now some cutoffs
-    % index_median=find(CumSumSortedWeights>=0.5,1,'first');
-    % AllStats.MoreInequality.Median=SortedValues(index_median);
-    AllStats.Percentile50th=SortedValues(index_median);
+    AllStats.MoreInequality.Percentile50th=AllStats.Median; % just a duplicate for convenience
     index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-    AllStats.Percentile90th=SortedValues(index_p90);
+    AllStats.MoreInequality.Percentile90th=SortedValues(index_p90);
     index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-    AllStats.Percentile95th=SortedValues(index_p95);
+    AllStats.MoreInequality.Percentile95th=SortedValues(index_p95);
     index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-    AllStats.Percentile99th=SortedValues(index_p99);
+    AllStats.MoreInequality.Percentile99th=SortedValues(index_p99);
 end
 
 

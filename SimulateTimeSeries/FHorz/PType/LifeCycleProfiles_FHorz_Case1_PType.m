@@ -32,8 +32,8 @@ if iscell(Names_i)
     N_i=length(Names_i);
 else
     N_i=Names_i; % It is the number of PTypes (which have not been given names)
-    Names_i={'ptype001'};
-    for ii=2:N_i
+    Names_i=cell(1,N_i);
+    for ii=1:N_i
         if ii<10
             Names_i{ii}=['ptype00',num2str(ii)];
         elseif ii<100
@@ -52,7 +52,6 @@ if ~exist('simoptions','var')
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     simoptions.verbose=0;
     simoptions.verboseparams=0;
-    simoptions.nquantiles=20; % by default gives ventiles
     defaultagegroupings=1;
     if isstruct(N_j)
         for ii=1:N_i
@@ -65,6 +64,7 @@ if ~exist('simoptions','var')
     else
         simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     end
+    simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
@@ -80,9 +80,6 @@ else
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
-    end
-    if isfield(simoptions,'nquantiles')==0
-        simoptions.nquantiles=20; % by default gives ventiles
     end
     if isfield(simoptions,'agegroupings')==0
         defaultagegroupings=1;
@@ -100,6 +97,9 @@ else
     else
         defaultagegroupings=0;
     end
+    if isfield(simoptions,'nquantiles')==0
+        simoptions.nquantiles=20; % by default gives ventiles
+    end
     if isfield(simoptions,'npoints')==0
         simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     elseif simoptions.npoints==0
@@ -112,51 +112,6 @@ else
         simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
     end
 end
-if isstruct(simoptions.agegroupings)
-    ngroups=zeros(N_i,1);
-    for ii=1:N_i
-        ngroups(ii)=length(simoptions.agegroupings.(Names_i{ii}));
-    end
-else
-    ngroups=length(simoptions.agegroupings)*ones(N_i,1);
-end
-maxngroups=max(ngroups(isfinite(ngroups)));
-if isstruct(simoptions.agejshifter) % if using agejshifter
-    tempagejshifter=simoptions.agejshifter;
-    simoptions=rmfield(simoptions,'agejshifter');
-    simoptions.agejshifter=zeros(N_i,1);
-    for ii=1:N_i
-        simoptions.agejshifter(ii)=tempagejshifter.(Names_i{ii});
-    end
-    simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
-elseif length(simoptions.agejshifter)==1 % not using agejshifter
-    simoptions.agejshifter=zeros(N_i,1);
-else % have inputed as a vector
-    simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
-end
-% You cannot use agejshifter together with any age grouping other than just every period
-if max(simoptions.agejshifter)>0 && defaultagegroupings==0
-    error('You cannot use agejshifter together with any age grouping other than the default (each period seperately)')
-end
-
-if isfield(simoptions,'experienceasset')
-    if isstruct(simoptions.experienceasset)
-        error('Have not yet implemented handling when some agents use experience asset and others do not')
-    elseif simoptions.experienceasset==1
-        % Just rejig the decision variables and send off as a Case2
-        n_d=[n_d,n_a(1:end-1)]; % Note: the decisions are all standard decisions, plus all the next period endogenous states except for the experience asset
-        d_grid=[d_grid;a_grid(1:sum(n_a(1:end-1)))];
-        AgeConditionalStats=LifeCycleProfiles_FHorz_Case2_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
-        return
-    end
-end
-
-
-% Set default of grouping all the PTypes together when reporting statistics
-% AllStats reports both
-% simoptions.groupptypesforstats=0;
-% and
-% simoptions.groupptypesforstats=1;
 
 %% Drop anything that is infinite horizon and print out a message to say so
 if any(computeForThesei==0)
@@ -192,8 +147,47 @@ if any(computeForThesei==0)
     % a mixture of infinite and finite horizon if you are explictly using
     % Names_i. So don't need to worry about vectors over N_i being the
     % wrong size.
-    ngroups=length(simoptions.agegroupings.(Names_i{1}));
 end
+
+%% Setup to allow different N_j (and different agejshifter)
+if isstruct(simoptions.agegroupings)
+    ngroups=zeros(N_i,1);
+    for ii=1:N_i
+        ngroups(ii)=length(simoptions.agegroupings.(Names_i{ii}));
+    end
+else
+    ngroups=length(simoptions.agegroupings)*ones(N_i,1);
+end
+maxngroups=max(ngroups(isfinite(ngroups)));
+if isstruct(simoptions.agejshifter) % if using agejshifter
+    tempagejshifter=simoptions.agejshifter;
+    simoptions=rmfield(simoptions,'agejshifter');
+    simoptions.agejshifter=zeros(N_i,1);
+    for ii=1:N_i
+        simoptions.agejshifter(ii)=tempagejshifter.(Names_i{ii});
+    end
+    simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
+elseif length(simoptions.agejshifter)==1 % not using agejshifter
+    simoptions.agejshifter=zeros(N_i,1);
+else % have inputed as a vector
+    simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
+end
+% You cannot use agejshifter together with any age grouping other than just every period
+if max(simoptions.agejshifter)>0 && defaultagegroupings==0
+    error('You cannot use agejshifter together with any age grouping other than the default (each period seperately)')
+end
+
+jgroupstr=cell(1,maxngroups);
+for jj=1:maxngroups
+    if jj<10
+        jgroupstr{jj}=['agej00',num2str(jj)];
+    elseif jj<100
+        jgroupstr{jj}=['agej0',num2str(jj)];
+    elseif jj<1000
+        jgroupstr{jj}=['agej',num2str(jj)];
+    end
+end
+
 
 %%
 if isstruct(FnsToEvaluate)
@@ -203,1146 +197,201 @@ else
     error('You can only use PType when FnsToEvaluate is a structure')
 end
 
+
 % Preallocate a few things
-minvaluevec=nan(N_i,1);
-maxvaluevec=nan(N_i,1);
+minvaluevec=nan(numFnsToEvaluate,N_i,maxngroups);
+maxvaluevec=nan(numFnsToEvaluate,N_i,maxngroups);
+MeanVec=nan(numFnsToEvaluate,N_i,maxngroups);
+StdDevVec=nan(numFnsToEvaluate,N_i,maxngroups);
+AgeConditionalStats=struct();
 
+% Preallocate
+if simoptions.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+    % Following few lines relate to the digest
+    delta=10000;
+    merge_nsofar=zeros(maxngroups,numFnsToEvaluate); % Keep count
+    merge_nsofar2=zeros(maxngroups,numFnsToEvaluate); % Keep count
 
-
-%% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
-% (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
-% Will throw an error if this is not the case
-
-if simoptions.ptypestorecpu==1 || simoptions.groupptypesforstats==0 % Uses t-Digests, means PType is outer loop and FnsToEvaluate is inner loop
-
-    % If grouping, we have ValuesOnDist and StationaryDist that contain everything we will need. Now we just have to compute them.
-    % Note that I do not currently allow the following simoptions to differ by PType
-
-    FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
-
-    if simoptions.groupptypesforstats==1
-        % Following few lines relate to the digest
-        delta=10000;
-
-        FulltDigest=struct(); % t-Digest across both ptype and FnsToEvaluate
-        MeanVec=zeros(N_i,maxngroups,numFnsToEvaluate);
-        StdDevVec=zeros(N_i,maxngroups,numFnsToEvaluate);
-
-        basicValues=zeros(numFnsToEvaluate,N_i);
-        FullBasicValues=struct();
-    end
-
-    for ii=1:N_i
-        % First set up simoptions
-        simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-
-        if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-            PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-            StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
-        else
-            PolicyIndexes_temp=Policy.(Names_i{ii});
-            StationaryDist_temp=StationaryDist.(Names_i{ii});
-        end
-        % Parallel is determined by StationaryDist, unless it is specified
-        if isa(StationaryDist_temp, 'gpuArray')
-            Parallel_temp=2;
-        else
-            Parallel_temp=1;
-        end
-        if isfield(simoptions_temp,'parallel')
-            Parallel_temp=simoptions_temp.parallel;
-            if Parallel_temp~=2
-                PolicyIndexes_temp=gather(PolicyIndexes_temp);
-                StationaryDist_temp=gather(StationaryDist_temp);
-            end
-        end
-
-
-        % Go through everything which might be dependent on permanent type (PType)
-        % Notice that the way this is coded the grids (etc.) could be either
-        % fixed, or a function (that depends on age, and possibly on permanent
-        % type), or they could be a structure. Only in the case where they are
-        % a structure is there a need to take just a specific part and send
-        % only that to the 'non-PType' version of the command.
-
-        % Start with those that determine whether the current permanent type is finite or
-        % infinite horizon, and whether it is Case 1 or Case 2
-        % Figure out which case is relevant to the current PType. This is done
-        % using N_j which for the current type will evaluate to 'Inf' if it is
-        % infinite horizon and a finite number for any other finite horizon.
-        % First, check if it is a structure, and otherwise just get the
-        % relevant value.
-
-        if isa(n_d,'struct')
-            n_d_temp=n_d.(Names_i{ii});
-        else
-            n_d_temp=n_d;
-        end
-        if isa(n_a,'struct')
-            n_a_temp=n_a.(Names_i{ii});
-        else
-            n_a_temp=n_a;
-        end
-        if isa(n_z,'struct')
-            n_z_temp=n_z.(Names_i{ii});
-        else
-            n_z_temp=n_z;
-        end
-        if isa(N_j,'struct')
-            N_j_temp=N_j.(Names_i{ii});
-        else
-            N_j_temp=N_j;
-        end
-        if isa(d_grid,'struct')
-            d_grid_temp=d_grid.(Names_i{ii});
-        else
-            d_grid_temp=d_grid;
-        end
-        if isa(a_grid,'struct')
-            a_grid_temp=a_grid.(Names_i{ii});
-        else
-            a_grid_temp=a_grid;
-        end
-        if isa(z_grid,'struct')
-            z_grid_temp=z_grid.(Names_i{ii});
-        else
-            z_grid_temp=z_grid;
-        end
-
-
-        % Check for semi-exogenous shocks, if these are being used then need to add them to n_z_temp and z_grid_temp
-        if isfield(simoptions_temp,'SemiExoStateFn')
-            n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
-            z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
-        end
-
-        % Parameters are allowed to be given as structure, or as vector/matrix
-        % (in terms of their dependence on permanent type). So go through each of
-        % these in term.
-        % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-        Parameters_temp=Parameters;
-        FullParamNames=fieldnames(Parameters); % all the different parameters
-        nFields=length(FullParamNames);
-        for kField=1:nFields
-            if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-                % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-                if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-                end
-            elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
-                temp=Parameters.(FullParamNames{kField});
-                [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-                if ptypedim==1
-                    Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-                elseif ptypedim==2
-                    Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-                end
-            end
-        end
-        % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-
-        if simoptions_temp.verboseparams==1
-            fprintf('Parameter values for the current permanent type \n')
-            Parameters_temp
-        end
-
-        % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
-        % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
-        % Allows for FnsToEvaluate as structure.
-        if n_d_temp(1)==0
-            l_d_temp=0;
-        else
-            l_d_temp=1;
-        end
-        l_a_temp=length(n_a_temp);
-        l_z_temp=length(n_z_temp);
-
-        % Select just the FnsToEvaluate that are relevant for the current ptype
-        [FnsToEvaluate_ii,FnsToEvaluateParamNames_ii, WhichFnsForCurrentPType_ii,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0,2);
-        FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
-        
-        %% We have set up the current PType, now do some calculations for it.
-        N_a_temp=prod(n_a_temp);
-        if isfield(simoptions_temp,'n_e')
-            n_ze_temp=[n_z_temp,simoptions_temp.n_e];
-            N_ze_temp=prod([n_z_temp,simoptions_temp.n_e]);
-        else
-            n_ze_temp=n_z_temp;
-            N_ze_temp=prod(n_z_temp);
-        end
-        l_ze_temp=length(n_ze_temp);
-        
-        % Create PolicyValues
-        PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp);
-        permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1,1+l_a_temp+l_ze_temp+1];
-        PolicyValues_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a,N_j]
-        PolicyValues_temp=reshape(PolicyValues_temp,[N_a_temp*N_ze_temp,(l_d_temp+l_a_temp),N_j_temp]);
-
-        % Reshape the stationary dist
-        StationaryDist_ii=reshape(StationaryDist_temp,[N_a_temp*N_ze_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
-
-        FnNames_ii=fieldnames(FnsToEvaluate_ii);
-        for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-            clear FnsToEvaluate_iikk
-            FnsToEvaluate_iikk.(FnNames_ii{kk})=FnsToEvaluate_ii.(FnNames_ii{kk});
-            
-            % Evaluate the FnsToEvaluate that are relevant for the current ptype
-            simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-            ValuesOnGrid_kkii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iikk, Parameters_temp, FnsToEvaluateParamNames_ii, n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_grid_temp,simoptions_temp);
-
-            if simoptions_temp.verbose==1
-                fprintf('Life-Cycle Profiles: Permanent type: %i of %i, FnsToEvaluate: %i of %i \n',ii, N_i, kk, numFnsToEvaluate)
-            end
-
-            if simoptions.groupptypesforstats==1
-                % Set up tdigests if first ptype, otherwise load the stored value
-                if ii==1
-                    FulltDigest(kk).merge_nsofar=zeros(1,maxngroups); % Keep count (by age grouping)
-                    Cmerge=struct(); % Keep a seperate Cmerge for each agegrouping and each FnsToEvaluate
-                    digestweightsmerge=struct(); % Keep a seperate digestweightsmerge for each agegrouping and each FnsToEvaluate
-                    for jj=1:maxngroups
-                        Cmerge(jj).Cmerge=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-                        digestweightsmerge(jj).digestweightsmerge=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-                    end
-                    FulltDigest(kk).Cmerge=Cmerge;
-                    FulltDigest(kk).digestweightsmerge=digestweightsmerge;
-                end
-                merge_nsofar=FulltDigest(kk).merge_nsofar;
-                Cmerge=FulltDigest(kk).Cmerge;
-                digestweightsmerge=FulltDigest(kk).digestweightsmerge;
-            end
-
-            if WhichFnsForCurrentPType_ii(kk)>0
-
-                % Because of how we loop over both kk (FnsToEvaluate) and ii (PType),
-                % WhichFnsForCurrentPType_ii(kk) will be a scalar 1 or 0. If zero then we
-                % can just skip the function for this agent permanent type, so only do things when it is one.
-
-                % ValuesOnGrid_kkii=ValuesOnGrid_ii(:,:,kk); % Because we used simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-
-                % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).
-                % Mean, Median, Variance, StdDev, Gini, Top1share, Top5share, Top10share,
-                % Bottom50share,Percentile50th, Percentile 90th, Percentile95th, Percentile99th
-                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
-                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
-                AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
-
-                for jj=1:length(simoptions_temp.agegroupings)
-
-                    j1=simoptions_temp.agegroupings(jj);
-                    if jj<length(simoptions_temp.agegroupings)
-                        jend=simoptions_temp.agegroupings(jj+1)-1;
-                    else
-                        jend=N_j_temp;
-                    end
-                    % simoptions.agejshifter
-
-                    % Calculate the individual stats
-                    StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_ze_temp*(jend-j1+1),1]);
-                    Values_jj=reshape(ValuesOnGrid_kkii(:,j1:jend),[N_a_temp*N_ze_temp*(jend-j1+1),1]);
-
-                    % Eliminate all the zero-weights from these (this would
-                    % increase run times if we only do exact calculations, but
-                    % because we plan to createDigest() it helps reduce runtimes)
-                    temp=logical(StationaryDistVec_jj~=0);
-                    StationaryDistVec_jj=StationaryDistVec_jj(temp);
-                    Values_jj=Values_jj(temp);
-
-                    % If doing groupstats we will later want the unique values (we use t-Digests if there are more than 100,000 unique values) so just do it now
-                    if simoptions.groupptypesforstats==1
-                        [Values_jj,~,uind]=unique(Values_jj);
-                        StationaryDistVec_jj = accumarray(uind,StationaryDistVec_jj);
-                    end
-
-                    % Should be mass one, but just enforce to reduce numerical rounding errors
-                    StationaryDistVec_jj=StationaryDistVec_jj./sum(StationaryDistVec_jj); % Normalize to sum to one for this 'agegrouping'
-
-                    % Sort by values
-                    [SortedValues,SortedValues_index] = sort(Values_jj);
-                    SortedWeights = StationaryDistVec_jj(SortedValues_index);
-
-                    CumSumSortedWeights=cumsum(SortedWeights);
-                    WeightedValues=Values_jj.*StationaryDistVec_jj;
-                    SortedWeightedValues=WeightedValues(SortedValues_index);
-
-                    % Calculate the 'age conditional' mean
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean(jj)=sum(WeightedValues);
-                    % Calculate the 'age conditional' median
-                    [~,medianindex]=min(abs(SortedWeights-0.5));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median(jj)=SortedValues(medianindex);
-
-                    % Do min and max before looking at the variance, std. dev.,
-                    % lorenz curve, etc. As that way can skip when the min and max
-                    % are the same (so variable is constant valued)
-
-                    % Min value
-                    tempindex=find(CumSumSortedWeights>=simoptions_temp.tolerance,1,'first');
-                    minvalue=SortedValues(tempindex);
-                    % Max value
-                    tempindex=find(CumSumSortedWeights>=(1-simoptions_temp.tolerance),1,'first');
-                    maxvalue=SortedValues(tempindex);
-                    % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
-                    if isempty(maxvalue)
-                        tempindex=find(CumSumSortedWeights>=(1-10*simoptions_temp.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
-                        maxvalue=SortedValues(tempindex);
-                    end
-
-                    % Calculate the 'age conditional' variance
-                    if (maxvalue-minvalue)>0
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj)=sum((Values_jj.^2).*StationaryDistVec_jj)-(AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean(jj))^2; % Weighted square of values - mean^2
-                    else % There were problems at floating point error accuracy levels when there is no variance, so just treat this case directly
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj)=0;
-                    end
-                    if AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj)<0 % Some variance still appear to be machine tolerance level errors.
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev(jj)=0; % You will be able to see the machine tolerance level error in the variance, and it is just overwritten to zero in the standard deviation
-                    else
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev(jj)=sqrt(AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj));
-                    end
-
-                    % Calculate the 'age conditional' lorenz curve
-                    % Note: Commented out following lines as would also need to change TopXshare stats, decided not to do this.
-                    %             if minvalue<0
-                    %                 AgeConditionalStats_ii.LorenzCurve(:,jj)=nan;
-                    %                 AgeConditionalStats_ii.Gini(jj)=nan;
-                    %             else
-                    if (maxvalue-minvalue)>0
-                        LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,2);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve(:,jj)=LorenzCurve;
-                        % Calculate the 'age conditional' gini
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-                    else
-                        LorenzCurve=linspace(0,1,simoptions_temp.npoints);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini(jj)=1;
-                    end
-
-
-                    % Top X share indexes
-                    Top1cutpoint=round(0.99*simoptions_temp.npoints);
-                    Top5cutpoint=round(0.95*simoptions_temp.npoints);
-                    Top10cutpoint=round(0.90*simoptions_temp.npoints);
-                    Top50cutpoint=round(0.50*simoptions_temp.npoints);
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-                    % Now some cutoffs
-                    index_median=find(CumSumSortedWeights>=0.5,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median(jj)=SortedValues(index_median);
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile50th(jj)=SortedValues(index_median);
-                    index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile90th(jj)=SortedValues(index_p90);
-                    index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile95th(jj)=SortedValues(index_p95);
-                    index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile99th(jj)=SortedValues(index_p99);
-
-
-                    % Calculate the 'age conditional' quantile means (ventiles by default)
-                    % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-                    QuantileIndexes=zeros(1,simoptions_temp.nquantiles-1);
-                    QuantileCutoffs=zeros(1,simoptions_temp.nquantiles-1);
-                    QuantileMeans=zeros(1,simoptions_temp.nquantiles);
-
-                    for ll=1:simoptions_temp.nquantiles-1
-                        tempindex=find(CumSumSortedWeights>=ll/simoptions_temp.nquantiles,1,'first');
-                        QuantileIndexes(ll)=tempindex;
-                        QuantileCutoffs(ll)=SortedValues(tempindex);
-                        if ll==1
-                            QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-                        elseif ll<(simoptions_temp.nquantiles-1) % (1<ll) &&
-                            QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                        else %if ll==(options.nquantiles-1)
-                            QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                            QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-                        end
-                    end
-
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans(:,jj)=QuantileMeans';
-
-                    minvaluevec(ii)=minvalue; % Keep so that we can calculate the grouped min directly from this
-                    maxvaluevec(ii)=maxvalue; % Keep so that we can calculate the grouped max directly from this
-
-                    % Now that we have done the individual stats, store the mean,
-                    % stddev, and t-Digests so that we can compute the grouped stats.
-                    % (Mean and stddev can just be done after the loop)
-                    
-                    if simoptions.groupptypesforstats==1
-                        jjageshifted=jj+simoptions.agejshifter(ii);
-                        %% When the stat has less than 10^8 unique values I just keep them
-                        if length(Values_jj)<10^8
-                            basicValues(kk,ii)=1;
-                            FullBasicValues(kk,ii,jjageshifted).Values=Values_jj;
-                            FullBasicValues(kk,ii,jjageshifted).StationaryDistVec=StationaryDistVec_jj;
-                        else
-                            % basicValues(kk,ii)=0;
-                            %% Otherwise, use t-Digest
-                            %% Create digest
-                            [C_jj,digestweights_jj,~]=createDigest(gather(SortedValues), gather(SortedWeights),delta,1); % 1=presorted, as we sorted these above
-
-                            %% Keep the digests so far as a stacked vector that can then merge later
-                            % Note that this will be automatically created such that it only contains the agents for whom it is relevant.
-                            merge_nsofar2_jj=merge_nsofar(jjageshifted)+length(C_jj);
-                            % Note: merge across the ii, but keep the different jj distinct
-                            Cmerge(jjageshifted).Cmerge(merge_nsofar(jjageshifted)+1:merge_nsofar2_jj)=C_jj;
-                            digestweightsmerge(jjageshifted).digestweightsmerge(merge_nsofar(jjageshifted)+1:merge_nsofar2_jj)=digestweights_jj*StationaryDist.ptweights(ii);
-                            merge_nsofar(jjageshifted)=merge_nsofar2_jj;
-
-                            FulltDigest(kk).merge_nsofar=merge_nsofar;
-                            FulltDigest(kk).Cmerge=Cmerge;
-                            FulltDigest(kk).digestweightsmerge=digestweightsmerge;
-                        end
-                    end
-
-                end
-
-
-                if simoptions.groupptypesforstats==1
-                    MeanVec(ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+ngroups(ii),kk)=AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean; % Note: if ngroups(ii)<max(ngroups) there will just be some NaN left at the end of the row
-                    StdDevVec(ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+ngroups(ii),kk)=AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev;
-                end
-
-            end
+    AllCMerge=struct();
+    Alldigestweightsmerge=struct();
+    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        for jj=1:maxngroups
+            AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jj})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
+            Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jj})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
         end
     end
-
-    if simoptions.groupptypesforstats==1
-
-        %% Now merge the t-Digests to create the grouped stats
-        for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-            % NOTE: THIS COULD PROBABLY BE PARFOR OVER kk
-            if simoptions_temp.verbose==1
-                fprintf('Life-Cycle Profiles: Grouped Stats, FnsToEvaluate: %i of %i \n',kk, numFnsToEvaluate)
-            end
-
-            FnsAndPTypeIndicator_kk=FnsAndPTypeIndicator(kk,:);
-            MeanVec_kk=MeanVec(:,:,kk);
-            StdDevVec_kk=StdDevVec(:,:,kk);
-
-            merge_nsofar=FulltDigest(kk).merge_nsofar;
-            Cmerge=FulltDigest(kk).Cmerge;
-            digestweightsmerge=FulltDigest(kk).digestweightsmerge;
-
-            % In principle could calculate mean and standard deviation without
-            % needing to loop over jj. But I want to allow for agejshifter and different N_j, and so
-            % it is much easier to use the loops.
-
-            % Preallocate empty matrices
-            AgeConditionalStats.(FnsToEvalNames{kk}).Mean=zeros(1,maxngroups); % Needs to be zeros as I add to it
-            AgeConditionalStats.(FnsToEvalNames{kk}).StdDev=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Variance=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve=nan(simoptions_temp.npoints,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Gini=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Top1share=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Top5share=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Top10share=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Median=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Gini=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th=nan(1,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans=nan(simoptions_temp.nquantiles,maxngroups);
-            AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,maxngroups);
-
-
-            for jj=1:max(ngroups)%length(simoptions.agegroupings)
-                % Note: don't need j1 and jend this time round
-
-                jjageshifted2=jj-simoptions.agejshifter(ii); % Note, here it is minus
-
-                % Mass of agents of age jj for who this function is relevant
-                SigmaNxi_jj=0;
-                for ii=1:N_i
-                    if FnsAndPTypeIndicator_kk(ii)==1 && jj<ngroups(ii) && jj>simoptions.agejshifter(ii) % if current function and age are relevant for type ii
-                        SigmaNxi_jj=SigmaNxi_jj+FnsAndPTypeIndicator_kk(ii)*StationaryDist.ptweights(ii);
-                    end
-                end
-
-                % Grouped Mean
-                for ii=1:N_i
-                    if FnsAndPTypeIndicator_kk(ii)==1 && jj<ngroups(ii) && jj>simoptions.agejshifter(ii) % if current function and age are relevant for type ii
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)+MeanVec_kk(ii,jjageshifted2)*StationaryDist.ptweights(ii);
-                    end
-                end
-
-                if SigmaNxi_jj>0 % to avoid divide by zero error
-                    AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)/SigmaNxi_jj;
-                end
-
-                % Grouped Standard Deviation
-                if N_i==1
-                    AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)=StdDevVec_kk(1,jj); % If there is only one agent then obviously we can ignore checking if the current function and age are relevant
-                else
-                    temp2=zeros(N_i,1);
-                    for ii=2:N_i
-                        if FnsAndPTypeIndicator_kk(ii)==1 && jj<ngroups(ii) && jj>simoptions.agejshifter(ii) % if current function and age are relevant for type ii
-                            temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator_kk(1:(ii-1))'.*(StationaryDist.ptweights(1:(ii-1))).*((MeanVec_kk(1:(ii-1),jjageshifted2)-MeanVec_kk(ii,jjageshifted2)).^2));
-                        end
-                    end
-                    AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)=sqrt(sum(FnsAndPTypeIndicator_kk.*(StationaryDist.ptweights').*StdDevVec_kk(:,jjageshifted2)')/SigmaNxi_jj + sum(temp2)/(SigmaNxi_jj^2));
-                end
-                AgeConditionalStats.(FnsToEvalNames{kk}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)).^2;
-
-                if any(basicValues(kk,:))
-                    clear Values 
-                    clear StationaryDistVec
-                    if jj>simoptions.agejshifter(1)
-                        Values=FullBasicValues(kk,1,jj).Values;
-                        StationaryDistVec=FullBasicValues(kk,1,jj).StationaryDistVec;
-                    end
-                    for ii=2:N_i
-                        if jj>simoptions.agejshifter(ii)
-                            Values=[Values;FullBasicValues(kk,ii,jj).Values];
-                            StationaryDistVec=[StationaryDistVec;FullBasicValues(kk,ii,jj).StationaryDistVec];
-                        end
-                    end
-
-
-                    %% Now for the grouped stats which are calculated from digests
-                    % Note that the t-digests were already created incorporating any agejshifter
-                    if AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)>0
-                        % No point calculating all of these inequality stats if the (age-conditional) standard deviation is zero
-
-                        % Should be mass one, but just enforce to reduce numerical rounding errors
-                        StationaryDistVec=StationaryDistVec./sum(StationaryDistVec); % Normalize to sum to one for this 'agegrouping'
-
-                        % Sort by values
-                        [SortedValues,SortedValues_index] = sort(Values);
-                        SortedWeights = StationaryDistVec(SortedValues_index);
-
-                        CumSumSortedWeights=cumsum(SortedWeights);
-                        WeightedValues=Values.*StationaryDistVec;
-                        SortedWeightedValues=WeightedValues(SortedValues_index);
-
-                        % Calculate the 'age conditional' median
-                        [~,medianindex]=min(abs(SortedWeights-0.5));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=SortedValues(medianindex);
-
-                        % Do min and max before looking at the variance, std. dev.,
-                        % lorenz curve, etc. As that way can skip when the min and max
-                        % are the same (so variable is constant valued)
-
-                        % Min value
-                        tempindex=find(CumSumSortedWeights>=simoptions_temp.tolerance,1,'first');
-                        minvalue=SortedValues(tempindex);
-                        % Max value
-                        tempindex=find(CumSumSortedWeights>=(1-simoptions_temp.tolerance),1,'first');
-                        maxvalue=SortedValues(tempindex);
-                        % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
-                        if isempty(maxvalue)
-                            tempindex=find(CumSumSortedWeights>=(1-10*simoptions_temp.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
-                            maxvalue=SortedValues(tempindex);
-                        end
-
-                        % Calculate the 'age conditional' lorenz curve
-                        % Note: Commented out following lines as would also need to change TopXshare stats, decided not to do this.
-                        %             if minvalue<0
-                        %                 AgeConditionalStats_ii.LorenzCurve(:,jj)=nan;
-                        %                 AgeConditionalStats_ii.Gini(jj)=nan;
-                        %             else
-                        if (maxvalue-minvalue)>0
-                            LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,2);
-                            AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=LorenzCurve;
-                            % Calculate the 'age conditional' gini
-                            AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-                        else
-                            LorenzCurve=linspace(0,1,simoptions_temp.npoints);
-                            AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=1;
-                        end
-
-                        % Top X share indexes
-                        Top1cutpoint=round(0.99*simoptions_temp.npoints);
-                        Top5cutpoint=round(0.95*simoptions_temp.npoints);
-                        Top10cutpoint=round(0.90*simoptions_temp.npoints);
-                        Top50cutpoint=round(0.50*simoptions_temp.npoints);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-                        % Now some cutoffs
-                        index_median=find(CumSumSortedWeights>=0.5,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=SortedValues(index_median);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=SortedValues(index_median);
-                        index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=SortedValues(index_p90);
-                        index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=SortedValues(index_p95);
-                        index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=SortedValues(index_p99);
-
-                        % Calculate the 'age conditional' quantile means (ventiles by default)
-                        % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-                        QuantileIndexes=zeros(1,simoptions_temp.nquantiles-1);
-                        QuantileCutoffs=zeros(1,simoptions_temp.nquantiles-1);
-                        QuantileMeans=zeros(1,simoptions_temp.nquantiles);
-
-                        for ll=1:simoptions_temp.nquantiles-1
-                            tempindex=find(CumSumSortedWeights>=ll/simoptions_temp.nquantiles,1,'first');
-                            QuantileIndexes(ll)=tempindex;
-                            QuantileCutoffs(ll)=SortedValues(tempindex);
-                            if ll==1
-                                QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-                            elseif ll<(simoptions_temp.nquantiles-1) % (1<ll) &&
-                                QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                            else %if ll==(options.nquantiles-1)
-                                QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                                QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-                            end
-                        end
-
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=QuantileMeans';
-                    else
-                        % Since these are all undefined just return them a message explaining why
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Note='The inequality stats are odd because the (age-conditional) standard deviation is zero';
-                        AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=cumsum(ones(simoptions_temp.npoints,1)/simoptions_temp.npoints);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=0;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=0.01;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=0.05;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=0.1;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=0.5;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles+1,1);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles,1);
-                    end
-                else % Not basicValues, so use t-Digests
-                    Cmerge_jj=Cmerge(jj).Cmerge;
-                    digestweightsmerge_jj=digestweightsmerge(jj).digestweightsmerge;
-                    merge_nsofar_jj=merge_nsofar(jj);
-
-                    Cmerge_jj=Cmerge_jj(1:merge_nsofar_jj);
-                    digestweightsmerge_jj=digestweightsmerge_jj(1:merge_nsofar_jj);
-
-                    %% Now for the grouped stats which are calculated from digests
-                    % Note that the t-digests were already created incorporating any agejshifter
-                    if AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)>0
-                        % No point calculating all of these inequality stats if the (age-conditional) standard deviation is zero
-
-                        % Merge the digests
-                        [C_kk,digestweights_kk,qlimitvec_kk]=mergeDigest(Cmerge_jj, digestweightsmerge_jj, delta);
-                        % DEBUGGING
-                        if kk==1 || kk==2
-                            if jj==1
-                                if any(isnan(C_jj))
-                                    fprintf('For age 1 there are %i nan values in the digest means for merged-agents \n',jj,sum(isnan(C_kk)))
-                                end
-                                if any(isnan(digestweights_kk))
-                                    fprintf('For age 1 there are %i nan values in the digest weights for merged-agents \n',jj,sum(isnan(digestweights_kk)))
-                                end
-                                if any(isnan(qlimitvec_kk))
-                                    fprintf('For age 1 there are %i nan values in the digest weights for merged-agents \n',jj,sum(isnan(qlimitvec_kk)))
-                                end
-                            end
-                        end
-
-                        % Top X share indexes
-                        Top1cutpoint=round(0.99*simoptions_temp.npoints);
-                        Top5cutpoint=round(0.95*simoptions_temp.npoints);
-                        Top10cutpoint=round(0.90*simoptions_temp.npoints);
-                        Top50cutpoint=round(0.50*simoptions_temp.npoints);
-
-                        if C_kk(1)<0
-                            warning('Lorenz curve for the %i-th FnsToEvaluate is complicated as it takes some negative values \n',kk)
-                        end
-                        % Calculate the quantiles
-                        LorenzCurve=LorenzCurve_subfunction_PreSorted(C_kk.*digestweights_kk,qlimitvec_kk,simoptions_temp.npoints,1);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=LorenzCurve;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-
-                        cumsumdigestweights_kk=cumsum(digestweights_kk);
-                        % Now some cutoffs (note: qlimitvec is effectively already the cumulative sum)
-                        index_median=find(cumsumdigestweights_kk>=0.5,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=C_kk(index_median);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=C_kk(index_median);
-                        index_p90=find(cumsumdigestweights_kk>=0.90,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=C_kk(index_p90);
-                        index_p95=find(cumsumdigestweights_kk>=0.95,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=C_kk(index_p95);
-                        index_p99=find(cumsumdigestweights_kk>=0.99,1,'first');
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=C_kk(index_p99);
-
-                        % Calculate the quantiles directly from the digest
-                        quantiles=(1:1:simoptions_temp.nquantiles-1)/simoptions_temp.nquantiles;
-                        quantilecutoffs=interp1(qlimitvec_kk,C_kk,quantiles);
-                        quantilemeans=zeros(length(quantilecutoffs)+1,1);
-                        Ctimesdisgestweights=C_kk.*digestweights_kk;
-                        quantilemeans(1)=sum(Ctimesdisgestweights(qlimitvec_kk<quantiles(1)))/sum(digestweights_kk(qlimitvec_kk<quantiles(1)));
-                        for qq=2:length(quantilecutoffs)
-                            quantilemeans(qq)=sum(Ctimesdisgestweights(logical((qlimitvec_kk>quantiles(qq-1)).*(qlimitvec_kk<quantiles(qq)))))/sum(digestweights_kk(logical((qlimitvec_kk>quantiles(qq-1)).*(qlimitvec_kk<quantiles(qq)))));
-                        end
-                        quantilemeans(end)=sum(Ctimesdisgestweights(qlimitvec_kk>quantiles(end)))/sum(digestweights_kk(qlimitvec_kk>quantiles(end)));
-
-                        % The minvalue and maxvalue can just be calculated direct from the invididual agent ones
-                        % Note: the nan in minvaluevec and maxvaluevec are the preallocated size (which we then only partly fill)
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=[min(minvaluevec,[],'omitnan'), quantilecutoffs, max(maxvaluevec,[],'omitnan')]';
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=quantilemeans';
-                    else
-                        % Since these are all undefined just return them a message explaining why
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Note='The inequality stats are odd because the (age-conditional) standard deviation is zero';
-                        AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=cumsum(ones(simoptions_temp.npoints,1)/simoptions_temp.npoints);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=0;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=0.01;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=0.05;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=0.1;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=0.5;
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles+1,1);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles,1);
-                    end
-                end
-            end
+else
+    AllValues=struct();
+    AllWeights=struct();
+    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        for jj=1:maxngroups
+            AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj})=[];
+            AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=[];
         end
     end
+end
+
+FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
 
-%%
-elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means FnsToEvaluate is outer loop and PType is inner loop
-    % Do a few small things with PType to save repeating them (mainly about StationaryDist)
-    for ii=1:N_i
-        if isa(n_a,'struct')
-            n_a_temp=n_a.(Names_i{ii});
-        else
-            n_a_temp=n_a;
-        end
-        if isa(n_z,'struct')
-            n_z_temp=n_z.(Names_i{ii});
-        else
-            n_z_temp=n_z;
-        end
-        if isa(N_j,'struct')
-            N_j_temp=N_j.(Names_i{ii});
-        else
-            N_j_temp=N_j;
-        end
-        N_a_temp=prod(n_a_temp);
-        simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-        if isfield(simoptions_temp,'SemiExoStateFn')
-            if prod(n_z_temp)==0
-                n_z_temp=simoptions_temp.n_semiz;
-            else
-                n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
-            end
-        end
-        if isfield(simoptions_temp,'n_e')
-            n_z_temp=[n_z_temp,simoptions_temp.n_e];
-        end
-        N_z_temp=prod(n_z_temp);
-        if N_z_temp==0
-            N_z_temp_dim=1;
-        else
-            N_z_temp_dim=N_z_temp;
-        end
-
-        StationaryDist.(Names_i{ii})=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp_dim,N_j_temp]);
-
-        if ii==1
-            StationaryDist_full=zeros(N_a_temp*N_z_temp_dim*N_i,N_j_temp);
-        end
-
-        StationaryDist_full(N_a_temp*N_z_temp_dim*(ii-1)+1:N_a_temp*N_z_temp_dim*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=StationaryDist.(Names_i{ii}) *StationaryDist.ptweights(ii);
+%% Do an outerloop over ptypes and an inner loop over FnsToEvaluate
+for ii=1:N_i
+    
+    % First set up simoptions
+    simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
+    
+    if simoptions_temp.verbose==1
+        fprintf('Permanent type: %i of %i \n',ii, N_i)
+    end    
+    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+        PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
+        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+    else
+        PolicyIndexes_temp=Policy.(Names_i{ii});
+        StationaryDist_temp=StationaryDist.(Names_i{ii});
     end
     
-    %% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
-    % (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
-    % Will throw an error if this is not the case
-
-    % If grouping, we have ValuesOnDist and StationaryDist that contain
-    % everything we will need. Now we just have to compute them.
-    % Note that I do not currently allow the following simoptions to differ by PType
-
-    for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        clear FnsToEvaluate_kk
-        FnsToEvaluate_kk.(FnsToEvalNames{kk})=FnsToEvaluate.(FnsToEvalNames{kk}); % Structure containing just this funcion
-        FnsAndPTypeIndicator_kk=zeros(1,N_i,'gpuArray');
-
-        % Use the full distribution over all agent ptypes
-        ValuesOnGrid=zeros(N_a_temp*N_z_temp_dim*N_i,N_j_temp); 
-
-        MeanVec=zeros(N_i,maxngroups);
-        StdDevVec=zeros(N_i,maxngroups);
-
-        for ii=1:N_i
-            % First set up simoptions
-            simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-
-            if simoptions_temp.verbose==1
-                fprintf('Life-Cycle Profiles: Permanent type: %i of %i, FnsToEvaluate: %i of %i \n',ii, N_i, kk, numFnsToEvaluate)
-            end
-
-            PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Note, these should be gpuArrays already, but just make sure
-            StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
-
-            % Parallel is determined by StationaryDist, unless it is specified
-            if isa(StationaryDist_temp, 'gpuArray')
-                Parallel_temp=2;
-            else
-                Parallel_temp=1;
-            end
-            if isfield(simoptions_temp,'parallel')
-                Parallel_temp=simoptions_temp.parallel;
-                if Parallel_temp~=2
-                    PolicyIndexes_temp=gather(PolicyIndexes_temp);
-                    StationaryDist_temp=gather(StationaryDist_temp);
+    % Go through everything which might be dependent on permanent type (PType)
+    % Notice that the way this is coded the grids (etc.) could be either
+    % fixed, or a function (that depends on age, and possibly on permanent
+    % type), or they could be a structure. Only in the case where they are
+    % a structure is there a need to take just a specific part and send
+    % only that to the 'non-PType' version of the command.
+    
+    if isa(n_d,'struct')
+        n_d_temp=n_d.(Names_i{ii});
+    else
+        n_d_temp=n_d;
+    end
+    if isa(n_a,'struct')
+        n_a_temp=n_a.(Names_i{ii});
+    else
+        n_a_temp=n_a;
+    end
+    if isa(n_z,'struct')
+        n_z_temp=n_z.(Names_i{ii});
+    else
+        n_z_temp=n_z;
+    end
+    if isa(N_j,'struct')
+        N_j_temp=N_j.(Names_i{ii});
+    else
+        N_j_temp=N_j;
+    end
+    if isa(d_grid,'struct')
+        d_grid_temp=d_grid.(Names_i{ii});
+    else
+        d_grid_temp=d_grid;
+    end
+    if isa(a_grid,'struct')
+        a_grid_temp=a_grid.(Names_i{ii});
+    else
+        a_grid_temp=a_grid;
+    end
+    if isa(z_grid,'struct')
+        z_grid_temp=z_grid.(Names_i{ii});
+    else
+        z_grid_temp=z_grid;
+    end
+    
+    % Parameters are allowed to be given as structure, or as vector/matrix
+    % (in terms of their dependence on permanent type). So go through each of
+    % these in term.
+    Parameters_temp=Parameters;
+    FullParamNames=fieldnames(Parameters);
+    nFields=length(FullParamNames);
+    for kField=1:nFields
+        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
+            names=fieldnames(Parameters.(FullParamNames{kField}));
+            for jj=1:length(names)
+                if strcmp(names{jj},Names_i{ii})
+                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{jj});
                 end
             end
-
-
-            % Go through everything which might be dependent on permanent type (PType)
-            % Notice that the way this is coded the grids (etc.) could be either
-            % fixed, or a function (that depends on age, and possibly on permanent
-            % type), or they could be a structure. Only in the case where they are
-            % a structure is there a need to take just a specific part and send
-            % only that to the 'non-PType' version of the command.
-
-            % Start with those that determine whether the current permanent type is finite or
-            % infinite horizon, and whether it is Case 1 or Case 2
-            % Figure out which case is relevant to the current PType. This is done
-            % using N_j which for the current type will evaluate to 'Inf' if it is
-            % infinite horizon and a finite number for any other finite horizon.
-            % First, check if it is a structure, and otherwise just get the
-            % relevant value.
-
-            if isa(n_d,'struct')
-                n_d_temp=n_d.(Names_i{ii});
-            else
-                n_d_temp=n_d;
-            end
-            if isa(n_a,'struct')
-                n_a_temp=n_a.(Names_i{ii});
-            else
-                n_a_temp=n_a;
-            end
-            if isa(n_z,'struct')
-                n_z_temp=n_z.(Names_i{ii});
-            else
-                n_z_temp=n_z;
-            end
-            if isa(N_j,'struct')
-                N_j_temp=N_j.(Names_i{ii});
-            else
-                N_j_temp=N_j;
-            end
-            if isa(d_grid,'struct')
-                d_grid_temp=d_grid.(Names_i{ii});
-            else
-                d_grid_temp=d_grid;
-            end
-            if isa(a_grid,'struct')
-                a_grid_temp=a_grid.(Names_i{ii});
-            else
-                a_grid_temp=a_grid;
-            end
-            if isa(z_grid,'struct')
-                z_grid_temp=z_grid.(Names_i{ii});
-            else
-                z_grid_temp=z_grid;
-            end
-
-
-            % Check for semi-exogenous shocks, if these are being used then need to add them to n_z_temp and z_grid_temp
-            if isfield(simoptions_temp,'SemiExoStateFn')
-                if prod(n_z_temp)==0
-                    n_z_temp=simoptions_temp.n_semiz;
-                    z_grid_temp=simoptions_temp.semiz_grid;
-                else
-                    n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
-                    z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
-                end
-            end
-
-            % Parameters are allowed to be given as structure, or as vector/matrix
-            % (in terms of their dependence on permanent type). So go through each of
-            % these in term.
-            % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-            Parameters_temp=Parameters;
-            FullParamNames=fieldnames(Parameters); % all the different parameters
-            nFields=length(FullParamNames);
-            for kField=1:nFields
-                if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-                    % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-                    if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                        Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-                    end
-                elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
-                    temp=Parameters.(FullParamNames{kField});
-                    [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-                    if ptypedim==1
-                        Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-                    elseif ptypedim==2
-                        Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-                    end
-                end
-            end
-            % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-
-            if simoptions_temp.verboseparams==1
-                fprintf('Parameter values for the current permanent type \n')
-                Parameters_temp
-            end
-
-            % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
-            % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
-            % Allows for FnsToEvaluate as structure.
-            if n_d_temp(1)==0
-                l_d_temp=0;
-            else
-                l_d_temp=1;
-            end
-            l_a_temp=length(n_a_temp);
-            l_z_temp=length(n_z_temp);
-            % Note: next line uses FnsToEvaluate_kk
-            [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_kk,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0,2);
-            FnsAndPTypeIndicator_kk(ii)=FnsAndPTypeIndicator_ii;
-
-
-            N_a_temp=prod(n_a_temp);
-            if isfield(simoptions_temp,'n_e')
-                n_z_temp_alt=[n_z_temp,simoptions_temp.n_e];
-            else
-                n_z_temp_alt=n_z_temp;
-            end
-            N_z_temp_dim=max(prod(n_z_temp_alt),1); % max here is just so it takes value of 1 when there is no z variable (so prod(n_z_temp_alt)==0)
-
-            % Because of how we loop over both kk (FnsToEvaluate) and ii (PType),
-            % WhichFnsForCurrentPType will be a scalar 1 or 0. If zero then we
-            % can just skip everything for this agent permanent type, so only
-            % do things when it is one.
-            if WhichFnsForCurrentPType==1
-
-                %% We have set up the current PType, now do some calculations for it.
-                simoptions_temp.outputasstructure=0; %0: is a matrix
-                ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp,FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
-
-                % ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]); % Is already in this form because using simoptions_temp.outputasstructure=0                
-                StationaryDist_ii=StationaryDist.(Names_i{ii}); % The commented out reshape on next line was already done
-                % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
-                
-                % Store the big groupings over all ptypes
-                ValuesOnGrid(N_a_temp*N_z_temp_dim*(ii-1)+1:N_a_temp*N_z_temp_dim*ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+N_j_temp)=ValuesOnGrid_ii;
-                % Precreated the big stationary dist
-
-                for jj=1:length(simoptions_temp.agegroupings)
-                    j1=simoptions_temp.agegroupings(jj);
-                    if jj<length(simoptions_temp.agegroupings)
-                        jend=simoptions_temp.agegroupings(jj+1)-1;
-                    else
-                        jend=N_j_temp;
-                    end
-                    % simoptions.agejshifter
-
-
-                    % Calculate the individual stats
-                    StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp_dim*(jend-j1+1),1]);
-                    Values_jj=reshape(ValuesOnGrid_ii(:,j1:jend),[N_a_temp*N_z_temp_dim*(jend-j1+1),1]);
-
-                    % Eliminate all the zero-weights from these (this would
-                    % increase run times if we only do exact calculations, but
-                    % because we plan to createDigest() it helps reduce runtimes)
-                    temp=logical(StationaryDistVec_jj~=0);
-                    StationaryDistVec_jj=StationaryDistVec_jj(temp);
-                    Values_jj=Values_jj(temp);
-
-                    % Should be mass one, but just enforce to reduce numerical rounding errors
-                    StationaryDistVec_jj=StationaryDistVec_jj./sum(StationaryDistVec_jj); % Normalize to sum to one for this 'agegrouping'
-
-                    % Sort by values
-                    [SortedValues,SortedValues_index] = sort(Values_jj);
-                    SortedWeights = StationaryDistVec_jj(SortedValues_index);
-
-                    CumSumSortedWeights=cumsum(SortedWeights);
-                    WeightedValues=Values_jj.*StationaryDistVec_jj;
-                    SortedWeightedValues=WeightedValues(SortedValues_index);
-
-
-                    % Calculate the 'age conditional' mean
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean(jj)=sum(WeightedValues);
-                    % Calculate the 'age conditional' median
-                    [~,medianindex]=min(abs(SortedWeights-0.5));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median(jj)=SortedValues(medianindex);
-
-                    % Do min and max before looking at the variance, std. dev.,
-                    % lorenz curve, etc. As that way can skip when the min and max
-                    % are the same (so variable is constant valued)
-
-                    % Min value
-                    tempindex=find(CumSumSortedWeights>=simoptions_temp.tolerance,1,'first');
-                    minvalue=SortedValues(tempindex);
-                    % Max value
-                    tempindex=find(CumSumSortedWeights>=(1-simoptions_temp.tolerance),1,'first');
-                    maxvalue=SortedValues(tempindex);
-                    % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
-                    if isempty(maxvalue)
-                        tempindex=find(CumSumSortedWeights>=(1-10*simoptions_temp.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
-                        maxvalue=SortedValues(tempindex);
-                    end
-
-                    % Calculate the 'age conditional' variance
-                    if (maxvalue-minvalue)>0
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj)=sum((Values_jj.^2).*StationaryDistVec_jj)-(AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean(jj))^2; % Weighted square of values - mean^2
-                    else % There were problems at floating point error accuracy levels when there is no variance, so just treat this case directly
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj)=0;
-                    end
-                    if AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj)<0 % Some variance still appear to be machine tolerance level errors.
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev(jj)=0; % You will be able to see the machine tolerance level error in the variance, and it is just overwritten to zero in the standard deviation
-                    else
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev(jj)=sqrt(AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance(jj));
-                    end
-
-                    % Calculate the 'age conditional' lorenz curve
-                    % Note: Commented out following line as would also need to change TopXshare stats, decided not to do this.
-                    %             if minvalue<0
-                    %                 AgeConditionalStats_ii.LorenzCurve(:,jj)=nan;
-                    %                 AgeConditionalStats_ii.Gini(jj)=nan;
-                    %             else
-                    if (maxvalue-minvalue)>0
-                        LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,2);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve(:,jj)=LorenzCurve;
-                        % Calculate the 'age conditional' gini
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-                    else
-                        LorenzCurve=linspace(0,1,simoptions_temp.npoints);
-                        AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini(jj)=1;
-                    end
-
-                    % Top X share indexes
-                    Top1cutpoint=round(0.99*simoptions_temp.npoints);
-                    Top5cutpoint=round(0.95*simoptions_temp.npoints);
-                    Top10cutpoint=round(0.90*simoptions_temp.npoints);
-                    Top50cutpoint=round(0.50*simoptions_temp.npoints);
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-                    % Now some cutoffs
-                    index_median=find(CumSumSortedWeights>=0.5,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median(jj)=SortedValues(index_median);
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile50th(jj)=SortedValues(index_median);
-                    index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile90th(jj)=SortedValues(index_p90);
-                    index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile95th(jj)=SortedValues(index_p95);
-                    index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Percentile99th(jj)=SortedValues(index_p99);
-
-
-                    % Calculate the 'age conditional' quantile means (ventiles by default)
-                    % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-                    QuantileIndexes=zeros(1,simoptions_temp.nquantiles-1);
-                    QuantileCutoffs=zeros(1,simoptions_temp.nquantiles-1);
-                    QuantileMeans=zeros(1,simoptions_temp.nquantiles);
-
-                    for ll=1:simoptions_temp.nquantiles-1
-                        tempindex=find(CumSumSortedWeights>=ll/simoptions_temp.nquantiles,1,'first');
-                        QuantileIndexes(ll)=tempindex;
-                        QuantileCutoffs(ll)=SortedValues(tempindex);
-                        if ll==1
-                            QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-                        elseif ll<(simoptions_temp.nquantiles-1) % (1<ll) &&
-                            QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                        else %if ll==(options.nquantiles-1)
-                            QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                            QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-                        end
-                    end
-
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
-                    AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans(:,jj)=QuantileMeans';
-
-                    minvaluevec(ii)=minvalue; % Keep so that we can calculate the grouped min directly from this
-                    maxvaluevec(ii)=maxvalue; % Keep so that we can calculate the grouped max directly from this
-
-                    % Now that we have done the individual stats, store the mean, stddev, (and we already stored full dists) so that we can compute the grouped stats.
-                    % (Mean and stddev can just be done after the loop)
-
-                end
-                MeanVec(ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+ngroups(ii))=AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean; % Note: if ngroups(ii)<max(ngroups) there will just be some NaN left at the end of the row
-                StdDevVec(ii,simoptions.agejshifter(ii)+1:simoptions.agejshifter(ii)+ngroups(ii))=AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev;
+        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
+            temp=Parameters.(FullParamNames{kField});
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
+            if ptypedim==1
+                Parameters_temp.(FullParamNames{kField})=temp(ii,:);
+            elseif ptypedim==2
+                Parameters_temp.(FullParamNames{kField})=temp(:,ii);
             end
         end
+    end
+    
+    if simoptions_temp.verboseparams==1
+        fprintf('Parameter values for the current permanent type \n')
+        Parameters_temp
+    end    
+    
+    % Switch to PolicyVals
+    PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
+    
+    % A few other things we can do in outer loop
+    if n_d_temp(1)==0
+        l_d_temp=0;
+    else
+        l_d_temp=1;
+    end
+    l_a_temp=length(n_a_temp);
+    l_z_temp=length(n_z_temp);
+    
+    N_a_temp=prod(n_a_temp);
+    if isfield(simoptions_temp,'n_e')
+        n_ze_temp=[n_z_temp,simoptions_temp.n_e];
+    else
+        n_ze_temp=n_z_temp;
+    end
+    if isfield(simoptions_temp,'n_semiz')
+        n_ze_temp=[simoptions_temp.n_semiz,n_ze_temp];
+    end
+    N_ze_temp=max(prod(n_ze_temp),1); % if zero, overwrite with one
 
-        % In principle could calculate mean and standard deviation without
-        % needing to loop over jj. But I want to allow for agejshifter and different N_j, and so
-        % it is much easier to use the loops.
+    [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
-        % Preallocate empty matrices
-        AgeConditionalStats.(FnsToEvalNames{kk}).Mean=zeros(1,maxngroups); % Needs to be zeros as I add to it
-        AgeConditionalStats.(FnsToEvalNames{kk}).StdDev=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Variance=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve=nan(simoptions_temp.npoints,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Gini=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Top1share=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Top5share=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Top10share=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Median=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Gini=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th=nan(1,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans=nan(simoptions_temp.nquantiles,maxngroups);
-        AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,maxngroups);
+    StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
+
+    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+
+        if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
+
+            clear FnsToEvaluate_iiff
+            FnsToEvaluate_iiff.(FnsToEvalNames{ff})=FnsToEvaluate.(FnsToEvalNames{ff});
+
+            %% We have set up the current PType, now do some calculations for it.
+            simoptions_temp.keepoutputasmatrix=2;
+            ValuesOnGrid_ffii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iiff, Parameters_temp, [], n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_grid_temp, simoptions_temp);
+
+            % ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_ze_temp,N_j_temp]); Already has this shape
+            % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
+
+            % Note, eliminating zero weights and unique() cannot be done yet as they need to be conditional on j 
+            % (otherwise lose the j dimension if I just apply them now)
 
 
-        for jj=1:max(ngroups)%length(simoptions.agegroupings)
-            % Note: don't need j1 and jend this time round
+            % Preallocate various things for the stats (as many will have jj as a dimension)
+            % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Median=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top1share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top5share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top10share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Bottom50share=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile50th=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile90th=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile95th=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile99th=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
+            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
 
-            % Mass of agents of age jj for who this function is relevant
-            SigmaNxi_jj=0;
-            for ii=1:N_i
-                if FnsAndPTypeIndicator_kk(ii)==1 && jj<ngroups(ii) && jj>simoptions.agejshifter(ii) % if current function and age are relevant for type ii
-                    SigmaNxi_jj=SigmaNxi_jj+FnsAndPTypeIndicator_kk(ii)*StationaryDist.ptweights(ii);
-                end
-            end
-
-            % Grouped Mean
-            for ii=1:N_i
-                if FnsAndPTypeIndicator_kk(ii)==1 && jj<ngroups(ii) && jj>simoptions.agejshifter(ii) % if current function and age are relevant for type ii
-                    AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)+MeanVec(ii,jj)*StationaryDist.ptweights(ii);
-                end
-            end
-
-            if SigmaNxi_jj>0 % to avoid divide by zero error
-                AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)/SigmaNxi_jj;
-            end
-
-            % Grouped Standard Deviation
-            if N_i==1
-                AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)=StdDevVec(1,jj); % If there is only one agent then obviously we can ignore checking if the current function and age are relevant
-            else
-                temp2=zeros(N_i,1);
-                for ii=2:N_i
-                    if FnsAndPTypeIndicator_kk(ii)==1 && jj<ngroups(ii) && jj>simoptions.agejshifter(ii) % if current function and age are relevant for type ii
-                        temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator_kk(1:(ii-1))'.*(StationaryDist.ptweights(1:(ii-1))).*((MeanVec(1:(ii-1),jj)-MeanVec(ii,jj)).^2));
-                    end
-                end
-                AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)=sqrt(sum(FnsAndPTypeIndicator_kk.*(StationaryDist.ptweights').*StdDevVec(:,jj)')/SigmaNxi_jj + sum(temp2)/(SigmaNxi_jj^2));
-            end
-            AgeConditionalStats.(FnsToEvalNames{kk}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)).^2;
-
-            % Grouped Min value
-            minvalue=min(minvaluevec);
-            % Grouped Max value
-            maxvalue=max(maxvaluevec);
-            
-            %% Now for the grouped stats which are calculated from digests
-            % Note that the t-digests were already created incorporating any agejshifter
-            if AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)>0
-                % No point calculating all of these inequality stats if the (age-conditional) standard deviation is zero
+            for jj=1:length(simoptions_temp.agegroupings)
 
                 j1=simoptions_temp.agegroupings(jj);
                 if jj<length(simoptions_temp.agegroupings)
@@ -1350,116 +399,180 @@ elseif simoptions.ptypestorecpu==0 % Just stick to brute force on gpu, means Fns
                 else
                     jend=N_j_temp;
                 end
-                % simoptions.agejshifter
+                % Where we store them depends on
+                jjageshifted=jj+simoptions.agejshifter(ii);
 
                 % Calculate the individual stats
-                StationaryDistVec=reshape(StationaryDist_full(:,j1:jend),[N_a_temp*N_z_temp_dim*N_i*(jend-j1+1),1]);
-                Values=reshape(ValuesOnGrid(:,j1:jend),[N_a_temp*N_z_temp_dim*N_i*(jend-j1+1),1]);
+                StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_ze_temp*(jend-j1+1),1]);
+                Values_jj=reshape(ValuesOnGrid_ffii(:,j1:jend),[N_a_temp*N_ze_temp*(jend-j1+1),1]);
 
-                % Eliminate all the zero-weights from these (this would
-                % increase run times if we only do exact calculations, but
-                % because we plan to createDigest() it helps reduce runtimes)
-                temp=logical(StationaryDistVec~=0);
-                StationaryDistVec=StationaryDistVec(temp);
-                Values=Values(temp);
+                % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
+                % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
+                temp=logical(StationaryDistVec_jj~=0); % NOTE: This and the next line could in principle be done outside all of these loops (just looping over j)
+                StationaryDistVec_jj=StationaryDistVec_jj(temp);
+                Values_jj=Values_jj(temp);
 
-                % Should be mass one, but just enforce to reduce numerical rounding errors
-                StationaryDistVec=StationaryDistVec./sum(StationaryDistVec); % Normalize to sum to one for this 'agegrouping'
+                % I want to use unique to make it easier to put the different agent
+                % ptypes together (as all the matrices are typically smaller).
+                % May as well do it before doing the StatsFromWeightedGrid
+                [SortedValues_jj,~,sortindex]=unique(Values_jj);
+                SortedWeights_jj=accumarray(sortindex,StationaryDistVec_jj,[],@sum);
 
-                % Sort by values
-                [SortedValues,SortedValues_index] = sort(Values);
-                SortedWeights = StationaryDistVec(SortedValues_index);
+                SortedWeights_jj=SortedWeights_jj/sum(SortedWeights_jj(:)); % Normalize conditional on jj (is later renormalized ii weight before storing for groupstats)
 
-                CumSumSortedWeights=cumsum(SortedWeights);
-                WeightedValues=Values.*StationaryDistVec;
-                SortedWeightedValues=WeightedValues(SortedValues_index);
+                %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and ff)
+                tempStats=StatsFromWeightedGrid(SortedValues_jj,SortedWeights_jj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1); % 1 is presorted
 
+                % Now store these based on jjageshifted
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean(jjageshifted)=tempStats.Mean;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Median(jjageshifted)=tempStats.Median;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jjageshifted)=tempStats.Variance;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jjageshifted)=tempStats.StdDeviation;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jjageshifted)=tempStats.Gini;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jjageshifted)=tempStats.Minimum;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jjageshifted)=tempStats.Maximum;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top1share(jjageshifted)=tempStats.MoreInequality.Top1share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top5share(jjageshifted)=tempStats.MoreInequality.Top5share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top10share(jjageshifted)=tempStats.MoreInequality.Top10share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Bottom50share(jjageshifted)=tempStats.MoreInequality.Bottom50share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile50th(jjageshifted)=tempStats.MoreInequality.Percentile50th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile90th(jjageshifted)=tempStats.MoreInequality.Percentile90th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile95th(jjageshifted)=tempStats.MoreInequality.Percentile95th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile99th(jjageshifted)=tempStats.MoreInequality.Percentile99th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jjageshifted)=tempStats.LorenzCurve;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jjageshifted)=tempStats.QuantileCutoffs;
+                AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jjageshifted)=tempStats.QuantileMeans;
 
-                % Calculate the 'age conditional' median
-                [~,medianindex]=min(abs(SortedWeights-0.5));
-                AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=SortedValues(medianindex);
+                % For later, put the mean and std dev in a convenient place
+                MeanVec(ff,ii,jjageshifted)=tempStats.Mean;
+                StdDevVec(ff,ii,jjageshifted)=tempStats.StdDeviation;
+                % Do the same with the minimum and maximum
+                minvaluevec(ff,ii,jjageshifted)=tempStats.Minimum;
+                maxvaluevec(ff,ii,jjageshifted)=tempStats.Maximum;
 
-                % Calculate the 'age conditional' lorenz curve
-                % Note: Commented out following line as would also need to change TopXshare stats, decided not to do this.
-                %             if minvalue<0
-                %                 AgeConditionalStats_ii.LorenzCurve(:,jj)=nan;
-                %                 AgeConditionalStats_ii.Gini(jj)=nan;
-                %             else
-                if (maxvalue-minvalue)>0
-                    LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,2);
-                    AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=LorenzCurve;
-                    % Calculate the 'age conditional' gini
-                    AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-                else
-                    LorenzCurve=linspace(0,1,simoptions_temp.npoints);
-                    AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=1;
-                end
+                if simoptions.groupptypesforstats==1
+                    % Store things to use later to use to calculate the grouped stats
+                    if simoptions_temp.ptypestorecpu==1
+                        Cmerge=AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted});
+                        digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted});
 
-                % Top X share indexes
-                Top1cutpoint=round(0.99*simoptions_temp.npoints);
-                Top5cutpoint=round(0.95*simoptions_temp.npoints);
-                Top10cutpoint=round(0.90*simoptions_temp.npoints);
-                Top50cutpoint=round(0.50*simoptions_temp.npoints);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-                AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-                AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-                AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-                % Now some cutoffs
-                index_median=find(CumSumSortedWeights>=0.5,1,'first');
-                AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=SortedValues(index_median);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=SortedValues(index_median);
-                index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=SortedValues(index_p90);
-                index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=SortedValues(index_p95);
-                index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=SortedValues(index_p99);
+                        %% Create digest (if unique() was not enough to make them small)
+                        [C_jj,digestweights_jj,~]=createDigest(SortedValues_jj, SortedWeights_jj,delta,1); % 1 is presorted
 
+                        merge_nsofar2(jjageshifted,ff)=merge_nsofar(jjageshifted,ff)+length(C_jj);
+                        Cmerge(merge_nsofar(jjageshifted,ff)+1:merge_nsofar2(jjageshifted,ff))=C_jj;
+                        digestweightsmerge(merge_nsofar(jjageshifted,ff)+1:merge_nsofar2(jjageshifted,ff))=digestweights_jj*StationaryDist.ptweights(ii);
+                        merge_nsofar(jjageshifted,ff)=merge_nsofar2(jjageshifted,ff);
 
-                % Calculate the 'age conditional' quantile means (ventiles by default)
-                % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-                QuantileIndexes=zeros(1,simoptions_temp.nquantiles-1);
-                QuantileCutoffs=zeros(1,simoptions_temp.nquantiles-1);
-                QuantileMeans=zeros(1,simoptions_temp.nquantiles);
-
-                for ll=1:simoptions_temp.nquantiles-1
-                    tempindex=find(CumSumSortedWeights>=ll/simoptions_temp.nquantiles,1,'first');
-                    QuantileIndexes(ll)=tempindex;
-                    QuantileCutoffs(ll)=SortedValues(tempindex);
-                    if ll==1
-                        QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-                    elseif ll<(simoptions_temp.nquantiles-1) % (1<ll) &&
-                        QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                    else %if ll==(options.nquantiles-1)
-                        QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-                        QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
+                        AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=Cmerge;
+                        Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=digestweightsmerge;
+                    else
+                        AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllValues.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedValues_jj];
+                        AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedWeights_jj*StationaryDist.ptweights(ii)];
                     end
                 end
-
-                AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
-                AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=QuantileMeans';
-
-            else
-                % Since these are all undefined just return them a message explaining why
-                AgeConditionalStats.(FnsToEvalNames{kk}).Note='The inequality stats are odd because the (age-conditional) standard deviation is zero';
-                AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=cumsum(ones(simoptions_temp.npoints,1)/simoptions_temp.npoints);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=0;
-                AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=0.01;
-                AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=0.05;
-                AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=0.1;
-                AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=0.5;
-                AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-                AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles+1,1);
-                AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles,1);
-            end
+            end % end jj
         end
-    end
+    end % end ff
+end % end ii
 
 
+
+%% Now we compute the grouped stats
+% Preallocate various things for the stats (as many will have jj as a dimension)
+% Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
+for ff=1:numFnsToEvaluate
+    AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
+    AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
+    AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
+end
+
+
+if simoptions.groupptypesforstats==1
+    for ff=1:numFnsToEvaluate
+        for jj=1:1:maxngroups
+            % We need to load up each ii, and put them together
+            if simoptions.ptypestorecpu==1 % using t-Digests
+                Cmerge=AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jj});
+                digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jj});
+                % Clean off the zeros at the end of Cmerge (that exist because of how we preallocate 'too much' for Cmerge); same for digestweightsmerge.
+                Cmerge=Cmerge(1:merge_nsofar(jj,ff));
+                digestweightsmerge=digestweightsmerge(1:merge_nsofar(jj,ff));
+
+                % Merge the digests
+                [C_ff,digestweights_ff,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
+
+                tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+            elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
+                tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+            end
+            % Store them in AgeConditionalStats
+            AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=tempStats.Mean;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Median(jj)=tempStats.Median;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=tempStats.Variance;
+            AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=tempStats.StdDeviation;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Gini(jj)=tempStats.Gini;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=tempStats.Minimum;
+            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=tempStats.Maximum;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share(jj)=tempStats.MoreInequality.Top1share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share(jj)=tempStats.MoreInequality.Top5share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share(jj)=tempStats.MoreInequality.Top10share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share(jj)=tempStats.MoreInequality.Bottom50share;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th(jj)=tempStats.MoreInequality.Percentile50th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th(jj)=tempStats.MoreInequality.Percentile90th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(jj)=tempStats.MoreInequality.Percentile95th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(jj)=tempStats.MoreInequality.Percentile99th;
+            AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,jj)=tempStats.LorenzCurve;
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,jj)=tempStats.QuantileMeans;
+
+
+            % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
+            SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+
+            % Mean
+            AgeConditionalStats.(FnsToEvalNames{ff}).Mean(jj)=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*MeanVec(ff,:,jj))/SigmaNxi;
+
+            % Standard Deviation
+            if N_i==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj)=StdDevVec(ff,:,jj);
+            else
+                temp2=zeros(N_i,1);
+                for ii=2:N_i
+                    if FnsAndPTypeIndicator(ff,ii)==1
+                        temp=MeanVec(ff,1:(ii-1),jj)-MeanVec(ff,ii,jj); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
+                        if any(temp<0) && all(temp>10^(-12))
+                            temp=max(temp,0);
+                        end
+                        temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
+                    end
+                end
+                AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+            end
+
+            AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj))^2;
+
+            % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
+            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=max(maxvaluevec(ff,:,jj));
+            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=min(minvaluevec(ff,:,jj));
+
+        end
+    end    
 end
 
 
@@ -1467,591 +580,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-% % 
-% % 
-% % %% NOTE GROUPING ONLY WORKS IF THE GRIDS ARE THE SAME SIZES FOR EACH AGENT (for whom a given FnsToEvaluate is being calculated)
-% % % (mainly because otherwise would have to deal with simoptions.agegroupings being different for each agent and this requires more complex code)
-% % % Will throw an error if this is not the case
-% % 
-% % % If grouping, we have ValuesOnDist and StationaryDist that contain
-% % % everything we will need. Now we just have to compute them.
-% % % Note that I do not currently allow the following simoptions to differ by PType
-% % for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-% %     clear FnsToEvaluate_kk
-% %     FnsToEvaluate_kk.(FnsToEvalNames{kk})=FnsToEvaluate.(FnsToEvalNames{kk}); % Structure containing just this funcion
-% %     FnsAndPTypeIndicator_kk=zeros(1,N_i,'gpuArray');
-% % 
-% %     % Following few lines relate to the digest
-% %     delta=10000;
-% %     Cmerge=struct(); % Keep a seperate Cmerge for each agegrouping
-% %     digestweightsmerge=struct(); % Keep a seperate digestweightsmerge for each agegrouping
-% %     for jj=1:ngroups
-% %         Cmerge(jj).Cmerge=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-% %         digestweightsmerge(jj).digestweightsmerge=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-% %     end
-% %     merge_nsofar=zeros(1,ngroups); % Keep count (by age grouping)  
-% % 
-% %     MeanVec=zeros(N_i,ngroups);
-% %     StdDevVec=zeros(N_i,ngroups);
-% % 
-% % 
-% %     for ii=1:N_i
-% %         % First set up simoptions
-% %         simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-% % 
-% %         if simoptions_temp.verbose==1
-% %             fprintf('Permanent type: %i of %i \n',ii, N_i)
-% %         end
-% % 
-% %         if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-% %             PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-% %             StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
-% %         else
-% %             PolicyIndexes_temp=Policy.(Names_i{ii});
-% %             StationaryDist_temp=StationaryDist.(Names_i{ii});
-% %         end
-% %         % Parallel is determined by StationaryDist, unless it is specified
-% %         if isa(StationaryDist_temp, 'gpuArray')
-% %             Parallel_temp=2;
-% %         else
-% %             Parallel_temp=1;
-% %         end
-% %         if isfield(simoptions_temp,'parallel')
-% %             Parallel_temp=simoptions_temp.parallel;
-% %             if Parallel_temp~=2
-% %                 PolicyIndexes_temp=gather(PolicyIndexes_temp);
-% %                 StationaryDist_temp=gather(StationaryDist_temp);
-% %             end
-% %         end
-% % 
-% % 
-% %         % Go through everything which might be dependent on permanent type (PType)
-% %         % Notice that the way this is coded the grids (etc.) could be either
-% %         % fixed, or a function (that depends on age, and possibly on permanent
-% %         % type), or they could be a structure. Only in the case where they are
-% %         % a structure is there a need to take just a specific part and send
-% %         % only that to the 'non-PType' version of the command.
-% % 
-% %         % Start with those that determine whether the current permanent type is finite or
-% %         % infinite horizon, and whether it is Case 1 or Case 2
-% %         % Figure out which case is relevant to the current PType. This is done
-% %         % using N_j which for the current type will evaluate to 'Inf' if it is
-% %         % infinite horizon and a finite number for any other finite horizon.
-% %         % First, check if it is a structure, and otherwise just get the
-% %         % relevant value.
-% % 
-% %         if isa(n_d,'struct')
-% %             n_d_temp=n_d.(Names_i{ii});
-% %         else
-% %             n_d_temp=n_d;
-% %         end
-% %         if isa(n_a,'struct')
-% %             n_a_temp=n_a.(Names_i{ii});
-% %         else
-% %             n_a_temp=n_a;
-% %         end
-% %         if isa(n_z,'struct')
-% %             n_z_temp=n_z.(Names_i{ii});
-% %         else
-% %             n_z_temp=n_z;
-% %         end
-% %         if isa(N_j,'struct')
-% %             N_j_temp=N_j.(Names_i{ii});
-% %         else
-% %             N_j_temp=N_j;
-% %         end
-% %         if isa(d_grid,'struct')
-% %             d_grid_temp=d_grid.(Names_i{ii});
-% %         else
-% %             d_grid_temp=d_grid;
-% %         end
-% %         if isa(a_grid,'struct')
-% %             a_grid_temp=a_grid.(Names_i{ii});
-% %         else
-% %             a_grid_temp=a_grid;
-% %         end
-% %         if isa(z_grid,'struct')
-% %             z_grid_temp=z_grid.(Names_i{ii});
-% %         else
-% %             z_grid_temp=z_grid;
-% %         end
-% % 
-% %         % Check for semi-exogenous shocks, if these are being used then need to add them to n_z_temp and z_grid_temp
-% %         if isfield(simoptions_temp,'SemiExoStateFn')
-% %             n_z_temp=[n_z_temp,simoptions_temp.n_semiz];
-% %             z_grid_temp=[z_grid_temp; simoptions_temp.semiz_grid];
-% %         end
-% % 
-% %         % Parameters are allowed to be given as structure, or as vector/matrix
-% %         % (in terms of their dependence on permanent type). So go through each of
-% %         % these in term.
-% %         % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-% %         Parameters_temp=Parameters;
-% %         FullParamNames=fieldnames(Parameters); % all the different parameters
-% %         nFields=length(FullParamNames);
-% %         for kField=1:nFields
-% %             if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-% %                 % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-% %                 if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-% %                     Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-% %                 end
-% %             elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
-% %                 temp=Parameters.(FullParamNames{kField});
-% %                 [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
-% %                 if ptypedim==1
-% %                     Parameters_temp.(FullParamNames{kField})=temp(ii,:);
-% %                 elseif ptypedim==2
-% %                     Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-% %                 end
-% %             end
-% %         end
-% %         % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-% % 
-% %         if simoptions_temp.verboseparams==1
-% %             fprintf('Parameter values for the current permanent type \n')
-% %             Parameters_temp
-% %         end
-% % 
-% %         % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
-% %         % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
-% %         % Allows for FnsToEvaluate as structure.
-% %         if n_d_temp(1)==0
-% %             l_d_temp=0;
-% %         else
-% %             l_d_temp=1;
-% %         end
-% %         l_a_temp=length(n_a_temp);
-% %         l_z_temp=length(n_z_temp);
-% %         % Note: next line uses FnsToEvaluate_kk
-% %         [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate_kk,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
-% %         FnsAndPTypeIndicator_kk(ii)=FnsAndPTypeIndicator_ii;
-% % 
-% %         % Because of how we loop over both kk (FnsToEvaluate) and ii (PType),
-% %         % WhichFnsForCurrentPType will be a scalar 1 or 0. If zero then we
-% %         % can just skip everything for this agent permanent type, so only
-% %         % do things when it is one.
-% %         if WhichFnsForCurrentPType==1
-% % 
-% %             %% We have set up the current PType, now do some calculations for it.
-% %             simoptions_temp.keepoutputasmatrix=2; %2: is a matrix, but of a different form to 1
-% %             ValuesOnGrid_ii=gather(EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp));
-% %             N_a_temp=prod(n_a_temp);
-% %             if isfield(simoptions_temp,'n_e')
-% %                 n_z_temp=[n_z_temp,simoptions_temp.n_e];
-% %             end
-% %             N_z_temp=prod(n_z_temp);
-% % 
-% %             ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,N_j_temp]);
-% % 
-% %             StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
-% % 
-% %             AgeConditionalStats_ii.Mean=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Median=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Variance=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.StdDev=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.LorenzCurve=nan(simoptions_temp.npoints,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Gini=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.QuantileCutoffs=nan(simoptions_temp.nquantiles+1,ngroups,'gpuArray'); % Includes the min and max values
-% %             AgeConditionalStats_ii.QuantileMeans=nan(simoptions_temp.nquantiles,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Top1share=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Top5share=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Top10share=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Bottom50share=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Median=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Percentile50th=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Percentile90th=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Percentile95th=nan(1,ngroups,'gpuArray');
-% %             AgeConditionalStats_ii.Percentile99th=nan(1,ngroups,'gpuArray');
-% % 
-% % 
-% %             for jj=1:length(simoptions_temp.agegroupings)
-% %                 j1=simoptions_temp.agegroupings(jj);
-% %                 if jj<length(simoptions_temp.agegroupings)
-% %                     jend=simoptions_temp.agegroupings(jj+1)-1;
-% %                 else
-% %                     jend=N_j_temp;
-% %                 end
-% % 
-% %                 % Calculate the individual stats
-% %                 StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
-% %                 Values_jj=reshape(ValuesOnGrid_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
-% % 
-% %                 % Eliminate all the zero-weights from these (this would
-% %                 % increase run times if we only do exact calculations, but
-% %                 % because we plan to createDigest() it helps reduce runtimes)
-% %                 temp=logical(StationaryDistVec_jj~=0);
-% %                 StationaryDistVec_jj=StationaryDistVec_jj(temp);
-% %                 Values_jj=Values_jj(temp);
-% % 
-% %                 % Should be mass one, but just enforce to reduce numerical rounding errors
-% %                 StationaryDistVec_jj=StationaryDistVec_jj./sum(StationaryDistVec_jj); % Normalize to sum to one for this 'agegrouping'
-% % 
-% %                 % Sort by values
-% %                 [SortedValues,SortedValues_index] = sort(Values_jj);
-% %                 SortedWeights = StationaryDistVec_jj(SortedValues_index);
-% % 
-% %                 CumSumSortedWeights=cumsum(SortedWeights);
-% %                 WeightedValues=Values_jj.*StationaryDistVec_jj;
-% %                 SortedWeightedValues=WeightedValues(SortedValues_index);
-% % 
-% % 
-% %                 % Calculate the 'age conditional' mean
-% %                 AgeConditionalStats_ii.Mean(jj)=sum(WeightedValues);
-% %                 % Calculate the 'age conditional' median
-% %                 [~,medianindex]=min(abs(SortedWeights-0.5));
-% %                 AgeConditionalStats_ii.Median(jj)=SortedValues(medianindex);
-% % 
-% %                 % Do min and max before looking at the variance, std. dev.,
-% %                 % lorenz curve, etc. As that way can skip when the min and max
-% %                 % are the same (so variable is constant valued)
-% % 
-% %                 % Min value
-% %                 tempindex=find(CumSumSortedWeights>=simoptions_temp.tolerance,1,'first');
-% %                 minvalue=SortedValues(tempindex);
-% %                 % Max value
-% %                 tempindex=find(CumSumSortedWeights>=(1-simoptions_temp.tolerance),1,'first');
-% %                 maxvalue=SortedValues(tempindex);
-% %                 % Numerical rounding can sometimes leave that there is no maxvalue satifying this criterion, in which case we loosen the tolerance
-% %                 if isempty(maxvalue)
-% %                     tempindex=find(CumSumSortedWeights>=(1-10*simoptions_temp.tolerance),1,'first'); % If failed to find, then just loosen tolerance by order of magnitude
-% %                     maxvalue=SortedValues(tempindex);
-% %                 end
-% % 
-% %                 % Calculate the 'age conditional' variance
-% %                 if (maxvalue-minvalue)>0
-% %                     AgeConditionalStats_ii.Variance(jj)=sum((Values_jj.^2).*StationaryDistVec_jj)-(AgeConditionalStats_ii.Mean(jj))^2; % Weighted square of values - mean^2
-% %                 else % There were problems at floating point error accuracy levels when there is no variance, so just treat this case directly
-% %                     AgeConditionalStats_ii.Variance(jj)=0;
-% %                 end
-% %                 if AgeConditionalStats_ii.Variance(jj)<0 % Some variance still appear to be machine tolerance level errors.
-% %                     AgeConditionalStats_ii.StdDev(jj)=0; % You will be able to see the machine tolerance level error in the variance, and it is just overwritten to zero in the standard deviation
-% %                 else
-% %                     AgeConditionalStats_ii.StdDev(jj)=sqrt(AgeConditionalStats_ii.Variance(jj));
-% %                 end
-% % 
-% %                 % Calculate the 'age conditional' lorenz curve
-% %                 % Note: Commented out following line as would also need to
-% %                 % change TopXshare stats, decided not to do this.
-% %                 %             if minvalue<0
-% %                 %                 AgeConditionalStats_ii.LorenzCurve(:,jj)=nan;
-% %                 %                 AgeConditionalStats_ii.Gini(jj)=nan;
-% %                 %             else
-% %                 if (maxvalue-minvalue)>0
-% %                     LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions_temp.npoints,2);
-% %                     AgeConditionalStats_ii.LorenzCurve(:,jj)=LorenzCurve;
-% %                     % Calculate the 'age conditional' gini
-% %                     AgeConditionalStats_ii.Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-% %                 else
-% %                     LorenzCurve=linspace(0,1,simoptions_temp.npoints);
-% %                     AgeConditionalStats_ii.Gini(jj)=1;
-% %                 end
-% % 
-% %                 % Top X share indexes
-% %                 Top1cutpoint=round(0.99*simoptions_temp.npoints);
-% %                 Top5cutpoint=round(0.95*simoptions_temp.npoints);
-% %                 Top10cutpoint=round(0.90*simoptions_temp.npoints);
-% %                 Top50cutpoint=round(0.50*simoptions_temp.npoints);
-% %                 AgeConditionalStats_ii.Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-% %                 AgeConditionalStats_ii.Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-% %                 AgeConditionalStats_ii.Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-% %                 AgeConditionalStats_ii.Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-% %                 % Now some cutoffs
-% %                 index_median=find(CumSumSortedWeights>=0.5,1,'first');
-% %                 AgeConditionalStats_ii.Median(jj)=SortedValues(index_median);
-% %                 AgeConditionalStats_ii.Percentile50th(jj)=SortedValues(index_median);
-% %                 index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-% %                 AgeConditionalStats_ii.Percentile90th(jj)=SortedValues(index_p90);
-% %                 index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-% %                 AgeConditionalStats_ii.Percentile95th(jj)=SortedValues(index_p95);
-% %                 index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-% %                 AgeConditionalStats_ii.Percentile99th(jj)=SortedValues(index_p99);
-% % 
-% % 
-% %                 % Calculate the 'age conditional' quantile means (ventiles by default)
-% %                 % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-% %                 QuantileIndexes=zeros(1,simoptions_temp.nquantiles-1);
-% %                 QuantileCutoffs=zeros(1,simoptions_temp.nquantiles-1);
-% %                 QuantileMeans=zeros(1,simoptions_temp.nquantiles);
-% % 
-% %                 for ll=1:simoptions_temp.nquantiles-1
-% %                     tempindex=find(CumSumSortedWeights>=ll/simoptions_temp.nquantiles,1,'first');
-% %                     QuantileIndexes(ll)=tempindex;
-% %                     QuantileCutoffs(ll)=SortedValues(tempindex);
-% %                     if ll==1
-% %                         QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-% %                     elseif ll<(simoptions_temp.nquantiles-1) % (1<ll) &&
-% %                         QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-% %                     else %if ll==(options.nquantiles-1)
-% %                         QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-% %                         QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-% %                     end
-% %                 end
-% % 
-% %                 AgeConditionalStats_ii.QuantileCutoffs(:,jj)=[minvalue, QuantileCutoffs, maxvalue]';
-% %                 AgeConditionalStats_ii.QuantileMeans(:,jj)=QuantileMeans';
-% % 
-% %                 minvaluevec(ii)=minvalue; % Keep so that we can calculate the grouped min directly from this
-% %                 maxvaluevec(ii)=maxvalue; % Keep so that we can calculate the grouped max directly from this
-% % 
-% %                 % Now that we have done the individual stats, store the mean,
-% %                 % stddev, and t-Digests so that we can compute the grouped stats.
-% %                 % (Mean and stddev can just be done after the loop)
-% % 
-% %                 %% Create digest
-% %                 [C_jj,digestweights_jj,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1=presorted, as we sorted these above
-% % 
-% %                 %% Keep the digests so far as a stacked vector that can then merge later
-% %                 % Note that this will be automatically created such that it
-% %                 % only contains the agents for whom it is relevant.
-% %                 merge_nsofar2_jj=merge_nsofar(jj)+length(C_jj);
-% %                 % Note: merge across the ii, but keep the different jj distinct
-% %                 Cmerge(jj).Cmerge(merge_nsofar(jj)+1:merge_nsofar2_jj)=C_jj;
-% %                 digestweightsmerge(jj).digestweightsmerge(merge_nsofar(jj)+1:merge_nsofar2_jj)=digestweights_jj*StationaryDist.ptweights(ii);
-% %                 merge_nsofar(jj)=merge_nsofar2_jj;
-% % %                 
-% % %                 % DEBUGGING
-% % %                 if kk==1 || kk==2
-% % %                     if any(isnan(C_jj))
-% % %                         fprintf('For age %i there are %i nan values in the digest means for agent %i for function %i \n',jj,sum(isnan(C_jj)),ii,kk)
-% % %                         nanindex = find(isnan(C_jj)); % Find the non-zero values of isnan(C_jj), which are the nan values of C_jj
-% % %                         for aaa=1:length(nanindex)
-% % %                             fprintf('The nan is in index %i of %i \n',nanindex(aaa),length(C_jj))
-% % %                             fprintf('The corresponding digestweight is %8.8f \n',digestweights_jj(aaa))
-% % %                         end
-% % %                         fprintf('Mass of agent dist-1 is %8.12f (should be zero) \n',sum(StationaryDistVec_jj)-1)
-% % %                         fprintf('Number of zero-mass points in agent dist is %i (out of %i) \n',sum(StationaryDistVec_jj==0),numel(StationaryDistVec_jj))
-% % %                         % The digestweight is not zero. So why is C_jj nan?
-% % %                         % Maybe something about the values?
-% % %                         fprintf('Number of finite values in Values_jj=%i, out of total of %i \n',sum(isfinite(Values_jj)),numel(Values_jj))
-% % %                         fprintf('Number of nan in Values_jj=%i, out of total of %i \n',sum(isnan(Values_jj)),numel(Values_jj))
-% % %                     end
-% % %                     if any(isnan(digestweights_jj))
-% % %                         fprintf('For age %i there are %i nan values in the digest weights for agent %i for function %i \n',jj,sum(isnan(digestweights_jj)),ii,kk)
-% % %                         nanindex = find(isnan(digestweights_jj));
-% % %                         for aaa=1:length(nanindex)
-% % %                             fprintf('The nan is in index %i of %i \n',nanindex(aaa),length(digestweights_jj))
-% % %                         end
-% % %                     end
-% % %                     if any((digestweights_jj==0))
-% % %                         fprintf('For age %i there are %i zero values in the digest weights for agent %i for function %i \n',jj,sum((digestweights_jj==0)),ii,kk)
-% % %                         nanindex = find((digestweights_jj==0));
-% % %                         for aaa=1:length(nanindex)
-% % %                             fprintf('The nan is in index %i of %i \n',nanindex(aaa),length(digestweights_jj))
-% % %                         end
-% % %                     end
-% % %                 end
-% % 
-% %             end
-% %             MeanVec(ii,:)=AgeConditionalStats_ii.Mean;
-% %             StdDevVec(ii,:)=AgeConditionalStats_ii.StdDev;
-% % 
-% %             % Put the individual ones into the output
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean=AgeConditionalStats_ii.Mean;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Median=AgeConditionalStats_ii.Median;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Variance=AgeConditionalStats_ii.Variance;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDev=AgeConditionalStats_ii.StdDev;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).LorenzCurve=AgeConditionalStats_ii.LorenzCurve;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).Gini=AgeConditionalStats_ii.Gini;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileCutoffs=AgeConditionalStats_ii.QuantileCutoffs;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).(Names_i{ii}).QuantileMeans=AgeConditionalStats_ii.QuantileMeans;
-% %         end
-% %     end
-% % 
-% % %     disp('nmergesofar')
-% % %     merge_nsofar
-% % 
-% % %     %% Now create the grouped stats from the mean, stddev and t-digests    
-% % %     N_i_kk=sum(FnsAndPTypeIndicator_kk,:); % How many agents is this statistic calculated for
-% % 
-% %     % Grouped mean and standard deviation
-% %     SigmaNxi=sum(FnsAndPTypeIndicator_kk.*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
-% % 
-% %     % I can calculate the means and stddev without having to loop over jj (loop is needed for quantiles)
-% %     ptypeweightsbyagegroupings=StationaryDist.ptweights.*ones(1,ngroups); % N_i-by-ngroups
-% %     % Mean
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Mean=sum(ptypeweightsbyagegroupings.*MeanVec,1)/SigmaNxi; % Note: sum over ii, leaving jj dimension
-% %     % Decided to just loop over stddev as was feeling lazy and it is much easier to code
-% % 
-% %     % Preallocate empty matrices
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).StdDev=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Variance=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve=nan(simoptions_temp.npoints,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Gini=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Top1share=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Top5share=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Top10share=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Median=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Gini=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th=nan(1,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans=nan(simoptions_temp.nquantiles,ngroups);
-% %     AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,ngroups);
-% % 
-% %     for jj=1:length(simoptions.agegroupings)
-% %         % Note: don't need j1 and jend this time round
-% % 
-% %         % Standard Deviation
-% %         if N_i==1
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)=StdDevVec(1,jj);
-% %         else
-% %             temp2=zeros(N_i,1);
-% %             for ii=2:N_i
-% %                 if FnsAndPTypeIndicator_kk(ii)==1
-% %                     temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator_kk(1:(ii-1))'.*(StationaryDist.ptweights(1:(ii-1))).*((MeanVec(1:(ii-1),jj)-MeanVec(ii,jj)).^2));
-% %                 end
-% %             end
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)=sqrt(sum(FnsAndPTypeIndicator_kk.*(StationaryDist.ptweights').*StdDevVec(:,jj)')/SigmaNxi + sum(temp2)/(SigmaNxi^2));
-% %         end
-% %         AgeConditionalStats.(FnsToEvalNames{kk}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)).^2;
-% % 
-% %         Cmerge_jj=Cmerge(jj).Cmerge;
-% %         digestweightsmerge_jj=digestweightsmerge(jj).digestweightsmerge;
-% %         merge_nsofar_jj=merge_nsofar(jj);
-% % 
-% %         Cmerge_jj=Cmerge_jj(1:merge_nsofar_jj);
-% %         digestweightsmerge_jj=digestweightsmerge_jj(1:merge_nsofar_jj);
-% % 
-% %         %% Now for the grouped stats, most of which are calculated from digests
-% %         if AgeConditionalStats.(FnsToEvalNames{kk}).StdDev(jj)>0
-% %             % No point calculating all of these inequality stats if the (age-conditional) standard deviation is zero
-% % 
-% %             % Merge the digests
-% %             [C_kk,digestweights_kk,qlimitvec_kk]=mergeDigest(Cmerge_jj, digestweightsmerge_jj, delta);
-% %             % DEBUGGING
-% %             if kk==1 || kk==2
-% %                 if jj==1
-% %                     if any(isnan(C_jj))
-% %                         fprintf('For age 1 there are %i nan values in the digest means for merged-agents \n',jj,sum(isnan(C_kk)))
-% %                     end
-% %                     if any(isnan(digestweights_kk))
-% %                         fprintf('For age 1 there are %i nan values in the digest weights for merged-agents \n',jj,sum(isnan(digestweights_kk)))
-% %                     end
-% %                     if any(isnan(qlimitvec_kk))
-% %                         fprintf('For age 1 there are %i nan values in the digest weights for merged-agents \n',jj,sum(isnan(qlimitvec_kk)))
-% %                     end
-% %                 end
-% %             end
-% % 
-% %             % Top X share indexes
-% %             Top1cutpoint=round(0.99*simoptions_temp.npoints);
-% %             Top5cutpoint=round(0.95*simoptions_temp.npoints);
-% %             Top10cutpoint=round(0.90*simoptions_temp.npoints);
-% %             Top50cutpoint=round(0.50*simoptions_temp.npoints);
-% % 
-% %             if C_kk(1)<0
-% %                 warning('Lorenz curve for the %i-th FnsToEvaluate is complicated as it takes some negative values \n',kk)
-% %             end
-% %             % Calculate the quantiles
-% %             LorenzCurve=LorenzCurve_subfunction_PreSorted(C_kk.*digestweights_kk,qlimitvec_kk,simoptions_temp.npoints,1);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=LorenzCurve;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=Gini_from_LorenzCurve(LorenzCurve);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=sum(LorenzCurve(1+Top1cutpoint:end));
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=sum(LorenzCurve(1+Top5cutpoint:end));
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=sum(LorenzCurve(1+Top10cutpoint:end));
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=sum(LorenzCurve(1:Top50cutpoint));
-% % 
-% %             cumsumdigestweights_kk=cumsum(digestweights_kk);
-% %             % Now some cutoffs (note: qlimitvec is effectively already the cumulative sum)
-% %             index_median=find(cumsumdigestweights_kk>=0.5,1,'first');
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=C_kk(index_median);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=C_kk(index_median);
-% %             index_p90=find(cumsumdigestweights_kk>=0.90,1,'first');
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=C_kk(index_p90);
-% %             index_p95=find(cumsumdigestweights_kk>=0.95,1,'first');
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=C_kk(index_p95);
-% %             index_p99=find(cumsumdigestweights_kk>=0.99,1,'first');
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=C_kk(index_p99);
-% % 
-% %             % Calculate the quantiles directly from the digest
-% %             quantiles=(1:1:simoptions_temp.nquantiles-1)/simoptions_temp.nquantiles;
-% %             quantilecutoffs=interp1(qlimitvec_kk,C_kk,quantiles);
-% %             quantilemeans=zeros(length(quantilecutoffs)+1,1);
-% %             Ctimesdisgestweights=C_kk.*digestweights_kk;
-% %             quantilemeans(1)=sum(Ctimesdisgestweights(qlimitvec_kk<quantiles(1)))/sum(digestweights_kk(qlimitvec_kk<quantiles(1)));
-% %             for qq=2:length(quantilecutoffs)
-% %                 quantilemeans(qq)=sum(Ctimesdisgestweights(logical((qlimitvec_kk>quantiles(qq-1)).*(qlimitvec_kk<quantiles(qq)))))/sum(digestweights_kk(logical((qlimitvec_kk>quantiles(qq-1)).*(qlimitvec_kk<quantiles(qq)))));
-% %             end
-% %             quantilemeans(end)=sum(Ctimesdisgestweights(qlimitvec_kk>quantiles(end)))/sum(digestweights_kk(qlimitvec_kk>quantiles(end)));
-% % 
-% %             % The minvalue and maxvalue can just be calculated direct from the invididual agent ones
-% %             % Note: the nan in minvaluevec and maxvaluevec are the preallocated size (which we then only partly fill)
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=[min(minvaluevec,[],'omitnan'), quantilecutoffs, max(maxvaluevec,[],'omitnan')]';
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=quantilemeans';
-% %         else
-% %             % Since these are all undefined just return them a message explaining why
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Note='The inequality stats are odd because the (age-conditional) standard deviation is zero';
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).LorenzCurve(:,jj)=cumsum(ones(simoptions_temp.npoints,1)/simoptions_temp.npoints);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Gini(jj)=0;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Top1share(jj)=0.01;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Top5share(jj)=0.05;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Top10share(jj)=0.1;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Bottom50share(jj)=0.5;
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Median(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile50th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile90th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile95th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).Percentile99th(jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).QuantileCutoffs(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles+1,1);
-% %             AgeConditionalStats.(FnsToEvalNames{kk}).QuantileMeans(:,jj)=AgeConditionalStats.(FnsToEvalNames{kk}).Mean(jj)*ones(simoptions_temp.nquantiles,1);
-% %         end
-% %     end
-% % end
 
 
 end

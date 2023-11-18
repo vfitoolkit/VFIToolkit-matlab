@@ -34,8 +34,8 @@ if iscell(Names_i)
     N_i=length(Names_i);
 else
     N_i=Names_i; % It is the number of PTypes (which have not been given names)
-    Names_i={'ptype001'};
-    for ii=2:N_i
+    Names_i=cell(1,N_i);
+    for ii=1:N_i
         if ii<10
             Names_i{ii}=['ptype00',num2str(ii)];
         elseif ii<100
@@ -275,10 +275,15 @@ for ii=1:N_i
     
     N_a_temp=prod(n_a_temp);
     if isfield(simoptions_temp,'n_e')
-        n_z_temp_alt=[n_z_temp,simoptions_temp.n_e];
+        n_ze_temp=[n_z_temp,simoptions_temp.n_e];
+    else
+        n_ze_temp=n_z_temp;
     end
-    N_z_temp_alt=prod(n_z_temp_alt);
-
+    if isfield(simoptions_temp,'n_semiz')
+        n_ze_temp=[simoptions_temp.n_semiz,n_ze_temp];
+    end
+    N_ze_temp=prod(n_ze_temp);
+    
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
@@ -292,9 +297,9 @@ for ii=1:N_i
             simoptions_temp.keepoutputasmatrix=1;
             ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iikk, Parameters_temp, [], n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_grid_temp, simoptions_temp);
 
-            ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp_alt*N_j_temp,1]);
+            ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_ze_temp*N_j_temp,1]);
 
-            StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp_alt*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
+            StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
 
             % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
             % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
@@ -309,7 +314,7 @@ for ii=1:N_i
             SortedWeights=accumarray(sortindex,StationaryDist_ii,[],@sum);
 
             %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
-            AllStats.(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(ValuesOnGrid_ii,StationaryDist_ii,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+            AllStats.(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1); % 1 is presorted
 
             % For later, put the mean and std dev in a convenient place
             MeanVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean;
@@ -349,8 +354,8 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         Cmerge=AllCMerge.(FnsToEvalNames{kk});
         digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{kk});
         % Clean off the zeros at the end of Cmerge (that exist because of how we preallocate 'too much' for Cmerge); same for digestweightsmerge.
-        Cmerge=Cmerge(1:merge_nsofar);
-        digestweightsmerge=digestweightsmerge(1:merge_nsofar);
+        Cmerge=Cmerge(1:merge_nsofar(kk));
+        digestweightsmerge=digestweightsmerge(1:merge_nsofar(kk));
 
         % Merge the digests
         [C_kk,digestweights_kk,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
@@ -392,8 +397,8 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
     
     % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-    AllStats.(FnsToEvalNames{kk}).Maximum=max(maxvaluevec,[],1);
-    AllStats.(FnsToEvalNames{kk}).Minimum=min(minvaluevec,[],1);
+    AllStats.(FnsToEvalNames{kk}).Maximum=max(maxvaluevec(kk,:));
+    AllStats.(FnsToEvalNames{kk}).Minimum=min(minvaluevec(kk,:));
 
 end
 

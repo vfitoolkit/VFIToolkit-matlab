@@ -30,13 +30,7 @@ if Parallel==1
 end
 
 %%
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
-l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
@@ -45,44 +39,46 @@ N_z=prod(n_z);
 
 % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
 % Gradually rolling these out so that all the commands build off of these
-z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-if prod(n_z)==0 % no z
-    z_gridvals_J=[];
-elseif ndims(z_grid)==3 % already an age-dependent joint-grid
-    if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-        z_gridvals_J=z_grid;
-    end
-elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-    for jj=1:N_j
-        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-    end
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-    z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-    z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-end
-if isfield(simoptions,'ExogShockFn')
-    if isfield(simoptions,'ExogShockFnParamNames')
-        for jj=1:N_j
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
+if N_z>0
+    z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
+    if prod(n_z)==0 % no z
+        z_gridvals_J=[];
+    elseif ndims(z_grid)==3 % already an age-dependent joint-grid
+        if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
+            z_gridvals_J=z_grid;
         end
-    else
+    elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
         for jj=1:N_j
-            [z_grid,~]=simoptions.ExogShockFn(N_j);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+            z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
+        end
+    elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
+        z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
+    elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
+        z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
+    end
+    if isfield(simoptions,'ExogShockFn')
+        if isfield(simoptions,'ExogShockFnParamNames')
+            for jj=1:N_j
+                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
+                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                for ii=1:length(ExogShockFnParamsVec)
+                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+                end
+                [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
+            end
+        else
+            for jj=1:N_j
+                [z_grid,~]=simoptions.ExogShockFn(N_j);
+                if all(size(z_grid)==[sum(n_z),1])
+                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+                else % already joint-grid
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                end
             end
         end
     end
