@@ -73,6 +73,9 @@ if SortedValues(1)==SortedValues(end)
 else
     % Calculate the 'age conditional' variance
     AllStats.Variance=sum((Values.^2).*Weights)-(AllStats.Mean)^2; % Weighted square of values - mean^2
+    if AllStats.Variance<0 && AllStats.Variance>-10^(-9) % overwrite what is likely just numerical error
+        AllStats.Variance=0;
+    end
     AllStats.StdDeviation=sqrt(AllStats.Variance);
 
     % Lorenz curve and Gini coefficient

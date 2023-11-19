@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_grid, ReturnFnParams,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams,Refine) % Refine is an optional input
 % Note: d is both d1 and d2 
 
 if ~exist('Refine','var')
@@ -71,39 +71,22 @@ if l_a1>=1
     end
 end
 expassetvals=shiftdim(a2_grid,-l_d-l_a1-l_a1);
-if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
-    if l_z>=1
-        z1vals=shiftdim(z_grid(1:n_z(1)),-l_d-l_a1-l_a1-l_a2);
-        if l_z>=2
-            z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-l_d-l_a1-l_a1-l_a2-1);
-            if l_z>=3
-                z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-l_d-l_a1-l_a1-l_a2-2);
-                if l_z>=4
-                    z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-l_d-l_a1-l_a1-l_a2-3);
-                    if l_z>=5
-                        z5vals=shiftdim(z_grid(sum(n_z(1:4))+1:sum(n_z(1:5))),-l_d-l_a1-l_a1-l_a2-4);
-                    end
-                end
-            end
-        end
-    end
-elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
-    if l_z>=1
-        z1vals=shiftdim(z_grid(:,1),-l_d-l_a1-l_a1-l_a2);
-        if l_z>=2
-            z2vals=shiftdim(z_grid(:,2),-l_d-l_a1-l_a1-l_a2);
-            if l_z>=3
-                z3vals=shiftdim(z_grid(:,3),-l_d-l_a1-l_a1-l_a2);
-                if l_z>=4
-                    z4vals=shiftdim(z_grid(:,4),-l_d-l_a1-l_a1-l_a2);
-                    if l_z>=5
-                        z5vals=shiftdim(z_grid(:,5),-l_d-l_a1-l_a1-l_a2);
-                    end
+if l_z>=1
+    z1vals=shiftdim(z_gridvals(:,1),-l_d-l_a1-l_a1-l_a2);
+    if l_z>=2
+        z2vals=shiftdim(z_gridvals(:,2),-l_d-l_a1-l_a1-l_a2);
+        if l_z>=3
+            z3vals=shiftdim(z_gridvals(:,3),-l_d-l_a1-l_a1-l_a2);
+            if l_z>=4
+                z4vals=shiftdim(z_gridvals(:,4),-l_d-l_a1-l_a1-l_a2);
+                if l_z>=5
+                    z5vals=shiftdim(z_gridvals(:,5),-l_d-l_a1-l_a1-l_a2);
                 end
             end
         end
     end
 end
+
 
 if l_d==1 && l_a1==1 && l_z==1
     d1vals(1,1,1,1)=d_grid(1); % Requires special treatment

@@ -1,4 +1,8 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_grid, semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% d1 is any other decision, d2 determines experience asset, d3 determines semi-exog state
+% a is endogenous state, a2 is experience asset
+% z is exogenous state, semiz is semi-exog state
+
 % vfoptions are already set by ValueFnIter_Case1_FHorz()
 if vfoptions.parallel~=2
     error('Can only use experience asset with parallel=2 (gpu)')
@@ -23,16 +27,6 @@ end
 N_z=prod(n_z);
 
 if isfield(vfoptions,'n_e')
-    if isfield(vfoptions,'e_grid_J')
-        e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
-    else
-        e_grid=vfoptions.e_grid;
-    end
-    if isfield(vfoptions,'pi_e_J')
-        pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
-    else
-        pi_e=vfoptions.pi_e;
-    end
     if n_d1==0
         if N_z==0
             error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
@@ -53,7 +47,7 @@ else
         if N_z==0
             error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j , d2_grid, d3_grid, a1_grid, a2_grid, z_grid, semiz_grid, pi_z, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         end
     else
         error('Have not implemented combo of experience assets and semi-exogenous shocks with an additional decision variable')

@@ -425,8 +425,8 @@ if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
     else
         n_d1=0;
     end
-    n_d2=n_d(end-1); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-    n_d3=n_d(end); % n_d3 is the decision variable that influences the experience asset
+    n_d2=n_d(end-1); % n_d2 is the decision variable that influences the experience asset
+    n_d3=n_d(end); % n_d3 is the decision variable that influences the transition probabilities of the semi-exogenous state
     d1_grid=d_grid(1:sum(n_d1));
     d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
     d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
@@ -456,14 +456,15 @@ if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
     else
         SemiExoStateFnParamNames={};
     end
-    pi_semiz_J=zeros(N_semiz,N_semiz,n_d2,N_j);
+    pi_semiz_J=zeros(N_semiz,N_semiz,n_d3,N_j,'gpuArray');
     for jj=1:N_j
         SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-        pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,vfoptions.n_semiz,d2_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues);
+        pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_d3,vfoptions.n_semiz,d3_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues));
     end
+    semiz_gridvals_J=gpuArray(CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j));
 
     % Now just send it off
-    [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_grid, vfoptions.semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 
 end
