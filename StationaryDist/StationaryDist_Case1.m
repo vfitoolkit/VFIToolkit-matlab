@@ -23,7 +23,7 @@ if exist('simoptions','var')==0
     simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
     simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
     simoptions.iterate=1;
-    simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration
+    simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
     simoptions.multiiter=50; % How many iteration steps before check tolerance
     simoptions.maxit=5*10^4; %In my experience, after a simulation, if you need more that 5*10^4 iterations to reach the steady-state it is because something has gone wrong
     simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-8) [note that this is the sum of all error across the agent dist, the L1 norm]
@@ -64,7 +64,7 @@ else
         simoptions.iterate=1;
     end
     if isfield(simoptions, 'tanimprovement')==0
-        simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration
+        simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
     end
     if isfield(simoptions, 'multiiter')==0
         simoptions.multiiter=50; % How many iteration steps before check tolerance
@@ -103,7 +103,7 @@ if simoptions.policyalreadykron==0
     PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
 end
 
-%% First deal with entry and exit if that is being used [COMMENT: I SHOULD IMPLEMENT THE TAN IMPROVEMENT FOR THESE BUT HAVE NOT YET DONE SO]
+%% First deal with entry and exit if that is being used
 if simoptions.agententryandexit==1 % If there is entry and exit use the command for that, otherwise just continue as usual.
     % It is assumed that the 'entry' distribution is suitable initial guess
     % for stationary distribution (rather than usual approach of simulating a few agents)
