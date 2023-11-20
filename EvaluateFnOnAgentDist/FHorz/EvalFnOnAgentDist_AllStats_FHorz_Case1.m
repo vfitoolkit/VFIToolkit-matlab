@@ -1,4 +1,4 @@
-function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
@@ -162,6 +162,7 @@ else
     l_z=length(n_z);
 end
 
+
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
 l_daprime=size(PolicyIndexes,1);
@@ -169,6 +170,7 @@ l_daprime=size(PolicyIndexes,1);
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
+    clear FnsToEvaluateParamNames
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
@@ -191,6 +193,7 @@ if isfield(simoptions,'outputasstructure')
         FnsToEvaluateStruct=0;
     end
 end
+
 
 
 %%
