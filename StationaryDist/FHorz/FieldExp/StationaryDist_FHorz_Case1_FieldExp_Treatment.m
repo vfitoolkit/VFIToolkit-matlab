@@ -17,6 +17,7 @@ if exist('simoptions','var')==0
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
+    simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -52,6 +53,9 @@ else
     if isfield(simoptions,'outputkron')==0
         simoptions.outputkron=0; % If 1 then leave output in Kron form
     end
+    if ~isfield(simoptions,'loopovere')
+        simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
+    end
 end
 
 %%
@@ -82,7 +86,7 @@ else
 end
 
 if simoptions.parallel~=2 && simoptions.parallel~=4
-    Policy=gather(Policy);
+    PolicyKron=gather(PolicyKron);
     StationaryDist_Control=gather(StationaryDist_Control);    
     pi_z=gather(pi_z);
 end
@@ -158,10 +162,10 @@ agedepparamnames=fieldnames(AgeDepParams);
 for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     % Pull the appropraite initial distribution of agents
     if N_ze==0
-        jequaloneDistKron=StationaryDist_Control(:,j_p);
+        jequaloneDistKron=reshape(StationaryDist_Control(:,j_p),[N_a,1]);
         PolicyKron_treat=PolicyKron(:,:,j_p:j_p+TreatmentDuration-1);
     else
-        jequaloneDistKron=StationaryDist_Control(:,:,j_p);
+        jequaloneDistKron=reshape(StationaryDist_Control(:,:,j_p),[N_a*N_ze,1]);
         if N_z==0 % just e
             PolicyKron_treat=PolicyKron(:,:,:,j_p:j_p+TreatmentDuration-1);
         elseif N_e==0 % Just z
@@ -192,11 +196,11 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
             simoptions.pi_e_J=pi_e_J(:,j_p:j_p+TreatmentDuration);
         end
         if N_e==0
-            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,TreatmentDuration,pi_z,Parameters,simoptions),[N_a,N_z,TreatmentDuration]);
+            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,TreatmentDuration,pi_z_J,Parameters,simoptions),[N_a,N_z,TreatmentDuration]);
         elseif N_z==0
-            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_e,TreatmentDuration,simoptions.pi_e,Parameters,simoptions),[N_a,N_e,TreatmentDuration]); % e but no z
+            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_e,TreatmentDuration,pi_e_J,Parameters,simoptions),[N_a,N_e,TreatmentDuration]); % e but no z
         else
-            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,N_e,TreatmentDuration,pi_z,simoptions.pi_e,Parameters,simoptions),[N_a,N_z*N_e,TreatmentDuration]);
+            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,N_e,TreatmentDuration,pi_z_J,pi_e_J,Parameters,simoptions),[N_a,N_z*N_e,TreatmentDuration]);
         end
     end
     

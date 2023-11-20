@@ -201,105 +201,51 @@ if isfield(simoptions,'outputasstructure')
 end
 
 %%
-if Parallel==2
-    if N_e>0 && simoptions.lowmemory==1
-        % Loop over e
-        AggVars=zeros(length(FnsToEvaluate),N_e,'gpuArray');
-        StationaryDistVec=permute(reshape(StationaryDist,[N_a*N_z,N_e,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]),[1,4,3,2]); % permute moves e to last dimension,  permute swaps treatment duration and treatment initial age
+if N_e>0 && simoptions.lowmemory==1
+    % Loop over e
+    AggVars=zeros(length(FnsToEvaluate),N_e,'gpuArray');
+    StationaryDistVec=permute(reshape(StationaryDist,[N_a*N_z,N_e,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]),[1,4,3,2]); % permute moves e to last dimension,  permute swaps treatment duration and treatment initial age
 
-        % Set up policy in way that makes it easy to loop over later (just
-        % keeping the treatment ages, and switching from indexes to values)
-        PolicyValuesPermuteVec=struct();
-        if n_d(1)>0
-            dasize=l_d+l_a; %size(PolicyIndexes.(['treatmentage',num2str(TreatmentAgeRange(1))]),1);
-        else
-            dasize=l_a;
-        end        
-        permuteindexes=[5,4,2,3,1]; %permute into [N_j,N_e,N_a,N_z,l_d+l_a]
-        for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
-            PolicyIndexes_temp=reshape(PolicyIndexes.(['treatmentage',num2str(j_p)]),[dasize,N_a,N_z*N_e,N_j]);
-            PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,[n_z,n_e],TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
-            for tt=1:TreatmentDuration
-                PolicyValues=reshape(PolicyValues,[dasize,N_a,N_z,N_e,TreatmentDuration]);
-                PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_j,N_e,N_a,N_z,l_d+l_a]
-                for e_c=1:N_e
-                    PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt),'ee',num2str(e_c)])=reshape(PolicyValuesPermute(tt,e_c,:,:,:),[n_a,n_z,l_d+l_a]);
-                end
+    % Set up policy in way that makes it easy to loop over later (just
+    % keeping the treatment ages, and switching from indexes to values)
+    PolicyValuesPermuteVec=struct();
+    if n_d(1)>0
+        dasize=l_d+l_a; %size(PolicyIndexes.(['treatmentage',num2str(TreatmentAgeRange(1))]),1);
+    else
+        dasize=l_a;
+    end
+    permuteindexes=[5,4,2,3,1]; %permute into [N_j,N_e,N_a,N_z,l_d+l_a]
+    for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
+        PolicyIndexes_temp=reshape(PolicyIndexes.(['treatmentage',num2str(j_p)]),[dasize,N_a,N_z*N_e,N_j]);
+        PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,[n_z,n_e],TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+        for tt=1:TreatmentDuration
+            PolicyValues=reshape(PolicyValues,[dasize,N_a,N_z,N_e,TreatmentDuration]);
+            PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_j,N_e,N_a,N_z,l_d+l_a]
+            for e_c=1:N_e
+                PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt),'ee',num2str(e_c)])=reshape(PolicyValuesPermute(tt,e_c,:,:,:),[n_a,n_z,l_d+l_a]);
             end
         end
-        
-        for e_c=1:N_e
-            StationaryDistVec_e=StationaryDistVec(:,:,:,e_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
-            
-            for ii=1:length(FnsToEvaluate)
-                Values=nan(N_a*N_z,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1,TreatmentDuration,'gpuArray');
-                for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
-                    for tt=1:TreatmentDuration
-                        jj=j_p+tt-1;
-                        PolicyValuesPermuteVec_temp=PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt),'ee',num2str(e_c)]);
+    end
 
-                        if jointgridz==1
-                            z_grid=z_grid_J(:,:,jj);
-                        else
-                            z_grid=z_grid_J(:,jj);
-                        end
-                        if jointgride==1
-                            e_val=e_grid_J(e_c,:,jj);
-                        else
-                            e_val=e_grid_J(e_c,jj);
-                        end
-
-                        % Includes check for cases in which no parameters are actually required
-                        if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                            FnToEvaluateParamsVec=[];
-                        else
-                            FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                        end
-                        Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, [FnToEvaluateParamsVec,e_val],PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
-                    end
-                end
-                
-                AggVars(ii,e_c)=sum(TreatmentAgeWeights.*sum(sum(Values.*StationaryDistVec_e,1),3)); % sum over treatment period az & tt, then multiply by age weights, and then sum over j_p
-            end
-        end
-        AggVars=sum(AggVars,2);
-
-    else % either no e vars, or just lowmemory=0
-        AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-        
-        StationaryDistVec=reshape(StationaryDist,[N_a*N_z,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]);
-        StationaryDistVec=permute(reshape(StationaryDist,[N_a*N_z,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]),[1,3,2]); % permute swaps treatment duration and treatment initial age
-
-        % Set up policy in way that makes it easy to loop over later (just
-        % keeping the treatment ages, and switching from indexes to values)
-        PolicyValuesPermuteVec=struct();
-        if n_d(1)>0
-            dasize=l_d+l_a; %size(PolicyIndexes.(['treatmentage',num2str(TreatmentAgeRange(1))]),1);
-        else
-            dasize=l_a;
-        end        
-        permuteindexes=[4,2,3,1]; %permute into [N_j,N_a,N_ze,l_d+l_a]
-        for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
-            PolicyIndexes_temp=reshape(PolicyIndexes.(['treatmentage',num2str(j_p)]),[dasize,N_a,N_z,N_j]);
-            PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,n_z,TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
-            for tt=1:TreatmentDuration
-                PolicyValues=reshape(PolicyValues,[dasize,N_a,N_z,TreatmentDuration]);
-                PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_j,N_a,N_ze,l_d+l_a]
-                PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt)])=reshape(PolicyValuesPermute(tt,:,:,:),[n_a,n_z,l_d+l_a]);
-            end
-        end
+    for e_c=1:N_e
+        StationaryDistVec_e=StationaryDistVec(:,:,:,e_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
 
         for ii=1:length(FnsToEvaluate)
             Values=nan(N_a*N_z,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1,TreatmentDuration,'gpuArray');
             for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
                 for tt=1:TreatmentDuration
                     jj=j_p+tt-1;
-                    PolicyValuesPermuteVec_temp=PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt)]);
+                    PolicyValuesPermuteVec_temp=PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt),'ee',num2str(e_c)]);
 
                     if jointgridz==1
                         z_grid=z_grid_J(:,:,jj);
                     else
                         z_grid=z_grid_J(:,jj);
+                    end
+                    if jointgride==1
+                        e_val=e_grid_J(e_c,:,jj);
+                    else
+                        e_val=e_grid_J(e_c,jj);
                     end
 
                     % Includes check for cases in which no parameters are actually required
@@ -308,92 +254,68 @@ if Parallel==2
                     else
                         FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
                     end
-                    Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+                    Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, [FnToEvaluateParamsVec,e_val],PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
                 end
             end
-            size(Values)
-            size(StationaryDistVec)
-            size(Values.*StationaryDistVec)
-            size(sum(Values.*StationaryDistVec,1)) % Sum over (a,z,e); leaves j_p and tt
-            size(sum(sum(Values.*StationaryDistVec,1),3)) % Sum over tt
-            size(TreatmentAgeWeights)
-            sum(TreatmentAgeWeights)
-            
-            AggVars(ii)=sum(TreatmentAgeWeights.*sum(sum(Values.*StationaryDistVec,1),3)); % sum over treatment period az & tt, then multiply by age weights, and then sum over j_p
+
+            AggVars(ii,e_c)=sum(TreatmentAgeWeights.*sum(sum(Values.*StationaryDistVec_e,1),3)); % sum over treatment period az & tt, then multiply by age weights, and then sum over j_p
         end
     end
-else
-    error('Field Exp for AggVars of Treatment only available using gpu')
-%     AggVars=zeros(length(FnsToEvaluate),1);
-% 
-%     a_gridvals=CreateGridvals(n_a,a_grid,2);
-%     z_gridvals=CreateGridvals(n_z,z_grid,2);
-% 
-%     StationaryDistVec=reshape(StationaryDist,[N_a*N_z*(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)*TreatmentDuration,1]);
-%     
-%     sizePolicyIndexes=size(PolicyIndexes);
-%     if length(PolicyIndexes)>4 % If not in vectorized form
-%         PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
-%     end
-%     
-%     for ii=1:length(FnsToEvaluate)
-%         Values=zeros(N_a,N_z,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1,TreatmentDuration);
-%         if l_d==0
-%             for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
-%                 for tt=1:TreatmentDuration
-%                     jj=j_p+tt-1;
-%                     if fieldexists_ExogShockFn==1
-%                         z_grid=z_grid_J(:,jj);
-%                         z_gridvals=CreateGridvals(n_z,z_grid,2);
-%                     end
-% 
-%                     [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-%                     if ~isempty(FnsToEvaluateParamNames(ii).Names)
-%                         FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-%                     end
-%                     for a_c=1:N_a
-%                         for z_c=1:N_z
-%                             % Includes check for cases in which no parameters are actually required
-%                             if isempty(FnsToEvaluateParamNames(ii).Names)
-%                                 Values(a_c,z_c,j_p,tt)=FnsToEvaluate{ii}(aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
-%                             else
-%                                 Values(a_c,z_c,j_p,tt)=FnsToEvaluate{ii}(aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
-%                             end
-%                         end
-%                     end
-%                 end
-%             end
-%         else
-%             for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
-%                 for tt=1:TreatmentDuration
-%                     jj=j_p+tt-1;
-%                     if fieldexists_ExogShockFn==1
-%                         z_grid=z_grid_J(:,jj);
-%                         z_gridvals=CreateGridvals(n_z,z_grid,2);
-%                     end
-% 
-%                     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-%                     if ~isempty(FnsToEvaluateParamNames(ii).Names)
-%                         FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-%                     end
-%                     for a_c=1:N_a
-%                         for z_c=1:N_z
-%                             % Includes check for cases in which no parameters are actually required
-%                             if isempty(FnsToEvaluateParamNames(ii).Names)
-%                                 Values(a_c,z_c,j_p,tt)=FnsToEvaluate{ii}(d_gridvals{a_c+(z_c-1)*N_a,:},aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:});
-%                             else
-%                                 Values(a_c,z_c,j_p,tt)=FnsToEvaluate{ii}(d_gridvals{a_c+(z_c-1)*N_a,:},aprime_gridvals{a_c+(z_c-1)*N_a,:},a_gridvals{a_c,:},z_gridvals{z_c,:},FnToEvaluateParamsCell{:});
-%                             end
-%                         end
-%                     end
-%                 end
-%             end
-%         end
-%         Values=reshape(Values,[N_a*N_z*(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)*TreatmentDuration,1]);
-%         AggVars(ii)=sum(Values.*StationaryDistVec);
-%     end
-    
+    AggVars=sum(AggVars,2);
+
+else % either no e vars, or just lowmemory=0
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+
+    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]);
+    StationaryDistVec=permute(reshape(StationaryDist,[N_a*N_z,TreatmentDuration,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1]),[1,3,2]); % permute swaps treatment duration and treatment initial age
+
+    % Set up policy in way that makes it easy to loop over later (just
+    % keeping the treatment ages, and switching from indexes to values)
+    PolicyValuesPermuteVec=struct();
+    if n_d(1)>0
+        dasize=l_d+l_a; %size(PolicyIndexes.(['treatmentage',num2str(TreatmentAgeRange(1))]),1);
+    else
+        dasize=l_a;
+    end
+    permuteindexes=[4,2,3,1]; %permute into [N_j,N_a,N_ze,l_d+l_a]
+    for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
+        PolicyIndexes_temp=reshape(PolicyIndexes.(['treatmentage',num2str(j_p)]),[dasize,N_a,N_z,N_j]);
+        PolicyValues=PolicyInd2Val_FHorz_Case1(PolicyIndexes_temp(:,:,:,j_p:j_p+TreatmentDuration-1),n_d,n_a,n_z,TreatmentDuration,d_grid,a_grid); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+        for tt=1:TreatmentDuration
+            PolicyValues=reshape(PolicyValues,[dasize,N_a,N_z,TreatmentDuration]);
+            PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_j,N_a,N_ze,l_d+l_a]
+            PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt)])=reshape(PolicyValuesPermute(tt,:,:,:),[n_a,n_z,l_d+l_a]);
+        end
+    end
+
+    for ii=1:length(FnsToEvaluate)
+        Values=nan(N_a*N_z,TreatmentAgeRange(2)-TreatmentAgeRange(1)+1,TreatmentDuration,'gpuArray');
+        for j_p=1:(TreatmentAgeRange(2)-TreatmentAgeRange(1)+1)
+            for tt=1:TreatmentDuration
+                jj=j_p+tt-1;
+                PolicyValuesPermuteVec_temp=PolicyValuesPermuteVec.(['treatmentage',num2str(j_p),'tt',num2str(tt)]);
+
+                if jointgridz==1
+                    z_grid=z_grid_J(:,:,jj);
+                else
+                    z_grid=z_grid_J(:,jj);
+                end
+
+                % Includes check for cases in which no parameters are actually required
+                if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
+                    FnToEvaluateParamsVec=[];
+                else
+                    FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
+                end
+                Values(:,j_p,tt)=reshape(EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValuesPermuteVec_temp,n_d,n_a,n_z,a_grid,z_grid,Parallel),[N_a*N_z,1]);
+            end
+        end
+
+        AggVars(ii)=sum(TreatmentAgeWeights.*sum(sum(Values.*StationaryDistVec,1),3)); % sum over treatment period az & tt, then multiply by age weights, and then sum over j_p
+    end
 end
+
+
 
 %%
 if FnsToEvaluateStruct==1

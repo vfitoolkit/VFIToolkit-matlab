@@ -10,10 +10,6 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_e=prod(n_e);
 
-if ~isfield(simoptions,'loopovere')
-    simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
-end
-
 %%
 jequaloneDist=reshape(jequaloneDist,[N_a*N_z*N_e,1]);
 Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,n_e);

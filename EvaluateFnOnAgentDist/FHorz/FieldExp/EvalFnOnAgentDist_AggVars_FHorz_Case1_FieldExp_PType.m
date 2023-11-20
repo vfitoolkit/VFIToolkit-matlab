@@ -279,6 +279,7 @@ for ii=1:N_i
             end
             z_grid_J(:,jj)=gather(z_grid);
         end
+        simoptions_temp=rmfield(simoptions_temp,'ExogShockFn');
     else
         % This is just so that it makes things easier below because I can
         % take it as given that pi_z_J and z_grid_J exist
@@ -312,6 +313,7 @@ for ii=1:N_i
                 end
                 e_grid_J(:,jj)=gather(e_grid);
             end
+            simoptions_temp=rmfield(simoptions_temp,'EiidShockFn');
         else
             % This is just so that it makes things easier below because I can
             % take it as given that pi_e_J and e_grid_J exist
@@ -325,8 +327,9 @@ for ii=1:N_i
     simoptions_control_temp=simoptions_temp;
     simoptions_control_temp.z_grid_J=z_grid_J(:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
     if isfield(simoptions_temp,'n_e')
-        simoptions_control_temp.e_grid_J=e_grid_J(:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
+        simoptions_control_temp.e_grid=e_grid_J(:,TreatmentAgeRange(1):TreatmentAgeRange(2)+TreatmentDuration-1);
     end
+    
     
     %% Get the age weights out of control group as we need the later for treatment group, then reweight control group ages to reflect treatment duration
 
@@ -358,7 +361,6 @@ for ii=1:N_i
     StationaryDist_control_temp=reshape(StationaryDist_control_temp,[numel(StationaryDist_control_temp)/N_j_temp_FieldExp,N_j_temp_FieldExp]);
     StationaryDist_control_temp=StationaryDist_control_temp.*agereweight';
     StationaryDist_control_temp=StationaryDist_control_temp/sum(StationaryDist_control_temp(:));
-
     
     %% Calculate the aggregate variables for the control-group
     simoptions_control_temp.outputasstructure=0;

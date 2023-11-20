@@ -84,6 +84,8 @@ if N_z>0
     end
 end
 
+
+
 % If using e variable, do same for this
 if isfield(simoptions,'n_e')
     n_e=simoptions.n_e;
@@ -126,7 +128,7 @@ if isfield(simoptions,'n_e')
                     if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
                         e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(simoptions.n_e,simoptions.e_grid,1));
                     else % already joint-grid
-                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid,1);
+                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid);
                     end
                 end
             else
@@ -135,7 +137,7 @@ if isfield(simoptions,'n_e')
                     if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
                         e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(simoptions.n_e,simoptions.e_grid,1));
                     else % already joint-grid
-                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid,1);
+                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid);
                     end
                 end
             end
@@ -151,6 +153,8 @@ if isfield(simoptions,'n_e')
             n_z=[n_z,n_e];
             N_z=prod(n_z);
         end
+
+        simoptions=rmfield(simoptions,'n_e'); % Remove for subcommands as e is now in z
     end
 end
 

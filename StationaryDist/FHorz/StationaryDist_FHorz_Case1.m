@@ -29,6 +29,7 @@ if exist('simoptions','var')==0
     simoptions.residualasset=0;
     simoptions.tolerance=10^(-9);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
+    simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -79,6 +80,9 @@ else
     end
     if ~isfield(simoptions,'outputkron')
         simoptions.outputkron=0; % If 1 then leave output in Kron form
+    end
+    if ~isfield(simoptions,'loopovere')
+        simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
     end
 end
 
