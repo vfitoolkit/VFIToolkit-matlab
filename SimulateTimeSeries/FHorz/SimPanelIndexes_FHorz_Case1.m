@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. (If you use the
 % newbirths option you will get more than 'numbersims', due to the extra births)
@@ -6,10 +6,6 @@ function SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,Policy,n_d,n_a,n_z,N_j
 % InitialDist can be inputed as over the finite time-horizon (j), or
 % without a time-horizon in which case it is assumed to be an InitialDist
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
-
-N_a=prod(n_a);
-N_z=prod(n_z);
-N_d=prod(n_d);
 
 
 %% Check which simoptions have been declared, set all others to defaults 
@@ -26,7 +22,7 @@ if exist('simoptions','var')==1
         simoptions.numbersims=10^3;
     end
     if ~isfield(simoptions, 'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+        simoptions.parallel=1; % parallel CPU for panel data simulations
     end
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
@@ -53,7 +49,7 @@ else
     simoptions.polindorval=1;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;
-    simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    simoptions.parallel=1; % parallel CPU for panel data simulations
     simoptions.verbose=0;
     simoptions.newbirths=0;
     simoptions.simpanelindexkron=0; % For some VFI Toolkit commands the kron is faster to use
@@ -67,43 +63,42 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-%% Some setups need to get sent off to alternative commands
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_d=prod(n_d);
+
+%% Some setups need to get sent off to alternative commands (specifically when using semiz variables)
 if ~isfield(simoptions, 'n_semiz')
     simoptions.n_semiz=0;
 end
 if simoptions.n_semiz(1)>0
-    if n_z(1)==0
-        SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,Policy,n_d,n_a,N_j, simoptions);
+    if N_z==0
+        SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
         return
     else
-        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
+        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
         return
     end
 end
 
 cumsumpi_z_J=cumsum(pi_z_J,2);
 
+
 %%
 MoveOutputtoGPU=0;
 if simoptions.parallel==2
     % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
     % back. For anything but ridiculously short simulations it is more than worth the overhead.
-    Policy=gather(Policy);
+    PolicyKron=gather(PolicyKron);
     cumsumpi_z_J=gather(cumsumpi_z_J);
     MoveOutputtoGPU=1;
 end
 
 simperiods=gather(simoptions.simperiods);
 
+
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
-    
-    if (l_d==0 && ndims(Policy)==3) || ndims(Policy)==4
-        % Policy=Policy; % Check if the inputted Policy is already in form of PolicyIndexesKron. If so this saves a big chunk of the run time of 'SimPanelIndexes_FHorz_Case1',
-                         % Since the 'SimPanelIndexes_FHorz_Case1' command is often called as a subcommand by functions where input is already PolicyIndexesKron it saves a lot of run time.
-    else %Policy is [l_d+l_a,n_a,n_z,N_j]
-        Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);
-    end
     
     InitialDist=gather(InitialDist); % Make sure it is not on gpu
     numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
@@ -124,168 +119,66 @@ if ~isfield(simoptions,'n_e')
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
         
-    if simoptions.simpanelindexkron==0 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(l_a+l_z+1,simperiods,simoptions.numbersims); % (a,z,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);                
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+1,simperiods);
-                
-                j1=seedpoint(3); % 3 as j in (a,z,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade([n_a],temp(1));
-                        z_c_vec=ind2sub_homemade([n_z],temp(2));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                    end
-                    SimPanel_ii(l_a+l_z+1,t)=jj;
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+1,simperiods);
-                
-                j1=seedpoint(3); % 3 as j in (a,z,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade([n_a],temp(1));
-                        z_c_vec=ind2sub_homemade([n_z],temp(2));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                    end
-                    SimPanel_ii(l_a+l_z+1,t)=jj;
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
+    % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+    SimPanel=nan(3,N_j,simoptions.numbersims); % (a,z,j)
+    if simoptions.parallel==0
+        for ii=1:simoptions.numbersims
+            seedpoint=seedpoints(ii,:);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyKron,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
         end
-
-
-        if simoptions.newbirths==1
-            cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
-            newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
-            BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
-            
-            SimPanel2=nan(l_a+l_z+1,simperiods,sum(newbirthsvector));
-            for birthperiod=1:simperiods
-                % Get seedpoints from birthdist
-                seedpoints=nan(newbirthsvector(birthperiod),3); % 3 as a,z,j (vectorized)
-                if numel(BirthDist)==N_a*N_z % Has just been given for age j=1
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z,1]));
-                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointind(ii)),1];
-                    end
-                else % Distribution across simperiods as well
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*simperiods,1]));
-                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointind(ii));
-                    end
-                end
-                seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-                
-                for ii=1:newbirthsvector(birthperiod)
-                    seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods-birthperiod+1);
-                    
-                    SimPanel_ii=nan(l_a+l_z+1,simperiods);
-                    
-                    j1=seedpoint(3); % 3 as j in (a,z,j)
-                    j2=min(N_j,j1+(simperiods-birthperiod+1));
-                    for t=1:(j2-j1+1)
-                        jj=t+j1-1;
-                        temp=SimLifeCycleKron(:,jj);
-                        if ~isnan(temp)
-                            a_c_vec=ind2sub_homemade([n_a],temp(1));
-                            z_c_vec=ind2sub_homemade([n_z],temp(2));
-                            for kk=1:l_a
-                                SimPanel_ii(kk,t)=a_c_vec(kk);
-                            end
-                            for kk=1:l_z
-                                SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                            end
-                        end
-                        SimPanel_ii(l_a+l_z+1,t)=jj;
-                    end
-                    SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimPanel_ii;
-                end
-            end
-            SimPanel=[SimPanel;SimPanel2]; % Add the 'new borns' panel to the end of the main panel
+    else
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyKron,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-        
-        
-    else % simoptions.simpanelindexkron==1 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(3,simperiods,simoptions.numbersims); % (a,z,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
-            end
-        else
-            % parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-            for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
-            end
-        end
-        
-        if simoptions.newbirths==1
-            cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
-            newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
-            BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
-            
-            SimPanel2=nan(l_a+l_z+1,simperiods,sum(newbirthsvector));
-            for birthperiod=1:simperiods
-                % Get seedpoints from birthdist
-                seedpoints=nan(newbirthsvector(birthperiod),3); % 3 as a,z,j (vectorized)
-                if numel(BirthDist)==N_a*N_z % Has just been given for age j=1
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z,1]));
-                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointind(ii)),1];
-                    end
-                else % Distribution across simperiods as well
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*simperiods,1]));
-                    [~,seedpointind]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointind(ii));
-                    end
-                end
-                seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-                
-                for ii=1:newbirthsvector(birthperiod)
-                    seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(Policy,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods-birthperiod+1);
-                    SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
-                end
-            end
-            SimPanel=[SimPanel;SimPanel2]; % Add the 'new borns' panel to the end of the main panel
-        end
-        
     end
-    
+
+
+    if simoptions.newbirths==1
+        cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
+        newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
+        BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
+
+        SimPanel2=nan(l_a+l_z+1,simperiods,sum(newbirthsvector));
+        for birthperiod=1:simperiods
+            % Get seedpoints from birthdist
+            seedpoints=nan(newbirthsvector(birthperiod),3); % 3 as a,z,j (vectorized)
+            if numel(BirthDist)==N_a*N_z % Has just been given for age j=1
+                cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z,1]));
+                [~,seedpointind]=max(cumsumBirthDistVec>rand(1,numbersims,1));
+                for ii=1:newbirthsvector(birthperiod)
+                    seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z],seedpointind(ii)),1];
+                end
+            else % Distribution across simperiods as well
+                cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*simperiods,1]));
+                [~,seedpointind]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
+                for ii=1:newbirthsvector(birthperiod)
+                    seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_j],seedpointind(ii));
+                end
+            end
+            seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+
+            for ii=1:newbirthsvector(birthperiod)
+                seedpoint=seedpoints(ii,:);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyKron,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods-birthperiod+1);
+                SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
+            end
+        end
+        SimPanel=[SimPanel;SimPanel2]; % Add the 'new borns' panel to the end of the main panel
+    end
+
+    if simoptions.simpanelindexkron==0 % Convert results out of kron
+        SimPanelKron=reshape(SimPanel,[3,N_j*simoptions.numbersims]);
+        SimPanel=nan(l_a+l_z+1,N_j*simoptions.numbersims); % (a,z,j)
+        
+        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
+        SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
+        SimPanel(end,:)=SimPanelKron(3,:); % j
+    end
+
+
+
 else %if isfield(simoptions,'n_e')
     %% this time with e variables
     % If e variables are used they are treated seperately as this is faster/better
@@ -293,17 +186,6 @@ else %if isfield(simoptions,'n_e')
     l_e=length(simoptions.n_e);
     
     cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
-        
-    % Check if the inputted Policy is already in form of PolicyIndexesKron. If
-    % so this saves a big chunk of the run time of 'SimPanelIndexes_FHorz_Case1',
-    % Since this command is often called as a subcommand by functions where
-    % PolicyIndexesKron it saves a lot of run time.
-    %Policy is [l_d+l_a,n_a,n_z,n_e,N_j]
-    if (l_d==0 && ndims(Policy)==4) || ndims(Policy)==5 % 4 & 5 because of e
-        Policy=Policy;
-    else
-        Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e);
-    end
     
     InitialDist=gather(InitialDist); % Make sure it is not on gpu
     numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
@@ -324,179 +206,66 @@ else %if isfield(simoptions,'n_e')
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
     
-    if simoptions.simpanelindexkron==0 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(l_a+l_z+l_e+1,simperiods,simoptions.numbersims); % (a,z,e,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
-                
-                j1=seedpoint(4); % 4 as j in (a,z,e,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade([n_a],temp(1));
-                        z_c_vec=ind2sub_homemade([n_z],temp(2));
-                        e_c_vec=ind2sub_homemade([n_e],temp(3));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                        for kk=1:l_e
-                            SimPanel_ii(l_a+l_z+kk,t)=e_c_vec(kk);
-                        end
-                        SimPanel_ii(l_a+l_z+l_e+1,t)=jj; % Note: temp(4) is jj, but no need to actually access it
-                    end
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0                
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);               
-                
-                SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
-                
-                j1=seedpoint(4); % 4 as j in (a,z,e,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade([n_a],temp(1));
-                        z_c_vec=ind2sub_homemade([n_z],temp(2));
-                        e_c_vec=ind2sub_homemade([n_e],temp(3));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                        for kk=1:l_e
-                            SimPanel_ii(l_a+l_z+kk,t)=e_c_vec(kk);
-                        end
-                        SimPanel_ii(l_a+l_z+l_e+1,t)=jj;  % Note: temp(4) is jj, but no need to actually access it
-                    end
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
+      
+    % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+    SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,z,e,j)
+    if simoptions.parallel==0
+        for ii=1:simoptions.numbersims
+            seedpoint=seedpoints(ii,:);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(PolicyKron,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
         end
-        
-        if simoptions.newbirths==1
-            cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
-            newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
-            BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
-            
-            SimPanel2=nan(l_a+l_z+l_e+1,simperiods,sum(newbirthsvector));
-            for birthperiod=1:simperiods
-                % Get seedpoints from birthdist
-                seedpoints=nan(newbirthsvector(birthperiod),4); % 4 as a,z,e,j (vectorized)
-                if numel(BirthDist)==N_a*N_z*N_e % Has just been given for age j=1
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*N_e,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z,N_e],seedpointvec(ii)),1];
-                    end
-                else % Distribution across simperiods as well
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*N_e*simperiods,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_e,N_j],seedpointvec(ii));
-                    end
-                end
-                seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-                
-                for ii=1:newbirthsvector(birthperiod)
-                    seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
-                    
-                    SimPanel_ii=nan(l_a+l_z+l_e+1,simperiods);
-                    
-                    j1=seedpoint(4); % 4 as j in (a,z,e,j)
-                    j2=min(N_j,j1+(simperiods-birthperiod+1));
-                    for t=1:(j2-j1+1)
-                        jj=t+j1-1;
-                        temp=SimLifeCycleKron(:,jj);
-                        if ~isnan(temp)
-                            a_c_vec=ind2sub_homemade([n_a],temp(1));
-                            z_c_vec=ind2sub_homemade([n_z],temp(2));
-                            e_c_vec=ind2sub_homemade([n_e],temp(3));
-                            for kk=1:l_a
-                                SimPanel_ii(kk,t)=a_c_vec(kk);
-                            end
-                            for kk=1:l_z
-                                SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                            end
-                            for kk=1:l_e
-                                SimPanel_ii(l_a+l_z+kk,t)=e_c_vec(kk);
-                            end
-                            SimPanel_ii(l_a+l_z+l_e+1,t)=jj;
-                        end
-                    end
-                    SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimPanel_ii;
-                end
-            end
-            SimPanel=[SimPanel;SimPanel2]; % Add the 'new borns' panel to the end of the main panel
+    else
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(PolicyKron,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-        
-        
-    else % simoptions.simpanelindexkron==1 % For some VFI Toolkit commands the kron is faster to use
-        
-        SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,z,e,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
-                SimPanel(:,:,ii)=SimLifeCycleKron; 
-            end
-        end
-        
-        
-        if simoptions.newbirths==1
-            cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
-            newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
-            BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
-            
-            SimPanel2=nan(l_a+l_z+l_e+1,simperiods,sum(newbirthsvector));
-            for birthperiod=1:simperiods
-                % Get seedpoints from birthdist
-                seedpoints=nan(newbirthsvector(birthperiod),4); % 4 as a,z,e,j (vectorized)
-                if numel(BirthDist)==N_a*N_z*N_e % Has just been given for age j=1
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*N_e,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z,N_e],seedpointvec(ii)),1];
-                    end
-                else % Distribution across simperiods as well
-                    cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*N_e*simperiods,1]));
-                    [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
-                    for ii=1:newbirthsvector(birthperiod)
-                        seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_e,N_j],seedpointvec(ii));
-                    end
-                end
-                seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-                
-                for ii=1:newbirthsvector(birthperiod)
-                    seedpoint=seedpoints(ii,:);
-                    SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
-                    SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
-                end
-            end
-            SimPanel=[SimPanel;SimPanel2]; % Add the 'new borns' panel to the end of the main panel
-        end
-        
     end
+
+
+    if simoptions.newbirths==1
+        cumulativebirthrate=cumprod(simoptions.birthrate.*ones(simperiods)+1)-1; % This works for scalar or vector simoptions.birthrate
+        newbirthsvector=gather(round(simoptions.numbersims*cumulativebirthrate)); % Use rounding to decide how many new borns to do each period.
+        BirthDist=gather(simoptions.birthdist);  % Make sure it is not on gpu
+
+        SimPanel2=nan(l_a+l_z+l_e+1,simperiods,sum(newbirthsvector));
+        for birthperiod=1:simperiods
+            % Get seedpoints from birthdist
+            seedpoints=nan(newbirthsvector(birthperiod),4); % 4 as a,z,e,j (vectorized)
+            if numel(BirthDist)==N_a*N_z*N_e % Has just been given for age j=1
+                cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*N_e,1]));
+                [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,numbersims,1));
+                for ii=1:newbirthsvector(birthperiod)
+                    seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z,N_e],seedpointvec(ii)),1];
+                end
+            else % Distribution across simperiods as well
+                cumsumBirthDistVec=cumsum(reshape(BirthDist,[N_a*N_z*N_e*simperiods,1]));
+                [~,seedpointvec]=max(cumsumBirthDistVec>rand(1,simoptions.numbersims,1));
+                for ii=1:newbirthsvector(birthperiod)
+                    seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_e,N_j],seedpointvec(ii));
+                end
+            end
+            seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+
+            for ii=1:newbirthsvector(birthperiod)
+                seedpoint=seedpoints(ii,:);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(PolicyKron,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
+                SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
+            end
+        end
+        SimPanel=[SimPanel;SimPanel2]; % Add the 'new borns' panel to the end of the main panel
+    end
+        
+    if simoptions.simpanelindexkron==0 % Convert results out of kron
+        SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
+        SimPanel=nan(l_a+l_z+l_e+1,N_j*simoptions.numbersims); % (a,z,j)
+        
+        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
+        SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
+        SimPanel(l_a+l_z1:l_a+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
+        SimPanel(end,:)=SimPanelKron(4,:); % j
+    end
+        
 end
 
 if MoveOutputtoGPU==1

@@ -1,4 +1,4 @@
-function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
+function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist.
 % SimPanelValues is a 3-dimensional matrix with first dimension being the
@@ -46,6 +46,7 @@ else
 end
 
 l_a=length(n_a);
+N_z=prod(n_z);
 
 
 %% Exogenous shock grids
@@ -101,8 +102,6 @@ if isfield(simoptions,'ExogShockFn')
         end
     end
 end
-
-N_z=prod(n_z);
 
 % If using e variable, do same for this
 if isfield(simoptions,'n_e')
@@ -170,43 +169,20 @@ if isfield(simoptions,'n_e')
             end
         end
     end
+end
 
-    % Now put e into z as that is easiest way to handle it from now on
-    if N_z==0
-        ze_gridvals_J=e_gridvals_J;
-        n_ze=n_e;
-        N_ze=prod(n_ze);
+if isfield(simoptions,'n_e') % Note: N_z==0 is dealt with elsewhere
+    if N_e>0
+        l_ze=length(n_z)+length(n_e);
+        N_ze=N_z*N_e;
     else
-        ze_gridvals_J=[repmat(z_gridvals_J,N_e,1),repelem(e_gridvals_J,N_z,1)];
-        n_ze=[n_z,n_e];
-        N_ze=prod(n_ze);
+        l_ze=length(n_z);
+        N_ze=N_z;
     end
 else
+    l_ze=length(n_z);
     N_ze=N_z;
-    n_ze=n_z;
-    ze_gridvals_J=z_gridvals_J;
 end
-
-% Also semiz if that is used
-if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
-    if N_ze==0
-        n_ze=simoptions.n_semiz;
-        ze_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1);
-    else
-        % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-        ne_z=[simoptions.n_semiz,n_z];
-        ze_gridvals_J=[repmat(CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray'),N_z,1),repelem(z_gridvals_J,prod(simoptions.n_semiz),1)];
-    end
-end
-N_ze=prod(n_ze);
-if N_ze==0
-    l_ze=0;
-else
-    l_ze=length(n_ze);
-end
-
-% NOTE: I AM PUTTING TOGETHER GRIDS FOR LATER, BUT KEEP TRANSITION PROBABILITIES SEPERATE FOR SIMULATING INDEX
-
 
 %%
 d_grid=gather(d_grid);
@@ -251,8 +227,12 @@ if isfield(simoptions,'outputasstructure')
     end
 end
 
+numFnsToEvalute=length(FnsToEvaluate);
+
+
 %%
-SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
+SimPanelValues=nan(length(FnsToEvaluate), N_j, simoptions.numbersims); % needs to be NaN to permit that some people might be 'born' later than age j=1
+% Note, having the whole N_j at this stage makes assiging the values based on the indexes vastly faster
 
 %% Precompute the gridvals vectors.
 N_a=prod(n_a);
@@ -274,7 +254,6 @@ for jj=1:N_j
             [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 1);            
         end
     else
-        N_z=prod(n_z);
         if n_d(1)==0
             [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,jj),[N_a,N_ze]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
         else
@@ -285,117 +264,95 @@ for jj=1:N_j
     aprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;
 end
 
-%%
-simperiods=simoptions.simperiods; % Helps the parfor reduce overhead
-
 
 %% For sure the following could be made faster by improving how I do it
 if ~isfield(simoptions,'n_e')
-    parfor ii=1:simoptions.numbersims
-        SimPanelIndexes_ii=SimPanelIndexes(:,:,ii);
-        t=0;
-        SimPanelValues_ii=zeros(length(FnsToEvaluate),simperiods);
-        j_ind=1; % Note, this is just to satify the 'while' constraint, it will be overwritten before being used for anything
+    for jj=1:N_j
+        SimPanelIndexes_jj=SimPanelIndexes(:,jj,:);
+
+        relevantindices=(~isnan(SimPanelIndexes_jj(1,1,:))); % Note, is just across the ii dimension
+        sumrelevantindices=sum(relevantindices);
         
-        while t<=simperiods && j_ind<N_j % Once we pass N_j all entries are just nan; j_ind<N_j last round means at most j_ind<=N_j this round
-            t=t+1;
-            
-            a_ind=SimPanelIndexes_ii(1,t);
-            z_ind=SimPanelIndexes_ii(2,t);
-            j_ind=SimPanelIndexes_ii(3,t);
-            
-            if ~isnan(z_ind) % The simulations sometimes include nan values, so I use this to skip those ones
-                
-                az_ind=a_ind+N_a*(z_ind-1);
-                
-                a_val=a_gridvals(a_ind,:); % a_grid does depend on age
-                z_val=z_gridvals_J(z_ind,:,j_ind);
-                
-                if l_d==0
-                    aprime_val=aprimePolicy_gridvals(az_ind,:,j_ind);
-                    
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            tempcell=num2cell([aprime_val,a_val,z_val]');
-                        else
-                            ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                            tempcell=num2cell([aprime_val,a_val,z_val,ValuesFnParamsVec]');
-                        end
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
-                    end
+        if sumrelevantindices>0 % Does the simulation even contain anyone of age jj?
+            currentPanelIndexes_jj=SimPanelIndexes_jj(:,1,relevantindices);
+            currentPanelValues_jj=zeros(sumrelevantindices,numFnsToEvalute); % transpose will be taken before storing
+
+            az_ind=currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1);
+            % a_ind=currentPanelIndexes_jj(1,1,:);
+            % z_ind=currentPanelIndexes_jj(2,1,:);
+            % j_ind=currentPanelIndexes_jj(3,1,:);
+
+            a_val=a_gridvals(currentPanelIndexes_jj(1,1,:),:); % a_grid does depend on age
+            z_val=z_gridvals_J(currentPanelIndexes_jj(2,1,:),:,jj);
+
+            for vv=1:numFnsToEvalute
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                    tempcell={};
                 else
-                    d_val=dPolicy_gridvals(az_ind,:,j_ind);
-                    aprime_val=aprimePolicy_gridvals(az_ind,:,j_ind);
-                    
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
-                        else
-                            ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                            tempcell=num2cell([d_val,aprime_val,a_val,z_val,ValuesFnParamsVec]');
-                        end
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
-                    end
+                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,jj);
+                    tempcell=num2cell(ValuesFnParamsVec);
                 end
+                aprime_val=aprimePolicy_gridvals(az_ind,:,jj);
+                if l_d==0
+                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},aprime_val,a_val,z_val,tempcell{:});
+                else
+                    d_val=dPolicy_gridvals(az_ind,:,jj);
+                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},d_val,aprime_val,a_val,z_val,tempcell{:});
+                end
+
             end
+            SimPanelValues(:,jj,relevantindices)=reshape(currentPanelValues_jj',[numFnsToEvalute,1,sumrelevantindices]);
+
         end
-        SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
+
 else
     %% Using e variable
-    parfor ii=1:simoptions.numbersims
-        SimPanelIndexes_ii=SimPanelIndexes(:,:,ii);
-        t=0;
-        SimPanelValues_ii=zeros(length(FnsToEvaluate),simperiods);
-        j_ind=1; % Note, this is just to satify the 'while' constraint, it will be overwritten before being used for anything
-        
-        while t<=simperiods && j_ind<N_j % Once we pass N_j all entries are just nan; j_ind<N_j last round means at most j_ind<=N_j this round
-            t=t+1;
-            
-            a_ind=SimPanelIndexes_ii(1,t);
-            z_ind=SimPanelIndexes_ii(2,t);
-            e_ind=SimPanelIndexes_ii(3,t);
-            j_ind=SimPanelIndexes_ii(4,t);
-            
-            if ~isnan(z_ind) % The simulations sometimes include nan values, so I use this to skip those ones
-                
-                aze_ind=a_ind+N_a*(z_ind-1)+N_a*N_z*(e_ind-1);
-                
-                a_val=a_gridvals(a_ind,:);  % a_grid does depend on age
-                z_val=z_gridvals_J(z_ind,:,j_ind);
-                e_val=e_gridvals_J(e_ind,:,j_ind);
-                
-                if l_d==0
-                    aprime_val=aprimePolicy_gridvals(aze_ind,:,j_ind);
-                    
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            tempcell=num2cell([aprime_val,a_val,z_val,e_val]');
-                        else
-                            ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                            tempcell=num2cell([aprime_val,a_val,z_val,e_val,ValuesFnParamsVec]');
-                        end
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
-                    end
+    for jj=1:N_j
+        SimPanelIndexes_jj=SimPanelIndexes(:,jj,:);
+
+        relevantindices=(~isnan(SimPanelIndexes_jj(1,1,:))); % Note, is just across the ii dimension
+        sumrelevantindices=sum(relevantindices);
+
+        if sumrelevantindices>0 % Does the simulation even contain anyone of age jj?
+            currentPanelIndexes_jj=SimPanelIndexes_jj(:,1,relevantindices);
+            currentPanelValues_jj=zeros(sumrelevantindices,numFnsToEvalute); % transpose will be taken before storing
+
+            az_ind=currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1);
+            % a_ind=currentPanelIndexes_jj(1,1,:);
+            % z_ind=currentPanelIndexes_jj(2,1,:);
+            % e_ind=currentPanelIndexes_jj(3,1,:);
+            % j_ind=currentPanelIndexes_jj(4,1,:);
+
+            a_val=a_gridvals(currentPanelIndexes_jj(1,1,:),:); % a_grid does depend on age
+            z_val=z_gridvals_J(currentPanelIndexes_jj(2,1,:),:,jj);
+            e_val=e_gridvals_J(currentPanelIndexes_jj(3,1,:),:,jj);
+
+            for vv=1:numFnsToEvalute
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                    tempcell={};
                 else
-                    d_val=dPolicy_gridvals(aze_ind,:,j_ind);
-                    aprime_val=aprimePolicy_gridvals(aze_ind,:,j_ind);
-                    
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            tempcell=num2cell([d_val,aprime_val,a_val,z_val,e_val]');
-                        else
-                            ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-                            tempcell=num2cell([d_val,aprime_val,a_val,z_val,e_val,ValuesFnParamsVec]');
-                        end
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(tempcell{:});
-                    end
+                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,jj);
+                    tempcell=num2cell(ValuesFnParamsVec);
                 end
+                aprime_val=aprimePolicy_gridvals(az_ind,:,jj);
+                if l_d==0
+                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},aprime_val,a_val,z_val,e_val,tempcell{:});
+                else
+                    d_val=dPolicy_gridvals(az_ind,:,jj);
+                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},d_val,aprime_val,a_val,z_val,e_val,tempcell{:});
+                end
+
             end
+            SimPanelValues(:,jj,relevantindices)=reshape(currentPanelValues_jj',[numFnsToEvalute,1,sumrelevantindices]);
         end
-        SimPanelValues(:,:,ii)=SimPanelValues_ii;
     end
 end
+
+
+%% I SHOULD ADD OPTION HERE TO ONLY OUTPUT THE SIMULATED PERIODS AND NOT THE WHOLE N_j (WHEN simperiods<N_j)
+
+
 
 
 %% Implement new way of handling FnsToEvaluate: convert results
