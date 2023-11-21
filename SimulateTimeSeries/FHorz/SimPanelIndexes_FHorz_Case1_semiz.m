@@ -52,30 +52,24 @@ for jj=1:N_j
 end
 cumsum_pi_semiz_J=gather(cumsum(pi_semiz_J,2));
 
+%%
+simperiods=gather(simoptions.simperiods);
+numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
+
+cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
 
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
-        
-    InitialDist=gather(InitialDist); % Make sure it is not on gpu
-    numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
+    
     % Get seedpoints from InitialDist
-    seedpoints=nan(simoptions.numbersims,4); % 3 as a,z,semiz,j (vectorized)
-    if numel(InitialDist)==N_a*N_z*N_semiz % Has just been given for age j=1
-        cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_semiz,1]));
-        parfor ii=1:simoptions.numbersims
-            seedpointvec=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z,N_semiz],seedpointvec),1];
-        end
-    else % Distribution across ages as well
-        cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_semiz*N_j,1]));
-        parfor ii=1:simoptions.numbersims
-            seedpointvec=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_semiz,N_j],seedpointvec);
-        end
+    [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+    if numel(InitialDist)==N_a*N_semiz*N_z % Has just been given for age j=1
+        seedpoints=[ind2sub_vec_homemade([N_a,N_semiz,N_z],seedpointind'),ones(simoptions.numbersims,1)];
+    else  % Distribution across ages as well
+        seedpoints=[ind2sub_vec_homemade([N_a,N_semiz,N_z,N_j],seedpointind'),ones(simoptions.numbersims,1)];
     end
-    seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-
-
+    seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+    
     SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,semiz,z,j)
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
@@ -109,24 +103,14 @@ else %if isfield(simoptions,'n_e')
     
     cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
     
-    InitialDist=gather(InitialDist); % Make sure it is not on gpu
-    numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
     % Get seedpoints from InitialDist
-    seedpoints=nan(simoptions.numbersims,5); % 4 as a,z,semiz,e,j (vectorized)
-    if numel(InitialDist)==N_a*N_z*N_semiz*N_e % Has just been given for age j=1
-        cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_semiz*N_e,1]));
-        parfor ii=1:simoptions.numbersims
-            [~,seedpointvec]=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=[ind2sub_homemade([N_a,N_z,N_semiz,N_e],seedpointvec),1];
-        end
-    else % Distribution across ages as well
-        cumsumInitialDistVec=cumsum(reshape(InitialDist,[N_a*N_z*N_semiz*N_e*N_j,1]));
-        parfor ii=1:simoptions.numbersims
-            seedpointvec=max(cumsumInitialDistVec>rand(1));
-            seedpoints(ii,:)=ind2sub_homemade([N_a,N_z,N_semiz,N_e,N_j],seedpointvec);
-        end
+    [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+    if numel(InitialDist)==N_a*N_semiz*N_z*N_e % Has just been given for age j=1
+        seedpoints=[ind2sub_vec_homemade([N_a,N_semiz,N_z,N_e],seedpointind'),ones(simoptions.numbersims,1)];
+    else  % Distribution across ages as well
+        seedpoints=[ind2sub_vec_homemade([N_a,N_semiz,N_z,N_e,N_j],seedpointind'),ones(simoptions.numbersims,1)];
     end
-    seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+    seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
     
     SimPanel=nan(5,simperiods,simoptions.numbersims); % (a,semiz,z,e,j)
     if simoptions.parallel==0
