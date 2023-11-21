@@ -36,10 +36,7 @@ else
 end
 
 %%
-if isempty(n_d)
-    n_d=0;
-    l_d=0;
-elseif n_d(1)==0
+if n_d(1)==0
     l_d=0;
 else
     l_d=length(n_d);
@@ -47,6 +44,13 @@ end
 
 l_a=length(n_a);
 N_z=prod(n_z);
+if N_z>0
+    l_z=length(n_z);
+else
+    l_z=0;
+end
+
+l_daprime=l_d+l_a; % Does not yet handle anything but basics
 
 
 %% Exogenous shock grids
@@ -173,13 +177,16 @@ end
 
 if isfield(simoptions,'n_e') % Note: N_z==0 is dealt with elsewhere
     if N_e>0
-        l_ze=length(n_z)+length(n_e);
-        N_ze=N_z*N_e;
+        n_ze=[n_z,n_e];
+        l_ze=length(n_ze);
+        N_ze=prod(n_ze);
     else
-        l_ze=length(n_z);
+        n_ze=n_z;
+        l_ze=l_z;
         N_ze=N_z;
     end
 else
+    n_ze=n_z;
     l_ze=length(n_z);
     N_ze=N_z;
 end
@@ -188,15 +195,47 @@ end
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
 
-simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
-if isfield(simoptions,'n_e')
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+if isfield(simoptions,'n_semiz')
+    simoptions.Parameters=Parameters; % Need to be able to pass a copy of this to SimPanelIndexes
+    if N_z>0
+        if isfield(simoptions,'n_e')
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        else
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z], N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        end
+    else
+        if isfield(simoptions,'n_e')
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        else
+            PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, simoptions.n_semiz, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+        end
+    end
 else
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    if isfield(simoptions,'n_e')
+        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,simoptions.n_e); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    else
+        PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+    end
 end
 PolicyIndexesKron=gather(PolicyIndexesKron);
 
+simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
 SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
+
+if isfield(simoptions,'n_semiz')
+    semiz_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j);
+    N_semiz=prod(simoptions.n_semiz);
+    % From here on, can just treat semiz as another z
+    if N_ze>0
+        n_ze=[n_ze,simoptions.n_semiz];
+        z_gridvals_J=[repmat(semiz_gridvals_J,N_z,1),repelem(z_gridvals_J,N_semiz,1)];
+    else
+        n_ze=simoptions.n_semiz;
+        z_gridvals_J=semiz_gridvals_J;
+    end
+    N_ze=prod(n_ze);
+    l_ze=length(n_ze);
+end
 
 
 %% Implement new way of handling FnsToEvaluate
@@ -230,10 +269,6 @@ end
 numFnsToEvalute=length(FnsToEvaluate);
 
 
-%%
-SimPanelValues=nan(length(FnsToEvaluate), N_j, simoptions.numbersims); % needs to be NaN to permit that some people might be 'born' later than age j=1
-% Note, having the whole N_j at this stage makes assiging the values based on the indexes vastly faster
-
 %% Precompute the gridvals vectors.
 N_a=prod(n_a);
 
@@ -241,28 +276,39 @@ a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices
 
 % Note that dPolicy and aprimePolicy will depend on age
 if n_d(1)==0
-    dPolicy_gridvals=zeros(1,N_j);
+    daprimePolicy_gridvals=zeros(N_a*N_ze,l_a,N_j);
 else
-    dPolicy_gridvals=zeros(N_a*N_ze,l_d,N_j); % Note: N_e=1 if no e variables
+    daprimePolicy_gridvals=zeros(N_a*N_ze,l_d+l_a,N_j); % Note: N_e=1 if no e variables
 end
-aprimePolicy_gridvals=zeros(N_a*N_ze,l_a,N_j);
+
 for jj=1:N_j    
     if ~isfield(simoptions,'n_e')
         if n_d(1)==0
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 1);
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
         else
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 1);            
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(PolicyIndexesKron(:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);            
         end
     else
         if n_d(1)==0
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,jj),[N_a,N_ze]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,jj),[N_a,N_ze]),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
         else
-            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,:,jj),[2,N_a,N_ze]),n_d,n_a,n_a,[n_z,simoptions.n_e],d_grid,a_grid,1, 1);
+            [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(reshape(PolicyIndexesKron(:,:,:,:,jj),[2,N_a,N_ze]),n_d,n_a,n_a,n_ze,d_grid,a_grid,1, 1);
         end
     end
-    dPolicy_gridvals(:,:,jj)=dPolicy_gridvals_j;
-    aprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;
+    if n_d(1)==0
+        daprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;
+    else
+        daprimePolicy_gridvals(:,:,jj)=[dPolicy_gridvals_j, aprimePolicy_gridvals_j];
+    end
 end
+
+%% Now switch everything to gpu so can use arrayfun() to evaluates all the FnsToEvaluate
+daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);
+SimPanelIndexes=gpuArray(SimPanelIndexes);
+
+SimPanelValues=nan(length(FnsToEvaluate), N_j, simoptions.numbersims,'gpuArray'); % needs to be NaN to permit that some people might be 'born' later than age j=1
+% Note, having the whole N_j at this stage makes assiging the values based on the indexes vastly faster
+
 
 
 %% For sure the following could be made faster by improving how I do it
@@ -277,7 +323,7 @@ if ~isfield(simoptions,'n_e')
             currentPanelIndexes_jj=SimPanelIndexes_jj(:,1,relevantindices);
             currentPanelValues_jj=zeros(sumrelevantindices,numFnsToEvalute); % transpose will be taken before storing
 
-            az_ind=currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1);
+            az_ind=squeeze(currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1));
             % a_ind=currentPanelIndexes_jj(1,1,:);
             % z_ind=currentPanelIndexes_jj(2,1,:);
             % j_ind=currentPanelIndexes_jj(3,1,:);
@@ -287,19 +333,13 @@ if ~isfield(simoptions,'n_e')
 
             for vv=1:numFnsToEvalute
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                    tempcell={};
+                    ParamCell={};
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,jj);
-                    tempcell=num2cell(ValuesFnParamsVec);
+                    ParamCell=num2cell(ValuesFnParamsVec);
                 end
-                aprime_val=aprimePolicy_gridvals(az_ind,:,jj);
-                if l_d==0
-                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},aprime_val,a_val,z_val,tempcell{:});
-                else
-                    d_val=dPolicy_gridvals(az_ind,:,jj);
-                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},d_val,aprime_val,a_val,z_val,tempcell{:});
-                end
-
+                daprime_val=daprimePolicy_gridvals(az_ind,:,jj);
+                currentPanelValues_jj(:,vv)=EvalFnOnSimPanelIndex(FnsToEvaluate{vv},ParamCell,daprime_val,a_val,z_val,l_daprime,l_a,l_ze);
             end
             SimPanelValues(:,jj,relevantindices)=reshape(currentPanelValues_jj',[numFnsToEvalute,1,sumrelevantindices]);
 
@@ -318,7 +358,7 @@ else
             currentPanelIndexes_jj=SimPanelIndexes_jj(:,1,relevantindices);
             currentPanelValues_jj=zeros(sumrelevantindices,numFnsToEvalute); % transpose will be taken before storing
 
-            az_ind=currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1);
+            az_ind=squeeze(currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1));
             % a_ind=currentPanelIndexes_jj(1,1,:);
             % z_ind=currentPanelIndexes_jj(2,1,:);
             % e_ind=currentPanelIndexes_jj(3,1,:);
@@ -327,22 +367,16 @@ else
             a_val=a_gridvals(currentPanelIndexes_jj(1,1,:),:); % a_grid does depend on age
             z_val=z_gridvals_J(currentPanelIndexes_jj(2,1,:),:,jj);
             e_val=e_gridvals_J(currentPanelIndexes_jj(3,1,:),:,jj);
-
+            
             for vv=1:numFnsToEvalute
                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                    tempcell={};
+                    ParamCell={};
                 else
                     ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,jj);
-                    tempcell=num2cell(ValuesFnParamsVec);
+                    ParamCell=num2cell(ValuesFnParamsVec);
                 end
-                aprime_val=aprimePolicy_gridvals(az_ind,:,jj);
-                if l_d==0
-                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},aprime_val,a_val,z_val,e_val,tempcell{:});
-                else
-                    d_val=dPolicy_gridvals(az_ind,:,jj);
-                    currentPanelValues_jj(:,vv)=arrayfun(FnsToEvaluate{vv},d_val,aprime_val,a_val,z_val,e_val,tempcell{:});
-                end
-
+                daprime_val=daprimePolicy_gridvals(az_ind,:,jj);
+                currentPanelValues_jj(:,vv)=EvalFnOnSimPanelIndex(FnsToEvaluate{vv},ParamCell,daprime_val,a_val,[z_val,e_val],l_daprime,l_a,l_ze);
             end
             SimPanelValues(:,jj,relevantindices)=reshape(currentPanelValues_jj',[numFnsToEvalute,1,sumrelevantindices]);
         end

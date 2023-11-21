@@ -1,150 +1,61 @@
-function SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z, simoptions)
-% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
-% 'simperiods' beginning from randomly drawn InitialDist. (If you use the
-% newbirths option you will get more than 'numbersims', due to the extra births)
-%
-% InitialDist can be inputed as over the finite time-horizon (j), or
-% without a time-horizon in which case it is assumed to be an InitialDist
-% for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
+function SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions)
+% Intended to be called from SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_semiz=prod(n_semiz);
-N_d=prod(n_d);
 
-%% Check which simoptions have been declared, set all others to defaults 
-if exist('simoptions','var')==1
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions, 'polindorval')
-        simoptions.polindorval=1;
-    end
-    if ~isfield(simoptions, 'simperiods')
-        simoptions.simperiods=N_j;
-    end
-    if ~isfield(simoptions, 'numbersims')
-        simoptions.numbersims=10^3;
-    end
-    if ~isfield(simoptions, 'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    end
-    if ~isfield(simoptions, 'verbose')
-        simoptions.verbose=0;
-    end
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-    
-    simoptions.newbirths=0; % It is assumed you do not want to add 'new births' to panel as you go. If you do you just tell it the 'birstdist' (sometimes just the same as InitialDist, but not often)
-    if isfield(simoptions,'birthdist')
-        simoptions.newbirths=1;
-        % if you input simoptions.birthdist, you must also input
-        % simoptions.birthrate (can be scalar, or vector of length
-        % simoptions.simperiods)
-        % I do not allow for the birthdist to change over time, only the
-        % birthrate.
-    end
-    if ~isfield(simoptions, 'simpanelindexkron')
-        simoptions.simpanelindexkron=0;
-    end
-
-else
-    %If simoptions is not given, just use all the defaults
-    simoptions.polindorval=1;
-    simoptions.simperiods=N_j;
-    simoptions.numbersims=10^3;
-    simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    simoptions.verbose=0;
-    simoptions.newbirths=0;
-    simoptions.simpanelindexkron=0; % For some VFI Toolkit commands the kron is faster to use
-end
-
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
 l_z=length(n_z);
 
-%% Check the semiz options are all set
-if ~isfield(simoptions,'semiz_grid')
-    error('You have simoptions.n_semiz but have not setup simoptions.semiz_grid')
-elseif ~isfield(simoptions,'pi_semiz')
-    error('You have simoptions.n_semiz but have not setup simoptions.pi_semiz')
-end
+simperiods=gather(simoptions.simperiods);
 
 %% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
+Parameters=simoptions.Parameters; % Hid a copy here for this purpose :)
+
 if ~isfield(simoptions,'n_semiz')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
 end
 if ~isfield(simoptions,'semiz_grid')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
 end
-n_d1=n_d(1:end-1);
-n_d2=n_d(end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-% d1_grid=simoptions.d_grid(1:sum(n_d1));
-d2_grid=gpuArray(simoptions.d_grid(sum(n_d1)+1:end));
+if ~isfield(simoptions,'d_grid')
+    error('When using simoptions.SemiExoShockFn you must declare simoptions.d_grid')
+else
+    simoptions.d_grid=gpuArray(simoptions.d_grid);
+end
+if ~isfield(simoptions,'numd_semiz')
+    simoptions.numd_semiz=1; % by default, only one decision variable influences the semi-exogenous state
+end
+if length(n_d)>simoptions.numd_semiz
+    n_d1=n_d(1:end-simoptions.numd_semiz);
+    d1_grid=simoptions.d_grid(1:sum(n_d1));
+else
+    n_d1=0; d1_grid=[];
+end
+N_d1=prod(n_d1);
+n_d2=n_d(end-simoptions.numd_semiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
+l_d2=length(n_d2);
+d2_grid=simoptions.d_grid(sum(n_d1)+1:end);
 % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
+N_semiz=prod(simoptions.n_semiz);
 l_semiz=length(simoptions.n_semiz);
 temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
-if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-    SemiExoStateFnParamNames={temp{1+l_semiz+l_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
+if length(temp)>(l_semiz+l_semiz+l_d2) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
+    SemiExoStateFnParamNames={temp{l_semiz+l_semiz+l_d2+1:end}}; % the first inputs will always be (semiz,semizprime,d)
 else
     SemiExoStateFnParamNames={};
 end
-n_semiz=simoptions.n_semiz;
-N_semiz=prod(n_semiz);
-pi_semiz_J=zeros(N_semiz,N_semiz,n_d2,N_j);
+pi_semiz_J=zeros(N_semiz,N_semiz,prod(n_d2),N_j);
 for jj=1:N_j
     SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
     pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,simoptions.n_semiz,d2_grid,simoptions.semiz_grid,simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
 end
 cumsum_pi_semiz_J=gather(cumsum(pi_semiz_J,2));
 
-%%
-eval('fieldexists_ExogShockFn=1;simoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;simoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;simoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-
-if fieldexists_pi_z_J==1
-    cumsumpi_z_J=gather(cumsum(simoptions.pi_z_J,2));
-elseif fieldexists_ExogShockFn==1
-    cumsumpi_z_J=nan(N_z,N_z,N_j);
-    for jj=1:N_j
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for kk=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(kk,1)={ExogShockFnParamsVec(kk)};
-            end
-            [~,pi_z_jj]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        else
-            [~,pi_z_jj]=simoptions.ExogShockFn(jj);
-        end
-        cumsumpi_z_J(:,:,jj)=gather(cumsum(pi_z_jj,2));
-    end
-else
-    cumsumpi_z_J=gather(cumsum(pi_z,2)).*ones(1,1,N_j);
-end
-
-
-%%
-MoveOutputtoGPU=0;
-if simoptions.parallel==2
-    % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
-    % back. For anything but ridiculously short simulations it is more than worth the overhead.
-    Policy=gather(Policy);
-    MoveOutputtoGPU=1;
-end
-
-simperiods=gather(simoptions.simperiods);
 
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
-    
-    Policy=KronPolicyIndexes_FHorz_Case1_semiz(Policy, n_d1, n_d2, n_a, n_z, n_semiz, N_j);
-    
+        
     InitialDist=gather(InitialDist); % Make sure it is not on gpu
     numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
     % Get seedpoints from InitialDist
@@ -163,122 +74,40 @@ if ~isfield(simoptions,'n_e')
         end
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-    
-    
-    if simoptions.simpanelindexkron==0 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(l_a+l_z+l_semiz+1,simperiods,simoptions.numbersims); % (a,z,semiz,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_j,cumsumpi_z_J,cumsumpi_semiz_J, seedpoint, simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+l_semiz+1,simperiods);
-                
-                j1=seedpoint(4); % 4 as j in (a,z,semiz,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade(n_a,temp(1));
-                        z_c_vec=ind2sub_homemade(n_z,temp(2));
-                        semiz_c_vec=ind2sub_homemade(n_semiz,temp(3));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                        for kk=1:l_semiz
-                            SimPanel_ii(l_a+l_z+kk,t)=semiz_c_vec(kk);
-                        end
-                    end
-                    SimPanel_ii(l_a+l_z+l_semiz+1,t)=jj;
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_j,cumsumpi_z_J,cumsumpi_semiz_J, seedpoint, simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+l_semiz+1,simperiods);
-                
-                j1=seedpoint(4); % 4 as j in (a,z,semiz,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade(n_a,temp(1));
-                        z_c_vec=ind2sub_homemade(n_z,temp(2));
-                        semiz_c_vec=ind2sub_homemade(n_semiz,temp(3));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                        for kk=1:l_semiz
-                            SimPanel_ii(l_a+l_z+kk,t)=semiz_c_vec(kk);
-                        end
-                    end
-                    SimPanel_ii(l_a+l_z+l_semiz+1,t)=jj;
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
+
+
+    SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,semiz,z,j)
+    if simoptions.parallel==0
+        for ii=1:simoptions.numbersims
+            seedpoint=seedpoints(ii,:);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_semiz_raw(PolicyKron,N_d1,N_j,cumsumpi_z_J,cumsumpi_semiz_J, seedpoint, simperiods);
         end
-        
-        
-    else % simoptions.simpanelindexkron==1 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,z,semiz,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_semiz_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_j,cumsumpi_z_J,cumsumpi_semiz_J, seedpoint, simperiods);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_j,cumsumpi_z_J,cumsumpi_semiz_J, seedpoint, simperiods);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
-            end
+    else
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_raw(PolicyKron,N_d1,N_j,cumsumpi_z_J,cumsumpi_semiz_J, seedpoint, simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-        
     end
+
+    if simoptions.simpanelindexkron==0 % Convert results out of kron
+        SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
+        SimPanel=nan(l_a+l_semiz+l_z+1,N_j*simoptions.numbersims); % (a,semiz,z,j)
+        
+        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
+        SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_homemade(n_semiz,SimPanelKron(2,:)); % semiz
+        SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(3,:)); % z
+        SimPanel(end,:)=SimPanelKron(4,:); % j
+    end
+
     
 else %if isfield(simoptions,'n_e')
     %% this time with e variables
     % If e variables are used they are treated seperately as this is faster/better
-    eval('fieldexists_EiidShockFn=1;simoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-    eval('fieldexists_EiidShockFnParamNames=1;simoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-    eval('fieldexists_pi_e_J=1;simoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-    
     N_e=prod(simoptions.n_e);
     l_e=length(simoptions.n_e);
     
-    if fieldexists_pi_e_J==1
-        cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
-    elseif fieldexists_EiidShockFn==1
-        cumsumpi_e_J=nan(N_e,N_j);
-        for jj=1:N_j
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for kk=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(kk,1)={EiidShockFnParamsVec(kk)};
-                end
-                [~,pi_e_jj]=simoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            else
-                [~,pi_e_jj]=simoptions.EiidShockFn(jj);
-            end
-            cumsumpi_e_J(:,jj)=gather(cumsum(pi_e_jj));
-        end
-    else
-        cumsumpi_e_J=gather(cumsum(simoptions.pi_e)).*ones(1,N_j);
-    end
-    
-    Policy=KronPolicyIndexes_FHorz_Case1_semiz(Policy, n_d1, n_d2, n_a, n_z, n_semiz, N_j, simoptions.n_e);
+    cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
     
     InitialDist=gather(InitialDist); % Make sure it is not on gpu
     numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
@@ -299,96 +128,32 @@ else %if isfield(simoptions,'n_e')
     end
     seedpoints=floor(seedpoints); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
     
-    if simoptions.simpanelindexkron==0 % For some VFI Toolkit commands the kron is faster to use
-        SimPanel=nan(l_a+l_z+l_semiz+l_e+1,simperiods,simoptions.numbersims); % (a,z,semiz,e,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_e_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+l_semiz+l_e+1,simperiods);
-                
-                j1=seedpoint(5); % 5 as j in (a,z,semiz,e,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade(n_a,temp(1));
-                        z_c_vec=ind2sub_homemade(n_z,temp(2));
-                        semiz_c_vec=ind2sub_homemade(n_semiz,temp(3));
-                        e_c_vec=ind2sub_homemade(n_e,temp(4));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                        for kk=1:l_semiz
-                            SimPanel_ii(l_a+l_z+kk,t)=semiz_c_vec(kk);
-                        end
-                        for kk=1:l_e
-                            SimPanel_ii(l_a+l_z+l_semiz+kk,t)=e_c_vec(kk);
-                        end
-                        SimPanel_ii(l_a+l_z+l_semiz+l_e+1,t)=jj; % Note: temp(5) is jj, but no need to actually access it
-                    end
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0                
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_e_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
-                
-                SimPanel_ii=nan(l_a+l_z+l_semiz+l_e+1,simperiods);
-                
-                j1=seedpoint(5); % 5 as j in (a,z,semiz,e,j)
-                j2=min(N_j,j1+simperiods);
-                for t=1:(j2-j1+1)
-                    jj=t+j1-1;
-                    temp=SimLifeCycleKron(:,jj);
-                    if ~isnan(temp)
-                        a_c_vec=ind2sub_homemade(n_a,temp(1));
-                        z_c_vec=ind2sub_homemade(n_z,temp(2));
-                        semiz_c_vec=ind2sub_homemade(n_semiz,temp(3));
-                        e_c_vec=ind2sub_homemade(n_e,temp(4));
-                        for kk=1:l_a
-                            SimPanel_ii(kk,t)=a_c_vec(kk);
-                        end
-                        for kk=1:l_z
-                            SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-                        end
-                        for kk=1:l_semiz
-                            SimPanel_ii(l_a+l_z+kk,t)=semiz_c_vec(kk);
-                        end
-                        for kk=1:l_e
-                            SimPanel_ii(l_a+l_z+l_semiz+kk,t)=e_c_vec(kk);
-                        end
-                        SimPanel_ii(l_a+l_z+l_semiz+l_e+1,t)=jj;  % Note: temp(5) is jj, but no need to actually access it
-                    end
-                end
-                SimPanel(:,:,ii)=SimPanel_ii;
-            end
+    SimPanel=nan(5,simperiods,simoptions.numbersims); % (a,semiz,z,e,j)
+    if simoptions.parallel==0
+        for ii=1:simoptions.numbersims
+            seedpoint=seedpoints(ii,:);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_semiz_e_raw(PolicyKron,N_d1,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
         end
-        
-        
-    else % simoptions.simpanelindexkron==1 % For some VFI Toolkit commands the kron is faster to use
-        
-        SimPanel=nan(5,simperiods,simoptions.numbersims); % (a,z,e,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_semiz_e_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_e_raw(Policy,N_d1,N_d2,N_a,N_z,N_semiz,N_e,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
-                SimPanel(:,:,ii)=SimLifeCycleKron; 
-            end
+    else
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_semiz_e_raw(PolicyKron,N_d1,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-                
     end
+    
+
+    if simoptions.simpanelindexkron==0 % Convert results out of kron
+        SimPanelKron=reshape(SimPanel,[5,N_j*simoptions.numbersims]);
+        SimPanel=nan(l_a+l_semiz+l_z+l_e+1,N_j*simoptions.numbersims); % (a,semiz,z,e,j)
+        
+        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
+        SimPanel(l_a+1:l_a+l_semiz,:)=ind2sub_homemade(n_semiz,SimPanelKron(2,:)); % semiz
+        SimPanel(l_a+l_semiz+1:l_a+l_semiz+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(3,:)); % z
+        SimPanel(l_a+l_semiz+l_z+1:l_a+l_semiz+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(4,:)); % e
+        SimPanel(end,:)=SimPanelKron(5,:); % j
+    end
+
 end
 
 if MoveOutputtoGPU==1

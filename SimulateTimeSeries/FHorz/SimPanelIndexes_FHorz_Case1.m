@@ -67,6 +67,19 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_d=prod(n_d);
 
+
+%%
+cumsumpi_z_J=cumsum(pi_z_J,2);
+PolicyKron=gather(PolicyKron);
+cumsumpi_z_J=gather(cumsumpi_z_J);
+
+MoveOutputtoGPU=0;
+if simoptions.parallel==2
+    MoveOutputtoGPU=1;
+    simoptions.parallel=1;
+end
+
+
 %% Some setups need to get sent off to alternative commands (specifically when using semiz variables)
 if ~isfield(simoptions, 'n_semiz')
     simoptions.n_semiz=0;
@@ -74,24 +87,17 @@ end
 if simoptions.n_semiz(1)>0
     if N_z==0
         SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
+        if MoveOutputtoGPU==1
+            SimPanel=gpuArray(SimPanel);
+        end
         return
     else
-        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
+        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions);
+        if MoveOutputtoGPU==1
+            SimPanel=gpuArray(SimPanel);
+        end
         return
     end
-end
-
-cumsumpi_z_J=cumsum(pi_z_J,2);
-
-
-%%
-MoveOutputtoGPU=0;
-if simoptions.parallel==2
-    % Simulation on GPU is really slow. So instead, switch to CPU, and then switch
-    % back. For anything but ridiculously short simulations it is more than worth the overhead.
-    PolicyKron=gather(PolicyKron);
-    cumsumpi_z_J=gather(cumsumpi_z_J);
-    MoveOutputtoGPU=1;
 end
 
 simperiods=gather(simoptions.simperiods);
@@ -258,11 +264,11 @@ else %if isfield(simoptions,'n_e')
         
     if simoptions.simpanelindexkron==0 % Convert results out of kron
         SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
-        SimPanel=nan(l_a+l_z+l_e+1,N_j*simoptions.numbersims); % (a,z,j)
+        SimPanel=nan(l_a+l_z+l_e+1,N_j*simoptions.numbersims); % (a,z,e,j)
         
         SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
         SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
-        SimPanel(l_a+l_z1:l_a+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
+        SimPanel(l_a+l_z+1:l_a+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
         SimPanel(end,:)=SimPanelKron(4,:); % j
     end
         
