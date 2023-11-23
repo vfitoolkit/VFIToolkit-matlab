@@ -86,11 +86,19 @@ if ~isfield(simoptions, 'n_semiz')
 end
 if simoptions.n_semiz(1)>0
     if N_z==0
-        SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
-        if MoveOutputtoGPU==1
-            SimPanel=gpuArray(SimPanel);
+        if isfield(simoptions,'aggshock')
+            SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz_aggshock(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
+            if MoveOutputtoGPU==1
+                SimPanel=gpuArray(SimPanel);
+            end
+            return
+        else
+            SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
+            if MoveOutputtoGPU==1
+                SimPanel=gpuArray(SimPanel);
+            end
+            return
         end
-        return
     else
         SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions);
         if MoveOutputtoGPU==1
