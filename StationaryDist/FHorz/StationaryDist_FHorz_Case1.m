@@ -10,19 +10,10 @@ N_z=prod(n_z);
 if exist('simoptions','var')==0
     simoptions.nsims=10^4;
     simoptions.iterate=1;
-    if simoptions.iterate==1
-        simoptions.parallel=3-(gpuDeviceCount>0); % 3 (sparse) if cpu, 2 if gpu
-    elseif simoptions.iterate==0
-        simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
-    end
+    simoptions.ncores=1;
+    simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
     simoptions.tanimprovement=1;  % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
     simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
     simoptions.experienceasset=0;
     simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
@@ -39,26 +30,17 @@ else
     if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;
     end
+    if ~isfield(simoptions,'ncores')
+        simoptions.ncores=1;
+    end
     if ~isfield(simoptions,'parallel')
-        if simoptions.iterate==1
-            simoptions.parallel=3-(gpuDeviceCount>0); % 3 (sparse) if cpu, 2 if gpu
-        elseif simoptions.iterate==0
             simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
-        end
     end
     if ~isfield(simoptions,'tanimprovement')
         simoptions.tanimprovement=1; % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
-    end
-    if ~isfield(simoptions,'ncores')
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
     end
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);

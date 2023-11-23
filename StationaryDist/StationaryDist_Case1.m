@@ -12,12 +12,7 @@ N_z=prod(n_z);
 if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.parallel=1+(gpuDeviceCount>0);
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
+    simoptions.ncores=1;
     simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
@@ -40,13 +35,8 @@ else
     if isfield(simoptions, 'parallel')==0
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(simoptions, 'ncores')==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
+    if ~isfield(simoptions,'ncores')
+        simoptions.ncores=1;
     end
     if isfield(simoptions, 'eigenvector')==0
         simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
