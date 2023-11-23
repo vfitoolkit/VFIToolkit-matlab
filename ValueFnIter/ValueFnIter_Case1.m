@@ -107,15 +107,16 @@ else
     end
 end
 
+
 %% Check the sizes of some of the inputs
-if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'localpolicysearch')
-    if size(d_grid)~=[sum(n_d), 1]
+if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'localpolicysearch')
+    if N_d>0 && ~all(size(d_grid)==[sum(n_d), 1])
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
-    elseif size(a_grid)~=[sum(n_a), 1]
+    elseif ~all(size(a_grid)==[sum(n_a), 1])
         error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
     elseif N_z>0
-        if size(z_grid)~=[sum(n_z), 1]
-            if isequal(size(z_grid),[prod(n_z),length(n_z)])
+        if ~all(size(z_grid)==[sum(n_z), 1])
+            if all(size(z_grid)==[prod(n_z),length(n_z)])
                 % Using joint grids
             else
                 error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')

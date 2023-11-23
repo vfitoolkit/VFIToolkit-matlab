@@ -65,17 +65,17 @@ if Parallel==2 || Parallel==4
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    for i=1:length(FnsToEvaluate)
+    for ff=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'FnsToEvaluateParamNames(i).Names={}'
+        if isempty(FnsToEvaluateParamNames(ff).Names)  % check for 'FnsToEvaluateParamNames(i).Names={}'
             FnToEvaluateParamsCell=[];
         else
-            FnToEvaluateParamsCell=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+            FnToEvaluateParamsCell=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
         end
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
         Values=reshape(Values,[N_a*N_z,1]);
 %         ProbDensityFns(:,i)=Values.*StationaryDistVec;
-        ValuesOnGrid(:,i)=Values;
+        ValuesOnGrid(:,ff)=Values;
     end
     
 else
@@ -87,51 +87,51 @@ else
     
     if l_d>0
         
-        for i=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'FnsToEvaluateParamNames(i).Names={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames(i).Names={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             end
         end
     
     else %l_d=0
         
-        for i=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'FnsToEvaluateParamNames(i).Names={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames(i).Names={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
                 % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be
                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             end
         end
     end
@@ -140,7 +140,7 @@ end
 % Change the ordering and size so that ProbDensityFns has same kind of
 % shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
 ValuesOnGrid=ValuesOnGrid';
-ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z]);
+% ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z]);
 
 %%
 if FnsToEvaluateStruct==1
@@ -150,7 +150,7 @@ if FnsToEvaluateStruct==1
     ValuesOnGrid=struct();
 %     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
-        ValuesOnGrid.(AggVarNames{ff})=shiftdim(ValuesOnGrid2(ff,:,:),1);
+        ValuesOnGrid.(AggVarNames{ff})=reshape(shiftdim(ValuesOnGrid2(ff,:,:),1),[n_a,n_z]);
     end
 end
 
