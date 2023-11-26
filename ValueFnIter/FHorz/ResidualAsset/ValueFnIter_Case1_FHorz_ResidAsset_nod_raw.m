@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_ResidAsset_nod_raw(n_a,n_r,n_z, N_j, a_grid, r_grid, z_grid, pi_z, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_FHorz_ResidAsset_nod_raw(n_a,n_r,n_z, N_j, a_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_r=prod(n_r);
@@ -10,16 +10,10 @@ Policy=zeros(N_a,N_r,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice 
 %%
 a_grid=gpuArray(a_grid);
 r_grid=gpuArray(r_grid);
-z_grid=gpuArray(z_grid);
-
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if vfoptions.lowmemory>0
     l_z=length(n_z);
     special_n_z=ones(1,l_z);
-    % z_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_r=ones(1,length(n_r));
@@ -31,35 +25,10 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
-if fieldexists_pi_z_J==1
-    z_grid=vfoptions.z_grid_J(:,N_j);
-    pi_z=vfoptions.pi_z_J(:,:,N_j);
-elseif fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    end
-end
-if vfoptions.lowmemory>0
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        z_gridvals=z_grid;
-    end
-end
-
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_grid, ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
@@ -68,7 +37,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, special_n_z, 0, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
@@ -80,7 +49,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for r_c=1:N_r
             r_val=r_gridvals(r_c,:);
-            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_grid, ReturnFnParamsVec,0);
+            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_r);
             V(:,r_c,:,N_j)=Vtemp;
@@ -95,7 +64,7 @@ else
     % VKronNext_j is over (aprime,r,z)
     % Need to convert to be over (aprime,a,z)
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,N_j);
-    [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_grid, rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
+    [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,N_j), rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
     % Note: rprimeIndex is [N_d*N_a*N_a*N_z,1], and rprimeProbs is [N_d*N_a*N_a*N_z,1]
     aprimeIndexes=kron(ones(N_a*N_z,1),(1:1:N_a)'); % aprime over (aprime,a,z)
     zprimeIndexes=kron((1:1:N_z)',ones(N_a*N_a,1)); % zprime over (aprime,a,z)
@@ -116,12 +85,11 @@ else
     
     if vfoptions.lowmemory==0
 
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_grid, ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
         if vfoptions.paroverz==1
 
-            EV=V_Jplus1.*shiftdim(pi_z',-2); % Note: shiftdim -3
+            EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,3); % sum over z', leaving a singular second dimension
             
@@ -139,7 +107,7 @@ else
                 ReturnMatrix_z=ReturnMatrix(:,:,:,z_c);
 
                 % Use sparse for a few lines until sum over zprime
-                EV_z=V_Jplus1.*shiftdim(pi_z(z_c,:)',-2); % Note: shiftdim -3
+                EV_z=V_Jplus1.*shiftdim(pi_z_J(z_c,:,N_j)',-2); % Note: shiftdim -3
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
 
@@ -156,11 +124,11 @@ else
         % loop over z
 
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,N_j);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, special_n_z, 0, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
             
-            EV_z=V_Jplus1.*shiftdim(pi_z(z_c,:)',-2); % Note: shiftdim -3
+            EV_z=V_Jplus1.*shiftdim(pi_z_J(z_c,:,N_j)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             
@@ -175,13 +143,13 @@ else
     elseif vfoptions.lowmemory==2
         % Loop over r
 
-        EV=V_Jplus1.*shiftdim(pi_z',-2); % Note: shiftdim -3
+        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
         for r_c=1:N_r
             r_val=r_gridvals(r_c,:);
-            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_grid, ReturnFnParamsVec,0);
+            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
 
             entireRHS_r=ReturnMatrix_r+DiscountFactorParamsVec*reshape(EV,[N_a,N_a,1,N_z]);
 
@@ -209,40 +177,13 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    if fieldexists_pi_z_J==1
-        z_grid=vfoptions.z_grid_J(:,jj);
-        pi_z=vfoptions.pi_z_J(:,:,jj);
-    elseif fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        end
-    end
-    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
-        if all(size(z_grid)==[sum(n_z),1])
-            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-        elseif all(size(z_grid)==[prod(n_z),l_z])
-            z_gridvals=z_grid;
-        end
-    end
-    
     VKronNext_j=V(:,:,:,jj+1);
     
-    Vorig=VKronNext_j; % DEBUG
-
     % Residual asset:
     % VKronNext_j is over (aprime,r,z)
     % Need to convert to be over (aprime,a,z)
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,jj);
-    [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_grid, rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
+    [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,jj), rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
     % Note: rprimeIndex is [N_d*N_a*N_a*N_z,1], and rprimeProbs is [N_d*N_a*N_a*N_z,1]
     aprimeIndexes=kron(ones(N_a*N_z,1),(1:1:N_a)'); % aprime over (aprime,a,z)
     zprimeIndexes=kron((1:1:N_z)',ones(N_a*N_a,1)); % zprime over (aprime,a,z)
@@ -260,11 +201,11 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_grid, ReturnFnParamsVec,0);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, n_z, 0, a_grid, r_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         
         if vfoptions.paroverz==1
 
-            EV=VKronNext_j.*shiftdim(pi_z',-2); % Note: shiftdim -3
+            EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,3); % sum over z', leaving a singular second dimension
             
@@ -283,7 +224,7 @@ for reverse_j=1:N_j-1
                 
 
                 % Use sparse for a few lines until sum over zprime
-                EV_z=VKronNext_j.*shiftdim(pi_z(z_c,:)',-2); % Note: shiftdim -3
+                EV_z=VKronNext_j.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
 
@@ -300,11 +241,11 @@ for reverse_j=1:N_j-1
         % loop over z
 
         for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
+            z_val=z_gridvals_J(z_c,:,jj);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, n_r, special_n_z, 0, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
             
-            EV_z=VKronNext_j.*shiftdim(pi_z(z_c,:)',-2); % Note: shiftdim -3
+            EV_z=VKronNext_j.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             
@@ -319,13 +260,13 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==2
         % Loop over r
 
-        EV=VKronNext_j.*shiftdim(pi_z',-2); % Note: shiftdim -3
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
         for r_c=1:N_r
             r_val=r_gridvals(r_c,:);
-            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_grid, ReturnFnParamsVec,0);
+            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, 0, n_a, special_n_r, n_z, 0, a_grid, r_val, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
 
             entireRHS_r=ReturnMatrix_r+DiscountFactorParamsVec*reshape(EV,[N_a,N_a,1,N_z]);
 

@@ -1,4 +1,4 @@
-function  [V,Policy]=ValueFnIter_Case1_FHorz_Ambiguity_nod_noz_e_raw(n_ambiguity,n_a, n_e, N_j, a_grid, e_grid_J, ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function  [V,Policy]=ValueFnIter_Case1_FHorz_Ambiguity_nod_noz_e_raw(n_ambiguity,n_a, n_e, N_j, a_grid, e_gridvals_J, ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Note: have no z variable, do have e variables
 
 N_a=prod(n_a);
@@ -22,14 +22,14 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid_J(:,N_j), ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,N_j);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
@@ -56,7 +56,7 @@ else
     % From here, can just use EV as normal
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid_J(:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,N_e);
 
@@ -68,7 +68,7 @@ else
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,N_j);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
@@ -109,7 +109,7 @@ for reverse_j=1:N_j-1
     % From here, can just use EV as normal
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid_J(:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,N_e);
 
@@ -121,7 +121,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,jj);
+            e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);

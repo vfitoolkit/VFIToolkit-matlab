@@ -404,13 +404,13 @@ end
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
 elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
     [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
-    [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 elseif strcmp(vfoptions.exoticpreferences,'AmbiguityAversion')
     [V, Policy]=ValueFnIter_Case1_FHorz_Ambiguity(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -501,6 +501,10 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     elseif vfoptions.experienceassetu==1
         [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    elseif vfoptions.experienceassetz==1
+        % I want to implement this too :)
+    elseif vfoptions.experienceassetze==1
+        % I want to implement this too :)
     end
     return
 end
@@ -553,7 +557,7 @@ if vfoptions.residualasset==1
     r_grid=a_grid(sum(n_a1)+1:end);
     
     % Now just send all this to the right value fn iteration command
-    [V,Policy]=ValueFnIter_Case1_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_Case1_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 
@@ -564,9 +568,9 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     end
     
     if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else
-        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
@@ -610,20 +614,10 @@ if vfoptions.dynasty==1
         vfoptions.tolerance=10^(-9);
     end
     
-    if vfoptions.parallel==2
-        if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_Dynasty_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Dynasty_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        end
-    elseif vfoptions.parallel==0 || vfoptions.parallel==1
-        if N_d==0
-            % Following command is somewhat misnamed, as actually does Par0 and Par1
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_Par0_Dynasty_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        else
-            % Following command is somewhat misnamed, as actually does Par0 and Par1
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Par0_Dynasty_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        end
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Dynasty_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Dynasty_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form

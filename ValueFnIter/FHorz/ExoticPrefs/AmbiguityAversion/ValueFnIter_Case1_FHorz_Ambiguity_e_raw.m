@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_Ambiguity_e_raw(n_ambiguity,n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_grid_J, e_grid_J,ambiguity_pi_z_J, ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_Case1_FHorz_Ambiguity_e_raw(n_ambiguity,n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J,ambiguity_pi_z_J, ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -31,7 +31,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid_J(:,N_j), e_grid_J(:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
@@ -40,8 +40,8 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid_J(:,N_j), e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
@@ -51,9 +51,9 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==2
 
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,N_j);
+            e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
-                z_val=z_grid_J(z_c,N_j);
+                z_val=z_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
@@ -82,7 +82,7 @@ else
     % We will then use this to take expectation in z'
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid_J(:,N_j), e_grid_J(:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
 
         ambEV=zeros(N_a,1,N_z,n_ambiguity(N_j)); % aprime, nothing, z, prior
@@ -120,8 +120,8 @@ else
         entireEV=repelem(EV,N_d,1,1);
 
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid_J(:,N_j), e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV.*ones(1,N_a,1);
@@ -135,7 +135,7 @@ else
         
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            z_val=z_grid_J(z_c,N_j);
+            z_val=z_gridvals_J(z_c,:,N_j);
             
             ambEV_z=zeros(N_a,n_ambiguity(N_j)); % aprime, prior
             for amb_c=1:n_ambiguity(N_j) % Evaluate expections under each of the multiple priors
@@ -151,7 +151,7 @@ else
             entireEV_z=kron(EV_z,ones(N_d,1));
 
             for e_c=1:N_e
-                e_val=e_grid_J(e_c,N_j);
+                e_val=e_gridvals_J(e_c,:,N_j);
                 
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
@@ -193,8 +193,9 @@ for reverse_j=1:N_j-1
     EV=min(ambEV,[],3);
     % We will then use this to take expectation in z'
 
-    if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid_J(:,jj), e_grid_J(:,jj), ReturnFnParamsVec);
+    if vfoptions.lowmemory==0    % z_gridvals is created below
+
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
         
         ambEV=zeros(N_a,1,N_z,n_ambiguity(jj)); % aprime, nothing, z, prior
@@ -232,8 +233,8 @@ for reverse_j=1:N_j-1
         entireEV=repelem(EV,N_d,1,1);
         
         for e_c=1:N_e
-            e_val=e_grid_J(e_c,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid_J(:,jj), e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,jj);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV.*ones(1,N_a,1);
@@ -247,7 +248,7 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            z_val=z_grid_J(z_c,jj);
+            z_val=z_gridvals_J(z_c,:,jj);
             
             ambEV_z=zeros(N_a,n_ambiguity(jj)); % aprime, prior
             for amb_c=1:n_ambiguity(jj) % Evaluate expections under each of the multiple priors
@@ -263,7 +264,7 @@ for reverse_j=1:N_j-1
             entireEV_z=kron(EV_z,ones(N_d,1));
 
             for e_c=1:N_e
-                e_val=e_grid_J(e_c,jj);
+                e_val=e_gridvals_J(e_c,:,jj);
                 
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 

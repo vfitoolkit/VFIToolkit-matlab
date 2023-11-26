@@ -1,4 +1,4 @@
-function  [V,Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_grid, pi_e, ReturnFn, TemptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
+function  [V,Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, TemptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
 % Note: have no z variable, do have e variables
 
 N_a=prod(n_a);
@@ -14,13 +14,6 @@ end
 
 %%
 a_grid=gpuArray(a_grid);
-e_grid=gpuArray(e_grid);
-
-% E iid
-eval('fieldexists_EiidShockFn=1;vfoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-eval('fieldexists_EiidShockFnParamNames=1;vfoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-
 
 %%
 if all(vfoptions.parallel_e==0)
@@ -32,35 +25,11 @@ if all(vfoptions.parallel_e==0)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
     TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames, N_j);
 
-    if fieldexists_pi_e_J==1
-        e_grid=vfoptions.e_grid_J(:,N_j);
-        pi_e=vfoptions.pi_e_J(:,N_j);
-    elseif fieldexists_EiidShockFn==1
-        if fieldexists_EiidShockFnParamNames==1
-            EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
-            EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-            for ii=1:length(EiidShockFnParamsVec)
-                EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-            end
-            [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        else
-            [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        end
-    end
-    if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-        e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-        e_gridvals=e_grid;
-    end
-
-
-    pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
+    pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
     
     if ~isfield(vfoptions,'V_Jplus1')
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
 
             TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, special_n_e, 0, a_grid, e_val, TemptationFnParamsVec);
@@ -79,9 +48,9 @@ if all(vfoptions.parallel_e==0)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e,2);
+        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
             TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, special_n_e, 0, a_grid, e_val, TemptationFnParamsVec);
@@ -110,42 +79,12 @@ if all(vfoptions.parallel_e==0)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        if fieldexists_pi_e_J==1
-            e_grid=vfoptions.e_grid_J(:,jj);
-            pi_e=vfoptions.pi_e_J(:,jj);
-            pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
-            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-                e_gridvals=e_grid;
-            end
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-            else
-                [e_grid,pi_e]=vfoptions.EiidShockFn(jj);
-                e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-            end
-            pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
-            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-                e_gridvals=e_grid;
-            end
-        end
-
         VKronNext_j=V(:,:,jj+1);
 
-        VKronNext_j=sum(VKronNext_j.*pi_e,2);
+        VKronNext_j=sum(VKronNext_j.*pi_e_J(1,:,jj),2);
 
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
             TemptationMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, special_n_e, 0, a_grid, e_val, TemptationFnParamsVec);
@@ -168,31 +107,12 @@ elseif all(vfoptions.parallel_e==1)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
     TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,N_j);
 
-    
-    if fieldexists_pi_e_J==1
-        e_grid=vfoptions.e_grid_J(:,N_j);
-        pi_e=vfoptions.pi_e_J(:,N_j);
-    elseif fieldexists_EiidShockFn==1
-        if fieldexists_EiidShockFnParamNames==1
-            EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
-            EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-            for ii=1:length(EiidShockFnParamsVec)
-                EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-            end
-            [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        else
-            [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        end
-    end
-
-    pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
+    pi_e_J=shiftdim(pi_e_J,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
     
     if ~isfield(vfoptions,'V_Jplus1')
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec); % Because no z, can treat e like z and call Par2 rather than Par2e
 
-        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_grid, TemptationFnParamsVec);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting;
         
@@ -207,11 +127,11 @@ elseif all(vfoptions.parallel_e==1)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e,2);
+        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
-        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_grid, TemptationFnParamsVec);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,N_e);
         
@@ -237,33 +157,13 @@ elseif all(vfoptions.parallel_e==1)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        if fieldexists_pi_e_J==1
-            e_grid=vfoptions.e_grid_J(:,jj);
-            pi_e=vfoptions.pi_e_J(:,jj);
-            pi_e=shiftdim(pi_e,-2); % Move to third dimension
-        elseif fieldexists_EiidShockFn==1
-            if fieldexists_EiidShockFnParamNames==1
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-            else
-                [e_grid,pi_e]=vfoptions.EiidShockFn(jj);
-                e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-            end
-            pi_e=shiftdim(pi_e,-1); % Move to second dimensionfor e_c=1:n_e (normally -2, but no z so -1)
-        end
-
         VKronNext_j=V(:,:,jj+1);
 
-        VKronNext_j=sum(VKronNext_j.*pi_e,2);
+        VKronNext_j=sum(VKronNext_j.*pi_e_J(1,:,jj),2);
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
-        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_grid, TemptationFnParamsVec);
+        TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,N_e);
         
@@ -280,36 +180,23 @@ else
     n_e2=n_e(~logical(vfoptions.parallel_e));
     N_e1=prod(n_e1);
     N_e2=prod(n_e2);
-    if fieldexists_pi_e_J==1
-        e_grid=vfoptions.e_grid_J;
-        pi_e=vfoptions.pi_e;
-    elseif fieldexists_EiidShockFn==1
-        error('Cannot use EiidShockFn together with vfoptions.parallel_e (if this functionality is important to you please contact me and I can implement)')
+    e1_gridvals_J=e_gridvals_J(1:N_e1,1:length(n_e1),:); % Note, allows for dependence on age j
+    e2_gridvals_J=e_gridvals_J(N_e1*(0:1:N_e2-1),length(n_e1)+1:end,:); % Note, allows for dependence on age j
+    pi_e1_J=zeros(N_e1,N_J);
+    pi_e2_J=zeros(N_e2,N_J);
+    for jj=1:N_j
+        temp=reshape(pi_e_J(:,jj),[N_e1,N_e2]);
+        pi_e1_J(:,jj)=sum(temp,2); % Assumes that e1 and e2 are uncorrelated/independently distributed
+        pi_e2_J(:,jj)=sum(temp,1)'; % Assumes that e1 and e2 are uncorrelated/independently distributed
     end
-    e1_grid=e_grid(1:sum(n_e1),:); % Note, allows for dependence on age j
-    e2_grid=e_grid(sum(n_e1)+1:end,:); % Note, allows for dependence on age j
-    if size(pi_e,2)==1
-        temp=reshape(pi_e,[N_e1,N_e2]);
-        pi_e1=sum(temp,2); % Assumes that e1 and e2 are uncorrelated/independently distributed
-        pi_e2=sum(temp,1)'; % Assumes that e1 and e2 are uncorrelated/independently distributed
-    else
-        % Same but looping over age j
-        pi_e1=zeros(N_e1,N_J);
-        pi_e2=zeros(N_e2,N_J);
-        for jj=1:N_j
-            temp=reshape(pi_e(:,jj),[N_e1,N_e2]);
-            pi_e1(:,jj)=sum(temp,2); % Assumes that e1 and e2 are uncorrelated/independently distributed
-            pi_e2(:,jj)=sum(temp,1)'; % Assumes that e1 and e2 are uncorrelated/independently distributed
-        end
-        vfoptions.e1_grid_J=e1_grid;
-        vfoptions.pi_e1=pi_e1;
-        vfoptions.e2_grid_J=e2_grid;
-        vfoptions.pi_e2=pi_e2;
-    end
-
+    pi_e1_prime=pi_e1_J'; % Move to second dimension
+    pi_e2_J=shiftdim(pi_e2_J,-2); % Move to thrid dimension
+    
     % Need to be a different size when do a mix of parallel and loop for e
     V=zeros(N_a,N_e1,N_e2,N_j,'gpuArray');
     Policy=zeros(N_a,N_e1,N_e2,N_j,'gpuArray');
+    % Now loop over e2, and within that parallelize over e1
+    special_n_e2=ones(1,length(n_e2));
     
     %% j=N_j
 
@@ -317,27 +204,11 @@ else
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
     TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,N_j);
 
-    if fieldexists_pi_e_J==1
-        e1_grid=vfoptions.e1_grid_J(:,N_j);
-        pi_e1=vfoptions.pi_e1_J(:,N_j);
-        e2_grid=vfoptions.e2_grid_J(:,N_j);
-        pi_e2=vfoptions.pi_e2_J(:,N_j);
-    end
-
-    % Now loop over e2, and within that parallelize over e1
-    special_n_e2=ones(1,length(n_e2));
-    if all(size(e2_grid)==[sum(n_e2),1]) % kronecker (cross-product) grid
-        e2_gridvals=CreateGridvals(n_e2,e2_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(e2_grid)==[prod(n_e2),length(n_e2)]) % joint-grid
-        e2_gridvals=e2_grid;
-    end
-    pi_e1_prime=pi_e1'; % Move to second dimension
-    pi_e2=shiftdim(pi_e2,-2); % Move to thrid dimension
 
     if ~isfield(vfoptions,'V_Jplus1')
         for e2_c=1:N_e2
-            e2_val=e2_gridvals(e2_c,:);
-            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, ReturnFnParamsVec); % Just treat e1 like z and e2 like e
+            e2_val=e2_gridvals_J(e2_c,:,N_j);
+            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,N_j), e2_val, ReturnFnParamsVec); % Just treat e1 like z and e2 like e
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e2,[],1);
             V(:,:,e2_c,N_j)=Vtemp;
@@ -350,17 +221,17 @@ else
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e2,3);
+        V_Jplus1=sum(V_Jplus1.*pi_e2_J(1,1,:,N_j),3);
 
         for e2_c=1:N_e2
-            e2_val=e2_gridvals(e2_c,:);
-            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
+            e2_val=e2_gridvals_J(e2_c,:,N_j);
+            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,N_j), e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
 
             EV_e2=V_Jplus1.*pi_e1_prime;
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
-            TemptationMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, TemptationFnParamsVec); % Just treat e1 as z and e2 as e
+            TemptationMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,N_j), e2_val, TemptationFnParamsVec); % Just treat e1 as z and e2 as e
             MostTempting_e2=max(TemptationMatrix_e2,[],1);
             entireRHS_e2=ReturnMatrix_e2+TemptationMatrix_e2-ones(N_a,1).*MostTempting_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
             
@@ -389,34 +260,19 @@ else
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 
-        if fieldexists_pi_e_J==1
-            e1_grid=vfoptions.e1_grid_J(:,jj);
-            pi_e1=vfoptions.pi_e1_J(:,jj);
-            e2_grid=vfoptions.e2_grid_J(:,jj);
-            pi_e1_prime=pi_e1'; % Move to thrid dimension
-            pi_e2=vfoptions.pi_e2_J(:,jj);
-            pi_e2=shiftdim(pi_e2,-2); % Move to thrid dimension
-
-            if all(size(e2_grid)==[sum(n_e2),1]) % kronecker (cross-product) grid
-                e2_gridvals=CreateGridvals(n_e2,e2_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(e2_grid)==[prod(n_e2),length(n_e2)]) % joint-grid
-                e2_gridvals=e2_grid;
-            end
-        end
-
         VKronNext_j=V(:,:,:,jj+1);
 
-        VKronNext_j=sum(VKronNext_j.*pi_e2,3);
+        VKronNext_j=sum(VKronNext_j.*pi_e2_J(1,1,:,jj),3);
 
         for e2_c=1:N_e2
-            e2_val=e2_gridvals(e2_c,:);
-            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
+            e2_val=e2_gridvals_J(e2_c,:,jj);
+            ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,jj), e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
 
             EV_e2=VKronNext_j.*pi_e1_prime;
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
-            TemptationMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_grid, e2_val, TemptationFnParamsVec); % Just treat e1 as z and e2 as e
+            TemptationMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(TemptationFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,jj), e2_val, TemptationFnParamsVec); % Just treat e1 as z and e2 as e
             MostTempting_e2=max(TemptationMatrix_e2,[],1);
             entireRHS_e2=ReturnMatrix_e2+TemptationMatrix_e2-ones(N_a,1).*MostTempting_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
 

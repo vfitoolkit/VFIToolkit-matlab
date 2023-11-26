@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case1_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % vfoptions are already set by ValueFnIter_Case1_FHorz()
 if vfoptions.parallel~=2
     error('Can only use experience asset with parallel=2 (gpu)')
@@ -32,16 +32,6 @@ end
 N_z=prod(n_z);
 
 if isfield(vfoptions,'n_e')
-    if isfield(vfoptions,'e_grid_J')
-        e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
-    else
-        e_grid=vfoptions.e_grid;
-    end
-    if isfield(vfoptions,'pi_e_J')
-        pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
-    else
-        pi_e=vfoptions.pi_e;
-    end
     if n_d==0
         if N_z==0
             error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
@@ -60,13 +50,13 @@ else
         if N_z==0
             error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_nod_raw(n_a1,n_r,n_z, N_j, a1_grid, r_grid, z_grid, pi_z, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_nod_raw(n_a1,n_r,n_z, N_j, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         end
     else
         if N_z==0
             error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_raw(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_grid, pi_z, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_raw(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         end
     end
 end

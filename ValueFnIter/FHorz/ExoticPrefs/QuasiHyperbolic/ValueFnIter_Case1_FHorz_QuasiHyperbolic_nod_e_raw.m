@@ -1,4 +1,4 @@
-function varargout=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_e_raw(n_a,n_z,n_e,N_j, a_grid, z_grid,e_grid,pi_z,pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function varargout=ValueFnIter_Case1_FHorz_QuasiHyperbolic_nod_e_raw(n_a,n_z,n_e,N_j, a_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % Let V_j be the standard (exponential discounting) solution to the value fn problem
@@ -20,23 +20,12 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray'); % If Naive, then this is V, if Sophisticate
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); % indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
+special_n_e=ones(1,length(n_e)); % vfoptions.lowmemory>0
+pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
-eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-
-eval('fieldexists_EiidShockFn=1;vfoptions.EiidShockFn;','fieldexists_EiidShockFn=0;')
-eval('fieldexists_EiidShockFnParamNames=1;vfoptions.EiidShockFnParamNames;','fieldexists_EiidShockFnParamNames=0;')
-eval('fieldexists_pi_e_J=1;vfoptions.pi_e_J;','fieldexists_pi_e_J=0;')
-
-if vfoptions.lowmemory>0
-    special_n_e=ones(1,length(n_e));
-    % e_gridvals is created below
-end
 if vfoptions.lowmemory>1
     l_z=length(n_z);
     special_n_z=ones(1,l_z);
-    % z_gridvals is created below
 end
 
 %% j=N_j
@@ -45,61 +34,10 @@ end
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 % Nothing extra to do for final period with quasi-hyperbolic preferences
 
-if fieldexists_pi_z_J==1
-    z_grid=vfoptions.z_grid_J(:,N_j);
-    pi_z=vfoptions.pi_z_J(:,:,N_j);
-elseif fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    end
-end
-if fieldexists_pi_e_J==1
-    e_grid=vfoptions.e_grid_J(:,N_j);
-    pi_e=vfoptions.pi_e_J(:,N_j);
-elseif fieldexists_EiidShockFn==1
-    if fieldexists_EiidShockFnParamNames==1
-        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,N_j);
-        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-        for ii=1:length(EiidShockFnParamsVec)
-            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-        end
-        [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-        e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-    else
-        [e_grid,pi_e]=vfoptions.ExogShockFn(N_j);
-        e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-    end
-end
-
-pi_e=shiftdim(pi_e,-2); % Move to third dimension
-
-if vfoptions.lowmemory>0
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        z_gridvals=z_grid;
-    end
-    if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-        e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-        e_gridvals=e_grid;
-    end
-end
-
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
@@ -108,8 +46,8 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_grid, e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
@@ -119,9 +57,9 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==2
 
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
-                z_val=z_gridvals(z_c,:);
+                z_val=z_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
@@ -154,14 +92,14 @@ else
     beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
     beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta; % Discount factor between today and tomorrow.
 
-    VKronNext_j=sum(V_Jplus1.*pi_e,3); % Note: The V_Jplus1 input should be V if naive, Vunderbar if sophisticated
+    VKronNext_j=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3); % Note: The V_Jplus1 input should be V if naive, Vunderbar if sophisticated
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Use sparse for a few lines until sum over zprime
-        EV=VKronNext_j.*shiftdim(pi_z',-1);
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
@@ -192,13 +130,13 @@ else
         end
         
     elseif vfoptions.lowmemory==1
-        EV=VKronNext_j.*shiftdim(pi_z',-1);
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
                 
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid, e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                        
             if strcmp(vfoptions.quasi_hyperbolic,'Naive')
                 % For naive, we compue V which is the exponential
@@ -231,14 +169,14 @@ else
         
     elseif vfoptions.lowmemory==2
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
-                z_val=z_gridvals(z_c,:);
+                z_val=z_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                                 
@@ -291,60 +229,6 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     beta=prod(DiscountFactorParamsVec); % Discount factor between any two future periods
     beta0beta=Parameters.(vfoptions.QHadditionaldiscount)*beta; % Discount factor between today and tomorrow.
-
-    if fieldexists_pi_z_J==1
-        z_grid=vfoptions.z_grid_J(:,jj);
-        pi_z=vfoptions.pi_z_J(:,:,jj);
-    elseif fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        end
-    end
-    if fieldexists_pi_e_J==1
-        e_grid=vfoptions.e_grid_J(:,jj);
-        pi_e=vfoptions.pi_e_J(:,jj);
-        pi_e=shiftdim(pi_e,-2); % Move to thrid dimension
-    elseif fieldexists_EiidShockFn==1
-        if fieldexists_EiidShockFnParamNames==1
-            EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-            EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-            for ii=1:length(EiidShockFnParamsVec)
-                EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-            end
-            [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        else
-            [e_grid,pi_e]=vfoptions.EiidShockFn(jj);
-            e_grid=gpuArray(e_grid); pi_e=gpuArray(pi_e);
-        end
-        pi_e=shiftdim(pi_e,-2); % Move to third dimension
-    end
-    
-    if vfoptions.lowmemory>0
-        if (vfoptions.paroverz==1 || vfoptions.lowmemory==2) && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(z_grid)==[prod(n_z),l_z])
-                z_gridvals=z_grid;
-            end
-        end
-        if (fieldexists_pi_e_J==1 || fieldexists_EiidShockFn==1)
-            if all(size(e_grid)==[sum(n_e),1]) % kronecker (cross-product) grid
-                e_gridvals=CreateGridvals(n_e,e_grid,1); % The 1 at end indicates want output in form of matrix.
-            elseif all(size(e_grid)==[prod(n_e),length(n_e)]) % joint-grid
-                e_gridvals=e_grid;
-            end
-        end
-    end
     
     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
         VKronNext_j=V(:,:,:,jj+1); % Use V (goes into the equation to determine V)
@@ -352,14 +236,14 @@ for reverse_j=1:N_j-1
         VKronNext_j=Vunderbar(:,:,:,jj+1); % Use Vunderbar (goes into the equation to determine Vhat)
     end
     
-    VKronNext_j=sum(VKronNext_j.*pi_e,3);
+    VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
     
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_grid, e_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         % Use sparse for a few lines until sum over zprime
-        EV=VKronNext_j.*shiftdim(pi_z',-1);
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
@@ -390,13 +274,13 @@ for reverse_j=1:N_j-1
         end
         
     elseif vfoptions.lowmemory==1
-        EV=VKronNext_j.*shiftdim(pi_z',-1);
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
                 
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_grid, e_val, ReturnFnParamsVec);
+            e_val=e_gridvals_J(e_c,:,jj);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
                        
             if strcmp(vfoptions.quasi_hyperbolic,'Naive')
                 % For naive, we compue V which is the exponential
@@ -429,14 +313,14 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==2
         for e_c=1:N_e
-            e_val=e_gridvals(e_c,:);
+            e_val=e_gridvals_J(e_c,:,jj);
             for z_c=1:N_z
-                z_val=z_gridvals(z_c,:);
+                z_val=z_gridvals_J(z_c,:,jj);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                                 
