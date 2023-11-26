@@ -687,6 +687,22 @@ if isfield(vfoptions,'SemiExoStateFn')
         SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
         pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,vfoptions.n_semiz,d2_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues);
     end
+    if ndims(vfoptions.semiz_grid)==2
+        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),1])
+            semiz_gridvals_J=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
+        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz)])
+            semiz_gridvals_J=vfoptions.semiz_grid.*ones(1,1,N_j,'gpuArray');
+        end
+    else % Already age-dependent
+        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),N_j])
+            semiz_gridvals_J=zeros(prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j,'gpuArray');
+            for jj=1:N_j
+                semiz_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid(:,jj),1);
+            end
+        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j])
+            semiz_gridvals_J=vfoptions.semiz_grid;
+        end
+    end
     % Now that we have pi_semiz_J we are ready to compute the value function.
     if vfoptions.parallel==2
         if n_d1==0
@@ -694,33 +710,23 @@ if isfield(vfoptions,'SemiExoStateFn')
                 error('Have not implemented semi-exogenous shocks without at least two decision variables (one of which is that which determines the semi-exog transitions)')
             else
                 if N_z==0
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,vfoptions.n_semiz, N_j, d2_grid, a_grid, vfoptions.semiz_grid, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,vfoptions.n_semiz, N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
                     error('Have not implemented semi-exogenous shocks without at least two decision variables (one of which is that which determines the semi-exog transitions)')
                 end
             end
         else
             if isfield(vfoptions,'n_e')
-                if isfield(vfoptions,'e_grid_J')
-                    e_grid=vfoptions.e_grid_J(:,1); % Just a placeholder
-                else
-                    e_grid=vfoptions.e_grid;
-                end
-                if isfield(vfoptions,'pi_e_J')
-                    pi_e=vfoptions.pi_e_J(:,1); % Just a placeholder
-                else
-                    pi_e=vfoptions.pi_e;
-                end
                 if N_z==0
                     error('Have not implemented semi-exogenous shocks without at least one z variable (not counting the semi-exogenous one) but with an e variable [you could fake it adding a single-valued z with pi_z=1]')
                 else
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_grid, a_grid, z_grid, vfoptions.semiz_grid, e_grid, pi_z, pi_semiz_J, pi_e, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             else
                 if N_z==0
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, vfoptions.semiz_grid, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, z_grid, vfoptions.semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
         end
@@ -756,7 +762,7 @@ end
 %% Detect if using incremental endogenous states and solve this using purediscretization, prior to the main purediscretization routines
 if any(vfoptions.incrementaltype)
     % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
-    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_grid,N_j,pi_z,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
+    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_gridvals_J,N_j,pi_z_J,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if isfield(vfoptions,'n_e')

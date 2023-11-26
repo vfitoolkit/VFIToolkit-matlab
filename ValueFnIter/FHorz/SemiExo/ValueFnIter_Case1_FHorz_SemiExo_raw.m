@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_grid, d2_grid, a_grid, z_grid, semiz_grid, pi_z, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
@@ -18,24 +18,9 @@ Policy3=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray');
 d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
-semiz_grid=gpuArray(semiz_grid);
-z_grid=gpuArray(z_grid);
-
-eval('fieldexists_ExogShockFn=1;vfoptions.ExogShockFn;','fieldexists_ExogShockFn=0;')
-eval('fieldexists_ExogShockFnParamNames=1;vfoptions.ExogShockFnParamNames;','fieldexists_ExogShockFnParamNames=0;')
-eval('fieldexists_pi_z_J=1;vfoptions.pi_z_J;','fieldexists_pi_z_J=0;')
 
 if vfoptions.lowmemory>0
     l_z=length(n_z);
-    % z_gridvals is created below
-
-    % The grid for semiz is not allowed to depend on age (the way the transition probabilities are calculated does not allow for it)
-    if all(size(semiz_grid)==[sum(n_semiz),1])
-        semiz_gridvals=CreateGridvals(n_semiz,semiz_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(semiz_grid)==[prod(n_semiz),l_semiz])
-        semiz_gridvals=semiz_grid;
-    end
-
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
 
@@ -43,51 +28,18 @@ end
 V_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
 Policy_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
 
+bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
-if fieldexists_pi_z_J==1
-    z_grid=vfoptions.z_grid_J(:,N_j);
-    pi_z=vfoptions.pi_z_J(:,:,N_j);
-elseif fieldexists_ExogShockFn==1
-    if fieldexists_ExogShockFnParamNames==1
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,N_j);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    else
-        [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-        z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    end
-end
-if vfoptions.lowmemory>0
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        z_gridvals=z_grid;
-    end
-    bothz_gridvals=[kron(ones(N_z,1),semiz_gridvals),kron(z_gridvals,ones(N_semiz,1))];
-else
-    if all(size(z_grid)==[sum(n_z),1]) % if z are not using correlated/joint grid, then it is assumed semiz is not either
-        bothz_grid=[semiz_grid; z_grid];
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        % Joint z_gridvals with semiz_gridvals (note that because z_grid is a joint/correlated grid z_gridvals is anyway just z_grid)
-        bothz_grid=[kron(ones(N_z,1),semiz_gridvals),kron(z_grid,ones(N_semiz,1))];
-        bothz_gridvals=both_zgrid;
-    end
-end
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, n_bothz, [d1_grid; d2_grid], a_grid, bothz_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, n_bothz, [d1_grid; d2_grid], a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -98,9 +50,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     elseif vfoptions.lowmemory==1
 
-        %if vfoptions.returnmatrix==2 % GPU
         for z_c=1:N_bothz
-            z_val=bothz_gridvals(z_c,:);
+            z_val=bothz_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, special_n_bothz, [d1_grid; d2_grid], a_grid, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
@@ -122,10 +73,9 @@ else
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_bothz=kron(pi_z, pi_semiz_J(:,:,d2_c,N_j)); % reverse order
+            pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
-            %if vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,1], n_a, n_bothz, [d1_grid; d2_grid(d2_c)], a_grid, bothz_grid, ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,1], n_a, n_bothz, [d1_grid; d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             if vfoptions.paroverz==1
@@ -177,10 +127,10 @@ else
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_bothz=kron(pi_z,pi_semiz_J(:,:,d2_c,N_j)); % reverse order
+            pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
             for z_c=1:N_bothz
-                z_val=bothz_gridvals(z_c,:);
+                z_val=bothz_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,1], n_a, special_n_bothz, [d1_grid,d2_grid(d2_c)], a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
@@ -224,49 +174,14 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    if fieldexists_pi_z_J==1
-        z_grid=vfoptions.z_grid_J(:,jj);
-        pi_z=vfoptions.pi_z_J(:,:,jj);
-    elseif fieldexists_ExogShockFn==1
-        if fieldexists_ExogShockFnParamNames==1
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        else
-            [z_grid,pi_z]=vfoptions.ExogShockFn(jj);
-            z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-        end
-    end
-    if vfoptions.lowmemory>0 && (fieldexists_pi_z_J==1 || fieldexists_ExogShockFn==1)
-        if all(size(z_grid)==[sum(n_z),1])
-            z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-        elseif all(size(z_grid)==[prod(n_z),l_z])
-            z_gridvals=z_grid;
-        end
-        bothz_gridvals=[kron(ones(N_z,1),semiz_gridvals),kron(z_gridvals,ones(N_semiz,1))];
-    else
-        if all(size(z_grid)==[sum(n_z),1]) % if z are not using correlated/joint grid, then it is assumed semiz is not either
-            bothz_grid=[semiz_grid; z_grid];
-        elseif all(size(z_grid)==[prod(n_z),l_z])
-            % Joint z_gridvals with semiz_gridvals (note that because z_grid is a joint/correlated grid z_gridvals is anyway just z_grid)
-            bothz_grid=[kron(ones(N_z,1),semiz_gridvals),kron(z_grid,ones(N_semiz,1))];
-            bothz_gridvals=both_zgrid;
-        end
-    end
-    
     VKronNext_j=V(:,:,jj+1);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_bothz=kron(pi_z,pi_semiz_J(:,:,d2_c,jj)); % reverse order
+            pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
-            %if vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,1], n_a, n_bothz, [d1_grid;d2_grid(d2_c)], a_grid, bothz_grid, ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,1], n_a, n_bothz, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             if vfoptions.paroverz==1
@@ -317,10 +232,10 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_bothz=kron(pi_z,pi_semiz_J(:,:,d2_c,jj)); % reverse order
+            pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
             for z_c=1:N_bothz
-                z_val=bothz_gridvals(z_c,:);
+                z_val=bothz_gridvals_J(z_c,:,jj);
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d1, n_a, special_n_bothz, d_grid, a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but

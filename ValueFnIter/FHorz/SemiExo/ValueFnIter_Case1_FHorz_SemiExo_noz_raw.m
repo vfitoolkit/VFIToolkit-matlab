@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,n_semiz,N_j, d1_grid, d2_grid, a_grid, semiz_grid, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,n_semiz,N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -14,7 +14,6 @@ Policy3=zeros(3,N_a,N_semiz,N_j,'gpuArray');
 d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
-semiz_grid=gpuArray(semiz_grid);
 
 l_d2=length(n_d2);
 if l_d2==1
@@ -24,13 +23,6 @@ elseif l_d2==2
 end
     
 if vfoptions.lowmemory>0
-    % The grid for semiz is not allowed to depend on age (the way the transition probabilities are calculated does not allow for it)
-    if all(size(semiz_grid)==[sum(n_semiz),1])
-        semiz_gridvals=CreateGridvals(n_semiz,semiz_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(semiz_grid)==[prod(n_semiz),l_semiz])
-        semiz_gridvals=semiz_grid;
-    end
-
     special_n_semiz=ones(1,length(n_semiz));
 end
 
@@ -47,8 +39,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, n_semiz, [d1_grid; d2_grid], a_grid, semiz_grid, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, n_semiz, [d1_grid; d2_grid], a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -59,9 +50,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     elseif vfoptions.lowmemory==1
 
-        %if vfoptions.returnmatrix==2 % GPU
         for z_c=1:N_semiz
-            z_val=semiz_gridvals(z_c,:);
+            z_val=semiz_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, special_n_semiz, [d1_grid; d2_grid], a_grid, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
@@ -86,8 +76,7 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
             d2_val=d2_gridvals(d2_c,:)';
 
-            %if vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz, [d1_grid; d2_val], a_grid, semiz_grid, ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             if vfoptions.paroverz==1
@@ -143,7 +132,7 @@ else
             d2_val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_semiz
-                z_val=semiz_gridvals(z_c,:);
+                z_val=semiz_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,ones(1,l_d2)], n_a, special_n_semiz, [d1_grid,d2_val], a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
@@ -194,8 +183,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
             d2_val=d2_gridvals(d2_c,:)';
 
-            %if vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz, [d1_grid; d2_val], a_grid, semiz_grid, ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             if vfoptions.paroverz==1
@@ -250,7 +238,7 @@ for reverse_j=1:N_j-1
             d2_val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_semiz
-                z_val=semiz_gridvals(z_c,:);
+                z_val=semiz_gridvals_J(z_c,:,jj);
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,ones(1,l_d2)], n_a, special_n_semiz, [d1_grid;d2_val], a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
