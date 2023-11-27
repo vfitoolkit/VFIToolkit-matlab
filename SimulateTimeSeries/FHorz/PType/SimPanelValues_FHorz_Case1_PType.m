@@ -239,7 +239,7 @@ for ii=1:N_i
         InitialDist_temp=InitialDist; % Any dependence on permanent type must be done as a structure
     end
     
-    SimPanelValues_ii=SimPanelValues_FHorz_Case1(InitialDist_temp,Policy_temp,FnsToEvaluate_temp,FnsToEvaluateParamNames_temp,Parameters_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
+    SimPanelValues_ii=SimPanelValues_FHorz_Case1(InitialDist_temp,Policy_temp,FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
     % simoptions.outputasstructure=0; % SimPanelValues as matrix is set above
         
     if ii==1

@@ -50,6 +50,7 @@ computeForThesei=ones(N_i,1); % Used to omit the infinite horizon PTypes from co
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
+    simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     defaultagegroupings=1;
@@ -74,6 +75,9 @@ else
     end
     if ~isfield(simoptions,'ptypestorecpu')
         simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
+    end
+    if ~isfield(simoptions,'groupusingtdigest')
+        simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=100;
@@ -206,7 +210,7 @@ StdDevVec=nan(numFnsToEvaluate,N_i,maxngroups);
 AgeConditionalStats=struct();
 
 % Preallocate
-if simoptions.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+if simoptions.groupusingtdigest==1 % Setupt things for t-Digest
     % Following few lines relate to the digest
     delta=10000;
     merge_nsofar=zeros(maxngroups,numFnsToEvaluate); % Keep count
@@ -220,7 +224,7 @@ if simoptions.ptypestorecpu==1 % Things are being stored on cpu but solved on gp
             Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jj})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
         end
     end
-else
+else % Or we will just store the unique of grid and weights
     AllValues=struct();
     AllWeights=struct();
     for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
@@ -236,7 +240,7 @@ FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
 %% Do an outerloop over ptypes and an inner loop over FnsToEvaluate
 for ii=1:N_i
-    
+
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
     
@@ -450,9 +454,10 @@ for ii=1:N_i
                 minvaluevec(ff,ii,jjageshifted)=tempStats.Minimum;
                 maxvaluevec(ff,ii,jjageshifted)=tempStats.Maximum;
 
+
                 if simoptions.groupptypesforstats==1
                     % Store things to use later to use to calculate the grouped stats
-                    if simoptions_temp.ptypestorecpu==1
+                    if simoptions_temp.groupusingtdigest==1
                         Cmerge=AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted});
                         digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted});
 
@@ -507,7 +512,7 @@ if simoptions.groupptypesforstats==1
     for ff=1:numFnsToEvaluate
         for jj=1:1:maxngroups
             % We need to load up each ii, and put them together
-            if simoptions.ptypestorecpu==1 % using t-Digests
+            if simoptions.groupusingtdigest==1 % using t-Digests
                 Cmerge=AllCMerge.(FnsToEvalNames{ff}).(jgroupstr{jj});
                 digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff}).(jgroupstr{jj});
                 % Clean off the zeros at the end of Cmerge (that exist because of how we preallocate 'too much' for Cmerge); same for digestweightsmerge.
@@ -574,7 +579,6 @@ if simoptions.groupptypesforstats==1
         end
     end    
 end
-
 
 
 

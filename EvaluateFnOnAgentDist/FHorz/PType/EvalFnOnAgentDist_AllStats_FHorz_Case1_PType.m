@@ -49,6 +49,7 @@ end
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu (off by default)
+    simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     simoptions.nquantiles=20; % by default gives ventiles
@@ -60,6 +61,9 @@ else
     end
     if ~isfield(simoptions,'ptypestorecpu')
         simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu (off by default)
+    end
+    if ~isfield(simoptions,'groupusingtdigest')
+        simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=100;
@@ -103,7 +107,7 @@ AllStats=struct();
 
 
 % Preallocate
-if simoptions.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+if simoptions.groupusingtdigest==1 % Things are being stored on cpu but solved on gpu
     % Following few lines relate to the digest
     delta=10000;
     merge_nsofar=zeros(1,numFnsToEvaluate); % Keep count
@@ -323,7 +327,7 @@ for ii=1:N_i
             minvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Minimum;
             maxvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Maximum;
 
-            if simoptions_temp.ptypestorecpu==1
+            if simoptions_temp.groupusingtdigest==1
                 Cmerge=AllCMerge.(FnsToEvalNames{kk});
                 digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{kk});
 
@@ -350,7 +354,7 @@ end
 %% Now for the grouped stats, putting the ptypes together
 for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
-    if simoptions_temp.ptypestorecpu==1
+    if simoptions_temp.groupusingtdigest==1
         Cmerge=AllCMerge.(FnsToEvalNames{kk});
         digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{kk});
         % Clean off the zeros at the end of Cmerge (that exist because of how we preallocate 'too much' for Cmerge); same for digestweightsmerge.

@@ -38,11 +38,8 @@ if presorted==0
 end
 
 cumweights=cumsum(weights);
-% If the weights are not normalized to one, then do so.
-S=cumweights(end);
-if S~=1
-    cumweights=cumweights./S;
-end
+% Make sure the weights are normalized to one
+cumweights=cumweights./cumweights(end);
 
 % For some values of delta I calculated a rough upper limit on how many elements there will be in
 % the t-digest so that the memory can be preallocated. This will be too
@@ -71,8 +68,8 @@ if Nq~=0
     count=1;
     for ii=1:length(cumweights)-1
         q=cumweights(ii);
-%         if q<qlimit
-%             % Nothing, keep counting up the points as have not yet reached the next quantile
+        %         if q<qlimit
+        %             % Nothing, keep counting up the points as have not yet reached the next quantile
         if q>=qlimit
             % Passed qlimit, so store sigma, then create a new qlimit and reset sigma
             C(count)=sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii));
@@ -98,7 +95,7 @@ if Nq~=0
         C(count)=sum(weights(ibegin:ii).*values(ibegin:ii))/sum(weights(ibegin:ii));
         qlimitvec(count)=qlimit;
     end
-    
+
     % Some elements near the end will be zeros, so find and trim these
     temp=~(qlimitvec==0);
     C=C(temp);

@@ -91,12 +91,13 @@ end
 %% Set up Policy and pi_semiz_J that have the aggregate shock in last dimension so as it is easy so get the right one for each time period
 pi_semiz_idio_J=reshape(pi_semiz_J,[N_semiz_idio,N_aggz,N_semiz_idio,N_aggz,N_d2,N_j]);
 pi_semiz_idio_J=permute(pi_semiz_idio_J,[1,3,2,4,5,6]); % (semiz_idio, semiz_idioprime,aggz,aggzprime,d2,j)
+% Need to normalize so that transition probabilies are one conditional on aggzprime
+pi_semiz_idio_J=pi_semiz_idio_J./sum(pi_semiz_idio_J,2);
 
 PolicyKron=reshape(PolicyKron,[size(PolicyKron,1),N_a,N_semiz_idio,N_aggz,N_j]);
 PolicyKron=permute(PolicyKron,[1,2,3,5,4]);
 
 cumsumpi_semiz_idio_J=gather(cumsum(pi_semiz_idio_J,2));
-
 
 %%
 % simperiods=gather(simoptions.simperiods);

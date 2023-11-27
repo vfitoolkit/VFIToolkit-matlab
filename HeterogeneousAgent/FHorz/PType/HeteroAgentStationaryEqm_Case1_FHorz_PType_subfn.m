@@ -84,4 +84,9 @@ if heteroagentoptions.verbose==1
     end
 end
 
+
+if heteroagentoptions.saveprogresseachiter==1
+    save HeterAgentEqm_internal.mat GEprices Parameters GeneralEqmConditionsVec
+end
+
 end

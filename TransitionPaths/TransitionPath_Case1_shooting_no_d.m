@@ -157,6 +157,8 @@ V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
 pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
+AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
@@ -278,6 +280,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
             PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
+        end
+
+        % Sometimes, want to keep the AggVars to plot them
+        if transpathoptions.graphaggvarspath==1
+            for ii=1:length(AggVarNames)
+                AggVarsPath(tt,ii)=AggVars.(AggVarNames{ii}).Mean;
+            end
         end
 
         AgentDist=AgentDistnext;

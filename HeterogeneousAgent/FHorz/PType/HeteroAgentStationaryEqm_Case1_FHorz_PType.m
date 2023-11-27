@@ -43,33 +43,37 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
+    heteroagentoptions.saveprogresseachiter=0;
 else
-    if isfield(heteroagentoptions,'multiGEcriterion')==0
+    if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
-    if isfield(heteroagentoptions,'multiGEweights')==0
+    if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     end
     if N_p~=0
-        if isfield(heteroagentoptions,'p_grid')==0
+        if ~isfield(heteroagentoptions,'p_grid')
             disp('ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
             dbstack
         end
     end
-    if isfield(heteroagentoptions,'toleranceGEprices')==0
+    if ~isfield(heteroagentoptions,'toleranceGEprices')
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+    if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'verbose')==0
+    if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    if isfield(heteroagentoptions,'fminalgo')==0
+    if ~isfield(heteroagentoptions,'fminalgo')
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
-    if isfield(heteroagentoptions,'parallel')==0
+    if ~isfield(heteroagentoptions,'parallel')
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    end
+    if ~isfield(heteroagentoptions,'saveprogresseachiter')
+        heteroagentoptions.saveprogresseachiter=0;
     end
 end
 
@@ -487,6 +491,7 @@ elseif heteroagentoptions.fminalgo==5
     end
     % Given current prices solve the model to get the general equilibrium conditions as a structure
     p_percentchange=Inf;
+    itercount=0;
     while any(p_percentchange>heteroagentoptions.toleranceGEprices_percent) % GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
         
         p_i=GeneralEqmConditionsFnOpt(p); % using heteroagentoptions.outputGEform=1, so this is a vector
@@ -521,6 +526,11 @@ elseif heteroagentoptions.fminalgo==5
         p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
         % Update p for next iteration
         p=p_new;
+
+        if heteroagentoptions.saveprogresseachiter==1
+            itercount=itercount+1;
+            save HeterAgentEqm_internal2.mat p_percentchange GeneralEqmConditionsVec itercount
+        end
     end
     p_eqm_vec=p_new; % Need to put it in p_eqm_vec so that it can be used to create the final output
 elseif heteroagentoptions.fminalgo==6
