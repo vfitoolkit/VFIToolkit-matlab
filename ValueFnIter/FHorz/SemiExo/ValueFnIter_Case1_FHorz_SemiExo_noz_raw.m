@@ -87,7 +87,7 @@ else
 
                 entireEV=kron(EV,ones(N_d1,1));
                 %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
-                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
+                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -107,7 +107,7 @@ else
                     EV_z=sum(EV_z,2);
 
                     entireEV_z=kron(EV_z,ones(N_d1,1));
-                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -142,7 +142,7 @@ else
                 EV_z=sum(EV_z,2);
 
                 entireEV_z=kron(EV_z,ones(N_d1,1));
-                entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -194,7 +194,7 @@ for reverse_j=1:N_j-1
 
                 entireEV=kron(EV,ones(N_d1,1));
                 %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
-                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
+                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -213,7 +213,7 @@ for reverse_j=1:N_j-1
                     EV_z=sum(EV_z,2);
 
                     entireEV_z=kron(EV_z,ones(N_d1,1));
-                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -248,7 +248,7 @@ for reverse_j=1:N_j-1
                 EV_z=sum(EV_z,2);
 
                 entireEV_z=kron(EV_z,ones(N_d1,1));
-                entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);

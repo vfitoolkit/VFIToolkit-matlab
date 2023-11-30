@@ -20,11 +20,7 @@ if exist('vfoptions','var')==0
     end
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    if prod(n_z)>50
-        vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
-    else
-        vfoptions.paroverz=0;
-    end
+    vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
@@ -55,11 +51,7 @@ else
         vfoptions.lowmemory=0;
     end
     if ~isfield(vfoptions,'paroverz') % Only used when vfoptions.lowmemory=0
-        if prod(n_z)>50
-            vfoptions.paroverz=1;
-        else
-            vfoptions.paroverz=0;
-        end
+        vfoptions.paroverz=1;
     end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
@@ -196,15 +188,15 @@ end
 
 %% Exogenous shock grids
 
-% When using a joint-grid, change n_z to the form I always use internally: first element is N_z, followed by a bunch of ones (that way prod(n_z) still gives N_z)
-jointgrid=0;
-if all(size(z_grid)==[prod(n_z),length(n_z)])
-    jointgrid=1;
-    n_z=[prod(n_z,ones(1,length(n_z)-1))];
-elseif all(size(z_grid)==[n_z(1),length(n_z)])
-    % already in this form
-    jointgrid=1;
-end
+% % % When using a joint-grid, change n_z to the form I always use internally: first element is N_z, followed by a bunch of ones (that way prod(n_z) still gives N_z)
+% % jointgrid=0;
+% % if all(size(z_grid)==[prod(n_z),length(n_z)])
+% %     jointgrid=1;
+% %     n_z=[prod(n_z,ones(1,length(n_z)-1))];
+% % elseif all(size(z_grid)==[n_z(1),length(n_z)])
+% %     % already in this form
+% %     jointgrid=1;
+% % end
 
 % NOTE: If vfoptions.parallel~=2 (so using cpu), then only simply stacked columns that do not depend on age are allowed for z_grid
 if vfoptions.parallel==2
