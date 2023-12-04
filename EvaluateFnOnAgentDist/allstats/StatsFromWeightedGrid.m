@@ -65,22 +65,32 @@ end
 %% Deal with case where all the values are just the same anyway
 if SortedValues(1)==SortedValues(end)
     % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
-    AllStats.Variance=0;
-    AllStats.StdDeviation=0;
-    AllStats.LorenzCurve=linspace(1/npoints,1/npoints,1);
-    AllStats.Gini=0;
-    AllStats.Maximum=SortedValues(1);
-    AllStats.Minimum=SortedValues(1);
-    AllStats.QuantileCutoffs=nan(nquantiles+1,1,'gpuArray');
-    AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
-    AllStats.MoreInequality.Top1share=0.01;
-    AllStats.MoreInequality.Top5share=0.05;
-    AllStats.MoreInequality.Top10share=0.1;
-    AllStats.MoreInequality.Bottom50share=0.5;
-    AllStats.MoreInequality.Percentile50th=SortedValues(1);
-    AllStats.MoreInequality.Percentile90th=SortedValues(1);
-    AllStats.MoreInequality.Percentile95th=SortedValues(1);
-    AllStats.MoreInequality.Percentile99th=SortedValues(1);
+    if whichstats(3)==1
+        AllStats.Variance=0;
+        AllStats.StdDeviation=0;
+    end
+    if whichstats(4)==1
+        AllStats.LorenzCurve=linspace(1/npoints,1/npoints,1);
+        AllStats.Gini=0;
+    end
+    if whichstats(5)==1
+        AllStats.Maximum=SortedValues(1);
+        AllStats.Minimum=SortedValues(1);
+    end
+    if whichstats(6)==1
+        AllStats.QuantileCutoffs=nan(nquantiles+1,1,'gpuArray');
+        AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
+    end
+    if whichstats(7)==1
+        AllStats.MoreInequality.Top1share=0.01;
+        AllStats.MoreInequality.Top5share=0.05;
+        AllStats.MoreInequality.Top10share=0.1;
+        AllStats.MoreInequality.Bottom50share=0.5;
+        AllStats.MoreInequality.Percentile50th=SortedValues(1);
+        AllStats.MoreInequality.Percentile90th=SortedValues(1);
+        AllStats.MoreInequality.Percentile95th=SortedValues(1);
+        AllStats.MoreInequality.Percentile99th=SortedValues(1);
+    end
 else
     if whichstats(3)==1
         % Calculate the 'age conditional' variance

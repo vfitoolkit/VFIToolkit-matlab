@@ -146,6 +146,8 @@ elseif vfoptions.lowmemory==1
         end
     end
     
+elseif vfoptions.lowmemory==2  
+    error('lowmemory=2 is not an option for Epstein-Zin preferences in infinite horizon')
 end
 
 if vfoptions.verbose==1
