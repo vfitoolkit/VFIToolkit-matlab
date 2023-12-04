@@ -55,6 +55,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -81,6 +82,9 @@ else
     end
     if isfield(simoptions,'tolerance')==0    
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    end
+    if ~isfield(simoptions,'whichstats')
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
 end
 
@@ -318,14 +322,20 @@ for ii=1:N_i
             SortedWeights=accumarray(sortindex,StationaryDist_ii,[],@sum);
 
             %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
-            AllStats.(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1); % 1 is presorted
+            AllStats.(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
 
             % For later, put the mean and std dev in a convenient place
+            if simoptions.whichstats(1)==1
             MeanVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean;
-            StdDevVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDeviation;
+            end
+            if simoptions.whichstats(3)==1
+                StdDevVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDeviation;
+            end
             % Do the same with the minimum and maximum
-            minvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Minimum;
-            maxvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Maximum;
+            if simoptions.whichstats(5)==1
+                minvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Minimum;
+                maxvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Maximum;
+            end
 
             if simoptions_temp.groupusingtdigest==1
                 Cmerge=AllCMerge.(FnsToEvalNames{kk});
@@ -369,13 +379,13 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         % Merge the digests
         [C_kk,digestweights_kk,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
 
-        tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+        tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
     else
         % Do unique() before we calculate stats
         [AllValues.(FnsToEvalNames{kk}),~,sortindex]=unique(AllValues.(FnsToEvalNames{kk}));
         AllWeights.(FnsToEvalNames{kk})=accumarray(sortindex,AllWeights.(FnsToEvalNames{kk}),[],@sum);
 
-        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllWeights.(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllWeights.(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
     end
     % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
     allstatnames=fieldnames(tempStats);
@@ -388,31 +398,35 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
     
     % Mean
-    AllStats.(FnsToEvalNames{kk}).Mean=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*MeanVec(kk,:))/SigmaNxi;
-
-    % Standard Deviation
-    if N_i==1
-        AllStats.(FnsToEvalNames{kk}).StdDev=StdDevVec(kk,:);
-    else
-        temp2=zeros(N_i,1);
-        for ii=2:N_i
-            if FnsAndPTypeIndicator(kk,ii)==1
-                temp=MeanVec(kk,1:(ii-1))-MeanVec(kk,ii); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
-                if any(temp<0) && all(temp>10^(-12))
-                    temp=max(temp,0);
-                end
-                temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
-            end
-        end
-        AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*StdDevVec(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+    if simoptions.whichstats(1)==1
+        AllStats.(FnsToEvalNames{kk}).Mean=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*MeanVec(kk,:))/SigmaNxi;
     end
 
-    AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
-    
-    % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
-    AllStats.(FnsToEvalNames{kk}).Maximum=max(maxvaluevec(kk,:));
-    AllStats.(FnsToEvalNames{kk}).Minimum=min(minvaluevec(kk,:));
+    % Standard Deviation
+    if simoptions.whichstats(3)==1
+        if N_i==1
+            AllStats.(FnsToEvalNames{kk}).StdDev=StdDevVec(kk,:);
+        else
+            temp2=zeros(N_i,1);
+            for ii=2:N_i
+                if FnsAndPTypeIndicator(kk,ii)==1
+                    temp=MeanVec(kk,1:(ii-1))-MeanVec(kk,ii); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
+                    if any(temp<0) && all(temp>10^(-12))
+                        temp=max(temp,0);
+                    end
+                    temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
+                end
+            end
+            AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*StdDevVec(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+        end
+        AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
+    end
 
+    % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
+    if simoptions.whichstats(5)==1
+        AllStats.(FnsToEvalNames{kk}).Maximum=max(maxvaluevec(kk,:));
+        AllStats.(FnsToEvalNames{kk}).Minimum=min(minvaluevec(kk,:));
+    end
 end
 
 

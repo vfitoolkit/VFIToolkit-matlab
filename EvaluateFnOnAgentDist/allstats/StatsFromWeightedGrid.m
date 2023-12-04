@@ -22,7 +22,7 @@ if ~exist('whichstats','var')
     % 1st element: mean
     % 2nd element: median
     % 3rd element: std dev and variance
-    % 4th element: lorenz curve
+    % 4th element: lorenz curve and gini coefficient
     % 5th element: min/max
     % 6th element: quantiles
     % 7th element: More Inequality
