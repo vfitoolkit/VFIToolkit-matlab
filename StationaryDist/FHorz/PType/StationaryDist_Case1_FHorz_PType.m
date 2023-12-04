@@ -42,6 +42,33 @@ if ~exist('simoptions','var')
     simoptions=struct(); % defaults are filled in later
 end
 
+%% Deal with jequaloneDist
+% If age one distribution is input as a function, then evaluate it
+if isa(jequaloneDist, 'function_handle')
+    jequaloneDistFn=jequaloneDist;
+    clear jequaloneDist
+    % figure out any parameters
+    temp=getAnonymousFnInputNames(jequaloneDistFn);
+    if length(temp)>4 % first 4 are a_grid,z_grid,n_a,n_z
+        jequaloneDistFnParamNames={temp{5:end}}; % the first inputs will always be (a_grid,z_grid,n_a,n_z,...)
+    else
+        jequaloneDistFnParamNames={};
+    end
+    jequaloneParamsCell={};
+    for pp=1:length(jequaloneDistFnParamNames)
+        jequaloneParamsCell{pp}=Parameters.(jequaloneDistFnParamNames{pp});
+    end
+    % make sure a_grid and z_grid have been put in simoptions
+    if ~isfield(simoptions,'a_grid')
+        error('When using jequaloneDist as a function you must put a_grid into simoptions.a_grid')
+    elseif ~isfield(simoptions,'z_grid')
+        error('When using jequaloneDist as a function you must put z_grid into simoptions.z_grid')
+    end
+
+    jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.z_grid,n_a,n_z,jequaloneParamsCell{:});
+end
+
+
 if ~isstruct(jequaloneDist)
     % Using matrix, reshape now to save multiple reshapes later
     % (Note that matrix implies same grids for all agents)
@@ -124,6 +151,9 @@ if ~isstruct(jequaloneDist)
     end
 end
 
+
+
+%%
 for ii=1:N_i
 
     % First set up simoptions

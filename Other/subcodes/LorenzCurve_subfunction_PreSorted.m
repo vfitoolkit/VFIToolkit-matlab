@@ -5,10 +5,10 @@ function LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumS
 options.ordertoroundtoavoidnumericalerror=9;
 
 % Calculate the 'age conditional' lorenz curve
-%We now want to use interpolation, but this won't work unless all values in CumSumSortedWeights are distinct. So we now remove
-%any duplicates (ie. points of zero probability mass/density). We then have to remove the corresponding points of SortedValues. Since we
-%are just looking for 100 points to make up our cdf I round all variables to 9 decimal points before checking for uniqueness (Do
-%this because otherwise rounding in the ~12th decimal place was causing problems with vector not being sorted as strictly increasing.
+% We now want to use interpolation, but this won't work unless all values in CumSumSortedWeights are distinct. So we now remove
+% any duplicates (ie. points of zero probability mass/density). We then have to remove the corresponding points of SortedValues. Since we
+% are just looking for 100 points to make up our cdf I round all variables to 9 decimal points before checking for uniqueness (Do
+% this because otherwise rounding in the ~12th decimal place was causing problems with vector not being sorted as strictly increasing.
 CumSumSortedWeights_temp=round(CumSumSortedWeights*10^options.ordertoroundtoavoidnumericalerror);
 % Comment:
 % round(CumSumSortedWeights,options.ordertoroundtoavoidnumericalerror);

@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -29,7 +29,6 @@ while currdist>Tolerance
     VKronold=VKron;
     
     for z_c=1:N_z
-        
         zvals=z_gridvals(z_c,:);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParamsVec);
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -37,7 +36,7 @@ while currdist>Tolerance
         temp2_z=ReturnMatrix_z;
         temp2_z(becareful)=ReturnMatrix_z(becareful).^ezc2; % Otherwise can get things like 0 to negative power equals infinity
         temp2_z(ReturnMatrix_z==0)=-Inf; % Otherwise these ReturnMatrix=zero points get a finite amount added to them (from expectations) and were mishandled later
-
+        
         % Part of Epstein-Zin is before taking expectation
         temp=VKronold;
         temp(isfinite(VKronold))=(ezc4*VKronold(isfinite(VKronold))).^ezc5;
@@ -65,13 +64,14 @@ while currdist>Tolerance
         PolicyIndexes(:,z_c)=maxindex;
              
         tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
-        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+%         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
+        Ftemp(:,z_c)=temp2_z(tempmaxindex); 
     end
 
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
-    
-    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+
+    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
 
@@ -96,15 +96,17 @@ while currdist>Tolerance
             VKron(VKron==0)=-Inf;
         end
     end
-    
-%     if Verbose==1
-        % if rem(tempcounter,100)==0
-        %     disp(tempcounter)
-        %     disp(currdist)
-        % end
-        % tempcounter=tempcounter+1;
+        
+%     if vfoptions.verbose==1
+%         if rem(tempcounter,10)==0
+%             tempcounter
+%             currdist
+%             fprintf('times: %2.8f, %2.8f, %2.8f \n',time1,time2,time3)
+%         end
 %     end
+
     tempcounter=tempcounter+1;
+    
 end
 
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form

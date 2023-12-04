@@ -342,17 +342,22 @@ for ii=1:N_i
                 AllCMerge.(FnsToEvalNames{kk})=Cmerge;
                 Alldigestweightsmerge.(FnsToEvalNames{kk})=digestweightsmerge;
             else
-                AllValues.(FnsToEvalNames{kk})=[AllValues.(FnsToEvalNames{kk}); SortedValues];
-                AllWeights.(FnsToEvalNames{kk})=[AllWeights.(FnsToEvalNames{kk}); SortedWeights*StationaryDist.ptweights(ii)];
+                if simoptions.ptypestorecpu==1
+                    AllValues.(FnsToEvalNames{kk})=[AllValues.(FnsToEvalNames{kk}); gather(SortedValues)];
+                    AllWeights.(FnsToEvalNames{kk})=[AllWeights.(FnsToEvalNames{kk}); gather(SortedWeights)*gather(StationaryDist.ptweights(ii))];
+                else
+                    AllValues.(FnsToEvalNames{kk})=[AllValues.(FnsToEvalNames{kk}); SortedValues];
+                    AllWeights.(FnsToEvalNames{kk})=[AllWeights.(FnsToEvalNames{kk}); SortedWeights*StationaryDist.ptweights(ii)];
+                end
             end
-
         end
     end
 end
 
 
+
 %% Now for the grouped stats, putting the ptypes together
-for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid    
 
     if simoptions_temp.groupusingtdigest==1
         Cmerge=AllCMerge.(FnsToEvalNames{kk});
@@ -366,6 +371,10 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
 
         tempStats=StatsFromWeightedGrid(C_kk,digestweights_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
     else
+        % Do unique() before we calculate stats
+        [AllValues.(FnsToEvalNames{kk}),~,sortindex]=unique(AllValues.(FnsToEvalNames{kk}));
+        AllWeights.(FnsToEvalNames{kk})=accumarray(sortindex,AllWeights.(FnsToEvalNames{kk}),[],@sum);
+
         tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllWeights.(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
     end
     % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields

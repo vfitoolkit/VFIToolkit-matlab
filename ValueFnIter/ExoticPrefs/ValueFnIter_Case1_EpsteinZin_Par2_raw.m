@@ -98,8 +98,8 @@ while currdist>Tolerance
         
 %     if vfoptions.verbose==1
 %         if rem(tempcounter,10)==0
-%             disp(tempcounter)
-%             disp(currdist)
+%            tempcounter
+%            currdist
 %             fprintf('times: %2.8f, %2.8f, %2.8f \n',time1,time2,time3)
 %         end
 %     end

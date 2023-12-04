@@ -4,7 +4,7 @@ function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_NoD_Par2_raw(VKron, n_a, n
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-PolicyIndexes=zeros(N_a,N_z,'gpuArray');
+Policy=zeros(N_a,N_z,'gpuArray');
 
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
@@ -53,7 +53,7 @@ while currdist>Tolerance
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         VKron(:,z_c)=Vtemp;
-        PolicyIndexes(:,z_c)=maxindex;
+        Policy(:,z_c)=maxindex;
         
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
         Ftemp(:,z_c)=temp2_z(tempmaxindex); % note that temp2_z is the EZ ReturnMatrix_z
@@ -64,7 +64,7 @@ while currdist>Tolerance
 
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
-            EVKrontemp=VKron(PolicyIndexes,:);
+            EVKrontemp=VKron(Policy,:);
 
             % Part of Epstein-Zin is before taking expectation
             temp=EVKrontemp;
@@ -98,8 +98,6 @@ while currdist>Tolerance
     tempcounter=tempcounter+1;
 
 end
-
-Policy=PolicyIndexes;
 
 
 

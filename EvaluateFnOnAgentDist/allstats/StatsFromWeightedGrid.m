@@ -29,18 +29,13 @@ if presorted==0
 
     %% Sorted weighted values
     [SortedValues,SortedValues_index] = sort(Values);
-
     SortedWeights = Weights(SortedValues_index);
-
-    % WeightedValues=Values.*Weights;
-    % SortedWeightedValues=WeightedValues(SortedValues_index);
 elseif presorted==1
     SortedValues=Values;
     SortedWeights=Weights;
 end
 SortedWeightedValues=SortedValues.*SortedWeights;
 CumSumSortedWeights=cumsum(SortedWeights);
-
 
 
 %% Now the stats themselves
@@ -87,45 +82,50 @@ else
             AllStats.GiniComment={'Gini cannot be calculated as some values are negative'};
         else
             % Calculate the 'age conditional' lorenz curve
-            AllStats.LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,npoints,2);
+            % (note, we already eliminated the zero mass points, and dealt with case that the remaining grid is just one point)
+            LorenzCurveIndex=zeros(npoints,1);
+            for lorenzc=1/npoints:1/npoints:1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
+                [~,LorenzCurveIndex_lorenzc]=max(CumSumSortedWeights >= lorenzc);
+                LorenzCurveIndex(lorenzc)=LorenzCurveIndex_lorenzc;
+            end
+            AllStats.LorenzCurve=SortedWeightedValues(LorenzCurveIndex);
             % Calculate the 'age conditional' gini
-            AllStats.Gini=Gini_from_LorenzCurve(AllStats.LorenzCurve);
+            % Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
+            A=sum((1:1:npoints)/npoints-reshape(AllStats.LorenzCurve,[1,npoints]))/npoints;
+            AllStats.Gini=2*A;
         end
     end
-
-    % Calculate the 'age conditional' quantile means (ventiles by default)
-    % Calculate the 'age conditional' quantile cutoffs (ventiles by default)
-    QuantileIndexes=zeros(nquantiles-1,1,'gpuArray');
-    QuantileCutoffs=zeros(nquantiles-1,1,'gpuArray');
-    QuantileMeans=zeros(nquantiles,1,'gpuArray');
-
-    for ll=1:nquantiles-1
-        tempindex=find(CumSumSortedWeights>=ll/nquantiles,1,'first');
-
-        QuantileIndexes(ll)=tempindex;
-        QuantileCutoffs(ll)=SortedValues(tempindex);
-        if ll==1
-            QuantileMeans(ll)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-        elseif ll<(nquantiles-1) % (1<ll) &&
-            QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-        else %if ll==(options.nquantiles-1)
-            QuantileMeans(ll)=sum(SortedWeightedValues(QuantileIndexes(ll-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes(ll-1)));
-            QuantileMeans(ll+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-        end
-    end
+    
     % Min value
     tempindex=find(CumSumSortedWeights>=tolerance,1,'first');
     minvalue=SortedValues(tempindex);
     % Max value
     tempindex=find(CumSumSortedWeights>=(1-tolerance),1,'first');
     maxvalue=SortedValues(tempindex);
-    AllStats.QuantileCutoffs=[minvalue; QuantileCutoffs; maxvalue];
+    % Create min and max as dedicated entries
+    AllStats.Maximum=maxvalue;
+    AllStats.Minimum=minvalue;
+    
+    
+    % Calculate the quantile means (ventiles by default)
+    % Calculate the quantile cutoffs (ventiles by default)
+    QuantileMeans=zeros(nquantiles,1,'gpuArray');
+    quantilecutoffindexes=zeros(npoints,1);
+    for quantilec=1/nquantiles:1/nquantiles:1-1/nquantiles % Note: because there are nquantiles points in quantiles, avoiding a loop here can be prohibitive in terms of memory use
+        [~,quantilecutoffindexes_quantilec]=max(CumSumSortedWeights >= quantilec);
+        quantilecutoffindexes(quantilec)=quantilecutoffindexes_quantilec;
+    end
+    [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
+    AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
+    % Note: following lines replace /(1/nquantiles) with *nquantiles
+    QuantileMeans(1)=(sum(SortedWeightedValues(1:quantilecutoffindexes(1)))-SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles))*nquantiles;
+    for ll=2:nquantiles-1
+        QuantileMeans(ll)=(sum(SortedWeightedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll)))-SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)+SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles))*nquantiles;
+    end
+    QuantileMeans(nquantiles)=(sum(SortedWeightedValues(quantilecutoffindexes(nquantiles-1)+1:end))+SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles))*nquantiles;
     AllStats.QuantileMeans=QuantileMeans;
-
-    % Also created min and max as dedicated entries
-    AllStats.Maximum=minvalue;
-    AllStats.Minimum=maxvalue;
-
+    
+    
     % Top X share indexes (npoints will be number of points in Lorenz Curve)
     Top1cutpoint=round(0.99*npoints);
     Top5cutpoint=round(0.95*npoints);
