@@ -37,6 +37,7 @@ if ~exist('simoptions','var')
     simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
 else
     %Check options for missing fields, if there are some fill them with the defaults
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
@@ -70,6 +71,9 @@ else
             simoptions.SampleRestrictionFn_include=1; % By default, include observations that meet the sample restriction (if zero, then exclude observations meeting this criterion)
         end
         simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn);
+    end
+    if ~isfield(simoptions,'whichstats')
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
 end
 
@@ -353,7 +357,7 @@ if N_z==0
                 % Note: stationary dist has already been restricted (if relevant)
             end
 
-            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
             
             % Store them in AgeConditionalStats
             AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
@@ -438,27 +442,41 @@ else % N_z
                 % Note: stationary dist has already been restricted (if relevant)
             end
 
-            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance);
+            tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
             % Store them in AgeConditionalStats
-            AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
-            AgeConditionalStats.(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
-            AgeConditionalStats.(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
-            AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
-            AgeConditionalStats.(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
-            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(kk)=tempStats.Minimum;
-            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(kk)=tempStats.Maximum;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share(kk)=tempStats.MoreInequality.Top1share;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share(kk)=tempStats.MoreInequality.Top5share;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share(kk)=tempStats.MoreInequality.Top10share;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share(kk)=tempStats.MoreInequality.Bottom50share;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th(kk)=tempStats.MoreInequality.Percentile50th;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th(kk)=tempStats.MoreInequality.Percentile90th;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
-            AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,kk)=tempStats.LorenzCurve;
-            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,kk)=tempStats.QuantileCutoffs;
-            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,kk)=tempStats.QuantileMeans;
+            if simoptions.whichstats(1)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
+            end
+            if simoptions.whichstats(2)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+            end
+            if simoptions.whichstats(3)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
+                AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
+            end
+            if simoptions.whichstats(4)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,kk)=tempStats.LorenzCurve;
+                AgeConditionalStats.(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
+            end
+            if simoptions.whichstats(5)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(kk)=tempStats.Minimum;
+                AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(kk)=tempStats.Maximum;
+            end
+            if simoptions.whichstats(6)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,kk)=tempStats.QuantileCutoffs;
+                AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,kk)=tempStats.QuantileMeans;
+            end
+            if simoptions.whichstats(7)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share(kk)=tempStats.MoreInequality.Top1share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share(kk)=tempStats.MoreInequality.Top5share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share(kk)=tempStats.MoreInequality.Top10share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share(kk)=tempStats.MoreInequality.Bottom50share;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th(kk)=tempStats.MoreInequality.Percentile50th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th(kk)=tempStats.MoreInequality.Percentile90th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
+                AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
+            end
         end
     end
 end
