@@ -11,6 +11,9 @@ function [C , iter_number ] = GFT_inverse_mapping ( gamma , tol_value )
 %     C: n-by-n correlation matrix
 %     iter_number: the number of iterations taken by the iterative algorithm
 %
+% If you use this, please cite 
+% Archakov & Hansen (2021) - A New Parametrization of Correlation Matrices
+% https://doi.org/10.3982/ECTA16910
 
 %% Check if input is of proper format
 % gamma is of suitable length and tolerance value belongs to a proper interval

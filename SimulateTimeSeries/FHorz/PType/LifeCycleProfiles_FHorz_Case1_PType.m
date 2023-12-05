@@ -577,6 +577,7 @@ if simoptions.groupptypesforstats==1
             elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
                 [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                 AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
+
                 tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
             end
             % Store them in AgeConditionalStats

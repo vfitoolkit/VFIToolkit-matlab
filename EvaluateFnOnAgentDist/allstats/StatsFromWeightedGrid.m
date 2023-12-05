@@ -48,8 +48,9 @@ elseif presorted==1
     SortedWeights=Weights;
 end
 SortedWeightedValues=SortedValues.*SortedWeights;
-CumSumSortedWeights=cumsum(SortedWeights);
-
+if any(whichstats(4:7)==1)
+    CumSumSortedWeights=cumsum(SortedWeights); % not needed if only want mean, median and std dev (& variance)
+end
 
 %% Now the stats themselves
 if whichstats(1)==1
@@ -110,15 +111,18 @@ else
                 AllStats.Gini=nan;
                 AllStats.GiniComment={'Gini cannot be calculated as some values are negative'};
             else
+                CumSumSortedWeightedValues=cumsum(SortedWeightedValues);
                 % Calculate the 'age conditional' lorenz curve
                 % (note, we already eliminated the zero mass points, and dealt with case that the remaining grid is just one point)
-                LorenzCurveIndex=zeros(npoints,1);
+                % LorenzCurveIndex=zeros(npoints,1);
+                LorenzCurve=zeros(npoints,1);
                 lorenzcvec=1/npoints:1/npoints:1;
+                SumWeightedValues=sum(SortedWeightedValues);
                 for lorenzcind=1:npoints % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
                     [~,LorenzCurveIndex_lorenzc]=max(CumSumSortedWeights >= lorenzcvec(lorenzcind));
-                    LorenzCurveIndex(lorenzcind)=LorenzCurveIndex_lorenzc;
+                    LorenzCurve(lorenzcind)=CumSumSortedWeightedValues(LorenzCurveIndex_lorenzc)-Values(LorenzCurveIndex_lorenzc)*(CumSumSortedWeights(LorenzCurveIndex_lorenzc)-lorenzcvec(lorenzcind));
                 end
-                AllStats.LorenzCurve=SortedWeightedValues(LorenzCurveIndex);
+                AllStats.LorenzCurve=LorenzCurve/SumWeightedValues;
                 % Calculate the 'age conditional' gini
                 % Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
                 A=sum((1:1:npoints)/npoints-reshape(AllStats.LorenzCurve,[1,npoints]))/npoints;
