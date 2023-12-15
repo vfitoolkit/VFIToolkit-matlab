@@ -16,6 +16,7 @@ if ~exist('simoptions','var')
     simoptions.verbose=0;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;
+    simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'parallel')
@@ -32,6 +33,9 @@ else
     end 
     if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
         simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+    end
+    if ~isfield(simoptions,'lowmemory')
+        simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
     end
 end
 
@@ -191,7 +195,7 @@ else
     N_ze=N_z;
 end
 
-%%
+%% Simulate Panel Indexes
 d_grid=gather(d_grid);
 a_grid=gather(a_grid);
 
@@ -222,6 +226,8 @@ PolicyIndexesKron=gather(PolicyIndexesKron);
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
 SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
 
+
+%%
 if isfield(simoptions,'n_semiz')
     semiz_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j);
     N_semiz=prod(simoptions.n_semiz);

@@ -40,16 +40,21 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
+    heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.saveprogresseachiter=0;
+    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns)));
 else
     if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
     if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    end
+    if ~isfield(heteroagentoptions,'maxiter')
+        heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
     end
     if N_p~=0
         if ~isfield(heteroagentoptions,'p_grid')
@@ -74,6 +79,9 @@ else
     end
     if ~isfield(heteroagentoptions,'saveprogresseachiter')
         heteroagentoptions.saveprogresseachiter=0;
+    end
+    if ~isfield(heteroagentoptions,'GEptype')
+        heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns)));
     end
 end
 
@@ -213,7 +221,11 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
     end
     PTypeStructure.(iistr).l_a=length(PTypeStructure.(iistr).n_a);
-    PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);
+    if PTypeStructure.(iistr).n_z(1)==0
+        PTypeStructure.(iistr).l_z=0;
+    else
+        PTypeStructure.(iistr).l_z=length(PTypeStructure.(iistr).n_z);
+    end
     if isfield(PTypeStructure.(iistr).simoptions,'n_e')
         PTypeStructure.(iistr).l_e=length(PTypeStructure.(iistr).simoptions.n_e);
     else
@@ -344,13 +356,9 @@ for ii=1:PTypeStructure.N_i
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
     % Allows for FnsToEvaluate as structure.
-    if PTypeStructure.(iistr).n_d(1)==0
-        l_d_temp=0;
-    else
-        l_d_temp=1;
-    end
-    l_a_temp=length(PTypeStructure.(iistr).n_a);
-    l_z_temp=length(PTypeStructure.(iistr).n_z);  
+    l_d_temp=PTypeStructure.(iistr).l_d;
+    l_a_temp=PTypeStructure.(iistr).l_a;
+    l_z_temp=PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e;  
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
@@ -430,18 +438,33 @@ if heteroagentoptions.fminalgo==5
     end
 end
 
+%% Permit that some GEPriceParamNames might depend on PType
+p0=[];
+GEpriceindexes=zeros(nGEprices,1);
+GEprice_ptype=zeros(nGEprices,1);
+for pp=1:nGEprices
+    p0=[p0,gather(Parameters.(GEPriceParamNames{pp}))];
+    GEpriceindexes(pp)=length(Parameters.(GEPriceParamNames{pp}));
+    if length(Parameters.(GEPriceParamNames{pp}))>1
+        GEprice_ptype(pp)=1;
+    end
+end
+GEpriceindexes=[[1; 1+cumsum(GEpriceindexes(1:end-1))],cumsum(GEpriceindexes)];
+
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 
-p0=nan(nGEprices,1);
-for ii=1:nGEprices
-    p0(ii)=Parameters.(GEPriceParamNames{ii});
+if all(heteroagentoptions.GEptype==0)
+    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+else
+    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
 end
+
+
 
 % Choosing algorithm for the optimization problem
 % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
-minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
+minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     heteroagentoptions.multimarketcriterion=0;
     [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);    
@@ -542,8 +565,8 @@ end
 
 p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
-for ii=1:nGEprices
-    p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
+for pp=1:nGEprices
+    p_eqm.(GEPriceParamNames{pp})=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
 end
 
 % vargout={p_eqm,p_eqm_index,GeneralEqmConditions};

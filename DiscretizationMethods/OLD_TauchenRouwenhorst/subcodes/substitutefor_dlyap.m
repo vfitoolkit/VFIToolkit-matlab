@@ -18,6 +18,7 @@ function P = substitutefor_dlyap(A,X)
 % Solve for Q = U'*P*U by transforming X to Y = U'*X*U
 % Therefore, solve: Q - T*Q*T' = Y. Save memory by using P for Q.
 dim = size(A(:,1));
+
 Y = U' * X * U;
 P = Y; %Initialize P
 T1 = T;

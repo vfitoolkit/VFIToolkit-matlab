@@ -139,7 +139,7 @@ if ~isstruct(jequaloneDist)
                     idiminj1dist=1; % ptype is a dimension of the jequaloneDist
                 end
             else
-                if all(size(jequaloneDist)==[n_a,n_z])
+                if numel(jequaloneDist)==prod([n_a,n_z]) % avoid size()=[n_a,n_z] because this errors if last dimensions are singular as they get dropped from jequaloneDist
                     jequaloneDist=reshape(jequaloneDist,[prod(n_a),prod(n_z)]);
                     idiminj1dist=0;
                 elseif all(size(jequaloneDist)==[n_a,n_z,N_i])
@@ -150,7 +150,6 @@ if ~isstruct(jequaloneDist)
         end
     end
 end
-
 
 
 %%

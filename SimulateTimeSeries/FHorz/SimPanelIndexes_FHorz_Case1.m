@@ -118,7 +118,15 @@ cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by usin
 if ~isfield(simoptions,'n_e')
     
     % Get seedpoints from InitialDist
-    [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+    if simoptions.lowmemory==0
+        [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+    else % simoptions.lowmemory==1
+        seedpointind=zeros(1,simoptions.numbersims);
+        for ii=1:simoptions.numbersims
+            [~,ind_ii]=max(cumsumInitialDistVec>rand(1,1));
+            seedpointind(ii)=ind_ii;
+        end
+    end
     if numel(InitialDist)==N_a*N_z % Has just been given for age j=1
         seedpoints=[ind2sub_vec_homemade([N_a,N_z],seedpointind'),ones(simoptions.numbersims,1)];
     else  % Distribution across ages as well
@@ -195,7 +203,15 @@ else %if isfield(simoptions,'n_e')
     cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
     
     % Get seedpoints from InitialDist
-    [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+    if simoptions.lowmemory==0
+        [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+    else % simoptions.lowmemory==1
+        seedpointind=zeros(1,simoptions.numbersims);
+        for ii=1:simoptions.numbersims
+            [~,ind_ii]=max(cumsumInitialDistVec>rand(1,1));
+            seedpointind(ii)=ind_ii;
+        end
+    end
     if numel(InitialDist)==N_a*N_z*N_e % Has just been given for age j=1
         seedpoints=[ind2sub_vec_homemade([N_a,N_z,N_e],seedpointind'),ones(simoptions.numbersims,1)];
     else  % Distribution across ages as well

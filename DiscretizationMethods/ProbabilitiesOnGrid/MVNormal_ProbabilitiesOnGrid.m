@@ -43,7 +43,7 @@ end
 l_z=length(znum);
 if l_z>=5
     dbstack
-    error('Have only coded for up to five dimesions, contact me if you need more')
+    error('Have only coded for up to five dimensions, contact me if you need more')
 end
 
 %% Sigma can be a diagonal matrix or column vector. Or Sigma can be a matrix.

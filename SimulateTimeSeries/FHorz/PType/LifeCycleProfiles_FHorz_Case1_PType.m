@@ -370,7 +370,7 @@ for ii=1:N_i
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=2;
             ValuesOnGrid_ffii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iiff, Parameters_temp, [], n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_grid_temp, simoptions_temp);
-
+            
             % ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_ze_temp,N_j_temp]); Already has this shape
             % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 

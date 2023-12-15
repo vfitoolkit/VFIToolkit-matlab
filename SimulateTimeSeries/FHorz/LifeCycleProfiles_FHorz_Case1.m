@@ -70,7 +70,7 @@ else
         if ~isfield(simoptions,'SampleRestrictionFn_include')
             simoptions.SampleRestrictionFn_include=1; % By default, include observations that meet the sample restriction (if zero, then exclude observations meeting this criterion)
         end
-        simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn);
+        simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn); % Note: we remove those relating to the state space later
     end
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
@@ -272,6 +272,15 @@ if isfield(simoptions,'keepoutputasmatrix')
     end
 end
 
+if isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
+    if length(simoptions.SampleRestrictionFnParamNames)==(l_daprime+l_a+l_z)
+        simoptions.SampleRestrictionFnParamNames={};
+    else
+        simoptions.SampleRestrictionFnParamNames=simoptions.SampleRestrictionFnParamNames{l_daprime+l_a+l_z+1:end};
+    end
+end
+
+
 % Preallocate various things for the stats (as many will have jj as a dimension)
 % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
 for ff=1:numFnsToEvaluate
@@ -351,8 +360,9 @@ if N_z==0
             % Can just do the sample restriction once now for the
             % stationary dist, and then later each time for the Values
             StationaryDistVec_kk=StationaryDistVec_kk(IncludeObs);
+            StationaryDistVec_kk=StationaryDistVec_kk/sum(StationaryDistVec_kk); % Normalize
         end
-
+        
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Values=nan(N_a,jend-j1+1,'gpuArray'); % Preallocate
@@ -372,8 +382,9 @@ if N_z==0
                 Values=Values(IncludeObs);
                 % Note: stationary dist has already been restricted (if relevant)
             end
-
+            
             tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+            
             
             % Store them in AgeConditionalStats
             AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
@@ -435,6 +446,7 @@ else % N_z
             % Can just do the sample restriction once now for the
             % stationary dist, and then later each time for the Values
             StationaryDistVec_kk=StationaryDistVec_kk(IncludeObs);
+            StationaryDistVec_kk=StationaryDistVec_kk/sum(StationaryDistVec_kk); % Normalize
         end
 
         %%

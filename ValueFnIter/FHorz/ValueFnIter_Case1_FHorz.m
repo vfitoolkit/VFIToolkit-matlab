@@ -110,8 +110,9 @@ if ~all(size(d_grid)==[sum(n_d), 1])
             error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
         end
     end
-elseif ~all(size(a_grid)==[sum(n_a), 1])
-    error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
+end
+if ~all(size(a_grid)==[sum(n_a), 1])
+    error('a_grid is not the correct shape (should be of size sum(n_a)-by-1; a (stacked) column vector)')
 end
 % Check z_grid inputs
 if isa(z_grid,'function_handle')

@@ -290,7 +290,11 @@ for ii=1:N_i
     if isfield(simoptions_temp,'n_semiz')
         n_ze_temp=[simoptions_temp.n_semiz,n_ze_temp];
     end
-    N_ze_temp=prod(n_ze_temp);
+    if n_ze_temp(1)==0
+        N_ze_temp=1;
+    else
+        N_ze_temp=prod(n_ze_temp);
+    end
     
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
