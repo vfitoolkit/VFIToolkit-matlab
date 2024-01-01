@@ -385,6 +385,9 @@ for ii=1:N_i
             end
             if simoptions.whichstats(2)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Median=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+                if simoptions.whichstats(1)==1
+                    AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).RatioMeanToMedian=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
+                end
             end
             if simoptions.whichstats(3)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
@@ -451,6 +454,9 @@ for ii=1:N_i
                 end
                 if simoptions.whichstats(2)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Median(jjageshifted)=tempStats.Median;
+                    if simoptions.whichstats(1)==1
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).RatioMeanToMedian(jjageshifted)=tempStats.RatioMeanToMedian;
+                    end
                 end
                 if simoptions.whichstats(3)==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jjageshifted)=tempStats.Variance;
@@ -513,10 +519,10 @@ for ii=1:N_i
                         AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); SortedWeights_jj*StationaryDist.ptweights(ii)];
                     end
                 end
-            end % end jj
+            end % end jj over agej groupings
         end
-    end % end ff
-end % end ii
+    end % end ff over FnsToEvalNames
+end % end ii over N_i
 
 
 
@@ -529,6 +535,9 @@ for ff=1:numFnsToEvaluate
     end
     if simoptions.whichstats(2)==1
         AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
+        if simoptions.whichstats(1)==1
+            AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,length(simoptions.agegroupings),'gpuArray');
+        end
     end
     if simoptions.whichstats(3)==1
         AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
@@ -586,6 +595,9 @@ if simoptions.groupptypesforstats==1
             end
             if simoptions.whichstats(2)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Median(jj)=tempStats.Median;
+                if simoptions.whichstats(1)==1
+                    AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian(jj)=tempStats.RatioMeanToMedian;
+                end
             end
             if simoptions.whichstats(3)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=tempStats.Variance;

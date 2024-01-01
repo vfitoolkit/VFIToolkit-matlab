@@ -151,6 +151,16 @@ if ~isstruct(jequaloneDist)
     end
 end
 
+% If the initial agent distribution has ptype as a dimension, then use this to overwrite what the ptype masses are
+if idiminj1dist==1
+    warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
+    tempsz=size(jequaloneDist);
+    size(jequaloneDist)
+    jequaloneDisttemp=reshape(jequaloneDist,[prod(tempsz(1:end-1)),tempsz(end)]);
+    size(jequaloneDisttemp)
+    Parameters.(PTypeDistParamNames{:})=sum(jequaloneDisttemp,1)'; % column vector
+end
+
 
 %%
 for ii=1:N_i

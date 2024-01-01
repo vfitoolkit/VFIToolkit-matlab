@@ -5,6 +5,7 @@ function AllStats=StatsFromWeightedGrid(Values,Weights,npoints,nquantiles,tolera
 AllStats=struct();
 % AllStats.Mean=nan(1,1);
 % AllStats.Median=nan(1,1);
+% AllStats.RatioMeanToMedian=nan(1,1);
 % AllStats.Variance=nan(1,1);
 % AllStats.StdDeviation=nan(1,1);
 % AllStats.LorenzCurve=nan(npoints,1);
@@ -26,6 +27,7 @@ if ~exist('whichstats','var')
     % 5th element: min/max
     % 6th element: quantiles
     % 7th element: More Inequality
+    % Note: RatioMeanToMedian is computed whenever both mean and median are
 end
 
 
@@ -48,7 +50,7 @@ elseif presorted==1
     SortedWeights=Weights;
 end
 SortedWeightedValues=SortedValues.*SortedWeights;
-if any(whichstats(4:7)==1)
+if any(whichstats(4:7)==1) || whichstats(2)==1
     CumSumSortedWeights=cumsum(SortedWeights); % not needed if only want mean, median and std dev (& variance)
 end
 
@@ -59,8 +61,11 @@ if whichstats(1)==1
 end
 if whichstats(2)==1
     % Calculate the 'age conditional' median
-    [~,index_median]=min(abs(SortedWeights-0.5));
+    [~,index_median]=min(abs(CumSumSortedWeights-0.5));
     AllStats.Median=SortedValues(index_median); % The max is just to deal with 'corner' case where there is only one element in SortedWeightedValues
+    if whichstats(1)==1
+        AllStats.RatioMeanToMedian=AllStats.Mean/AllStats.Median;
+    end
 end
 
 %% Deal with case where all the values are just the same anyway
