@@ -65,8 +65,9 @@ end
 
 % Compute maximum entropy discrete distribution
 
-%options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','off','GradObj','on','Hessian','on');
-options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','off','Algorithm','trust-region');
+% options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','off','GradObj','on','Hessian','on');
+options = optimset('TolFun',1e-10,'TolX',1e-10,'Display','off','Algorithm','trust-region','GradObj','on'); 
+
 
 % Sometimes the algorithm fails to converge if the initial guess is too far
 % away from the truth. If this occurs, the program tries an initial guess
