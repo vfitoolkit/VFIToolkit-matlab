@@ -74,7 +74,7 @@ else
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2],n_e, [d_grid; a1_grid], [a1_grid; a2_grid],e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,a,e)
   
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,N_e); % d-by-a-by-e
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e); % d-by-a-by-e
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -138,7 +138,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], n_e, [d_grid; a1_grid], [a1_grid; a2_grid], e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,a,e)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,N_e); % d-by-a-by-e
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e); % d-by-a-by-e
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

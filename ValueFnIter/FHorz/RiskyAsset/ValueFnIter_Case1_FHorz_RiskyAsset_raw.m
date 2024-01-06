@@ -105,7 +105,7 @@ else
             EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,1,z), sum over u
             % EV is over (d&a1prime,1,z)
         
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(EV,1,N_a,1);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %repmat(EV,1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -133,7 +133,7 @@ else
                 EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
                 % EV_z is over (d&a1prime)
                 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -162,7 +162,7 @@ else
             EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
             % EV_z is over (d&a1prime,1)
             
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -192,7 +192,7 @@ else
                 a1_val=a1_gridvals(a1_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2], special_n_z, [d_grid; a1_grid], [a1_val; a2_grid], z_val, ReturnFnParamsVec);
                 
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z*ones(1,N_a2,1);
+                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z; %*ones(1,N_a2,1);
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
                 V(a1_c+N_a1*(0:1:N_a2-1),z_c,N_j)=Vtemp;
@@ -253,7 +253,7 @@ for reverse_j=1:N_j-1
             EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u,z), sum over u
             % EV is over (d&a1prime,1,z)
             
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(EV,1,N_a,1);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %*repmat(EV,1,N_a,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -281,7 +281,7 @@ for reverse_j=1:N_j-1
                 EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
                 % EV_z is over (d&a1prime,1)
                 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -311,7 +311,7 @@ for reverse_j=1:N_j-1
             EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
             % EV_z is over (d&a1prime,1)
             
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -341,7 +341,7 @@ for reverse_j=1:N_j-1
                 a1_val=a1_gridvals(a1_c,:);
                 ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2], special_n_z, [d_grid; a1_grid], [a1_val; a2_grid], z_val, ReturnFnParamsVec);
                 
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z*ones(1,N_a2,1);
+                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z; %*ones(1,N_a2,1);
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
                 V(a1_c+N_a1*(0:1:N_a2-1),z_c,jj)=Vtemp;

@@ -68,7 +68,7 @@ else
 
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_grid, a_grid, TemptationFnParamsVec,0);
         MostTempting=max(TemptationMatrix,[],1);
-        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV*ones(1,N_a,1); % aprime-by-a
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -121,7 +121,7 @@ for reverse_j=1:N_j-1
 
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(TemptationFn, n_d, n_a, d_grid, a_grid, TemptationFnParamsVec,0);
         MostTempting=max(TemptationMatrix,[],1);
-        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV*ones(1,N_a,1); % aprime-by-a
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

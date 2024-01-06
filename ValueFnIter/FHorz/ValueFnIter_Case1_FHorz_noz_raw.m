@@ -55,7 +55,7 @@ else
         % (d,aprime,a)
         
         entireEV=kron(V_Jplus1,ones(N_d,1));
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,1); % aprime-by-a
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -102,7 +102,7 @@ for reverse_j=1:N_j-1
         % (d,aprime,a)
         
         entireEV=kron(VKronNext_j,ones(N_d,1));
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,1); % aprime-by-a
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

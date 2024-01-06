@@ -1,6 +1,7 @@
 function [V, Policy]=ValueFnIter_Case1_FHorz_Ambiguity(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Ambiguity Aversion
 % See appendix to the 'Intro to Life-Cycle models' for an explanation
+% Note that with ambiguity we have no need for pi_z (nor pi_e, just ambiguity_pi_z_J and ambiguity_pi_e_J)
 
 V=nan;
 Policy=nan;
@@ -41,13 +42,13 @@ if vfoptions.parallel==2
             if N_z==0
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_noz_e_raw(n_ambiguity, n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_e_raw(n_ambiguity, n_a, n_z, vfoptions.n_e, N_j, a_grid, z_grid_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_e_raw(n_ambiguity, n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
                 error('Cannot use Ambiguity Aversion without any shocks (what is the point?); you have n_z=0 and no e variables')
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_raw(n_ambiguity, n_a, n_z, N_j, a_grid, z_grid_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_raw(n_ambiguity, n_a, n_z, N_j, a_grid, z_gridvals_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     else
@@ -55,13 +56,13 @@ if vfoptions.parallel==2
             if N_z==0
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_noz_e_raw(n_ambiguity, n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_e_raw(n_ambiguity, n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_grid_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_e_raw(n_ambiguity, n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
                 error('Cannot use Ambiguity Aversion without any shocks (what is the point?); you have n_z=0 and no e variables')
             else
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_raw(n_ambiguity, n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_raw(n_ambiguity, n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end

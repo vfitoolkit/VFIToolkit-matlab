@@ -47,7 +47,7 @@ if all(vfoptions.parallel_e==0)
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -78,7 +78,7 @@ if all(vfoptions.parallel_e==0)
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -114,7 +114,7 @@ elseif all(vfoptions.parallel_e==1)
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -143,7 +143,7 @@ elseif all(vfoptions.parallel_e==1)
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -208,7 +208,7 @@ else
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
-            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
+            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2; %.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e2,[],1);
@@ -245,7 +245,7 @@ else
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
-            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2.*ones(1,N_a,1);
+            entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2; %.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e2,[],1);

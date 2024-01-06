@@ -107,7 +107,7 @@ else
         
         % ReturnMatrix is over (d&a1prime,a,z,e)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(EV,1,N_a,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %*repmat(EV,1,N_a,1,N_e);
                 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -233,7 +233,7 @@ for reverse_j=1:N_j-1
         
         % ReturnMatrix is over (d&a1prime,a,z,e)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(EV,1,N_a,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %*repmat(EV,1,N_a,1,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

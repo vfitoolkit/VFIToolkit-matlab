@@ -91,7 +91,7 @@ else
         EV=min(ambEV,[],4);
         % From here, can just use EV as normal
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -116,7 +116,7 @@ else
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                         
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -147,7 +147,7 @@ else
                 e_val=e_gridvals_J(e_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
@@ -199,7 +199,7 @@ for reverse_j=1:N_j-1
         EV=min(ambEV,[],4);
         % From here, can just use EV as normal
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -224,7 +224,7 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
                         
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -255,7 +255,7 @@ for reverse_j=1:N_j-1
                 e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);

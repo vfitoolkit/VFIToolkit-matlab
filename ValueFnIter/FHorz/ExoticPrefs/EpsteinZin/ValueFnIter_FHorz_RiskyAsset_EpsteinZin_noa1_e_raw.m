@@ -189,7 +189,7 @@ else
             temp4(EV==0)=0;
         end
         
-        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*repmat(temp4,1,N_a2,1,N_e);
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1,N_e);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -229,7 +229,7 @@ else
             temp4(EV==0)=0;
         end
 
-        betaEV=ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2,1);
+        betaEV=ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a2,1);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
@@ -283,7 +283,7 @@ else
                 temp4(EV_z==0)=0;
             end
 
-            betaEV_z=ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2,1);
+            betaEV_z=ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a2,1);
             
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -409,7 +409,7 @@ for reverse_j=1:N_j-1
             temp4(EV==0)=0;
         end
         
-        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*repmat(temp4,1,N_a2,1,N_e);
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %repmat(temp4,1,N_a2,1,N_e);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -450,7 +450,7 @@ for reverse_j=1:N_j-1
             temp4(EV==0)=0;
         end
 
-        betaEV=ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2,1);
+        betaEV=ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a2,1);
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
@@ -505,7 +505,7 @@ for reverse_j=1:N_j-1
                 temp4(EV_z==0)=0;
             end
 
-            betaEV_z=ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a2,1);
+            betaEV_z=ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a2,1);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);

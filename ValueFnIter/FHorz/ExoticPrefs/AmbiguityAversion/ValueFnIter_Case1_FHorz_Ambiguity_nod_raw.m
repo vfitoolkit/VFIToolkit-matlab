@@ -84,7 +84,7 @@ else
             EV=min(ambEV,[],4);
             % From here, can just use EV as normal
             
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -109,7 +109,7 @@ else
                 EV_z=min(ambEV_z,[],2);
                 % From here, can just use EV_z as normal
                 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -135,7 +135,7 @@ else
             EV_z=min(ambEV_z,[],2);
             % From here, can just use EV_z as normal
 
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -208,7 +208,7 @@ for reverse_j=1:N_j-1
             EV=min(ambEV,[],4);
             % From here, can just use EV as normal
             
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -233,7 +233,7 @@ for reverse_j=1:N_j-1
                 EV_z=min(ambEV_z,[],2);
                 % From here, can just use EV_z as normal
                 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -259,7 +259,7 @@ for reverse_j=1:N_j-1
             EV_z=min(ambEV_z,[],2);
             % From here, can just use EV_z as normal
 
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);

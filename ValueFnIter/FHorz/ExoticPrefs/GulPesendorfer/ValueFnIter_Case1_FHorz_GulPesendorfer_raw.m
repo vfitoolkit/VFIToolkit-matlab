@@ -105,7 +105,7 @@ else
             entireEV=kron(EV,ones(N_d,1));
 %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
 
-            entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
+            entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -128,7 +128,7 @@ else
                 
                 entireEV_z=kron(EV_z,ones(N_d,1));
 
-                entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -152,7 +152,7 @@ else
 
             TemptationMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, TemptationFnParamsVec);
             MostTempting_z=max(TemptationMatrix_z,[],1);
-            entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+            entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -222,7 +222,7 @@ for reverse_j=1:N_j-1
             entireEV=kron(EV,ones(N_d,1));
 %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
 
-            entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
+            entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -245,7 +245,7 @@ for reverse_j=1:N_j-1
                 
                 entireEV_z=kron(EV_z,ones(N_d,1));
                 
-                entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -269,7 +269,7 @@ for reverse_j=1:N_j-1
 
             TemptationMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, TemptationFnParamsVec);
             MostTempting_z=max(TemptationMatrix_z,[],1);
-            entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+            entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);

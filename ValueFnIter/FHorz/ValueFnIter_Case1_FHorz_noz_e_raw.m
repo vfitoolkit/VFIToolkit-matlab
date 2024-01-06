@@ -56,7 +56,7 @@ else
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(V_Jplus1,1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1; %*repmat(V_Jplus1,1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -71,7 +71,7 @@ else
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a)
             
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1.*ones(1,N_a);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -104,7 +104,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,e)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(VKronNext_j,1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1; %repmat(VKronNext_j,1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -119,7 +119,7 @@ for reverse_j=1:N_j-1
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j.*ones(1,N_a);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);

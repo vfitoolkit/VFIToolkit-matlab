@@ -120,7 +120,7 @@ else
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             entireEV=repelem(EV,N_d1,1,1);
-            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1,N_e);
+            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1,N_e);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -153,7 +153,7 @@ else
                 ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
-                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV.*ones(1,N_a,1);
+                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
 
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_d2e,[],1);
@@ -190,7 +190,7 @@ else
 
                     ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_d2ze,[],1);
@@ -242,7 +242,7 @@ for reverse_j=1:N_j-1
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             entireEV=repelem(EV,N_d1,1,1);
-            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1,N_e);
+            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1,N_e);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -275,7 +275,7 @@ for reverse_j=1:N_j-1
                 ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
-                entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV.*ones(1,N_a,1);
+                entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
 
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -312,7 +312,7 @@ for reverse_j=1:N_j-1
 
                     ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_grid(d2_c)], a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                    entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                    entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_ze,[],1);

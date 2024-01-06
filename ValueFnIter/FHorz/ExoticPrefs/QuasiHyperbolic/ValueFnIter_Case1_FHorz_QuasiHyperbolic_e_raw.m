@@ -107,11 +107,11 @@ else
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
             % First V
-            entireRHS=ReturnMatrix+beta*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
+            entireRHS=ReturnMatrix+beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
             [Vtemp,~]=max(entireRHS,[],1);
             V(:,:,:,N_j)=shiftdim(Vtemp,1);
             % Now Vtilde and Policy
-            entireRHS=ReturnMatrix+beta0beta*repmat(entireEV,1,N_a,1,N_e);
+            entireRHS=ReturnMatrix+beta0beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e);
             [Vtemp,maxindex]=max(entireRHS,[],1);
             Vtilde(:,:,:,N_j)=shiftdim(Vtemp,1); % Evaluate what would have done under exponential discounting
             Policy(:,:,:,N_j)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
@@ -119,12 +119,12 @@ else
             % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
             % and then we compute Vunderbar.
             % First Vhat
-            entireRHS=ReturnMatrix+beta0beta*repmat(entireEV,1,N_a,1,N_e);  % Use the today-to-tomorrow discount factor
+            entireRHS=ReturnMatrix+beta0beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e);  % Use the today-to-tomorrow discount factor
             [Vtemp,maxindex]=max(entireRHS,[],1);
             V(:,:,:,N_j)=shiftdim(Vtemp,1); % Note that this is Vhat when sophisticated
             Policy(:,:,:,N_j)=shiftdim(maxindex,1); % This is the policy from solving the problem of Vhat
             % Now Vstar
-            entireRHS=ReturnMatrix+beta*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
+            entireRHS=ReturnMatrix+beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
             maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1)+shiftdim(N_d*N_a*N_a*(0:1:N_z-1),-1)+shiftdim(N_d*N_a*N_a*N_z*(0:1:N_e-1),-2);
             Vunderbar(:,:,:,N_j)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
         end
@@ -146,11 +146,11 @@ else
                 % Policy (which is Policytilde) that correspond to the
                 % naive quasihyperbolic discounter
                 % First V
-                entireRHS_e=ReturnMatrix_e+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor                
+                entireRHS_e=ReturnMatrix_e+beta*entireEV; %*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor                
                 [Vtemp,~]=max(entireRHS_e,[],1);
                 V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
                 % Now Vtilde and Policy
-                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV.*ones(1,N_a,1);
+                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV; %*entireEV.*ones(1,N_a,1);
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
                 Vtilde(:,:,e_c,N_j)=shiftdim(Vtemp,1); % Evaluate what would have done under quasi-hyperbolic discounting
                 Policy(:,:,e_c,N_j)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
@@ -158,12 +158,12 @@ else
                 % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat) 
                 % and then we compute Vunderbar.
                 % First Vhat
-                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV; %*entireEV.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
                 V(:,:,e_c,N_j)=shiftdim(Vtemp,1); % Note that this is Vhat when sophisticated
                 Policy(:,:,e_c,N_j)=shiftdim(maxindex,1); % This is the policy from solving the problem of Vhat
                 % Now Vstar
-                entireRHS_e=ReturnMatrix_e+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
+                entireRHS_e=ReturnMatrix_e+beta*entireEV; %*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
                 maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1)+shiftdim(N_d*N_a*N_a*(0:1:N_z-1),-1);
                 Vunderbar(:,:,e_c,N_j)=entireRHS_e(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
@@ -190,11 +190,11 @@ else
                     % Policy (which is Policytilde) that correspond to the
                     % naive quasihyperbolic discounter
                     % First V
-                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
+                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
                     [Vtemp,~]=max(entireRHS_ez,[],1);
                     V(:,z_c,e_c,N_j)=Vtemp;
                     % Now Vtilde and Policy
-                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z.*ones(1,N_a,1);
+                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1);
                     [Vtemp,maxindex]=max(entireRHS_ez,[],1);
                     Vtilde(:,z_c,e_c,N_j)=Vtemp; % Evaluate what would have done under quasi-hyperbolic discounting
                     Policy(:,z_c,e_c,N_j)=maxindex; % Use the policy from solving the problem of Vtilde
@@ -202,12 +202,12 @@ else
                     % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
                     % and then we compute Vunderbar.
                     % First Vhat
-                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
                     [Vtemp,maxindex]=max(entireRHS_ez,[],1);
                     V(:,z_c,e_c,N_j)=Vtemp; % Note that this is Vhat when sophisticated
                     Policy(:,z_c,e_c,N_j)=maxindex; % This is the policy from solving the problem of Vhat
                     % Now Vstar
-                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
+                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
                     maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1);
                     Vunderbar(:,z_c,e_c,N_j)=entireRHS_ez(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                 end
@@ -258,11 +258,11 @@ for reverse_j=1:N_j-1
             % Policy (which is Policytilde) that correspond to the
             % naive quasihyperbolic discounter
             % First V
-            entireRHS=ReturnMatrix+beta*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
+            entireRHS=ReturnMatrix+beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
             [Vtemp,~]=max(entireRHS,[],1);
             V(:,:,:,jj)=shiftdim(Vtemp,1);
             % Now Vtilde and Policy
-            entireRHS=ReturnMatrix+beta0beta*repmat(entireEV,1,N_a,1,N_e);
+            entireRHS=ReturnMatrix+beta0beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e);
             [Vtemp,maxindex]=max(entireRHS,[],1);
             Vtilde(:,:,:,jj)=shiftdim(Vtemp,1); % Evaluate what would have done under exponential discounting
             Policy(:,:,:,jj)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
@@ -270,12 +270,12 @@ for reverse_j=1:N_j-1
             % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
             % and then we compute Vunderbar.
             % First Vhat
-            entireRHS=ReturnMatrix+beta0beta*repmat(entireEV,1,N_a,1,N_e);  % Use the today-to-tomorrow discount factor
+            entireRHS=ReturnMatrix+beta0beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e);  % Use the today-to-tomorrow discount factor
             [Vtemp,maxindex]=max(entireRHS,[],1);
             V(:,:,:,jj)=shiftdim(Vtemp,1); % Note that this is Vhat when sophisticated
             Policy(:,:,:,jj)=shiftdim(maxindex,1); % This is the policy from solving the problem of Vhat
             % Now Vstar
-            entireRHS=ReturnMatrix+beta*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
+            entireRHS=ReturnMatrix+beta*entireEV; %*repmat(entireEV,1,N_a,1,N_e); % Use the two-future-periods discount factor
             maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1)+shiftdim(N_d*N_a*N_a*(0:1:N_z-1),-1)+shiftdim(N_d*N_a*N_a*N_z*(0:1:N_e-1),-2);
             Vunderbar(:,:,:,jj)=entireRHS(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
         end
@@ -297,11 +297,11 @@ for reverse_j=1:N_j-1
                 % Policy (which is Policytilde) that correspond to the
                 % naive quasihyperbolic discounter
                 % First V
-                entireRHS_e=ReturnMatrix_e+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor                
+                entireRHS_e=ReturnMatrix_e+beta*entireEV; %*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor                
                 [Vtemp,~]=max(entireRHS_e,[],1);
                 V(:,:,e_c,jj)=shiftdim(Vtemp,1);
                 % Now Vtilde and Policy
-                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV.*ones(1,N_a,1);
+                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV; %*entireEV.*ones(1,N_a,1);
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
                 Vtilde(:,:,e_c,jj)=shiftdim(Vtemp,1); % Evaluate what would have done under quasi-hyperbolic discounting
                 Policy(:,:,e_c,jj)=shiftdim(maxindex,1); % Use the policy from solving the problem of Vtilde
@@ -309,12 +309,12 @@ for reverse_j=1:N_j-1
                 % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat) 
                 % and then we compute Vunderbar.
                 % First Vhat
-                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+                entireRHS_e=ReturnMatrix_e+beta0beta*entireEV; %*entireEV.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
                 V(:,:,e_c,jj)=shiftdim(Vtemp,1); % Note that this is Vhat when sophisticated
                 Policy(:,:,e_c,jj)=shiftdim(maxindex,1); % This is the policy from solving the problem of Vhat
                 % Now Vstar
-                entireRHS_e=ReturnMatrix_e+beta*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
+                entireRHS_e=ReturnMatrix_e+beta*entireEV; %*entireEV.*ones(1,N_a,1); % Use the two-future-periods discount factor
                 maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1)+shiftdim(N_d*N_a*N_a*(0:1:N_z-1),-1);
                 Vunderbar(:,:,e_c,jj)=entireRHS_e(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
             end
@@ -341,11 +341,11 @@ for reverse_j=1:N_j-1
                     % Policy (which is Policytilde) that correspond to the
                     % naive quasihyperbolic discounter
                     % First V
-                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
+                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
                     [Vtemp,~]=max(entireRHS_ez,[],1);
                     V(:,z_c,e_c,jj)=Vtemp;
                     % Now Vtilde and Policy
-                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z.*ones(1,N_a,1);
+                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1);
                     [Vtemp,maxindex]=max(entireRHS_ez,[],1);
                     Vtilde(:,z_c,e_c,jj)=Vtemp; % Evaluate what would have done under quasi-hyperbolic discounting
                     Policy(:,z_c,e_c,jj)=maxindex; % Use the policy from solving the problem of Vtilde
@@ -353,12 +353,12 @@ for reverse_j=1:N_j-1
                     % For sophisticated we compute V, which is what we call Vhat, and the Policy (which is Policyhat)
                     % and then we compute Vunderbar.
                     % First Vhat
-                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
+                    entireRHS_ez=ReturnMatrix_ze+beta0beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1);  % Use the today-to-tomorrow discount factor
                     [Vtemp,maxindex]=max(entireRHS_ez,[],1);
                     V(:,z_c,e_c,jj)=Vtemp; % Note that this is Vhat when sophisticated
                     Policy(:,z_c,e_c,jj)=maxindex; % This is the policy from solving the problem of Vhat
                     % Now Vstar
-                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
+                    entireRHS_ez=ReturnMatrix_ze+beta*entireEV_z; %*entireEV_z.*ones(1,N_a,1); % Use the two-future-periods discount factor
                     maxindexfull=maxindex+N_d*N_a*(0:1:N_a-1);
                     Vunderbar(:,z_c,e_c,jj)=entireRHS_ez(maxindexfull); % Evaluate time-inconsistent policy using two-future-periods discount rate
                 end

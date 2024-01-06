@@ -154,7 +154,7 @@ else
             temp4(entireEV==0)=0;
         end
         
-        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1,N_e);
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1,N_e);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -193,7 +193,7 @@ else
             temp2(becareful)=ReturnMatrix_e(becareful).^ezc2;
             temp2(ReturnMatrix_e==0)=-Inf;
 
-            entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
+            entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
 
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
             entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -236,7 +236,7 @@ else
                 temp2(becareful)=ReturnMatrix_ze(becareful).^ezc2;
                 temp2(ReturnMatrix_ze==0)=-Inf;
 
-                entireRHS_ze=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a);
+                entireRHS_ze=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a);
 
                 temp5=logical(isfinite(entireRHS_ze).*(entireRHS_ze~=0));
                 entireRHS_ze(temp5)=ezc1*entireRHS_ze(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -322,7 +322,7 @@ for reverse_j=1:N_j-1
             temp4(entireEV==0)=0;
         end
         
-        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1,N_e);
+        entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1,N_e);
 
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -360,7 +360,7 @@ for reverse_j=1:N_j-1
             temp2(becareful)=ReturnMatrix_e(becareful).^ezc2;
             temp2(ReturnMatrix_e==0)=-Inf;
 
-            entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a,1);
+            entireRHS_e=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
 
             temp5=logical(isfinite(entireRHS_e).*(entireRHS_e~=0));
             entireRHS_e(temp5)=ezc1*entireRHS_e(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
@@ -403,7 +403,7 @@ for reverse_j=1:N_j-1
                 temp2(becareful)=ReturnMatrix_ze(becareful).^ezc2;
                 temp2(ReturnMatrix_ze==0)=-Inf;
 
-                entireRHS_ze=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4.*ones(1,N_a);
+                entireRHS_ze=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a);
 
                 temp5=logical(isfinite(entireRHS_ze).*(entireRHS_ze~=0));
                 entireRHS_ze(temp5)=ezc1*entireRHS_ze(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity

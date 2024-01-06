@@ -86,7 +86,6 @@ else
                 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
                 entireEV=kron(EV,ones(N_d1,1));
-                %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
                 entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
 
                 %Calc the max and it's index

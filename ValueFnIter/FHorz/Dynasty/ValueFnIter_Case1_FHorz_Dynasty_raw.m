@@ -57,7 +57,7 @@ while currdist>vfoptions.tolerance
                 EV_z=sum(EV_z,2);
                 
                 entireEV_z=kron(EV_z,ones(N_d,1));
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -77,7 +77,7 @@ while currdist>vfoptions.tolerance
                 EV_z=sum(EV_z,2);
                 
                 entireEV_z=kron(EV_z,ones(N_d,1));
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);

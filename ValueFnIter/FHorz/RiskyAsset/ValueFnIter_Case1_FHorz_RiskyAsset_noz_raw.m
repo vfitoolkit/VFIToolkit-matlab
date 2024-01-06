@@ -77,7 +77,7 @@ else
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
         % (d,aprime,a)
   
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1); % d-by-a
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1); % d-by-a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -138,7 +138,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
         % (d,aprime,a)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1); % aprime-by-a
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1); % aprime-by-a
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

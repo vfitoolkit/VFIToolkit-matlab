@@ -64,7 +64,7 @@ else
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
         
-        entireRHS_z=ReturnMatrix(:,:,1)+DiscountFactorParamsVec*V_Jplus1*ones(1,N_a,1);
+        entireRHS_z=ReturnMatrix(:,:,1)+DiscountFactorParamsVec*V_Jplus1; %*ones(1,N_a,1);
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -109,7 +109,7 @@ for reverse_j=1:N_j-1
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
         
-        entireRHS_z=ReturnMatrix(:,:,1)+DiscountFactorParamsVec*VKronNext_j*ones(1,N_a,1);
+        entireRHS_z=ReturnMatrix(:,:,1)+DiscountFactorParamsVec*VKronNext_j; %*ones(1,N_a,1);
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);

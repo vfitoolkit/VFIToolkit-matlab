@@ -77,7 +77,7 @@ else
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -95,7 +95,7 @@ else
             e_val=e_gridvals_J(e_c,:);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                         
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -119,7 +119,7 @@ else
                 e_val=e_gridvals_J(e_c,:,N_j);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
@@ -149,13 +149,13 @@ for reverse_j=1:N_j-1
     VKronNext_j=sum(VKronNext_j.*pi_e_J(1,1,:,jj),3);
     
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV.*ones(1,N_a,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -173,7 +173,7 @@ for reverse_j=1:N_j-1
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, special_n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
                         
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -196,7 +196,7 @@ for reverse_j=1:N_j-1
                 e_val=e_gridvals_J(e_c,:,jj);
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, special_n_z, special_n_e, 0, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);

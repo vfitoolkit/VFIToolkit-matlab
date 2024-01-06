@@ -406,7 +406,7 @@ elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
     [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 elseif strcmp(vfoptions.exoticpreferences,'AmbiguityAversion')
-    [V, Policy]=ValueFnIter_Case1_FHorz_Ambiguity(n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_Case1_FHorz_Ambiguity(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 
@@ -466,6 +466,7 @@ end
 % experienceasset: aprime(d,a)
 % experienceassetu: aprime(d,a,u)
 % experienceassetz: aprime(d,a,z)
+% experienceassetz: aprime(d,a,z,e)
 
 if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.

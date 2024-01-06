@@ -54,7 +54,7 @@ else
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, n_a, d_grid, a_grid, vfoptions.parallel, ReturnFnParamsVec,0);
     
         entireEV=kron(V_Jplus1,ones(N_d,1));
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,1);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1);
     
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -99,7 +99,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz(ReturnFn, n_d, n_a, d_grid, a_grid, vfoptions.parallel, ReturnFnParamsVec,0);
     
         entireEV=kron(VKronNext_j,ones(N_d,1));
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV*ones(1,N_a,1);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1);
     
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
