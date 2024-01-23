@@ -193,14 +193,6 @@ for reverse_j=1:N_j-1
                 %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
                 entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV; %repmat(EV,1,N_a,1);
 
-                if jj==427 && d2_c==36
-                    disp('THIS ONE')
-                    ReturnMatrix_d2(1,1,8)
-                    entireRHS(1,1,8)
-                    EV(1,8)
-                    size(EV)
-                    VKronNext_j(1,:)
-                end
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
