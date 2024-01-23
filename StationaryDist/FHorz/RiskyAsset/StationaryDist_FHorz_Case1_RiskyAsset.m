@@ -118,9 +118,9 @@ if N_a1==0
         % end
     elseif simoptions.iterate==1
         if isfield(simoptions,'n_e')
-            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
         else
-            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
         end
     end
 else
@@ -128,18 +128,21 @@ else
         error('simulation of agent distribution is not yet supported with riskyasset')
     elseif simoptions.iterate==1
         if isfield(simoptions,'n_e')
-            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
         else
-            StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
+            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
         end
     end
 end
 
+if simoptions.parallel==2
+    StationaryDist=gpuArray(StationaryDist); % move output to gpu
+end
 if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_ze,N_j]);
+    StationaryDist=reshape(StationaryDist,[n_a,n_ze,N_j]);
 else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[N_a,N_ze,N_j]);
+    StationaryDist=reshape(StationaryDist,[N_a,N_ze,N_j]);
 end
 
 end

@@ -51,6 +51,7 @@ if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
     simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
     simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
+    % simoptions.lowmemory=0; % 0 is outer loop over ptype, inner over FnsToEvaluate, when equal 1 swap these loops which is slower but uses less memory
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     defaultagegroupings=1;
@@ -442,7 +443,7 @@ for ii=1:N_i
                 % May as well do it before doing the StatsFromWeightedGrid
                 [SortedValues_jj,~,sortindex]=unique(Values_jj);
                 SortedWeights_jj=accumarray(sortindex,StationaryDistVec_jj,[],@sum);
-
+                
                 SortedWeights_jj=SortedWeights_jj/sum(SortedWeights_jj(:)); % Normalize conditional on jj (is later renormalized ii weight before storing for groupstats)
 
                 %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and ff)

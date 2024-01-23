@@ -103,16 +103,19 @@ if simoptions.iterate==0
         % Sparse matrix is not relevant for the simulation methods, only for iteration method
         simoptions.parallel=2; % will simulate on parallel cpu, then transfer solution to gpu
     end
-    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z_J, Parameters, simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_Simulation_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z_J, Parameters, simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_z,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
+if simoptions.parallel==2
+    StationaryDist=gpuArray(StationaryDist); % move output to gpu
+end
 if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_r,n_z,N_j]);
+    StationaryDist=reshape(StationaryDist,[n_a,n_r,n_z,N_j]);
 else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[N_a,N_r,N_z,N_j]);
+    StationaryDist=reshape(StationaryDist,[N_a,N_r,N_z,N_j]);
 end
 
 end

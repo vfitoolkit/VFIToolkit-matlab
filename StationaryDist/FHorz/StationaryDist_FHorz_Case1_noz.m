@@ -14,13 +14,16 @@ if simoptions.iterate==0
 end
 
 if simoptions.iterate==0
-    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_j,Parameters,simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_Simulation_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_j,Parameters,simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_j,Parameters,simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_j,Parameters,simoptions);
 end
 
+if simoptions.parallel==2
+    StationaryDist=gpuArray(StationaryDist); % move output to gpu
+end
 if simoptions.outputkron==0 % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[n_a,N_j]);
+    StationaryDist=reshape(StationaryDist,[n_a,N_j]);
 end
 
 end

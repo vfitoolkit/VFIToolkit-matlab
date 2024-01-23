@@ -303,6 +303,17 @@ if FnsToEvaluateStruct==0
             ValuesOnGrid(:,:,ff)=reshape(ValuesOnGrid2.(AggVarNames{ff}),[N_a*N_z,N_j]);
         end
     end
+else
+    % Reshape to be appropriate size
+    if N_z==0
+        for ff=1:length(AggVarNames)
+            ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid.(AggVarNames{ff}),[n_a,N_j]);
+        end
+    else
+        for ff=1:length(AggVarNames)
+            ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid.(AggVarNames{ff}),[n_a,n_z,N_j]);
+        end
+    end
 end
 
 

@@ -194,16 +194,19 @@ N_d2=prod(n_d2);
 % Rather than actually create Policy_dsemiexo we just pass this as the input to the simulation/iteration commands
 
 if simoptions.iterate==0
-    StationaryDistKron=StationaryDist_FHorz_Case1_Simulation_SemiExo_TwoProbs_raw(gather(jequaloneDistKron),AgeWeightParamNames,gather(reshape(Policy(l_d,:,:,:),[N_a,N_semiz,N_z,N_j])),gather(reshape(Policy_aprime,[N_a,N_semiz,N_z,2,N_j])),gather(reshape(PolicyProbs,[N_a,N_semiz,N_z,2,N_j])),N_a,N_semiz,N_z,N_j,pi_z_J,pi_semiz_J, Parameters, simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_Simulation_SemiExo_TwoProbs_raw(gather(jequaloneDistKron),AgeWeightParamNames,gather(reshape(Policy(l_d,:,:,:),[N_a,N_semiz,N_z,N_j])),gather(reshape(Policy_aprime,[N_a,N_semiz,N_z,2,N_j])),gather(reshape(PolicyProbs,[N_a,N_semiz,N_z,2,N_j])),N_a,N_semiz,N_z,N_j,pi_z_J,pi_semiz_J, Parameters, simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,shiftdim(Policy(l_d,:,:,:),1),Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,shiftdim(Policy(l_d,:,:,:),1),Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
+if simoptions.parallel==2
+    StationaryDist=gpuArray(StationaryDist); % move output to gpu
+end
 if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDistKron,[n_a,[simoptions.n_semiz,n_z],N_j]);
+    StationaryDist=reshape(StationaryDist,[n_a,[simoptions.n_semiz,n_z],N_j]);
 else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[N_a,N_bothz,N_j]);
+    StationaryDist=reshape(StationaryDist,[N_a,N_bothz,N_j]);
 end
 
 end

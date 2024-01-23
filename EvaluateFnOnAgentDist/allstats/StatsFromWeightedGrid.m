@@ -191,6 +191,17 @@ else
 end
 
 
+%% Comment: To find, e.g. the median, we can either do
+% medianindex=find(CumSumSortedWeights>=0.50,1,'first');
+% Or
+% [~,medianindex]=max(CumSumSortedWeights>=0.50)
+% I ran a bunch of tests and both take essentially the same amount of time
+% (on average find() was slower, but in some runs it was faster, on average difference was something like 10%, so not worth worrying which is used)
+
+
+
+
+
 
 end
 

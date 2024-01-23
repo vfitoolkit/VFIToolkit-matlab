@@ -53,16 +53,19 @@ if simoptions.iterate==0
 end
 
 if simoptions.iterate==0
-    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Simulation_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Simulation_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
+    StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
 end
 
+if simoptions.parallel==2
+    StationaryDist=gpuArray(StationaryDist); % move output to gpu
+end
 if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDistKron,[n_a,simoptions.n_semiz,N_j]);
+    StationaryDist=reshape(StationaryDist,[n_a,simoptions.n_semiz,N_j]);
 else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[N_a,N_semiz,N_j]);
+    StationaryDist=reshape(StationaryDist,[N_a,N_semiz,N_j]);
 end
 
 end
