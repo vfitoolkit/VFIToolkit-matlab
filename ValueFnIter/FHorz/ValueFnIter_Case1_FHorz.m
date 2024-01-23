@@ -21,10 +21,11 @@ if exist('vfoptions','var')==0
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
-    vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
+    vfoptions.divideandconquer=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.outputkron=0; % If 1 then leave output in Kron form
+    vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.exoticpreferences='None';
     vfoptions.dynasty=0;
     vfoptions.experienceasset=0;
@@ -53,6 +54,9 @@ else
     if ~isfield(vfoptions,'paroverz') % Only used when vfoptions.lowmemory=0
         vfoptions.paroverz=1;
     end
+    if ~isfield(vfoptions,'divideandconquer')
+        vfoptions.divideandconquer=0;
+    end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
@@ -62,9 +66,6 @@ else
     if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
-    end
     if isfield(vfoptions,'ExogShockFn')
         vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
     end
@@ -73,6 +74,9 @@ else
     end
     if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0; % If 1 then leave output in Kron form
+    end
+    if ~isfield(vfoptions,'policy_forceintegertype')
+        vfoptions.policy_forceintegertype=0;
     end
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
@@ -777,6 +781,15 @@ end
 
 
 %% Just do the standard case
+if vfoptions.divideandconquer==1
+    if ~isfield(vfoptions,'level1n')
+        vfoptions.level1n=5;
+    end
+    % Solve using Divide-and-Conquer algorithm
+    [V,Policy]=ValueFnIter_Case1_FHorz_DC1_raw(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+end
+
 if vfoptions.parallel==2
     if N_d==0
         if isfield(vfoptions,'n_e')

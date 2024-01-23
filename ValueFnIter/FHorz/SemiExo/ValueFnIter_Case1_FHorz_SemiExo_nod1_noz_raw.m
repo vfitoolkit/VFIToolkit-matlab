@@ -1,5 +1,13 @@
 function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+if isfield(vfoptions,'customahr')
+    if vfoptions.customahr==1
+        % NOTE: Following function is NOT part of VFI Toolkit
+        [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_CUSTOM_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        return
+    end
+end
+
 N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
@@ -173,6 +181,8 @@ for reverse_j=1:N_j-1
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, ones(1,l_d2), n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
+            
+
             if vfoptions.paroverz==1
 
                 EV=VKronNext_j.*shiftdim(pi_semiz',-1);
@@ -182,6 +192,15 @@ for reverse_j=1:N_j-1
                 % entireEV=kron(EV,ones(N_d1,1));
                 %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
                 entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV; %repmat(EV,1,N_a,1);
+
+                if jj==427 && d2_c==36
+                    disp('THIS ONE')
+                    ReturnMatrix_d2(1,1,8)
+                    entireRHS(1,1,8)
+                    EV(1,8)
+                    size(EV)
+                    VKronNext_j(1,:)
+                end
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
