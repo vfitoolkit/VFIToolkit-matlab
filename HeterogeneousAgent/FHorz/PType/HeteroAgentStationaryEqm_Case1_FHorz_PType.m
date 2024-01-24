@@ -45,7 +45,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.saveprogresseachiter=0;
-    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns)));
+    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
 else
     if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
@@ -81,7 +81,7 @@ else
         heteroagentoptions.saveprogresseachiter=0;
     end
     if ~isfield(heteroagentoptions,'GEptype')
-        heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns)));
+        heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
     end
 end
 
@@ -439,21 +439,29 @@ if heteroagentoptions.fminalgo==5
 end
 
 %% Permit that some GEPriceParamNames might depend on PType
-p0=[];
+p0=[]; % column vector
 GEpriceindexes=zeros(nGEprices,1);
 GEprice_ptype=zeros(nGEprices,1);
 for pp=1:nGEprices
-    p0=[p0,gather(Parameters.(GEPriceParamNames{pp}))];
-    GEpriceindexes(pp)=length(Parameters.(GEPriceParamNames{pp}));
-    if length(Parameters.(GEPriceParamNames{pp}))>1
+    if isstruct(Parameters.(GEPriceParamNames{pp}))
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.Names_i{ii};
+            p0=[p0; gather(Parameters.(GEPriceParamNames{pp}).(iistr))]; % reshape()' is making sure it is a row vector
+        end
+        GEpriceindexes(pp)=PTypeStructure.N_i;
         GEprice_ptype(pp)=1;
+    else
+        p0=[p0;reshape(gather(Parameters.(GEPriceParamNames{pp})),[],1)]; % reshape() is making sure it is a column vector
+        GEpriceindexes(pp)=length(Parameters.(GEPriceParamNames{pp}));
+        if length(Parameters.(GEPriceParamNames{pp}))>1
+            GEprice_ptype(pp)=1;
+        end
     end
 end
 GEpriceindexes=[[1; 1+cumsum(GEpriceindexes(1:end-1))],cumsum(GEpriceindexes)];
 
 
 %%  Otherwise, use fminsearch to find the general equilibrium
-
 if all(heteroagentoptions.GEptype==0)
     GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
 else
@@ -485,7 +493,7 @@ elseif heteroagentoptions.fminalgo==3
     weight=ones(length(p0),1); % I already implement weights via heteroagentoptions
     [p_eqm_vec,GeneralEqmConditionsVec] = fgoalattain(GeneralEqmConditionsFnOpt,p0,goal,weight);
     GeneralEqmConditions=sum(abs(GeneralEqmConditionsVec));
-elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
+elseif heteroagentoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)    
     % https://en.wikipedia.org/wiki/CMA-ES
     % https://cma-es.github.io/
     % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab

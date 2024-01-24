@@ -112,8 +112,12 @@ if bruteforce==0
         z_gridspacing_up=CreateGridvals(znum,[z1_gridspacing_up;z2_gridspacing_up;z3_gridspacing_up;z4_gridspacing_up;z5_gridspacing_up],1);
         z_gridspacing_down=CreateGridvals(znum,[z1_gridspacing_down;z2_gridspacing_down;z3_gridspacing_down;z4_gridspacing_down;z5_gridspacing_down],1);
     end
-    P=reshape(mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,Mew,Sigma),znum);
 
+    if l_z==1
+        P = normcdf(z_gridvals+z_gridspacing_up,Mew,Sigma)-normcdf(z_gridvals-z_gridspacing_down,Mew,Sigma);
+    else
+        P=reshape(mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,Mew,Sigma),znum);
+    end
 
 else 
     %% bruteforce=1

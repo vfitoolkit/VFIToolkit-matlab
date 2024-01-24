@@ -307,6 +307,10 @@ for ii=1:N_i
     
 end
 
-StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{:}),[],1); % reshape is to make sure this is a column vector
+if length(Parameters.(PTypeDistParamNames{:}))==N_i
+    StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{:}),[],1); % reshape is to make sure this is a column vector
+else
+    error('Parameter for PTypeDistParamNames does not have the same number of permanent types as N_i/Names_i \n')
+end
 
 end
