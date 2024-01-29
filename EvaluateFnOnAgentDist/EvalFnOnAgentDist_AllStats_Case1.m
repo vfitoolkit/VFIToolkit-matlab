@@ -8,6 +8,8 @@ if ~exist('simoptions','var')
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.npoints=100;
     simoptions.nquantiles=20;
+    simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
 else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
@@ -18,9 +20,14 @@ else
     if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20;
     end
+    if ~isfield(simoptions,'tolerance')
+        simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    end
+    if ~isfield(simoptions,'whichstats')
+        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    end
 end
 
-Tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
 
 if n_d(1)==0
     l_d=0;
@@ -66,88 +73,18 @@ if simoptions.parallel==2
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
         
-    for kk=1:length(FnsToEvaluate)
+    for ff=1:length(FnsToEvalNames)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'SSvalueParamNames={}'
+        if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
             FnToEvaluateParamsVec=[];
         else
-            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names);
+            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
         end
         
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{kk}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
+        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ff}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
         Values=reshape(Values,[N_a*N_z,1]);
-        
-        WeightedValues=Values.*StationaryDistVec;
-        WeightedValues(isnan(WeightedValues))=0; % Values of -Inf times weight of zero give nan, we want them to be zeros.        
-        
-        [SortedValues,SortedValues_index] = sort(Values);
-        
-        SortedWeights=StationaryDistVec(SortedValues_index);
-        SortedWeightedValues=WeightedValues(SortedValues_index);
-        
-        CumSumSortedWeights=cumsum(SortedWeights);
-        
-        % Now calculate all the statistics
-        
-        % Mean
-        Mean=sum(WeightedValues); % want to reuse in std dev
-        AllStats.(FnsToEvalNames{kk}).Mean=Mean;
-        % Standard deviation
-        AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(StationaryDistVec.*((Values-Mean.*ones(N_a*N_z,1)).^2)));
-        % Variance
-        AllStats.(FnsToEvalNames{kk}).Variance=AllStats.(FnsToEvalNames{kk}).StdDev^2;
-        
-        % Top X share indexes (simoptions.npoints will be number of points in Lorenz Curve)
-        Top1cutpoint=round(0.99*simoptions.npoints);
-        Top5cutpoint=round(0.95*simoptions.npoints);
-        Top10cutpoint=round(0.90*simoptions.npoints);
-        Top50cutpoint=round(0.50*simoptions.npoints);
-        LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,2)';
-        AllStats.(FnsToEvalNames{kk}).LorenzCurve=LorenzCurve;
-        AllStats.(FnsToEvalNames{kk}).Top1share=1-LorenzCurve(Top1cutpoint);
-        AllStats.(FnsToEvalNames{kk}).Top5share=1-LorenzCurve(Top5cutpoint);
-        AllStats.(FnsToEvalNames{kk}).Top10share=1-LorenzCurve(Top10cutpoint);
-        AllStats.(FnsToEvalNames{kk}).Bottom50share=LorenzCurve(Top50cutpoint);
-        
-        % Now some cutoffs (note: qlimitvec is effectively already the cumulative sum)
-        index_median=find(CumSumSortedWeights>=0.5,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Median=SortedValues(index_median);
-        AllStats.(FnsToEvalNames{kk}).Percentile50th=SortedValues(index_median);
-        index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Percentile90th=SortedValues(index_p90);
-        index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Percentile95th=SortedValues(index_p95);
-        index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Percentile99th=SortedValues(index_p99);
-        
-        % Quantiles
-        QuantileIndexes_kk=zeros(1,simoptions.nquantiles-1,'gpuArray');
-        QuantileCutoffs_kk=zeros(1,simoptions.nquantiles-1,'gpuArray');
-        QuantileMeans_kk=zeros(1,simoptions.nquantiles,'gpuArray');
-        for ii=1:simoptions.nquantiles-1
-            [~,tempindex]=find(CumSumSortedWeights>=ii/simoptions.nquantiles,1,'first');
-            QuantileIndexes_kk(ii)=tempindex;
-            QuantileCutoffs_kk(ii)=SortedValues(tempindex);
-            if ii==1
-                QuantileMeans_kk(ii)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-            elseif (1<ii) && (ii<(simoptions.nquantiles-1))
-                QuantileMeans_kk(ii)=sum(SortedWeightedValues(QuantileIndexes_kk(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_kk(ii-1)));
-            elseif ii==(simoptions.nquantiles-1)
-                QuantileMeans_kk(ii)=sum(SortedWeightedValues(QuantileIndexes_kk(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_kk(ii-1)));
-                QuantileMeans_kk(ii+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-            end
-        end
-        
-        
-        % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
-        minvalue=SortedValues(tempindex);
-        % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
-        maxvalue=SortedValues(tempindex);
-        
-        AllStats.(FnsToEvalNames{kk}).QuantileCutOffs=[minvalue, QuantileCutoffs_kk, maxvalue];
-        AllStats.(FnsToEvalNames{kk}).QuantileMeans=QuantileMeans_kk;
+
+        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
         
     end
     
@@ -159,113 +96,45 @@ else
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
     
-    for kk=1:length(FnsToEvaluate)
+    for ff=1:length(FnsToEvalNames)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'FnsToEvaluateParamNames={}'
+        if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames={}'
             Values=zeros(N_a*N_z,1);
             if l_d==0
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             else % l_d>0
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
             end
         else
             Values=zeros(N_a*N_z,1);
             if l_d==0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             else % l_d>0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
             end
         end
                 
-        WeightedValues=Values.*StationaryDistVec;
-        
-        
-        [~,SortedValues_index] = sort(Values);
-        
-        SortedWeights=StationaryDistVec(SortedValues_index);
-        SortedWeightedValues=WeightedValues(SortedValues_index);
-        
-        CumSumSortedWeights=cumsum(SortedWeights);
+        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
-        % Now calculate all the statistics
-        
-        % Mean
-        Mean=sum(WeightedValues); % want to reuse in std dev
-        AllStats.(FnsToEvalNames{kk}).Mean=Mean;
-        % Standard deviation
-        AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(StationaryDistVec.*((Values-Mean.*ones(N_a*N_z,1)).^2)));
-        % Variance
-        AllStats.(FnsToEvalNames{kk}).Variance=AllStats.(FnsToEvalNames{kk}).StdDev^2;
-        
-        % Top X share indexes (simoptions.npoints will be number of points in Lorenz Curve)
-        Top1cutpoint=round(0.99*simoptions.npoints);
-        Top5cutpoint=round(0.95*simoptions.npoints);
-        Top10cutpoint=round(0.90*simoptions.npoints);
-        Top50cutpoint=round(0.50*simoptions.npoints);
-        LorenzCurve=LorenzCurve_subfunction_PreSorted(SortedWeightedValues,CumSumSortedWeights,simoptions.npoints,1)';
-        AllStats.(FnsToEvalNames{kk}).LorenzCurve=LorenzCurve;
-        AllStats.(FnsToEvalNames{kk}).Top1share=1-LorenzCurve(Top1cutpoint);
-        AllStats.(FnsToEvalNames{kk}).Top5share=1-LorenzCurve(Top5cutpoint);
-        AllStats.(FnsToEvalNames{kk}).Top10share=1-LorenzCurve(Top10cutpoint);
-        AllStats.(FnsToEvalNames{kk}).Bottom50share=LorenzCurve(Top50cutpoint);
-        
-        % Now some cutoffs (note: qlimitvec is effectively already the cumulative sum)
-        index_median=find(CumSumSortedWeights>=0.5,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Median=SortedValues(index_median);
-        AllStats.(FnsToEvalNames{kk}).Percentile50th=SortedValues(index_median);
-        index_p90=find(CumSumSortedWeights>=0.90,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Percentile90th=SortedValues(index_p90);
-        index_p95=find(CumSumSortedWeights>=0.95,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Percentile95th=SortedValues(index_p95);
-        index_p99=find(CumSumSortedWeights>=0.99,1,'first');
-        AllStats.(FnsToEvalNames{kk}).Percentile99th=SortedValues(index_p99);
-        
-        % Quantiles
-        QuantileIndexes_kk=zeros(1,simoptions.nquantiles-1);
-        QuantileCutoffs_kk=zeros(1,simoptions.nquantiles-1);
-        QuantileMeans_kk=zeros(1,simoptions.nquantiles);
-        for ii=1:simoptions.nquantiles-1
-            [~,tempindex]=find(CumSumSortedWeights>=ii/simoptions.nquantiles,1,'first');
-            QuantileIndexes_kk(ii)=tempindex;
-            QuantileCutoffs_kk(ii)=SortedValues(tempindex);
-            if ii==1
-                QuantileMeans_kk(ii)=sum(SortedWeightedValues(1:tempindex))./CumSumSortedWeights(tempindex); %Could equally use sum(SortedWeights(1:tempindex)) in denominator
-            elseif (1<ii) && (ii<(simoptions.nquantiles-1))
-                QuantileMeans_kk(ii)=sum(SortedWeightedValues(QuantileIndexes_kk(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_kk(ii-1)));
-            elseif ii==(simoptions.nquantiles-1)
-                QuantileMeans_kk(ii)=sum(SortedWeightedValues(QuantileIndexes_kk(ii-1)+1:tempindex))./(CumSumSortedWeights(tempindex)-CumSumSortedWeights(QuantileIndexes_kk(ii-1)));
-                QuantileMeans_kk(ii+1)=sum(SortedWeightedValues(tempindex+1:end))./(CumSumSortedWeights(end)-CumSumSortedWeights(tempindex));
-            end
-        end
-        
-        % Min value
-        [~,tempindex]=find(CumSumSortedWeights>=Tolerance,1,'first');
-        minvalue=SortedValues(tempindex);
-        % Max value
-        [~,tempindex]=find(CumSumSortedWeights>=(1-Tolerance),1,'first');
-        maxvalue=SortedValues(tempindex);
-        
-        AllStats.(FnsToEvalNames{kk}).QuantileCutOffs=[minvalue, QuantileCutoffs_kk, maxvalue];
-        AllStats.(FnsToEvalNames{kk}).QuantileMeans=QuantileMeans_kk;
     end
 end
 
@@ -296,15 +165,15 @@ if isfield(simoptions,'conditionalrestrictions')
     
     if simoptions.parallel==2
         % Evaluate the conditinal restrictions
-        for kk=1:length(CondlRestnFnNames)
+        for ff=1:length(CondlRestnFnNames)
             % Includes check for cases in which no parameters are actually required
-            if isempty(CondlRestnFnParamNames(kk).Names) % check for '={}'
+            if isempty(CondlRestnFnParamNames(ff).Names) % check for '={}'
                 CondlRestnFnParamsVec=[];
             else
-                CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames(kk).Names);
+                CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames(ff).Names);
             end
             
-            Values=EvalFnOnAgentDist_Grid_Case1(CondlRestnFns{kk}, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
+            Values=EvalFnOnAgentDist_Grid_Case1(CondlRestnFns{ff}, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
             Values=reshape(Values,[N_a*N_z,1]);
 
             RestrictedStationaryDistVec=StationaryDistVec;
@@ -314,52 +183,52 @@ if isfield(simoptions,'conditionalrestrictions')
 
             if restrictedsamplemass==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{kk},' has a restricted sample that is of zero mass \n'])
-                AllStats.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
+                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{ff},' has a restricted sample that is of zero mass \n'])
+                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
-                AllStats.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AllStats_Case1(RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate_copy, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
+                AllStats.(CondlRestnFnNames{ff})=EvalFnOnAgentDist_AllStats_Case1(RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate_copy, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
                 
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
-                    AllStats.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AllStats.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
+                    AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Mean;
                 end
-                AllStats.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
+                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
             end
         end
     else % simoptions.parallel~=2
-        for kk=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvalNames)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(kk).Names) % check for 'FnsToEvaluateParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 if l_d==0
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                        Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                     end
                 else % l_d>0
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                        Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                     end
                 end
             else
                 Values=zeros(N_a*N_z,1);
                 if l_d==0
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
+                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                     Values=zeros(N_a*N_z,1);
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                        Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                     end
                 else % l_d>0
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(kk).Names));
+                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                     for ii=1:N_a*N_z
                         j1=rem(ii-1,N_a)+1;
                         j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{kk}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                        Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                     end
                 end
             end
@@ -371,16 +240,16 @@ if isfield(simoptions,'conditionalrestrictions')
 
             if restrictedsamplemass==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{kk},' has a restricted sample that is of zero mass \n'])
-                AllStats.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
+                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{ff},' has a restricted sample that is of zero mass \n'])
+                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
-                AllStats.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AllStats_Case1(RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate_copy, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
+                AllStats.(CondlRestnFnNames{ff})=EvalFnOnAgentDist_AllStats_Case1(RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate_copy, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
                 
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
-                    AllStats.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AllStats.(CondlRestnFnNames{kk}).(FnsToEvalNames{ii}).Mean;
+                    AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Mean;
                 end
-                AllStats.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
+                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
             end
         end
     end

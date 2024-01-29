@@ -9,6 +9,8 @@ function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_Case1(StationaryDist, PolicyI
 %
 % Parallel and npoints are optional inputs
 
+warning('RECOMMENDED: use EvalFnOnAgentDist_AllStats_Case1() instead of EvalFnOnAgentDist_LorenzCurve_Case1()')
+
 %%
 if exist('Parallel','var')==0
     Parallel=1+(gpuDeviceCount>0);

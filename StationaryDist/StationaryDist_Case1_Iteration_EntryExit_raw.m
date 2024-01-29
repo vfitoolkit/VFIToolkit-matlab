@@ -111,7 +111,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
         end
     end
 end
-counter
+
 
 if simoptions.parallel==2
     StationaryDistKron.pdf=gpuArray(full(StationaryDistKron_pdf));

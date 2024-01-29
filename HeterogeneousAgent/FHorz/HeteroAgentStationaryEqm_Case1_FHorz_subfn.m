@@ -57,7 +57,7 @@ if isstruct(GeneralEqmEqns)
 else
     GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
-    
+
 % We might want to output GE conditions as a vector or structure
 if heteroagentoptions.outputGEform==0 % scalar
     if heteroagentoptions.multiGEcriterion==0
@@ -76,7 +76,7 @@ elseif heteroagentoptions.outputGEform==2 % structure
     end
 end
     
-    
+
 if heteroagentoptions.verbose==1
     fprintf(' \n')
     fprintf('Current GE prices: \n')

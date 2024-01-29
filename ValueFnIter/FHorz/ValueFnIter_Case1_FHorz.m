@@ -370,6 +370,7 @@ end
 % ReturnFnParamNames
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 
+
 %% Implement new way of handling warm-glow of bequests (currently only used by Epstein-Zin preferences)
 if isfield(vfoptions,'WarmGlowBequestsFn')
     temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
