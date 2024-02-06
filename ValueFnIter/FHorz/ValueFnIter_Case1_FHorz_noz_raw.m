@@ -115,6 +115,8 @@ for reverse_j=1:N_j-1
            a_val=a_gridvals(a_c,:);
            ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, special_n_a, d_grid, a_val, ReturnFnParamsVec,0);
 
+           size(ReturnMatrix_a)
+           size(VKronNext_j)
            entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*VKronNext_j; % aprime-by-1
            
            %Calc the max and it's index

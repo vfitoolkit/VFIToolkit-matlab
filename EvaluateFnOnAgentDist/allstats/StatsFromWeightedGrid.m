@@ -123,10 +123,11 @@ else
                 LorenzCurve=zeros(npoints,1);
                 lorenzcvec=1/npoints:1/npoints:1;
                 SumWeightedValues=sum(SortedWeightedValues);
-                for lorenzcind=1:npoints % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
+                for lorenzcind=1:npoints-1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
                     [~,LorenzCurveIndex_lorenzc]=max(CumSumSortedWeights >= lorenzcvec(lorenzcind));
                     LorenzCurve(lorenzcind)=CumSumSortedWeightedValues(LorenzCurveIndex_lorenzc)-Values(LorenzCurveIndex_lorenzc)*(CumSumSortedWeights(LorenzCurveIndex_lorenzc)-lorenzcvec(lorenzcind));
                 end
+                LorenzCurve(npoints)=1;
                 AllStats.LorenzCurve=LorenzCurve/SumWeightedValues;
                 % Calculate the 'age conditional' gini
                 % Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
