@@ -3,9 +3,6 @@ function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
-    if size(ReturnFnParams(ii))~=[1,1]
-        disp('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
-    end
     ParamCell(ii,1)={ReturnFnParams(ii)};
 end
 
@@ -27,10 +24,6 @@ if l_a>4
 end
 if l_z>4
     disp('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4): (in CreateReturnFnMatrix_Case1_Disc_Par2)')
-end
-
-if nargin(ReturnFn)~=l_d+l_a+l_a+l_z+length(ReturnFnParams)
-    disp('ERROR: Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
 end
 
 if l_d>=1

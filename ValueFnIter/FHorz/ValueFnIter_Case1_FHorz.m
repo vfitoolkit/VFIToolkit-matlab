@@ -370,6 +370,23 @@ end
 % ReturnFnParamNames
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 
+% Decided to move the check of the parameters to here.
+% Inputs to ReturnFn should all be in Parameters, and should either be scalar or age-dependent
+for pp=1:length(ReturnFnParamNames)
+    if ~isfield(Parameters,ReturnFnParamNames{pp})
+        error(['Cannot find the parameter ',ReturnFnParamNames{pp}, ' in the Parameters structure (it is needed as an input to the ReturnFn)'])
+    else
+        if isscalar(Parameters.(ReturnFnParamNames{pp}))
+            %  scalar is fine
+        elseif all(size(Parameters.(ReturnFnParamNames{pp}))==[1,N_j]) || all(size(Parameters.(ReturnFnParamNames{pp}))==[N_j,1])
+            % age-dependent vector is fine
+        else
+            error(['The parameter ',ReturnFnParamNames{pp}, ' must be scalar or age-dependent (check the size of this parameter; it is needed as an input to the ReturnFn)'])
+        end
+    end
+end
+
+
 
 %% Implement new way of handling warm-glow of bequests (currently only used by Epstein-Zin preferences)
 if isfield(vfoptions,'WarmGlowBequestsFn')

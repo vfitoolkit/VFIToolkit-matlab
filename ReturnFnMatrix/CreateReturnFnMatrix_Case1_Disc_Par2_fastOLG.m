@@ -24,11 +24,6 @@ end
 
 nReturnFnParams=size(ReturnFnParamsAgeMatrix,2);
 
-if nargin(ReturnFn)~=l_d+l_a+l_a+l_z+nReturnFnParams
-    dbstack
-    error('Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
-end
-
 ParamCell=cell(nReturnFnParams,1);
 for ii=1:nReturnFnParams
     ParamCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_d-l_a-l_a)};

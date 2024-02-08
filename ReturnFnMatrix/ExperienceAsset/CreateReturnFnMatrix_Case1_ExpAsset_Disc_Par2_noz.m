@@ -7,9 +7,6 @@ end
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
-    if ~all(size(ReturnFnParams(ii))==[1,1])
-        fprintf('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar, problem with %i-th parameter',ii)
-    end
     ParamCell(ii,1)={ReturnFnParams(ii)};
 end
 
@@ -31,11 +28,7 @@ if l_a2>1
     error('ERROR: Using GPU for the return fn does not allow for more than one experience asset variable')
 end
 
-if nargin(ReturnFn)~=l_d+l_a1+l_a1+l_a2+length(ReturnFnParams)
-    fprintf('Next line is numbers relevant to the error \n')
-    [nargin(ReturnFn),l_d,l_a1,l_a2,length(ReturnFnParams)]
-    error('ERROR: Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
-end
+
 
 if l_d>=1
     d1vals=d_grid(1:n_d(1)); 

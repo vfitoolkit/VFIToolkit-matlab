@@ -18,15 +18,8 @@ end
 
 nReturnFnParams=size(ReturnFnParamsAgeMatrix,2);
 
-if nargin(ReturnFn)~=l_d+l_a+l_a+nReturnFnParams
-    disp('ERROR: Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
-end
-
 ParamCell=cell(nReturnFnParams,1);
 for ii=1:nReturnFnParams
-%     if ~prod(size(ReturnFnParamsAgeMatrix(:,ii))==[N_j,1]) % ~prod(size(ReturnFnParamsAgeMatrix(:,ii))==[1,1]) && 
-%         disp('ERROR: Using GPU for the fastOLG return fn does not allow for any of ReturnFnParams to be anything but a vector dependent on age)')
-%     end
     ParamCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_d-l_a-l_a)};
 end
 

@@ -3,9 +3,6 @@ function Fmatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
-    if ~all(size(ReturnFnParams(ii))==[1,1])
-        fprintf('ERROR: Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar, problem with %i-th parameter',ii)
-    end
     ParamCell(ii)={ReturnFnParams(ii)};
 end
 
@@ -24,11 +21,6 @@ if l_a>4
     error('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
 end
 
-if nargin(ReturnFn)~=l_d+l_a+l_a+length(ReturnFnParams)
-    fprintf('Next line is numbers relevant to the error \n')
-    [nargin(ReturnFn),l_d,l_a,length(ReturnFnParams)]
-    error('ERROR: Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
-end
 
 if l_d>=1
     d1vals=d_grid(1:n_d(1)); 
