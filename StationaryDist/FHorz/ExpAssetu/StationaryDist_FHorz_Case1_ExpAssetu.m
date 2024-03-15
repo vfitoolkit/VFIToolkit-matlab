@@ -48,6 +48,10 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 N_u=prod(n_u);
 
+% Make sure u_grid and pi_u are on gpu
+u_grid=gpuArray(u_grid);
+pi_u=gpuArray(pi_u);
+
 %%
 if N_z==0
     StationaryDist=StationaryDist_FHorz_Case1_ExpAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
