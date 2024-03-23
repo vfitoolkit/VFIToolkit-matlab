@@ -85,7 +85,6 @@ if simoptions.parallel==2
         Values=reshape(Values,[N_a*N_z,1]);
 
         AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-        
     end
     
 else

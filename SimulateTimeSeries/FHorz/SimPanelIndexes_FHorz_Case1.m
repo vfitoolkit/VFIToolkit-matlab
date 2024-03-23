@@ -117,12 +117,12 @@ cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by usin
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
     
-    % Get seedpoints from InitialDist
+    Get seedpoints from InitialDist
     if simoptions.lowmemory==0
         [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
     else % simoptions.lowmemory==1
         seedpointind=zeros(1,simoptions.numbersims);
-        for ii=1:simoptions.numbersims
+        parfor ii=1:simoptions.numbersims
             [~,ind_ii]=max(cumsumInitialDistVec>rand(1,1));
             seedpointind(ii)=ind_ii;
         end
@@ -130,7 +130,7 @@ if ~isfield(simoptions,'n_e')
     if numel(InitialDist)==N_a*N_z % Has just been given for age j=1
         seedpoints=[ind2sub_vec_homemade([N_a,N_z],seedpointind'),ones(simoptions.numbersims,1)];
     else  % Distribution across ages as well
-        seedpoints=[ind2sub_vec_homemade([N_a,N_z,N_j],seedpointind'),ones(simoptions.numbersims,1)];
+        seedpoints=[ind2sub_vec_homemade([N_a,N_z,N_j],seedpointind')]; %,ones(simoptions.numbersims,1)];
     end
     seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
         
@@ -207,7 +207,7 @@ else %if isfield(simoptions,'n_e')
         [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
     else % simoptions.lowmemory==1
         seedpointind=zeros(1,simoptions.numbersims);
-        for ii=1:simoptions.numbersims
+        parfor ii=1:simoptions.numbersims
             [~,ind_ii]=max(cumsumInitialDistVec>rand(1,1));
             seedpointind(ii)=ind_ii;
         end

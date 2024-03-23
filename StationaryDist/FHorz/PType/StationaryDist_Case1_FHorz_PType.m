@@ -155,11 +155,10 @@ end
 if idiminj1dist==1
     warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
     tempsz=size(jequaloneDist);
-    size(jequaloneDist)
     jequaloneDisttemp=reshape(jequaloneDist,[prod(tempsz(1:end-1)),tempsz(end)]);
-    size(jequaloneDisttemp)
-    Parameters.(PTypeDistParamNames{:})=sum(jequaloneDisttemp,1)'; % column vector
+    Parameters.(PTypeDistParamNames{1})=sum(jequaloneDisttemp,1)'; % column vector
 end
+
 
 
 %%

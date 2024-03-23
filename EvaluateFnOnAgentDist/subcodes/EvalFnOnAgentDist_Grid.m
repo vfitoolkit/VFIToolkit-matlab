@@ -11,6 +11,7 @@ else
     l_z=length(n_z);
 end
 
+
 ParamCell=cell(length(FnToEvaluateParams),1);
 for ii=1:length(FnToEvaluateParams)
     ParamCell(ii,1)={FnToEvaluateParams(ii)};
@@ -74,6 +75,8 @@ if l_daprime==1
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==2 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2), ParamCell{:});
     elseif l_a==2 && l_z==1
@@ -84,6 +87,8 @@ if l_daprime==1
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==3 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), ParamCell{:});
     elseif l_a==3 && l_z==1
@@ -94,6 +99,8 @@ if l_daprime==1
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==4 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), ParamCell{:});
     elseif l_a==4 && l_z==1
@@ -104,6 +111,8 @@ if l_daprime==1
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     end
 elseif l_daprime==2
     if l_a==1 && l_z==0
@@ -116,6 +125,8 @@ elseif l_daprime==2
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==2 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2), ParamCell{:});
     elseif l_a==2 && l_z==1
@@ -126,6 +137,8 @@ elseif l_daprime==2
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==3 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), ParamCell{:});
     elseif l_a==3 && l_z==1
@@ -136,6 +149,8 @@ elseif l_daprime==2
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==4 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), ParamCell{:});
     elseif l_a==4 && l_z==1
@@ -146,6 +161,8 @@ elseif l_daprime==2
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     end
 elseif l_daprime==3
     if l_a==1 && l_z==0
@@ -158,6 +175,8 @@ elseif l_daprime==3
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==2 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2), ParamCell{:});
     elseif l_a==2 && l_z==1
@@ -168,6 +187,8 @@ elseif l_daprime==3
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==3 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), ParamCell{:});
     elseif l_a==3 && l_z==1
@@ -178,6 +199,8 @@ elseif l_daprime==3
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==4 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), ParamCell{:});
     elseif l_a==4 && l_z==1
@@ -188,6 +211,8 @@ elseif l_daprime==3
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     end
 elseif l_daprime==4
     if l_a==1 && l_z==0
@@ -200,6 +225,8 @@ elseif l_daprime==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==2 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2), ParamCell{:});
     elseif l_a==2 && l_z==1
@@ -210,6 +237,8 @@ elseif l_daprime==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==3 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), ParamCell{:});
     elseif l_a==3 && l_z==1
@@ -220,6 +249,8 @@ elseif l_daprime==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==4 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), ParamCell{:});
     elseif l_a==4 && l_z==1
@@ -230,6 +261,8 @@ elseif l_daprime==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     end
 elseif l_daprime==5
     if l_a==1 && l_z==0
@@ -242,6 +275,8 @@ elseif l_daprime==5
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==1 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==2 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2), ParamCell{:});
     elseif l_a==2 && l_z==1
@@ -252,6 +287,8 @@ elseif l_daprime==5
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==2 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==3 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), ParamCell{:});
     elseif l_a==3 && l_z==1
@@ -262,6 +299,8 @@ elseif l_daprime==5
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==3 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     elseif l_a==4 && l_z==0
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), ParamCell{:});
     elseif l_a==4 && l_z==1
@@ -272,6 +311,8 @@ elseif l_daprime==5
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3), ParamCell{:});
     elseif l_a==4 && l_z==4
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4), ParamCell{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals(1,:,1),z_gridvals(1,:,2),z_gridvals(1,:,3),z_gridvals(1,:,4),z_gridvals(1,:,5), ParamCell{:});
     end
 end
 
