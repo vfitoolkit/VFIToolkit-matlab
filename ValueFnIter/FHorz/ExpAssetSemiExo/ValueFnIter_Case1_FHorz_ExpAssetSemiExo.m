@@ -58,6 +58,7 @@ else
     end
 end
 
+
 %%
 if vfoptions.outputkron==0
     n_bothz=[vfoptions.n_semiz,n_z];
@@ -72,6 +73,7 @@ if vfoptions.outputkron==0
     else
         n_a=n_a2;
     end
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if isfield(vfoptions,'n_e')
         V=reshape(VKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
@@ -88,12 +90,16 @@ if vfoptions.outputkron==0
         V=reshape(VKron,[n_a,n_bothz,N_j]);
         if n_d1==0
             if length(n_a1)==1 && n_a1(1)>0
-                Policy=reshape(PolicyKron,[3,n_a,n_bothz,N_j]);
+                Policy=reshape(PolicyKron,[3,n_a,n_bothz,N_j]); % I can replace 3 with length(n_d)
             else
                 error('Not yet implemented')
             end
         else
-            error('Not yet implemented')
+            if length(n_a1)==1 && n_a1(1)>0
+                Policy=reshape(PolicyKron,[length(n_d),n_a,n_bothz,N_j]);
+            else
+                error('Not yet implemented')
+            end
         end
     end
 else

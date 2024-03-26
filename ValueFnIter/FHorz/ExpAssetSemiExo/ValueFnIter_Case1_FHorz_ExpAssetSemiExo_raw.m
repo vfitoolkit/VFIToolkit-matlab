@@ -35,7 +35,6 @@ N_d=prod(n_d);
 d_grid=[d1_grid; d2_grid; d3_grid];
 
 if vfoptions.lowmemory>0
-    l_z=length(n_z);
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
 
@@ -56,12 +55,13 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-        d12_ind=shiftdim(rem(d_ind-1,N_d12)+1,-1);
-        Policy3(1,:,:,N_j)=shiftdim(rem(d12_ind-1,N_d2)+1,-1);
-        Policy3(2,:,:,N_j)=shiftdim(ceil(d12_ind/N_d2),-1);
-        Policy3(3,:,:,N_j)=shiftdim(ceil(d_ind/N_d12),-1);
-        Policy3(4,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+        d_ind=rem(maxindex-1,N_d)+1;
+        d12_ind=rem(d_ind-1,N_d12)+1;
+        Policy3(1,:,:,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+        Policy3(2,:,:,N_j)=ceil(d12_ind/N_d1); % d2
+        Policy3(3,:,:,N_j)=ceil(d_ind/N_d12); % d3
+        Policy3(4,:,:,N_j)=ceil(maxindex/N_d); % d4
+
 
     elseif vfoptions.lowmemory==1
 
@@ -71,12 +71,12 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-            d12_ind=shiftdim(rem(d_ind-1,N_d12)+1,-1);
-            Policy3(1,:,z_c,N_j)=shiftdim(rem(d12_ind-1,N_d2)+1,-1);
-            Policy3(2,:,z_c,N_j)=shiftdim(ceil(d12_ind/N_d2),-1);
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(d_ind/N_d12),-1);
-            Policy3(4,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+            d_ind=rem(maxindex-1,N_d)+1;
+            d12_ind=rem(d_ind-1,N_d12)+1;
+            Policy3(1,:,z_c,N_j)=rem(d12_ind-1,N_d1)+1;
+            Policy3(2,:,z_c,N_j)=ceil(d12_ind/N_d1);
+            Policy3(3,:,z_c,N_j)=ceil(d_ind/N_d12);
+            Policy3(4,:,z_c,N_j)=ceil(maxindex/N_d);
         end
     end
 else
@@ -149,7 +149,7 @@ else
                     entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                     % entireEV_z is (d2,a1prime, a2)
 
-                    entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(N_d1,N_a1));
+                    entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_d3z,[],1);
@@ -182,7 +182,7 @@ else
                 entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d2,a1prime, a2)
 
-                entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(N_d1,N_a1));
+                entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_d3z,[],1);
@@ -201,10 +201,10 @@ else
     Policy3(3,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]); % This is the value of d that corresponds, make it this shape for addition just below
     d12a1prime_ind=reshape(Policy_ford3_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
-    d12_ind=shiftdim(rem(d12a1prime_ind-1,N_d12)+1,-1);
-    Policy3(1,:,:,N_j)=shiftdim(rem(d12_ind-1,N_d2)+1,-1); % d1
-    Policy3(2,:,:,N_j)=shiftdim(ceil(d12_ind/N_d2),-1); % d2
-    Policy3(4,:,:,N_j)=shiftdim(ceil(d12a1prime_ind/N_d12),-1); % a1prime
+    d12_ind=rem(d12a1prime_ind-1,N_d12)+1;
+    Policy3(1,:,:,N_j)=rem(d12_ind-1,N_d1)+1; % d1
+    Policy3(2,:,:,N_j)=ceil(d12_ind/N_d1); % d2
+    Policy3(4,:,:,N_j)=ceil(d12a1prime_ind/N_d12); % a1prime
 end
 
 %% Iterate backwards through j.
@@ -285,7 +285,7 @@ for reverse_j=1:N_j-1
                     entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                     % entireEV_z is (d2,a1prime, a2)
 
-                    entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(N_d1,N_a1));
+                    entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -337,16 +337,21 @@ for reverse_j=1:N_j-1
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
     [V_jj,maxindex]=max(V_ford3_jj,[],3); % max over d3
     V(:,:,jj)=V_jj;
-    Policy3(2,:,:,jj)=shiftdim(maxindex,-1); % d3 is just maxindex
+    Policy3(3,:,:,jj)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]); % This is the value of d that corresponds, make it this shape for addition just below
     d12a1prime_ind=reshape(Policy_ford3_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
-    d12_ind=shiftdim(rem(d12a1prime_ind-1,N_d12)+1,-1);
-    Policy3(1,:,:,N_j)=shiftdim(rem(d12_ind-1,N_d2)+1,-1); % d1
-    Policy3(2,:,:,N_j)=shiftdim(ceil(d12_ind/N_d2),-1); % d2
-    Policy3(4,:,:,N_j)=shiftdim(ceil(d12a1prime_ind/N_d12),-1); % a1prime
+    d12_ind=rem(d12a1prime_ind-1,N_d12)+1;
+    Policy3(1,:,:,jj)=rem(d12_ind-1,N_d1)+1; % d1
+    Policy3(2,:,:,jj)=ceil(d12_ind/N_d1); % d2
+    Policy3(4,:,:,jj)=ceil(d12a1prime_ind/N_d12); % a1prime
 end
 
 
 %% For experience asset, just output Policy as is and then use Case2 to UnKron
+
+disp('What?')
+Policy3(:,1:5,1:5,end)
+disp('What2?')
+Policy3(:,1:5,1:5,1)
 
 end

@@ -203,6 +203,7 @@ end
 % %     jointgrid=1;
 % % end
 
+
 % NOTE: If vfoptions.parallel~=2 (so using cpu), then only simply stacked columns that do not depend on age are allowed for z_grid
 if vfoptions.parallel==2
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)

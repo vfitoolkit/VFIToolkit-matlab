@@ -32,7 +32,6 @@ N_d=prod(n_d);
 d_grid=[d2_grid;d3_grid];
 
 if vfoptions.lowmemory>0
-    l_z=length(n_z);
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
 
@@ -53,10 +52,10 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-        Policy3(1,:,:,N_j)=shiftdim(rem(d_ind-1,N_d2)+1,-1);
-        Policy3(2,:,:,N_j)=shiftdim(ceil(d_ind/N_d2),-1);
-        Policy3(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+        d_ind=rem(maxindex-1,N_d)+1; % Do I need this shiftdim(), can probably delete all these
+        Policy3(1,:,:,N_j)=rem(d_ind-1,N_d2)+1;
+        Policy3(2,:,:,N_j)=ceil(d_ind/N_d2);
+        Policy3(3,:,:,N_j)=ceil(maxindex/N_d);
 
     elseif vfoptions.lowmemory==1
 
@@ -66,10 +65,10 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-            Policy3(1,:,z_c,N_j)=shiftdim(rem(d_ind-1,N_d2)+1,-1);
-            Policy3(2,:,z_c,N_j)=shiftdim(ceil(d_ind/N_d2),-1);
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+            d_ind=rem(maxindex-1,N_d)+1;
+            Policy3(1,:,z_c,N_j)=rem(d_ind-1,N_d2)+1;
+            Policy3(2,:,z_c,N_j)=ceil(d_ind/N_d2);
+            Policy3(3,:,z_c,N_j)=ceil(maxindex/N_d);
         end
     end
 else
@@ -113,9 +112,8 @@ else
 
                 % Apply the aprimeProbs
                 entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_bothz]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_bothz]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-                % entireEV is (d,a1prime, a2,z)
+                % entireEV is (d2,a1prime, a2,z)
 
-                %             entireEV=repelem(EV,n_d2,1,1); % I tried this instead but appears repelem() is slower than kron(). However kron() requires 2-D so here I just use repelem() anyway.
                 entireRHS_d3=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,1,N_a1,1);
 
                 %Calc the max and it's index
@@ -140,7 +138,7 @@ else
 
                     % Apply the aprimeProbs
                     entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-                    % entireEV_z is (d,a1prime, a2)
+                    % entireEV_z is (d2,a1prime, a2)
 
                     entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(1,N_a1));
 
@@ -194,9 +192,11 @@ else
     Policy3(2,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]); % This is the value of d that corresponds, make it this shape for addition just below
     d2a1prime_ind=reshape(Policy_ford3_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
-    Policy3(1,:,:,N_j)=shiftdim(rem(d2a1prime_ind-1,N_d2)+1,-1); % d2
-    Policy3(3,:,:,N_j)=shiftdim(ceil(d2a1prime_ind/N_d2),-1); % a1prime
+    Policy3(1,:,:,N_j)=rem(d2a1prime_ind-1,N_d2)+1; % d2
+    Policy3(3,:,:,N_j)=ceil(d2a1prime_ind/N_d2); % a1prime
+    
 end
+
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
@@ -332,8 +332,8 @@ for reverse_j=1:N_j-1
     Policy3(2,:,:,jj)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]); % This is the value of d that corresponds, make it this shape for addition just below
     d2a1prime_ind=reshape(Policy_ford3_jj((1:1:N_a*N_semiz*N_z)'+(N_a*N_semiz*N_z)*(maxindex-1)),[1,N_a,N_semiz*N_z]);
-    Policy3(1,:,:,jj)=shiftdim(rem(d2a1prime_ind-1,N_d2)+1,-1); % d2
-    Policy3(3,:,:,jj)=shiftdim(ceil(d2a1prime_ind/N_d2),-1); % a1prime
+    Policy3(1,:,:,jj)=rem(d2a1prime_ind-1,N_d2)+1; % d2
+    Policy3(3,:,:,jj)=ceil(d2a1prime_ind/N_d2); % a1prime
 
 end
 
