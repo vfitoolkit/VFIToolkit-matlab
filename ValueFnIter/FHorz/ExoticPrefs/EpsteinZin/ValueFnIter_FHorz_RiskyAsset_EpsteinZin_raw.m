@@ -444,8 +444,8 @@ for reverse_j=1:N_j-1
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
             
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
