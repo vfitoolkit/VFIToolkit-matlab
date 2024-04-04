@@ -290,6 +290,9 @@ for ff=1:numFnsToEvaluate
     if simoptions.whichstats(2)==1
         AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
     end
+    if simoptions.whichstats(1)==1 && simoptions.whichstats(2)==1
+        AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,length(simoptions.agegroupings),'gpuArray');
+    end
     if simoptions.whichstats(3)==1
         AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
         AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
@@ -389,6 +392,7 @@ if N_z==0
             % Store them in AgeConditionalStats
             AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
             AgeConditionalStats.(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+            AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian(kk)=tempStats.RatioMeanToMedian;
             AgeConditionalStats.(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
             AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
             AgeConditionalStats.(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
@@ -478,6 +482,9 @@ else % N_z
             end
             if simoptions.whichstats(2)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+            end
+            if simoptions.whichstats(1)==1 && simoptions.whichstats(2)==1
+                AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian(kk)=tempStats.RatioMeanToMedian;
             end
             if simoptions.whichstats(3)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;

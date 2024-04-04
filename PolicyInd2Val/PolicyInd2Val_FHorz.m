@@ -160,6 +160,7 @@ if Parallel==2
 
     else % N_z
         if l_d==0
+
             PolicyIndexes=reshape(PolicyIndexes,[l_aprime,N_a*N_z*N_j]);
             PolicyValues=zeros(l_aprime,N_a*N_z*N_j,'gpuArray');
 

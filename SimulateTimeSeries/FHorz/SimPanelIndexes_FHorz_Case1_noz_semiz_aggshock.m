@@ -105,28 +105,42 @@ cumsumpi_semiz_idio_J=gather(cumsum(pi_semiz_idio_J,2));
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
 
+if numel(InitialDist)==N_a*N_semiz_idio % Has just been given for age j=1
+elseif numel(InitialDist)==N_a*N_semiz_idio*N_j % Distribution across ages as well
+else
+    error('InitialDist is not of a recognized size (should be (a,z,j) or (a,z), should not depend on aggregate shock)')
+end
+
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
     
-    % Get seedpoints from InitialDist
-    [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
-    if numel(InitialDist)==N_a*N_semiz % Has just been given for age j=1
-        seedpoints=[ind2sub_vec_homemade([N_a,N_semiz],seedpointind'),ones(simoptions.numbersims,1)];
-    else  % Distribution across ages as well
-        seedpoints=[ind2sub_vec_homemade([N_a,N_semiz,N_j],seedpointind'),ones(simoptions.numbersims,1)];
-    end
-    seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-
-    SimPanel=nan(3,simperiods,simoptions.numbersims); % (a,semiz,j)
+    SimPanel=nan(3,N_j,simoptions.numbersims); % (a,semiz,j)
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
-            seedpoint=seedpoints(ii,:);
+            % Get seedpoint from InitialDist
+            [~,seedpointind]=max(cumsumInitialDistVec>rand(1,1)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+            if numel(InitialDist)==N_a*N_semiz_idio % Has just been given for age j=1
+                seedpoint=[ind2sub_homemade([N_a,N_semiz_idio],seedpointind),1];
+            elseif numel(InitialDist)==N_a*N_semiz_idio*N_j % Distribution across ages as well
+                seedpoint=ind2sub_homemade([N_a,N_semiz_idio,N_j],seedpointind);
+            end
+            seedpoint=gather(floor(seedpoint)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+
             SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_aggshock_raw(PolicyKron,AggShockIndex,N_d1,N_semiz_idio,N_j,cumsumpi_semiz_idio_J, seedpoint, simperiods);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-            seedpoint=seedpoints(ii,:);
+            % Get seedpoint from InitialDist
+            [~,seedpointind]=max(cumsumInitialDistVec>rand(1,1)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
+            if numel(InitialDist)==N_a*N_semiz_idio % Has just been given for age j=1
+                seedpoint=[ind2sub_homemade([N_a,N_semiz_idio],seedpointind),1];
+            elseif numel(InitialDist)==N_a*N_semiz_idio*N_j % Distribution across ages as well
+                seedpoint=ind2sub_homemade([N_a,N_semiz_idio,N_j],seedpointind);
+            end
+            seedpoint=gather(floor(seedpoint)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+
             SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_aggshock_raw(PolicyKron,AggShockIndex,N_d1,N_semiz_idio,N_j,cumsumpi_semiz_idio_J, seedpoint, simperiods);
+
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end

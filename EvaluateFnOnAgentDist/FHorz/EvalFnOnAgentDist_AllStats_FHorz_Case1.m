@@ -83,7 +83,6 @@ if isfield(simoptions,'n_e')
     n_e=simoptions.n_e;
     N_e=prod(n_e);
     if N_e==0
-        simoptions=rmfield(simoptions,'n_e');
     else
         if isfield(simoptions,'e_grid_J')
             error('No longer use simoptions.e_grid_J, instead just put the age-dependent grid in simoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
@@ -146,6 +145,8 @@ if isfield(simoptions,'n_e')
             N_z=prod(n_z);
         end
     end
+
+    simoptions=rmfield(simoptions,'n_e'); % From now on, e is just treated as part of z (for rest of EvalFnOnAgentDist)
 end
 
 % Also semiz if that is used

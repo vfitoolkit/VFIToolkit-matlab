@@ -153,16 +153,19 @@ else
 
     if whichstats(6)==1
         if nquantiles>0
+            if nquantiles==1
+                error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
+            end
             % Calculate the quantile means (ventiles by default)
             % Calculate the quantile cutoffs (ventiles by default)
             QuantileMeans=zeros(nquantiles,1,'gpuArray');
-            quantilecutoffindexes=zeros(npoints,1);
+            quantilecutoffindexes=zeros(nquantiles-1,1);
             quantilecvec=1/nquantiles:1/nquantiles:1-1/nquantiles;
             for quantilecind=1:nquantiles-1 % Note: because there are nquantiles points in quantiles, avoiding a loop here can be prohibitive in terms of memory use
                 [~,quantilecutoffindexes_quantilec]=max(CumSumSortedWeights >= quantilecvec(quantilecind));
                 quantilecutoffindexes(quantilecind)=quantilecutoffindexes_quantilec;
             end
-            [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
+            % [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
             AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
             % Note: following lines replace /(1/nquantiles) with *nquantiles
             QuantileMeans(1)=(sum(SortedWeightedValues(1:quantilecutoffindexes(1)))-SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles))*nquantiles;

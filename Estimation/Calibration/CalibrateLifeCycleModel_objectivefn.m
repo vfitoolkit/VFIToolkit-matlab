@@ -11,9 +11,15 @@ for pp=1:length(CalibParamNames)
 end
 
 if caliboptions.verbose==1
-    fprintf('Current parameter values')
-    CalibParamNames
-    calibparamsvec
+    fprintf('Current parameter values: \n')
+    for pp=1:length(CalibParamNames)
+        if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
+            fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+        else
+            fprintf(['    ',CalibParamNames{pp},'=  \n'])
+            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))
+        end
+    end
 end
 
 for pp=1:length(CalibParamNames)
@@ -52,12 +58,13 @@ elseif caliboptions.simulatemoments==1
     end
 end
 
+
 %% Get current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
 if usingallstats==1
     currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
     for cc=2:size(allstatmomentnames,1)
-        currentmomentvec(allstatcummomentsizes(cc-1):allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
+        currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
     end
 end
 if usinglcp==1
@@ -68,8 +75,8 @@ if usinglcp==1
 end
 
 %% Option to log moments (if targets are log, then this will have been already applied)
-if sum(estimoptions.logmoments)>0 % need to log some moments
-    currentmomentvec=(1-estimoptions.logmoments).*currentmomentvec + estimoptions.logmoments.*log(currentmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+if any(caliboptions.logmoments>0) % need to log some moments
+    currentmomentvec=(1-caliboptions.logmoments).*currentmomentvec + caliboptions.logmoments.*log(currentmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
 
@@ -79,23 +86,29 @@ if caliboptions.vectoroutput==1
     % This is only used to get standard deviations of parameters as part of
     % method of moments estimation (rather than writing a whole new
     % function), it is not what you want most of the time.
-    Obj=currentmomentvec;
+    Obj=currentmomentvec(~isnan(targetmomentvec));
 else
     % currentmomentvec is the current moment values
     % targetmomentvec is the target moment values
     % Both are column vectors
+    actualtarget=(~isnan(targetmomentvec));
 
     % Note: MethodOfMoments and sum_squared are doing the same calculation, I
     % just write them in ways that make it more obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
-        Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
+        % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
+        % For the purpose of doing log(moments) I switched to the following
+        % (otherwise getting silly current moments can seem attractive)
+        Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
-        Obj=sum(caliboptions.weights.*(targetmomentvec-currentmomentvec).^2);
+        Obj=sum(caliboptions.weights.*(targetmomentvec-currentmomentvec).^2,[],'omitnan');
     elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-        Obj=sum(caliboptions.weights.*(log(targetmomentvec./currentmomentvec).^2));
+        Obj=sum(caliboptions.weights.*(log(currentmomentvec./targetmomentvec).^2),[],'omitnan');
+        % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
     Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
 end
+
 
 %% Verbose
 if caliboptions.verbose==1

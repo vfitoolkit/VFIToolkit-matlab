@@ -10,16 +10,14 @@ function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_aggshock_raw
 % seedpoint=simoptions.seedpoint;
 % simperiods=simoptions.simperiods;
 
-currstate=seedpoint;
-
 % seedpoint is (a,semiz,j)
-
+currstate=seedpoint(1:2); % drop age j as handle that separately
 initialage=seedpoint(3); % j in (a,semiz,j)
 
 % Simulation is simperiods, or up to 'end of finite horizon'.
-periods=min(simperiods,N_j-initialage);
+periods=min(simperiods-1,N_j-initialage);
 
-aggz_c=AggShockIndex(initialage);
+aggz_c=AggShockIndex(1);
 
 if N_d1==0
     SimLifeCycleKron=nan(3,N_j);
@@ -28,14 +26,15 @@ if N_d1==0
         SimLifeCycleKron(2,jj+initialage)=currstate(2)+N_semiz_idio*(aggz_c-1); % semiz_c
         % Note: We want the same structure as we would have for semiz variables, hence put aggregate back into semiz
 
-        temp=PolicyIndexesKron(:,currstate(1),currstate(2),jj+initialage); % (d2,aprime)
+        temp=PolicyIndexesKron(:,currstate(1),currstate(2),jj+initialage,aggz_c); % (d2,aprime)
         currstate(1)=temp(2);
 
-        aggzprime_c=AggShockIndex(initialage+jj+1);
+        aggzprime_c=AggShockIndex(1+jj+1);
         [~,currstate(2)]=max(cumsumpi_semiz_idio_J(currstate(2),:,aggz_c,aggzprime_c,temp(1),jj+initialage)>rand(1,1));
         aggz_c=aggzprime_c;
 
     end
+
     jj=periods; % Do the final period
     SimLifeCycleKron(1,jj+initialage)=currstate(1); % a_c
     SimLifeCycleKron(2,jj+initialage)=currstate(2)+N_semiz_idio*(aggz_c-1); % semiz_c
@@ -48,10 +47,10 @@ else
         SimLifeCycleKron(2,jj+initialage-1)=currstate(2)+N_semiz_idio*(aggz_c-1); % semiz_c
         % Note: We want the same structure as we would have for semiz variables, hence put aggregate back into semiz
 
-        temp=PolicyIndexesKron(:,currstate(1),currstate(2),jj+initialage); % (d1,d2,aprime)
+        temp=PolicyIndexesKron(:,currstate(1),currstate(2),jj+initialage,aggz_c); % (d1,d2,aprime)
         currstate(1)=temp(3);
 
-        aggzprime_c=AggShockIndex(initialage+jj+1);
+        aggzprime_c=AggShockIndex(1+jj+1);
         [~,currstate(2)]=max(cumsumpi_semiz_idio_J(currstate(2),:,aggz_c,aggzprime_c,temp(2),jj+initialage)>rand(1,1));
         aggz_c=aggzprime_c;
     end
@@ -60,4 +59,7 @@ else
     SimLifeCycleKron(2,jj+initialage-1)=currstate(2)+N_semiz_idio*(aggz_c-1); % semiz_c
 
     SimLifeCycleKron(3,initialage:(initialage+periods))=initialage:1:(initialage+periods);
+end
+
+
 end

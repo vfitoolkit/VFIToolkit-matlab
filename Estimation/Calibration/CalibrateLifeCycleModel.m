@@ -178,6 +178,14 @@ else
     acscummomentsizes=0;
     ACStats_whichstats=zeros(7,1);
 end
+% age-conditional stats should be of length N_j
+for ii=1:length(acsmomentsizes)
+    if acsmomentsizes(ii)~=N_j
+        errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', acsmomentnames{ii,1}, ' ', acsmomentnames{ii,2}, ' ',acsmomentnames{ii,3},' \n'];
+        error(errorstr)
+    end
+end
+
 
 
 if isscalar(caliboptions.weights)

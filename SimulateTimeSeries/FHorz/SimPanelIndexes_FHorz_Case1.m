@@ -85,6 +85,7 @@ if ~isfield(simoptions, 'n_semiz')
     simoptions.n_semiz=0;
 end
 if simoptions.n_semiz(1)>0
+    simoptions.parallel=1;
     if N_z==0
         if isfield(simoptions,'aggshock')
             SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz_aggshock(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
@@ -117,7 +118,7 @@ cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by usin
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
     
-    Get seedpoints from InitialDist
+    % Get seedpoints from InitialDist
     if simoptions.lowmemory==0
         [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
     else % simoptions.lowmemory==1

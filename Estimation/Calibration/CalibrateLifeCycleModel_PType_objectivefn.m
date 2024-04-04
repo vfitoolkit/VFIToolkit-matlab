@@ -11,9 +11,15 @@ for pp=1:length(CalibParamNames)
 end
 
 if caliboptions.verbose==1
-    fprintf('Current calib parameters')
-    CalibParamNames
-    calibparamsvec
+    fprintf('Current parameter values: \n')
+    for pp=1:length(CalibParamNames)
+        if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
+            fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+        else
+            fprintf(['    ',CalibParamNames{pp},'=  \n'])
+            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))
+        end
+    end
 end
 
 for pp=1:length(CalibParamNames)
@@ -40,6 +46,7 @@ if usinglcp==1
 end
 
 
+
 %% Get current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
 if usingallstats==1
@@ -64,18 +71,33 @@ if usinglcp==1
 end
 
 
-
 %% Evaluate the objective function
-% currentmomentvec is the current moment values
-% targetmomentvec is the target moment values
+if caliboptions.vectoroutput==1
+    % Output the vector of currentmomentvec
+    % This is only used to get standard deviations of parameters as part of
+    % method of moments estimation (rather than writing a whole new
+    % function), it is not what you want most of the time.
+    Obj=currentmomentvec;
+else
+    % currentmomentvec is the current moment values
+    % targetmomentvec is the target moment values
+    % Both are column vectors
 
-if strcmp(caliboptions.metric,'sum_squared')
-    Obj=sum(caliboptions.weights.*(targetmomentvec-currentmomentvec).^2);
-elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-    Obj=sum(caliboptions.weights.*((log(targetmomentvec./currentmomentvec)).^2));
+    % Note: MethodOfMoments and sum_squared are doing the same calculation, I
+    % just write them in ways that make it more obvious that they do what they say.
+    if strcmp(caliboptions.metric,'MethodOfMoments')
+        % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
+        % For the purpose of doing log(moments) I switched to the following
+        % (otherwise getting silly current moments can seem attractive)
+        Obj=(currentmomentvec-targetmomentvec)'*caliboptions.weights*(currentmomentvec-targetmomentvec);
+    elseif strcmp(caliboptions.metric,'sum_squared')
+        Obj=sum(caliboptions.weights.*(targetmomentvec-currentmomentvec).^2,[],'omitnan');
+    elseif strcmp(caliboptions.metric,'sum_logratiosquared')
+        Obj=sum(caliboptions.weights.*(log(currentmomentvec./targetmomentvec).^2),[],'omitnan');
+        % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
+    end
+    Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
 end
-Obj=Obj/length(targetmomentvec); % This is done so that the tolerances for convergence are sensible
-
 
 
 %% Verbose
