@@ -16,6 +16,7 @@ a2_grid=gpuArray(a2_grid);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
+
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
@@ -79,30 +80,40 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,3); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2*N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
+    % [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,3); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % % Note: aprimeIndex is [N_d2*N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
-    aprimeIndex=repelem(repmat((1:1:N_a1)',N_d2,1),N_a2,N_u)+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
-    aprimeplus1Index=kron(ones(N_d2*N_a2,N_u),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
+    % aprimeIndex=repelem(repelem((1:1:N_a1)',N_d2,1),1,N_a2,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
+    % aprimeplus1Index=repelem(repelem((1:1:N_a1)',N_d2,1),1,N_a2,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_u]
-
+    
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d2, n_a1,n_a2, d2_grid, a1_grid, a2_grid, ReturnFnParamsVec);
     % (d,aprime,a)
 
+    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+    skipinterp=logical(V(aprimeIndex(:),jj+1)==V(aprimeIndex(:)+N_a1*1,jj+1)); % Note, probably just do this off of a2prime values
+    aprimeProbs(skipinterp)=0;
+
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(V(aprimeIndex,jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(V(aprimeIndex+1,jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the upper aprime
+    EV1=aprimeProbs.*reshape(V(aprimeIndex(:),jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the lower a2prime
+    EV2=(1-aprimeProbs).*reshape(V(aprimeIndex(:)+N_a1*1,jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the upper a2prime
     % Already applied the probabilities from interpolating onto grid
 
     % Expectation over u (using pi_u), and then add the lower and upper
     EV=sum((EV1.*pi_u),3)+sum((EV2.*pi_u),3); % (d2,a1prime,a2), sum over u
-    % EV is over (d2,a1prime,a2)
+    % EV is over (d2,a1prime,a2) [N_d2*N_a1,N_a2]
 
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
-
+    
     V(:,jj)=shiftdim(Vtemp,1);
     Policy(:,jj)=shiftdim(maxindex,1);
 

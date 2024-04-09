@@ -558,11 +558,15 @@ if estimoptions.twostep==1 && estimoptions.skipestimation==0
         save ./SavedOutput/FirstStepOfTwoStepGMM.mat WeightingMatrix CoVarMatrixSimMoments SimMoments estimparamsvec 
         fprintf('Now starting the second step optimization of two-step GMM \n')
     end
+
+    % Store the covar matrix of the simulated moments so can include it in final output
+    estimoptions.CoVarMatrixSimMoments=CoVarMatrixSimMoments;
     
     % Now just call this function again
     estimoptions.twostep=2; % So we know to get and output the first step results as part of estsummary
-    estimoptions.efficientWstddev=1;
-    [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
+    estimoptions.efficientWstddev=1; % Use the efficient-GMM formula when computing standard errors
+    % Note: Use our new WeightingMatrix from step 1, and there is no use for CoVarMatrixDataMoments in step 2
+    [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
     return
 end
 
@@ -846,8 +850,9 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     end
 end
 
-if estimoptions.twostep==2 % This is the second step, so we want to also output what we found in first step
-    estsummary.variousmatrices.twostepGMM_firststepparams=estimoptions.firststepparams;
+if estimoptions.twostep==2 % This is the second step, so we want to also output what we found in first step (I hid them in estimoptions)
+    estsummary.twostepGMM_firststep.firststepparams=estimoptions.firststepparams;
+    estsummary.twostepGMM_firststep.CoVarMatrixSimMoments=estimoptions.CoVarMatrixSimMoments;
 end
 
 

@@ -51,6 +51,8 @@ N_u=prod(n_u);
 % Make sure u_grid and pi_u are on gpu
 u_grid=gpuArray(u_grid);
 pi_u=gpuArray(pi_u);
+simoptions.u_grid=gpuArray(simoptions.u_grid); % needed to by some subfns
+
 
 %%
 if N_z==0
