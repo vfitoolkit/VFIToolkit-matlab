@@ -45,9 +45,16 @@ if warmglow==1
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
+
+    aprimeIndex=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+    % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
+    
+    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+    skipinterp=logical(WGmatrix(aprimeIndex(:))==WGmatrix(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    aprimeProbs(skipinterp)=0;
 
     WG1=WGmatrix(aprimeIndex); % (d,u), the lower aprime
     WG2=WGmatrix(aprimeplus1Index); % (d,u), the upper aprime
@@ -119,18 +126,24 @@ else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
-
+    aprimeIndex=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+    % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
+    
     % Part of Epstein-Zin is before taking expectation
     temp=V_Jplus1;
     temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5;
     temp(V_Jplus1==0)=0; % otherwise zero to negative power is set to infinity
-
+    
     % Take expectation over e
     temp=sum(reshape(temp,[N_a2,N_e]).*pi_e_J(:,:,N_j)',2);    % First, switch V_Jplus1 into Kron form ,take expecation over e
-        
+    
+    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+    skipinterp=logical(temp(aprimeIndex(:))==temp(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    aprimeProbs(skipinterp)=0;
+
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(temp(aprimeIndex),[N_d*N_a1,N_u]); % (d&a1prime,u), the lower aprime
     EV2=(1-aprimeProbs).*reshape(temp(aprimeplus1Index),[N_d*N_a1,N_u]); % (d&a1prime,u), the upper aprime
@@ -222,9 +235,10 @@ for reverse_j=1:N_j-1
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
+    aprimeIndex=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+    % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
     
     % If there is a warm-glow, evaluate the warmglowfn
     if warmglow==1
@@ -235,6 +249,12 @@ for reverse_j=1:N_j-1
         WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
         %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
         % Note: aprimeIndex is [N_d*N_u,1], whereas aprimeProbs is [N_d,N_u]
+
+        % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+        % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+        skipinterp=logical(WGmatrix(aprimeIndex(:))==WGmatrix(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+        aprimeProbs(skipinterp)=0;
+
         WG1=WGmatrix(aprimeIndex); % (d,u), the lower aprime
         WG2=WGmatrix(aprimeplus1Index); % (d,u), the upper aprime
         % Apply the aprimeProbs
@@ -245,6 +265,9 @@ for reverse_j=1:N_j-1
         % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
         % if vfoptions.lowmemory==0 || vfoptions.lowmemory==1
         % WGmatrix=WGmatrix; % note, actually the same as no z
+        
+        % Set aprimeProbs back to what it was
+        aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     end
     
     VKronNext_j=V(:,:,jj+1);
@@ -255,6 +278,11 @@ for reverse_j=1:N_j-1
     temp(VKronNext_j==0)=0; % otherwise zero to negative power is set to infinity 
 
     temp=sum(temp.*pi_e_J(:,:,jj)',2); % Expectation over e
+
+    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+    skipinterp=logical(temp(aprimeIndex(:))==temp(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    aprimeProbs(skipinterp)=0;
     
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(temp(aprimeIndex),[N_d*N_a1,N_u]); % (d&a1prime,u), the lower aprime

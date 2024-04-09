@@ -96,12 +96,12 @@ for reverse_j=1:N_j-1
 
     % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
     % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-    skipinterp=logical(V(aprimeIndex(:),jj+1)==V(aprimeIndex(:)+N_a1*1,jj+1)); % Note, probably just do this off of a2prime values
+    skipinterp=logical(V(aprimeIndex(:),jj+1)==V(aprimeplus1Index(:),jj+1)); % Note, probably just do this off of a2prime values
     aprimeProbs(skipinterp)=0;
 
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(V(aprimeIndex(:),jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the lower a2prime
-    EV2=(1-aprimeProbs).*reshape(V(aprimeIndex(:)+N_a1*1,jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the upper a2prime
+    EV2=(1-aprimeProbs).*reshape(V(aprimeplus1Index(:),jj+1),[N_d2*N_a1,N_a2,N_u]); % (d2,a1prime,a2,u), the upper a2prime
     % Already applied the probabilities from interpolating onto grid
 
     % Expectation over u (using pi_u), and then add the lower and upper

@@ -58,12 +58,16 @@ else
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d,n_a1], n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
+    aprimeIndex=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
-
     
+    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+    skipinterp=logical(V_Jplus1(aprimeIndex(:))==V_Jplus1(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    aprimeProbs(skipinterp)=0;
+
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(V_Jplus1(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
     EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
@@ -108,7 +112,8 @@ for reverse_j=1:N_j-1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
     
-    
+    VKronNext_j=V(:,jj+1);
+
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
@@ -118,13 +123,16 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d,n_a1], n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
-    aprimeIndex=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),(a2primeIndex-1)); % [N_d*N_a1,N_u]
-    aprimeplus1Index=kron((1:1:N_a1)',ones(N_d,N_u))+N_a1*kron(ones(N_a1,1),a2primeIndex); % [N_d*N_a1,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d*N_a1,N_u]
+    aprimeIndex=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
-
-    VKronNext_j=V(:,jj+1);
     
+    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
+    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
+    skipinterp=logical(VKronNext_j(aprimeIndex(:))==VKronNext_j(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
+    aprimeProbs(skipinterp)=0;
+
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     EV1=aprimeProbs.*reshape(VKronNext_j(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
     EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
