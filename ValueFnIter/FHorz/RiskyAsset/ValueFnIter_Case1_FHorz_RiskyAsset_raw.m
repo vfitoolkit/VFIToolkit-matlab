@@ -253,7 +253,7 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
     
     VKronNext_j=V(:,:,jj+1);
-
+    
     
     if vfoptions.lowmemory==0
         
@@ -268,13 +268,14 @@ for reverse_j=1:N_j-1
             
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
             aprimeProbs(skipinterp)=0;
+            aprimeProbs=reshape(aprimeProbs,[N_d*N_a1,N_u,N_z]);
 
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
             
             % Apply the aprimeProbs
             EV1=reshape(EV1,[N_d*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point

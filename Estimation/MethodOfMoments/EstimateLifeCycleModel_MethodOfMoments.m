@@ -33,9 +33,10 @@ end
 if ~isfield(estimoptions,'fminalgo')
     estimoptions.fminalgo=4; % CMA-ES by default, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
-if ~isfield(estimoptions,'twostep')
-    estimoptions.twostep=0; % =1, uses two-step efficient GMM
-    % Note: When doing two-step efficient GMM, just input CoVarMatrixDataMoments=[]
+if ~isfield(estimoptions,'iterateGMM')
+    estimoptions.iterateGMM=1; % =2, uses two-iteration efficient GMM
+    % Note: When doing two-iteration efficient GMM, just input CoVarMatrixDataMoments=[]
+    % Note: Can do more than 2 iterations,  e.g., estimoptions.iterateGMM=5 will do five-iteration efficient GMM
 end
 if ~isfield(estimoptions,'bootstrapStdErrors')
     estimoptions.bootstrapStdErrors=0; % =1, bootstraps the standard errors (instead of based on derivatives, which is the default)
@@ -57,11 +58,15 @@ end
 if ~isfield(estimoptions,'skipestimation')
     estimoptions.skipestimation=0; % =1, skips the estimation, is here so you can do estimation, and then rerun later to bootstrap the standard errors without reestimating the whole model
 end
+% Following are estimoptions used internally, but which the user won't want to set themselves
 estimoptions.vectoroutput=0; % Set to zero to get point estimates, then later set to one as part of computing std deviations.
 estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed later if you bootstrap standard errors
 % estimoptions.rngindex will be set below if you have estimoptions.simulatemoments=1 to bootstrap standard errors
 estimoptions.metric='MethodOfMoments';
 % estimoptions.weights=WeightingMatrix; is set below, after check it is correct size
+if ~isfield(estimoptions,'previousiterations')
+    estimoptions.previousiterations.niters=0; % gets incremented for each iteration when using estimoptions.iterateGMM
+end
 
 % Optional:
 % E.g., estimoptions.CalibParamsNames={'theta'}, then estimoptions will
@@ -69,9 +74,9 @@ estimoptions.metric='MethodOfMoments';
 % pre-calibrated parameters (here the pre-calibrated parameter is 'theta')
 
 
-if estimoptions.twostep==1
+if estimoptions.iterateGMM>1
     if ~isempty(CoVarMatrixDataMoments)
-        warning('You have estimoptions.twostep=1, so the contents of CoVarMatrixDataMoments are going to be ignored (as they are irrelevant to two-step efficient GMM [Nothing wrong, just warning, you can pass CoVarMatrixDataMoments=[] to get rid of this msg]')
+        warning('You have estimoptions.iterateGMM>1, so the contents of CoVarMatrixDataMoments are going to be ignored (as they are irrelevant to two-step efficient GMM [Nothing wrong, just warning, you can pass CoVarMatrixDataMoments=[] to get rid of this msg]')
     end
 end
 if estimoptions.bootstrapStdErrors==1
@@ -482,10 +487,10 @@ end
 
 
 
-%% Two-step efficient GMM
-if estimoptions.twostep==1 && estimoptions.skipestimation==0
+%% Two-iteration efficient GMM (actually, n-iteration, but just uses this recursively)
+if estimoptions.iterateGMM>1 && estimoptions.skipestimation==0
     if estimoptions.verbose==1
-        fprintf('Finished the first-step of two-step efficient GMM \n')
+        fprintf('Finished the first-iteration of two-iteration efficient GMM \n')
     end
     simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
 
@@ -499,7 +504,7 @@ if estimoptions.twostep==1 && estimoptions.skipestimation==0
     % Put first step parameters into Parameters, and store a copy that can later be included in estsummary
     for pp=1:length(EstimParamNames)
         Parameters.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-        estimoptions.firststepparams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % A copy that will eventually be part of the estsummary output structure
+        firststepparams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % A copy that will eventually be part of the estsummary output structure
     end
     
     % Preallocate a matrix to keep all the moments across each simulation
@@ -559,11 +564,13 @@ if estimoptions.twostep==1 && estimoptions.skipestimation==0
         fprintf('Now starting the second step optimization of two-step GMM \n')
     end
 
-    % Store the covar matrix of the simulated moments so can include it in final output
-    estimoptions.CoVarMatrixSimMoments=CoVarMatrixSimMoments;
-    
+    % Store the parameter vector and matrix of the simulated moments so can include it in final output
+    estimoptions.previousiterations.niters=estimoptions.previousiterations.niters+1;
+    estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).CoVarMatrixSimMoments=CoVarMatrixSimMoments;
+    estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).estimparams=firststepparams;
+
     % Now just call this function again
-    estimoptions.twostep=2; % So we know to get and output the first step results as part of estsummary
+    estimoptions.iterateGMM=estimoptions.iterateGMM-1;
     estimoptions.efficientWstddev=1; % Use the efficient-GMM formula when computing standard errors
     % Note: Use our new WeightingMatrix from step 1, and there is no use for CoVarMatrixDataMoments in step 2
     [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
@@ -839,8 +846,8 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     if estimoptions.efficientWstddev==0
         estsummary.variousmatrices.Omega=CoVarMatrixDataMoments; % Covariance matrix of the data moments
     elseif estimoptions.efficientWstddev==1
-        estsummary.variousmatrices.Omega=[]; % Two-step efficient GMM does not use the covariance matrix of data moments
-        estsummary.notes.twostepGMM='When using two-step efficient GMM we do not use the covariance matrix of the data moments (Omega) and hence it is empty (the model implied one will be W^(-1)';
+        estsummary.variousmatrices.Omega=[]; % Two-iteration efficient GMM does not use the covariance matrix of data moments
+        estsummary.notes.iterateGMM='When using iterated GMM we do not use the covariance matrix of the data moments (Omega) and hence it is empty [the model implied one will be W^(-1)]';
     end
     estsummary.variousmatrices.Sigma=estimparamscovarmatrix; % Asymptotic covariance matrix of estimated parameters
     estsummary.notes.variousmatrices='J is the jacobian of derivatives of model moments with respect to the parameter vector, W is the weighting matix (just duplicates what was input), Omega is the covariance matrix of data moments (just duplicates what was input).';
@@ -850,9 +857,11 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     end
 end
 
-if estimoptions.twostep==2 % This is the second step, so we want to also output what we found in first step (I hid them in estimoptions)
-    estsummary.twostepGMM_firststep.firststepparams=estimoptions.firststepparams;
-    estsummary.twostepGMM_firststep.CoVarMatrixSimMoments=estimoptions.CoVarMatrixSimMoments;
+if estimoptions.previousiterations.niters>0  % If there were any previous iterations (using estimoptions.iterateGMM) then get that output (I hid them in estimoptions)
+    for ii=1:estimoptions.previousiterations.niters
+        estsummary.iterateGMM.(['iteration',num2str(ii)]).estimparams=estimoptions.(['storeiter',num2str(ii)]).estimparams;
+        estsummary.iterateGMM.(['iteration',num2str(ii)]).CoVarMatrixSimMoments=estimoptions.(['storeiter',num2str(ii)]).CoVarMatrixSimMoments;
+    end
 end
 
 
