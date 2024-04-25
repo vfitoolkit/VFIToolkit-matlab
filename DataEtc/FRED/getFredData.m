@@ -80,11 +80,17 @@ api_key='3521cf17600b6b9c26b4e024da47231f';
 optionstring=[];
 if nargin>=2
     if ~isempty(observation_start)
+        if isdatetime(observation_start)
+            observation_start=char(observation_start,'yyyy-MM-dd'); % which to string of appropriate format
+        end
         optionstring=[optionstring,'&observation_start=',observation_start];
     end
 end
 if nargin>=3
     if ~isempty(observation_end)
+        if isdatetime(observation_end)
+            observation_end=char(observation_end,'yyyy-MM-dd'); % which to string of appropriate format
+        end
         optionstring=[optionstring,'&observation_end=',observation_end];
     end
 end
@@ -146,7 +152,8 @@ output.Release=cellstr(char(getValue(release,'name')));
 xDoc2=xmlread(['https://api.stlouisfed.org/fred/series/observations?series_id=',series_id,optionstring,'&api_key=',api_key]);
 data=xDoc2.getElementsByTagName('observation');
 nn=data.getLength;
-output.Data=NaN(nn,2);
+output.Dates=NaT(nn,1);
+output.Data=NaN(nn,1);
 
 %An observation contains 4 attributes: realtime_start, realtime_end, date,
 %and value.  It's not clear the attributes are always in the same order, so
@@ -158,13 +165,14 @@ temp1old='fakestartdate';
 %read the data into a matrix
 for i=1:nn
     temp1=data.item(i-1).getAttributes.item(date_idx).getValue;
+
     if strcmp(temp1,temp1old)
         
     else
-        output.Data(i,1)=datenum(char(temp1), 'yyyy-mm-dd');
+        output.Dates(i)=datetime(char(temp1));
         temp2=data.item(i-1).getAttributes.item(value_idx).getValue;
         if ~strcmp(temp2,'.')
-            output.Data(i,2)=str2num(temp2);
+            output.Data(i)=str2num(temp2);
         end
     end
     temp1old=temp1;

@@ -46,13 +46,13 @@ elseif exist('units','var')
 else
     tempfred=getFredData(tempseries_id, observation_start, observation_end)
 end
-DateVector=tempfred.Data(:,1);
+DateVector=tempfred.Dates;
 
 DataMatrix=zeros(length(DateVector), length(CountryCodes));
 for ii=1:length(CountryCodes)
     currentcode=[code1, CountryCodes(ii,:), code2];
     currentfred = getFredData(currentcode, observation_start, observation_end)
-    DataMatrix(:,ii)=currentfred.Data(:,2);
+    DataMatrix(:,ii)=currentfred.Data;
 end
 
 CountryCodes=CountryCodes'; %For purpose of output
