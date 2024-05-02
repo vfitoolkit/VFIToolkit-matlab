@@ -51,7 +51,7 @@ else % no e variable
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noa1_raw(n_d2,n_a2,n_z, N_j , d2_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
-            error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+            error('Have not implemented experience assets with additional decision variable')
         end
     else % N_a1
         if N_d1==0
