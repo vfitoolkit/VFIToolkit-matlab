@@ -15,24 +15,18 @@ if isfield(vfoptions,'n_u')
 else
     error('To use an experience assetu you must define vfoptions.n_u')
 end
-if isfield(vfoptions,'u_grid')
+if isfield(vfoptions,'n_u')
     u_grid=vfoptions.u_grid;
 else
     error('To use an experience assetu you must define vfoptions.u_grid')
-end
-if isfield(vfoptions,'pi_u')
-    pi_u=vfoptions.pi_u;
-else
-    error('To use an experience assetu you must define vfoptions.pi_u')
 end
 
 % aprimeFnParamNames in same fashion
 l_d2=length(n_d2);
 l_a2=length(n_a2);
-l_u=length(n_u);
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2+l_u)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}}; % the first inputs will always be (d2,a2,u)
+if length(temp)>(l_d2+l_a2)
+    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
 else
     aprimeFnParamNames={};
 end
@@ -77,7 +71,6 @@ else % no e variable
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_nod1_noa1_raw(n_d2,n_a2,n_z,n_u, N_j, d2_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
-            % error('Have not implemented experienceassetu with a second d variable (but without an endogenous state other than the experienceassetu, contact me if you want this')
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_noa1_noz_raw(n_d1,n_d2,n_a2,n_u, N_j, d1_grid, d2_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
@@ -95,8 +88,7 @@ else % no e variable
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_noz_raw(n_d1,n_d2,n_a1,n_a2,n_u, N_j, d1_grid, d2_grid, a1_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                error('Have not impelmented experienceassetu with a second a but no second d variable and with z variable, contact me if you want this')
-            %     % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_raw(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_grid, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_raw(n_d1,n_d2,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     end

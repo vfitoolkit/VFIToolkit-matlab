@@ -173,40 +173,9 @@ else
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not yet implemented (email me if you want/need it)')
-        % if vfoptions.lowmemory>0
-        %     if all(size(z_grid)==[sum(n_z),1])
-        %         z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-        %     elseif all(size(z_grid)==[prod(n_z),l_z])
-        %         z_gridvals=z_grid;
-        %     end
-        % end
-        % for z_c=1:N_z
-        %     %Calc the condl expectation term (except beta), which depends on z but
-        %     %not on control variables
-        %     EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        %     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        %     EV_z=sum(EV_z,2);
-        % 
-        %     entireEV_z=kron(EV_z,ones(N_d2,1));
-        % 
-        %     z_val=z_gridvals(z_c,:);
-        %     for a1_c=1:N_a1
-        %         a1_val=a1_gridvals(a1_c,:);
-        %         ReturnMatrix_az=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, special_n_a1,n_a2, special_n_z, d2_grid, a1_val, a2_grid, z_val, ReturnFnParamsVec);
-        % 
-        %         entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
-        %         %Calc the max and it's index
-        %         [Vtemp,maxindex]=max(entireRHS_az);
-        %         V(a_c,z_c,N_j)=Vtemp;
-        %         Policy(a_c,z_c,N_j)=maxindex;
-        %     end
-        % end
-        
     end
 end
+
 
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
@@ -319,31 +288,6 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not yet implemented (email me if you want/need it)')
-        % for z_c=1:N_z
-        %     %Calc the condl expectation term (except beta), which depends on z but
-        %     %not on control variables
-        %     EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        %     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        %     EV_z=sum(EV_z,2);
-        % 
-        %     entireEV_z=kron(EV_z,ones(N_d2,1));
-        % 
-        %     z_val=z_gridvals(z_c,:);
-        %     for a1_c=1:N_a1
-        %         a1_val=a1_gridvals(a1_c,:);
-        %         ReturnMatrix_az=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, special_n_a1,n_a2, special_n_z, d2_grid, a1_val, a2_grid, z_val, ReturnFnParamsVec);
-        % 
-        %         entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
-        %         %Calc the max and it's index
-        %         [Vtemp,maxindex]=max(entireRHS_az);
-        %         V(a_c,z_c,jj)=Vtemp;
-        %         Policy(a_c,z_c,jj)=maxindex;
-        %     end
-        % end
-        
     end
 end
 

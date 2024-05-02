@@ -26,17 +26,17 @@ N_a1=prod(n_a1);
 
 if isfield(vfoptions,'n_e')
     if N_a1==0
-        error('Have not implemented experience assets without at least one other endogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+        error('Have not implemented experience assets for e variable with all choices (please contact me)')
     else
         if N_d1==0
             if N_z==0
-                error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+                error('Have not implemented experience assets for e variable with all choices (please contact me)')
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else % d1 variable
             if N_z==0
-                error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+                error('Have not implemented experience assets for e variable with all choices (please contact me)')
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
@@ -51,7 +51,11 @@ else % no e variable
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noa1_raw(n_d2,n_a2,n_z, N_j , d2_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
-            error('Have not implemented experience assets with additional decision variable')
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_noa1_noz_raw(n_d1,n_d2,n_a2, N_j , d1_grid, d2_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_noa1_raw(n_d1,n_d2,n_a2,n_z, N_j , d1_grid, d2_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
         end
     else % N_a1
         if N_d1==0
@@ -62,7 +66,7 @@ else % no e variable
             end
         else
             if N_z==0
-                error('Have not implemented experience assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_noz_raw(n_d1,n_d2,n_a1,n_a2, N_j , d1_grid, d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_raw(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
