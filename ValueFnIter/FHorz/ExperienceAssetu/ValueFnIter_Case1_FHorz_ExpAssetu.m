@@ -16,20 +16,27 @@ else
     error('To use an experience assetu you must define vfoptions.n_u')
 end
 if isfield(vfoptions,'n_u')
-    u_grid=vfoptions.u_grid;
+    u_grid=gpuArray(vfoptions.u_grid);
 else
     error('To use an experience assetu you must define vfoptions.u_grid')
+end
+if isfield(vfoptions,'pi_u')
+    pi_u=gpuArray(vfoptions.pi_u);
+else
+    error('To use an experience assetu you must define vfoptions.pi_u')
 end
 
 % aprimeFnParamNames in same fashion
 l_d2=length(n_d2);
 l_a2=length(n_a2);
+l_u=length(n_u);
 temp=getAnonymousFnInputNames(aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+if length(temp)>(l_d2+l_a2+l_u)
+    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}}; % the first inputs will always be (d2,a2,u)
 else
     aprimeFnParamNames={};
 end
+
 
 N_z=prod(n_z);
 
