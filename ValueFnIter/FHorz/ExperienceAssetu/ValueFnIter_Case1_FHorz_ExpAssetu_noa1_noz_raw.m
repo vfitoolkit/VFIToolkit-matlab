@@ -35,7 +35,7 @@ else
     
     % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
     EV1=a2primeProbs.*reshape(vfoptions.V_Jplus1(a2primeIndex),[N_d2,N_a2,N_u]); % (d2,a2,u), the lower aprime
-    EV2=(1-a2primeProbs).*reshape(V_Jplus1(a2primeIndex+1),[N_d2,N_a2,N_u]); % (d2,a2,u), the upper aprime
+    EV2=(1-a2primeProbs).*reshape(vfoptions.V_Jplus1(a2primeIndex+1),[N_d2,N_a2,N_u]); % (d2,a2,u), the upper aprime
     % Already applied the probabilities from interpolating onto grid
 
     % Expectation over u (using pi_u), and then add the lower and upper

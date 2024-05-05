@@ -26,17 +26,29 @@ N_a1=prod(n_a1);
 
 if isfield(vfoptions,'n_e')
     if N_a1==0
-        error('Have not implemented experience assets for e variable with all choices (please contact me)')
-    else
         if N_d1==0
             if N_z==0
-                error('Have not implemented experience assets for e variable with all choices (please contact me)')
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noa1_noz_e_raw(n_d2,n_a2, vfoptions.n_e, N_j , d2_grid, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noa1_e_raw(n_d2,n_a2,n_z, vfoptions.n_e, N_j , d2_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        else % d1 variable
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_noa1_noz_e_raw(n_d1,n_d2,n_a2, vfoptions.n_e, N_j , d1_grid, d2_grid, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_noa1_e_raw(n_d1,n_d2,n_a2,n_z, vfoptions.n_e, N_j , d1_grid, d2_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        end
+    else % N_a1
+        if N_d1==0
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e, N_j , d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else % d1 variable
             if N_z==0
-                error('Have not implemented experience assets for e variable with all choices (please contact me)')
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e, N_j , d1_grid, d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end

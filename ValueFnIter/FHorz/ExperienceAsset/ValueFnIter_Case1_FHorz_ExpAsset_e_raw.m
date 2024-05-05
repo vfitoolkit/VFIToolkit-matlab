@@ -12,14 +12,14 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
-d1_grid=gpuArray(d2_grid);
+d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
 
 % For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
 n_d=[n_d1,n_d2];
-d_grid=[d1_grid;d2_grid];
+d_grid=[d1_grid; d2_grid];
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));

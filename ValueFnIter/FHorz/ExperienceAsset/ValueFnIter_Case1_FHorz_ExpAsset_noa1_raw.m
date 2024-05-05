@@ -83,10 +83,10 @@ for reverse_j=1:N_j-1
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, [d1_grid; d2_grid], a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
     % (d,a)
 
-    EV1=V(a2primeIndex,:,jj+1).*shiftdim(pi_z_J(:,:,N_j)',-1);    % (d2,a2,zprime), the lower aprime
+    EV1=V(a2primeIndex,:,jj+1).*shiftdim(pi_z_J(:,:,jj)',-1);    % (d2,a2,zprime), the lower aprime
     EV1(isnan(EV1))=0; % where V=-Inf but pi_z is zero
     EV1=sum(EV1,2);
-    EV2=V(a2primeIndex+1,:,jj+1).*shiftdim(pi_z_J(:,:,N_j)',-1);    % (d2,a2,zprime), the upper aprime
+    EV2=V(a2primeIndex+1,:,jj+1).*shiftdim(pi_z_J(:,:,jj)',-1);    % (d2,a2,zprime), the upper aprime
     EV2(isnan(EV2))=0; % where V=-Inf but pi_z is zero
     EV2=sum(EV2,2);
 
