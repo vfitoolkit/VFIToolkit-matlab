@@ -71,13 +71,22 @@ if usinglcp==1
 end
 
 
+
+
+%% Option to log moments (if targets are log, then this will have been already applied)
+if any(caliboptions.logmoments>0) % need to log some moments
+    currentmomentvec=(1-caliboptions.logmoments).*currentmomentvec + caliboptions.logmoments.*log(currentmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+end
+
+
 %% Evaluate the objective function
+actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
     % This is only used to get standard deviations of parameters as part of
     % method of moments estimation (rather than writing a whole new
     % function), it is not what you want most of the time.
-    Obj=currentmomentvec;
+    Obj=currentmomentvec(actualtarget);
 else
     % currentmomentvec is the current moment values
     % targetmomentvec is the target moment values
@@ -89,11 +98,11 @@ else
         % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
         % For the purpose of doing log(moments) I switched to the following
         % (otherwise getting silly current moments can seem attractive)
-        Obj=(currentmomentvec-targetmomentvec)'*caliboptions.weights*(currentmomentvec-targetmomentvec);
+        Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
-        Obj=sum(caliboptions.weights.*(targetmomentvec-currentmomentvec).^2,[],'omitnan');
+        Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,[],'omitnan');
     elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-        Obj=sum(caliboptions.weights.*(log(currentmomentvec./targetmomentvec).^2),[],'omitnan');
+        Obj=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),[],'omitnan');
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
     Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
@@ -103,16 +112,9 @@ end
 %% Verbose
 if caliboptions.verbose==1
     fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec; targetmomentvec]
+    [currentmomentvec(actualtarget); targetmomentve(actualtarget)c]
     fprintf('Current objective fn value is %8.12f \n', Obj)
 end
-
-
-
-
-
-
-
 
 
 

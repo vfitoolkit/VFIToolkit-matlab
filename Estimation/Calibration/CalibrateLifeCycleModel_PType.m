@@ -8,15 +8,19 @@ function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamName
 if ~isfield(caliboptions,'verbose')
     caliboptions.verbose=1; % sum of squares is the default
 end
+if ~isfield(caliboptions,'constrainpositive')
+    caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive [I want to later modify to use exp()/(1+exp()) to be used to also allow setting min and max bounds, but this is not yet implemented]
+end
+if ~isfield(caliboptions,'logmoments')
+    caliboptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
+    % Note: the input target moment should be the raw moment, log() will be taken internally (don't input the log(moment))
+end
 if ~isfield(caliboptions,'metric')
     caliboptions.metric='sum_squared'; % sum of squares is the default
     % Other options are: sum_logratiosquared: sum of squares of the log-ratio (target/model)
 end
 if ~isfield(caliboptions,'weights')
     caliboptions.weights=1; % all moments have equal weights is default (this is a vector of one, just don't know the length yet :)
-end
-if ~isfield(caliboptions,'constrainpositive')
-    caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive [I want to later modify to use exp()/(1+exp()) to be used to also allow setting min and max bounds, but this is not yet implemented]
 end
 if ~isfield(caliboptions,'toleranceparams')
     caliboptions.toleranceparams=10^(-4); % tolerance accuracy of the calibrated parameters
@@ -391,6 +395,43 @@ end
 
 
 
+%% 
+% caliboptions.logmoments will either be scalar, or a vector of zeros and ones
+%    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
+if any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
+   % If set this up, and then set up 
+   if isscalar(caliboptions.logmoments)
+       caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
+   else
+        if length(caliboptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
+            % Covert estimoptions.logmoments from being about EstimParamNames
+            temp=caliboptions.logmoments;
+            caliboptions.logmoments=zeros(length(targetmomentvec),1);
+            cumsofar=1;
+            for mm=1:length(temp)
+                if mm<=allstatmomentsizes
+                    caliboptions.logmoments(cumsofar:cumsofar+allstatmomentsizes(mm))=temp(mm);
+                    cumsofar=cumsofar+allstatmomentsizes(mm);
+                else
+                    caliboptions.logmoments(cumsofar:cumsofar+acsmomentsizes(mm))=temp(mm);
+                    cumsofar=cumsofar+acsmomentsizes(mm);
+                end
+            end
+        elseif length(caliboptions.logmoments)==length(targetmomentvec)
+            % This is fine (already in the appropriate form)
+        else
+            fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
+            fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
+            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to calibrate [they should be equal]')
+        end
+   end
+   % User should have inputted the moments themselves, not the logs
+   % I would like to throw an error/warning if input the log(moment) but cannot think of any good way to detect this.
+   % log of targetmoments 
+   targetmomentvec=(1-caliboptions.logmoments).*targetmomentvec + caliboptions.logmoments.*log(targetmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+end
+
+
 
 %% Set up the objective function and the initial calibration parameter vector
 CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, PTypeParamFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions);
@@ -404,16 +445,16 @@ CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objective
 minoptions = optimset('TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
 if caliboptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
     caliboptions.multiGEcriterion=0;
-    [calibparamsvec,calibsummary]=fzero(CalibrationObjectiveFn,calibparamsvec0,minoptions);    
+    [calibparamsvec,calibobjvalue]=fzero(CalibrationObjectiveFn,calibparamsvec0,minoptions);    
 elseif caliboptions.fminalgo==1
-    [calibparamsvec,calibsummary]=fminsearch(CalibrationObjectiveFn,calibparamsvec0,minoptions);
+    [calibparamsvec,calibobjvalue]=fminsearch(CalibrationObjectiveFn,calibparamsvec0,minoptions);
 elseif caliboptions.fminalgo==2
     % Use the optimization toolbox so as to take advantage of automatic differentiation
     z=optimvar('z',length(calibparamsvec0));
     optimfun=fcn2optimexpr(CalibrationObjectiveFn, z);
     prob = optimproblem("Objective",optimfun);
     z0.z=calibparamsvec0;
-    [sol,calibsummary]=solve(prob,z0);
+    [sol,calibobjvalue]=solve(prob,z0);
     calibparamsvec=sol.z;
     % Note, doesn't really work as automatic differentiation is only for
     % supported functions, and the objective here is not a supported function
@@ -421,7 +462,7 @@ elseif caliboptions.fminalgo==3
     goal=zeros(length(calibparamsvec0),1);
     weight=ones(length(calibparamsvec0),1); % I already implement weights via caliboptions
     [calibparamsvec,calibsummaryVec] = fgoalattain(CalibrationObjectiveFn,calibparamsvec0,goal,weight);
-    calibsummary=sum(abs(calibsummaryVec));
+    calibobjvalue=sum(abs(calibsummaryVec));
 elseif caliboptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
     % https://en.wikipedia.org/wiki/CMA-ES
     % https://cma-es.github.io/
@@ -439,7 +480,7 @@ elseif caliboptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation
         disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
     end
 	% This is a minor edit of cmaes, because I want to use 'CalibrationObjectiveFn' as a function_handle, but the original cmaes code only allows for 'CalibrationObjectiveFn' as a string
-    [calibparamsvec,calibsummary,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(CalibrationObjectiveFn,calibparamsvec0,caliboptions.insigma,caliboptions.inopts); % ,varargin);
+    [calibparamsvec,calibobjvalue,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(CalibrationObjectiveFn,calibparamsvec0,caliboptions.insigma,caliboptions.inopts); % ,varargin);
 elseif caliboptions.fminalgo==5
     % Update based on rules in caliboptions.fminalgo5.howtoupdate
     error('fminalgo=5 is not possible with model calibration/estimation')
@@ -447,11 +488,11 @@ elseif caliboptions.fminalgo==6
     if ~isfield(caliboptions,'lb') || ~isfield(caliboptions,'ub')
         error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub') 
     end
-    [calibparamsvec,calibsummary]=fmincon(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],caliboptions.lb,caliboptions.ub,[],minoptions);    
+    [calibparamsvec,calibobjvalue]=fmincon(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],caliboptions.lb,caliboptions.ub,[],minoptions);    
 end
 
 
-
+%% Clean up output
 for pp=1:length(CalibParamNames)
     if caliboptions.constrainpositive(pp)==0
         CalibParams.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
@@ -461,9 +502,12 @@ for pp=1:length(CalibParamNames)
     end
 end
 
+calibsummary.objvalue=calibobjvalue; % Output the objective value
 
-
-
+% Calculate all the model moments (this is something people will often want
+% to look at, and compared to calibration itself runtime cost is negligible)
+caliboptions.vectoroutput=1;
+calibsummary.calibmoments=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, PTypeParamFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions);
 
 
 
