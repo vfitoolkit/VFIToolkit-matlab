@@ -9,7 +9,10 @@ if ~isfield(caliboptions,'verbose')
     caliboptions.verbose=1; % sum of squares is the default
 end
 if ~isfield(caliboptions,'constrainpositive')
-    caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive [I want to later modify to use exp()/(1+exp()) to be used to also allow setting min and max bounds, but this is not yet implemented]
+    caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive
+end
+if ~isfield(caliboptions,'constrain0to1')
+    caliboptions.constrain0to1=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1 [I want to later modify to also allow setting min and max bounds, but this is not yet implemented]
 end
 if ~isfield(caliboptions,'logmoments')
     caliboptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
@@ -53,6 +56,14 @@ for pp=1:length(CalibParamNames)
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+    end
+    if caliboptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
+    end
+    if caliboptions.constrainpositive(pp)==1 && caliboptions.constrain0to1(pp)==1 % Double check of inputs
+        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames))])
+        error('You cannot constrain parameter twice (you are constraining one of the parameters using both caliboptions.constrainpositive and caliboptions.constrain0to1')
     end
 end
 

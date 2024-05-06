@@ -18,7 +18,10 @@ if ~isfield(estimoptions,'verbose')
     estimoptions.verbose=1; % sum of squares is the default
 end
 if ~isfield(estimoptions,'constrainpositive')
-    estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive [I want to later modify to use exp()/(1+exp()) to be used to also allow setting min and max bounds, but this is not yet implemented]
+    estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+end
+if ~isfield(estimoptions,'constrain0to1')
+    estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1 [I want to later modify to also allow setting min and max bounds, but this is not yet implemented]
 end
 if ~isfield(estimoptions,'logmoments')
     estimoptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
@@ -103,6 +106,14 @@ for pp=1:length(EstimParamNames)
     if estimoptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+    end
+    if estimoptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+    end
+    if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
+        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
+        error('You cannot constrain parameter twice (you are constraining one of the parameters using both estimoptions.constrainpositive and estimoptions.constrain0to1')
     end
 end
 

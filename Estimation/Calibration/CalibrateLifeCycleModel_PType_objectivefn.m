@@ -6,7 +6,11 @@ function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibPara
 % Do any transformations of parameters before we say what they are
 for pp=1:length(CalibParamNames)
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
+        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+    elseif caliboptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))/(1+exp(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
     end
 end
 
@@ -112,7 +116,7 @@ end
 %% Verbose
 if caliboptions.verbose==1
     fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec(actualtarget); targetmomentve(actualtarget)c]
+    [currentmomentvec(actualtarget); targetmomentvec(actualtarget)]
     fprintf('Current objective fn value is %8.12f \n', Obj)
 end
 
