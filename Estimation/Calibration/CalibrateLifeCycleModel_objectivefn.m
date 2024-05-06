@@ -10,7 +10,7 @@ for pp=1:length(CalibParamNames)
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
     elseif caliboptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))/(1+exp(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))/(1+exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
     end
 end
 
