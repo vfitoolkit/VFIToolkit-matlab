@@ -269,9 +269,15 @@ for ii=1:length(acsmomentsizes)
 end
 
 
+%% Set-up/check caliboptions.weights
+actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if isscalar(caliboptions.weights)
-    caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec));
+    caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec(actualtarget)));
 end
+if length(caliboptions.weights)~=length(targetmomentvec(actualtarget))
+    error('caliboptions.weights is not the length same as number of target moments (ignoring any NaN)')
+end
+
 
 %% If not using PTypeParamFn, put in a placebo function
 if ~isa(PTypeParamFn,'function_handle')

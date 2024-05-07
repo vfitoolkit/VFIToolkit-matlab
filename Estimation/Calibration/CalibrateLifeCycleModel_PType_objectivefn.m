@@ -95,7 +95,7 @@ else
     % currentmomentvec is the current moment values
     % targetmomentvec is the target moment values
     % Both are column vectors
-
+    
     % Note: MethodOfMoments and sum_squared are doing the same calculation, I
     % just write them in ways that make it more obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
