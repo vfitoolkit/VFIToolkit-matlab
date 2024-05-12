@@ -46,8 +46,8 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab object
     StationaryDistKron=reshape(StationaryDistKron,[N_a,N_z])*pi_z;
     StationaryDistKron=StationaryDistKron(:); % effectively reshape(StationaryDistKron,[N_a*N_z,1]), but faster
 
-    % currdist=sum(abs(StationaryDistKron-StationaryDistKronOld));
-    currdist=max(abs(StationaryDistKron-StationaryDistKronOld));
+    % currdist=full(sum(abs(StationaryDistKron-StationaryDistKronOld)));
+    currdist=full(max(abs(StationaryDistKron-StationaryDistKronOld)));
     
     counter=counter+1;
     if simoptions.verbose==1

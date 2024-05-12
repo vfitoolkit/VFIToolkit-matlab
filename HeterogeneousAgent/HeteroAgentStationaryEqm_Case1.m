@@ -205,13 +205,15 @@ for ii=1:length(GEPriceParamNames)
     p0(ii)=Parameters.(GEPriceParamNames{ii});
 end
 
+
 % Choosing algorithm for the optimization problem
 % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
 if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-    heteroagentoptions.multiGEcriterion=0;
-    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0);    
+    optimoptions=optimset('TolX',heteroagentoptions.toleranceGEprices);
+    [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,optimoptions);    
 elseif heteroagentoptions.fminalgo==1
-    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0);
+    optimoptions=optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun', heteroagentoptions.toleranceGEcondns);
+    [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,optimoptions);
 elseif heteroagentoptions.fminalgo==2
     % Use the optimization toolbox so as to take advantage of automatic differentiation
     z=optimvar('z',length(p0));
@@ -220,8 +222,7 @@ elseif heteroagentoptions.fminalgo==2
     z0.z=p0;
     [sol,GeneralEqmConditions]=solve(prob,z0);
     p_eqm_vec=sol.z;
-    % Note, doesn't really work as automattic differentiation is only for
-    % supported functions, and the objective here is not a supported function
+    % Note, doesn't really work as automatic differentiation is only for supported functions, and the objective here is not a supported function
 elseif heteroagentoptions.fminalgo==3
     goal=zeros(length(p0),1);
     weight=ones(length(p0),1); % I already implement weights via heteroagentoptions
