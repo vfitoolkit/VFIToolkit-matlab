@@ -154,11 +154,12 @@ end
 % If the initial agent distribution has ptype as a dimension, then use this to overwrite what the ptype masses are
 if idiminj1dist==1
     warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
-    tempsz=size(jequaloneDist);
-    jequaloneDisttemp=reshape(jequaloneDist,[prod(tempsz(1:end-1)),tempsz(end)]);
-    Parameters.(PTypeDistParamNames{1})=sum(jequaloneDisttemp,1)'; % column vector
+    if length(jequaloneDist)==2
+        Parameters.(PTypeDistParamNames{1})=sum(jequaloneDist,1)'; % column vector
+    elseif length(jequaloneDist)==3 % (a,z,j) in kron form
+        Parameters.(PTypeDistParamNames{1})=shfitdim(sum(sum(jequaloneDist,1),2),2); % column vector
+    end
 end
-
 
 
 %%
@@ -268,11 +269,11 @@ for ii=1:N_i
         % Note: when jequaloneDist is not a structure all ptypes must have the same grids
         if idiminj1dist==0
             jequaloneDist_temp=jequaloneDist;
-        else
+        else % idminj1dist==1
             if prod(n_z_temp)==0
                 jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
             else
-                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(jequaloneDist(:,:,ii)); % includes renormalizing so mass of one conditional on ptype
+                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(sum(jequaloneDist(:,:,ii))); % includes renormalizing so mass of one conditional on ptype
             end
         end
         if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
