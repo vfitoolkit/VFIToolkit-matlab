@@ -21,7 +21,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
     % size(ReturnMatrix_ii) % (aprime, a,z)
     % [n_a,vfoptions.level1n,n_z]
@@ -42,7 +42,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % Note: because of monotonicity, can just use minaprimeii(ii) & maxaprimeii(ii+1)
     %       [as minaprimeii(ii) will be less than or equal to minaprime(ii+1) anyway, and analagously for max]
     for ii=1:(vfoptions.level1n-1)
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:,N_j)=shiftdim(Vtempii,1);
         Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+(minaprimeii(ii)-1);
@@ -61,7 +61,7 @@ else
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_grid, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
@@ -125,7 +125,7 @@ for reverse_j=1:N_j-1
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
             
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_grid, a_grid, a_grid(level1ii), z_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid, a_grid(level1ii), z_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
@@ -146,7 +146,7 @@ for reverse_j=1:N_j-1
     %       [as minaprimeii(ii) will be less than or equal to minaprime(ii+1) anyway, and analagously for max]
     for ii=1:(vfoptions.level1n-1)
         if maxaprimeii(ii+1)>minaprimeii(ii)
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), ReturnFnParamsVec);
             aprimez=(minaprimeii(ii):1:maxaprimeii(ii+1))'+N_a*(0:1:N_z-1); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[(maxaprimeii(ii+1)-minaprimeii(ii)+1),1,N_z]);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -154,7 +154,7 @@ for reverse_j=1:N_j-1
             Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+(minaprimeii(ii)-1);
         else
             % Just use aprime(ii) for everything
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(minaprimeii(ii)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(minaprimeii(ii)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), ReturnFnParamsVec);
             aprimez=minaprimeii(ii)+N_a*(0:1:N_z-1); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[1,1,N_z]);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
