@@ -126,6 +126,12 @@ else
     end
 end
 
+% If jequaloneDist is not a structure, then we deal with it here (as it may be dependent on PType, and we will turn it into a structure if it is)
+if ~isstruct(jequaloneDist)
+    [jequaloneDist,~,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,PTypeStructure.N_i,PTypeStructure.Names_i,PTypeDistParamNames,1);
+end
+
+%%
 for ii=1:PTypeStructure.N_i
 
     iistr=PTypeStructure.Names_i{ii};
@@ -291,12 +297,6 @@ for ii=1:PTypeStructure.N_i
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
-    temp=getAnonymousFnInputNames(PTypeStructure.(iistr).ReturnFn);
-    if length(temp)>(PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
-        PTypeStructure.(iistr).ReturnFnParamNames={temp{PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        PTypeStructure.(iistr).ReturnFnParamNames={};
-    end
     
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
@@ -323,16 +323,21 @@ for ii=1:PTypeStructure.N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
-    PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
-    if isa(jequaloneDist,'struct')
-        if isfield(jequaloneDist,Names_i{ii})
-            PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(Names_i{ii});
+    if isstruct(jequaloneDist)
+        if isfield(jequaloneDist,PTypeStructure.Names_i{ii})
+            if isa(jequaloneDist, 'function_handle')
+                [PTypeStructure.(iistr).jequaloneDist,~,PTypeStructure.(iistr).Parameters]=jequaloneDist_PType(jequaloneDist.(iistr),PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_i,PTypeStructure.(iistr).PTypeDistParamNames,0);
+            else
+                PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(PTypeStructure.Names_i{ii});
+            end
         else
             if isfinite(PTypeStructure.(iistr).N_j)
-                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
+                sprintf(['ERROR: You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
                 dbstack
             end
         end
+    else
+        PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
     end
     
     % The parameter names can be made to depend on the permanent-type
@@ -352,6 +357,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
         
+    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
     
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
