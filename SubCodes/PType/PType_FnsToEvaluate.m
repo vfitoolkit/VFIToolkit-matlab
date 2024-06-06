@@ -26,19 +26,12 @@ if FnsToEvaluate_StructToCell==0 % Structure
         if isa(FnsToEvaluate.(FnNames{ff}),'struct')
             if isfield(FnsToEvaluate.(FnNames{ff}), Names_i{ii})
                 FnsToEvaluate_temp.(FnNames{ff})=FnsToEvaluate.(FnNames{ff}).(Names_i{ii});
-                %                     FnsToEvaluate_temp{jj}=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
-                %                     FnsToEvaluateParamNames_temp(jj).Names=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
                 WhichFnsForCurrentPType(ff)=jj; jj=jj+1;
-                % else
-                %  % do nothing as this FnToEvaluate is not relevant for the current PType
-                %  % Implicitly, WhichFnsForCurrentPType(kk)=0
                 FnsAndPTypeIndicator_ii(ff)=1;
             end
         else
             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
             FnsToEvaluate_temp.(FnNames{ff})=FnsToEvaluate.(FnNames{ff});
-            %                 FnsToEvaluate_temp{jj}=FnsToEvaluate.(FnNames{kk});
-            %                 FnsToEvaluateParamNames_temp(jj).Names=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}));
             WhichFnsForCurrentPType(ff)=jj; jj=jj+1;
             FnsAndPTypeIndicator_ii(ff)=1;
         end
@@ -51,10 +44,12 @@ elseif FnsToEvaluate_StructToCell==1 % Structure, but output as cell
     WhichFnsForCurrentPType=zeros(numFnsToEvaluate,1);
     FnsAndPTypeIndicator_ii=zeros(numFnsToEvaluate,1);
     if Case1orCase2==1
-        l_vars=l_d+l_a+l_a+l_z;
+        l_aprime=l_a;
     else % Case2
-        l_vars=l_d+l_a+l_z;
+        l_aprime=0;
     end
+    l_vars=l_d+l_aprime+l_a+l_z;
+
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for ff=1:numFnsToEvaluate
         if isstruct(FnsToEvaluate.(FnNames{ff}))

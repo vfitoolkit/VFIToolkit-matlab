@@ -225,38 +225,68 @@ for ii=1:N_i % First set up simoptions
     l_z_temp=length(n_z_temp);  
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     
-    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+    ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
     
     if isfield(simoptions_temp,'n_e')
-        n_z_temp=[n_z_temp,simoptions_temp.n_e];
+        n_ze_temp=[n_z_temp,simoptions_temp.n_e];
+    else
+        n_ze_temp=n_z_temp;
     end
-    if isstruct(FnsToEvaluate)
-        FnNames=fieldnames(FnsToEvaluate);
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                if simoptions.ptypestorecpu==0
-                    ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]);
-                else
-                    ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_z_temp,N_j_temp]));
+    if prod(n_ze_temp)==0 % no exogenous states
+        if isstruct(FnsToEvaluate)
+            FnNames=fieldnames(FnsToEvaluate);
+            for kk=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(kk);
+                if jj>0
+                    if simoptions.ptypestorecpu==0
+                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,N_j_temp]);
+                    else
+                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,N_j_temp]));
+                    end
                 end
             end
-        end
-        
-    else % Note: this only works when all agents use same grid
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+
+        else % Note: this only works when all agents use same grid
+            for kk=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(kk);
+                if jj>0
+                    ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+                end
+            end
+            if simoptions.ptypestorecpu==0
+                ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,N_j_temp]);
+            else
+                ValuesOnGrid.(Names_i{ii})=gather(reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,N_j_temp]));
             end
         end
-        if simoptions.ptypestorecpu==0
-            ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]);
-        else
-            ValuesOnGrid.(Names_i{ii})=gather(reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_z_temp,N_j_temp]));
+    else
+        if isstruct(FnsToEvaluate)
+            FnNames=fieldnames(FnsToEvaluate);
+            for kk=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(kk);
+                if jj>0
+                    if simoptions.ptypestorecpu==0
+                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_ze_temp,N_j_temp]);
+                    else
+                        ValuesOnGrid.(FnNames{kk}).(Names_i{ii})=gather(reshape(ValuesOnGrid_ii.(FnNames{kk}),[n_a_temp,n_ze_temp,N_j_temp]));
+                    end
+                end
+            end
+
+        else % Note: this only works when all agents use same grid
+            for kk=1:numFnsToEvaluate
+                jj=WhichFnsForCurrentPType(kk);
+                if jj>0
+                    ValuesOnDist_Kron(kk,:,:,:)=ValuesOnGrid_ii(jj,:,:,:);
+                end
+            end
+            if simoptions.ptypestorecpu==0
+                ValuesOnGrid.(Names_i{ii})=reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_ze_temp,N_j_temp]);
+            else
+                ValuesOnGrid.(Names_i{ii})=gather(reshape(ValuesOnDist_Kron,[numFnsToEvaluate,n_a_temp,n_ze_temp,N_j_temp]));
+            end
         end
-    end
-    
+    end    
 end
 
 end
