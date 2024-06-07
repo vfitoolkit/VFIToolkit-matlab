@@ -37,12 +37,13 @@ else
     aprimeFnParamNames={};
 end
 
-
+N_d1=prod(n_d1);
+N_a1=prod(n_a1);
 N_z=prod(n_z);
 
 if isfield(vfoptions,'n_e')
-    if prod(n_a1)==0
-        if prod(n_d1)==0
+    if N_a1==0
+        if N_d1==0
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_nod1_noa1_noz_e_raw(n_d2,n_a2,vfoptions.n_e,n_u, N_j, d2_grid, a2_grid, vfoptions.e_gridvals_J, u_grid, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
@@ -56,7 +57,7 @@ if isfield(vfoptions,'n_e')
             end
         end
     else % n_a1
-        if prod(n_d1)==0
+        if N_d1==0
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_nod1_noz_e_raw(n_d2,n_a1,n_a2,vfoptions.n_e,n_u, N_j, d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals_J, u_grid, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
@@ -71,8 +72,8 @@ if isfield(vfoptions,'n_e')
         end
     end
 else % no e variable
-    if prod(n_a1)==0
-        if prod(n_d1)==0
+    if N_a1==0
+        if N_d1==0
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_nod1_noa1_noz_raw(n_d2,n_a2,n_u, N_j, d2_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
@@ -86,7 +87,7 @@ else % no e variable
             end
         end
     else % n_a1
-        if prod(n_d1)==0
+        if N_d1==0
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ExpAssetu_nod1_noz_raw(n_d2,n_a1,n_a2,n_u, N_j, d2_grid, a1_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else

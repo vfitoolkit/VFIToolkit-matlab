@@ -15,17 +15,12 @@ d2_grid=gpuArray(d2_grid);
 a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
 
-if vfoptions.lowmemory>0
+if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
-    % e_gridvals is created below
 end
-if vfoptions.lowmemory>1
-    l_z=length(n_z);
-    special_n_z=ones(1,l_z);
-    % z_gridvals is created below
+if vfoptions.lowmemory==2
+    special_n_z=ones(1,length(n_z));
 end
-
-pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
 %% j=N_j
 
@@ -35,7 +30,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
@@ -44,8 +39,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j),e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j),e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
@@ -55,10 +49,8 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==2
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
-                z_val=z_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, special_n_a1,n_a2, special_n_z, special_n_e, d2_grid, a1_val, a2_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, special_n_a1,n_a2, special_n_z, special_n_e, d2_grid, a1_val, a2_grid, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze);
                 V(:,z_c,e_c,N_j)=Vtemp;
@@ -69,107 +61,81 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     end
 else
-    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
-
-    aprimeIndex=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
-    aprimeplus1Index=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
-    if vfoptions.lowmemory>0 || vfoptions.paroverz==0
-        aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2]
-    else % lowmemory=0 and paroverz=1
-        aprimeProbs=repmat(kron(ones(N_a1,1),a2primeProbs),1,1,N_z);  % [N_d2*N_a1,N_a2,N_z]
-    end
-    
-    % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
-    
+    Vnext=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % Expectations over e
+
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
+
+    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z); % [N_d2*N_a1,N_a2,N_z]
+
+    Vlower=reshape(Vnext(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
+    Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    % Already applied the probabilities from interpolating onto grid
+
     if vfoptions.lowmemory==0
-        
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-        % (d,aprime,a,z,e)
+        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
+        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+        EV=squeeze(sum(EV,3));
+        % EV is over (d2,a1prime,a2,z)
 
-        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
-        % Switch EV from being in terms of aprime to being in terms of d and a
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
-
-        % Apply the aprimeProbs
-        entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_z]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_z]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-        % entireEV is (d,a1prime, a2,z)
-
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(entireEV,1,N_a1,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
-        
+
     elseif vfoptions.lowmemory==1
+        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
+        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+        EV=squeeze(sum(EV,3));
+        % EV is over (d2,a1prime,a2,z)
+
         for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j),e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec);
 
-            EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
-            % Switch EV from being in terms of aprime to being in terms of d and a
-            EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
-
-            % Apply the aprimeProbs
-            entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_z]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_z]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-            % entireEV is (d,a1prime, a2,z)
-
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*kron(entireEV,ones(1,N_a1,1));
-            
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,:,e_c,N_j)=Vtemp;
-            Policy(:,:,e_c,N_j)=maxindex;
+            [Vtemp,maxindex]=max(entireRHS,[],1);
+
+            V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
         end
-        
     elseif vfoptions.lowmemory==2
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            for z_c=1:N_z
-                z_val=z_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, special_n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_val,e_val, ReturnFnParamsVec);
+        for z_c=1:N_z
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-2);
+            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z=sum(EV_z,3);
 
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
+            for e_c=1:N_e
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,special_n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec);
 
-                % Switch EV_z from being in terms of aprime to being in terms of d and a
-                EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
-
-                % Apply the aprimeProbs
-                entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-                % entireEV_z is (d,a1prime, a2)
-
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*kron(entireEV_z,ones(1,N_a1,1));
+                entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
 
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
-                V(:,z_c,e_c,N_j)=Vtemp;
-                Policy(:,z_c,e_c,N_j)=maxindex;
+                [Vtemp,maxindex]=max(entireRHS,[],1);
 
-
+                V(:,z_c,e_c,N_j)=shiftdim(Vtemp,1);
+                Policy(:,z_c,e_c,N_j)=shiftdim(maxindex,1);
             end
         end
-        
     end
 end
 
@@ -186,108 +152,83 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+    Vnext=sum(V(:,:,:,jj+1).*shfitdim(pi_e_J(:,jj),-2),3);
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
-    aprimeIndex=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
-    aprimeplus1Index=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
-    if vfoptions.lowmemory==2
-        aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2]
-    else % lowmemory=0 and  lowmemory=1
-        aprimeProbs=repmat(kron(ones(N_a1,1),a2primeProbs),1,1,N_z);  % [N_d2*N_a1,N_a2,N_z]
-    end
+    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z); % [N_d2*N_a1,N_a2,N_z]
 
-    VKronNext_j=V(:,:,jj+1);
+    Vlower=reshape(Vnext(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
+    Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    % Already applied the probabilities from interpolating onto grid
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,jj),3);
-    
     if vfoptions.lowmemory==0
-        
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z,n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj),e_gridvals_J(:,:,jj), ReturnFnParamsVec);
-        % (d,aprime,a,z)
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
+        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+        EV=squeeze(sum(EV,3));
+        % EV is over (d2,a1prime,a2,z)
 
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
-        % Switch EV from being in terms of aprime to being in terms of d and a
-        EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the lower aprime
-        EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
-
-        % Apply the aprimeProbs
-        entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_z]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_z]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-        % entireEV is (d,a1prime, a2,z)
-
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(entireEV,1,N_a1,1,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
-        V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy(:,:,jj)=shiftdim(maxindex,1);
-                
+        V(:,:,:,jj)=shiftdim(Vtemp,1);
+        Policy(:,:,:,jj)=shiftdim(maxindex,1);
+
     elseif vfoptions.lowmemory==1
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
+        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+        EV=squeeze(sum(EV,3));
+        % EV is over (d2,a1prime,a2,z)
 
         for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj),e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec);
 
-            EV=V_Jplus1.*shiftdim(pi_z_J(:,:,jj)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
-            % Switch EV from being in terms of aprime to being in terms of d and a
-            EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d2,a1prime,a2,z), the upper aprime
-
-            % Apply the aprimeProbs
-            entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_z]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_z]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-            % entireEV is (d,a1prime, a2,z)
-
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*kron(entireEV,ones(1,N_a1,1));
-            
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_e,[],1);
-            V(:,:,e_c,jj)=Vtemp;
-            Policy(:,:,e_c,jj)=maxindex;
+            [Vtemp,maxindex]=max(entireRHS,[],1);
+
+            V(:,:,e_c,jj)=shiftdim(Vtemp,1);
+            Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
         end
-        
     elseif vfoptions.lowmemory==2
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,jj);
-            for z_c=1:N_z
-                z_val=z_gridvals_J(z_c,:,jj);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, special_n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_val,e_val, ReturnFnParamsVec);
+        for z_c=1:N_z
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2);
+            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z=sum(EV_z,3);
 
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
+            for e_c=1:N_e
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,special_n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec);
 
-                % Switch EV_z from being in terms of aprime to being in terms of d and a
-                EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
-
-                % Apply the aprimeProbs
-                entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
-                % entireEV_z is (d,a1prime, a2)
-
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*kron(entireEV_z,ones(1,N_a1,1));
+                entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
 
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
-                V(:,z_c,e_c,jj)=Vtemp;
-                Policy(:,z_c,e_c,jj)=maxindex;
+                [Vtemp,maxindex]=max(entireRHS,[],1);
 
+                V(:,z_c,e_c,jj)=shiftdim(Vtemp,1);
+                Policy(:,z_c,e_c,jj)=shiftdim(maxindex,1);
             end
         end
     end
 end
 
 %% For experience asset, just output Policy as is and then use Case2 to UnKron
-% Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d2)+1,-1);
-% Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d2),-1);
+
+
 
 end

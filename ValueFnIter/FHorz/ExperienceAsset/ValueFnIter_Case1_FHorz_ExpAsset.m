@@ -20,9 +20,9 @@ else
     aprimeFnParamNames={};
 end
 
-N_z=prod(n_z);
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
+N_z=prod(n_z);
 
 if isfield(vfoptions,'n_e')
     if N_a1==0

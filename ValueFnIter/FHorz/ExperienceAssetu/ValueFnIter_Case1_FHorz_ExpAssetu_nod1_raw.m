@@ -17,6 +17,9 @@ a2_grid=gpuArray(a2_grid);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
+if vfoptions.lowmemory>0
+    special_n_z=ones(1,length(n_z));
+end
 
 %% j=N_j
 
@@ -24,44 +27,55 @@ pi_u=shiftdim(pi_u,-2); % put it into third dimension
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-    %Calc the max and it's index
-    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-    V(:,:,N_j)=Vtemp;
-    Policy(:,:,N_j)=maxindex;
-
+    if vfoptions.lowmemory==0
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        V(:,:,N_j)=Vtemp;
+        Policy(:,:,N_j)=maxindex;
+    elseif vfoptions.lowmemory==1
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, special_n_z, d2_grid, a1_grid, a2_grid, z_val, ReturnFnParamsVec);
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
+            V(:,z_c,N_j)=Vtemp;
+            Policy(:,z_c,N_j)=maxindex;
+        end
+    end
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-    % (d,a1prime,a)
+    Vnext=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % First, switch V_Jplus1 into Kron form
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2*N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
-    aprimeIndex=kron(ones(N_d2*N_a2,N_u),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
-    aprimeplus1Index=kron(ones(N_d2*N_a2,N_u),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,N_u]
-    aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2,N_u]
+    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
+    aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_u,N_z]
 
-    if vfoptions.paroverz==1
-        aprimeProbs=repmat(aprimeProbs,1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_u,N_z]
+    Vlower=reshape(Vnext(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_u,N_z]);
+    Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_u,N_z]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    % Already applied the probabilities from interpolating onto grid
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
 
-        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
-        % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-        EV1=aprimeProbs.*reshape(V_Jplus1(aprimeIndex,:),[N_d2*N_a1,N_a2,N_u,N_z]); % (d2,a1prime,a2,u), the lower aprime
-        EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_u,N_z]); % (d2,a1prime,a2,u), the upper aprime
-        % Already applied the probabilities from interpolating onto grid
-
-        % Expectation over u (using pi_u), and then add the lower and upper
-        EV=sum((EV1.*pi_u),3)+sum((EV2.*pi_u),3); % (d2,a1prime,a2,u,z), sum over u
-        % EV is over (d2,a1prime,a2,zprime)
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-3);
+    if vfoptions.lowmemory==0
+        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
         EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_z]);
+        EV=squeeze(sum(EV,3));
         % EV is over (d2,a1prime,a2,z)
+
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        % (d,a1prime,a)
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
@@ -71,33 +85,23 @@ else
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
 
-    elseif vfoptions.paroverz==0
+    elseif vfoptions.lowmemory==1
+
         for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, special_n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,N_j), ReturnFnParamsVec);
 
-            % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-            temp1=vfoptions.V_Jplus1(aprimeIndex,:).*pi_z_J(z_c,:,N_j);
-            temp1(isnan(temp1))=0; % remove nan created where value fn is -Inf but probability is zero
-            temp1=sum(temp1,2);
-            EV1_z=a2primeProbs.*reshape(temp1,[N_d2*N_a1,N_a2,N_u]); % (d2,a2,u), the lower aprime
-            temp2=vfoptions.V_Jplus1(aprimeIndex+1,:).*pi_z_J(z_c,:,N_j);
-            temp2(isnan(temp2))=0; % remove nan created where value fn is -Inf but probability is zero
-            temp2=sum(temp2,2);
-            EV2_z=(1-a2primeProbs).*reshape(temp2,[N_d2*N_a1,N_a2,N_u]); % (d2,a2,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u),3)+sum((EV2_z.*pi_u),3); % (d2,a2), sum over u
-            % EV_z is over (d2,a1prime,a2)
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-2);
+            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z=sum(EV_z,3);
 
-            entireRHS=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            V(:,z_c,N_j)=shiftdim(Vtemp,1);
-            Policy(:,z_c,N_j)=shiftdim(maxindex,1);
+            [Vtemp,maxindex]=max(entireRHS_z,[],1);
+            V(:,z_c,N_j)=Vtemp;
+            Policy(:,z_c,N_j)=maxindex;
         end
-        
     end
 end
 
@@ -116,39 +120,34 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    % [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,3); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % % Note: aprimeIndex is [N_d2*N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2,N_u)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_u]
-    aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2,N_u]
-    
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid,z_gridvals_J(:,:,jj), ReturnFnParamsVec);
-    % (d,aprime,a,z)
+    aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z); % [N_d2*N_a1,N_a2,N_u,N_z]
 
-    if vfoptions.paroverz==1
-        aprimeProbs=repmat(aprimeProbs,1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_u,N_z]
+    Vlower=reshape(V(aprimeIndex(:),:,jj+1),[N_d2*N_a1,N_a2,N_u,N_z]);
+    Vupper=reshape(V(aprimeplus1Index(:),:,jj+1),[N_d2*N_a1,N_a2,N_u,N_z]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    % Already applied the probabilities from interpolating onto grid
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
 
-        Vlower=reshape(V(aprimeIndex(:),:,jj+1),[N_d2*N_a1,N_a2,N_u,N_z]);
-        Vupper=reshape(V(aprimeplus1Index(:),:,jj+1),[N_d2*N_a1,N_a2,N_u,N_z]);
-        % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
-        skipinterp=(Vlower==Vupper);
-        aprimeProbs(skipinterp)=0; % effectively skips interpolation
-
-        % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-        EV1=aprimeProbs.*Vlower; % (d2,a1prime,a2,u), the lower a2prime
-        EV2=(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u), the upper a2prime
-        % Already applied the probabilities from interpolating onto grid
-
-        % Expectation over u (using pi_u), and then add the lower and upper
-        EV=sum((EV1.*pi_u),3)+sum((EV2.*pi_u),3); % (d2,a1prime,a2), sum over u
+    if vfoptions.lowmemory==0
         % EV is over (d2,a1prime,a2,zprime)
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-3);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
         EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_z]);
+        EV=squeeze(sum(EV,3));
         % EV is over (d2,a1prime,a2,z)
+
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid,z_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        % (d,aprime,a,z)
+
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1);
 
         %Calc the max and it's index
@@ -157,39 +156,29 @@ for reverse_j=1:N_j-1
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
 
-    elseif vfoptions.paroverz==0
+    elseif vfoptions.lowmemory==1
+
         for z_c=1:N_z
-            ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, special_n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,jj), ReturnFnParamsVec);
 
-            % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-            temp1=vfoptions.V_Jplus1(aprimeIndex,:).*pi_z_J(z_c,:,jj);
-            temp1(isnan(temp1))=0; % remove nan created where value fn is -Inf but probability is zero
-            temp1=sum(temp1,2);
-            EV1_z=a2primeProbs.*reshape(temp1,[N_d2*N_a1,N_a2,N_u]); % (d2,a2,u), the lower aprime
-            temp2=vfoptions.V_Jplus1(aprimeIndex+1,:).*pi_z_J(z_c,:,jj);
-            temp2(isnan(temp2))=0; % remove nan created where value fn is -Inf but probability is zero
-            temp2=sum(temp2,2);
-            EV2_z=(1-a2primeProbs).*reshape(temp2,[N_d2*N_a1,N_a2,N_u]); % (d2,a2,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2);
+            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z=sum(EV_z,3);
             
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u),3)+sum((EV2_z.*pi_u),3); % (d2,a2), sum over u
-            % EV_z is over (d2,a1prime,a2)
-
-            entireRHS=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            V(:,z_c,jj)=shiftdim(Vtemp,1);
-            Policy(:,z_c,jj)=shiftdim(maxindex,1);
+            [Vtemp,maxindex]=max(entireRHS_z,[],1);
+            V(:,z_c,jj)=Vtemp;
+            Policy(:,z_c,jj)=maxindex;
         end
     end
 end
 
 
 %% For experience asset, just output Policy as is and then use Case2 to UnKron
-% Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d2)+1,-1);
-% Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d2),-1);
+
+
 
 end

@@ -29,24 +29,27 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(:,N_j)=maxindex;
 
 else
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
     
-    % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-    EV1=a2primeProbs.*reshape(vfoptions.V_Jplus1(a2primeIndex),[N_d2,N_a2,N_u]); % (d2,a2,u), the lower aprime
-    EV2=(1-a2primeProbs).*reshape(vfoptions.V_Jplus1(a2primeIndex+1),[N_d2,N_a2,N_u]); % (d2,a2,u), the upper aprime
-    % Already applied the probabilities from interpolating onto grid
+    Vnext=reshape(vfoptions.V_Jplus1,[N_a,1]);
 
-    % Expectation over u (using pi_u), and then add the lower and upper
-    EV=sum((EV1.*pi_u),3)+sum((EV2.*pi_u),3); % (d2,a2), sum over u
-    % EV is over (d2,a2)
-    
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+    Vlower=reshape(Vnext(a2primeIndex),[N_d2,N_a2,N_u]);
+    Vupper=reshape(Vnext(a2primeIndex+1),[N_d2,N_a2,N_u]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    a2primeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    % Already applied the probabilities from interpolating onto grid
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
 
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, [d1_grid; d2_grid], a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
-    % (d,a)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
@@ -74,19 +77,18 @@ for reverse_j=1:N_j-1
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
 
-    % Note: aprimeIndex is [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
-    
-    % Switch EV from being in terms of a2prime to being in terms of d2 and a2 (in expectation because of the u shocks)
-    EV1=a2primeProbs.*reshape(V(a2primeIndex,jj+1),[N_d2,N_a2,N_u]); % (d2,a2,u), the lower aprime
-    EV2=(1-a2primeProbs).*reshape(V(a2primeIndex+1,jj+1),[N_d2,N_a2,N_u]); % (d2,a2,u), the upper aprime
+    Vlower=reshape(V(a2primeIndex,jj+1),[N_d2,N_a2,N_u]);
+    Vupper=reshape(V(a2primeIndex+1,jj+1),[N_d2,N_a2,N_u]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    a2primeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-
-    % Expectation over u (using pi_u), and then add the lower and upper
-    EV=sum((EV1.*pi_u),3)+sum((EV2.*pi_u),3); % (d2,a2), sum over u
-    % EV is over (d2,a2)
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
     
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, [d1_grid; d2_grid], a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
-    % (d,a)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
@@ -99,9 +101,7 @@ for reverse_j=1:N_j-1
 end
 
 
-%% For experience asset, just output Policy as is and then use Case2 to UnKron
-% Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d2)+1,-1);
-% Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d2),-1);
+
+
 
 end

@@ -25,28 +25,27 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(:,N_j)=maxindex;
 
 else
+    Vnext=reshape(vfoptions.V_Jplus1,[N_a,1]); % First, switch V_Jplus1 into Kron form
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
-    % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
+    Vlower=reshape(Vnext(a2primeIndex),[N_d2,N_a2]);
+    Vupper=reshape(Vnext(a2primeIndex+1),[N_d2,N_a2]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    a2primeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_grid, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
-    % (d,a)
 
-    % Switch EV from being in terms of aprime to being in terms of d and a
-    EV1=EV(a2primeIndex); % (d2,a2), the lower aprime
-    EV2=EV(a2primeIndex+1); % (d2,a2), the upper aprime
-
-    % Apply the aprimeProbs
-    entireEV=reshape(EV1,[N_d2,N_a2]).*a2primeProbs+reshape(EV2,[N_d2,N_a2]).*(1-a2primeProbs); % probability of lower grid point+ probability of upper grid point
-    % entireEV is (d,a2)
-
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -74,20 +73,18 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
-    EV=V(:,jj+1);
-
+    Vlower=reshape(V(a2primeIndex,jj+1),[N_d2,N_a2]);
+    Vupper=reshape(V(a2primeIndex+1,jj+1),[N_d2,N_a2]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    a2primeProbs(skipinterp)=0; % effectively skips interpolation
+   
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_grid, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
-    % (d,a)
 
-    % Switch EV from being in terms of aprime to being in terms of d and a
-    EV1=EV(a2primeIndex); % (d2,a2), the lower aprime
-    EV2=EV(a2primeIndex+1); % (d2,a2), the upper aprime
-
-    % Apply the aprimeProbs
-    entireEV=reshape(EV1,[N_d2,N_a2]).*a2primeProbs+reshape(EV2,[N_d2,N_a2]).*(1-a2primeProbs); % probability of lower grid point+ probability of upper grid point
-    % entireEV is (d, a2)
-
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -99,8 +96,7 @@ end
 
 
 %% For experience asset, just output Policy as is and then use Case2 to UnKron
-% Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d2)+1,-1);
-% Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d2),-1);
+
+
 
 end
