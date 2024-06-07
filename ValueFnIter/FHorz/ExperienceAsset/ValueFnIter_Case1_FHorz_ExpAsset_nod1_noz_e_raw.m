@@ -110,7 +110,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2]
     
-    Vnext=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2);    % Expectations over e
+    Vnext=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2); % Expectations over e
 
     Vlower=reshape(Vnext(aprimeIndex(:)),[N_d2*N_a1,N_a2]);
     Vupper=reshape(Vnext(aprimeplus1Index(:)),[N_d2*N_a1,N_a2]);

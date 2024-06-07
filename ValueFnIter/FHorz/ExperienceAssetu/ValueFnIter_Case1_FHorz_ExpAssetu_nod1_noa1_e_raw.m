@@ -55,6 +55,9 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
     end
 else
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
     Vnext=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),2); % First, switch V_Jplus1 into Kron form
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -72,9 +75,6 @@ else
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
-
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     if vfoptions.lowmemory==0
         EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);

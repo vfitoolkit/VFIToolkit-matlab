@@ -27,7 +27,10 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(:,N_j)=maxindex;
 
 else
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,N_e]); % First, switch V_Jplus1 into Kron form
+    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
+    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+
+    Vnext=reshape(vfoptions.V_Jplus1,[N_a,1]); % First, switch V_Jplus1 into Kron form
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
@@ -44,9 +47,6 @@ else
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
     
-    DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
-    DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-
     ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_grid, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;

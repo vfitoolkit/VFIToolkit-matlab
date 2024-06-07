@@ -114,8 +114,8 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex is  [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
     a2primeProbs=repmat(a2primeProbs,1,1,1,N_z);  % [N_d2,N_a2,N_u,N_z]
 
-    Vlower=reshape(Vnext(a2primeIndex,:),[N_d2,N_a2,N_u,N_z]);
-    Vupper=reshape(Vnext(a2primeIndex+1,:),[N_d2,N_a2,N_u,N_z]);
+    Vlower=reshape(V(a2primeIndex,:,jj+1),[N_d2,N_a2,N_u,N_z]);
+    Vupper=reshape(V(a2primeIndex+1,:,jj+1),[N_d2,N_a2,N_u,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
