@@ -85,13 +85,13 @@ else
         for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-2);
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, special_n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,N_j), ReturnFnParamsVec);
             
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*kron(EV_z,ones(1,N_a1,1));
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -124,8 +124,8 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d2*N_a1,N_a2,N_z]
 
-    Vlower=reshape(Vnext(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
-    Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
+    Vlower=reshape(V(aprimeIndex(:),:,jj+1),[N_d2*N_a1,N_a2,N_z]);
+    Vupper=reshape(V(aprimeplus1Index(:),:,jj+1),[N_d2*N_a1,N_a2,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
@@ -155,13 +155,13 @@ for reverse_j=1:N_j-1
         for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
+            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2);
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+            EV_z=sum(EV_z,3);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, special_n_z, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,jj), ReturnFnParamsVec);
-            
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*kron(EV_z,ones(1,N_a1,1));
+
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
