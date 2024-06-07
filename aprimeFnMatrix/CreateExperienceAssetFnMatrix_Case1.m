@@ -137,10 +137,10 @@ if l_a==1
     offBottomOfGrid=(aprimeVals<=a_grid(1));
     aprimeProbs(offBottomOfGrid)=1;
     
-    if aprimeIndexAsColumn==1 % value fn codes want column, simulation codes want matrix
+    if aprimeIndexAsColumn==1 % value fn codes want column when no z
 %     aprimeIndexes=reshape(aprimeIndexes,[N_d*N_a,1]);
         aprimeIndexes=aprimeIndexes'; % This is just doing the commented out reshape above
-    else
+    else % aprimeIndexAsColumn==2 % value fn with z, or simulation, want matrix
         aprimeIndexes=reshape(aprimeIndexes,[N_d,N_a]);
     end
     aprimeProbs=reshape(aprimeProbs,[N_d,N_a]);

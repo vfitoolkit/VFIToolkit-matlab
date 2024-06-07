@@ -377,12 +377,12 @@ if l_a==1
     offBottomOfGrid=(aprimeVals<=a_grid(1));
     aprimeProbs(offBottomOfGrid)=1;
     
-    if aprimeIndexAsColumn==1 % value fn codes want column, simulation codes want matrix (value fn with another asset uses 3)
+    if aprimeIndexAsColumn==1 % value fn codes without z want column
 %     aprimeIndexes=reshape(aprimeIndexes,[N_d*N_a*N_u,1]);
         aprimeIndexes=aprimeIndexes'; % This is just doing the commented out reshape above
-    elseif aprimeIndexAsColumn==3
+    elseif aprimeIndexAsColumn==3 % value fn with another asset uses 3
         aprimeIndexes=reshape(aprimeIndexes,[N_d*N_a,N_u]);
-    else
+    else % aprimeIndexAsColumn==2 % value fn codes with z, and simulation codes want matrix 
         aprimeIndexes=reshape(aprimeIndexes,[N_d,N_a,N_u]);
     end
     aprimeProbs=reshape(aprimeProbs,[N_d,N_a,N_u]);
