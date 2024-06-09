@@ -1,4 +1,4 @@
-function [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions)
+function [EstimParams, EstimParamsConfInts,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions)
 % Note: Inputs are EstimParamNames,TargetMoments, WeightingMatrix, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is estimoptions.
@@ -27,6 +27,9 @@ if ~isfield(estimoptions,'logmoments')
     estimoptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
     % Note: the input target moment should be the raw moment, log() will be taken internally (don't input the log(moment))
 end
+if ~isfield(estimoptions,'confidenceintervals')
+    estimoptions.confidenceintervals=90; % the default is to report 90-percent confidence intervals
+end
 if ~isfield(estimoptions,'toleranceparams')
     estimoptions.toleranceparams=10^(-4); % tolerance accuracy of the calibrated parameters
 end
@@ -37,7 +40,9 @@ if ~isfield(estimoptions,'fminalgo')
     estimoptions.fminalgo=4; % CMA-ES by default, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
 if ~isfield(estimoptions,'iterateGMM')
-    estimoptions.iterateGMM=1; % =2, uses two-iteration efficient GMM
+    estimoptions.iterateGMM=1;
+    % =1; default, no iteration
+    % =2, uses two-iteration efficient GMM
     % Note: When doing two-iteration efficient GMM, just input CoVarMatrixDataMoments=[]
     % Note: Can do more than 2 iterations,  e.g., estimoptions.iterateGMM=5 will do five-iteration efficient GMM
 end
@@ -94,15 +99,15 @@ end
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
 for pp=1:length(EstimParamNames)
+    % Get all the parameters
     if size(Parameters.(EstimParamNames{pp}),2)==1
         estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})];
     else
         estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})']; % transpose
     end
     estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
-end
-
-for pp=1:length(EstimParamNames)
+    
+    % If the parameter is constrained in some way then we need to transform it
     if estimoptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
@@ -137,7 +142,7 @@ end
 % Get all of the moments out of TargetMoments and make them into a vector
 % Also, store all the names
 targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
-% Ends up a colmumn vector (create row vector, then transpose)
+% Ends up a colmumn vector
 
 % First, do those in AllStats
 if usingallstats==1
@@ -150,7 +155,11 @@ if usingallstats==1
             a2vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}));% These will be Mean, etc
             for a2=1:length(a2vec)
                 allstatmomentcounter=allstatmomentcounter+1;
-                targetmomentvec=[targetmomentvec,TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})];
+                if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
+                    targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                else
+                    targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                end
                 allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2}};
                 allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));
                 % Note: PType will require an extra possible level of depth where this is still a structure (for ptype specific moments)
@@ -204,7 +213,11 @@ if usinglcp==1
             a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));% These will be Mean, etc
             for a2=1:length(a2vec)
                 acsmomentcounter=acsmomentcounter+1;
-                targetmomentvec=[targetmomentvec,TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})];
+                if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
+                    targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                else
+                    targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                end
                 acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2}};
                 acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));
                 % Note: PType will require an extra possible level of depth where this is still a structure (for ptype specific moments)
@@ -374,12 +387,12 @@ end
 
 
 %%
-if all(size(WeightingMatrix)==[length(targetmomentvec),length(targetmomentvec)])
+if all(size(WeightingMatrix)==[sum(~isnan(targetmomentvec)),sum(~isnan(targetmomentvec))])
     estimoptions.weights=WeightingMatrix;
 else
     fprintf('Following two lines relate to the error below \n')
     fprintf('size(WeightingMatrix)=%i-by-%i \n',size(WeightingMatrix,1),size(WeightingMatrix,2))
-    fprintf('you are targeting %i moments \n',length(targetmomentvec)')
+    fprintf('you are targeting %i moments (this is number of elements that are not NaN, total number of elements is %i) \n', sum(~isnan(targetmomentvec)), length(targetmomentvec))
     error('size(WeightingMatrix) should be a square matrix with number of rows (and number of columns) equal to the number of moments to be estimated')
 end
 
@@ -488,104 +501,101 @@ if estimoptions.skipestimation==0
 else % estimoptions.skipestimation==1    
     warning('Skipping the estimation step (you have set estimoptions.skipestimation=1 in EstimateLifeCycleModel_MethodOfMoments() [Nothing wrong with this, just warning as want to be sure you did this on purpose]')
     % The values in Parameters are taken as the estimated values for EstimParams
-    if estimoptions.constrainpositive(pp)==0
-        estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=Parameters.(EstimParamNames{pp});
-    elseif estimoptions.constrainpositive(pp)==1
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(Parameters.(EstimParamNames{pp}));
-    end
+    % Note that we already got these as estimparamsvec0, so we can just set
+    estimparamsvec=estimparamsvec0;
 end
 
 
 
 %% Two-iteration efficient GMM (actually, n-iteration, but just uses this recursively)
 if estimoptions.iterateGMM>1 && estimoptions.skipestimation==0
-    if estimoptions.verbose==1
-        fprintf('Finished the first-iteration of two-iteration efficient GMM \n')
-    end
-    simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
-
-    % Put the first step parameter estimates into Parameters
-    % Do any transformations of parameters before we say what they are
-    for pp=1:length(EstimParamNames)
-        if estimoptions.constrainpositive(pp)==1  % Forcing this parameter to be positive
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        end
-    end
-    % Put first step parameters into Parameters, and store a copy that can later be included in estsummary
-    for pp=1:length(EstimParamNames)
-        Parameters.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-        firststepparams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % A copy that will eventually be part of the estsummary output structure
-    end
-    
-    % Preallocate a matrix to keep all the moments across each simulation
-    SimMoments=zeros(estimoptions.numbootstrapsims,length(targetmomentvec)); % cov() below requires rows to be observations
-    
-    % Get the policy function (based on first step parameter estimate)
-    [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    for ss=1:estimoptions.numbootstrapsims % Number of simulations
-        if estimoptions.verbose==1
-            fprintf('Setup for second-step of two-step efficient GMM: simulation %i of %i \n', ss, estimoptions.numbootstrapsims)
-        end
-
-        % Do a panel data simulation
-        simoptions.lowmemory=1; % Will be slower, but avoids out-of-memory errors, and the simulations to generate covar matrix is only done once anyway
-        simPanelValues=SimPanelValues_FHorz_Case1(jequaloneDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions);
-        simoptions=rmfield(simoptions,'lowmemory');
-        % Compute the moments (same as CalibrateLifeCycleModel_objectivefn(), except the panel data versions)
-        if usingallstats==1
-            simoptions.whichstats=AllStats_whichstats;
-            AllStats=PanelValues_AllStats_FHorz(simPanelValues,simoptions);
-        end
-        if usinglcp==1
-            simoptions.whichstats=ACStats_whichstats;
-            AgeConditionalStats=PanelValues_LifeCycleProfiles_FHorz(simPanelValues,N_j,simoptions);
-        end
-
-        % Get current values of the target moments as a vector (note: this is copy-paste from CalibrateLifeCycleModel_objectivefn() command)
-        currentmomentvec=zeros(size(targetmomentvec));
-        if usingallstats==1
-            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
-            for cc=2:size(allstatmomentnames,1)
-                currentmomentvec(allstatcummomentsizes(cc-1):allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
-            end
-        end
-        if usinglcp==1
-            currentmomentvec(allstatcummomentsizes(end)+1:allstatcummomentsizes(end)+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
-            for cc=2:size(acsmomentnames,1)
-                currentmomentvec(allstatcummomentsizes(end)+acscummomentsizes(cc-1)+1:allstatcummomentsizes(end)+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
-            end
-        end
-        % log moments where appropriate
-        currentmomentvec=(1-estimoptions.logmoments).*currentmomentvec + estimoptions.logmoments.*log(currentmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
-        % Store them
-        SimMoments(ss,:)=currentmomentvec';
-    end
-
-    % Compute the covariance matrix of the moments
-    CoVarMatrixSimMoments=cov(SimMoments);
-    
-    % Set the optimal weighting matrix
-    WeightingMatrix=CoVarMatrixSimMoments^(-1);
-
-    if estimoptions.verbose==1
-        fprintf('The weighting matrix for the second step of two-step GMM is \n')
-        WeightingMatrix
-        save ./SavedOutput/FirstStepOfTwoStepGMM.mat WeightingMatrix CoVarMatrixSimMoments SimMoments estimparamsvec 
-        fprintf('Now starting the second step optimization of two-step GMM \n')
-    end
-
-    % Store the parameter vector and matrix of the simulated moments so can include it in final output
-    estimoptions.previousiterations.niters=estimoptions.previousiterations.niters+1;
-    estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).CoVarMatrixSimMoments=CoVarMatrixSimMoments;
-    estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).estimparams=firststepparams;
-
-    % Now just call this function again
-    estimoptions.iterateGMM=estimoptions.iterateGMM-1;
-    estimoptions.efficientWstddev=1; % Use the efficient-GMM formula when computing standard errors
-    % Note: Use our new WeightingMatrix from step 1, and there is no use for CoVarMatrixDataMoments in step 2
-    [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
-    return
+    error('HAVE NOT YET IMPLEMENTED ITERATED GMM (you have estimoptions.iterateGMM>1)')
+    % if estimoptions.verbose==1
+    %     fprintf('Finished the first-iteration of two-iteration efficient GMM \n')
+    % end
+    % simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
+    % 
+    % % Put the first step parameter estimates into Parameters
+    % % Do any transformations of parameters before we say what they are
+    % for pp=1:length(EstimParamNames)
+    %     if estimoptions.constrainpositive(pp)==1  % Forcing this parameter to be positive
+    %         estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+    %     end
+    % end
+    % % Put first step parameters into Parameters, and store a copy that can later be included in estsummary
+    % for pp=1:length(EstimParamNames)
+    %     Parameters.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+    %     firststepparams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % A copy that will eventually be part of the estsummary output structure
+    % end
+    % 
+    % % Preallocate a matrix to keep all the moments across each simulation
+    % SimMoments=zeros(estimoptions.numbootstrapsims,length(targetmomentvec)); % cov() below requires rows to be observations
+    % 
+    % % Get the policy function (based on first step parameter estimate)
+    % [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    % for ss=1:estimoptions.numbootstrapsims % Number of simulations
+    %     if estimoptions.verbose==1
+    %         fprintf('Setup for second-step of two-step efficient GMM: simulation %i of %i \n', ss, estimoptions.numbootstrapsims)
+    %     end
+    % 
+    %     % Do a panel data simulation
+    %     simoptions.lowmemory=1; % Will be slower, but avoids out-of-memory errors, and the simulations to generate covar matrix is only done once anyway
+    %     simPanelValues=SimPanelValues_FHorz_Case1(jequaloneDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions);
+    %     simoptions=rmfield(simoptions,'lowmemory');
+    %     % Compute the moments (same as CalibrateLifeCycleModel_objectivefn(), except the panel data versions)
+    %     if usingallstats==1
+    %         simoptions.whichstats=AllStats_whichstats;
+    %         AllStats=PanelValues_AllStats_FHorz(simPanelValues,simoptions);
+    %     end
+    %     if usinglcp==1
+    %         simoptions.whichstats=ACStats_whichstats;
+    %         AgeConditionalStats=PanelValues_LifeCycleProfiles_FHorz(simPanelValues,N_j,simoptions);
+    %     end
+    % 
+    %     % Get current values of the target moments as a vector (note: this is copy-paste from CalibrateLifeCycleModel_objectivefn() command)
+    %     currentmomentvec=zeros(size(targetmomentvec));
+    %     if usingallstats==1
+    %         currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
+    %         for cc=2:size(allstatmomentnames,1)
+    %             currentmomentvec(allstatcummomentsizes(cc-1):allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
+    %         end
+    %     end
+    %     if usinglcp==1
+    %         currentmomentvec(allstatcummomentsizes(end)+1:allstatcummomentsizes(end)+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
+    %         for cc=2:size(acsmomentnames,1)
+    %             currentmomentvec(allstatcummomentsizes(end)+acscummomentsizes(cc-1)+1:allstatcummomentsizes(end)+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
+    %         end
+    %     end
+    %     % log moments where appropriate
+    %     currentmomentvec=(1-estimoptions.logmoments).*currentmomentvec + estimoptions.logmoments.*log(currentmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+    %     % Store them
+    %     SimMoments(ss,:)=currentmomentvec';
+    % end
+    % 
+    % % Compute the covariance matrix of the moments
+    % CoVarMatrixSimMoments=cov(SimMoments);
+    % 
+    % % Set the optimal weighting matrix
+    % WeightingMatrix=CoVarMatrixSimMoments^(-1);
+    % 
+    % if estimoptions.verbose==1
+    %     fprintf('The weighting matrix for the second step of two-step GMM is \n')
+    %     WeightingMatrix
+    %     save ./SavedOutput/FirstStepOfTwoStepGMM.mat WeightingMatrix CoVarMatrixSimMoments SimMoments estimparamsvec 
+    %     fprintf('Now starting the second step optimization of two-step GMM \n')
+    % end
+    % 
+    % % Store the parameter vector and matrix of the simulated moments so can include it in final output
+    % estimoptions.previousiterations.niters=estimoptions.previousiterations.niters+1;
+    % estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).CoVarMatrixSimMoments=CoVarMatrixSimMoments;
+    % estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).estimparams=firststepparams;
+    % 
+    % % Now just call this function again
+    % estimoptions.iterateGMM=estimoptions.iterateGMM-1;
+    % estimoptions.efficientWstddev=1; % Use the efficient-GMM formula when computing standard errors
+    % % Note: Use our new WeightingMatrix from step 1, and there is no use for CoVarMatrixDataMoments in step 2
+    % [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
+    % return
 end
 
 
@@ -614,9 +624,9 @@ if estimoptions.bootstrapStdErrors==0
         epsilon=epsilonmodvec(ee)*epsilonraw;
 
         % ObjValue=zeros(length(targetmomentvec),1);
-        ObjValue_upwind=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-        ObjValue_downwind=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-        % J=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+        ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+        ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+        % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
 
         % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
         ObjValue=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
@@ -627,6 +637,7 @@ if estimoptions.bootstrapStdErrors==0
             epsilonparamvec(pp)=(1-epsilon)*estimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
             ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
         end
+
         FiniteDifference_up=(ObjValue_upwind-ObjValue)./(epsilon*estimparamsvec');
         FiniteDifference_down=(ObjValue-ObjValue_downwind)./(epsilon*estimparamsvec');
         FiniteDifference_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*estimparamsvec');
@@ -669,86 +680,88 @@ end
 
 %% Bootstrap standard errors
 if estimoptions.bootstrapStdErrors==1
-    % Bootstrap: reestimate the parameter vector lots of times, each time
-    % we use just a random sample (different one for each bootstrap iteration).
-    simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
-    BootStrapParamDist=zeros(length(estimparamsvec),estimoptions.numbootstrapsims);
-    for bb=1:estimoptions.numbootstrapsims
-        fprintf('Starting a bootstrap')
-        
-        fprintf('Bootstrapping standard errors: bootstrap %i of %i \n', bb, estimoptions.numbootstrapsims)
-        % Set a new seed for the random number generator
-        estimoptions.rngindex=10*bb*simoptions.numbersims*N_j;
-        % Now just estimate the parameters again
-        if estimoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-            estimoptions.multiGEcriterion=0;
-            [estimparamsvec_bb,fval_bb]=fzero(EstimateMoMObjectiveFn,estimparamsvec,minoptions);
-        elseif estimoptions.fminalgo==1
-            [estimparamsvec_bb,fval_bb]=fminsearch(EstimateMoMObjectiveFn,estimparamsvec,minoptions);
-        elseif estimoptions.fminalgo==2
-            % Use the optimization toolbox so as to take advantage of automatic differentiation
-            z=optimvar('z',length(estimparamsvec0));
-            optimfun=fcn2optimexpr(EstimateMoMObjectiveFn, z);
-            prob = optimproblem("Objective",optimfun);
-            z0.z=estimparamsvec0;
-            [sol_bb,fval_bb]=solve(prob,z0);
-            estimparamsvec_bb=sol_bb.z;
-            % Note, doesn't really work as automatic differentiation is only for
-            % supported functions, and the objective here is not a supported function
-        elseif estimoptions.fminalgo==3
-            goal=zeros(length(estimparamsvec0),1);
-            weight=ones(length(estimparamsvec0),1); % I already implement weights via caliboptions
-            [estimparamsvec_bb,calibsummaryVec] = fgoalattain(EstimateMoMObjectiveFn,estimparamsvec0,goal,weight);
-            fval_bb=sum(abs(calibsummaryVec));
-        elseif estimoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
-            % https://en.wikipedia.org/wiki/CMA-ES
-            % https://cma-es.github.io/
-            % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab
-            if ~isfield(estimoptions,'insigma')
-                % insigma: initial coordinate wise standard deviation(s)
-                estimoptions.insigma=0.3*abs(estimparamsvec0)+0.1*(estimparamsvec0==0); % Set standard deviation to 30% of the initial parameter value itself (cannot input zero, so add 0.1 to any zeros)
-            end
-            if ~isfield(estimoptions,'inopts')
-                % inopts: options struct, see defopts below
-                estimoptions.inopts=[];
-            end
-            % varargin (unused): arguments passed to objective function
-            if estimoptions.verbose==1
-                disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
-            end
-        	% This is a minor edit of cmaes, because I want to use 'CalibrationObjectiveFn' as a function_handle, but the original cmaes code only allows for 'CalibrationObjectiveFn' as a string
-            [estimparamsvec_bb,fval_bb,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(EstimateMoMObjectiveFn,estimparamsvec0,estimoptions.insigma,estimoptions.inopts); % ,varargin);
+    error('HAVE NOT YET IMPLEMENTED BOOTSTRAP STANDARD ERRORS (you have estimoptions.bootstrapStdErrors=1)')
 
-            estimoptions.cmaesoutputs.counteval=counteval;
-            estimoptions.cmaesoutputs.stopflag=stopflag;
-            estimoptions.cmaesoutputs.out=out;
-            estimoptions.cmaesoutputs.bestever=bestever;
-        elseif estimoptions.fminalgo==5
-            % Update based on rules in caliboptions.fminalgo5.howtoupdate
-            error('fminalgo=5 is not possible with model calibration/estimation')
-        elseif estimoptions.fminalgo==6
-            if ~isfield(estimoptions,'lb') || ~isfield(estimoptions,'ub')
-                error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub')
-            end
-            [estimparamsvec_bb,fval_bb]=fmincon(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],estimoptions.lb,estimoptions.ub,[],minoptions);
-        end
-
-        BootStrapParamDist(:,bb)=estimparamsvec_bb;
-
-        save ./SavedOutput/Bootstrapcount.mat bb
-
-        % save ./SavedOutput/Bootstrap.mat BootStrapParamDist bb estimparamsvec_bb
-    end
-    
-    for pp=1:length(EstimParamNames)
-        if estimoptions.constrainpositive(pp)==0
-            EstimParamsBootStrapDist.(EstimParamNames{pp})=sqrt(BootStrapParamDist(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1),:));
-        elseif estimoptions.constrainpositive(pp)==1
-            % Constrain parameter to be positive (by working with log(parameter) and then always take exp() before inputting to model)
-            EstimParamsBootStrapDist.(EstimParamNames{pp})=exp(BootStrapParamDist(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1),:));
-        end
-    end
-    % Further below, replace  EstimParamsStdDev=EstimParamsBootStrapDist;
+    % % Bootstrap: reestimate the parameter vector lots of times, each time
+    % % we use just a random sample (different one for each bootstrap iteration).
+    % simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
+    % BootStrapParamDist=zeros(length(estimparamsvec),estimoptions.numbootstrapsims);
+    % for bb=1:estimoptions.numbootstrapsims
+    %     fprintf('Starting a bootstrap')
+    % 
+    %     fprintf('Bootstrapping standard errors: bootstrap %i of %i \n', bb, estimoptions.numbootstrapsims)
+    %     % Set a new seed for the random number generator
+    %     estimoptions.rngindex=10*bb*simoptions.numbersims*N_j;
+    %     % Now just estimate the parameters again
+    %     if estimoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
+    %         estimoptions.multiGEcriterion=0;
+    %         [estimparamsvec_bb,fval_bb]=fzero(EstimateMoMObjectiveFn,estimparamsvec,minoptions);
+    %     elseif estimoptions.fminalgo==1
+    %         [estimparamsvec_bb,fval_bb]=fminsearch(EstimateMoMObjectiveFn,estimparamsvec,minoptions);
+    %     elseif estimoptions.fminalgo==2
+    %         % Use the optimization toolbox so as to take advantage of automatic differentiation
+    %         z=optimvar('z',length(estimparamsvec0));
+    %         optimfun=fcn2optimexpr(EstimateMoMObjectiveFn, z);
+    %         prob = optimproblem("Objective",optimfun);
+    %         z0.z=estimparamsvec0;
+    %         [sol_bb,fval_bb]=solve(prob,z0);
+    %         estimparamsvec_bb=sol_bb.z;
+    %         % Note, doesn't really work as automatic differentiation is only for
+    %         % supported functions, and the objective here is not a supported function
+    %     elseif estimoptions.fminalgo==3
+    %         goal=zeros(length(estimparamsvec0),1);
+    %         weight=ones(length(estimparamsvec0),1); % I already implement weights via caliboptions
+    %         [estimparamsvec_bb,calibsummaryVec] = fgoalattain(EstimateMoMObjectiveFn,estimparamsvec0,goal,weight);
+    %         fval_bb=sum(abs(calibsummaryVec));
+    %     elseif estimoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
+    %         % https://en.wikipedia.org/wiki/CMA-ES
+    %         % https://cma-es.github.io/
+    %         % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab
+    %         if ~isfield(estimoptions,'insigma')
+    %             % insigma: initial coordinate wise standard deviation(s)
+    %             estimoptions.insigma=0.3*abs(estimparamsvec0)+0.1*(estimparamsvec0==0); % Set standard deviation to 30% of the initial parameter value itself (cannot input zero, so add 0.1 to any zeros)
+    %         end
+    %         if ~isfield(estimoptions,'inopts')
+    %             % inopts: options struct, see defopts below
+    %             estimoptions.inopts=[];
+    %         end
+    %         % varargin (unused): arguments passed to objective function
+    %         if estimoptions.verbose==1
+    %             disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
+    %         end
+    %     	% This is a minor edit of cmaes, because I want to use 'CalibrationObjectiveFn' as a function_handle, but the original cmaes code only allows for 'CalibrationObjectiveFn' as a string
+    %         [estimparamsvec_bb,fval_bb,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(EstimateMoMObjectiveFn,estimparamsvec0,estimoptions.insigma,estimoptions.inopts); % ,varargin);
+    % 
+    %         estimoptions.cmaesoutputs.counteval=counteval;
+    %         estimoptions.cmaesoutputs.stopflag=stopflag;
+    %         estimoptions.cmaesoutputs.out=out;
+    %         estimoptions.cmaesoutputs.bestever=bestever;
+    %     elseif estimoptions.fminalgo==5
+    %         % Update based on rules in caliboptions.fminalgo5.howtoupdate
+    %         error('fminalgo=5 is not possible with model calibration/estimation')
+    %     elseif estimoptions.fminalgo==6
+    %         if ~isfield(estimoptions,'lb') || ~isfield(estimoptions,'ub')
+    %             error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub')
+    %         end
+    %         [estimparamsvec_bb,fval_bb]=fmincon(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],estimoptions.lb,estimoptions.ub,[],minoptions);
+    %     end
+    % 
+    %     BootStrapParamDist(:,bb)=estimparamsvec_bb;
+    % 
+    %     save ./SavedOutput/Bootstrapcount.mat bb
+    % 
+    %     % save ./SavedOutput/Bootstrap.mat BootStrapParamDist bb estimparamsvec_bb
+    % end
+    % 
+    % for pp=1:length(EstimParamNames)
+    %     if estimoptions.constrainpositive(pp)==0
+    %         EstimParamsBootStrapDist.(EstimParamNames{pp})=sqrt(BootStrapParamDist(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1),:));
+    %     elseif estimoptions.constrainpositive(pp)==1
+    %         % Constrain parameter to be positive (by working with log(parameter) and then always take exp() before inputting to model)
+    %         EstimParamsBootStrapDist.(EstimParamNames{pp})=exp(BootStrapParamDist(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1),:));
+    %     end
+    % end
+    % % Further below, replace  EstimParamsStdDev=EstimParamsBootStrapDist;
 
 end
 
@@ -823,14 +836,14 @@ for pp=1:length(EstimParamNames)
     if estimoptions.bootstrapStdErrors==0
         estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector
         if estimoptions.constrainpositive(pp)==0
-            EstimParamsStdDev.(EstimParamNames{pp})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            estsummary.EstimParamsStdDev.(EstimParamNames{pp})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
         elseif estimoptions.constrainpositive(pp)==1
             % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            estsummary.EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
         end
         % If bootstrap std errors, then replace the std dev with the bootstrap distribuiton
     elseif estimoptions.bootstrapStdErrors==1
-        EstimParamsStdDev=EstimParamsBootStrapDist;
+        estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
         estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
         % for pp=1:length(EstimParamNames)
         %     estsummary.bootstrap.confint80p.(EstimParamNames{pp})=[quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.1)',quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.9)'];
@@ -840,6 +853,43 @@ for pp=1:length(EstimParamNames)
     end
 end
 
+if estimoptions.confidenceintervals==68
+    criticalvalue_normaldist_z_alphadiv2=1;
+elseif estimoptions.confidenceintervals==80
+    criticalvalue_normaldist_z_alphadiv2=1.282;
+elseif estimoptions.confidenceintervals==85
+    criticalvalue_normaldist_z_alphadiv2=1.440;
+elseif estimoptions.confidenceintervals==90
+    criticalvalue_normaldist_z_alphadiv2=1.645;
+elseif estimoptions.confidenceintervals==95
+    criticalvalue_normaldist_z_alphadiv2=1.96;
+elseif estimoptions.confidenceintervals==98
+    criticalvalue_normaldist_z_alphadiv2=2.33;
+elseif estimoptions.confidenceintervals==99
+    criticalvalue_normaldist_z_alphadiv2=2.575;
+else
+    error('Currently only 68, 80, 85, 90, 95, 98 and 99 are possible values for estimoptions.confidenceintervals (default is 90=')
+end
+
+% By executive decision, I decided that confidence intervals are the 'main'
+% output, rather than the standard deviations of the estimated parameters.
+% This avoids people focusing on statistical significance and the 'star wars'.
+% Instead they will hopefully focus on what is likely and plausible.
+EstimParamsConfInts.notes=['These are 90-percent confidence intervals'];
+for pp=1:length(EstimParamNames)
+    EstimParamsConfInts.(EstimParamNames{pp})=EstimParams.(EstimParamNames{pp}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{pp});
+end
+
+% Give lots of alternative confidence intervals in the estsummary
+confintvec=[68,80,85,90,95,98,99];
+criticalvalue_normaldist_z_alphadiv2_vec=[1,1.282,1.440,1.645, 1.96, 2.33, 2.575];
+for ii=1:length(confintvec)
+    confint=confintvec(ii);
+    critval=criticalvalue_normaldist_z_alphadiv2_vec(ii);
+    for pp=1:length(EstimParamNames)
+        estsummary.confidenceintervals.(['confint',num2str(confint)]).EstimParamsConfInts.(EstimParamNames{pp})=EstimParams.(EstimParamNames{pp}) + [-1,1]*critval*estsummary.EstimParamsStdDev.(EstimParamNames{pp});
+    end
+end
 
 
 %% Give various outputs
@@ -874,11 +924,6 @@ if estimoptions.previousiterations.niters>0  % If there were any previous iterat
         estsummary.iterateGMM.(['iteration',num2str(ii)]).CoVarMatrixSimMoments=estimoptions.(['storeiter',num2str(ii)]).CoVarMatrixSimMoments;
     end
 end
-
-
-
-
-
 
 
 

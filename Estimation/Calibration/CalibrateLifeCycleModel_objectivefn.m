@@ -14,7 +14,7 @@ for pp=1:length(CalibParamNames)
     end
 end
 
-if caliboptions.verbose==1
+if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current parameter values: \n')
     for pp=1:length(CalibParamNames)
         if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
@@ -83,6 +83,7 @@ if any(caliboptions.logmoments>0) % need to log some moments
     currentmomentvec=(1-caliboptions.logmoments).*currentmomentvec + caliboptions.logmoments.*log(currentmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
+
 %% Evaluate the objective function
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
@@ -114,7 +115,7 @@ end
 
 
 %% Verbose
-if caliboptions.verbose==1
+if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current and target moments (first row is current, second row is target) \n')
     [currentmomentvec(actualtarget); targetmomentvec(actualtarget)]
     fprintf('Current objective fn value is %8.12f \n', Obj)

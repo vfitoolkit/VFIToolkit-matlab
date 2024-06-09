@@ -1,4 +1,4 @@
-function [MomentDerivatives,SortedMomentDerivatives,momentderivsummary]=EstimateLifeCycleModel_MomentDerivatives(EstimParamNames, n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z,    ReturnFn, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions)
+function [MomentDerivatives,SortedMomentDerivatives,momentderivsummary]=EstimateLifeCycleModel_MomentDerivatives(EstimParamNames, n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions)
 % Compute derivatives of model moments with respect to the 'estimated parameters'
 %
 % dM_m(theta)/dtheta
@@ -18,7 +18,10 @@ if ~isfield(estimoptions,'verbose')
     estimoptions.verbose=0;
 end
 if ~isfield(estimoptions,'constrainpositive')
-    estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive [I want to later modify to use exp()/(1+exp()) to be used to also allow setting min and max bounds, but this is not yet implemented]
+    estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+end
+if ~isfield(estimoptions,'constrain0to1')
+    estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1 [I want to later modify to also allow setting min and max bounds, but this is not yet implemented]
 end
 if ~isfield(estimoptions,'logmoments')
     estimoptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
@@ -34,24 +37,33 @@ if ~isfield(simoptions,'nquantiles')
 end
 
 
-%% Setup for the 'estimated' parameters
+%% Setup for which parameters are being estimated
 estimparamsvec=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
 for pp=1:length(EstimParamNames)
-    if size(Params.(EstimParamNames{pp}),2)==1
-        estimparamsvec=[estimparamsvec; Params.(EstimParamNames{pp})];
+    % Get all the parameters
+    if size(Parameters.(EstimParamNames{pp}),2)==1
+        estimparamsvec=[estimparamsvec; Parameters.(EstimParamNames{pp})];
     else
-        estimparamsvec=[estimparamsvec; Params.(EstimParamNames{pp})']; % transpose
+        estimparamsvec=[estimparamsvec; Parameters.(EstimParamNames{pp})']; % transpose
     end
-    estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Params.(EstimParamNames{pp}));
-end
-
-for pp=1:length(EstimParamNames)
+    estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
+    
+    % If the parameter is constrained in some way then we need to transform it
     if estimoptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
     end
+    if estimoptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
+        estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+    end
+    if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
+        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
+        error('You cannot constrain parameter twice (you are constraining one of the parameters using both estimoptions.constrainpositive and estimoptions.constrain0to1')
+    end
 end
+
 
 %% Setup for which moments are being targeted
 % Do all possible moments
@@ -357,13 +369,13 @@ for ee=1:4
     % J=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
 
     % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
-    ObjValue=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+    ObjValue=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
     for pp=1:length(estimparamsvec)
         epsilonparamvec=estimparamsvec;
         epsilonparamvec(pp)=(1+epsilon)*estimparamsvec(pp); % add epsilon*x to the pp-th parameter
-        ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+        ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
         epsilonparamvec(pp)=(1-epsilon)*estimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
-        ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+        ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
     end
     FiniteDifference_up=(ObjValue_upwind-ObjValue)./(epsilon*estimparamsvec');
     FiniteDifference_down=(ObjValue-ObjValue_downwind)./(epsilon*estimparamsvec');
