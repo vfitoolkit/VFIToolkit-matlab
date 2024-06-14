@@ -49,7 +49,7 @@ elseif presorted==1
     SortedValues=Values;
     SortedWeights=Weights;
 end
-SortedWeightedValues=SortedValues.*SortedWeights;
+WeightedSortedValues=SortedValues.*SortedWeights;
 if any(whichstats(4:7)==1) || whichstats(2)==1
     CumSumSortedWeights=cumsum(SortedWeights); % not needed if only want mean, median and std dev (& variance)
 end
@@ -57,7 +57,7 @@ end
 %% Now the stats themselves
 if whichstats(1)==1
     % Calculate the 'age conditional' mean
-    AllStats.Mean=sum(SortedWeightedValues);
+    AllStats.Mean=sum(WeightedSortedValues);
 end
 if whichstats(2)==1
     % Calculate the 'age conditional' median
@@ -101,7 +101,7 @@ if SortedValues(1)==SortedValues(end)
 else
     if whichstats(3)==1
         % Calculate the 'age conditional' variance
-        AllStats.Variance=sum((Values.^2).*Weights)-(AllStats.Mean)^2; % Weighted square of values - mean^2
+        AllStats.Variance=sum(((Values-AllStats.Mean).^2).*Weights); % Weighted square of (values - mean)
         if AllStats.Variance<0 && AllStats.Variance>-10^(-6) % overwrite what is likely just numerical error
             AllStats.Variance=0;
         end
@@ -111,29 +111,36 @@ else
     if whichstats(4)==1
         % Lorenz curve and Gini coefficient
         if npoints>0
-            if SortedWeightedValues(1)<0
+            if WeightedSortedValues(1)<0
                 AllStats.LorenzCurve=nan(npoints,1);
                 AllStats.LorenzCurveComment={'Lorenz curve cannot be calculated as some values are negative'};
                 AllStats.Gini=nan;
                 AllStats.GiniComment={'Gini cannot be calculated as some values are negative'};
             else
-                CumSumSortedWeightedValues=cumsum(SortedWeightedValues);
-                % Calculate the 'age conditional' lorenz curve
+                CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
+                % Calculate the Lorenz curve
                 % (note, we already eliminated the zero mass points, and dealt with case that the remaining grid is just one point)
                 LorenzCurve=zeros(npoints,1);
-                lorenzcvec=1/npoints:1/npoints:1;
-                % First, construct the lorenz curve just as cumulative totals
-                for lorenzcind=1:npoints-1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
-                    [~,LorenzCurveIndex_lorenzc]=max(CumSumSortedWeights >= lorenzcvec(lorenzcind));
-                    LorenzCurve(lorenzcind)=CumSumSortedWeightedValues(LorenzCurveIndex_lorenzc);
+                llvec=1/npoints:1/npoints:1;
+                for ll=1:npoints-1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
+                    [~,lorenzcind]=max(CumSumSortedWeights >= llvec(ll));
+                    if lorenzcind==1
+                        LorenzCurve(ll)=llvec(ll)*SortedValues(lorenzcind);
+                    else
+                        LorenzCurve(ll)=CumSumSortedWeightedValues(lorenzcind-1)+(llvec(ll)-CumSumSortedWeights(lorenzcind-1))*SortedValues(lorenzcind);
+                    end
                 end
                 LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
                 % Now normalize the curve so that they are fractions of the total.
-                SumWeightedValues=sum(SortedWeightedValues);
+                SumWeightedValues=sum(WeightedSortedValues);
                 AllStats.LorenzCurve=LorenzCurve/SumWeightedValues;
+
                 % Calculate the 'age conditional' gini
                 % Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
-                A=sum((1:1:npoints)/npoints-reshape(AllStats.LorenzCurve,[1,npoints]))/npoints;
+                A=(1/npoints:1/npoints:1)-AllStats.LorenzCurve'; % 'Height' between 45-degree line and Lorenz curve
+                A(logical(abs(A)<10^(-12)))=0; % Sometimes, get -10^(-15) due to numerical error, replace them with zero
+                A=sum(A)/npoints; % Note: 1/npoints is the 'width'. Area A is 'height times width' of gap from 45 degree line at each point on lorenz curve, summed up
+                % A=sum((1:1:npoints)/npoints-reshape(AllStats.LorenzCurve,[1,npoints]))/npoints;
                 AllStats.Gini=2*A;
             end
         end
@@ -168,11 +175,11 @@ else
             % [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
             AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
             % Note: following lines replace /(1/nquantiles) with *nquantiles
-            QuantileMeans(1)=(sum(SortedWeightedValues(1:quantilecutoffindexes(1)))-SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles))*nquantiles;
+            QuantileMeans(1)=(sum(WeightedSortedValues(1:quantilecutoffindexes(1)))-SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles))*nquantiles;
             for ll=2:nquantiles-1
-                QuantileMeans(ll)=(sum(SortedWeightedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll)))-SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)+SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles))*nquantiles;
+                QuantileMeans(ll)=(sum(WeightedSortedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll)))-SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)+SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles))*nquantiles;
             end
-            QuantileMeans(nquantiles)=(sum(SortedWeightedValues(quantilecutoffindexes(nquantiles-1)+1:end))+SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles))*nquantiles;
+            QuantileMeans(nquantiles)=(sum(WeightedSortedValues(quantilecutoffindexes(nquantiles-1)+1:end))+SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles))*nquantiles;
             AllStats.QuantileMeans=QuantileMeans;
         end
     end
