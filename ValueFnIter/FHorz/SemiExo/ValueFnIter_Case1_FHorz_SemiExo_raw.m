@@ -189,9 +189,7 @@ for reverse_j=1:N_j-1
                 EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-                entireEV=kron(EV,ones(N_d1,1));
-                %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
-                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
+                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repelem(EV,N_d1,1,1); %repelem(EV,N_d1,N_a,1); but the N_a autofills
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -209,8 +207,7 @@ for reverse_j=1:N_j-1
                     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                     EV_z=sum(EV_z,2);
 
-                    entireEV_z=kron(EV_z,ones(N_d1,1));
-                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
+                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*repelem(EV_z,N_d1,1); 
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -233,9 +230,11 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
+            d2val=d2_grid(d2_c);
+
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d1, n_a, special_n_bothz, d_grid, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,1], n_a, special_n_bothz, [d1_grid; d2val], a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
