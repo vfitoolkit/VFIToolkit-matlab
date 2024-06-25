@@ -133,6 +133,11 @@ if ~isnumeric(kirkbyoptions.nMoments) || kirkbyoptions.nMoments < 1 || kirkbyopt
     error('kirkbyoptions.nMoments must be either 1, 2, 3, 4')
 end
 
+% For convenience, make kirkbyoptions.nSigmas an age-dependent vector
+if isscalar(kirkbyoptions.nSigmas)
+    kirkbyoptions.nSigmas=kirkbyoptions.nSigmas*ones(N_j,1);
+end
+
 % % Everything has to be on cpu otherwise fminunc throws an error
 % if kirkbyoptions.parallel==2
 %     mew=gather(mew);
@@ -170,7 +175,7 @@ if isfield(kirkbyoptions,'initialj0sigmaz')
     jequalzeroDistz=pi_z_0(1,:)'; % iid, so first row is the dist
 else
     z_grid_0=z0*ones(znum,1);
-    jequalzeroDistz=[1;zeros(znum-1,1)]; % Is irrelevant where we put the mass
+    jequalzeroDistz=ones(znum,1)/znum; % Is irrelevant where we put the mass (because z_grid_0 is all just same value anyway)
 end
 clear pi_z_0
 
@@ -207,13 +212,13 @@ for jj=1:J
     % construct the one dimensional grid
     switch kirkbyoptions.method
         case 'even' % evenly-spaced grid
-            X1 = linspace(mewz(jj)-kirkbyoptions.nSigmas*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas*sigmaz(jj),znum);
+            X1 = linspace(mewz(jj)-kirkbyoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas(jj)*sigmaz(jj),znum);
             W = ones(1,znum);
         case 'gauss-legendre' % Gauss-Legendre quadrature
-            [X1,W] = legpts(znum,[mewz(jj)-kirkbyoptions.nSigmas*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas*sigmaz(jj)]);
+            [X1,W] = legpts(znum,[mewz(jj)-kirkbyoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas(jj)*sigmaz(jj)]);
             X1 = X1';
         case 'clenshaw-curtis' % Clenshaw-Curtis quadrature
-            [X1,W] = fclencurt(znum,mewz(jj)-kirkbyoptions.nSigmas*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas*sigmaz(jj));
+            [X1,W] = fclencurt(znum,mewz(jj)-kirkbyoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas(jj)*sigmaz(jj));
             X1 = fliplr(X1');
             W = fliplr(W');
         case 'gauss-hermite' % Gauss-Hermite quadrature
@@ -330,7 +335,7 @@ hits(3)=sum(sum(nMoments_grid==3));
 hits(4)=sum(sum(nMoments_grid==4));
 hits=hits./sum(hits);
 fprintf('discretizeLifeCycleAR1_Kirkby: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kirkbyoptions.nMoments)
-if hits(4)<0.8
+if hits(4)<0.8 && kirkbyoptions.nMoments==4
     warning('discretizeLifeCycleAR1_Kirkby: failed to hit four moments in more than 20% of conditional distributions')
 end
 
@@ -348,6 +353,7 @@ if isfield(kirkbyoptions,'initialj1mewz') || isfield(kirkbyoptions,'initialj0sig
 else
     % Otherwise, we already have the jequalzeroDistz, and just use this
     jequaloneDistz=pi_z_J(:,:,1)'*jequalzeroDistz;
+    otheroutputs.jequalzeroDistz=jequalzeroDistz; % store this so that user can see it to check it looks like they intend (a way to double-check the input options)
 end
 
 %% Change pi_z_J so that pi_z_J(:,:,jj) is the transition matrix from period jj to period jj+1
