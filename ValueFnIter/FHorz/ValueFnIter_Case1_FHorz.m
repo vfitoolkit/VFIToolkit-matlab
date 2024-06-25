@@ -161,9 +161,6 @@ end
 
 
 if isfield(vfoptions,'n_e')
-    if vfoptions.parallel<2
-        error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
-    end
     if ~isfield(vfoptions,'e_grid')
         error('When using vfoptions.n_e you must declare vfoptions.e_grid')
     elseif ~isfield(vfoptions,'pi_e')
@@ -188,6 +185,30 @@ if isfield(vfoptions,'n_e')
                 error('vfoptions.pi_e is not the correct shape (should be of size N_e-by-1 or N_e-by-N_j)')
             end
         end
+    end
+end
+
+if vfoptions.parallel<2
+    if isfield(vfoptions,'n_e')
+        error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~strcmp(vfoptions.exoticpreferences,'None')
+        error('Sorry but exoticpreferences are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.dynasty==0
+        error('Sorry but dynasty are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.experienceasset==0
+        error('Sorry but experienceasset are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.experienceassetu==0
+        error('Sorry but experienceassetu are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.riskyasset==0
+        error('Sorry but riskyasset are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.residualasset==0
+        error('Sorry but residualasset are not implemented for cpu, you will need a gpu to use them')
     end
 end
 
