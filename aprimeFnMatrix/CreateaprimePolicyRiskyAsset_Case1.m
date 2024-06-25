@@ -100,43 +100,43 @@ end
 % riskyasset: aprime(d,u)
 if l_u==1
     if l_drisky==1
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals, ParamCell{:});
     elseif l_drisky==2
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, u1vals, ParamCell{:});
     elseif l_drisky==3
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, ParamCell{:});
     elseif l_drisky==4
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, ParamCell{:});
     end
 elseif l_u==2
     if l_drisky==1
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals, u2vals, ParamCell{:});
     elseif l_drisky==2
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, u1vals, u2vals, ParamCell{:});
     elseif l_drisky==3
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, u1vals, u2vals, ParamCell{:});
     elseif l_drisky==4
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, u1vals, u2vals, ParamCell{:});
     end
 end
 
 
 %% Calcuate grid indexes and probs from the values
 if N_z==0
-    aprimeVals=reshape(aprimeVals,[1,N_a*N_u]);
+    a2primeVals=reshape(a2primeVals,[1,N_a*N_u]);
 else
-    aprimeVals=reshape(aprimeVals,[1,N_a*N_z*N_u]);
+    a2primeVals=reshape(a2primeVals,[1,N_a*N_z*N_u]);
 end
 
 riskyasset_grid=a2_grid; % hardcodes that there is only one risky asset
 
 a_griddiff=riskyasset_grid(2:end)-riskyasset_grid(1:end-1); % Distance between point and the next point
 
-temp=riskyasset_grid-aprimeVals;
-temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
+% temp=riskyasset_grid-aprimeVals;
+% temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
 
-[~,a2primeIndexes]=max(temp,[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-% Note, this is going to find the 'first' grid point such that aprimeVals is smaller than or equal to that grid point
+[~,a2primeIndexes]=max((riskyasset_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
+% Note, this is going to find the 'first' grid point which is bigger than a2primeVals
 % This is the 'upper' grid point
 % Have to have special treatment for trying to leave the ends of the grid (I fix these below)
 
@@ -145,16 +145,16 @@ a2primeIndexes=a2primeIndexes-1;
 a2primeIndexes(a2primeIndexes==0)=1;
 
 % Now, find the probabilities
-aprime_residual=aprimeVals'-riskyasset_grid(a2primeIndexes);
+aprime_residual=a2primeVals'-riskyasset_grid(a2primeIndexes);
 % Probability of the 'lower' points
 a2primeProbs=1-aprime_residual./a_griddiff(a2primeIndexes);
 
 % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
-offTopOfGrid=(aprimeVals>=riskyasset_grid(end));
-a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
+offTopOfGrid=(a2primeVals>=riskyasset_grid(end));
+a2primeIndexes(offTopOfGrid)=n_a-1; % lower grid point is the one before the end point
 a2primeProbs(offTopOfGrid)=0;
 % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
-offBottomOfGrid=(aprimeVals<=riskyasset_grid(1));
+offBottomOfGrid=(a2primeVals<=riskyasset_grid(1));
 % a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
 a2primeProbs(offBottomOfGrid)=1;
 

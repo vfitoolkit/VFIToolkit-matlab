@@ -124,8 +124,8 @@ expasset_grid=a2_grid;
 
 a_griddiff=expasset_grid(2:end)-expasset_grid(1:end-1); % Distance between point and the next point
 
-[~,a2primeIndexes]=max((expasset_grid-a2primeVals>0),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-% Note, this is going to find the 'first' grid point such that aprimeVals is smaller than or equal to that grid point
+[~,a2primeIndexes]=max((expasset_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
+% Note, this is going to find the 'first' grid point which is bigger than a2primeVals
 % This is the 'upper' grid point
 % Have to have special treatment for trying to leave the ends of the grid (I fix these below)
 

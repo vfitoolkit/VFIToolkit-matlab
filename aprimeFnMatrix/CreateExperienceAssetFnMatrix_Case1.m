@@ -114,12 +114,13 @@ if l_a==1
 
     a_griddiff=a_grid(2:end)-a_grid(1:end-1); % Distance between point and the next point
     
-    temp=a_grid-aprimeVals;
-    temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
+    % temp=a_grid-aprimeVals;
+    % temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
     
-    [~,aprimeIndexes]=max(temp,[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-    % Note, this is going to find the 'first' grid point such that aprimeVals is smaller than or equal to that grid point
+    [~,aprimeIndexes]=max((a_grid>aprimeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
+     % Note, this is going to find the 'first' grid point which is bigger than a2primeVals
     % This is the 'upper' grid point
+    % Have to have special treatment for trying to leave the ends of the grid (I fix these below)
         
     % Switch to lower grid point index
     aprimeIndexes=aprimeIndexes-1;
@@ -132,9 +133,11 @@ if l_a==1
         
     % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
     offTopOfGrid=(aprimeVals>=a_grid(end));
+    aprimeIndexes(offTopOfGrid)=n_a-1; % lower grid point is the one before the end point
     aprimeProbs(offTopOfGrid)=0;
     % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
     offBottomOfGrid=(aprimeVals<=a_grid(1));
+    % aprimeIndexes(offBottomOfGrid)=1; % Has already been handled
     aprimeProbs(offBottomOfGrid)=1;
     
     if aprimeIndexAsColumn==1 % value fn codes want column when no z
