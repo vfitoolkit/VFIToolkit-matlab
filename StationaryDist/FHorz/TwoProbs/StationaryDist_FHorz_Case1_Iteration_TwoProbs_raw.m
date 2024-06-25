@@ -15,7 +15,7 @@ PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,2,N_j])); % (a,z,2,j)
 
 StationaryDist=zeros(N_a*N_z,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
-StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
+StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse cpu matrix
 
 % Precompute
 II2=[1:1:N_a*N_z; 1:1:N_a*N_z]'; % Index for this period (a,z), note the 2 copies
