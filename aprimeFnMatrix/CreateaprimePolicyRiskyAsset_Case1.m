@@ -1,4 +1,4 @@
-function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy,aprimeFn, whichisdforriskyasset, n_d, n_a, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
+function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy,aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
 % The input Policy will contain aprime (except for the risky asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the risky asset). As well as the
@@ -26,7 +26,12 @@ for ii=1:length(aprimeFnParams)
     ParamCell(ii,1)={aprimeFnParams(ii)};
 end
 
-N_a=prod(n_a);
+N_a1=prod(n_a1);
+if N_a1==0
+    N_a=prod(n_a2);
+else
+    N_a=prod([n_a1,n_a2]);
+end
 N_u=prod(n_u);
 
 l_drisky=length(whichisdforriskyasset);
@@ -133,6 +138,7 @@ temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
 [~,a2primeIndexes]=max(temp,[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
 % Note, this is going to find the 'first' grid point such that aprimeVals is smaller than or equal to that grid point
 % This is the 'upper' grid point
+% Have to have special treatment for trying to leave the ends of the grid (I fix these below)
 
 % Switch to lower grid point index
 a2primeIndexes=a2primeIndexes-1;
@@ -145,9 +151,11 @@ a2primeProbs=1-aprime_residual./a_griddiff(a2primeIndexes);
 
 % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
 offTopOfGrid=(aprimeVals>=riskyasset_grid(end));
+a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
 a2primeProbs(offTopOfGrid)=0;
 % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
 offBottomOfGrid=(aprimeVals<=riskyasset_grid(1));
+% a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
 a2primeProbs(offBottomOfGrid)=1;
 
 if N_z==0
