@@ -81,17 +81,16 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
-    aprimeIndex=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
-    aprimeplus1Index=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
+    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     if vfoptions.lowmemory>0 || vfoptions.paroverz==0
-        aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
     else % lowmemory=0 and paroverz=1
-        aprimeProbs=repmat(kron(ones(N_a1,1),a2primeProbs),1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_bothz]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_bothz]
     end
-
 
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_bothz]);    % First, switch V_Jplus1 into Kron form
@@ -115,14 +114,17 @@ else
                 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
                 % Switch EV from being in terms of aprime to being in terms of d and a
-                EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1)); % (d2,a1prime,a2,z), the lower aprime
-                EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1)); % (d2,a1prime,a2,z), the upper aprime
+                EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
+                EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the upper aprime
+
+                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                skipinterp=(EV1==EV2);
+                aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
                 % Apply the aprimeProbs
-                entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_bothz]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_bothz]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV is (d2,a1prime, a2,z)
 
-                %             entireEV=repelem(EV,n_d2,1,1); % I tried this instead but appears repelem() is slower than kron(). However kron() requires 2-D so here I just use repelem() anyway.
                 entireRHS_d3=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,N_d1,N_a1,1);
 
                 %Calc the max and it's index
@@ -142,11 +144,15 @@ else
                     EV_z=sum(EV_z,2);
 
                     % Switch EV_z from being in terms of aprime to being in terms of d and a
-                    EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                    EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
+                    EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
+                    EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
+
+                    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                    skipinterp=(EV1==EV2);
+                    aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
                     % Apply the aprimeProbs
-                    entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                    entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                     % entireEV_z is (d2,a1prime, a2)
 
                     entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
@@ -175,11 +181,15 @@ else
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
-                EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
+                EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
+                EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
+
+                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                skipinterp=(EV1==EV2);
+                aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
                 % Apply the aprimeProbs
-                entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d2,a1prime, a2)
 
                 entireRHS_d3z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
@@ -222,15 +232,15 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
-    % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    % Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
 
-    aprimeIndex=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron((a2primeIndex-1),ones(N_a1,1)); % [N_d3*N_a1*N_a2,1]
-    aprimeplus1Index=kron(ones(N_d2*N_a2,1),(1:1:N_a1)')+N_a1*kron(a2primeIndex,ones(N_a1,1)); % [N_d2*N_a1*N_a2,1]
+    aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
+    aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     if vfoptions.lowmemory>0 || vfoptions.paroverz==0
-        aprimeProbs=kron(ones(N_a1,1),a2primeProbs);  % [N_d2*N_a1,N_a2]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1); % [N_d2*N_a1,N_a2]
     else % lowmemory=0 and paroverz=1
-        aprimeProbs=repmat(kron(ones(N_a1,1),a2primeProbs),1,1,N_bothz);  % [N_d3*N_a1,N_a2,N_z]
+        aprimeProbs=repmat(a2primeProbs,N_a1,1,N_bothz);  % [N_d2*N_a1,N_a2,N_bothz]
     end
 
     VKronNext_j=V(:,:,jj+1);
@@ -252,11 +262,15 @@ for reverse_j=1:N_j-1
                 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
                 % Switch EV from being in terms of aprime to being in terms of d and a
-                EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1)); % (d2,a1prime,a2,z), the lower aprime
-                EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1)); % (d2,a1prime,a2,z), the upper aprime
+                EV1=reshape(EV(aprimeIndex,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the lower aprime
+                EV2=reshape(EV(aprimeplus1Index,:),[N_d2*N_a1,N_a2,N_bothz]); % (d2,a1prime,a2,z), the upper aprime
+
+                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                skipinterp=(EV1==EV2);
+                aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
                 % Apply the aprimeProbs
-                entireEV=reshape(EV1,[N_d2*N_a1,N_a2,N_bothz]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2,N_bothz]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV is (d2,a1prime, a2,z)
 
                 entireRHS=ReturnMatrix_d3+DiscountFactorParamsVec*repelem(entireEV,N_d1,N_a1,1);
@@ -278,11 +292,15 @@ for reverse_j=1:N_j-1
                     EV_z=sum(EV_z,2);
 
                     % Switch EV_z from being in terms of aprime to being in terms of d and a
-                    EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                    EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
+                    EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
+                    EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
+
+                    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                    skipinterp=(EV1==EV2);
+                    aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
                     % Apply the aprimeProbs
-                    entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                    entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                     % entireEV_z is (d2,a1prime, a2)
 
                     entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
@@ -313,11 +331,15 @@ for reverse_j=1:N_j-1
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
-                EV1=EV_z(aprimeIndex); % (d2,a1prime,a2), the lower aprime
-                EV2=EV_z(aprimeplus1Index); % (d2,a1prime,a2), the upper aprime
+                EV1=reshape(EV_z(aprimeIndex),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the lower aprime
+                EV2=reshape(EV_z(aprimeplus1Index),[N_d2*N_a1,N_a2]); % (d2,a1prime,a2), the upper aprime
+
+                % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+                skipinterp=(EV1==EV2);
+                aprimeProbs(skipinterp)=0; % effectively skips interpolation
 
                 % Apply the aprimeProbs
-                entireEV_z=reshape(EV1,[N_d2*N_a1,N_a2]).*aprimeProbs+reshape(EV2,[N_d2*N_a1,N_a2]).*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
+                entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
                 entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,N_d1,N_a1);
@@ -349,9 +371,5 @@ end
 
 %% For experience asset, just output Policy as is and then use Case2 to UnKron
 
-disp('What?')
-Policy3(:,1:5,1:5,end)
-disp('What2?')
-Policy3(:,1:5,1:5,1)
 
 end

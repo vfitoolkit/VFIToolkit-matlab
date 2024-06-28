@@ -160,7 +160,7 @@ for pp=1:length(EstimParamNames)
     end
     if estimoptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(50,min(-50,  log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
         % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
     end
     if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
