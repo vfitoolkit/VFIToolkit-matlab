@@ -38,6 +38,9 @@ function [z_grid,pi_z] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodao
 if rho>=0.99
     fprintf('COMMENT: When discretizing gaussian AR(1) process with autocorrelation (rho) greater than 0.99 (which you currently have), the Rouwenhorst method tends to outperform Farmer-Toda method. \n')
     % This is based on findings of paper of Farmer & Toda (2017): last para on pg 678
+    if rho>=1
+        error('Farmer-Toda error, autocorellation is 1. You cannot discretize an AR(1) with an autocorrelation coefficient of 1')
+    end
 end
 
 %% Set defaults
@@ -54,6 +57,7 @@ if ~exist('farmertodaoptions','var')
         farmertodaoptions.method='even';
     end
     farmertodaoptions.parallel=1+(gpuDeviceCount>0);
+    farmertodaoptions.verbose=1;
 else
     if ~isfield(farmertodaoptions,'nMoments')
         farmertodaoptions.nMoments = 2; % Default number of moments to match is 2      
@@ -77,6 +81,9 @@ else
     end
     if ~isfield(farmertodaoptions,'parallel')
         farmertodaoptions.parallel=1+(gpuDeviceCount>0);
+    end
+    if ~isfield(farmertodaoptions,'verbose')
+        farmertodaoptions.verbose=1;
     end
 end
 % Note: the choice of setting nSigmas to sqrt(znum-1) is based on asymptotic theory in Corrallary 3.5(ii) of Farmer & Toda (2017)
@@ -146,7 +153,9 @@ for ii = 1:znum
             ((x-condMean)./scalingFactor).^2],...
             TBar(1:2)./(scalingFactor.^(1:2)'),q,zeros(2,1));
         if norm(momentError) > 1e-5 % if 2 moments fail, then just match 1 moment
-            warning('Failed to match first 2 moments. Just matching 1.')
+            if farmertodaoptions.verbose==1
+                warning('Failed to match first 2 moments. Just matching 1.')
+            end
             pi_z(ii,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,0,q,0);
         elseif farmertodaoptions.nMoments == 2
             pi_z(ii,:) = p;
@@ -155,7 +164,9 @@ for ii = 1:znum
                 ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                 TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
             if norm(momentError) > 1e-5
-                warning('Failed to match first 3 moments.  Just matching 2.')
+                if farmertodaoptions.verbose==1
+                    warning('Failed to match first 3 moments.  Just matching 2.')
+                end
                 pi_z(ii,:) = p;
             else
                 pi_z(ii,:) = pnew;
@@ -170,11 +181,15 @@ for ii = 1:znum
                     ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                     TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
                 if norm(momentError) > 1e-5
-                    warning('Failed to match first 3 moments.  Just matching 2.')
+                    if farmertodaoptions.verbose==1
+                        warning('Failed to match first 3 moments.  Just matching 2.')
+                    end
                     pi_z(ii,:) = p;
                 else
                     pi_z(ii,:) = pnew;
-                    warning('Failed to match first 4 moments.  Just matching 3.')
+                    if farmertodaoptions.verbose==1
+                        warning('Failed to match first 4 moments.  Just matching 3.')
+                    end
                 end
             else
                 pi_z(ii,:) = pnew;
