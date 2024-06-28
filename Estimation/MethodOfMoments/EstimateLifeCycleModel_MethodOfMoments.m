@@ -18,10 +18,23 @@ if ~isfield(estimoptions,'verbose')
     estimoptions.verbose=1; % sum of squares is the default
 end
 if ~isfield(estimoptions,'constrainpositive')
-    estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+    estimoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Convert constrained positive p into x=log(p) which is unconstrained.
+    % Then use p=exp(x) in the model.
 end
 if ~isfield(estimoptions,'constrain0to1')
-    estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1 [I want to later modify to also allow setting min and max bounds, but this is not yet implemented]
+    estimoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
+    % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
+end
+if ~isfield(estimoptions,'constrainAtoB')
+    estimoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
+    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+else
+    if ~isfield(estimoptions,'constrainAtoBlimits')
+        error('You have used estimoptions.constrainAtoB, but are missing estimoptions.constrainAtoBlimits')
+    end
 end
 if ~isfield(estimoptions,'logmoments')
     estimoptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
@@ -60,14 +73,14 @@ if ~isfield(estimoptions,'numberinvidualsperbootstrapsim')
     % 'observations' is more like estimoptions.numberinvidualsperbootstrapsim*N_j
     % [Note: you cannot use simoptions.numbersims, as that is overwritten by estimoptions.numberinvidualsperbootstrapsim]
 end
-if ~isfield(estimoptions,'efficientWstddev')
-    estimoptions.efficientWstddev=0; % =1, Calculates std error of parameters under assumption that the weighting matrix is efficient (that the weighting matrix is the inverse of the covariance matrix of the data moments)
+if ~isfield(estimoptions,'efficientW')
+    estimoptions.efficientW=0; % =1, Calculates std error of parameters under assumption that the weighting matrix is efficient (that the weighting matrix is the inverse of the covariance matrix of the data moments)
 end
 if ~isfield(estimoptions,'skipestimation')
     estimoptions.skipestimation=0; % =1, skips the estimation, is here so you can do estimation, and then rerun later to bootstrap the standard errors without reestimating the whole model
 end
 % Following are estimoptions used internally, but which the user won't want to set themselves
-estimoptions.vectoroutput=0; % Set to zero to get point estimates, then later set to one as part of computing std deviations.
+estimoptions.vectoroutput=0; % Set to zero to get point estimates, then later set to one as part of computing Jacobian matrix J (needed for Sigma, among other things).
 estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed later if you bootstrap standard errors
 % estimoptions.rngindex will be set below if you have estimoptions.simulatemoments=1 to bootstrap standard errors
 estimoptions.metric='MethodOfMoments';
@@ -96,6 +109,17 @@ end
 
 
 %% Setup for which parameters are being estimated
+
+% Backup the parameter constraint names, so I can replace them with vectors
+estimoptions.constrainpositivenames=estimoptions.constrainpositive;
+estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+estimoptions.constrain0to1names=estimoptions.constrain0to1;
+estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+estimoptions.constrainAtoBnames=estimoptions.constrainAtoB;
+estimoptions.constrainAtoB=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
+estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
 for pp=1:length(EstimParamNames)
@@ -108,13 +132,36 @@ for pp=1:length(EstimParamNames)
     estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
     
     % If the parameter is constrained in some way then we need to transform it
+
+    % First, check the name, and convert it if relevant
+    if any(strcmp(estimoptions.constrainpositivenames,EstimParamNames{pp}))
+        estimoptions.constrainpositive(pp)=1;
+    end
+    if any(strcmp(estimoptions.constrain0to1names,EstimParamNames{pp}))
+        estimoptions.constrain0to1(pp)=1;
+    end
+    if any(strcmp(estimoptions.constrainAtoBnames,EstimParamNames{pp}))
+        % For parameters A to B, I convert via 0 to 1
+        estimoptions.constrain0to1(pp)=1;
+        estimoptions.constrainAtoB(pp)=1;
+        estimoptions.constrainAtoBlimits(pp,:)=estimoptions.constrainAtoBlimitsnames.(EstimParamNames{pp});
+    end
+
     if estimoptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
+        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+    end
+    if estimoptions.constrainAtoB(pp)==1
+        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
+        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
+        % And then the next if-statement converts this 0-to-1 into unconstrained
     end
     if estimoptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(50,min(-50,  log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
     end
     if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
@@ -273,30 +320,21 @@ FnsToEvaluateParamNames=[];
 z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
 pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
 if isfield(vfoptions,'ExogShockFn')
-    if isfield(vfoptions,'ExogShockFnParamNames')
-        for jj=1:N_j
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            pi_z_J(:,:,jj)=gpuArray(pi_z);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
+    if ~isfield(vfoptions,'ExogShockFnParamNames')
+        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    end
+    for jj=1:N_j
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
         end
-    else
-        for jj=1:N_j
-            [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-            pi_z_J(:,:,jj)=gpuArray(pi_z);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
+        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        pi_z_J(:,:,jj)=gpuArray(pi_z);
+        if all(size(z_grid)==[sum(n_z),1])
+            z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+        else % already joint-grid
+            z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
         end
     end
 elseif prod(n_z)==0 % no z
@@ -335,32 +373,22 @@ if isfield(vfoptions,'n_e')
 
         vfoptions.e_gridvals_J=zeros(prod(vfoptions.n_e),length(vfoptions.n_e),'gpuArray');
         vfoptions.pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
-
         if isfield(vfoptions,'EiidShockFn')
-            if isfield(vfoptions,'EiidShockFnParamNames')
-                for jj=1:N_j
-                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                    for ii=1:length(EiidShockFnParamsVec)
-                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                    end
-                    [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                    vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                    if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                    else % already joint-grid
-                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                    end
+            if ~isfield(vfoptions,'EiidShockFnParamNames')
+                vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+            end
+            for jj=1:N_j
+                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
+                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                for ii=1:length(EiidShockFnParamsVec)
+                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
                 end
-            else
-                for jj=1:N_j
-                    [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(N_j);
-                    vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                    if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                    else % already joint-grid
-                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                    end
+                [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
+                if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
+                    vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
+                else % already joint-grid
+                    vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
                 end
             end
         elseif ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
@@ -592,7 +620,7 @@ if estimoptions.iterateGMM>1 && estimoptions.skipestimation==0
     % 
     % % Now just call this function again
     % estimoptions.iterateGMM=estimoptions.iterateGMM-1;
-    % estimoptions.efficientWstddev=1; % Use the efficient-GMM formula when computing standard errors
+    % estimoptions.efficientW=1; % Use the efficient-GMM formula when computing standard errors
     % % Note: Use our new WeightingMatrix from step 1, and there is no use for CoVarMatrixDataMoments in step 2
     % [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
     % return
@@ -648,10 +676,10 @@ if estimoptions.bootstrapStdErrors==0
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_down=FiniteDifference_down;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_centered=FiniteDifference_centered;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J=Jee;
-        if estimoptions.efficientWstddev==0
+        if estimoptions.efficientW==0
             % This is standard formula for the asymptotic variance of method of moments estimator
             estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=((Jee'*WeightingMatrix*Jee)^(-1)) * Jee'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*Jee * ((Jee'*WeightingMatrix*Jee)^(-1));
-        elseif estimoptions.efficientWstddev==1
+        elseif estimoptions.efficientW==1
             % When using the efficient weighting matrix W=Omega^(-1), the asymptotic variance of the method of moments estimator simplifies to
             estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=(Jee'*WeightingMatrix*Jee)^(-1);
         end
@@ -665,11 +693,11 @@ if estimoptions.bootstrapStdErrors==0
     % What I have here as default uses epsilon of the order 10^(-4)
     % Grey Gordon's numerical derivative code used 10^(-6)
 
-    if estimoptions.efficientWstddev==0
+    if estimoptions.efficientW==0
         estimparamscovarmatrix=((J'*WeightingMatrix*J)^(-1)) * J'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J * ((J'*WeightingMatrix*J)^(-1));
         % This is standard formula for the asymptotic variance of method of moments estimator
         % See, e.g., Kirkby - "Classical (not Simulated!) Method of Moments Estimation of Life-Cycle Models"
-    elseif estimoptions.efficientWstddev==1
+    elseif estimoptions.efficientW==1
         % When using the efficient weighting matrix W=Omega^(-1), the asymptotic variance of the method of moments estimator simplifies to
         estimparamscovarmatrix=(J'*WeightingMatrix*J)^(-1);
     end
@@ -681,88 +709,6 @@ end
 %% Bootstrap standard errors
 if estimoptions.bootstrapStdErrors==1
     error('HAVE NOT YET IMPLEMENTED BOOTSTRAP STANDARD ERRORS (you have estimoptions.bootstrapStdErrors=1)')
-
-    % % Bootstrap: reestimate the parameter vector lots of times, each time
-    % % we use just a random sample (different one for each bootstrap iteration).
-    % simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
-    % BootStrapParamDist=zeros(length(estimparamsvec),estimoptions.numbootstrapsims);
-    % for bb=1:estimoptions.numbootstrapsims
-    %     fprintf('Starting a bootstrap')
-    % 
-    %     fprintf('Bootstrapping standard errors: bootstrap %i of %i \n', bb, estimoptions.numbootstrapsims)
-    %     % Set a new seed for the random number generator
-    %     estimoptions.rngindex=10*bb*simoptions.numbersims*N_j;
-    %     % Now just estimate the parameters again
-    %     if estimoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-    %         estimoptions.multiGEcriterion=0;
-    %         [estimparamsvec_bb,fval_bb]=fzero(EstimateMoMObjectiveFn,estimparamsvec,minoptions);
-    %     elseif estimoptions.fminalgo==1
-    %         [estimparamsvec_bb,fval_bb]=fminsearch(EstimateMoMObjectiveFn,estimparamsvec,minoptions);
-    %     elseif estimoptions.fminalgo==2
-    %         % Use the optimization toolbox so as to take advantage of automatic differentiation
-    %         z=optimvar('z',length(estimparamsvec0));
-    %         optimfun=fcn2optimexpr(EstimateMoMObjectiveFn, z);
-    %         prob = optimproblem("Objective",optimfun);
-    %         z0.z=estimparamsvec0;
-    %         [sol_bb,fval_bb]=solve(prob,z0);
-    %         estimparamsvec_bb=sol_bb.z;
-    %         % Note, doesn't really work as automatic differentiation is only for
-    %         % supported functions, and the objective here is not a supported function
-    %     elseif estimoptions.fminalgo==3
-    %         goal=zeros(length(estimparamsvec0),1);
-    %         weight=ones(length(estimparamsvec0),1); % I already implement weights via caliboptions
-    %         [estimparamsvec_bb,calibsummaryVec] = fgoalattain(EstimateMoMObjectiveFn,estimparamsvec0,goal,weight);
-    %         fval_bb=sum(abs(calibsummaryVec));
-    %     elseif estimoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
-    %         % https://en.wikipedia.org/wiki/CMA-ES
-    %         % https://cma-es.github.io/
-    %         % Code is cmaes.m from: https://cma-es.github.io/cmaes_sourcecode_page.html#matlab
-    %         if ~isfield(estimoptions,'insigma')
-    %             % insigma: initial coordinate wise standard deviation(s)
-    %             estimoptions.insigma=0.3*abs(estimparamsvec0)+0.1*(estimparamsvec0==0); % Set standard deviation to 30% of the initial parameter value itself (cannot input zero, so add 0.1 to any zeros)
-    %         end
-    %         if ~isfield(estimoptions,'inopts')
-    %             % inopts: options struct, see defopts below
-    %             estimoptions.inopts=[];
-    %         end
-    %         % varargin (unused): arguments passed to objective function
-    %         if estimoptions.verbose==1
-    %             disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
-    %         end
-    %     	% This is a minor edit of cmaes, because I want to use 'CalibrationObjectiveFn' as a function_handle, but the original cmaes code only allows for 'CalibrationObjectiveFn' as a string
-    %         [estimparamsvec_bb,fval_bb,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(EstimateMoMObjectiveFn,estimparamsvec0,estimoptions.insigma,estimoptions.inopts); % ,varargin);
-    % 
-    %         estimoptions.cmaesoutputs.counteval=counteval;
-    %         estimoptions.cmaesoutputs.stopflag=stopflag;
-    %         estimoptions.cmaesoutputs.out=out;
-    %         estimoptions.cmaesoutputs.bestever=bestever;
-    %     elseif estimoptions.fminalgo==5
-    %         % Update based on rules in caliboptions.fminalgo5.howtoupdate
-    %         error('fminalgo=5 is not possible with model calibration/estimation')
-    %     elseif estimoptions.fminalgo==6
-    %         if ~isfield(estimoptions,'lb') || ~isfield(estimoptions,'ub')
-    %             error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub')
-    %         end
-    %         [estimparamsvec_bb,fval_bb]=fmincon(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],estimoptions.lb,estimoptions.ub,[],minoptions);
-    %     end
-    % 
-    %     BootStrapParamDist(:,bb)=estimparamsvec_bb;
-    % 
-    %     save ./SavedOutput/Bootstrapcount.mat bb
-    % 
-    %     % save ./SavedOutput/Bootstrap.mat BootStrapParamDist bb estimparamsvec_bb
-    % end
-    % 
-    % for pp=1:length(EstimParamNames)
-    %     if estimoptions.constrainpositive(pp)==0
-    %         EstimParamsBootStrapDist.(EstimParamNames{pp})=sqrt(BootStrapParamDist(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1),:));
-    %     elseif estimoptions.constrainpositive(pp)==1
-    %         % Constrain parameter to be positive (by working with log(parameter) and then always take exp() before inputting to model)
-    %         EstimParamsBootStrapDist.(EstimParamNames{pp})=exp(BootStrapParamDist(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1),:));
-    %     end
-    % end
-    % % Further below, replace  EstimParamsStdDev=EstimParamsBootStrapDist;
-
 end
 
 
@@ -813,9 +759,6 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
 
 
         estsummary.doublechecks.Jcalib=Jcalib;
-        % estsummary.todelete.ObjValue_upwind=ObjValue_upwind;
-        % estsummary.todelete.ObjValue_downwind=ObjValue_downwind;
-        % estsummary.todelete.ObjValue;
     end
 
 end
@@ -904,9 +847,9 @@ end
 
 if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
     estsummary.variousmatrices.J=J;
-    if estimoptions.efficientWstddev==0
+    if estimoptions.efficientW==0
         estsummary.variousmatrices.Omega=CoVarMatrixDataMoments; % Covariance matrix of the data moments
-    elseif estimoptions.efficientWstddev==1
+    elseif estimoptions.efficientW==1
         estsummary.variousmatrices.Omega=[]; % Two-iteration efficient GMM does not use the covariance matrix of data moments
         estsummary.notes.iterateGMM='When using iterated GMM we do not use the covariance matrix of the data moments (Omega) and hence it is empty [the model implied one will be W^(-1)]';
     end

@@ -9,10 +9,18 @@ for pp=1:length(CalibParamNames)
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
     elseif caliboptions.constrain0to1(pp)==1
-        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))/(1+exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
+        % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
+    end 
+    % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
+    if caliboptions.constrainAtoB(pp)==1
+        % Constrain parameter to be A to B
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=caliboptions.constrainAtoBlimits(pp,1)+(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1))*calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
+        % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
     end
 end
+
 
 if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current parameter values: \n')
