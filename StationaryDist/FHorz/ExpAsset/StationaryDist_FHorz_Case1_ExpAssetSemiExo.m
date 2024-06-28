@@ -165,22 +165,22 @@ PolicyProbs=zeros(N_a,N_bothz,2,N_j,'gpuArray'); % The fourth dimension is lower
 whichisdforexpasset=length(n_d)-1;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_bothz, d_grid, a2_grid, aprimeFnParamsVec);
+    [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_bothz, d_grid, a2_grid, aprimeFnParamsVec);
     if l_a==1
-        Policy_aprime(:,:,1,jj)=aprimeIndexes;
-        Policy_aprime(:,:,2,jj)=aprimeIndexes+1;
-        PolicyProbs(:,:,1,jj)=aprimeProbs;
-        PolicyProbs(:,:,2,jj)=1-aprimeProbs;
+        Policy_aprime(:,:,1,jj)=a2primeIndexes;
+        Policy_aprime(:,:,2,jj)=a2primeIndexes+1;
+        PolicyProbs(:,:,1,jj)=a2primeProbs;
+        PolicyProbs(:,:,2,jj)=1-a2primeProbs;
     elseif l_a==2 % experience asset and one other asset
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1+1);
-        PolicyProbs(:,:,1,jj)=aprimeProbs;
-        PolicyProbs(:,:,2,jj)=1-aprimeProbs;
+        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(a2primeIndexes-1);
+        Policy_aprime(:,:,2,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(a2primeIndexes-1+1);
+        PolicyProbs(:,:,1,jj)=a2primeProbs;
+        PolicyProbs(:,:,2,jj)=1-a2primeProbs;
     elseif l_a==3 % experience asset and two other assets
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(aprimeIndexes-1+1);
-        PolicyProbs(:,:,1,jj)=aprimeProbs;
-        PolicyProbs(:,:,2,jj)=1-aprimeProbs;       
+        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(a2primeIndexes-1);
+        Policy_aprime(:,:,2,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(a2primeIndexes-1+1);
+        PolicyProbs(:,:,1,jj)=a2primeProbs;
+        PolicyProbs(:,:,2,jj)=1-a2primeProbs;       
     else
         error('Not yet implemented experience asset with length(n_a)>3')
     end
