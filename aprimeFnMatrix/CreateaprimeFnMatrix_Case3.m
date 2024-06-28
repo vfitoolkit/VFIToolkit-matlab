@@ -1,4 +1,5 @@
 function [aprimeIndexes,aprimeProbs]=CreateaprimeFnMatrix_Case3(aprimeFn, n_d, n_a, n_u, d_grid, a_grid, u_grid, aprimeFnParams, aprimeIndexAsColumn)
+error('This code should not be used anymore (please tell me if you get this error, I am pretty sure nothing calls this anymore but might be wrong)')
 % Note: aprimeIndex is [N_a*N_u,1], whereas aprimeProbs is [N_a,N_u]
 %
 % Creates the grid points and their 'interpolation' probabilities

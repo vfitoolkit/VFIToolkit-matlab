@@ -120,32 +120,25 @@ else
     a2primeVals=reshape(a2primeVals,[1,N_a*N_z]);
 end
 
-expasset_grid=a2_grid;
+a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
 
-a_griddiff=expasset_grid(2:end)-expasset_grid(1:end-1); % Distance between point and the next point
+a2primeIndexes=discretize(a2primeVals,a2_grid); % Finds the lower grid point
+% Have to have special treatment for trying to leave the ends of the grid
 
-[~,a2primeIndexes]=max((expasset_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-% Note, this is going to find the 'first' grid point which is bigger than a2primeVals
-% This is the 'upper' grid point
-% Have to have special treatment for trying to leave the ends of the grid (I fix these below)
-
-% Switch to lower grid point index
-a2primeIndexes=a2primeIndexes-1;
-a2primeIndexes(a2primeIndexes==0)=1;
+% Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
+offBottomOfGrid=(a2primeVals<=a2_grid(1));
+a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
+% Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
+offTopOfGrid=(a2primeVals>=a2_grid(end));
+a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
 
 % Now, find the probabilities
-aprime_residual=a2primeVals'-expasset_grid(a2primeIndexes);
+aprime_residual=a2primeVals'-a2_grid(a2primeIndexes);
 % Probability of the 'lower' points
-a2primeProbs=1-aprime_residual./a_griddiff(a2primeIndexes);
-
-% Those points which tried to leave the top of the grid have probability 0 of the lower point (1 of the 'upper' point)
-offTopOfGrid=(a2primeVals>=expasset_grid(end));
-a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
-a2primeProbs(offTopOfGrid)=0;
-% Those points which tried to leave the bottom of the grid have probability 1 of the lower point (0 of the 'upper' point)
-offBottomOfGrid=(a2primeVals<=expasset_grid(1));
-% a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
+a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
+% And clean up the ends of the grid
 a2primeProbs(offBottomOfGrid)=1;
+a2primeProbs(offTopOfGrid)=0;
 
 if N_z==0
     a2primeIndexes=reshape(a2primeIndexes,[N_a,1]); % Index of lower grid point

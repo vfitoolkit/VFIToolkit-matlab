@@ -115,62 +115,52 @@ end
 % expassetu: aprime(d,a2,u)
 if l_u==1
     if l_dexp==1
-        aprimeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, ParamCell{:});
     elseif l_dexp==2
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, ParamCell{:});
     elseif l_dexp==3
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, ParamCell{:});
     elseif l_dexp==4
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, ParamCell{:});
     end
 elseif l_u==2
     if l_dexp==1
-        aprimeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, u1vals, u2vals, ParamCell{:});
     elseif l_dexp==2
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, a2vals, u1vals, u2vals, ParamCell{:});
     elseif l_dexp==3
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, a2vals, u1vals, u2vals, ParamCell{:});
     elseif l_dexp==4
-        aprimeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, d2vals, d3vals, d4vals, a2vals, u1vals, u2vals, ParamCell{:});
     end
 end
 
 %% Calcuate grid indexes and probs from the values
 if N_z==0
-    aprimeVals=reshape(aprimeVals,[1,N_a*N_u]);
+    a2primeVals=reshape(a2primeVals,[1,N_a*N_u]);
 else
-    aprimeVals=reshape(aprimeVals,[1,N_a*N_z*N_u]);
+    a2primeVals=reshape(a2primeVals,[1,N_a*N_z*N_u]);
 end
 
-expasset_grid=a2_grid;
+a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
 
-a_griddiff=expasset_grid(2:end)-expasset_grid(1:end-1); % Distance between point and the next point
+a2primeIndexes=discretize(a2primeVals,a2_grid); % Finds the lower grid point
+% Have to have special treatment for trying to leave the ends of the grid
 
-% temp=expasset_grid-aprimeVals;
-% temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
-
-[~,a2primeIndexes]=max((expasset_grid>aprimeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-% Note, this is going to find the 'first' grid point which is bigger than aprimeVals
-% This is the 'upper' grid point
-% Have to have special treatment for trying to leave the ends of the grid (I fix these below)
-
-% Switch to lower grid point index
-a2primeIndexes=a2primeIndexes-1;
-a2primeIndexes(a2primeIndexes==0)=1;
+% Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
+offBottomOfGrid=(a2primeVals<=a2_grid(1));
+a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
+% Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
+offTopOfGrid=(a2primeVals>=a2_grid(end));
+a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
 
 % Now, find the probabilities
-aprime_residual=aprimeVals'-expasset_grid(a2primeIndexes);
+aprime_residual=a2primeVals'-a2_grid(a2primeIndexes);
 % Probability of the 'lower' points
-a2primeProbs=1-aprime_residual./a_griddiff(a2primeIndexes);
-
-% Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
-offTopOfGrid=(aprimeVals>=expasset_grid(end));
-a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
-a2primeProbs(offTopOfGrid)=0;
-% Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
-offBottomOfGrid=(aprimeVals<=expasset_grid(1));
-% a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
+a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
+% And clean up the ends of the grid
 a2primeProbs(offBottomOfGrid)=1;
+a2primeProbs(offTopOfGrid)=0;
 
 if N_z==0
     a2primeIndexes=reshape(a2primeIndexes,[N_a,1,N_u]); % Index of lower grid point

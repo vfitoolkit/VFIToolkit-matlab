@@ -1,10 +1,10 @@
-function [aprimeIndexes,aprimeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a, n_u, d_grid, a_grid, u_grid, aprimeFnParams, aprimeIndexAsColumn)
-% Note: aprimeIndex is [N_a*N_u,1], whereas aprimeProbs is [N_a,N_u]
+function [a2primeIndexes,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParams, aprimeIndexAsColumn)
+% Note: a2primeIndex is [N_a2*N_u,1], whereas a2primeProbs is [N_a2,N_u]
 %
 % Creates the grid points and their 'interpolation' probabilities
-% Note: aprimeIndexes is always the 'lower' point (the upper points are
-% just aprimeIndexes+1, so no need to waste memory storing them), and the
-% aprimeProbs are the probability of this lower point (prob of upper point
+% Note: a2primeIndexes is always the 'lower' point (the upper points are
+% just a2primeIndexes+1, so no need to waste memory storing them), and the
+% a2primeProbs are the probability of this lower point (prob of upper point
 % is just 1 minus this).
 
 ParamCell=cell(length(aprimeFnParams),1);
@@ -22,7 +22,7 @@ l_d=length(n_d);
 if N_d==0
     l_d=0;
 end
-l_a=length(n_a);
+l_a2=length(n_a2);
 l_u=length(n_u);
 if l_d>4
     error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
@@ -84,95 +84,114 @@ end
 if l_d==1
     if l_u==1
         d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals, ParamCell{:});
     elseif l_u==2
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals, ParamCell{:});
     elseif l_u==3
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif l_u==4
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
     elseif l_u==5
-        aprimeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 elseif l_d==2
     if l_u==1
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals, ParamCell{:});
     elseif l_u==2
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals, ParamCell{:});
     elseif l_u==3
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif l_u==4
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
     elseif l_u==5
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 elseif l_d==3
     if l_u==1
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals, ParamCell{:});
     elseif  l_u==2
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals, ParamCell{:});
     elseif  l_u==3
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif  l_u==4
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
     elseif  l_u==5
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 elseif l_d==4
     if l_u==1
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals, ParamCell{:});
     elseif l_u==2
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals, ParamCell{:});
     elseif l_u==3
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals, ParamCell{:});
     elseif l_u==4
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals,u4vals, ParamCell{:});
     elseif l_u==5
-        aprimeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
+        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, u1vals,u2vals,u3vals,u4vals,u5vals, ParamCell{:});
     end
 end
 
 
 %% Calcuate grid indexes and probs from the values
-if l_a==1
-    aprimeVals=reshape(aprimeVals,[1,N_d*N_u]);
+if l_a2==1
+    a2primeVals=reshape(a2primeVals,[1,N_d*N_u]);
 
-    a_griddiff=a_grid(2:end)-a_grid(1:end-1); % Distance between point and the next point
+    a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
     
-    % temp=a_grid-aprimeVals;
-    % temp(temp>0)=1; % Equals 1 when a_grid is greater than aprimeVals
-    
-    [~,aprimeIndexes]=max((a_grid>aprimeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
-    % Note, this is going to find the 'first' grid point which is bigger than aprimeVals
-    % This is the 'upper' grid point
-    % Have to have special treatment for trying to leave the ends of the grid (I fix these below)
-    
-    % Switch to lower grid point index
-    aprimeIndexes=aprimeIndexes-1;
-    aprimeIndexes(aprimeIndexes==0)=1;
-    
-    % Now, find the probabilities
-    aprime_residual=aprimeVals'-a_grid(aprimeIndexes);
+    % For small aprimeVals and a_grid, max() is faster than discretize()
+    % http://discourse.vfitoolkit.com/t/example-attanasio-low-sanchez-marcos-2008/257/25
+    if N_d*N_u*N_a2>1000000
+        [~,a2primeIndexes]=max((a2_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
+        % Note, this is going to find the 'first' grid point which is bigger than aprimeVals
+        % This is the 'upper' grid point
+        % Have to have special treatment for trying to leave the ends of the grid (I fix these below)
 
-    % Probability of the 'lower' points
-    aprimeProbs=1-aprime_residual./a_griddiff(aprimeIndexes);
-        
-    % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
-    offTopOfGrid=(aprimeVals>=a_grid(end));
-    aprimeIndexes(offTopOfGrid)=n_a-1; % lower grid point is the one before the end point
-    aprimeProbs(offTopOfGrid)=0;
-    % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
-    offBottomOfGrid=(aprimeVals<=a_grid(1));
-    % aprimeIndexes(offBottomOfGrid)=1; % Has already been handled
-    aprimeProbs(offBottomOfGrid)=1;
+        % Switch to lower grid point index
+        a2primeIndexes=a2primeIndexes-1;
+        a2primeIndexes(a2primeIndexes==0)=1;
+
+        % Now, find the probabilities
+        aprime_residual=a2primeVals'-a2_grid(a2primeIndexes);
+
+        % Probability of the 'lower' points
+        a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
+
+        % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
+        offTopOfGrid=(a2primeVals>=a2_grid(end));
+        a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
+        a2primeProbs(offTopOfGrid)=0;
+        % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
+        offBottomOfGrid=(a2primeVals<=a2_grid(1));
+        % aprimeIndexes(offBottomOfGrid)=1; % Has already been handled
+        a2primeProbs(offBottomOfGrid)=1;
+    else
+        a2primeIndexes=discretize(a2primeVals,a2_grid); % Finds the lower grid point
+        % Have to have special treatment for trying to leave the ends of the grid
+
+        % Those points which tried to leave the bottom of the grid have probability 0 of the 'upper' point (1 of lower point)
+        offBottomOfGrid=(a2primeVals<=a2_grid(1));
+        a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
+        % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
+        offTopOfGrid=(a2primeVals>=a2_grid(end));
+        a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
+
+        % Now, find the probabilities
+        aprime_residual=a2primeVals'-a2_grid(a2primeIndexes);
+        % Probability of the 'lower' points
+        a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
+        % And clean up the ends of the grid
+        a2primeProbs(offBottomOfGrid)=1;
+        a2primeProbs(offTopOfGrid)=0;
+    end
     
     if aprimeIndexAsColumn==1 % value fn codes want column, simulation codes want matrix
 %     aprimeIndexes=reshape(aprimeIndexes,[N_d*N_u,1]);
-        aprimeIndexes=aprimeIndexes'; % This is just doing the commented out reshape above
+        a2primeIndexes=a2primeIndexes'; % This is just doing the commented out reshape above
     else
-        aprimeIndexes=reshape(aprimeIndexes,[N_d,N_u]);
+        a2primeIndexes=reshape(a2primeIndexes,[N_d,N_u]);
     end
-    aprimeProbs=reshape(aprimeProbs,[N_d,N_u]);
+    a2primeProbs=reshape(a2primeProbs,[N_d,N_u]);
 end
 
 
