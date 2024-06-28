@@ -75,7 +75,52 @@ if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
     % Note: assumed there is only one AgeWeightParamNames
 end
 
+%% Set up pi_z_J (transition matrix for markov exogenous state z, depending on age)
+if ismatrix(pi_z)
+    if simoptions.parallel==2
+        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
+    else
+        pi_z_J=pi_z.*ones(1,1,N_j);
+    end
+elseif ndims(pi_z)==3
+    pi_z_J=pi_z;
+end
+if isfield(simoptions,'pi_z_J')
+    pi_z_J=simoptions.pi_z_J;
+elseif isfield(simoptions,'ExogShockFn') && ~isa(jequaloneDist, 'function_handle')
+    N_z=prod(n_z);
+    pi_z_J=zeros(N_z,N_z,N_j);
+    for jj=1:N_j
+        ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, ExogShockFnParamNames,jj);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        end
+        [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        pi_z_J(:,:,jj)=pi_z;
+    end
+elseif isfield(simoptions,'ExogShockFn') && isa(jequaloneDist, 'function_handle')
+    % Need to keep z_grid as it will be needed for jequaloneDist
+    N_z=prod(n_z);
+    pi_z_J=zeros(N_z,N_z,N_j);
+    simoptions.z_grid_J=zeros(N_z,length(n_z),N_j);
+    for jj=1:N_j
+        ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, ExogShockFnParamNames,jj);
+        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+        for ii=1:length(ExogShockFnParamsVec)
+            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
+        end
+        [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
+        pi_z_J(:,:,jj)=pi_z;
+        simoptions.z_grid_J(:,:,jj)=CreateGridvals(n_z,z_grid,1);
+    end
+end
+
+
 %% If age one distribution is input as a function, then evaluate it
+% Note: we might need to update z_grid based on ExogShockFn, so this has to come after the pi_z section
 if isa(jequaloneDist, 'function_handle')
     jequaloneDistFn=jequaloneDist;
     clear jequaloneDist
@@ -100,37 +145,11 @@ if isa(jequaloneDist, 'function_handle')
     jequaloneDist=jequaloneDistFn(simoptions.a_grid,simoptions.z_grid,n_a,n_z,jequaloneParamsCell{:});
 end
 
-%% Check that the age one distribution is of mass one
+% Check that the age one distribution is of mass one
 if abs(sum(jequaloneDist(:))-1)>10^(-9)
     error('The jequaloneDist must be of mass one')
 end
 
-%% Set up pi_z_J (transition matrix for markov exogenous state z, depending on age)
-if ismatrix(pi_z)
-    if simoptions.parallel==2
-        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-    else
-        pi_z_J=pi_z.*ones(1,1,N_j);
-    end
-elseif ndims(pi_z)==3
-    pi_z_J=pi_z;
-end
-if isfield(simoptions,'pi_z_J')
-    pi_z_J=simoptions.pi_z_J;
-elseif isfield(simoptions,'ExogShockFn')
-    N_z=prod(n_z);
-    pi_z_J=zeros(N_z,N_z,N_j);
-    for jj=1:N_j
-        ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, ExogShockFnParamNames,jj);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        pi_z_J(:,:,jj)=pi_z;
-    end
-end
 
 %% Set up pi_e_J (if relevant)
 if isfield(simoptions,'n_e')

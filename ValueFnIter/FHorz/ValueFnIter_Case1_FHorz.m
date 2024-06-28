@@ -119,7 +119,7 @@ if ~all(size(a_grid)==[sum(n_a), 1])
     error('a_grid is not the correct shape (should be of size sum(n_a)-by-1; a (stacked) column vector)')
 end
 % Check z_grid inputs
-if isa(z_grid,'function_handle')
+if isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
     % okay
 elseif ndims(z_grid)==2
     if ~all(size(z_grid)==[sum(n_z),1]) && ~all(size(z_grid)==[prod(n_z),length(n_z)]) && ~all(size(z_grid)==[n_z(1),length(n_z)]) && ~all(size(z_grid)==[sum(n_z),N_j])
@@ -143,7 +143,7 @@ else
     error('z_grid is not the correct shape (typically should be of size sum(n_z)-by-1)')
 end
 % Check pi_z inputs
-if isa(z_grid,'function_handle')
+if isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
     % okay (dont need to check pi_z
 elseif ndims(pi_z)==2
     if ~isequal(size(pi_z), [N_z, N_z])
@@ -232,30 +232,21 @@ if vfoptions.parallel==2
     z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
     pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
     if isfield(vfoptions,'ExogShockFn')
-        if isfield(vfoptions,'ExogShockFnParamNames')
-            for jj=1:N_j
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                pi_z_J(:,:,jj)=gpuArray(pi_z);
-                if all(size(z_grid)==[sum(n_z),1])
-                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-                else % already joint-grid
-                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-                end
+        if ~isfield(vfoptions,'ExogShockFnParamNames')
+            vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+        end
+        for jj=1:N_j
+            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
+            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+            for ii=1:length(ExogShockFnParamsVec)
+                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
-        else
-            for jj=1:N_j
-                [z_grid,pi_z]=vfoptions.ExogShockFn(N_j);
-                pi_z_J(:,:,jj)=gpuArray(pi_z);
-                if all(size(z_grid)==[sum(n_z),1])
-                    z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-                else % already joint-grid
-                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-                end
+            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
+            pi_z_J(:,:,jj)=gpuArray(pi_z);
+            if all(size(z_grid)==[sum(n_z),1])
+                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
+            else % already joint-grid
+                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
             end
         end
     elseif prod(n_z)==0 % no z
@@ -296,30 +287,21 @@ if vfoptions.parallel==2
             vfoptions.pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
 
             if isfield(vfoptions,'EiidShockFn')
-                if isfield(vfoptions,'EiidShockFnParamNames')
-                    for jj=1:N_j
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                        for ii=1:length(EiidShockFnParamsVec)
-                            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                        end
-                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                        else % already joint-grid
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                        end
+                if ~isfield(vfoptions,'EiidShockFnParamNames')
+                    vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+                end
+                for jj=1:N_j
+                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
+                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
+                    for ii=1:length(EiidShockFnParamsVec)
+                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
                     end
-                else
-                    for jj=1:N_j
-                        [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(N_j);
-                        vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                        if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                        else % already joint-grid
-                            vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                        end
+                    [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
+                    vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
+                    if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
+                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
+                    else % already joint-grid
+                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
                     end
                 end
             elseif ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
