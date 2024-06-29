@@ -117,8 +117,10 @@ estimoptions.constrain0to1names=estimoptions.constrain0to1;
 estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
 estimoptions.constrainAtoBnames=estimoptions.constrainAtoB;
 estimoptions.constrainAtoB=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
-estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
-estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+if ~isempty(estimoptions.constrainAtoBnames)
+    estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
+    estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+end
 
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
