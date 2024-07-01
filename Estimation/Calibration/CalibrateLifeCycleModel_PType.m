@@ -9,14 +9,30 @@ if ~isfield(caliboptions,'verbose')
     caliboptions.verbose=1; % sum of squares is the default
 end
 if ~isfield(caliboptions,'constrainpositive')
-    caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive
+    caliboptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Convert constrained positive p into x=log(p) which is unconstrained.
+    % Then use p=exp(x) in the model.
 end
 if ~isfield(caliboptions,'constrain0to1')
-    caliboptions.constrain0to1=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1 [I want to later modify to also allow setting min and max bounds, but this is not yet implemented]
+    caliboptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
+    % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
+end
+if ~isfield(caliboptions,'constrainAtoB')
+    caliboptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
+    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+else
+    if ~isfield(caliboptions,'constrainAtoBlimits')
+        error('You have used caliboptions.constrainAtoB, but are missing caliboptions.constrainAtoBlimits')
+    end
 end
 if ~isfield(caliboptions,'logmoments')
-    caliboptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
-    % Note: the input target moment should be the raw moment, log() will be taken internally (don't input the log(moment))
+    caliboptions.logmoments=0; 
+    % =1 means log of moments (and is applied to all moments unless you specify them seperately as on next line)
+    % You can name moments in the same way you would for the targets, e.g.
+    % caliboptions.logmoments.AgeConditionalStats.earnings.Mean=1
+    % Will log that moment, but not any other moments.
 end
 if ~isfield(caliboptions,'metric')
     caliboptions.metric='sum_squared'; % sum of squares is the default
@@ -38,34 +54,70 @@ caliboptions.simulatemoments=0; % Not needed here (the objectivefn is shared wit
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
 
 
+
 %% Setup for which parameters are being calibrated
+
+% Backup the parameter constraint names, so I can replace them with vectors
+caliboptions.constrainpositivenames=caliboptions.constrainpositive;
+caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive
+caliboptions.constrain0to1names=caliboptions.constrain0to1;
+caliboptions.constrain0to1=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+caliboptions.constrainAtoBnames=caliboptions.constrainAtoB;
+caliboptions.constrainAtoB=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+if ~isempty(caliboptions.constrainAtoBnames)
+    caliboptions.constrainAtoBlimitsnames=caliboptions.constrainAtoBlimits;
+    caliboptions.constrainAtoBlimits=zeros(length(CalibParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+end
+
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
-calibparamssizes=zeros(length(CalibParamNames),1); % with PType, some parameters may be matrices (depend on both j and i)
 for pp=1:length(CalibParamNames)
-    calibparamssizes(pp,1:2)=size(Parameters.(CalibParamNames{pp}));
+    % Get all the parameters
     if size(Parameters.(CalibParamNames{pp}),2)==1
         calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
     else
-        calibparamsvec0=[calibparamsvec0; reshape(Parameters.(CalibParamNames{pp}),[numel(Parameters.(CalibParamNames{pp})),1])]; % store parameter as a column vector
+        calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})']; % transpose
     end
-    calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+numel(Parameters.(CalibParamNames{pp})); % Note: numel(), was length() without PType
-end
+    calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(Parameters.(CalibParamNames{pp}));
+    
+    % If the parameter is constrained in some way then we need to transform it
 
-for pp=1:length(CalibParamNames)
+    % First, check the name, and convert it if relevant
+    if any(strcmp(caliboptions.constrainpositivenames,CalibParamNames{pp}))
+        caliboptions.constrainpositive(pp)=1;
+    end
+    if any(strcmp(caliboptions.constrain0to1names,CalibParamNames{pp}))
+        caliboptions.constrain0to1(pp)=1;
+    end
+    if any(strcmp(caliboptions.constrainAtoBnames,CalibParamNames{pp}))
+        % For parameters A to B, I convert via 0 to 1
+        caliboptions.constrain0to1(pp)=1;
+        caliboptions.constrainAtoB(pp)=1;
+        caliboptions.constrainAtoBlimits(pp,:)=caliboptions.constrainAtoBlimitsnames.(CalibParamNames{pp});
+    end
+
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-10^3);
+        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+    end
+    if caliboptions.constrainAtoB(pp)==1
+        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))-caliboptions.constrainAtoBlimits(pp,1))/(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1));
+        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
+        % And then the next if-statement converts this 0-to-1 into unconstrained
     end
     if caliboptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(50,max(-50,  log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
+        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
     end
     if caliboptions.constrainpositive(pp)==1 && caliboptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames))])
         error('You cannot constrain parameter twice (you are constraining one of the parameters using both caliboptions.constrainpositive and caliboptions.constrain0to1')
     end
 end
+
 
 
 %% Setup for which moments are being targeted
@@ -413,15 +465,34 @@ end
 
 
 %% 
+% caliboptions.logmoments can be specified by names
+if isstruct(caliboptions.logmoments)
+    logmomentnames=caliboptions.logmoments;
+    % replace caliboptions.logmoments with a vector as this is what gets used internally
+    caliboptions.logmoments=zeros(length(targetmomentvec),1);
+    if any(fieldnames(logmomentnames),'AllStats')
+        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
+        for ii=2:size(allstatmomentnames,1)
+            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+        end
+    end
+    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+        caliboptions.logmoments(1:acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
+        for ii=2:size(acsmomentnames,1)
+            caliboptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+        end
+    end
+
+% If caliboptions.logmoments is not a structure, then...
 % caliboptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-if any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
+elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
    % If set this up, and then set up 
    if isscalar(caliboptions.logmoments)
        caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
         if length(caliboptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert estimoptions.logmoments from being about EstimParamNames
+            % Covert caliboptions.logmoments from being about EstimParamNames
             temp=caliboptions.logmoments;
             caliboptions.logmoments=zeros(length(targetmomentvec),1);
             cumsofar=1;
@@ -439,7 +510,7 @@ if any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as ve
         else
             fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
             fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to calibrate [they should be equal]')
+            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to estimate [they should be equal]')
         end
    end
    % User should have inputted the moments themselves, not the logs

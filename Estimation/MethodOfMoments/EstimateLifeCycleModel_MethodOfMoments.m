@@ -37,8 +37,14 @@ else
     end
 end
 if ~isfield(estimoptions,'logmoments')
-    estimoptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
-    % Note: the input target moment should be the raw moment, log() will be taken internally (don't input the log(moment))
+    estimoptions.logmoments=0; 
+    % =1 means log of moments (and is applied to all moments unless you specify them seperately as on next line)
+    % You can name moments in the same way you would for the targets, e.g.
+    % estimoptions.logmoments.AgeConditionalStats.earnings.Mean=1
+    % Will log that moment, but not any other moments.
+    % Note: the input target moment should be the raw moment, log() will be taken 
+    % internally (don't input the log(moment)). But the covariance matrix
+    % of the data moments, CoVarMatrixDataMoments, should be of the log moments.
 end
 if ~isfield(estimoptions,'confidenceintervals')
     estimoptions.confidenceintervals=90; % the default is to report 90-percent confidence intervals
@@ -427,9 +433,28 @@ else
 end
 
 %% 
+% estimoptions.logmoments can be specified by names
+if isstruct(estimoptions.logmoments)
+    logmomentnames=estimoptions.logmoments;
+    % replace estimoptions.logmoments with a vector as this is what gets used internally
+    estimoptions.logmoments=zeros(length(targetmomentvec),1);
+    if any(fieldnames(logmomentnames),'AllStats')
+        estimoptions.logmoments(1:allstatcummomentsizes(1))=estimoptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
+        for ii=2:size(allstatmomentnames,1)
+            estimoptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=estimoptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+        end
+    end
+    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+        estimoptions.logmoments(1:acscummomentsizes(1))=estimoptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
+        for ii=2:size(acsmomentnames,1)
+            estimoptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=estimoptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+        end
+    end
+
+% If estimoptions.logmoments is not a structure, then...
 % estimoptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-if any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
+elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
    % If set this up, and then set up 
    if isscalar(estimoptions.logmoments)
        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them

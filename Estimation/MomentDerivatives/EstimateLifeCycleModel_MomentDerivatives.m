@@ -18,14 +18,33 @@ if ~isfield(estimoptions,'verbose')
     estimoptions.verbose=0;
 end
 if ~isfield(estimoptions,'constrainpositive')
-    estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+    estimoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Convert constrained positive p into x=log(p) which is unconstrained.
+    % Then use p=exp(x) in the model.
 end
 if ~isfield(estimoptions,'constrain0to1')
-    estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1 [I want to later modify to also allow setting min and max bounds, but this is not yet implemented]
+    estimoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Handle 0 to 1 constraints by using log-odds function to switch parameter p into unconstrained x, so x=log(p/(1-p))
+    % Then use the logistic-sigmoid p=1/(1+exp(-x)) when evaluating model.
+end
+if ~isfield(estimoptions,'constrainAtoB')
+    estimoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
+    % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
+    % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
+else
+    if ~isfield(estimoptions,'constrainAtoBlimits')
+        error('You have used estimoptions.constrainAtoB, but are missing estimoptions.constrainAtoBlimits')
+    end
 end
 if ~isfield(estimoptions,'logmoments')
-    estimoptions.logmoments=0; % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
-    % Note: the input target moment should be the raw moment, log() will be taken internally (don't input the log(moment))
+    estimoptions.logmoments=0; 
+    % =1 means log of moments (and is applied to all moments unless you specify them seperately as on next line)
+    % You can name moments in the same way you would for the targets, e.g.
+    % estimoptions.logmoments.AgeConditionalStats.earnings.Mean=1
+    % Will log that moment, but not any other moments.
+    % Note: the input target moment should be the raw moment, log() will be taken 
+    % internally (don't input the log(moment)). But the covariance matrix
+    % of the data moments, CoVarMatrixDataMoments, should be of the log moments.
 end
 estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed later if you bootstrap standard errors
 
@@ -38,25 +57,61 @@ end
 
 
 %% Setup for which parameters are being estimated
-estimparamsvec=[]; % column vector
+
+% Backup the parameter constraint names, so I can replace them with vectors
+estimoptions.constrainpositivenames=estimoptions.constrainpositive;
+estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+estimoptions.constrain0to1names=estimoptions.constrain0to1;
+estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+estimoptions.constrainAtoBnames=estimoptions.constrainAtoB;
+estimoptions.constrainAtoB=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+if ~isempty(estimoptions.constrainAtoBnames)
+    estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
+    estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+end
+
+estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
 for pp=1:length(EstimParamNames)
     % Get all the parameters
     if size(Parameters.(EstimParamNames{pp}),2)==1
-        estimparamsvec=[estimparamsvec; Parameters.(EstimParamNames{pp})];
+        estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})];
     else
-        estimparamsvec=[estimparamsvec; Parameters.(EstimParamNames{pp})']; % transpose
+        estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})']; % transpose
     end
     estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
     
     % If the parameter is constrained in some way then we need to transform it
+
+    % First, check the name, and convert it if relevant
+    if any(strcmp(estimoptions.constrainpositivenames,EstimParamNames{pp}))
+        estimoptions.constrainpositive(pp)=1;
+    end
+    if any(strcmp(estimoptions.constrain0to1names,EstimParamNames{pp}))
+        estimoptions.constrain0to1(pp)=1;
+    end
+    if any(strcmp(estimoptions.constrainAtoBnames,EstimParamNames{pp}))
+        % For parameters A to B, I convert via 0 to 1
+        estimoptions.constrain0to1(pp)=1;
+        estimoptions.constrainAtoB(pp)=1;
+        estimoptions.constrainAtoBlimits(pp,:)=estimoptions.constrainAtoBlimitsnames.(EstimParamNames{pp});
+    end
+
     if estimoptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
+        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+    end
+    if estimoptions.constrainAtoB(pp)==1
+        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
+        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
+        % And then the next if-statement converts this 0-to-1 into unconstrained
     end
     if estimoptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=log(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
     end
     if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
@@ -295,12 +350,29 @@ if isfield(vfoptions,'n_e')
 end
 
 
-
-
 %% 
+% estimoptions.logmoments can be specified by names
+if isstruct(estimoptions.logmoments)
+    logmomentnames=estimoptions.logmoments;
+    % replace estimoptions.logmoments with a vector as this is what gets used internally
+    estimoptions.logmoments=zeros(length(targetmomentvec),1);
+    if any(fieldnames(logmomentnames),'AllStats')
+        estimoptions.logmoments(1:allstatcummomentsizes(1))=estimoptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
+        for ii=2:size(allstatmomentnames,1)
+            estimoptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=estimoptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+        end
+    end
+    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+        estimoptions.logmoments(1:acscummomentsizes(1))=estimoptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
+        for ii=2:size(acsmomentnames,1)
+            estimoptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=estimoptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+        end
+    end
+
+% If estimoptions.logmoments is not a structure, then...
 % estimoptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-if any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
+elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
    % If set this up, and then set up 
    if isscalar(estimoptions.logmoments)
        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
@@ -327,10 +399,10 @@ if any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as ve
             error('You are using estimoptions.logmoments, but length(estimoptions.logmoments) does not match number of moments to estimate [they should be equal]')
         end
    end
-   % % User should have inputted the moments themselves, not the logs
-   % % I would like to throw an error/warning if input the log(moment) but cannot think of any good way to detect this.
-   % % log of targetmoments 
-   % targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+   % User should have inputted the moments themselves, not the logs
+   % I would like to throw an error/warning if input the log(moment) but cannot think of any good way to detect this.
+   % log of targetmoments 
+   targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
 
@@ -338,7 +410,8 @@ end
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
 EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Params, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
 
-
+%% We are not estimating, so just use initial values
+estimparamsvec=estimparamsvec0;
 
 %% Compute the moment derivatives with respect to the estimated parameters
 % First, need the Jacobian matrix, which involves computing all the
