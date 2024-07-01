@@ -28,11 +28,14 @@ else
     end
 end
 if ~isfield(caliboptions,'logmoments')
-    caliboptions.logmoments=0; 
-    % =1 means log of moments (and is applied to all moments unless you specify them seperately as on next line)
+    caliboptions.logmoments=0;
+    % =1 means log() the model moments [target moments and CoVarMatrixDataMoments should already be based on log(moments) if you are using this+
+    % =1 means applies log() to all moments, unless you specify them seperately as on next line
     % You can name moments in the same way you would for the targets, e.g.
     % caliboptions.logmoments.AgeConditionalStats.earnings.Mean=1
     % Will log that moment, but not any other moments.
+    % Note: the input target moment should log(moment). Same for the covariance matrix
+    % of the data moments, CoVarMatrixDataMoments, should be of the log moments.
 end
 if ~isfield(caliboptions,'metric')
     caliboptions.metric='sum_squared'; % sum of squares is the default
@@ -71,14 +74,16 @@ end
 
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
+calibparamssizes=zeros(length(CalibParamNames),1); % with PType, some parameters may be matrices (depend on both j and i)
 for pp=1:length(CalibParamNames)
+    calibparamssizes(pp,1:2)=size(Parameters.(CalibParamNames{pp}));
     % Get all the parameters
     if size(Parameters.(CalibParamNames{pp}),2)==1
         calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
     else
-        calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})']; % transpose
+        calibparamsvec0=[calibparamsvec0; reshape(Parameters.(CalibParamNames{pp}),[numel(Parameters.(CalibParamNames{pp})),1])]; % store parameter as a column vector
     end
-    calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(Parameters.(CalibParamNames{pp}));
+    calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+numel(Parameters.(CalibParamNames{pp})); % Note: numel(), was length() without PType
     
     % If the parameter is constrained in some way then we need to transform it
 
@@ -510,13 +515,11 @@ elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up a
         else
             fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
             fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to estimate [they should be equal]')
+            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to calibrate [they should be equal]')
         end
    end
-   % User should have inputted the moments themselves, not the logs
-   % I would like to throw an error/warning if input the log(moment) but cannot think of any good way to detect this.
-   % log of targetmoments 
-   targetmomentvec=(1-caliboptions.logmoments).*targetmomentvec + caliboptions.logmoments.*log(targetmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+   % log of targetmoments [no need to do this as inputs should already be log()]
+   % targetmomentvec=(1-caliboptions.logmoments).*targetmomentvec + caliboptions.logmoments.*log(targetmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
 

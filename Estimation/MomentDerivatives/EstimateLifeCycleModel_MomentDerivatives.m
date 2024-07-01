@@ -38,12 +38,12 @@ else
 end
 if ~isfield(estimoptions,'logmoments')
     estimoptions.logmoments=0; 
-    % =1 means log of moments (and is applied to all moments unless you specify them seperately as on next line)
+    % =1 means log() the model moments [target moments and CoVarMatrixDataMoments should already be based on log(moments) if you are using this+
+    % =1 means applies log() to all moments, unless you specify them seperately as on next line
     % You can name moments in the same way you would for the targets, e.g.
     % estimoptions.logmoments.AgeConditionalStats.earnings.Mean=1
     % Will log that moment, but not any other moments.
-    % Note: the input target moment should be the raw moment, log() will be taken 
-    % internally (don't input the log(moment)). But the covariance matrix
+    % Note: the input target moment should log(moment). Same for the covariance matrix
     % of the data moments, CoVarMatrixDataMoments, should be of the log moments.
 end
 estimoptions.simulatemoments=0; % Set to zero to get point estimates, is needed later if you bootstrap standard errors
@@ -399,10 +399,8 @@ elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up a
             error('You are using estimoptions.logmoments, but length(estimoptions.logmoments) does not match number of moments to estimate [they should be equal]')
         end
    end
-   % User should have inputted the moments themselves, not the logs
-   % I would like to throw an error/warning if input the log(moment) but cannot think of any good way to detect this.
-   % log of targetmoments 
-   targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
+   % log of targetmoments [no need to do this as inputs should already be log()]
+   % targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
 
