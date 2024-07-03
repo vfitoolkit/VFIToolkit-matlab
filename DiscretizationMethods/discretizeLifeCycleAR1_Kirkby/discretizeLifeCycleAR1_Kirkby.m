@@ -135,7 +135,7 @@ end
 
 % For convenience, make kirkbyoptions.nSigmas an age-dependent vector
 if isscalar(kirkbyoptions.nSigmas)
-    kirkbyoptions.nSigmas=kirkbyoptions.nSigmas*ones(N_j,1);
+    kirkbyoptions.nSigmas=kirkbyoptions.nSigmas*ones(J,1);
 end
 
 % % Everything has to be on cpu otherwise fminunc throws an error

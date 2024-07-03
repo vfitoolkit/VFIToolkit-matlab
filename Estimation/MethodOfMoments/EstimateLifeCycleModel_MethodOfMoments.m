@@ -700,16 +700,24 @@ if estimoptions.bootstrapStdErrors==0
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_up=FiniteDifference_up;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_down=FiniteDifference_down;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_centered=FiniteDifference_centered;
+        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_up=FiniteDifference_up;
+        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_down=FiniteDifference_down;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J=Jee;
         if estimoptions.efficientW==0
             % This is standard formula for the asymptotic variance of method of moments estimator
             estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=((Jee'*WeightingMatrix*Jee)^(-1)) * Jee'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*Jee * ((Jee'*WeightingMatrix*Jee)^(-1));
+            % report the up and down derivatives too
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_up=((FiniteDifference_up'*WeightingMatrix*FiniteDifference_up)^(-1)) * FiniteDifference_up'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*FiniteDifference_up * ((FiniteDifference_up'*WeightingMatrix*FiniteDifference_up)^(-1));
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_down=((FiniteDifference_down'*WeightingMatrix*FiniteDifference_down)^(-1)) * FiniteDifference_down'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*FiniteDifference_down * ((FiniteDifference_down'*WeightingMatrix*FiniteDifference_down)^(-1));
         elseif estimoptions.efficientW==1
             % When using the efficient weighting matrix W=Omega^(-1), the asymptotic variance of the method of moments estimator simplifies to
             estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=(Jee'*WeightingMatrix*Jee)^(-1);
+            % report the up and down derivatives too
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_up=(FiniteDifference_up'*WeightingMatrix*FiniteDifference_up)^(-1);
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_down=(FiniteDifference_down'*WeightingMatrix*FiniteDifference_down)^(-1);
         end
         if ee==eedefault
-            J=Jee; % This is the one used to report Sigma (parameter std errors) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
+            J=Jee; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
         end
     end
     
