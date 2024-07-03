@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames, 
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
@@ -13,13 +13,6 @@ bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
 
-%%
-l_z=length(n_z);
-if all(size(z_grid)==[sum(n_z),1])
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-elseif all(size(z_grid)==[prod(n_z),l_z])
-    z_gridvals=z_grid;
-end
 
 %%
 tempcounter=1;
@@ -37,7 +30,7 @@ while currdist>Tolerance
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
                 
-        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a);%,1); %aprime by 1
+        entireRHS=ReturnMatrix_z+beta*EV_z; %aprime by 1
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

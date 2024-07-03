@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -11,14 +11,6 @@ Ftemp=zeros(N_a,N_z,'gpuArray');
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
-
-%%
-l_z=length(n_z);
-if all(size(z_grid)==[sum(n_z),1])
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-elseif all(size(z_grid)==[prod(n_z),l_z])
-    z_gridvals=z_grid;
-end
 
 %%
 tempcounter=1;
@@ -39,7 +31,7 @@ while currdist>Tolerance
         EV_z=sum(EV_z,2);
         
         entireEV_z=kron(EV_z,ones(N_d,1));
-        entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
+        entireRHS=ReturnMatrix_z+beta*entireEV_z;
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);

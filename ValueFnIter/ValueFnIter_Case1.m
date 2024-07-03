@@ -211,21 +211,14 @@ if vfoptions.verbose==1
     vfoptions
 end
 
-%% Alternative solution methods
-if strcmp(vfoptions.solnmethod,'localpolicysearch') 
-    % Solve value function using 'local policy search' method.
-    [V, Policy]=ValueFnIter_Case1_LPS(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
-    varargout={V,Policy};
-    return
+%% Switch to z_gridvals
+l_z=length(n_z);
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+elseif all(size(z_grid)==[prod(n_z),l_z])
+    z_gridvals=z_grid;
 end
 
-% % fVFI using Chebyshev policynomials and smolyak grids
-% if strcmp(vfoptions.solnmethod,'smolyak_chebyshev') 
-%     % Solve value function using smolyak grids and chebyshev polynomials (see Judd, Maliar, Maliar & Valero (2014).
-%     [V, Policy]=ValueFnIter_Case1_SmolyakChebyshev(V0, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamNames, ReturnFn, Parameters, ReturnFnParamNames, vfoptions);
-%     varargout={V,Policy};
-%     return
-% end
 
 %% Entry and Exit
 if vfoptions.endogenousexit==1
@@ -490,6 +483,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfopti
     end
 end
 
+
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization') 
     if vfoptions.parallel==1 && vfoptions.lowmemory==2
@@ -514,11 +508,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         if isfield(vfoptions,'statedependentparams')
             if vfoptions.returnmatrix==2 % GPU
                 if n_SDP==3
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,SDP1,SDP2,SDP3);
                 elseif n_SDP==2
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,SDP1,SDP2);
                 elseif n_SDP==1
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
+                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,SDP1);
                 end
             else
                 fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
@@ -526,11 +520,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             end
         else % Following is the normal/standard behavior
             if vfoptions.returnmatrix==0
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, vfoptions.parallel, ReturnFnParamsVec);
             elseif vfoptions.returnmatrix==1
                 ReturnMatrix=ReturnFn;
             elseif vfoptions.returnmatrix==2 % GPU
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
             end
         end
         
@@ -540,8 +534,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             fprintf('Starting Value Function \n')
             tic;
         end
-        
-        
+                
         if n_d(1)==0
             if vfoptions.parallel==0     % On CPU
                 [VKron,Policy]=ValueFnIter_Case1_NoD_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
@@ -573,7 +566,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1
                 [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par1_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.verbose);
             elseif vfoptions.parallel==2 % On GPU
-                [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+                [VKron,Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             end
         else
             if vfoptions.parallel==0
@@ -581,7 +574,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1
                 [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.verbose);
             elseif vfoptions.parallel==2 % On GPU
-                [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+                [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             end
         end
         

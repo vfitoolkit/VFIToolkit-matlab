@@ -45,7 +45,6 @@ while currdist>Tolerance
         EV_z=sum(EV_z,2);
         
         for a_c=1:N_a
-%             entireRHS=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a_gridvals(a_c,:),z_val,ReturnFn, ReturnFnParamsVec, n_a, a_gridvals, 0)+beta*EV_z; %aprime by 1
             %Calc the RHS
             a_val=a_gridvals(a_c,:);
             Fmatrix_az=CreateReturnFnMatrix_Case1_LowMem_NoD_Disc(a_val,z_val,ReturnFn, ReturnFnParamsVec, n_a, a_gridvals, 0);
@@ -66,19 +65,9 @@ while currdist>Tolerance
     VKrondist=reshape(VKron-VKronold,[numel(VKron),1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-%         Ftemp=zeros(N_a,N_z);
-%         for z_c=1:N_z
-%             z_val=z_gridvals(z_c,:);
-%             for a_c=1:N_a
-%                 Ftemp(a_c,z_c)=ReturnFn(a_gridvals(PolicyIndexes(a_c,z_c),:),a_gridvals(a_c,:),z_val);%FmatrixKron(PolicyIndexes1(a_c,z_c),PolicyIndexes2(a_c,z_c),a_c,z_c);
-%             end
-%         end
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             for z_c=1:N_z % WHY NOT USE parfor HERE?
-%                 EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*kron(pi_z(z_c,:),ones(N_a,1)); %kron(pi_z(z_c,:),ones(nquad,1))
-%                 EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
-%                 VKron(:,z_c)=Ftemp(:,z_c)+beta*sum(EVKrontemp_z,2);
                 EVKrontemp_z=VKrontemp(PolicyIndexes(:,z_c),:).*kron(pi_z(z_c,:),ones(N_a,1)); %kron(pi_z(z_c,:),ones(nquad,1))
                 EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
                 VKron(:,z_c)=Ftemp_UsedForHowards(:,z_c)+beta*sum(EVKrontemp_z,2);
