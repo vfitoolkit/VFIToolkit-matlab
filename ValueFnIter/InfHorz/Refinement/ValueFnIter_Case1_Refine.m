@@ -40,7 +40,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     n_z_temp=ones(1,l_z);
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, n_z_temp,d_grid, a_grid, zvals,ReturnFnParams,1); % the 1 at the end is to output for refine
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, n_z_temp,d_grid, a_grid, zvals,ReturnFnParamsVec,1); % the 1 at the end is to output for refine
         [ReturnMatrix_z,dstar_z]=max(ReturnMatrix_z,[],1); % solve for dstar
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
         dstar(:,:,z_c)=shiftdim(dstar_z,1);
@@ -61,7 +61,7 @@ elseif vfoptions.lowmemory==2 % loop over z and a
         zvals=z_gridvals(z_c,:);
         for a_c=1:N_a
             avals=a_gridvals(a_c,:);
-            ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_a, n_a_temp, n_z_temp, d_grid, a_grid, avals, zvals,ReturnFnParams,1); % the 1 at the end is to output for refine
+            ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2_LowMem2(ReturnFn, n_d, n_a, n_a_temp, n_z_temp, d_grid, a_grid, avals, zvals,ReturnFnParamsVec,1); % the 1 at the end is to output for refine
             [ReturnMatrix_az,dstar_az]=max(ReturnMatrix_az,[],1); % solve for dstar
             ReturnMatrix(:,a_c,z_c)=shiftdim(ReturnMatrix_az,1);
             dstar(:,a_c,z_c)=shiftdim(dstar_az,1);

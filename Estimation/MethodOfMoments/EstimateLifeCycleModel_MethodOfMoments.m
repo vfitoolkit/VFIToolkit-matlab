@@ -438,16 +438,16 @@ if isstruct(estimoptions.logmoments)
     logmomentnames=estimoptions.logmoments;
     % replace estimoptions.logmoments with a vector as this is what gets used internally
     estimoptions.logmoments=zeros(length(targetmomentvec),1);
-    if any(fieldnames(logmomentnames),'AllStats')
-        estimoptions.logmoments(1:allstatcummomentsizes(1))=estimoptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
+    if any(strcmp(fieldnames(logmomentnames),'AllStats'))
+        estimoptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
         for ii=2:size(allstatmomentnames,1)
-            estimoptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=estimoptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+            estimoptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'AgeConditionalStats')
-        estimoptions.logmoments(1:acscummomentsizes(1))=estimoptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
+    if any(strcmp(fieldnames(logmomentnames),'AgeConditionalStats'))
+        estimoptions.logmoments(1:acscummomentsizes(1))=logmomentnames.AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
         for ii=2:size(acsmomentnames,1)
-            estimoptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=estimoptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+            estimoptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=logmomentnames.AgeConditionalStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
         end
     end
 
@@ -676,7 +676,7 @@ if estimoptions.bootstrapStdErrors==0
     for ee=1:4
         epsilon=epsilonmodvec(ee)*epsilonraw;
 
-        % ObjValue=zeros(length(targetmomentvec),1);
+        % ObjValue=zeros(sum(~isnan(targetmomentvec)),1);
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
@@ -691,33 +691,32 @@ if estimoptions.bootstrapStdErrors==0
             ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
         end
 
-        FiniteDifference_up=(ObjValue_upwind-ObjValue)./(epsilon*estimparamsvec');
-        FiniteDifference_down=(ObjValue-ObjValue_downwind)./(epsilon*estimparamsvec');
-        FiniteDifference_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*estimparamsvec');
+        % Use finite-difference to compute the derivatives
+        J_up=(ObjValue_upwind-ObjValue)./(epsilon*estimparamsvec');
+        J_down=(ObjValue-ObjValue_downwind)./(epsilon*estimparamsvec');
+        J_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*estimparamsvec');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
-        Jee=FiniteDifference_centered; % I decided to use the centered finite difference as my default for the derivative
         
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_up=FiniteDifference_up;
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_down=FiniteDifference_down;
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_centered=FiniteDifference_centered;
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_up=FiniteDifference_up;
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_down=FiniteDifference_down;
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J=Jee;
+        % I decided to use the centered finite difference as my default for the derivative
+        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J=J_centered;
+        % Store some other stuff as well
+        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_up=J_up;
+        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).J_down=J_down;
         if estimoptions.efficientW==0
             % This is standard formula for the asymptotic variance of method of moments estimator
-            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=((Jee'*WeightingMatrix*Jee)^(-1)) * Jee'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*Jee * ((Jee'*WeightingMatrix*Jee)^(-1));
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=((J_centered'*WeightingMatrix*J_centered)^(-1)) * J_centered'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J_centered * ((J_centered'*WeightingMatrix*J_centered)^(-1));
             % report the up and down derivatives too
-            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_up=((FiniteDifference_up'*WeightingMatrix*FiniteDifference_up)^(-1)) * FiniteDifference_up'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*FiniteDifference_up * ((FiniteDifference_up'*WeightingMatrix*FiniteDifference_up)^(-1));
-            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_down=((FiniteDifference_down'*WeightingMatrix*FiniteDifference_down)^(-1)) * FiniteDifference_down'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*FiniteDifference_down * ((FiniteDifference_down'*WeightingMatrix*FiniteDifference_down)^(-1));
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_up=((J_up'*WeightingMatrix*J_up)^(-1)) * J_up'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J_up * ((J_up'*WeightingMatrix*J_up)^(-1));
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_down=((J_down'*WeightingMatrix*J_down)^(-1)) * J_down'*WeightingMatrix*CoVarMatrixDataMoments*WeightingMatrix*J_down * ((J_down'*WeightingMatrix*J_down)^(-1));
         elseif estimoptions.efficientW==1
             % When using the efficient weighting matrix W=Omega^(-1), the asymptotic variance of the method of moments estimator simplifies to
-            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=(Jee'*WeightingMatrix*Jee)^(-1);
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma=(J_centered'*WeightingMatrix*J_centered)^(-1);
             % report the up and down derivatives too
-            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_up=(FiniteDifference_up'*WeightingMatrix*FiniteDifference_up)^(-1);
-            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_down=(FiniteDifference_down'*WeightingMatrix*FiniteDifference_down)^(-1);
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_up=(J_up'*WeightingMatrix*J_up)^(-1);
+            estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).Sigma_down=(J_down'*WeightingMatrix*J_down)^(-1);
         end
         if ee==eedefault
-            J=Jee; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
+            J=J_centered; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
         end
     end
     
@@ -765,8 +764,8 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     % Requires calculating derivatives of the objective vector to the calibrated parameters
     if isfield(estimoptions,'CalibParamsNames')
         calibparamvec=zeros(length(estimoptions.CalibParamsNames),1);
-        ObjValue_upwind=zeros(length(targetmomentvec),length(estimoptions.CalibParamsNames)); % Jacobian matrix of 'derivative of model moments with respect to pre-calibrated parameters, evaluated at estimated parameter point estimates'
-        ObjValue_downwind=zeros(length(targetmomentvec),length(estimoptions.CalibParamsNames)); % Jacobian matrix of 'derivative of model moments with respect to  pre-calibrated parameters, evaluated at estimated parameter point estimates'
+        ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimoptions.CalibParamsNames)); % Jacobian matrix of 'derivative of model moments with respect to pre-calibrated parameters, evaluated at estimated parameter point estimates'
+        ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimoptions.CalibParamsNames)); % Jacobian matrix of 'derivative of model moments with respect to  pre-calibrated parameters, evaluated at estimated parameter point estimates'
 
         CalibParams=struct();
         for pp=1:length(estimoptions.CalibParamsNames)
@@ -782,16 +781,19 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
             % restore calib param
             Parameters.(estimoptions.CalibParamsNames{pp})=CalibParams.(estimoptions.CalibParamsNames{pp});
         end
-        FiniteDifference_up=(ObjValue_upwind-ObjValue)./(epsilon*calibparamvec');
-        FiniteDifference_down=(ObjValue-ObjValue_downwind)./(epsilon*calibparamvec');
+        Jcalib_up=(ObjValue_upwind-ObjValue)./(epsilon*calibparamvec');
+        Jcalib_down=(ObjValue-ObjValue_downwind)./(epsilon*calibparamvec');
+        Jcalib_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*calibparamvec');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
-        Jcalib=max(FiniteDifference_up,FiniteDifference_down);
 
         % Sensitivity matrix of Jorgensen (2023) - Sensitivity to Calibrated Parameters
-        estsummary.sensitivitytocalibrationmatrix=SensitivityMatrix*Jcalib; % This is the formula in Corollary 1 of Jorgensen (2023)
+        estsummary.sensitivitytocalibrationmatrix=SensitivityMatrix*Jcalib_centered; % This is the formula in Corollary 1 of Jorgensen (2023)
 
 
-        estsummary.doublechecks.Jcalib=Jcalib;
+        estsummary.doublechecks.Jcalib=Jcalib_centered;
+        % also, just so user can see them
+        estsummary.doublechecks.Jcalib_up=Jcalib_up;
+        estsummary.doublechecks.Jcalib_down=Jcalib_down;        
     end
 
 end
