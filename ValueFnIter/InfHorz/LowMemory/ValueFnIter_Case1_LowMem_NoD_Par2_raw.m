@@ -2,6 +2,8 @@ function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(VKron, n_a, n_z, 
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any
 %decision variable (n_d=0)
 
+l_z=length(n_z);
+
 N_a=prod(n_a);
 N_z=prod(n_z);
 
