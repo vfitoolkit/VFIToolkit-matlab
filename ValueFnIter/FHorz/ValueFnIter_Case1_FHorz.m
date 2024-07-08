@@ -737,7 +737,10 @@ if isfield(vfoptions,'SemiExoStateFn')
             vfoptions.level1n=5;
         end
         % Solve using Divide-and-Conquer algorithm
-        [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo_DC1(n_d1, n_d2, n_a, n_z, vfoptions.n_semiz, N_j, d_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo_DC1(n_d1, n_d2, n_a, n_z, vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+
+        % [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo_DC1(n_d1,n_d2, n_a, n_z, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+
         return
     end
     
