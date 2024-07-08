@@ -1,28 +1,20 @@
-function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_e_raw(n_d1,n_d2,n_a,n_z,n_semiz, n_e,N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J,pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_e_raw(n_d2,n_a,n_z,n_semiz, n_e,N_j, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J,pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
-N_d1=prod(n_d1);
 N_d2=prod(n_d2);
-N_d=prod([n_d1,n_d2]); % Needed at end to reshape output
+N_d=prod(n_d2); % Needed at end to reshape output
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 N_z=prod(n_z);
 N_bothz=prod(n_bothz);
 N_e=prod(n_e);
 
-if n_z(1)==0
-    l_z=0;
-else
-    l_z=length(n_z);
-end
-
 V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
 Policy3=zeros(3,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 
 %%
-d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
@@ -57,27 +49,25 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, n_bothz, n_e, [d1_grid; d2_grid], a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d2, n_a, n_bothz, n_e, d2_grid, a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
         d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-        Policy3(1,:,:,:,N_j)=shiftdim(rem(d_ind-1,N_d1)+1,-1);
-        Policy3(2,:,:,:,N_j)=shiftdim(ceil(d_ind/N_d1),-1);
-        Policy3(3,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+        Policy3(1,:,:,:,N_j)=shiftdim(d_ind,-1);
+        Policy3(2,:,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
 
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, n_bothz, special_n_e, [d1_grid; d2_grid], a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d2, n_a, n_bothz, special_n_e, d2_grid, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
             d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-            Policy3(1,:,:,e_c,N_j)=shiftdim(rem(d_ind-1,N_d1)+1,-1);
-            Policy3(2,:,:,e_c,N_j)=shiftdim(ceil(d_ind/N_d1),-1);
-            Policy3(3,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+            Policy3(1,:,:,e_c,N_j)=shiftdim(d_ind,-1);
+            Policy3(2,:,:,e_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
         end
 
     elseif vfoptions.lowmemory==2
@@ -86,14 +76,13 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_semiz*N_z
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, special_n_bothz, special_n_e, [d1_grid; d2_grid], a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d2, n_a, special_n_bothz, special_n_e, d2_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
                 V(:,z_c,e_c,N_j)=Vtemp;
                 d_ind=shiftdim(rem(maxindex-1,N_d)+1,-1);
-                Policy3(1,:,z_c,e_c,N_j)=shiftdim(rem(d_ind-1,N_d1)+1,-1);
-                Policy3(2,:,z_c,e_c,N_j)=shiftdim(ceil(d_ind/N_d1),-1);
-                Policy3(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+                Policy3(1,:,z_c,e_c,N_j)=shiftdim(d_ind,-1);
+                Policy3(2,:,z_c,e_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
             end
         end
 
@@ -112,15 +101,14 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 1, n_a, n_bothz, n_e, d2_grid(d2_c), a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z,e)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1,1);
-            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1,N_e);
+            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV; %*repmat(entireEV,1,N_a,1,N_e);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -131,11 +119,9 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(2,:,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -147,14 +133,12 @@ else
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1,1);
-
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_val], a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 1, n_a, n_bothz, special_n_e, d2_val, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
-                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
+                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
 
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_d2e,[],1);
@@ -166,11 +150,9 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(2,:,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
 
     elseif vfoptions.lowmemory==2
         for d2_c=1:N_d2
@@ -185,14 +167,13 @@ else
                 EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
-                entireEV_z=kron(EV_z,ones(N_d1,1));
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
 
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_val], a_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 1, n_a, special_n_bothz, special_n_e, d2_val, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
+                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_d2ze,[],1);
@@ -205,11 +186,9 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        Policy3(2,:,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
     end
 end
 
@@ -236,15 +215,14 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d2_c,jj));
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 1, n_a, n_bothz, n_e, d2_grid(d2_c), a_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z,e)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1,1);
-            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1,N_e);
+            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*EV; %repmat(entireEV,1,N_a,1,N_e);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -255,11 +233,9 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
-        Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,jj)=reshape(rem(d1aprime_ind-1,N_d1)+1,[N_a,N_semiz*N_z,N_e]);
-        Policy3(3,:,:,:,jj)=reshape(ceil(d1aprime_ind/N_d1),[N_a,N_semiz*N_z,N_e]);
+        Policy3(2,:,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -270,16 +246,14 @@ for reverse_j=1:N_j-1
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1,1);
-
             d2_val=d2_grid(d2_c);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_val], a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+                ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 1, n_a, n_bothz, special_n_e, d2_val, a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
-                entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
+                entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
 
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -291,11 +265,9 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
-        Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,jj)=reshape(rem(d1aprime_ind-1,N_d1)+1,[N_a,N_semiz*N_z,N_e]);
-        Policy3(3,:,:,:,jj)=reshape(ceil(d1aprime_ind/N_d1),[N_a,N_semiz*N_z,N_e]);
+        Policy3(2,:,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
         
     elseif vfoptions.lowmemory==2
         for d2_c=1:N_d2
@@ -311,14 +283,13 @@ for reverse_j=1:N_j-1
                 EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
-                entireEV_z=kron(EV_z,ones(N_d1,1));
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
 
-                    ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_val], a_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 1, n_a, special_n_bothz, special_n_e, d2_val, a_grid, z_val, e_val, ReturnFnParamsVec);
 
-                    entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
+                    entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
 
                     %Calc the max and it's index
                     [Vtemp,maxindex]=max(entireRHS_ze,[],1);
@@ -331,11 +302,9 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
-        Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy3(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,jj)=reshape(rem(d1aprime_ind-1,N_d1)+1,[N_a,N_semiz*N_z,N_e]);
-        Policy3(3,:,:,:,jj)=reshape(ceil(d1aprime_ind/N_d1),[N_a,N_semiz*N_z,N_e]);
+        Policy3(2,:,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
     end
 
 end
