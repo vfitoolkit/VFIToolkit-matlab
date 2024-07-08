@@ -161,7 +161,9 @@ end
 
 
 if isfield(vfoptions,'n_e')
-    if ~isfield(vfoptions,'e_grid')
+    if isfield(vfoptions,'e_grid_J')
+        error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
+    elseif ~isfield(vfoptions,'e_grid')
         error('When using vfoptions.n_e you must declare vfoptions.e_grid')
     elseif ~isfield(vfoptions,'pi_e')
         error('When using vfoptions.n_e you must declare vfoptions.pi_e')
@@ -209,6 +211,12 @@ if vfoptions.parallel<2
     end
     if ~vfoptions.residualasset==0
         error('Sorry but residualasset are not implemented for cpu, you will need a gpu to use them')
+    end
+    if isfield(vfoptions,'SemiExoStateFn')
+        error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.divideandconquer==0
+        error('Sorry but divideandconquer is not implemented for cpu, you will need a gpu to use this algorithm')
     end
 end
 
@@ -274,9 +282,6 @@ if vfoptions.parallel==2
         if prod(vfoptions.n_e)==0
             vfoptions=rmfield(vfoptions,'n_e');
         else
-            if isfield(vfoptions,'e_grid_J')
-                error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
-            end
             if ~isfield(vfoptions,'e_grid') % && ~isfield(vfoptions,'e_grid_J')
                 error('You are using an e (iid) variable, and so need to declare vfoptions.e_grid')
             elseif ~isfield(vfoptions,'pi_e')
@@ -727,34 +732,45 @@ if isfield(vfoptions,'SemiExoStateFn')
         end
     end
     % Now that we have pi_semiz_J we are ready to compute the value function.
-    if vfoptions.parallel==2
-        if n_d1==0
-            if isfield(vfoptions,'n_e')
-                error('Have not implemented semi-exogenous shocks without at least two decision variables (one of which is that which determines the semi-exog transitions)')
+    if vfoptions.divideandconquer==1
+        if ~isfield(vfoptions,'level1n')
+            vfoptions.level1n=5;
+        end
+        % Solve using Divide-and-Conquer algorithm
+        [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo_DC1(n_d1, n_d2, n_a, n_z, vfoptions.n_semiz, N_j, d_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        return
+    end
+    
+    if n_d1==0
+        if isfield(vfoptions,'n_e')
+            if N_z==0
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_e_raw(n_d2,n_a,vfoptions.n_semiz, vfoptions.n_e, N_j, d2_grid, a_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                if N_z==0
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,vfoptions.n_semiz, N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    error('Have not implemented semi-exogenous shocks without at least two decision variables (one of which is that which determines the semi-exog transitions)')
-                end
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_e_raw(n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
-            if isfield(vfoptions,'n_e')
-                if N_z==0
-                    error('Have not implemented semi-exogenous shocks without at least one z variable (not counting the semi-exogenous one) but with an e variable [you could fake it adding a single-valued z with pi_z=1]')
-                else
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
+            if N_z==0
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,vfoptions.n_semiz, N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                if N_z==0
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_nod1_raw(n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        end
+    else
+        if isfield(vfoptions,'n_e')
+            if N_z==0
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_e_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, vfoptions.n_e, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_e_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz,  vfoptions.n_e, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_z==0
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, Policy3]=ValueFnIter_Case1_FHorz_SemiExo_raw(n_d1,n_d2,n_a,n_z,vfoptions.n_semiz, N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end
-    
+
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if vfoptions.outputkron==0
         if isfield(vfoptions,'n_e')
