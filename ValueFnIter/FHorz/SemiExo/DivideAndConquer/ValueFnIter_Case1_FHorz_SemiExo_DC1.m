@@ -23,11 +23,11 @@ if length(n_a)==1
     else % N_d
         if isfield(vfoptions,'n_e')
             error('Have not yet implemented divideandconquer for semi-exo with an e variable (contact me)')
-            if N_z==0
+            % if N_z==0
                 % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC1_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            else
+            % else
                 % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC1_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            end
+            % end
         else
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SemiExo_DC1_noz_raw(n_d1, n_d2,n_a,n_semiz, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
