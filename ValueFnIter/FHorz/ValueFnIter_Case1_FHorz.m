@@ -824,7 +824,13 @@ end
 %% Just do the standard case
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
-        vfoptions.level1n=5;
+        vfoptions.level1n=9;
+        if prod(n_d)*prod(n_a)>100*500
+            vfoptions.level1n=21; % set a larger default for larger models
+        end
+        if vfoptions.verbose==1
+            fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower for different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
+        end
     end
     % Solve using Divide-and-Conquer algorithm
     [V,Policy]=ValueFnIter_Case1_FHorz_DC1(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

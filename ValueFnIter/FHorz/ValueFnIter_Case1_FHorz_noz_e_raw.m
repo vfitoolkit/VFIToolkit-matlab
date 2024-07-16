@@ -51,12 +51,13 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
+    entireEV=repelem(V_Jplus1,N_d,1);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
         
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1; %*repmat(V_Jplus1,1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*repmat(V_Jplus1,1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -71,7 +72,7 @@ else
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a)
             
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a);
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -95,16 +96,15 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
+            
+    EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj),2);
+    entireEV=repelem(EV,N_d,1);
     
-    VKronNext_j=V(:,:,jj+1);
-        
-    VKronNext_j=sum(VKronNext_j.*pi_e_J(1,:,jj),2);
-
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,e)
-        
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1; %repmat(VKronNext_j,1,N_a,N_e);
+
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -119,7 +119,7 @@ for reverse_j=1:N_j-1
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);

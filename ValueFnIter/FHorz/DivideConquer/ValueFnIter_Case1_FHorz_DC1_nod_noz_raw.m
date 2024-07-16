@@ -65,7 +65,6 @@ else
 
     Policy(:,N_j)=Policytemp;
         
-
 end
 
 
@@ -93,7 +92,7 @@ for reverse_j=1:N_j-1
 
     V(level1ii,jj)=shiftdim(Vtempii,1);
     Policytemp(level1ii)=shiftdim(maxindex,1);
-
+    
     for ii=1:(vfoptions.level1n-1)
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policytemp(level1ii(ii)):Policytemp(level1ii(ii+1))), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j(Policytemp(level1ii(ii)):Policytemp(level1ii(ii+1)));
