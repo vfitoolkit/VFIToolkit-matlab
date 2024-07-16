@@ -39,7 +39,7 @@ if rho>=0.99
     fprintf('COMMENT: When discretizing gaussian AR(1) process with autocorrelation (rho) greater than 0.99 (which you currently have), the Rouwenhorst method tends to outperform Farmer-Toda method. \n')
     % This is based on findings of paper of Farmer & Toda (2017): last para on pg 678
     if rho>=1
-        error('Farmer-Toda error, autocorellation is 1. You cannot discretize an AR(1) with an autocorrelation coefficient of 1')
+        error('Farmer-Toda error, autocorellation is >=1. You cannot discretize an AR(1) with an autocorrelation coefficient of >=1')
     end
 end
 

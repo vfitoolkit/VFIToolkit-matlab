@@ -563,96 +563,14 @@ end
 %% Two-iteration efficient GMM (actually, n-iteration, but just uses this recursively)
 if estimoptions.iterateGMM>1 && estimoptions.skipestimation==0
     error('HAVE NOT YET IMPLEMENTED ITERATED GMM (you have estimoptions.iterateGMM>1)')
-    % if estimoptions.verbose==1
-    %     fprintf('Finished the first-iteration of two-iteration efficient GMM \n')
-    % end
-    % simoptions.numbersims=estimoptions.numberinvidualsperbootstrapsim;
-    % 
-    % % Put the first step parameter estimates into Parameters
-    % % Do any transformations of parameters before we say what they are
-    % for pp=1:length(EstimParamNames)
-    %     if estimoptions.constrainpositive(pp)==1  % Forcing this parameter to be positive
-    %         estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-    %     end
-    % end
-    % % Put first step parameters into Parameters, and store a copy that can later be included in estsummary
-    % for pp=1:length(EstimParamNames)
-    %     Parameters.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-    %     firststepparams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % A copy that will eventually be part of the estsummary output structure
-    % end
-    % 
-    % % Preallocate a matrix to keep all the moments across each simulation
-    % SimMoments=zeros(estimoptions.numbootstrapsims,length(targetmomentvec)); % cov() below requires rows to be observations
-    % 
-    % % Get the policy function (based on first step parameter estimate)
-    % [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    % for ss=1:estimoptions.numbootstrapsims % Number of simulations
-    %     if estimoptions.verbose==1
-    %         fprintf('Setup for second-step of two-step efficient GMM: simulation %i of %i \n', ss, estimoptions.numbootstrapsims)
-    %     end
-    % 
-    %     % Do a panel data simulation
-    %     simoptions.lowmemory=1; % Will be slower, but avoids out-of-memory errors, and the simulations to generate covar matrix is only done once anyway
-    %     simPanelValues=SimPanelValues_FHorz_Case1(jequaloneDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,simoptions);
-    %     simoptions=rmfield(simoptions,'lowmemory');
-    %     % Compute the moments (same as CalibrateLifeCycleModel_objectivefn(), except the panel data versions)
-    %     if usingallstats==1
-    %         simoptions.whichstats=AllStats_whichstats;
-    %         AllStats=PanelValues_AllStats_FHorz(simPanelValues,simoptions);
-    %     end
-    %     if usinglcp==1
-    %         simoptions.whichstats=ACStats_whichstats;
-    %         AgeConditionalStats=PanelValues_LifeCycleProfiles_FHorz(simPanelValues,N_j,simoptions);
-    %     end
-    % 
-    %     % Get current values of the target moments as a vector (note: this is copy-paste from CalibrateLifeCycleModel_objectivefn() command)
-    %     currentmomentvec=zeros(size(targetmomentvec));
-    %     if usingallstats==1
-    %         currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
-    %         for cc=2:size(allstatmomentnames,1)
-    %             currentmomentvec(allstatcummomentsizes(cc-1):allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
-    %         end
-    %     end
-    %     if usinglcp==1
-    %         currentmomentvec(allstatcummomentsizes(end)+1:allstatcummomentsizes(end)+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
-    %         for cc=2:size(acsmomentnames,1)
-    %             currentmomentvec(allstatcummomentsizes(end)+acscummomentsizes(cc-1)+1:allstatcummomentsizes(end)+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
-    %         end
-    %     end
-    %     % log moments where appropriate
-    %     currentmomentvec=(1-estimoptions.logmoments).*currentmomentvec + estimoptions.logmoments.*log(currentmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
-    %     % Store them
-    %     SimMoments(ss,:)=currentmomentvec';
-    % end
-    % 
-    % % Compute the covariance matrix of the moments
-    % CoVarMatrixSimMoments=cov(SimMoments);
-    % 
-    % % Set the optimal weighting matrix
-    % WeightingMatrix=CoVarMatrixSimMoments^(-1);
-    % 
-    % if estimoptions.verbose==1
-    %     fprintf('The weighting matrix for the second step of two-step GMM is \n')
-    %     WeightingMatrix
-    %     save ./SavedOutput/FirstStepOfTwoStepGMM.mat WeightingMatrix CoVarMatrixSimMoments SimMoments estimparamsvec 
-    %     fprintf('Now starting the second step optimization of two-step GMM \n')
-    % end
-    % 
-    % % Store the parameter vector and matrix of the simulated moments so can include it in final output
-    % estimoptions.previousiterations.niters=estimoptions.previousiterations.niters+1;
-    % estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).CoVarMatrixSimMoments=CoVarMatrixSimMoments;
-    % estimoptions.(['storeiter',num2str(estimoptions.previousiterations.niters)]).estimparams=firststepparams;
-    % 
-    % % Now just call this function again
-    % estimoptions.iterateGMM=estimoptions.iterateGMM-1;
-    % estimoptions.efficientW=1; % Use the efficient-GMM formula when computing standard errors
-    % % Note: Use our new WeightingMatrix from step 1, and there is no use for CoVarMatrixDataMoments in step 2
-    % [EstimParams, EstimParamsStdDev,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions);
-    % return
 end
 
 
 %% Compute the standard deviation of the estimated parameters
+
+%% I WANT TO CHANGE THIS SO IT DOES DERIVATIVES BASED ON EPSILON CHANGE IN THE UNCONSTRAINED PARAMETER VALUE, 
+% NOT THE CONSTRAINED PARAMETER VALUE WHICH IS WHAT IS CURRENTLY BEING DONE
+
 if estimoptions.bootstrapStdErrors==0
     % First, need the Jacobian matrix, which involves computing all the
     % derivatives of the individual moments with respect to the estimated parameters
@@ -673,7 +591,64 @@ if estimoptions.bootstrapStdErrors==0
     % Default value of epsilon
     eedefault=3; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
 
-    for ee=1:4
+    %% We want to calculate derivatives from epsilon changes in the model parameters
+    % I want to do epsilon change in the model parameter, but here I have
+    % the unconstrained parameters. So I create an epsilonparamup and
+    % epsilonparamdown, which contain the unconstrained values the
+    % correspond to espilon changes in the constrained parameters
+    % I do this in a separate loop, which is a loss of runtime, but this is
+    % minor and is much easier to read so whatever
+    epsilonparamup=zeros(length(estimparamsvec),length(epsilonmodvec));
+    epsilonparamdown=zeros(length(estimparamsvec),length(epsilonmodvec));
+    modelestimparamsvec=estimparamsvec;
+    % Switch modelestimparamsvec to the constrained (model) parameters
+    for pp=1:length(EstimParamNames)
+        if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
+            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
+            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        elseif estimoptions.constrain0to1(pp)==1
+            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
+            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+        end
+        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
+        if estimoptions.constrainAtoB(pp)==1
+            % Constrain parameter to be A to B
+            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
+            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
+        end
+    end
+    % Now, multiply by (1+-epsilon) and then convert back to unconstrained parameter value
+    for ee=1:length(epsilonmodvec)
+        epsilon=epsilonmodvec(ee)*epsilonraw;
+        modelestimparamsvecup=(1+epsilon)*modelestimparamsvec; % add epsilon*x to the pp-th parameter
+        modelestimparamsvecdown=(1-epsilon)*modelestimparamsvec; % subtract epsilon*x from the pp-th parameter
+        % Switch to the unconstrained
+        if estimoptions.constrainpositive(pp)==1
+            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
+            modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
+            modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
+            % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+        end
+        if estimoptions.constrainAtoB(pp)==1
+            % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
+            modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
+            modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
+            % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
+            % And then the next if-statement converts this 0-to-1 into unconstrained
+        end
+        if estimoptions.constrain0to1(pp)==1
+            % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
+            modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+            modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+            % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
+        end
+        epsilonparamup(:,ee)=modelestimparamsvecup;
+        epsilonparamdown(:,ee)=modelestimparamsvecdown;
+    end
+
+    %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
+    for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
 
         % ObjValue=zeros(sum(~isnan(targetmomentvec)),1);
@@ -685,9 +660,9 @@ if estimoptions.bootstrapStdErrors==0
         ObjValue=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
         for pp=1:length(estimparamsvec)
             epsilonparamvec=estimparamsvec;
-            epsilonparamvec(pp)=(1+epsilon)*estimparamsvec(pp); % add epsilon*x to the pp-th parameter
+            epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
             ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
-            epsilonparamvec(pp)=(1-epsilon)*estimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
+            epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
             ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
         end
 
@@ -753,6 +728,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
 end
 
 %% Some additional outputs
+% Mainly, the Sensitivity matrix
 if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
     % Sensitivity of estimated parameters to the target moments
     % Sensitivity matrix, Lambda, of Andrews, Gentzkow & Shapiro (2017) - Measuring the Sensitivity of Parameter Estimates to Estimation Moments
@@ -798,15 +774,27 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
 
 end
 
+
 %% Clean up the first two outputs
 for pp=1:length(EstimParamNames)
     if estimoptions.skipestimation==0
-        if estimoptions.constrainpositive(pp)==0
-            EstimParams.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-        elseif estimoptions.constrainpositive(pp)==1
+        % If parameter is constrained, switch it back to the unconstrained value
+        if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
             % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            EstimParams.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        elseif estimoptions.constrain0to1(pp)==1
+            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
+            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
         end
+        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
+        if estimoptions.constrainAtoB(pp)==1
+            % Constrain parameter to be A to B
+            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
+            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
+        end
+        % Now store the unconstrained values
+        EstimParams.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
     else
         EstimParams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % When skipping estimation, just returns the same parameters as you input
     end
@@ -823,13 +811,9 @@ for pp=1:length(EstimParamNames)
     elseif estimoptions.bootstrapStdErrors==1
         estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
         estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
-        % for pp=1:length(EstimParamNames)
-        %     estsummary.bootstrap.confint80p.(EstimParamNames{pp})=[quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.1)',quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.9)'];
-        %     estsummary.bootstrap.confint90p.(EstimParamNames{pp})=[quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.05)',quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.95)'];
-        %     estsummary.bootstrap.confint95p.(EstimParamNames{pp})=[quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.025)',quantile(EstimParamsBootStrapDist.(EstimParamNames{pp})',0.975)'];
-        % end
     end
 end
+clear estimparamsvec % I modified it, so want to make sure I don't accidently use it again later
 
 if estimoptions.confidenceintervals==68
     criticalvalue_normaldist_z_alphadiv2=1;
@@ -853,7 +837,7 @@ end
 % output, rather than the standard deviations of the estimated parameters.
 % This avoids people focusing on statistical significance and the 'star wars'.
 % Instead they will hopefully focus on what is likely and plausible.
-EstimParamsConfInts.notes=['These are 90-percent confidence intervals'];
+EstimParamsConfInts.notes='These are 90-percent confidence intervals';
 for pp=1:length(EstimParamNames)
     EstimParamsConfInts.(EstimParamNames{pp})=EstimParams.(EstimParamNames{pp}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{pp});
 end
