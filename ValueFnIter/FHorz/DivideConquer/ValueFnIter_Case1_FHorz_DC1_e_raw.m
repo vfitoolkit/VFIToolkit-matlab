@@ -59,14 +59,14 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex,1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1)+N_d*N_z*shiftdim((0:1:N_e-1),-2))-1),1); % loweredge(given the d and z and e)
         else
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex,1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1)+N_d*N_z*shiftdim((0:1:N_e-1),-2))-1),1); % loweredge(given the d and z and e)
         end
     end
 
@@ -121,7 +121,7 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*(maxgap(ii)+1),level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex,1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1)+N_d*N_z*shiftdim((0:1:N_e-1),-2))-1),1); % loweredge(given the d and z and e)
         else
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
@@ -130,7 +130,7 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*1,level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex,1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1)+N_d*N_z*shiftdim((0:1:N_e-1),-2))-1),1); % loweredge(given the d and z and e)
         end
     end
 
@@ -195,7 +195,7 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*(maxgap(ii)+1),level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex,1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1)+N_d*N_z*shiftdim((0:1:N_e-1),-2))-1),1); % loweredge(given the d and z and e)
         else
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
@@ -204,7 +204,7 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*1,level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex,1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1)+N_d*N_z*shiftdim((0:1:N_e-1),-2))-1),1); % loweredge(given the d and z and e)
         end
     end
     

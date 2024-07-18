@@ -56,14 +56,14 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % maxindex is (d,aprime): rem(maxindex-1,N_d)+1 is the d
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,ii);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(maxindex)-1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
     
@@ -109,16 +109,16 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,ii);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
-            daprime=(repmat(1:1:N_d,1,maxgap(ii)+1))'+N_d*repelem(loweredge-1,1,level1iidiff(ii)); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
+            daprime=(1:1:N_d)'+N_d*repelem(loweredge-1,1,level1iidiff(ii)); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(maxindex)-1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
 
@@ -173,16 +173,16 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,ii);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
-            daprime=(repmat(1:1:N_d,1,maxgap(ii)+1))'+N_d*repelem(loweredge,1,level1iidiff(ii)); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
+            daprime=(1:1:N_d)'+N_d*repelem(loweredge-1,1,level1iidiff(ii)); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(maxindex)-1);
+            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
 
