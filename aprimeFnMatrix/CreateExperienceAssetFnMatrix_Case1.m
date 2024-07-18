@@ -113,10 +113,10 @@ if l_a2==1
     a2primeVals=reshape(a2primeVals,[1,N_d*N_a2]);
 
     a2_griddiff=a2_grid(2:end)-a2_grid(1:end-1); % Distance between point and the next point
-    
+
     % For small aprimeVals and a_grid, max() is faster than discretize()
     % http://discourse.vfitoolkit.com/t/example-attanasio-low-sanchez-marcos-2008/257/25
-    if N_d*N_a2*N_a2>1000000
+    if N_d*N_a2*N_a2<1000000
         [~,a2primeIndexes]=max((a2_grid>a2primeVals),[],1); % Keep the dimension corresponding to aprimeVals, minimize over the a_grid dimension
         % Note, this is going to find the 'first' grid point which is bigger than a2primeVals
         % This is the 'upper' grid point
