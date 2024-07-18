@@ -829,7 +829,7 @@ if vfoptions.divideandconquer==1
             vfoptions.level1n=21; % set a larger default for larger models
         end
         if vfoptions.verbose==1
-            fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower for different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
+            fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
         end
     end
     % Solve using Divide-and-Conquer algorithm

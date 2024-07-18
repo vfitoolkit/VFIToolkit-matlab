@@ -601,6 +601,8 @@ if estimoptions.bootstrapStdErrors==0
     epsilonparamup=zeros(length(estimparamsvec),length(epsilonmodvec));
     epsilonparamdown=zeros(length(estimparamsvec),length(epsilonmodvec));
     modelestimparamsvec=estimparamsvec;
+    modelestimparamsvecup=zeros(size(modelestimparamsvec));
+    modelestimparamsvecdown=zeros(size(modelestimparamsvec));
     % Switch modelestimparamsvec to the constrained (model) parameters
     for pp=1:length(EstimParamNames)
         if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
@@ -621,8 +623,15 @@ if estimoptions.bootstrapStdErrors==0
     % Now, multiply by (1+-epsilon) and then convert back to unconstrained parameter value
     for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
-        modelestimparamsvecup=(1+epsilon)*modelestimparamsvec; % add epsilon*x to the pp-th parameter
-        modelestimparamsvecdown=(1-epsilon)*modelestimparamsvec; % subtract epsilon*x from the pp-th parameter
+        for pp=1:length(EstimParamNames)
+            if modelestimparamsvec(pp)>10*epsilon
+                modelestimparamsvecup(pp)=(1+epsilon)*modelestimparamsvec(pp); % add epsilon*x to the pp-th parameter
+                modelestimparamsvecdown(pp)=(1-epsilon)*modelestimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
+            else % is the modelestimparamsvec itself is tiny, then actually just add/subtract epsilon to/from x [have to do this for x=0, and this seems a reasonable cutoff]
+                modelestimparamsvecup(pp)=epsilon+modelestimparamsvec(pp); % add epsilon to the pp-th parameter
+                modelestimparamsvecdown(pp)=-epsilon+modelestimparamsvec(pp); % subtract epsilon from the pp-th parameter
+            end
+        end
         % Switch to the unconstrained
         if estimoptions.constrainpositive(pp)==1
             % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
@@ -643,13 +652,15 @@ if estimoptions.bootstrapStdErrors==0
             modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
             % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
         end
+        % Store the epsilon parameters
         epsilonparamup(:,ee)=modelestimparamsvecup;
         epsilonparamdown(:,ee)=modelestimparamsvecdown;
+
     end
 
     %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
     for ee=1:length(epsilonmodvec)
-        epsilon=epsilonmodvec(ee)*epsilonraw;
+        epsilon=epsilonmodvec(ee)*epsilonraw; % Not actually used for anything (as I used it to create epsilonparamup and epsilonparamdown, and these are used below)
 
         % ObjValue=zeros(sum(~isnan(targetmomentvec)),1);
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
@@ -667,9 +678,9 @@ if estimoptions.bootstrapStdErrors==0
         end
 
         % Use finite-difference to compute the derivatives
-        J_up=(ObjValue_upwind-ObjValue)./(epsilon*estimparamsvec');
-        J_down=(ObjValue-ObjValue_downwind)./(epsilon*estimparamsvec');
-        J_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*estimparamsvec');
+        J_up=(ObjValue_upwind-ObjValue)./((epsilonparamup(:,ee)-estimparamsvec)');
+        J_down=(ObjValue-ObjValue_downwind)./((estimparamsvec-epsilonparamdown(:,ee))');
+        J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
         
         % I decided to use the centered finite difference as my default for the derivative
