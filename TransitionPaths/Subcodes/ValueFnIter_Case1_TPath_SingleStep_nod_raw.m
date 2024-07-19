@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_TPath_SingleStep_no_d_raw(Vnext,n_a,n_z, a_grid, z_grid,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_TPath_SingleStep_nod_raw(Vnext,n_a,n_z, a_grid, z_grid,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);

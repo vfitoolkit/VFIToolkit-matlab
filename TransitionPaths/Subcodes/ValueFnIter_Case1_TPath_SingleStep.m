@@ -21,16 +21,6 @@ else
     if isfield(vfoptions,'parallel')==0
         vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
     if isfield(vfoptions,'verbose')==0
         vfoptions.verbose=0;
     end
@@ -55,41 +45,13 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-% %% Check the sizes of some of the inputs
-% if size(d_grid)~=[N_d, 1]
-%     disp('ERROR: d_grid is not the correct shape (should be  of size N_d-by-1)')
-%     dbstack
-%     return
-% elseif size(a_grid)~=[N_a, 1]
-%     disp('ERROR: a_grid is not the correct shape (should be  of size N_a-by-1)')
-%     dbstack
-%     return
-% elseif size(z_grid)~=[N_z, 1]
-%     disp('ERROR: z_grid is not the correct shape (should be  of size N_z-by-1)')
-%     dbstack
-%     return
-% elseif size(pi_z)~=[N_z, N_z]
-%     disp('ERROR: pi is not of size N_z-by-N_z')
-%     dbstack
-%     return
-% end
-
-
 %% 
-if vfoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   pi_z=gpuArray(pi_z);
-   d_grid=gpuArray(d_grid);
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
-else
-   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-   % This may be completely unnecessary.
-   pi_z=gather(pi_z);
-   d_grid=gather(d_grid);
-   a_grid=gather(a_grid);
-   z_grid=gather(z_grid);
-end
+% if vfoptions.parallel==2 
+% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
 
 if vfoptions.verbose==1
     vfoptions

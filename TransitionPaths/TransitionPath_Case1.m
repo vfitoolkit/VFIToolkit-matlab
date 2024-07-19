@@ -148,6 +148,9 @@ else
         transpathoptions.tanimprovement=1;
     end
 end
+if transpathoptions.parallel~=2
+    error('Transition paths can only be solved if you have a GPU')
+end
 
 if isfield(transpathoptions,'p_eqm_init')
     p_eqm_init=transpathoptions.p_eqm_init;
@@ -174,7 +177,6 @@ if exist('vfoptions','var')==0
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.solnmethod='purediscretization';
-    vfoptions.endotype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'parallel')==0
@@ -216,9 +218,6 @@ else
     end
     if isfield(vfoptions,'solnmethod')==0
         vfoptions.solnmethod='purediscretization';
-    end
-    if isfield(vfoptions,'endotype')==0
-        vfoptions.endotype=0;
     end
 end
 
@@ -267,13 +266,9 @@ else
 end
 
 %% Check the sizes of some of the inputs
-if isempty(n_d)
-    N_d=0;
-else
-    N_d=prod(n_d);
-end
-N_z=prod(n_z);
+N_d=prod(n_d);
 N_a=prod(n_a);
+N_z=prod(n_z);
 
 if N_d>0
     if size(d_grid)~=[N_d, 1]
@@ -336,80 +331,42 @@ end
 
 
 %%
-if transpathoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   pi_z=gpuArray(pi_z);
-   if N_d>0
-       d_grid=gpuArray(d_grid);
-   end
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
-   PricePathOld=gpuArray(PricePathOld);
-else
-   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-   % This may be completely unnecessary.
-   pi_z=gather(pi_z);
-   if N_d>0
-       d_grid=gather(d_grid);
-   end
-   a_grid=gather(a_grid);
-   z_grid=gather(z_grid);
-   PricePathOld=gather(PricePathOld);
+% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+if N_d>0
+    d_grid=gpuArray(d_grid);
 end
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
+PricePathOld=gpuArray(PricePathOld);
 
-N_d=prod(n_d);
 
-%% Handle ReturnFn and FnsToEvaluate structures
-l_d=length(n_d);
-if n_d(1)==0
-    l_d=0;
-end
-l_a=length(n_a);
-l_z=length(n_z);
-l_a_temp=l_a;
-l_z_temp=l_z;
-if max(vfoptions.endotype)==1
-    l_a_temp=l_a-sum(vfoptions.endotype);
-    l_z_temp=l_z+sum(vfoptions.endotype);
-end
-% Create ReturnFnParamNames
-temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
-    ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
-else
-    ReturnFnParamNames={};
-end
+%% Implement new way of handling ReturnFn inputs
+ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
 
-if ~isstruct(FnsToEvaluate)
-    error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
-end
 
-%%
-if max(vfoptions.endotype)==1
-    % Use endogenous type
-    PricePath=TransitionPath_Case1_EndoType(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-end
+%% I have eliminated EndoType
+% if max(vfoptions.endotype)==1
+%     % Use endogenous type
+%     PricePath=TransitionPath_Case1_EndoType(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+% end
 
 %%
 if transpathoptions.GEnewprice~=2
-    if transpathoptions.parallel==2
-        if transpathoptions.lowmemory==1
-            % The lowmemory option is going to use gpu (but loop over z instead of parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
-            % Note: Just using vfoptions.lowmemory=1 will do the loop over z for value fn, but would not include the sparse matrix for agent distribtion
-            if N_d==0
-                PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-            else
-                PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-            end
+    if transpathoptions.lowmemory==1
+        % The lowmemory option is going to use gpu (but loop over z instead of parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
+        % Note: Just using vfoptions.lowmemory=1 will do the loop over z for value fn, but would not include the sparse matrix for agent distribtion
+        if N_d==0
+            PricePath=TransitionPath_Case1_nod_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
         else
-            if N_d==0
-                PricePath=TransitionPath_Case1_shooting_no_d(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-            else
-                PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-            end
+            PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
         end
     else
-        error('VFI Toolkit does not offer lowmemory when using par1 fortransition path. Would be too slow to be useful.')
+        if N_d==0
+            PricePath=TransitionPath_Case1_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+        else
+            PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+        end
     end
 end
 
