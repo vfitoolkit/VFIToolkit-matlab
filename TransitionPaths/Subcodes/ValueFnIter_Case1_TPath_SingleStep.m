@@ -73,7 +73,7 @@ end
 
 %% If get to here then not using exoticpreferences nor StateDependentVariables_z
 if N_d==0
-    [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_no_d_raw(VKron,n_a, n_z, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 else
     if strcmp(vfoptions.solnmethod,'purediscretization')
         [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

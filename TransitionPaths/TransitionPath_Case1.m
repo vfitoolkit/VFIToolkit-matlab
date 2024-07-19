@@ -342,14 +342,7 @@ PricePathOld=gpuArray(PricePathOld);
 
 
 %% Implement new way of handling ReturnFn inputs
-ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
-
-
-%% I have eliminated EndoType
-% if max(vfoptions.endotype)==1
-%     % Use endogenous type
-%     PricePath=TransitionPath_Case1_EndoType(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-% end
+ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %%
 if transpathoptions.GEnewprice~=2
