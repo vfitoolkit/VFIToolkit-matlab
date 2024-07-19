@@ -162,39 +162,26 @@ if transpathoptions.graphGEcondns==1
 end
 
 %% Check which vfoptions have been used, set all others to defaults 
+vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-    vfoptions.parallel=transpathoptions.parallel;
-    vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
-    vfoptions.solnmethod='purediscretization';
+    vfoptions.solnmethod='purediscretization'; % Currently this does nothing
+    vfoptions.divideandconquer=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
-    end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if isfield(vfoptions,'lowmemory')==0
+    if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if isfield(vfoptions,'verbose')==0
+    if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    if isfield(vfoptions,'exoticpreferences')==0
+    if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
     end
     if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
@@ -206,35 +193,38 @@ else
             return
         end
     end
-    if isfield(vfoptions,'polindorval')==0
+    if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if isfield(vfoptions,'policy_forceintegertype')==0
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
     end
-    if isfield(vfoptions,'solnmethod')==0
-        vfoptions.solnmethod='purediscretization';
+    if ~isfield(vfoptions,'solnmethod')
+        vfoptions.solnmethod='purediscretization'; % Currently this does nothing
+    end
+    if ~isfield(vfoptions,'divideandconquer')
+        vfoptions.divideandconquer=0;
+    end
+end
+
+if vfoptions.divideandconquer==1
+    if ~isfield(vfoptions,'level1n')
+        vfoptions.level1n=5;
     end
 end
 
 %% Check which simoptions have been used, set all others to defaults 
-if isfield(transpathoptions,'simoptions')==1
-    simoptions=transpathoptions.simoptions;
-end
+simoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('simoptions','var')==0
-    simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
     simoptions.verbose=0;
     simoptions.tolerance=10^(-9);
 else
     %Check vfoptions for missing fields, if there are some fill them with
     %the defaults
-    if isfield(simoptions,'tolerance')==0
+    if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=transpathoptions.parallel;
-    end
-    if isfield(simoptions,'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
 end
