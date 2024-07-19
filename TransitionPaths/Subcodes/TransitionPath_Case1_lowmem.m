@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
 
 if transpathoptions.verbose==1
     transpathoptions
@@ -203,7 +203,6 @@ if transpathoptions.GEnewprice==3
     end
 end
 
-z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 is to create z_gridvals as matrix
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
@@ -319,7 +318,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
         end
 
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2, simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, 2, simoptions);
         
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.

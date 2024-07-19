@@ -74,7 +74,6 @@ if exist('transpathoptions','var')==0
     transpathoptions.tolerance=10^(-5);
     transpathoptions.updateaccuracycutoff=10^(-9); % If the suggested update is less than this then don't bother; 10^(-9) is decent odds to be numerical error anyway (currently only works for transpathoptions.GEnewprice=3)
     transpathoptions.parallel=1+(gpuDeviceCount>0);
-    transpathoptions.lowmemory=0;
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
     transpathoptions.oldpathweight=0.9; % default =0.9
@@ -99,9 +98,6 @@ else
     end
     if ~isfield(transpathoptions,'parallel')
         transpathoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if ~isfield(transpathoptions,'lowmemory')
-        transpathoptions.lowmemory=0;
     end
     if ~isfield(transpathoptions,'GEnewprice')
         transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
@@ -226,16 +222,8 @@ if isfield(transpathoptions,'simoptions')==1
     simoptions=transpathoptions.simoptions;
 end
 if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
     simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
     simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
-    simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
 else
     %Check vfoptions for missing fields, if there are some fill them with
@@ -243,76 +231,68 @@ else
     if isfield(simoptions,'tolerance')==0
         simoptions.tolerance=10^(-9);
     end
-    if isfield(simoptions,'nsims')==0
-        simoptions.nsims=10^4;
-    end
     if isfield(simoptions,'parallel')==0
         simoptions.parallel=transpathoptions.parallel;
     end
     if isfield(simoptions,'verbose')==0
         simoptions.verbose=0;
     end
-    if isfield(simoptions,'ncores')==0
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
-    end
-    if isfield(simoptions,'iterate')==0
-        simoptions.iterate=1;
-    end
 end
 
 %% Check the sizes of some of the inputs
 N_d=prod(n_d);
-N_a=prod(n_a);
+% N_a=prod(n_a);
 N_z=prod(n_z);
 
 if N_d>0
-    if size(d_grid)~=[N_d, 1]
-        fprintf('ERROR: d_grid is not the correct shape (should be of size N_d-by-1) \n')
-        fprintf('       d_grid is of size: %i by % i, while N_d is %i \n',size(d_grid,1),size(d_grid,2),N_d)
+    if any(size(d_grid)~=[sum(n_d), 1])
+        fprintf('d_grid is of size: %i by % i, while sum(n_d) is %i \n',size(d_grid,1),size(d_grid,2),sum(n_d))
         dbstack
-        return
+        error('d_grid is not the correct shape (should be of size sum(n_d)-by-1) \n')
     end
 end
-if size(a_grid)~=[N_a, 1]
-    fprintf('ERROR: a_grid is not the correct shape (should be of size N_a-by-1) \n')
-    fprintf('       a_grid is of size: %i by % i, while N_a is %i \n',size(a_grid,1),size(a_grid,2),N_a)
+if any(size(a_grid)~=[sum(n_a), 1])
+    fprintf('a_grid is of size: %i by % i, while sum(n_a) is %i \n',size(a_grid,1),size(a_grid,2),sum(n_a))
     dbstack
-    return
-elseif size(z_grid)~=[N_z, 1]
-    fprintf('ERROR: z_grid is not the correct shape (should be of size N_z-by-1) \n')
-    fprintf('       z_grid is of size: %i by % i, while N_z is %i \n',size(z_grid,1),size(z_grid,2),N_z)
+    error('a_grid is not the correct shape (should be of size sum(n_a)-by-1) \n')
+% check z_grid below when converting to z_gridvals
+elseif any(size(pi_z)~=[N_z, N_z])
+    fprintf('pi is of size: %i by % i, while N_z is %i \n',size(pi_z,1),size(pi_z,2),N_z)
     dbstack
-    return
-elseif size(pi_z)~=[N_z, N_z]
-    fprintf('ERROR: pi is not of size N_z-by-N_z \n')
-    fprintf('       pi is of size: %i by % i, while N_z is %i \n',size(pi_z,1),size(pi_z,2),N_z)
-    dbstack
-    return
+    error('pi is not of size N_z-by-N_z \n')
 end
-if isstruct(GeneralEqmEqns)
-    if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
-        fprintf('ERROR: Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
-        fprintf('       They are: %i and % i respectively \n',length(PricePathNames), length(fieldnames(GeneralEqmEqns)))
-        dbstack
-        return
-    end
-else
-    if length(PricePathNames)~=length(GeneralEqmEqns)
-        disp('ERROR: Initial PricePath contains less variables than GeneralEqmEqns')
-        fprintf('       They are: %i and % i respectively \n',length(PricePathNames), length(GeneralEqmEqns))
-        dbstack
-        return
-    end
+if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
+    fprintf('PricePath has %i prices and GeneralEqmEqns is % i eqns \n',length(PricePathNames), length(fieldnames(GeneralEqmEqns)))
+    dbstack
+    error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
 end
+
 
 %%
+% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
+PricePathOld=gpuArray(PricePathOld);
 
-% If there is entry and exit, then send to relevant command
+%% Switch to z_gridvals
+l_z=length(n_z);
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+elseif all(size(z_grid)==[prod(n_z),l_z])
+    z_gridvals=z_grid;
+else
+    fprintf('       z_grid is of size: %i by % i, while N_z is %i \n',size(z_grid,1),size(z_grid,2),N_z)
+    error('z_grid is not the correct shape (should be of size N_z-by-1) \n')
+end
+
+
+%% Implement new way of handling ReturnFn inputs
+ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
+
+
+%% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
     error('ERROR: have not yet implemented transition path for models with entry/exit \n')
 %     if ~exist('EntryExitParamNames','var')
@@ -329,37 +309,18 @@ if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agente
 %     end
 end
 
-
-%%
-% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-pi_z=gpuArray(pi_z);
-if N_d>0
-    d_grid=gpuArray(d_grid);
-end
-a_grid=gpuArray(a_grid);
-z_grid=gpuArray(z_grid);
-PricePathOld=gpuArray(PricePathOld);
-
-
-%% Implement new way of handling ReturnFn inputs
-ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
+%% I have eliminated EndoType
+% if max(vfoptions.endotype)==1
+%     % Use endogenous type
+%     PricePath=TransitionPath_Case1_EndoType(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+% end
 
 %%
 if transpathoptions.GEnewprice~=2
-    if transpathoptions.lowmemory==1
-        % The lowmemory option is going to use gpu (but loop over z instead of parallelize) for value fn, and then use sparse matrices on cpu when iterating on agent dist.
-        % Note: Just using vfoptions.lowmemory=1 will do the loop over z for value fn, but would not include the sparse matrix for agent distribtion
-        if N_d==0
-            PricePath=TransitionPath_Case1_nod_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-        else
-            PricePath=TransitionPath_Case1_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-        end
+    if N_d==0
+        PricePath=TransitionPath_Case1_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
     else
-        if N_d==0
-            PricePath=TransitionPath_Case1_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-        else
-            PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-        end
+        PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
     end
 end
 

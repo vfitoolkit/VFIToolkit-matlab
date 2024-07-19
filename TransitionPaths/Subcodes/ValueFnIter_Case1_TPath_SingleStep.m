@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep(VKron,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep(VKron,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 
 % VKron=reshape(VKron,[prod(n_a),prod(n_z),N_j]);
@@ -16,6 +16,7 @@ if exist('vfoptions','var')==0
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.solnmethod='purediscretization';
+    vfoptions.divideandconquer=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if isfield(vfoptions,'parallel')==0
@@ -39,6 +40,9 @@ else
     if isfield(vfoptions,'solnmethod')==0
         vfoptions.solnmethod='purediscretization';
     end
+    if isfield(vfoptions,'divideandconquer')==0
+        vfoptions.divideandconquer=0;
+    end
 end
 
 N_d=prod(n_d);
@@ -46,12 +50,11 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 %% 
-% if vfoptions.parallel==2 
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
-z_grid=gpuArray(z_grid);
+z_gridvals=gpuArray(z_gridvals);
 
 if vfoptions.verbose==1
     vfoptions
@@ -65,25 +68,32 @@ elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     error('Not yet supported')
 end
 
-%%
-if isfield(vfoptions,'StateDependentVariables_z')==1
-    dbstack
-    error('Not yet supported')
-end
-
-%% If get to here then not using exoticpreferences nor StateDependentVariables_z
-if N_d==0
-    [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-else
-    if strcmp(vfoptions.solnmethod,'purediscretization')
-        [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    elseif strcmp(vfoptions.solnmethod,'purediscretization_refinement')
-        % COMMENT: testing a transition in model of Pijoan-Mas (2006) it
-        % seems refirement is slower for transtions, so this is never
-        % really used for anything.
-        [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_Refine_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+%% Solve the standard problem
+% Note: being infinite horizon, I don't imagine anyone will come here without z variable
+if vfoptions.divideandconquer==0
+    if N_d==0
+        [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    else
+        [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    end
+elseif vfoptions.divideandconquer==1
+    if length(n_a)==1
+        if N_d==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            % [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    else
+        error('vfoptions.divideandconquer=1 only implemented for length(n_a)=1; only when there is just one endogenous state')
     end
 end
+
+% if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
+%     % COMMENT: testing a transition in model of Pijoan-Mas (2006) it
+%     % seems refirement is slower for transtions, so this is never
+%     % really used for anything.
+%     [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_Refine_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+% end
 
 %%
 % %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form

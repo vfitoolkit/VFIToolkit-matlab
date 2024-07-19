@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
 
 
 if transpathoptions.verbose==1
@@ -188,7 +188,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
-        [V, Policy]=ValueFnIter_Case1_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_Case1_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
               
@@ -267,7 +267,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Current approach is likely way suboptimal speedwise.
         
         Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, 2,simoptions);
         
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.

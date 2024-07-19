@@ -1,6 +1,7 @@
 function PricePath=TransitionPath_Case1_nod(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames,transpathoptions)
 
 
+error('I dont think this code is used any more. Please tell me robertdkirkby@gmail.com if you get this error')
 %%
 if transpathoptions.verbose==1
     transpathoptions

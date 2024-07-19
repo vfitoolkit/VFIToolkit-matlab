@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_no_d_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_Case1_nod_lowmem(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
 
 
 if transpathoptions.verbose==1
@@ -174,8 +174,6 @@ end
 % IndexesForPricePathInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
 % IndexesForPathParamsInReturnFnParams=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
-z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 is to create z_gridvals as matrix
-
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
         
@@ -286,7 +284,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         PolicyTemp=UnKronPolicyIndexes_Case1(Policy, 0, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_grid, 2,simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), PolicyTemp, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, 0, n_a, n_z, 0, a_grid, z_gridvals, 2,simoptions);
         
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.

@@ -193,12 +193,6 @@ for reverse_j=1:N_j-1
 
     end
 
-    if jj==45
-        [jj,N_j-36]
-        squeeze(maxgap)
-        level1ii
-    end
-
     Policy(:,:,jj)=Policytemp;
 
 end
