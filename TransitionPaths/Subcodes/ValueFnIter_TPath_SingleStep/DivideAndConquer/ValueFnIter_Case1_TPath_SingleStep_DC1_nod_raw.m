@@ -19,9 +19,6 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-% Using V_Jplus1
-Vnext=reshape(Vnext,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
-
 EV=Vnext.*shiftdim(pi_z',-1);
 EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
@@ -34,7 +31,7 @@ entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 %Calc the max and it's index
 [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
 
-V(level1ii,:,N_j)=shiftdim(Vtempii,1);
+V(level1ii,:)=shiftdim(Vtempii,1);
 Policy(level1ii,:)=shiftdim(maxindex1,1);
 
 % Attempt for improved version
@@ -49,7 +46,7 @@ for ii=1:(vfoptions.level1n-1)
         aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(aprimez);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-        V(level1ii(ii)+1:level1ii(ii+1)-1,:,N_j)=shiftdim(Vtempii,1);
+        V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+loweredge-1,1);
     else
         loweredge=maxindex1(1,ii,:);
@@ -58,7 +55,7 @@ for ii=1:(vfoptions.level1n-1)
         aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(aprimez);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-        V(level1ii(ii)+1:level1ii(ii+1)-1,:,N_j)=shiftdim(Vtempii,1);
+        V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+loweredge-1,1);
     end
 end

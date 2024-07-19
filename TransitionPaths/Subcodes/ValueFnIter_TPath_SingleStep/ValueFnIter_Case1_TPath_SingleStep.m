@@ -1,53 +1,11 @@
 function [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep(VKron,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 
-% VKron=reshape(VKron,[prod(n_a),prod(n_z),N_j]);
-PolicyKron=nan;
-
-%% Check which vfoptions have been used, set all others to defaults 
-if exist('vfoptions','var')==0
-    disp('No vfoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-    vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    vfoptions.returnmatrix=2;
-    vfoptions.verbose=0;
-    vfoptions.lowmemory=0;
-    vfoptions.exoticpreferences='None';
-    vfoptions.polindorval=1;
-    vfoptions.policy_forceintegertype=0;
-    vfoptions.solnmethod='purediscretization';
-    vfoptions.divideandconquer=0;
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    end
-    if isfield(vfoptions,'verbose')==0
-        vfoptions.verbose=0;
-    end
-    if isfield(vfoptions,'lowmemory')==0
-        vfoptions.lowmemory=0;
-    end
-    if isfield(vfoptions,'exoticpreferences')==0
-        vfoptions.exoticpreferences='None';
-    end
-    if isfield(vfoptions,'polindorval')==0
-        vfoptions.polindorval=1;
-    end
-    if isfield(vfoptions,'policy_forceintegertype')==0
-        vfoptions.policy_forceintegertype=0;
-    end
-    if isfield(vfoptions,'solnmethod')==0
-        vfoptions.solnmethod='purediscretization';
-    end
-    if isfield(vfoptions,'divideandconquer')==0
-        vfoptions.divideandconquer=0;
-    end
-end
+% vfoptions must be already fully set up (this command is for internal use only so it should be)
 
 N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
+% N_a=prod(n_a);
+% N_z=prod(n_z);
 
 %% 
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -81,7 +39,7 @@ elseif vfoptions.divideandconquer==1
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            % [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else
         error('vfoptions.divideandconquer=1 only implemented for length(n_a)=1; only when there is just one endogenous state')
