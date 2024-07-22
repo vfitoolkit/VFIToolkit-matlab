@@ -6,6 +6,7 @@ if ~exist('simoptions','var')
     simoptions.npoints=100; % number of points for lorenz curve
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    % simoptions.conditionalrestrictions
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
@@ -22,6 +23,7 @@ else
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
+    % simoptions.conditionalrestrictions
 end
 
 
@@ -214,7 +216,6 @@ if N_z==0
         a_gridvals=CreateGridvals(n_a,a_grid,1);
 
         for ff=1:length(FnsToEvaluate)
-            % Values=nan(N_a,N_z,N_j,'gpuArray');
 
             % Includes check for cases in which no parameters are actually required
             if isempty(FnsToEvaluateParamNames(ff).Names)

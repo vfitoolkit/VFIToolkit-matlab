@@ -30,6 +30,7 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluate_copy=FnsToEvaluate; % keep a copy in case needed for conditional restrictions
@@ -57,6 +58,7 @@ if isfield(simoptions,'outputasstructure')
         FnsToEvaluateStruct=0;
     end
 end
+
 
 %% Check for functions that use value function and send these off to a subversion called EvalFnOnAgentDist_AggVars_Case1_withV()
 if isfield(simoptions,'eval_valuefn')

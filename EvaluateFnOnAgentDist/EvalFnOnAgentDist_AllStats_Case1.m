@@ -10,6 +10,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20;
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    % simoptions.conditionalrestrictions
 else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
@@ -26,6 +27,7 @@ else
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
+    % simoptions.conditionalrestrictions
 end
 
 
@@ -145,8 +147,7 @@ end
 % EvalFnOnAgendDist_AllStats_Case1() again. Some of the results are then
 % modified so that there is both, e.g., 'mean' and 'total'.
 if isfield(simoptions,'conditionalrestrictions')
-    % First couple of lines get the conditional restrictions and convert
-    % them to a names and cell
+    % First couple of lines get the conditional restrictions and convert them to a names and cell
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
     for ff=1:length(CondlRestnFnNames)
         temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{ff}));
@@ -195,62 +196,7 @@ if isfield(simoptions,'conditionalrestrictions')
             end
         end
     else % simoptions.parallel~=2
-        for ff=1:length(FnsToEvalNames)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames={}'
-                Values=zeros(N_a*N_z,1);
-                if l_d==0
-                    for ii=1:N_a*N_z
-                        j1=rem(ii-1,N_a)+1;
-                        j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
-                    end
-                else % l_d>0
-                    for ii=1:N_a*N_z
-                        j1=rem(ii-1,N_a)+1;
-                        j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
-                    end
-                end
-            else
-                Values=zeros(N_a*N_z,1);
-                if l_d==0
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-                    Values=zeros(N_a*N_z,1);
-                    for ii=1:N_a*N_z
-                        j1=rem(ii-1,N_a)+1;
-                        j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
-                    end
-                else % l_d>0
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-                    for ii=1:N_a*N_z
-                        j1=rem(ii-1,N_a)+1;
-                        j2=ceil(ii/N_a);
-                        Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
-                    end
-                end
-            end
-            
-            RestrictedStationaryDistVec=StationaryDistVec;
-            RestrictedStationaryDistVec(Values==0)=0; % Drop all those that don't meet the restriction
-            restrictedsamplemass=sum(RestrictedStationaryDistVec);
-            RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass; % Normalize to mass one
-
-            if restrictedsamplemass==0
-                warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{ff},' has a restricted sample that is of zero mass \n'])
-                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
-            else
-                AllStats.(CondlRestnFnNames{ff})=EvalFnOnAgentDist_AllStats_Case1(RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate_copy, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
-                
-                % Create some renormalizations where relevant (just the mean)
-                for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
-                    AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Mean;
-                end
-                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
-            end
-        end
+        error('simoptions.conditionalrestrictions can only be used with GPU')
     end
 end
 
