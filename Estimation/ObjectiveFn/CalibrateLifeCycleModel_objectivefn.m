@@ -29,7 +29,7 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
             fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
         else
             fprintf(['    ',CalibParamNames{pp},'=  \n'])
-            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))
+            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
         end
     end
 end
@@ -122,10 +122,11 @@ else
 end
 
 
+
 %% Verbose
 if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec(actualtarget); targetmomentvec(actualtarget)]
+    [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     fprintf('Current objective fn value is %8.12f \n', Obj)
 end
 

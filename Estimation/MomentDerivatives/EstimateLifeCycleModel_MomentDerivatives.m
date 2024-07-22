@@ -353,51 +353,13 @@ end
 %% 
 % estimoptions.logmoments can be specified by names
 if isstruct(estimoptions.logmoments)
-    logmomentnames=estimoptions.logmoments;
-    % replace estimoptions.logmoments with a vector as this is what gets used internally
-    estimoptions.logmoments=zeros(length(targetmomentvec),1);
-    if any(fieldnames(logmomentnames),'AllStats')
-        estimoptions.logmoments(1:allstatcummomentsizes(1))=estimoptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
-        for ii=2:size(allstatmomentnames,1)
-            estimoptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=estimoptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
-        end
-    end
-    if any(fieldnames(logmomentnames),'AgeConditionalStats')
-        estimoptions.logmoments(1:acscummomentsizes(1))=estimoptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
-        for ii=2:size(acsmomentnames,1)
-            estimoptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=estimoptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
-        end
-    end
-
-% If estimoptions.logmoments is not a structure, then...
-% estimoptions.logmoments will either be scalar, or a vector of zeros and ones
-%    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
+    error('estimoptions.logmoments can normally be names, but in EstimateLifeCycleModel_MomentDerivatives is must be scalar 0 or 1')
 elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
    % If set this up, and then set up 
    if isscalar(estimoptions.logmoments)
        estimoptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
-        if length(estimoptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert estimoptions.logmoments from being about EstimParamNames
-            temp=estimoptions.logmoments;
-            estimoptions.logmoments=zeros(length(targetmomentvec),1);
-            cumsofar=1;
-            for mm=1:length(temp)
-                if mm<=allstatmomentsizes
-                    estimoptions.logmoments(cumsofar:cumsofar+allstatmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+allstatmomentsizes(mm);
-                else
-                    estimoptions.logmoments(cumsofar:cumsofar+acsmomentsizes(mm))=temp(mm);
-                    cumsofar=cumsofar+acsmomentsizes(mm);
-                end
-            end
-        elseif length(estimoptions.logmoments)==length(targetmomentvec)
-            % This is fine (already in the appropriate form)
-        else
-            fprintf('Relevant to following error: length(estimoptions.logmoments)=%i \n', length(estimoptions.logmoments))
-            fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using estimoptions.logmoments, but length(estimoptions.logmoments) does not match number of moments to estimate [they should be equal]')
-        end
+       error('estimoptions.logmoments can normally be a vector, but in EstimateLifeCycleModel_MomentDerivatives is must be scalar 0 or 1')
    end
    % log of targetmoments [no need to do this as inputs should already be log()]
    % targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
@@ -431,32 +393,124 @@ epsilonmodvec=[1,10^2,10^4,10^6];
 % Default value of epsilon
 eedefault=3; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
 
-for ee=1:4
-    epsilon=epsilonmodvec(ee)*epsilonraw;
 
-    % ObjValue=zeros(length(targetmomentvec),1);
-    ObjValue_upwind=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-    ObjValue_downwind=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-    % J=zeros(length(targetmomentvec),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+
+% First, need the Jacobian matrix, which involves computing all the
+% derivatives of the individual moments with respect to the estimated parameters
+
+estimoptions.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
+% To change the estimoptions, we have to reset EstimateMoMObjectiveFn
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+
+% According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
+% A good step size to compute the derivative of f(x) is epsilon*x with
+epsilonraw=sqrt(2.2)*10^(-8); % Note: this is sqrt(eps(1.d0)), the eps() is Matlab command that gives floating point precision
+% I am going to compute the upper and lower first differences
+% I then use the smallest of the two (as that gives the larger/more conservative, standard deviations)
+
+% Decided to actually do four different values of epsilon, then report J
+% for all so user can see how they look (are the derivatives sensitive to epsilon)
+epsilonmodvec=[1,10^2,10^4,10^6];
+% Default value of epsilon
+eedefault=3; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
+
+%% We want to calculate derivatives from epsilon changes in the model parameters
+% I want to do epsilon change in the model parameter, but here I have
+% the unconstrained parameters. So I create an epsilonparamup and
+% epsilonparamdown, which contain the unconstrained values the
+% correspond to espilon changes in the constrained parameters
+% I do this in a separate loop, which is a loss of runtime, but this is
+% minor and is much easier to read so whatever
+epsilonparamup=zeros(length(estimparamsvec),length(epsilonmodvec));
+epsilonparamdown=zeros(length(estimparamsvec),length(epsilonmodvec));
+modelestimparamsvec=estimparamsvec;
+modelestimparamsvecup=zeros(size(modelestimparamsvec));
+modelestimparamsvecdown=zeros(size(modelestimparamsvec));
+% Switch modelestimparamsvec to the constrained (model) parameters
+for pp=1:length(EstimParamNames)
+    if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
+        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
+        modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+    elseif estimoptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
+        modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+    end
+    % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
+    if estimoptions.constrainAtoB(pp)==1
+        % Constrain parameter to be A to B
+        modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+        % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
+        % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
+    end
+end
+% Now, multiply by (1+-epsilon) and then convert back to unconstrained parameter value
+for ee=1:length(epsilonmodvec)
+    epsilon=epsilonmodvec(ee)*epsilonraw;
+    for pp=1:length(EstimParamNames)
+        if modelestimparamsvec(pp)>10*epsilon
+            modelestimparamsvecup(pp)=(1+epsilon)*modelestimparamsvec(pp); % add epsilon*x to the pp-th parameter
+            modelestimparamsvecdown(pp)=(1-epsilon)*modelestimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
+        else % is the modelestimparamsvec itself is tiny, then actually just add/subtract epsilon to/from x [have to do this for x=0, and this seems a reasonable cutoff]
+            modelestimparamsvecup(pp)=epsilon+modelestimparamsvec(pp); % add epsilon to the pp-th parameter
+            modelestimparamsvecdown(pp)=-epsilon+modelestimparamsvec(pp); % subtract epsilon from the pp-th parameter
+        end
+    end
+    % Switch to the unconstrained
+    if estimoptions.constrainpositive(pp)==1
+        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
+        modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
+        modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
+        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+    end
+    if estimoptions.constrainAtoB(pp)==1
+        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
+        modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
+        modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
+        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
+        % And then the next if-statement converts this 0-to-1 into unconstrained
+    end
+    if estimoptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
+        modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+        modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
+        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
+    end
+    % Store the epsilon parameters
+    epsilonparamup(:,ee)=modelestimparamsvecup;
+    epsilonparamdown(:,ee)=modelestimparamsvecdown;
+
+end
+
+%% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
+for ee=1:length(epsilonmodvec)
+    epsilon=epsilonmodvec(ee)*epsilonraw; % Not actually used for anything (as I used it to create epsilonparamup and epsilonparamdown, and these are used below)
+
+    % ObjValue=zeros(sum(~isnan(targetmomentvec)),1);
+    ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+    ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+    % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
 
     % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
     ObjValue=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
     for pp=1:length(estimparamsvec)
         epsilonparamvec=estimparamsvec;
-        epsilonparamvec(pp)=(1+epsilon)*estimparamsvec(pp); % add epsilon*x to the pp-th parameter
+        epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
         ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
-        epsilonparamvec(pp)=(1-epsilon)*estimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
+        epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
         ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
     end
-    FiniteDifference_up=(ObjValue_upwind-ObjValue)./(epsilon*estimparamsvec');
-    FiniteDifference_down=(ObjValue-ObjValue_downwind)./(epsilon*estimparamsvec');
-    FiniteDifference_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*estimparamsvec');
+
+    % Use finite-difference to compute the derivatives
+    FiniteDifference_up=(ObjValue_upwind-ObjValue)./((epsilonparamup(:,ee)-estimparamsvec)');
+    FiniteDifference_down=(ObjValue-ObjValue_downwind)./((estimparamsvec-epsilonparamdown(:,ee))');
+    FiniteDifference_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
     % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
 
     momentderivsummary.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_up=FiniteDifference_up;
     momentderivsummary.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_down=FiniteDifference_down;
     momentderivsummary.(['epsilon',num2str(epsilonmodvec(ee))]).FiniteDifference_centered=FiniteDifference_centered;
 end
+
 
 
 %% Clean up output
