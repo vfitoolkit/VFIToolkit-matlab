@@ -20,11 +20,12 @@ end
 
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     dbstack
-    error('Not yet supported')
+    error('QuasiHyperbolic Preferences Not yet supported')
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     dbstack
-    error('Not yet supported')
+    error('EpsteinZin Preferences Not yet supported')
 end
+
 
 %% Solve the standard problem
 % Note: being infinite horizon, I don't imagine anyone will come here without z variable
@@ -40,6 +41,16 @@ elseif vfoptions.divideandconquer==1
             [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    elseif length(n_a)==2
+        if n_a(2)<9 || n_a<=vfoptions.level1n % Don't bother with divide-and-conquer on the second endogenous state
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC2B_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC2B_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else % Do divide-and-conquer for both endogenous states
+            error('vfoptions.divideandconquer=1 only implemented for length(n_a)=1; only when there is just one endogenous state')
         end
     else
         error('vfoptions.divideandconquer=1 only implemented for length(n_a)=1; only when there is just one endogenous state')

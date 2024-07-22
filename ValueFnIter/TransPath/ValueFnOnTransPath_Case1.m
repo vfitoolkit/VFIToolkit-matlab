@@ -17,35 +17,54 @@ else
 end
 
 %% Check which vfoptions have been used, set all others to defaults 
+vfoptions.parallel=2; % GPU, has to be or transpath will already have thrown an error
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
-    vfoptions.parallel=1+(gpuDeviceCount>0);
-    vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
+    vfoptions.solnmethod='purediscretization'; % Currently this does nothing
+    vfoptions.divideandconquer=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if ~isfield(vfoptions,'lowmemory')==0
+    if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if isfield(vfoptions,'verbose')==0
+    if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
     if ~isfield(vfoptions,'exoticpreferences')
-    vfoptions.exoticpreferences='None'; 
+        vfoptions.exoticpreferences='None';
     end
-    if ~isfield(vfoptions,'polindorval')==0
+    if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
+        if ~isfield(vfoptions,'quasi_hyperbolic')
+            vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
+        elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
+            fprintf('ERROR: when using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
+            dbstack
+            return
+        end
+    end
+    if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if ~isfield(vfoptions,'policy_forceintegertype')==0
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
+    end
+    if ~isfield(vfoptions,'solnmethod')
+        vfoptions.solnmethod='purediscretization'; % Currently this does nothing
+    end
+    if ~isfield(vfoptions,'divideandconquer')
+        vfoptions.divideandconquer=0;
+    end
+end
+
+if vfoptions.divideandconquer==1
+    if ~isfield(vfoptions,'level1n')
+        vfoptions.level1n=5;
     end
 end
 
@@ -99,14 +118,9 @@ end
 % similar functions the user is likely to be using.
 
 %% Implement new way of handling ReturnFn inputs
-if isempty(ReturnFnParamNames)
-    ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Parameters);
-end
+ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %%
-if ~strcmp(transpathoptions.exoticpreferences,'None')
-    error('Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
-end
 
 if transpathoptions.parallel~=2
     error('A GPU is required for any codes that relate to transition paths')
