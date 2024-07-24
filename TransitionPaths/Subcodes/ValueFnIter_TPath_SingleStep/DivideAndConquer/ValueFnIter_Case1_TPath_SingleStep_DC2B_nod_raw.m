@@ -67,7 +67,7 @@ for ii=1:(vfoptions.level1n-1)
         a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
         zind=shiftdim((0:1:N_z-1),-1); % already includes -1
         allind=a2primeind+N_a2*a2ind+N_a2*N_a2*zind; % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_z
-        Policy(curraindex,:)=shiftdim(maxindexfix+loweredge(allind)-1,1); % NOT SURE ABOUT THIS?
+        Policy(curraindex,:)=shiftdim(maxindexfix+loweredge(allind)-1,1);
     else
         loweredge=maxindex1(1,:,ii,:,:);
         % Just use aprime(ii) for everything
@@ -85,7 +85,7 @@ for ii=1:(vfoptions.level1n-1)
         a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
         zind=shiftdim((0:1:N_z-1),-1); % already includes -1
         allind=a2primeind+N_a2*a2ind+N_a2*N_a2*zind; % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_z
-        Policy(curraindex,:)=shiftdim(maxindexfix+loweredge(allind)-1,1); % NOT SURE ABOUT THIS?
+        Policy(curraindex,:)=shiftdim(maxindexfix+loweredge(allind)-1,1);
     end
 end
 

@@ -64,7 +64,7 @@ end
 
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
-        vfoptions.level1n=5;
+        vfoptions.level1n=5*length(n_a);
     end
 end
 

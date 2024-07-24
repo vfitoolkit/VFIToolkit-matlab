@@ -5,10 +5,11 @@ function varargout=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, Ret
 V=nan; % Matlab was complaining that V was not assigned
 
 %% Check which vfoptions have been used, set all others to defaults 
-if exist('vfoptions','var')==0
+if ~exist('vfoptions','var')
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     vfoptions.solnmethod='purediscretization_refinement'; % if no d variable, will be set to 'purediscretization' below
+    vfoptions.divideandconquer=0;
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
@@ -37,58 +38,61 @@ if exist('vfoptions','var')==0
     vfoptions.outputkron=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'solnmethod')==0
+    if ~isfield(vfoptions,'solnmethod')
         vfoptions.solnmethod='purediscretization_refinement'; % if no d variable, will be set to 'purediscretization' below
     end
-    if isfield(vfoptions,'parallel')==0
+    if ~isfield(vfoptions,'divideandconquer')
+        vfoptions.divideandconquer=0;
+    end
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
     end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1
+    if ~isfield(vfoptions,'returnmatrix')
+        if isa(ReturnFn,'function_handle')
             vfoptions.returnmatrix=0;
         else
             vfoptions.returnmatrix=1;
         end
     end
-    if isfield(vfoptions,'lowmemory')==0
+    if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if isfield(vfoptions,'verbose')==0
+    if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
-     if isfield(vfoptions,'tolerance')==0
+    if ~isfield(vfoptions,'tolerance')
         vfoptions.tolerance=10^(-9);
     end
-    if isfield(vfoptions,'howards')==0
+    if ~isfield(vfoptions,'howards')
         vfoptions.howards=80;
     end  
-    if isfield(vfoptions,'maxhowards')==0
+    if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500;
     end  
-    if isfield(vfoptions,'endogenousexit')==0
+    if ~isfield(vfoptions,'endogenousexit')
         vfoptions.endogenousexit=0;
     end
-    if isfield(vfoptions,'endotype')==0
+    if ~isfield(vfoptions,'endotype')
         vfoptions.endotype=0; % (vector indicating endogenous state is a type)
     end
-    if isfield(vfoptions,'incrementaltype')==0
+    if ~isfield(vfoptions,'incrementaltype')
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
-    if isfield(vfoptions,'polindorval')==0
+    if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if isfield(vfoptions,'policy_forceintegertype')==0
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
     end
-    if isfield(vfoptions,'piz_strictonrowsaddingtoone')==0
+    if ~isfield(vfoptions,'piz_strictonrowsaddingtoone')
         vfoptions.piz_strictonrowsaddingtoone=0;
     end
-    if isfield(vfoptions,'outputkron')==0
+    if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0;
     end
 end
@@ -99,12 +103,14 @@ N_z=prod(n_z);
 
 if isfield(vfoptions,'V0')
     V0=reshape(vfoptions.V0,[N_a,N_z]);
+    vfoptions.actualV0=1;
 else
     if vfoptions.parallel==2
         V0=zeros([N_a,N_z], 'gpuArray');
     else
         V0=zeros([N_a,N_z]);
     end
+    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
 end
 
 
@@ -197,14 +203,6 @@ if vfoptions.parallel==2
    d_grid=gpuArray(d_grid);
    a_grid=gpuArray(a_grid);
    z_grid=gpuArray(z_grid);
-% else
-%    % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-%    % This may be completely unnecessary.
-%    V0=gather(V0);
-%    pi_z=gather(pi_z);
-%    d_grid=gather(d_grid);
-%    a_grid=gather(a_grid);
-%    z_grid=gather(z_grid);
 end
 
 if vfoptions.verbose==1
@@ -481,6 +479,50 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfopti
     if n_d(1)==0
         vfoptions.solnmethod='purediscretization';
     end
+end
+
+
+%% Divide-and-conquer
+if vfoptions.divideandconquer==1
+    if ~isfield(vfoptions,'level1n')
+        if length(n_a)==1
+            vfoptions.level1n=51;
+        elseif length(n_a)==2
+            vfoptions.level1n=[21,21];
+        else
+            error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
+        end
+    end
+    if prod(n_d)==0
+        if length(n_a)==1
+            error('Not yet implemented DC1 no d')
+            % Not sure I can be bothered with this. Will allow big grids, but new GPUs will do this anyway, and is going to be way way slower.
+            % [V,Policy]=ValueFnIter_Case1_DC1_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        elseif length(n_a)==2
+            if vfoptions.level1n(2)>=n_a(2)
+                error('Not yet implemented DC2B no d')
+                % [V,Policy]=ValueFnIter_Case1_DC2B_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            else
+                error('Not yet implemented DC2 no d')
+                % [V,Policy]=ValueFnIter_Case1_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            end
+        end
+    else % N_d
+        if length(n_a)==1
+            error('Not yet implemented DC1')
+            % Not sure I can be bothered with this. Will allow big grids, but new GPUs will do this anyway, and is going to be way way slower.
+            % [V,Policy]=ValueFnIter_Case1_DC1_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+        elseif length(n_a)==2
+            if vfoptions.level1n(2)>=n_a(2)
+                error('Not yet implemented DC2B')
+                % [V,Policy]=ValueFnIter_Case1_DC2B_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            else
+                [V,Policy]=ValueFnIter_Case1_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            end
+        end
+    end
+    varargout={V,Policy};
+    return
 end
 
 

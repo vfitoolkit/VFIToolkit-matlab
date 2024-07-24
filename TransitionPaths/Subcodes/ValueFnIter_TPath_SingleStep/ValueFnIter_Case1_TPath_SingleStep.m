@@ -43,14 +43,18 @@ elseif vfoptions.divideandconquer==1
             [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC1_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif length(n_a)==2
-        if n_a(2)<9 || n_a<=vfoptions.level1n % Don't bother with divide-and-conquer on the second endogenous state
+        if (n_a(2)<9) || (n_a(2)<=vfoptions.level1n(2)) % Don't bother with divide-and-conquer on the second endogenous state
             if N_d==0
                 [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC2B_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC2B_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else % Do divide-and-conquer for both endogenous states
-            error('vfoptions.divideandconquer=1 only implemented for length(n_a)=1; only when there is just one endogenous state')
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC2_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_TPath_SingleStep_DC2_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
         end
     else
         error('vfoptions.divideandconquer=1 only implemented for length(n_a)=1; only when there is just one endogenous state')
