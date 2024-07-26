@@ -102,8 +102,8 @@ for pp=1:length(CalibParamNames)
 
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-10^3);
-        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-49.99);
+        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if caliboptions.constrainAtoB(pp)==1
         % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
@@ -113,8 +113,8 @@ for pp=1:length(CalibParamNames)
     end
     if caliboptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(50,max(-50,  log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
-        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(49.99,max(-49.99,  log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
+        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if caliboptions.constrainpositive(pp)==1 && caliboptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames))])

@@ -1,4 +1,4 @@
-function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, PTypeParamFn, FnsToEvaluate, caliboptions, vfoptions,simoptions)
+function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, FnsToEvaluate, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -103,8 +103,8 @@ for pp=1:length(CalibParamNames)
 
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-10^3);
-        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-49.99);
+        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if caliboptions.constrainAtoB(pp)==1
         % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
@@ -114,8 +114,8 @@ for pp=1:length(CalibParamNames)
     end
     if caliboptions.constrain0to1(pp)==1
         % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(50,max(-50,  log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
-        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
+        calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=min(49.99,max(-49.99,  log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))/(1-calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))) ));
+        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if caliboptions.constrainpositive(pp)==1 && caliboptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames))])
@@ -162,13 +162,21 @@ if usingallstats==1
                     a3vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
                     for a3=1:length(a3vec)
                         allstatmomentcounter=allstatmomentcounter+1;
-                        targetmomentvec=[targetmomentvec,TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})];
+                        if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
+                            targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
+                        else
+                            targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
+                        end
                         allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
                         allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
                     end
                 else
                     allstatmomentcounter=allstatmomentcounter+1;
-                    targetmomentvec=[targetmomentvec,TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})];
+                    if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
+                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                    else
+                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    end
                     allstatmomentnames(allstatmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
                     allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));
                 end
@@ -226,7 +234,7 @@ if usingallstats==1
     end
 else
     % Placeholders
-    allstatmomentnames={};
+    allstatmomentnames=cell(1,3);
     allstatcummomentsizes=0;
     AllStats_whichstats=zeros(7,1);
 end
@@ -249,13 +257,21 @@ if usinglcp==1
                     a3vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
                     for a3=1:length(a3vec)
                         acsmomentcounter=acsmomentcounter+1;
-                        targetmomentvec=[targetmomentvec,TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})];
+                        if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
+                            targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
+                        else
+                            targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
+                        end
                         acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
                         acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
                     end
                 else
                     acsmomentcounter=acsmomentcounter+1;
-                    targetmomentvec=[targetmomentvec,TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})];
+                    if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
+                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                    else
+                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    end
                     acsmomentnames(acsmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
                     acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));
                 end
@@ -313,7 +329,7 @@ if usinglcp==1
     end
 else
     % Placeholders
-    acsmomentnames={};
+    acsmomentnames=cell(1,3);
     acscummomentsizes=0;
     ACStats_whichstats=zeros(7,1);
 end
@@ -334,14 +350,6 @@ end
 if length(caliboptions.weights)~=length(targetmomentvec(actualtarget))
     error('caliboptions.weights is not the length same as number of target moments (ignoring any NaN)')
 end
-
-
-%% If not using PTypeParamFn, put in a placebo function
-if ~isa(PTypeParamFn,'function_handle')
-    PTypeParamFn=@(Parameters) Parameters; % just leave Parameters as they are
-end
-
-
 
 %% Now, a bunch of things to avoid redoing them every parameter vector we want to try
 % Note: I avoid doing this for ReturnFnParamNames because they are so
@@ -491,13 +499,13 @@ if isstruct(caliboptions.logmoments)
 % If caliboptions.logmoments is not a structure, then...
 % caliboptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
+elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
    % If set this up, and then set up 
    if isscalar(caliboptions.logmoments)
        caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
         if length(caliboptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert caliboptions.logmoments from being about EstimParamNames
+            % Covert caliboptions.logmoments from being about CalibParamNames
             temp=caliboptions.logmoments;
             caliboptions.logmoments=zeros(length(targetmomentvec),1);
             cumsofar=1;
@@ -525,8 +533,7 @@ end
 
 
 %% Set up the objective function and the initial calibration parameter vector
-CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, PTypeParamFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions);
-
+CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions)
 
 % calibparamsvec0 is our initial guess for calibparamsvec
 
@@ -595,10 +602,9 @@ end
 
 calibsummary.objvalue=calibobjvalue; % Output the objective value
 
-% Calculate all the model moments (this is something people will often want
-% to look at, and compared to calibration itself runtime cost is negligible)
+% Calculate all the model moments (this is something people will often want to look at, and compared to calibration itself runtime cost is negligible)
 caliboptions.vectoroutput=1;
-calibsummary.calibmoments=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, PTypeParamFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions);
+calibsummary.calibmoments=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions)
 
 
 

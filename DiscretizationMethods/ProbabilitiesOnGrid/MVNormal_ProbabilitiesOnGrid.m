@@ -121,12 +121,11 @@ if bruteforce==0
 
 else 
     %% bruteforce=1
-    % This bruteforce is really just left here for legacy reasons (and so
+    % This bruteforce is just left here for legacy reasons (so
     % you can see that simulating points and then count onto grid and then
-    % normalize will give the same answer, which acts as a double-check on the
-    % above)
+    % normalize will give the same answer, this was just done as a double-check on the above)
 
-    nsample=10^6; % I should make this an option. Note, when I set it to 10^7 I actually got an out-of-memmory error as 'sample' was too big to fit in memory
+    nsample=10^6; % Note, when I set it to 10^7 I actually got an out-of-memmory error as 'sample' was too big to fit in memory
     sample=mvnrnd(Mew,Sigma,nsample);
 
     % Preallocate for speed

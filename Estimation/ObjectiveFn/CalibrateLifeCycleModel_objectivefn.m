@@ -7,11 +7,17 @@ function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames
 for pp=1:length(CalibParamNames)
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))).*(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))>-5); % Note: I force anything less that -50 to evaluate to exp(-50)~=0 rounding off what would otherwise be 10e-22, as otherwise can get stuck wandering around crazy negative numbers 
     elseif caliboptions.constrain0to1(pp)==1
+        temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
-    end 
+        % Note: This does not include the endpoints of 0 and 1 as 1/(1+exp(-x)) maps from the Real line into the open interval (0,1)
+        %       R is not compact, and [0,1] is compact, so cannot have a continuous bijection (one-to-one and onto) function from R into [0,1].
+        %       So I settle for a function from R to (0,1) and then trim ends of R to give 0 and 1, like I do for constrainpositive I use +-50 as the cutoffs
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)).*(temp>-50); % set values less than -50 to zero
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)).*(1-(temp>50))+(temp>50); % set values greater than 50 to one
+    end
     % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
     if caliboptions.constrainAtoB(pp)==1
         % Constrain parameter to be A to B
@@ -20,7 +26,6 @@ for pp=1:length(CalibParamNames)
         % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
     end
 end
-
 
 if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current parameter values: \n')

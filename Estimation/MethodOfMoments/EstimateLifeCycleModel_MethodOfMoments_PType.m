@@ -1,4 +1,4 @@
-function [EstimParams, EstimParamsConfInts,estsummary]=EstimateLifeCycleModel_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions)
+function [EstimParams, EstimParamsConfInts,estsummary]=EstimateLifeCycleModel_MethodOfMoments_PType(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, estimoptions, vfoptions,simoptions)
 % Note: Inputs are EstimParamNames,TargetMoments, WeightingMatrix, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is estimoptions.
@@ -130,7 +130,9 @@ end
 
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
+estimparamssizes=zeros(length(EstimParamNames),1); % with PType, some parameters may be matrices (depend on both j and i)
 for pp=1:length(EstimParamNames)
+    estimparamssizes(pp,1:2)=size(Parameters.(EstimParamNames{pp}));
     % Get all the parameters
     if size(Parameters.(EstimParamNames{pp}),2)==1
         estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})];
@@ -194,14 +196,17 @@ end
 % NEED TO ADD A CHECK THAT THE INPUT TARGETS ARE THE CORRECT SIZES!!!
 
 
+
+% PType means we need the third level a3vec
+
 % Get all of the moments out of TargetMoments and make them into a vector
 % Also, store all the names
 targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
-% Ends up a colmumn vector
+% Ends up a colmumn vector (create row vector, then transpose)
 
 % First, do those in AllStats
 if usingallstats==1
-    allstatmomentnames={};
+    allstatmomentnames=cell(1,3);
     allstatmomentcounter=0;
     allstatmomentsizes=0;
     if isfield(TargetMoments,'AllStats')
@@ -209,15 +214,28 @@ if usingallstats==1
         for a1=1:length(a1vec)
             a2vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}));% These will be Mean, etc
             for a2=1:length(a2vec)
-                allstatmomentcounter=allstatmomentcounter+1;
-                if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
-                    targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                if isstruct(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}))
+                    a3vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
+                    for a3=1:length(a3vec)
+                        allstatmomentcounter=allstatmomentcounter+1;
+                        if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
+                            targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
+                        else
+                            targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
+                        end
+                        allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
+                        allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
+                    end
                 else
-                    targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    allstatmomentcounter=allstatmomentcounter+1;
+                    if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
+                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                    else
+                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    end
+                    allstatmomentnames(allstatmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
+                    allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));
                 end
-                allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2}};
-                allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));
-                % Note: PType will require an extra possible level of depth where this is still a structure (for ptype specific moments)
             end
         end
     end
@@ -249,17 +267,41 @@ if usingallstats==1
     if any(strcmp(allstatmomentnames(:,2),'MoreInequality'))
         AllStats_whichstats(7)=1;
     end
+    if any(strcmp(allstatmomentnames(:,3),'Mean'))
+        AllStats_whichstats(1)=1;
+    end
+    if any(strcmp(allstatmomentnames(:,3),'Median'))
+        AllStats_whichstats(2)=1;
+    end
+    if any(strcmp(allstatmomentnames(:,3),'Variance')) || any(strcmp(allstatmomentnames(:,3),'StdDeviation'))
+        AllStats_whichstats(3)=1;
+    end
+    if any(strcmp(allstatmomentnames(:,3),'LorenzCurve')) || any(strcmp(allstatmomentnames(:,3),'Gini'))
+        AllStats_whichstats(4)=1;
+    end
+    if any(strcmp(allstatmomentnames(:,3),'Maximum')) || any(strcmp(allstatmomentnames(:,3),'Minimum'))
+        AllStats_whichstats(5)=1;
+    end
+    if any(strcmp(allstatmomentnames(:,3),'QuantileCutoffs')) || any(strcmp(allstatmomentnames(:,3),'QuantileMeans'))
+        AllStats_whichstats(5)=1;
+    end
+    if any(strcmp(allstatmomentnames(:,3),'MoreInequality'))
+        AllStats_whichstats(7)=1;
+    end
 else
     % Placeholders
-    allstatmomentnames={};
+    allstatmomentnames=cell(1,3);
     allstatcummomentsizes=0;
     AllStats_whichstats=zeros(7,1);
 end
 
 
+
+
+
 % Second, do those in AgeConditionalStats
 if usinglcp==1
-    acsmomentnames={};
+    acsmomentnames=cell(1,3);
     acsmomentcounter=0;
     acsmomentsizes=0;
     if isfield(TargetMoments,'AgeConditionalStats')
@@ -267,15 +309,28 @@ if usinglcp==1
         for a1=1:length(a1vec)
             a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));% These will be Mean, etc
             for a2=1:length(a2vec)
-                acsmomentcounter=acsmomentcounter+1;
-                if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
-                    targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                if isstruct(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}))
+                    a3vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
+                    for a3=1:length(a3vec)
+                        acsmomentcounter=acsmomentcounter+1;
+                        if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
+                            targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
+                        else
+                            targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
+                        end
+                        acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
+                        acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
+                    end
                 else
-                    targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    acsmomentcounter=acsmomentcounter+1;
+                    if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
+                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
+                    else
+                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
+                    end
+                    acsmomentnames(acsmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
+                    acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));
                 end
-                acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2}};
-                acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));
-                % Note: PType will require an extra possible level of depth where this is still a structure (for ptype specific moments)
             end
         end
     end
@@ -307,11 +362,39 @@ if usinglcp==1
     if any(strcmp(acsmomentnames(:,2),'MoreInequality'))
         ACStats_whichstats(7)=1;
     end
+    if any(strcmp(acsmomentnames(:,3),'Mean'))
+        ACStats_whichstats(1)=1;
+    end
+    if any(strcmp(acsmomentnames(:,3),'Median'))
+        ACStats_whichstats(2)=1;
+    end
+    if any(strcmp(acsmomentnames(:,3),'Variance')) || any(strcmp(acsmomentnames(:,3),'StdDeviation'))
+        ACStats_whichstats(3)=1;
+    end
+    if any(strcmp(acsmomentnames(:,3),'LorenzCurve')) || any(strcmp(acsmomentnames(:,3),'Gini'))
+        ACStats_whichstats(4)=1;
+    end
+    if any(strcmp(acsmomentnames(:,3),'Maximum')) || any(strcmp(acsmomentnames(:,3),'Minimum'))
+        ACStats_whichstats(5)=1;
+    end
+    if any(strcmp(acsmomentnames(:,3),'QuantileCutoffs')) || any(strcmp(acsmomentnames(:,3),'QuantileMeans'))
+        ACStats_whichstats(5)=1;
+    end
+    if any(strcmp(acsmomentnames(:,3),'MoreInequality'))
+        ACStats_whichstats(7)=1;
+    end
 else
     % Placeholders
-    acsmomentnames={};
+    acsmomentnames=cell(1,3);
     acscummomentsizes=0;
     ACStats_whichstats=zeros(7,1);
+end
+% age-conditional stats should be of length N_j
+for ii=1:length(acsmomentsizes)
+    if acsmomentsizes(ii)~=N_j
+        errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', acsmomentnames{ii,1}, ' ', acsmomentnames{ii,2}, ' ',acsmomentnames{ii,3},' \n'];
+        error(errorstr)
+    end
 end
 
 
@@ -488,8 +571,7 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
-
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimoptions, vfoptions,simoptions);
 
 % estimparamsvec0 is our initial guess for estimparamsvec
 
@@ -515,7 +597,7 @@ if estimoptions.skipestimation==0
         % supported functions, and the objective here is not a supported function
     elseif estimoptions.fminalgo==3
         goal=zeros(length(estimparamsvec0),1);
-        weight=ones(length(estimparamsvec0),1); % I already implement weights via caliboptions
+        weight=ones(length(estimparamsvec0),1); % I already implement weights via estimoptions
         [estimparamsvec,calibsummaryVec] = fgoalattain(EstimateMoMObjectiveFn,estimparamsvec0,goal,weight);
         fval=sum(abs(calibsummaryVec));
     elseif estimoptions.fminalgo==4 % CMA-ES algorithm (Covariance-Matrix adaptation - Evolutionary Stategy)
@@ -542,11 +624,11 @@ if estimoptions.skipestimation==0
         estimoptions.cmaesoutputs.out=out;
         estimoptions.cmaesoutputs.bestever=bestever;
     elseif estimoptions.fminalgo==5
-        % Update based on rules in caliboptions.fminalgo5.howtoupdate
+        % Update based on rules in estimoptions.fminalgo5.howtoupdate
         error('fminalgo=5 is not possible with model calibration/estimation')
     elseif estimoptions.fminalgo==6
         if ~isfield(estimoptions,'lb') || ~isfield(estimoptions,'ub')
-            error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub')
+            error('When using constrained optimization (estimoptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using estimoptions.lb and estimoptions.ub')
         end
         [estimparamsvec,fval]=fmincon(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],estimoptions.lb,estimoptions.ub,[],minoptions);
     end
@@ -572,8 +654,6 @@ if estimoptions.bootstrapStdErrors==0
     % derivatives of the individual moments with respect to the estimated parameters
 
     estimoptions.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
-    % To change the estimoptions, we have to reset EstimateMoMObjectiveFn
-    EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
 
     % According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
     % A good step size to compute the derivative of f(x) is epsilon*x with
@@ -664,13 +744,13 @@ if estimoptions.bootstrapStdErrors==0
         % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
 
         % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
-        ObjValue=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+        ObjValue=CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimoptions, vfoptions,simoptions);
         for pp=1:length(estimparamsvec)
             epsilonparamvec=estimparamsvec;
             epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
-            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimoptions, vfoptions,simoptions);
             epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
-            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimoptions, vfoptions,simoptions);
         end
 
         % Use finite-difference to compute the derivatives

@@ -1,4 +1,4 @@
-function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, PTypeParamFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -8,11 +8,17 @@ function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibPara
 for pp=1:length(CalibParamNames)
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))).*(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))>-5); % Note: I force anything less that -50 to evaluate to exp(-50)~=0 rounding off what would otherwise be 10e-22, as otherwise can get stuck wandering around crazy negative numbers 
     elseif caliboptions.constrain0to1(pp)==1
+        temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
-    end 
+        % Note: This does not include the endpoints of 0 and 1 as 1/(1+exp(-x)) maps from the Real line into the open interval (0,1)
+        %       R is not compact, and [0,1] is compact, so cannot have a continuous bijection (one-to-one and onto) function from R into [0,1].
+        %       So I settle for a function from R to (0,1) and then trim ends of R to give 0 and 1, like I do for constrainpositive I use +-50 as the cutoffs
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)).*(temp>-50); % set values less than -50 to zero
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)).*(1-(temp>50))+(temp>50); % set values greater than 50 to one
+    end
     % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
     if caliboptions.constrainAtoB(pp)==1
         % Constrain parameter to be A to B
@@ -22,15 +28,14 @@ for pp=1:length(CalibParamNames)
     end
 end
 
-
-if caliboptions.verbose==1
+if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current parameter values: \n')
     for pp=1:length(CalibParamNames)
         if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
             fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
         else
             fprintf(['    ',CalibParamNames{pp},'=  \n'])
-            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))
+            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
         end
     end
 end
@@ -38,10 +43,6 @@ end
 for pp=1:length(CalibParamNames)
     Parameters.(CalibParamNames{pp})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
 end
-
-
-% Some PType parameters may be parametrized by other parameters
-Parameters=PTypeParamFn(Parameters);
 
 
 %% Solve the model and calculate the stats
@@ -58,6 +59,9 @@ if usinglcp==1
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,N_i,d_grid,a_grid,z_gridvals_J,simoptions);
 end
 
+if caliboptions.simulatemoments==1
+    error('simulatemoments=1 option is not supported for PType')
+end
 
 
 %% Get current values of the target moments as a vector
@@ -102,7 +106,7 @@ else
     % currentmomentvec is the current moment values
     % targetmomentvec is the target moment values
     % Both are column vectors
-    
+
     % Note: MethodOfMoments and sum_squared are doing the same calculation, I
     % just write them in ways that make it more obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
@@ -121,11 +125,13 @@ end
 
 
 %% Verbose
-if caliboptions.verbose==1
+if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec(actualtarget); targetmomentvec(actualtarget)]
+    [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     fprintf('Current objective fn value is %8.12f \n', Obj)
 end
+
+
 
 
 
