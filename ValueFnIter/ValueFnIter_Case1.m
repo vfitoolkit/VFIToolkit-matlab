@@ -27,6 +27,7 @@ if ~exist('vfoptions','var')
     vfoptions.tolerance=10^(-9);
     vfoptions.howards=80;
     vfoptions.maxhowards=500;
+    vfoptions.maxiter=Inf;
     vfoptions.endogenousexit=0;
     vfoptions.endotype=0; % (vector indicating endogenous state is a type)
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
@@ -72,6 +73,9 @@ else
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500;
     end  
+    if ~isfield(vfoptions,'maxiter')
+        vfoptions.maxiter=Inf;
+    end
     if ~isfield(vfoptions,'endogenousexit')
         vfoptions.endogenousexit=0;
     end
@@ -499,13 +503,13 @@ if vfoptions.divideandconquer==1
             % Not sure I can be bothered with this. Will allow big grids, but new GPUs will do this anyway, and is going to be way way slower.
             % [V,Policy]=ValueFnIter_Case1_DC1_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif length(n_a)==2
-            if vfoptions.level1n(2)>=n_a(2)
-                error('Not yet implemented DC2B no d')
+            % if vfoptions.level1n(2)>=n_a(2)
+                % error('Not yet implemented DC2B no d')
                 % [V,Policy]=ValueFnIter_Case1_DC2B_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            else
-                error('Not yet implemented DC2 no d')
-                % [V,Policy]=ValueFnIter_Case1_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            end
+            % else
+            vfoptions.level1n=max(vfoptions.level1n,n_a);
+            [V,Policy]=ValueFnIter_Case1_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            % end
         end
     else % N_d
         if length(n_a)==1
@@ -513,12 +517,13 @@ if vfoptions.divideandconquer==1
             % Not sure I can be bothered with this. Will allow big grids, but new GPUs will do this anyway, and is going to be way way slower.
             % [V,Policy]=ValueFnIter_Case1_DC1_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
         elseif length(n_a)==2
-            if vfoptions.level1n(2)>=n_a(2)
-                error('Not yet implemented DC2B')
+            % if vfoptions.level1n(2)>=n_a(2)
+                % error('Not yet implemented DC2B')
                 % [V,Policy]=ValueFnIter_Case1_DC2B_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            else
-                [V,Policy]=ValueFnIter_Case1_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            end
+            % else
+            vfoptions.level1n=max(vfoptions.level1n,n_a);
+            [V,Policy]=ValueFnIter_Case1_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            % end
         end
     end
     varargout={V,Policy};
@@ -583,7 +588,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron,Policy]=ValueFnIter_Case1_NoD_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             elseif vfoptions.parallel==2 % On GPU
-                [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
+                [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
             end
         else
             if vfoptions.parallel==0 % On CPU
@@ -743,6 +748,7 @@ if vfoptions.verbose==1
     disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
     tic;
 end
+
 %% Cleaning up the output
 if vfoptions.outputkron==0
     V=reshape(VKron,[n_a,n_z]);

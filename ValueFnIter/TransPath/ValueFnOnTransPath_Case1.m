@@ -132,6 +132,10 @@ end
 if transpathoptions.verbose==1
     transpathoptions
 end
+if vfoptions.verbose==1
+    vfoptions
+end
+
 
 N_d=prod(n_d);
 N_z=prod(n_z);
@@ -157,6 +161,9 @@ end
 
 VKronPath=zeros(N_a,N_z,T);
 VKronPath(:,:,T)=V_final;
+
+
+
 
 %%
 if N_d==0

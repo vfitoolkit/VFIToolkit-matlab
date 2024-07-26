@@ -14,10 +14,6 @@ d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_gridvals=gpuArray(z_gridvals);
 
-if vfoptions.verbose==1
-    vfoptions
-end
-
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     dbstack
     error('QuasiHyperbolic Preferences Not yet supported')
