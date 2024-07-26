@@ -45,11 +45,11 @@ V(curraindex,:)=shiftdim(Vtempii,1);
 Policy(curraindex,:)=shiftdim(maxindex2,1);
 
 % Attempt for improved version
-maxgap=max(max(max(maxindex1(1,:,2:end,:,:)-maxindex1(1,:,1:end-1,:,:),[],5),[],4),[],2);
+maxgap=squeeze(max(max(max(maxindex1(1,:,2:end,:,:)-maxindex1(1,:,1:end-1,:,:),[],5),[],4),[],2));
 for ii=1:(vfoptions.level1n-1)
     curraindex=repmat((level1ii(ii)+1:1:level1ii(ii+1)-1)',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',level1iidiff(ii),1);
     if maxgap(ii)>0
-        loweredge=min(maxindex1(1,:,ii,:,:),N_a1-maxgap(1,:,ii,:,:)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+        loweredge=min(maxindex1(1,:,ii,:,:),N_a1-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
         % loweredge is 1-by-n_a2-by-1-by-n_a2-by-n_z
         aprimeindexes=loweredge+(0:1:maxgap(ii))';
         % aprime possibilities are maxgap(ii)+1-n_a2-by-1-by-n_a2-by-n_z

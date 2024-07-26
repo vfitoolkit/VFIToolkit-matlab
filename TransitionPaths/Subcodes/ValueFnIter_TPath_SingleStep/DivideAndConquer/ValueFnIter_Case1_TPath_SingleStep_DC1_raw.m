@@ -46,17 +46,16 @@ V(level1ii,:)=shiftdim(Vtempii,2);
 Policy(level1ii,:)=shiftdim(maxindex2,2)+N_d*(reshape(maxindex1d,[vfoptions.level1n,N_z])-1); % d,aprime
 
 % Attempt for improved version
-maxgap=max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1);
-
+maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
 for ii=1:(vfoptions.level1n-1)
     if maxgap(ii)>0
-        loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(:,1,ii,:)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+        loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
         % loweredge is n_d-by-1-by-n_z
         aprimeindexes=loweredge+(0:1:maxgap(ii));
         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
-        daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*(maxgap(ii)+1),level1iidiff(ii),N_z]));
+        daprimez=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*(maxgap(ii)+1),1,N_z])); % autofill level1iidiff(ii) in 2nd dimension
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d and z)
@@ -64,8 +63,8 @@ for ii=1:(vfoptions.level1n-1)
         loweredge=maxindex1(:,1,ii,:);
         % Just use aprime(ii) for everything
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
-        daprimez=(1:1:N_d)'+N_d*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d*1,level1iidiff(ii),N_z]));
+        daprimez=(1:1:N_d)'+N_d*(loweredge-1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,1,N_z])); % autofill level1iidiff(ii) in 2nd dimension
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d and z)
