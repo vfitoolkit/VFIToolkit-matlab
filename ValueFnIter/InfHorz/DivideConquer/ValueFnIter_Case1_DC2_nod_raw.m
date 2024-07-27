@@ -20,29 +20,29 @@ level12jjdiff=level12jj(2:end)-level12jj(1:end-1)+1; % Note: For 2D this include
 
 %% Start by setting up ReturnFn for the first-level (as we can reuse this every iteration)
 ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level11ii), a2_grid(level12jj), z_gridvals, ReturnFnParamsVec,1);
-if vfoptions.actualV0==0
-    %% Solve first-level ignoring the second level
-    % This will hopefully work to give a good initial guess for the second level
-
-    lvl1aprimeindexes=repmat(level11ii',vfoptions.level1n(2),1)+vfoptions.level1n(1)*(repelem(level12jj',vfoptions.level1n(1),1)-1);
-
-    % Now, do value function iteration on just this first level (we already did Refine, so no d variable)
-    [V,~]=ValueFnIter_Case1_NoD_Par2_raw(zeros(prod(vfoptions.level1n),N_z,'gpuArray'), vfoptions.level1n, n_z, pi_z, DiscountFactorParamsVec, reshape(ReturnMatrixLvl1(lvl1aprimeindexes,:,:,:),[prod(vfoptions.level1n),prod(vfoptions.level1n),N_z]), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
-    % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
-
-    % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
-
-    V=interp3(reshape(V,[vfoptions.level1n(1),vfoptions.level1n(2),N_z]),linspace(1,vfoptions.level1n(2),N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
-    % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
-    %       So X and Y are 'reversed' from what you would expect them to be.
-    % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
-
-    if vfoptions.verbose==1
-        fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
-    end
-else
-    V=reshape(V0,[N_a1,N_a2,N_z]);
-end
+% if vfoptions.actualV0==0
+%     %% Solve first-level ignoring the second level
+%     % This will hopefully work to give a good initial guess for the second level
+% 
+%     lvl1aprimeindexes=repmat(level11ii',vfoptions.level1n(2),1)+vfoptions.level1n(1)*(repelem(level12jj',vfoptions.level1n(1),1)-1);
+% 
+%     % Now, do value function iteration on just this first level
+%     [V,~]=ValueFnIter_Case1_NoD_Par2_raw(zeros(prod(vfoptions.level1n),N_z,'gpuArray'), vfoptions.level1n, n_z, pi_z, DiscountFactorParamsVec, reshape(ReturnMatrixLvl1(lvl1aprimeindexes,:,:,:),[prod(vfoptions.level1n),prod(vfoptions.level1n),N_z]), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
+%     % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
+% 
+%     % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
+% 
+%     V=interp3(reshape(V,[vfoptions.level1n(1),vfoptions.level1n(2),N_z]),linspace(1,vfoptions.level1n(2),N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
+%     % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
+%     %       So X and Y are 'reversed' from what you would expect them to be.
+%     % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
+% 
+%     if vfoptions.verbose==1
+%         fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
+%     end
+% else
+V=reshape(V0,[N_a1,N_a2,N_z]);
+% end
 
 
 
@@ -75,10 +75,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     EV=sum(EV,3); % sum over z', leaving a singular third dimension
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_a1*N_a2,1,1,N_z]);
 
-    % n-Monotonicity
-    ReturnMatrix_iijj=CreateReturnFnMatrix_Case1_Disc_DC2_nod_Par2(ReturnFn, n_z, a1_grid, a2_grid, a1_grid(level11ii), a2_grid(level12jj), z_gridvals, ReturnFnParamsVec,1);
-
-    entireRHS_ii=ReturnMatrix_iijj+DiscountedEV; % autoexpand (a,z)
+    entireRHS_ii=ReturnMatrixLvl1+DiscountedEV; % autoexpand (a,z)
 
     % Calc the max and it's index
     [~,maxindex1]=max(entireRHS_ii,[],1); % Vtempii

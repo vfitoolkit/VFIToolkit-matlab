@@ -504,26 +504,24 @@ if vfoptions.divideandconquer==1
             error('Not yet implemented DC1 no d')
             % Not sure I can be bothered with this. Will allow big grids, but new GPUs will do this anyway, and is going to be way way slower.
         elseif length(n_a)==2
-            % if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-                % vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-                % error('Not yet implemented DC2B no d')
-                % [V,Policy]=ValueFnIter_Case1_DC2B_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            % else
-            [V,Policy]=ValueFnIter_Case1_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            % end
+            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
+                vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
+                [V,Policy]=ValueFnIter_Case1_DC2B_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            else
+                [V,Policy]=ValueFnIter_Case1_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            end
         end
     else % N_d
         if length(n_a)==1
             error('Not yet implemented DC1')
             % Not sure I can be bothered with this. Will allow big grids, but new GPUs will do this anyway, and is going to be way way slower.
         elseif length(n_a)==2
-            % if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-                % vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-                % error('Not yet implemented DC2B')
-                % [V,Policy]=ValueFnIter_Case1_DC2B_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            % else
-            [V,Policy]=ValueFnIter_Case1_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            % end
+            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
+                vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
+                [V,Policy]=ValueFnIter_Case1_DC2B_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            else
+                [V,Policy]=ValueFnIter_Case1_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+            end
         end
     end
     varargout={V,Policy};

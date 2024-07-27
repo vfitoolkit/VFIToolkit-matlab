@@ -32,9 +32,6 @@ EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them wi
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 entireEV=repmat(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
 
-% disp('size entireEV')
-% size(entireEV)
-
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, z_gridvals, ReturnFnParamsVec,1);
 

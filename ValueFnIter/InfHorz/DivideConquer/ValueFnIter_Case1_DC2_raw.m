@@ -22,35 +22,34 @@ level12jjdiff=level12jj(2:end)-level12jj(1:end-1)+1; % Note: For 2D this include
 
 %% Start by setting up ReturnFn for the first-level (as we can reuse this every iteration)
 ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_Disc_DC2_Par2(ReturnFn, n_d, n_z, d_gridvals, a1_grid, a2_grid, a1_grid(level11ii), a2_grid(level12jj), z_gridvals, ReturnFnParamsVec, 1);
-if vfoptions.actualV0==0
-    %% Solve first-level ignoring the second level
-    % This will hopefully work to give a good initial guess for the second level
-    % We can use 'Refine' on this first level: http://discourse.vfitoolkit.com/t/pure-discretization-with-refinement/206
-
-    % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
-    [ReturnMatrixLvl1_refined,~]=max(reshape(ReturnMatrixLvl1,[N_d,N_a1*N_a2,prod(vfoptions.level1n),N_z]),[],1);
-    ReturnMatrixLvl1_refined=shiftdim(ReturnMatrixLvl1_refined,1);
-
-    lvl1aprimeindexes=repmat(level11ii',vfoptions.level1n(2),1)+vfoptions.level1n(1)*(repelem(level12jj',vfoptions.level1n(1),1)-1);
-
-    % Now, do value function iteration on just this first level (we already did Refine, so no d variable)
-    [V,~]=ValueFnIter_Case1_NoD_Par2_raw(zeros(prod(vfoptions.level1n),N_z,'gpuArray'), vfoptions.level1n, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrixLvl1_refined(lvl1aprimeindexes,:,:), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
-    % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
-
-    % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
-
-    V=interp3(reshape(V,[vfoptions.level1n(1),vfoptions.level1n(2),N_z]),linspace(1,vfoptions.level1n(2),N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
-    % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
-    %       So X and Y are 'reversed' from what you would expect them to be.
-    % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
-
-    if vfoptions.verbose==1
-        fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
-    end
-else
-    disp('Using V0')
-    V=reshape(V0,[N_a1,N_a2,N_z]);
-end
+% if vfoptions.actualV0==0
+%     %% Solve first-level ignoring the second level
+%     % This will hopefully work to give a good initial guess for the second level
+%     % We can use 'Refine' on this first level: http://discourse.vfitoolkit.com/t/pure-discretization-with-refinement/206
+% 
+%     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
+%     [ReturnMatrixLvl1_refined,~]=max(reshape(ReturnMatrixLvl1,[N_d,N_a1*N_a2,prod(vfoptions.level1n),N_z]),[],1);
+%     ReturnMatrixLvl1_refined=shiftdim(ReturnMatrixLvl1_refined,1);
+% 
+%     lvl1aprimeindexes=repmat(level11ii',vfoptions.level1n(2),1)+vfoptions.level1n(1)*(repelem(level12jj',vfoptions.level1n(1),1)-1);
+% 
+%     % Now, do value function iteration on just this first level (we already did Refine, so no d variable)
+%     [V,~]=ValueFnIter_Case1_NoD_Par2_raw(zeros(prod(vfoptions.level1n),N_z,'gpuArray'), vfoptions.level1n, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrixLvl1_refined(lvl1aprimeindexes,:,:), vfoptions.howards, vfoptions.maxhowards, 100*vfoptions.tolerance, vfoptions.maxiter);
+%     % Note: uses 100*vfoptions.tolerance, as it is just an intial guess
+% 
+%     % Turn this V, which is currently only on the first level grid, into a full V by linear interpolation
+% 
+%     V=interp3(reshape(V,[vfoptions.level1n(1),vfoptions.level1n(2),N_z]),linspace(1,vfoptions.level1n(2),N_a2),linspace(1,vfoptions.level1n(1),N_a1)',(1:1:N_z));
+%     % Note: For reasons known only to matlab, you use interp3(V,Xq,Yq,Zq) with X=1:n, Y=1:m, Z=1:p, where [m,n,p] = size(V).
+%     %       So X and Y are 'reversed' from what you would expect them to be.
+%     % Weird behaviour, presumably something to do with how Matlab views columns as the first dimension.
+% 
+%     if vfoptions.verbose==1
+%         fprintf('Created the initial guess for V based on level 1 of divide-and-conquer \n')
+%     end
+% else
+V=reshape(V0,[N_a1,N_a2,N_z]);
+% end
 
 
 %% Now that we are armed with a (hopefully decent) initial guess, we can get on with the full problem
