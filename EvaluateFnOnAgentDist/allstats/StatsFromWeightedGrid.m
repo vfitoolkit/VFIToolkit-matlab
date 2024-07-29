@@ -50,7 +50,7 @@ elseif presorted==1
     SortedWeights=Weights;
 end
 WeightedSortedValues=SortedValues.*SortedWeights;
-if any(whichstats(4:7)==1) || whichstats(2)==1
+if any(whichstats(4:7)>=1) || whichstats(2)==1
     CumSumSortedWeights=cumsum(SortedWeights); % not needed if only want mean, median and std dev (& variance)
 end
 
@@ -84,7 +84,7 @@ if SortedValues(1)==SortedValues(end)
         AllStats.Maximum=SortedValues(1);
         AllStats.Minimum=SortedValues(1);
     end
-    if whichstats(6)==1
+    if whichstats(6)>=1
         AllStats.QuantileCutoffs=nan(nquantiles+1,1,'gpuArray');
         AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
     end
@@ -146,7 +146,7 @@ else
         end
     end
     
-    if whichstats(5)==1 || whichstats(6)==1 % note: anyway need min/max for quantile cutoffs
+    if whichstats(5)==1 || whichstats(6)>=1 % note: anyway need min/max for quantile cutoffs
         % Min value
         tempindex=find(CumSumSortedWeights>=tolerance,1,'first');
         minvalue=SortedValues(tempindex);
@@ -172,16 +172,32 @@ else
                 [~,quantilecutoffindexes_quantilec]=max(CumSumSortedWeights >= quantilecvec(quantilecind));
                 quantilecutoffindexes(quantilecind)=quantilecutoffindexes_quantilec;
             end
-            % [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
             AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
             % Note: following lines replace /(1/nquantiles) with *nquantiles
-            QuantileMeans(1)=(sum(WeightedSortedValues(1:quantilecutoffindexes(1)))-SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles))*nquantiles;
+            QuantileMeans(1)=sum(WeightedSortedValues(1:quantilecutoffindexes(1)))  -SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles);
             for ll=2:nquantiles-1
-                QuantileMeans(ll)=(sum(WeightedSortedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll)))-SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)+SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles))*nquantiles;
+                QuantileMeans(ll)=sum(WeightedSortedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll)))  -SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)  +SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles);
             end
-            QuantileMeans(nquantiles)=(sum(WeightedSortedValues(quantilecutoffindexes(nquantiles-1)+1:end))+SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles))*nquantiles;
-            AllStats.QuantileMeans=QuantileMeans;
+            QuantileMeans(nquantiles)=sum(WeightedSortedValues(quantilecutoffindexes(nquantiles-1)+1:end))  +SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles);
+            AllStats.QuantileMeans=QuantileMeans*nquantiles;
         end
+    elseif whichstats(6)==2 % Vectorizes so faster, but uses more memory (can cause out of memory errors if you have large nquantiles, hence it is not the default)
+        if nquantiles>0
+            if nquantiles==1
+                error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
+            end
+            % Calculate the quantile means (ventiles by default)
+            % Calculate the quantile cutoffs (ventiles by default)
+            % QuantileMeans=zeros(nquantiles,1,'gpuArray');
+            [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
+            AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
+
+            quantilecutoffindexes_lower=[1,quantilecutoffindexes];
+            quantilecutoffindexes_upper=[quantilecutoffindexes,numel(SortedValues)];
+
+            QuantileMeans=sum(WeightedSortedValues(quantilecutoffindexes_lower:quantilecutoffindexes_upper))  -SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles)  +SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
+            AllStats.QuantileMeans=QuantileMeans*nquantiles;
+        end        
     end
     
     if whichstats(7)==1

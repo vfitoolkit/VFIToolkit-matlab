@@ -10,7 +10,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20;
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
-    % simoptions.conditionalrestrictions
+    % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being non-zero.
 else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
@@ -27,7 +27,7 @@ else
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
-    % simoptions.conditionalrestrictions
+    % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being non-zero.
 end
 
 
@@ -64,17 +64,77 @@ else
     FnsToEvaluateStruct=0;
 end
 
-%%
+%% I want to do some things now, so that they can be used in setting up conditional restrictions
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-
 if simoptions.parallel==2
+
     StationaryDistVec=gpuArray(StationaryDistVec);
     PolicyIndexes=gpuArray(PolicyIndexes);
-    
+
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+end
+
+%% If there are any conditional restrictions, set up for these
+% Evaluate AllStats, but conditional on the restriction being non-zero.
+
+useCondlRest=0;
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
+if isfield(simoptions,'conditionalrestrictions')
+    if simoptions.parallel~=2
+        error('simoptions.conditionalrestrictions can only be used with GPU')
+    end
+    
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+
+    restrictedsamplemass=nan(length(CondlRestnFnNames),1);
+    RestrictionStruct=struct();
+
+    % For each conditional restriction, create a 'restricted stationary distribution'
+    for rr=1:length(CondlRestnFnNames)
+        % Get parameter names for Conditional Restriction functions
+        temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}));
+        if length(temp)>(l_d+l_a+l_a+l_z)
+            CondlRestnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            CondlRestnFnParamNames={};
+        end
+        % Get parameter values for Conditional Restriction functions
+        if isempty(CondlRestnFnParamNames) % check for '={}'
+            CondlRestnFnParamsVec=[];
+        else
+            CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames);
+        end
+        % Store the actual functions
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+
+        RestrictionValues=logical(EvalFnOnAgentDist_Grid_Case1(CondlRestnFn, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel));
+        RestrictionValues=reshape(RestrictionValues,[N_a*N_z,1]);
+
+        RestrictedStationaryDistVec=StationaryDistVec;
+        RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
         
+        % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
+        restrictedsamplemass(rr)=sum(StationaryDistVec(RestrictionValues));
+        RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(rr);
+
+        if restrictedsamplemass(rr)==0
+            warning('One of the conditional restrictions evaluates to a zero mass')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+            AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass(rr); % Just return this and hopefully it is clear to the user
+        else
+            AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass(rr); % Seems likely this would be something user might want
+        end
+
+    end
+end
+
+%%
+
+if simoptions.parallel==2
+
     for ff=1:length(FnsToEvalNames)
         % Includes check for cases in which no parameters are actually required
         if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
@@ -87,9 +147,23 @@ if simoptions.parallel==2
         Values=reshape(Values,[N_a*N_z,1]);
 
         AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+
+        %% If there are any conditional restrictions then deal with these
+        % Evaluate AllStats, but conditional on the restriction being one.
+        if useCondlRest==1
+            % Evaluate the conditinal restrictions: 
+            % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+            for rr=1:length(CondlRestnFnNames)
+                if restrictedsamplemass(rr)>0
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                end
+            end
+        end
+
     end
-    
-else
+
+else 
+    %% On CPU (simoptions.parallel~=2)
     StationaryDistVec=gather(StationaryDistVec);
     PolicyIndexes=gather(PolicyIndexes);
 
@@ -138,68 +212,6 @@ else
 
     end
 end
-
-%% If there are any conditional restrictions then send these off to be done
-% Evaluate AllStats, but conditional on the restriction being non-zero.
-%
-% Code works by evaluating the the restriction and imposing this on the
-% distribution (and renormalizing it) and then just sending this off to
-% EvalFnOnAgendDist_AllStats_Case1() again. Some of the results are then
-% modified so that there is both, e.g., 'mean' and 'total'.
-if isfield(simoptions,'conditionalrestrictions')
-    % First couple of lines get the conditional restrictions and convert them to a names and cell
-    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
-    for ff=1:length(CondlRestnFnNames)
-        temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            CondlRestnFnParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
-        else
-            CondlRestnFnParamNames(ff).Names={};
-        end
-        CondlRestnFns{ff}=simoptions.conditionalrestrictions.(CondlRestnFnNames{ff});
-    end
-    simoptions=rmfield(simoptions,'conditionalrestrictions'); % Have to delete this before resend it to EvalFnOnAgentDist_AllStats_Case1()
-    
-    % Note that some things have already been created above, so we don't need
-    % to recreate them to evaluated the restrictions.
-    
-    if simoptions.parallel==2
-        % Evaluate the conditinal restrictions
-        for ff=1:length(CondlRestnFnNames)
-            % Includes check for cases in which no parameters are actually required
-            if isempty(CondlRestnFnParamNames(ff).Names) % check for '={}'
-                CondlRestnFnParamsVec=[];
-            else
-                CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames(ff).Names);
-            end
-            
-            Values=EvalFnOnAgentDist_Grid_Case1(CondlRestnFns{ff}, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
-            Values=reshape(Values,[N_a*N_z,1]);
-
-            RestrictedStationaryDistVec=StationaryDistVec;
-            RestrictedStationaryDistVec(Values==0)=0; % Drop all those that don't meet the restriction
-            restrictedsamplemass=sum(RestrictedStationaryDistVec);
-            RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass; % Normalize to mass one
-
-            if restrictedsamplemass==0
-                warning('One of the conditional restrictions evaluates to a zero mass')
-                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{ff},' has a restricted sample that is of zero mass \n'])
-                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
-            else
-                AllStats.(CondlRestnFnNames{ff})=EvalFnOnAgentDist_AllStats_Case1(RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate_copy, Parameters, [], n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
-                
-                % Create some renormalizations where relevant (just the mean)
-                for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
-                    AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Total=restrictedsamplemass*AllStats.(CondlRestnFnNames{ff}).(FnsToEvalNames{ii}).Mean;
-                end
-                AllStats.(CondlRestnFnNames{ff}).RestrictedSampleMass=restrictedsamplemass; % Seems likely this would be something user might want
-            end
-        end
-    else % simoptions.parallel~=2
-        error('simoptions.conditionalrestrictions can only be used with GPU')
-    end
-end
-
 
 
 
