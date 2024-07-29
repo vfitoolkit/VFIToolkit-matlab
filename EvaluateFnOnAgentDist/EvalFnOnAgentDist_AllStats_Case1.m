@@ -10,7 +10,7 @@ if ~exist('simoptions','var')
     simoptions.nquantiles=20;
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
-    % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being non-zero.
+    % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
 else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
@@ -27,7 +27,7 @@ else
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
-    % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being non-zero.
+    % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
 end
 
 
@@ -117,7 +117,7 @@ if isfield(simoptions,'conditionalrestrictions')
         RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
         
         % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
-        restrictedsamplemass(rr)=sum(StationaryDistVec(RestrictionValues));
+        restrictedsamplemass(rr)=sum(RestrictedStationaryDistVec);
         RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(rr);
 
         if restrictedsamplemass(rr)==0

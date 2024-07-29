@@ -15,6 +15,7 @@ if l_z>0
     z_gridvals_J=shiftdim(permute(z_gridvals_J,[1,3,2]),-1); % (1,z,j,l_z)
 end
 
+
 if l_daprime==1
     if l_a==1 && l_z==0
         Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1), a_gridvals(:,1), ParamCell{:});

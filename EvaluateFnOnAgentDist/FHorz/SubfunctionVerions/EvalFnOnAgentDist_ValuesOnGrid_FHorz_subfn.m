@@ -15,7 +15,6 @@ N_z=prod(n_z);
 
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 
-
 %% Exogenous shock grids
 
 if N_z>0
