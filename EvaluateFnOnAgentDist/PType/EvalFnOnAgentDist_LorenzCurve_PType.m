@@ -13,6 +13,8 @@ function LorenzCurve=EvalFnOnAgentDist_LorenzCurve_PType(StationaryDist, Policy,
 % Any input that does not depend on the permanent type is just passed in
 % exactly the same form as normal.
 
+warning('You should use EvalFnOnAgentDist_AllStats_Case1_PType instead of EvalFnOnAgentDist_LorenzCurve_PType as the later will be deleted in the future')
+
 % Names_i can either be a cell containing the 'names' of the different
 % permanent types, or if there are no structures used (just parameters that
 % depend on permanent type and inputted as vectors or matrices as appropriate)
