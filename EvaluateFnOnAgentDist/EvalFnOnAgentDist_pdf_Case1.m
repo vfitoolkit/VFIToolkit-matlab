@@ -49,34 +49,29 @@ end
 
 %%
 if Parallel==2 || Parallel==4
-    Parallel=2;
     StationaryDist=gpuArray(StationaryDist);
     PolicyIndexes=gpuArray(PolicyIndexes);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
-    a_grid=gpuArray(a_grid);
-    z_grid=gpuArray(z_grid);
+    a_gridvals=CreateGridvals(n_z,gpuArray(a_grid),1);
+    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
 
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
     ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
     
+    l_daprime=size(Policy,1);
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    for i=1:length(FnsToEvaluate)
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'SSvalueParamNames={}'
-            FnToEvaluateParamsCell=[];
-        else
-            FnToEvaluateParamsCell=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
-        end
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+    for ff=1:length(FnsToEvaluate)
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
         Values=reshape(Values,[N_a*N_z,1]);
-        ProbDensityFns(:,i)=Values.*StationaryDistVec;
+        ProbDensityFns(:,ff)=Values.*StationaryDistVec;
     end
     
 else
@@ -91,60 +86,59 @@ else
     ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate));
     
     if l_d>0
-        
-        for i=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ProbDensityFns(:,i)=Values.*StationaryDistVec;
+                ProbDensityFns(:,ff)=Values.*StationaryDistVec;
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                ProbDensityFns(:,i)=Values.*StationaryDistVec;
+                ProbDensityFns(:,ff)=Values.*StationaryDistVec;
             end
         end
     
     else %l_d=0
         
-        for i=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
                 % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be
                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                ProbDensityFns(:,i)=Values.*StationaryDistVec;
+                ProbDensityFns(:,ff)=Values.*StationaryDistVec;
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                ProbDensityFns(:,i)=Values.*StationaryDistVec;
+                ProbDensityFns(:,ff)=Values.*StationaryDistVec;
             end
         end
     end
 end
 
 % Normalize to 1 (to make it a pdf)
-for i=1:length(FnsToEvaluate)
-    ProbDensityFns(:,i)=ProbDensityFns(:,i)/sum(ProbDensityFns(:,i));
+for ff=1:length(FnsToEvaluate)
+    ProbDensityFns(:,ff)=ProbDensityFns(:,ff)/sum(ProbDensityFns(:,ff));
 end
 
 % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be

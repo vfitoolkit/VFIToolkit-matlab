@@ -1,5 +1,7 @@
 function [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions)
 % Note: removes n_e from simoptions (if it is there)
+% Note: removes n_semiz from simoptions (if it is there)
+
 
 % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
 % Gradually rolling these out so that all the commands build off of these
@@ -129,6 +131,9 @@ if isfield(simoptions,'SemiExoStateFn') % If using semi-exogenous shocks
         n_z=[simoptions.n_semiz,n_z];
         z_gridvals_J=[repmat(CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray'),N_z,1),repelem(z_gridvals_J,prod(simoptions.n_semiz),1)];
     end
+
+    % Because we added semiz into z, we need to strip them out of simoptions
+    simoptions=rmfield(simoptions,'n_semiz');
 end
 N_z=prod(n_z);
 if N_z==0

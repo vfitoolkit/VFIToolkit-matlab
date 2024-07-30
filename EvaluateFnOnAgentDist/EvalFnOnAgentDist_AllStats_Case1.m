@@ -42,6 +42,10 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+l_daprime=size(PolicyIndexes,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+z_gridvals=CreateGridvals(n_z,z_grid,1);
+
 AllStats=struct();
 
 %% Implement new way of handling FnsToEvaluate
@@ -94,23 +98,17 @@ if isfield(simoptions,'conditionalrestrictions')
 
     % For each conditional restriction, create a 'restricted stationary distribution'
     for rr=1:length(CondlRestnFnNames)
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
         % Get parameter names for Conditional Restriction functions
-        temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}));
+        temp=getAnonymousFnInputNames(CondlRestnFn);
         if length(temp)>(l_d+l_a+l_a+l_z)
             CondlRestnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             CondlRestnFnParamNames={};
         end
-        % Get parameter values for Conditional Restriction functions
-        if isempty(CondlRestnFnParamNames) % check for '={}'
-            CondlRestnFnParamsVec=[];
-        else
-            CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames);
-        end
-        % Store the actual functions
-        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+        CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
 
-        RestrictionValues=logical(EvalFnOnAgentDist_Grid_Case1(CondlRestnFn, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel));
+        RestrictionValues=logical(EvalFnOnAgentDist_Grid(CondlRestnFn, CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals));
         RestrictionValues=reshape(RestrictionValues,[N_a*N_z,1]);
 
         RestrictedStationaryDistVec=StationaryDistVec;
@@ -131,19 +129,14 @@ if isfield(simoptions,'conditionalrestrictions')
     end
 end
 
-%%
 
+
+%%
 if simoptions.parallel==2
 
     for ff=1:length(FnsToEvalNames)
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
-            FnToEvaluateParamsVec=[];
-        else
-            FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-        end
-        
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ff}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
         Values=reshape(Values,[N_a*N_z,1]);
 
         AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);

@@ -121,16 +121,16 @@ if simoptions.groupusingtdigest==1 % Things are being stored on cpu but solved o
 
     AllCMerge=struct();
     Alldigestweightsmerge=struct();
-    for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        AllCMerge.(FnsToEvalNames{kk})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
-        Alldigestweightsmerge.(FnsToEvalNames{kk})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
+    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        AllCMerge.(FnsToEvalNames{ff})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
+        Alldigestweightsmerge.(FnsToEvalNames{ff})=zeros(5000*N_i,1); % This is intended to be an upper limit on number of points that might be use
     end
 else
     AllValues=struct();
     AllWeights=struct();
-    for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        AllValues.(FnsToEvalNames{kk})=[];
-        AllWeights.(FnsToEvalNames{kk})=[];
+    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        AllValues.(FnsToEvalNames{ff})=[];
+        AllWeights.(FnsToEvalNames{ff})=[];
     end
 end
 
@@ -153,9 +153,9 @@ if isfield(simoptions,'conditionalrestrictions')
         error('Have not implemented simoptions.groupusingtdigest==1 together with simoptions.conditionalrestrictions')
     else
         AllRestrictedWeights=struct(); % Only used if useCondlRest==1
-        for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             for rr=1:length(CondlRestnFnNames)
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[];
+                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[];
             end
         end
     end
@@ -184,10 +184,10 @@ for ii=1:N_i
 
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+        % StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
     else
         PolicyIndexes_temp=Policy.(Names_i{ii});
-        StationaryDist_temp=StationaryDist.(Names_i{ii});
+        % StationaryDist_temp=StationaryDist.(Names_i{ii});
     end
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -296,9 +296,6 @@ for ii=1:N_i
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
     end
-
-    % Switch to PolicyVals
-    PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
     
     % A few other things we can do in outer loop
     if n_d_temp(1)==0
@@ -307,11 +304,23 @@ for ii=1:N_i
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    
     N_a_temp=prod(n_a_temp);
-
-    % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate
+    
+    a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
+    % Turn (semiz,z,e) into z_gridvals_J_temp as FnsToEvalute do not distinguish them
     [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp);
+    if N_z_temp==0
+        N_z_temp=1; % Just makes things easier below
+    end
+
+    l_daprime_temp=size(PolicyIndexes_temp,1);
+    % Switch to PolicyVals
+    PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
+    if l_z_temp==0
+        PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_j,l_daprime)
+    else
+        PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
+    end
     
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
@@ -322,11 +331,9 @@ for ii=1:N_i
     % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)    
     temp=logical(StationaryDist_ii~=0);
     % StationaryDist_ii=StationaryDist_ii(temp); % This has to happen after the conditional restriction dist is calculated
-
+    
     %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
     if useCondlRest==1
-        a_gridvals_temp=CreateGridvals(n_a,a_grid,1);
-
         RestrictionStruct_ii=struct();
 
         l_daprime_temp=size(PolicyValues_temp,1);
@@ -334,29 +341,24 @@ for ii=1:N_i
         PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a]
 
         % For each conditional restriction, create a 'restricted stationary distribution'
-        for rr=1:length(CondlRestnFnNames)            
+        for rr=1:length(CondlRestnFnNames)
+            % The current conditional restriction function
+            CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
             % Get parameter names for Conditional Restriction functions
-            tempnames=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}));
-            if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
-                CondlRestnFnParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            temp2=getAnonymousFnInputNames(CondlRestnFn);
+            if length(temp2)>(l_daprime_temp+l_a_temp+l_z_temp)
+                CondlRestnFnParamNames={temp2{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
             else
                 CondlRestnFnParamNames={};
             end
-            % Get parameter values for Conditional Restriction functions
-            if isempty(CondlRestnFnParamNames) % check for '={}'
-                CondlRestnFnParamsVec=[];
+
+            if l_z_temp==0
+                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j_temp,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+                RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,0,a_gridvals_temp,[]));
             else
-                CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames);
+                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j_temp,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+                RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp));
             end
-            % Store the actual functions
-            CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
-
-            CondlRestnFnParamsCell=cell(length(CondlRestnFnParamsVec),1);
-            for pp=1:length(CondlRestnFnParamsVec)
-                CondlRestnFnParamsCell(pp,1)={CondlRestnFnParamsVec(pp)};
-            end
-
-            RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp));
             RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp*N_j_temp,1]);
 
             RestrictedStationaryDistVec=StationaryDist_ii;
@@ -365,7 +367,7 @@ for ii=1:N_i
 
             % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
             restrictedsamplemass(ii,rr)=sum(RestrictedStationaryDistVec);
-            RestrictedStationaryDistVec=RestrictedStationaryDistVec/restrictedsamplemass(ii,rr); % Normalize to mass of 1
+            RestrictedStationaryDistVec=RestrictedStationaryDistVec./restrictedsamplemass(ii,rr); % Normalize to mass of 1
             % Store for later
             RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
 
@@ -379,21 +381,30 @@ for ii=1:N_i
 
         end
     end
-
+    
     %%
     StationaryDist_ii=StationaryDist_ii(temp);
     
     %%
-    for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
-        if FnsAndPTypeIndicator_ii(kk)==1 % If this function is relevant to this ptype
+    for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
+        if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
 
-            clear FnsToEvaluate_iikk
-            FnsToEvaluate_iikk.(FnsToEvalNames{kk})=FnsToEvaluate.(FnsToEvalNames{kk});
+            % Get parameter names for current FnsToEvaluate functions
+            tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+            if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_z_temp)
+                FnsToEvaluateParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            else
+                FnsToEvaluateParamNames={};
+            end
+            if l_z_temp==0
+                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
+            else
+                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
+            end
 
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=1;
-            ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_subfn(PolicyValues_temp, FnsToEvaluate_iikk, Parameters_temp, [], n_d_temp, n_a_temp, n_z_temp, N_j_temp, a_grid_temp, z_gridvals_J_temp, simoptions_temp);
-
+            ValuesOnGrid_ii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
             ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp*N_j_temp,1]);
 
             % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
@@ -411,22 +422,22 @@ for ii=1:N_i
             SortedWeights=accumarray(sortindex,StationaryDist_ii,[],@sum);
 
             %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
-            AllStats.(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
+            AllStats.(FnsToEvalNames{ff}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
 
             %% If using conditional restrictions, do those
             if useCondlRest==1
                 for rr=1:length(CondlRestnFnNames)
                     RestrictedSortedWeights=accumarray(sortindex,RestrictionStruct_ii(rr).RestrictedStationaryDistVec,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
 
                     % If doing grouped stats, store RestrictedSortedWeights
                     if simoptions_temp.groupusingtdigest==1
                         error('Code should never get here (should have thrown an error earlier')
                     else
                         if simoptions.ptypestorecpu==1
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}); gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii))];
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii))];
                         else
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}); RestrictedSortedWeights*StationaryDist.ptweights(ii)];
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); RestrictedSortedWeights*StationaryDist.ptweights(ii)];
                         end
                     end
                 end
@@ -434,38 +445,38 @@ for ii=1:N_i
 
             %% For later, put the mean and std dev in a convenient place
             if simoptions.whichstats(1)==1
-            MeanVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Mean;
+            MeanVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean;
             end
             if simoptions.whichstats(3)==1
-                StdDevVec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).StdDeviation;
+                StdDevVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation;
             end
             % Do the same with the minimum and maximum
             if simoptions.whichstats(5)==1
-                minvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Minimum;
-                maxvaluevec(kk,ii)=AllStats.(FnsToEvalNames{kk}).(Names_i{ii}).Maximum;
+                minvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum;
+                maxvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum;
             end
 
             if simoptions_temp.groupusingtdigest==1
-                Cmerge=AllCMerge.(FnsToEvalNames{kk});
-                digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{kk});
+                Cmerge=AllCMerge.(FnsToEvalNames{ff});
+                digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff});
 
                 %% Create digest (if unique() was not enough to make them small)
                 [C_ii,digestweights_ii,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1 is presorted
 
-                merge_nsofar2(kk)=merge_nsofar(kk)+length(C_ii);
-                Cmerge(merge_nsofar(kk)+1:merge_nsofar2(kk))=C_ii;
-                digestweightsmerge(merge_nsofar(kk)+1:merge_nsofar2(kk))=digestweights_ii*StationaryDist.ptweights(ii);
-                merge_nsofar(kk)=merge_nsofar2(kk);
+                merge_nsofar2(ff)=merge_nsofar(ff)+length(C_ii);
+                Cmerge(merge_nsofar(ff)+1:merge_nsofar2(ff))=C_ii;
+                digestweightsmerge(merge_nsofar(ff)+1:merge_nsofar2(ff))=digestweights_ii*StationaryDist.ptweights(ii);
+                merge_nsofar(ff)=merge_nsofar2(ff);
 
-                AllCMerge.(FnsToEvalNames{kk})=Cmerge;
-                Alldigestweightsmerge.(FnsToEvalNames{kk})=digestweightsmerge;
+                AllCMerge.(FnsToEvalNames{ff})=Cmerge;
+                Alldigestweightsmerge.(FnsToEvalNames{ff})=digestweightsmerge;
             else
                 if simoptions.ptypestorecpu==1
-                    AllValues.(FnsToEvalNames{kk})=[AllValues.(FnsToEvalNames{kk}); gather(SortedValues)];
-                    AllWeights.(FnsToEvalNames{kk})=[AllWeights.(FnsToEvalNames{kk}); gather(SortedWeights)*gather(StationaryDist.ptweights(ii))];
+                    AllValues.(FnsToEvalNames{ff})=[AllValues.(FnsToEvalNames{ff}); gather(SortedValues)];
+                    AllWeights.(FnsToEvalNames{ff})=[AllWeights.(FnsToEvalNames{ff}); gather(SortedWeights)*gather(StationaryDist.ptweights(ii))];
                 else
-                    AllValues.(FnsToEvalNames{kk})=[AllValues.(FnsToEvalNames{kk}); SortedValues];
-                    AllWeights.(FnsToEvalNames{kk})=[AllWeights.(FnsToEvalNames{kk}); SortedWeights*StationaryDist.ptweights(ii)];
+                    AllValues.(FnsToEvalNames{ff})=[AllValues.(FnsToEvalNames{ff}); SortedValues];
+                    AllWeights.(FnsToEvalNames{ff})=[AllWeights.(FnsToEvalNames{ff}); SortedWeights*StationaryDist.ptweights(ii)];
                 end
             end
         end
@@ -475,14 +486,14 @@ end
 
 
 %% Now for the grouped stats, putting the ptypes together
-for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid    
+for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid    
 
     if simoptions_temp.groupusingtdigest==1
-        Cmerge=AllCMerge.(FnsToEvalNames{kk});
-        digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{kk});
+        Cmerge=AllCMerge.(FnsToEvalNames{ff});
+        digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff});
         % Clean off the zeros at the end of Cmerge (that exist because of how we preallocate 'too much' for Cmerge); same for digestweightsmerge.
-        Cmerge=Cmerge(1:merge_nsofar(kk));
-        digestweightsmerge=digestweightsmerge(1:merge_nsofar(kk));
+        Cmerge=Cmerge(1:merge_nsofar(ff));
+        digestweightsmerge=digestweightsmerge(1:merge_nsofar(ff));
 
         % Merge the digests
         [C_kk,digestweights_kk,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
@@ -492,21 +503,21 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         allstatnames=fieldnames(tempStats);
     else
         % Do unique() before we calculate stats
-        [AllValues.(FnsToEvalNames{kk}),~,sortindex]=unique(AllValues.(FnsToEvalNames{kk}));
-        AllWeights.(FnsToEvalNames{kk})=accumarray(sortindex,AllWeights.(FnsToEvalNames{kk}),[],@sum);
+        [AllValues.(FnsToEvalNames{ff}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}));
+        AllWeights.(FnsToEvalNames{ff})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}),[],@sum);
 
-        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllWeights.(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+        tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllWeights.(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
 
         allstatnames=fieldnames(tempStats);
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}),[],@sum);
-                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{kk}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),[],@sum);
+                tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                 for aa=1:length(allstatnames)
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{kk}).(allstatnames{aa})=tempStatsRestricted.(allstatnames{aa});
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(allstatnames{aa})=tempStatsRestricted.(allstatnames{aa});
                 end
-                if kk==1
+                if ff==1
                     AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(restrictedsamplemass(:,rr));
                 end
             end
@@ -515,42 +526,42 @@ for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
     % allstatnames=fieldnames(tempStats);
     for aa=1:length(allstatnames)
-        AllStats.(FnsToEvalNames{kk}).(allstatnames{aa})=tempStats.(allstatnames{aa});
+        AllStats.(FnsToEvalNames{ff}).(allstatnames{aa})=tempStats.(allstatnames{aa});
     end
 
 
     % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
-    SigmaNxi=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
+    SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
     
     % Mean
     if simoptions.whichstats(1)==1
-        AllStats.(FnsToEvalNames{kk}).Mean=sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*MeanVec(kk,:))/SigmaNxi;
+        AllStats.(FnsToEvalNames{ff}).Mean=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*MeanVec(ff,:))/SigmaNxi;
     end
 
     % Standard Deviation
     if simoptions.whichstats(3)==1
         if N_i==1
-            AllStats.(FnsToEvalNames{kk}).StdDev=StdDevVec(kk,:);
+            AllStats.(FnsToEvalNames{ff}).StdDev=StdDevVec(ff,:);
         else
             temp2=zeros(N_i,1);
             for ii=2:N_i
-                if FnsAndPTypeIndicator(kk,ii)==1
-                    temp=MeanVec(kk,1:(ii-1))-MeanVec(kk,ii); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
+                if FnsAndPTypeIndicator(ff,ii)==1
+                    temp=MeanVec(ff,1:(ii-1))-MeanVec(ff,ii); % This bit with temp is just to handle numerical rounding errors where temp evalaulated to negative with order -15
                     if any(temp<0) && all(temp>10^(-12))
                         temp=max(temp,0);
                     end
-                    temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(kk,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
+                    temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                 end
             end
-            AllStats.(FnsToEvalNames{kk}).StdDev=sqrt(sum(FnsAndPTypeIndicator(kk,:).*(StationaryDist.ptweights').*StdDevVec(kk,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+            AllStats.(FnsToEvalNames{ff}).StdDev=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
         end
-        AllStats.(FnsToEvalNames{kk}).Variance=(AllStats.(FnsToEvalNames{kk}).StdDev)^2;
+        AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDev)^2;
     end
 
     % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
     if simoptions.whichstats(5)==1
-        AllStats.(FnsToEvalNames{kk}).Maximum=max(maxvaluevec(kk,:));
-        AllStats.(FnsToEvalNames{kk}).Minimum=min(minvaluevec(kk,:));
+        AllStats.(FnsToEvalNames{ff}).Maximum=max(maxvaluevec(ff,:));
+        AllStats.(FnsToEvalNames{ff}).Minimum=min(minvaluevec(ff,:));
     end
 end
 

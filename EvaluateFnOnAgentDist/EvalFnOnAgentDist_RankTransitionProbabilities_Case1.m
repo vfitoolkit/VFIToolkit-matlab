@@ -44,6 +44,10 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+l_daprime=size(PolicyIndexes,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+z_gridvals=CreateGridvals(n_z,z_grid,1);
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
@@ -116,14 +120,9 @@ PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
-for jj=1:length(FnsToEvaluate)
-    % Includes check for cases in which no parameters are actually required
-    if isempty(FnsToEvaluateParamNames(jj).Names)  % check for 'SSvalueParamNames={}'
-        FnToEvaluateParamsVec=[];
-    else
-        FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(jj).Names);
-    end
-    Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{jj}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,parallel);
+for ff=1:length(FnsToEvaluate)
+    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
     Values=reshape(Values,[N_a*N_z,1]);
     % MIGHT BE POSSIBLE TO MERGE FOLLOWING TWO LINES (replace rows 1 and 2 with all rows ':'), JUST UNSURE WHAT
     % RESULTING BEHAVIOUR WILL BE IN TERMS OF SIZE() AND CURRENTLY TO LAZY TO CHECK.
@@ -154,18 +153,18 @@ for jj=1:length(FnsToEvaluate)
     ranks=CumSumSortedStationaryDistVec(ranks_index_fin);
     Transitions_StartAndFinish_jj(2,:)=ranks;
     
-    Transitions_StartAndFinish(:,:,jj)=Transitions_StartAndFinish_jj;
+    Transitions_StartAndFinish(:,:,ff)=Transitions_StartAndFinish_jj;
 end
 
 %% We have NSims rank transitions. Now switch into rank transition probabilities.
 TransitionProbabilities=nan(npoints,npoints,length(FnsToEvaluate),'gpuArray');
-for jj=1:length(FnsToEvaluate)
+for ff=1:length(FnsToEvaluate)
     for i1=1:npoints
-        denominator=nnz(Transitions_StartAndFinish(1,:,jj)==i1); % Starts with rank i1
+        denominator=nnz(Transitions_StartAndFinish(1,:,ff)==i1); % Starts with rank i1
         if denominator>0
             for i2=1:npoints
-                numerator=sum(Transitions_StartAndFinish(1,:,jj)==i1 && Transitions_StartAndFinish(2,:,jj)==i2); % Starts with rank i1, ends with rank i2
-                TransitionProbabilities(i1,i2,jj)=numerator/denominator;
+                numerator=sum(Transitions_StartAndFinish(1,:,ff)==i1 && Transitions_StartAndFinish(2,:,ff)==i2); % Starts with rank i1, ends with rank i2
+                TransitionProbabilities(i1,i2,ff)=numerator/denominator;
             end
         end
     end

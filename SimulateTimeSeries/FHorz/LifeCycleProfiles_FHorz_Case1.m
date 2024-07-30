@@ -104,145 +104,9 @@ PolicyIndexes=gpuArray(PolicyIndexes);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 
-%%
-% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-% Gradually rolling these out so that all the commands build off of these
-z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-if prod(n_z)==0 % no z
-    z_gridvals_J=[];
-elseif ndims(z_grid)==3 % already an age-dependent joint-grid
-    if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-        z_gridvals_J=z_grid;
-    end
-elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-    for jj=1:N_j
-        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-    end
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-    z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-    z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-end
-if isfield(simoptions,'ExogShockFn')
-    if isfield(simoptions,'ExogShockFnParamNames')
-        for jj=1:N_j
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ff=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ff,1)={ExogShockFnParamsVec(ff)};
-            end
-            [z_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
-        end
-    else
-        for jj=1:N_j
-            [z_grid,~]=simoptions.ExogShockFn(N_j);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
-        end
-    end
-end
-
-% If using e variable, do same for this
-if isfield(simoptions,'n_e')
-    n_e=simoptions.n_e;
-    N_e=prod(n_e);
-    if N_e==0
-        % Do nothing
-    else
-        if isfield(simoptions,'e_grid_J')
-            error('No longer use simoptions.e_grid_J, instead just put the age-dependent grid in simoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
-        end
-        if ~isfield(simoptions,'e_grid') % && ~isfield(simoptions,'e_grid_J')
-            error('You are using an e (iid) variable, and so need to declare simoptions.e_grid')
-        elseif ~isfield(simoptions,'pi_e')
-            error('You are using an e (iid) variable, and so need to declare simoptions.pi_e')
-        end
-
-        e_gridvals_J=zeros(prod(simoptions.n_e),length(simoptions.n_e),'gpuArray');
-        if ndims(simoptions.e_grid)==3 % already an age-dependent joint-grid
-            if all(size(simoptions.e_grid)==[prod(simoptions.n_e),length(simoptions.n_e),N_j])
-                e_gridvals_J=simoptions.e_grid;
-            end
-        elseif all(size(simoptions.e_grid)==[sum(simoptions.n_e),N_j]) % age-dependent grid
-            for jj=1:N_j
-                e_gridvals_J(:,:,jj)=CreateGridvals(simoptions.n_e,simoptions.e_grid(:,jj),1);
-            end
-        elseif all(size(simoptions.e_grid)==[prod(simoptions.n_e),length(simoptions.n_e)]) % joint grid
-            e_gridvals_J=simoptions.e_grid.*ones(1,1,N_j,'gpuArray');
-        elseif all(size(simoptions.e_grid)==[sum(simoptions.n_e),1]) % basic grid
-            e_gridvals_J=CreateGridvals(simoptions.n_e,simoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
-        end
-        if isfield(simoptions,'ExogShockFn')
-            if isfield(simoptions,'ExogShockFnParamNames')
-                for jj=1:N_j
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ff=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ff,1)={ExogShockFnParamsVec(ff)};
-                    end
-                    [simoptions.e_grid,~]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
-                        e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(simoptions.n_e,simoptions.e_grid,1));
-                    else % already joint-grid
-                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid,1);
-                    end
-                end
-            else
-                for jj=1:N_j
-                    [simoptions.e_grid,simoptions.pi_e]=simoptions.ExogShockFn(N_j);
-                    if all(size(simoptions.e_grid)==[sum(simoptions.n_e),1])
-                        e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(simoptions.n_e,simoptions.e_grid,1));
-                    else % already joint-grid
-                        e_gridvals_J(:,:,jj)=gpuArray(simoptions.e_grid,1);
-                    end
-                end
-            end
-        end
-
-        % Now put e into z as that is easiest way to handle it from now on
-        if N_z==0
-            z_gridvals_J=e_gridvals_J;
-            n_z=n_e;
-            N_z=prod(n_z);
-        else
-            z_gridvals_J=[repmat(z_gridvals_J,N_e,1),repelem(e_gridvals_J,N_z,1)];
-            n_z=[n_z,n_e];
-            N_z=prod(n_z);
-        end
-    end
-    % Because we added e into z, we need to strip them out of simoptions
-    simoptions=rmfield(simoptions,'n_e');
-end
-
-% Also semiz if that is used
-if isfield(simoptions,'n_semiz') % If using semi-exogenous shocks
-    if N_z==0
-        n_z=simoptions.n_semiz;
-        z_gridvals_J=CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
-    else
-        % For purposes of function evaluation we can just treat the semi-exogenous states as exogenous states
-        n_z=[simoptions.n_semiz,n_z];
-        z_gridvals_J=[repmat(CreateGridvals(simoptions.n_semiz,simoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray'),N_z,1),repelem(z_gridvals_J,prod(simoptions.n_semiz),1)];
-    end
-    % Because we added semiz into z, we need to strip them out of simoptions
-    simoptions=rmfield(simoptions,'n_semiz');
-end
-N_z=prod(n_z);
-if N_z==0
-    l_z=0;
-else
-    l_z=length(n_z);
-end
-
-
+%% Exogenous shock grids
+% Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
+[n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions);
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
@@ -269,14 +133,6 @@ end
 if isfield(simoptions,'keepoutputasmatrix')
     if simoptions.keepoutputasmatrix==1
         FnsToEvaluateStruct=0;
-    end
-end
-
-if isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
-    if length(simoptions.SampleRestrictionFnParamNames)==(l_daprime+l_a+l_z)
-        simoptions.SampleRestrictionFnParamNames={};
-    else
-        simoptions.SampleRestrictionFnParamNames=simoptions.SampleRestrictionFnParamNames{l_daprime+l_a+l_z+1:end};
     end
 end
 
@@ -325,13 +181,135 @@ end
 
 
 
+%% I want to do some things now, so that they can be used in setting up conditional restrictions
+
+l_daprime=size(PolicyIndexes,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+if N_z==0
+    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermuteJ=permute(PolicyValues,[2,1,3]); % (N_a,l_daprime,N_j)
+else
+    StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermuteJ=permute(PolicyValues,[2,3,1,4]); % (N_a,N_z,l_daprime,N_j)
+end
+
+
+%% If there are any conditional restrictions, set up for these
+% Evaluate AllStats, but conditional on the restriction being non-zero.
+
+useCondlRest=0;
+% Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
+if isfield(simoptions,'conditionalrestrictions')    
+    useCondlRest=1;
+    CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
+
+    restrictedsamplemass=nan(length(CondlRestnFnNames),N_j);
+    RestrictionStruct=struct();
+    
+    % For each conditional restriction, create a 'restricted stationary distribution'
+    for rr=1:length(CondlRestnFnNames)
+        % The current conditional restriction function
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+        % Get parameter names for Conditional Restriction functions
+        temp=getAnonymousFnInputNames(CondlRestnFn);
+        if length(temp)>(l_daprime+l_a+l_z)
+            CondlRestnFnParamNames={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            CondlRestnFnParamNames={};
+        end
+
+        if N_z==0
+            RestrictionValues=zeros(N_a,N_j);
+        else
+            RestrictionValues=zeros(N_a,N_z,N_j);
+        end
+        for jj=1:N_j % Given the actual stats have to loop over j, I just do it here even though it could be done with EvalFnOnAgentDist_Grid_J instead
+            % Get parameter values for Conditional Restriction functions
+            CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames,jj);
+            
+            % Compute the restrictions
+            if N_z==0
+                RestrictionValues(:,jj)=logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,n_z,a_gridvals,[]));
+            else
+                RestrictionValues(:,:,jj)=logical(EvalFnOnAgentDist_Grid(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj)));
+            end
+        end
+        if N_z>0
+            RestrictionValues=reshape(RestrictionValues,[N_a*N_z,N_j]);
+        end
+        
+        RestrictedStationaryDistVec=StationaryDist;
+        RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
+        
+        % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
+        restrictedsamplemass(rr,:)=sum(RestrictedStationaryDistVec,1);
+        RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec./restrictedsamplemass(rr,:);
+
+        if all(restrictedsamplemass(rr,:)==0)
+            warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
+            fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass(rr,:); % Just return this and hopefully it is clear to the user
+        else
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass=restrictedsamplemass(rr,:); % Seems likely this would be something user might want
+        end
+
+
+        % Preallocate various things for the stats (as many will have jj as a dimension)
+        % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
+        for ff=1:numFnsToEvaluate
+            if simoptions.whichstats(1)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(2)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(1)==1 && simoptions.whichstats(2)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(3)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(4)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(5)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(6)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
+            end
+            if simoptions.whichstats(7)==1
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
+                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
+            end
+        end
+    end
+
+
+end
+
+
 
 %% Create a different 'Values' for each of the variable to be evaluated
 if N_z==0
-    StationaryDistVec=reshape(StationaryDist,[N_a,N_j]);
-
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
+    % StationaryDistVec=reshape(StationaryDist,[N_a,N_j]);
+    % 
+    % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    % a_gridvals=CreateGridvals(n_a,a_grid,1);
 
     for kk=1:ngroups
         j1=simoptions.agegroupings(kk);
@@ -340,54 +318,22 @@ if N_z==0
         else
             jend=N_j;
         end
-        StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*(jend-j1+1),1]);
+        StationaryDistVec_kk=reshape(StationaryDist(:,j1:jend),[N_a*(jend-j1+1),1]);
         StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
 
-        %%
-        if isfield(simoptions,'SampleRestrictionFn')
-            IncludeObs=nan(N_a,jend-j1+1,'gpuArray'); % Preallocate
-            for jj=j1:jend
-                % Includes check for cases in which no parameters are actually required
-                if isempty(simoptions.SampleRestrictionFnParamNames)% check for 'FnsToEvaluateParamNames={}'
-                    FnsToEvaluateParamsVec=[];
-                else
-                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,simoptions.SampleRestrictionFnParamNames,jj));
-                end
-                IncludeObs(:,jj-j1+1)=EvalFnOnAgentDist_Grid(simoptions.SampleRestrictionFn, FnsToEvaluateParamsVec,PolicyValues(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
-            end
-            IncludeObs=reshape(logical(IncludeObs),[N_a*(jend-j1+1),1]);
-
-            if simoptions.SampleRestrictionFn_include==0
-                IncludeObs=(~IncludeObs);
-            end
-            % Can just do the sample restriction once now for the
-            % stationary dist, and then later each time for the Values
-            StationaryDistVec_kk=StationaryDistVec_kk(IncludeObs);
-            StationaryDistVec_kk=StationaryDistVec_kk/sum(StationaryDistVec_kk); % Normalize
-        end
         
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Values=nan(N_a,jend-j1+1,'gpuArray'); % Preallocate
             for jj=j1:jend
-                % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ff).Names)% check for 'FnsToEvaluateParamNames={}'
-                    FnsToEvaluateParamsVec=[];
-                else
-                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-                end
-                Values(:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnsToEvaluateParamsVec,PolicyValues(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
-            end
-
-            Values=reshape(Values,[N_a*(jend-j1+1),1]);
-
-            if isfield(simoptions,'SampleRestrictionFn')
-                Values=Values(IncludeObs);
-                % Note: stationary dist has already been restricted (if relevant)
+                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
+                Values(:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
             end
             
+            Values=reshape(Values,[N_a*(jend-j1+1),1]);
+            
             tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                        
+            
             % Store them in AgeConditionalStats
             if simoptions.whichstats(1)==1
                 AgeConditionalStats.(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
@@ -424,16 +370,65 @@ if N_z==0
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
             end
+
+            %% If there are any conditional restrictions then deal with these
+            % Evaluate AllStats, but conditional on the restriction being one.
+            if useCondlRest==1
+                % Evaluate the conditinal restrictions:
+                % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+                for rr=1:length(CondlRestnFnNames)
+                    if sum(restrictedsamplemass(rr,j1:jend))>0
+                        tempStats=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                        
+                        % Store them in AgeConditionalStats
+                        if simoptions.whichstats(1)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
+                        end
+                        if simoptions.whichstats(2)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+                            if simoptions.whichstats(1)==1
+                                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian(kk)=tempStats.RatioMeanToMedian;
+                            end
+                        end
+                        if simoptions.whichstats(3)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
+                        end
+                        if simoptions.whichstats(4)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve(:,kk)=tempStats.LorenzCurve;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
+                        end
+                        if simoptions.whichstats(5)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum(kk)=tempStats.Minimum;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum(kk)=tempStats.Maximum;
+                        end
+                        if simoptions.whichstats(6)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs(:,kk)=tempStats.QuantileCutoffs;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans(:,kk)=tempStats.QuantileMeans;
+                        end
+                        if simoptions.whichstats(7)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share(kk)=tempStats.MoreInequality.Top1share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share(kk)=tempStats.MoreInequality.Top5share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share(kk)=tempStats.MoreInequality.Top10share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Bottom50share(kk)=tempStats.MoreInequality.Bottom50share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile50th(kk)=tempStats.MoreInequality.Percentile50th;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile90th(kk)=tempStats.MoreInequality.Percentile90th;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
+                        end
+                    end
+                end
+            end
                         
         end
     end
 
-else % N_z
-    %%
-    StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
-
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
+else 
+    %% N_z
+    % StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
+    % 
+    % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    % a_gridvals=CreateGridvals(n_a,a_grid,1);
 
     for kk=1:ngroups
         j1=simoptions.agegroupings(kk);
@@ -442,52 +437,20 @@ else % N_z
         else
             jend=N_j;
         end
-        StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
+        StationaryDistVec_kk=reshape(StationaryDist(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
         StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
-
-        %%
-        if isfield(simoptions,'SampleRestrictionFn')
-            IncludeObs=nan(N_a,N_z,jend-j1+1,'gpuArray'); % Preallocate
-            for jj=j1:jend
-                % Includes check for cases in which no parameters are actually required
-                if isempty(simoptions.SampleRestrictionFnParamNames)% check for 'FnsToEvaluateParamNames={}'
-                    FnsToEvaluateParamsVec=[];
-                else
-                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,simoptions.SampleRestrictionFnParamNames,jj));
-                end
-                IncludeObs(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(simoptions.SampleRestrictionFn, FnsToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
-            end
-            IncludeObs=reshape(logical(IncludeObs),[N_a*N_z*(jend-j1+1),1]);
-
-            if simoptions.SampleRestrictionFn_include==0
-                IncludeObs=(~IncludeObs);
-            end
-            % Can just do the sample restriction once now for the
-            % stationary dist, and then later each time for the Values
-            StationaryDistVec_kk=StationaryDistVec_kk(IncludeObs);
-            StationaryDistVec_kk=StationaryDistVec_kk/sum(StationaryDistVec_kk); % Normalize
-        end
+        
 
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
             Values=nan(N_a,N_z,jend-j1+1,'gpuArray'); % Preallocate
             for jj=j1:jend
                 % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ff).Names)% check for 'FnsToEvaluateParamNames={}'
-                    FnsToEvaluateParamsVec=[];
-                else
-                    FnsToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj));
-                end
-
-                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnsToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));                
+                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,jj);
+                Values(:,:,jj-j1+1)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteJ(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));                
             end
             
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
-
-            if isfield(simoptions,'SampleRestrictionFn')
-                Values=Values(IncludeObs);
-                % Note: stationary dist has already been restricted (if relevant)
-            end
 
             tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
@@ -527,28 +490,62 @@ else % N_z
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
                 AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
             end
+
+
+            %% If there are any conditional restrictions then deal with these
+            % Evaluate AllStats, but conditional on the restriction being one.
+            if useCondlRest==1
+                % Evaluate the conditinal restrictions:
+                % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+                for rr=1:length(CondlRestnFnNames)
+                    if sum(restrictedsamplemass(rr,j1:jend))>0
+                        tempStats=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,j1:jend),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
+                        
+                        % Store them in AgeConditionalStats
+                        if simoptions.whichstats(1)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean(kk)=tempStats.Mean;
+                        end
+                        if simoptions.whichstats(2)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Median(kk)=tempStats.Median;
+                            if simoptions.whichstats(1)==1
+                                AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian(kk)=tempStats.RatioMeanToMedian;
+                            end
+                        end
+                        if simoptions.whichstats(3)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance(kk)=tempStats.Variance;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation(kk)=tempStats.StdDeviation;
+                        end
+                        if simoptions.whichstats(4)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve(:,kk)=tempStats.LorenzCurve;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini(kk)=tempStats.Gini;
+                        end
+                        if simoptions.whichstats(5)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum(kk)=tempStats.Minimum;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum(kk)=tempStats.Maximum;
+                        end
+                        if simoptions.whichstats(6)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs(:,kk)=tempStats.QuantileCutoffs;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans(:,kk)=tempStats.QuantileMeans;
+                        end
+                        if simoptions.whichstats(7)==1
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share(kk)=tempStats.MoreInequality.Top1share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share(kk)=tempStats.MoreInequality.Top5share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share(kk)=tempStats.MoreInequality.Top10share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Bottom50share(kk)=tempStats.MoreInequality.Bottom50share;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile50th(kk)=tempStats.MoreInequality.Percentile50th;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile90th(kk)=tempStats.MoreInequality.Percentile90th;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile95th(kk)=tempStats.MoreInequality.Percentile95th;
+                            AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile99th(kk)=tempStats.MoreInequality.Percentile99th;
+                        end
+                    end
+                end
+            end
         end
     end
 end
 
 
-% 
-% if FnsToEvaluateStruct==1
-%     % Change the output into a structure
-%     AgeConditionalStats2=AgeConditionalStats;
-%     clear AgeConditionalStats
-%     AgeConditionalStats=struct();
-% %     AggVarNames=fieldnames(FnsToEvaluate);
-%     for ff=1:length(FnsToEvalNames)
-%         AgeConditionalStats.(FnsToEvalNames{ff}).Mean=AgeConditionalStats2(ff).Mean;
-%         AgeConditionalStats.(FnsToEvalNames{ff}).Median=AgeConditionalStats2(ff).Median;
-%         AgeConditionalStats.(FnsToEvalNames{ff}).Variance=AgeConditionalStats2(ff).Variance;
-%         AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=AgeConditionalStats2(ff).LorenzCurve;
-%         AgeConditionalStats.(FnsToEvalNames{ff}).Gini=AgeConditionalStats2(ff).Gini;
-%         AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=AgeConditionalStats2(ff).QuantileCutoffs;
-%         AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=AgeConditionalStats2(ff).QuantileMeans;
-%     end
-% end
+
 
 
 end

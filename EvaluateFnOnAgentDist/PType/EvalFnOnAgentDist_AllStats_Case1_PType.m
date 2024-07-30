@@ -136,6 +136,7 @@ end
 
 FnsAndPTypeIndicator=zeros(numFnsToEvaluate,N_i,'gpuArray');
 
+
 %% If there are any conditional restrictions, set up for these
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 
@@ -285,9 +286,6 @@ for ii=1:N_i
         Parameters_temp
     end
 
-    % Switch to PolicyVals
-    PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp);
-
     % A few other things we can do in outer loop
     if n_d_temp(1)==0
         l_d_temp=0;
@@ -295,7 +293,6 @@ for ii=1:N_i
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    l_z_temp=length(n_z_temp);
     
     N_a_temp=prod(n_a_temp);
     if isfield(simoptions_temp,'n_e')
@@ -308,15 +305,25 @@ for ii=1:N_i
     end
     if n_ze_temp(1)==0
         N_ze_temp=1;
+        l_ze_temp=0;
     else
         N_ze_temp=prod(n_ze_temp);
+        l_ze_temp=length(n_ze_temp);
     end
+
+    l_daprime_temp=size(PolicyIndexes_temp,1);
+    % Switch to PolicyVals
+    PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp);
+    permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1];
+    PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+    a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
+    z_gridvals_temp=CreateGridvals(n_z_temp,z_grid_temp,1);
+    
+    [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
-
-
+    
 
     %% Some things that don't need to go in the loop over FnsToEvalaute
     StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
@@ -329,28 +336,19 @@ for ii=1:N_i
     if useCondlRest==1
         RestrictionStruct_ii=struct();
 
-        permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
-        PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_s,l_d+l_a]
-
         % For each conditional restriction, create a 'restricted stationary distribution'
         for rr=1:length(CondlRestnFnNames)
+            CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
             % Get parameter names for Conditional Restriction functions
-            tempnames=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}));
-            if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_z_temp)
-                CondlRestnFnParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            tempnames=getAnonymousFnInputNames(CondlRestnFn);
+            if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_ze_temp)
+                CondlRestnFnParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_ze_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
             else
                 CondlRestnFnParamNames={};
             end
-            % Get parameter values for Conditional Restriction functions
-            if isempty(CondlRestnFnParamNames) % check for '={}'
-                CondlRestnFnParamsVec=[];
-            else
-                CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames);
-            end
-            % Store the actual functions
-            CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
+            CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames);
 
-            RestrictionValues=logical(EvalFnOnAgentDist_Grid_Case1(CondlRestnFn, CondlRestnFnParamsVec,PolicyValuesPermute_temp,n_d_temp,n_a_temp,n_ze_temp,a_grid_temp,z_grid_temp,2));
+            RestrictionValues=logical(EvalFnOnAgentDist_Grid(CondlRestnFn, CondlRestnFnParamsCell,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_ze_temp,a_gridvals_temp,z_gridvals_temp));
             RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_ze_temp,1]);
 
             RestrictedStationaryDistVec=StationaryDist_ii;
@@ -382,12 +380,18 @@ for ii=1:N_i
     for kk=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         if FnsAndPTypeIndicator_ii(kk)==1 % If this function is relevant to this ptype
 
-            clear FnsToEvaluate_iikk
-            FnsToEvaluate_iikk.(FnsToEvalNames{kk})=FnsToEvaluate.(FnsToEvalNames{kk});
-
+            % Get parameter names for current FnsToEvaluate functions
+            tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{kk}));
+            if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_ze_temp)
+                FnsToEvaluateParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_ze_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            else
+                FnsToEvaluateParamNames={};
+            end
+            FnsToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames);
+            
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=1;
-            ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_subfn(PolicyValues_temp, FnsToEvaluate_iikk, Parameters_temp, [], n_d_temp, n_a_temp, n_ze_temp, a_grid_temp, z_grid_temp, simoptions_temp);
+            ValuesOnGrid_ii=EvalFnOnAgentDist_Grid(FnsToEvaluate.(FnsToEvalNames{kk}), FnsToEvaluateParamsCell, PolicyValuesPermute_temp, l_daprime_temp, n_a_temp, n_ze_temp, a_gridvals_temp, z_gridvals_temp);
 
             ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_ze_temp,1]);
 

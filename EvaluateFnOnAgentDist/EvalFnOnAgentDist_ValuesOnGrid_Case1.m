@@ -49,42 +49,33 @@ if exist('StationaryDist','var')
     end
 end
 
-if Parallel==2 || Parallel==4
-    Parallel=2;
+ValuesOnGrid=struct();
+
+if Parallel==2
     PolicyIndexes=gpuArray(PolicyIndexes);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
-    a_grid=gpuArray(a_grid);
-    z_grid=gpuArray(z_grid);
-    
-    ValuesOnGrid=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
-    
+    l_daprime=size(PolicyIndexes,1);
+    a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
+    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
+        
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
     for ff=1:length(FnsToEvaluate)
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(ff).Names)  % check for 'FnsToEvaluateParamNames(i).Names={}'
-            FnToEvaluateParamsCell=[];
-        else
-            FnToEvaluateParamsCell=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-        end
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
         Values=reshape(Values,[N_a*N_z,1]);
-%         ProbDensityFns(:,i)=Values.*StationaryDistVec;
-        ValuesOnGrid(:,ff)=Values;
+        ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
     end
-    
 else
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);    
-    
-    ValuesOnGrid=zeros(N_a*N_z,length(FnsToEvaluate));
-    
+        
     if l_d>0
         
         for ff=1:length(FnsToEvaluate)
@@ -96,7 +87,7 @@ else
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ValuesOnGrid(:,ff)=Values;
+                ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
             else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
@@ -105,7 +96,7 @@ else
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                ValuesOnGrid(:,ff)=Values;
+                ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
             end
         end
     
@@ -122,7 +113,7 @@ else
                 end
                 % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be
                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-                ValuesOnGrid(:,ff)=Values;
+                ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
             else
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
                 Values=zeros(N_a*N_z,1);
@@ -131,27 +122,22 @@ else
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                ValuesOnGrid(:,ff)=Values;
+                ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
             end
         end
     end
 end
 
-% Change the ordering and size so that ProbDensityFns has same kind of
-% shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
-ValuesOnGrid=ValuesOnGrid';
-% ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z]);
-
 %%
-if FnsToEvaluateStruct==1
+if FnsToEvaluateStruct==0
     % Change the output into a structure
     ValuesOnGrid2=ValuesOnGrid;
     clear ValuesOnGrid
-    ValuesOnGrid=struct();
-%     AggVarNames=fieldnames(FnsToEvaluate);
+    ValuesOnGrid=zeros(n_a,n_z,length(FnsToEvaluate));
     for ff=1:length(AggVarNames)
-        ValuesOnGrid.(AggVarNames{ff})=reshape(shiftdim(ValuesOnGrid2(ff,:,:),1),[n_a,n_z]);
+        ValuesOnGrid(:,:,ff)=ValuesOnGrid2.(AggVarNames{ff});
     end
 end
+
 
 end

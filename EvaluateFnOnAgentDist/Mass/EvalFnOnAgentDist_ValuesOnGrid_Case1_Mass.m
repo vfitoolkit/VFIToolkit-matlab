@@ -48,7 +48,6 @@ end
 
 %%
 if Parallel==2 || Parallel==4
-    Parallel=2;
     StationaryDistmass=gpuArray(StationaryDistmass);
     PolicyIndexes=gpuArray(PolicyIndexes);
     n_d=gpuArray(n_d);
@@ -56,7 +55,9 @@ if Parallel==2 || Parallel==4
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
-    z_grid=gpuArray(z_grid);
+    l_daprime=size(PolicyIndexes,1);
+    a_gridvals=CreateGridVals(n_a,gpuArray(a_grid),1);
+    z_gridvals=CreateGridVals(n_z,gpuArray(z_grid),1);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
@@ -87,26 +88,25 @@ if Parallel==2 || Parallel==4
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    for i=1:length(FnsToEvaluate)
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names)
-            FnToEvaluateParamsVec=[];
+    for ff=1:length(FnsToEvaluate)
+        if isempty(FnsToEvaluateParamNames(ff).Names)
+            FnToEvaluateParamsCell=cell(0);
         else
-            if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
-                if length(FnsToEvaluateParamNames(i).Names)==1
-                    FnToEvaluateParamsVec=StationaryDistmass;
+            if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
+                if length(FnsToEvaluateParamNames(ff).Names)==1
+                    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
                 else
-                    FnToEvaluateParamsVec=[StationaryDistmass,gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end)))];
+                    FnToEvaluateParamsCell=cell(1,length(FnsToEvaluateParamNames(ff).Names));
+                    FnToEvaluateParamsCell(1)={StationaryDistmass};
+                    FnToEvaluateParamsCell(2:end)=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names(2:end));
                 end
             else
-                FnToEvaluateParamsVec=[gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names))];
+                FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
             end
         end
-        Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
-        Values=reshape(Values,[N_a*N_z,1]);
-%         Values(logical(ExitPolicy))='nan';
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);        Values=reshape(Values,[N_a*N_z,1]);
         Values=Values.*RemoveExits;
-        ValuesOnGrid(:,i)=Values;
+        ValuesOnGrid(:,ff)=Values;
     end
 else
     
@@ -136,75 +136,69 @@ else
     
     if l_d>0
         
-        for i=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ValuesOnGrid(:,i)=Values; 
+                ValuesOnGrid(:,ff)=Values; 
             else
-                if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
-                    if length(FnsToEvaluateParamNames(i).Names)==1
+                if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
+                    if length(FnsToEvaluateParamNames(ff).Names)==1
                         FnToEvaluateParamsVec=StationaryDistmass;
                     else
-                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end))];
+                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names(2:end))];
                     end
                 else
-                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
                 end
                 FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);               
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-%                 Values(logical(ExitPolicy))='nan';
                 Values=Values.*RemoveExits;
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             end
         end
     
     else %l_d=0
         
-        for i=1:length(FnsToEvaluate)
+        for ff=1:length(FnsToEvaluate)
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             else
-                if strcmp(FnsToEvaluateParamNames(i).Names{1},'agentmass')
-                    if length(FnsToEvaluateParamNames(i).Names)==1
+                if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
+                    if length(FnsToEvaluateParamNames(ff).Names)==1
                         FnToEvaluateParamsVec=StationaryDistmass;
                     else
-                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names(2:end))];
+                        FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names(2:end))];
                     end
                 else
-                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names);
+                    FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
                 end
                 FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
+                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-%                 Values(logical(ExitPolicy))='nan';
                 Values=Values.*RemoveExits;
-                ValuesOnGrid(:,i)=Values;
+                ValuesOnGrid(:,ff)=Values;
             end
         end
     end

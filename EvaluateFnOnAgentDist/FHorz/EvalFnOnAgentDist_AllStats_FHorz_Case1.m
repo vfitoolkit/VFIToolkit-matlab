@@ -1,16 +1,12 @@
 function AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
 if ~exist('simoptions','var')
-    simoptions.lowmemory=0;
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
 else
-    if ~isfield(simoptions,'lowmemory')
-        simoptions.lowmemory=0;
-    end
     if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
     end
@@ -73,31 +69,14 @@ AllStats=struct();
 l_daprime=size(PolicyIndexes,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 if N_z==0
-    if simoptions.lowmemory==0
-        StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-        PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
-    else
-        StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-    end
+    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
 else
-    if simoptions.lowmemory==0
-        StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-        PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
-        StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-    else
-        StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-    end
+    StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 end
-% StationaryDistVec=gpuArray(StationaryDistVec);
-% PolicyIndexes=gpuArray(PolicyIndexes);
-%
-% PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
-% permuteindexes=[1+(1:1:(l_a+l_z)),1];
-% PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
 
 %% If there are any conditional restrictions, set up for these
@@ -114,32 +93,22 @@ if isfield(simoptions,'conditionalrestrictions')
 
     % For each conditional restriction, create a 'restricted stationary distribution'
     for rr=1:length(CondlRestnFnNames)
+        % The current conditional restriction function
+        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
         % Get parameter names for Conditional Restriction functions
-        temp=getAnonymousFnInputNames(simoptions.conditionalrestrictions.(CondlRestnFnNames{rr}));
+        temp=getAnonymousFnInputNames(CondlRestnFn);
         if length(temp)>(l_daprime+l_a+l_z)
             CondlRestnFnParamNames={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             CondlRestnFnParamNames={};
         end
-        % Get parameter values for Conditional Restriction functions
-        if isempty(CondlRestnFnParamNames) % check for '={}'
-            CondlRestnFnParamsVec=[];
-        else
-            CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames);
-        end
-        % Store the actual functions
-        CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
 
-        CondlRestnFnParamsCell=cell(length(CondlRestnFnParamsVec),1);
-        for pp=1:length(CondlRestnFnParamsVec)
-            CondlRestnFnParamsCell(pp,1)={CondlRestnFnParamsVec(pp)};
-        end
-
-        RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J));
         if N_z==0
-            RestrictionValues=reshape(RestrictionValues,[N_a,N_j]);
+            CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+            RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]));
         else
-            RestrictionValues=reshape(RestrictionValues,[N_a*N_z,N_j]);
+            CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+            RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J));
         end
 
         RestrictedStationaryDistVec=StationaryDist;
@@ -163,157 +132,46 @@ end
 
 %%
 if N_z==0
-    if simoptions.lowmemory==0
+    % StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    % PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
 
-        % StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-        % PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
-        % 
-        % a_gridvals=CreateGridvals(n_a,a_grid,1);
+    for ff=1:length(FnsToEvaluate)
+        CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,N_j,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+        Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
+        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
-        for ff=1:length(FnsToEvaluate)
-
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names)
-                ParamCell=cell(0,1);
-            else
-                % Create a matrix containing all the return function parameters (in order).
-                % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
-
-                nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
-
-                ParamCell=cell(nFnToEvaluateParams,1);
-                for ii=1:nFnToEvaluateParams
-                    ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,l_d+l_a), so we want j to be after N_a
-                end
-            end
-            
-            Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
-            %% If there are any conditional restrictions then deal with these
-            % Evaluate AllStats, but conditional on the restriction being one.
-            if useCondlRest==1
-                % Evaluate the conditinal restrictions:
-                % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
-                for rr=1:length(CondlRestnFnNames)
-                    if restrictedsamplemass(rr)>0
-                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                    end
-                end
-            end
-        end
-
-    elseif simoptions.lowmemory==1 % Loop over age j
-
-        % StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        % 
-        % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-
-        for ff=1:length(FnsToEvaluate)
-            Values=nan(N_a,N_j,'gpuArray');
-            for jj=1:N_j
-
-                % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                    FnToEvaluateParamsVec=[];
-                else
-                    FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                end
-                Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,0,a_grid,[]);
-            end
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
-            %% If there are any conditional restrictions then deal with these
-            % Evaluate AllStats, but conditional on the restriction being one.
-            if useCondlRest==1
-                % Evaluate the conditinal restrictions:
-                % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
-                for rr=1:length(CondlRestnFnNames)
-                    if restrictedsamplemass(rr)>0
-                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,jj),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                    end
+        %% If there are any conditional restrictions then deal with these
+        % Evaluate AllStats, but conditional on the restriction being one.
+        if useCondlRest==1
+            % Evaluate the conditinal restrictions:
+            % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+            for rr=1:length(CondlRestnFnNames)
+                if restrictedsamplemass(rr)>0
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
                 end
             end
         end
     end
-
 else % N_z
+    % StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
+    % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    % PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 
-    if simoptions.lowmemory==0
+    for ff=1:length(FnsToEvaluate)
+        % Values=nan(N_a,N_z,N_j,'gpuArray');
+        CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,FnsToEvaluateParamNames(ff).Names,N_j,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+        Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
+        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
-        StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
-        % 
-        % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-        % PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
-        % 
-        % a_gridvals=CreateGridvals(n_a,a_grid,1);
-
-        for ff=1:length(FnsToEvaluate)
-            % Values=nan(N_a,N_z,N_j,'gpuArray');
-
-            % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(ff).Names)
-                ParamCell=cell(0,1);
-            else
-                % Create a matrix containing all the return function parameters (in order).
-                % Each column will be a specific parameter with the values at every age.
-                FnToEvaluateParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, FnsToEvaluateParamNames(ff).Names,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
-
-                nFnToEvaluateParams=size(FnToEvaluateParamsAgeMatrix,2);
-
-                ParamCell=cell(nFnToEvaluateParams,1);
-                for ii=1:nFnToEvaluateParams
-                    ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-2)}; % (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
-                end
-            end
-
-            Values=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},ParamCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J);
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
-            %% If there are any conditional restrictions then deal with these
-            % Evaluate AllStats, but conditional on the restriction being one.
-            if useCondlRest==1
-                % Evaluate the conditinal restrictions:
-                % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
-                for rr=1:length(CondlRestnFnNames)
-                    if restrictedsamplemass(rr)>0
-                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                    end
-                end
-            end
-        end
-
-    elseif simoptions.lowmemory==1 % Loop over age j
-
-        % StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-        % 
-        % PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-
-        for ff=1:length(FnsToEvaluate)
-            Values=nan(N_a*N_z,N_j,'gpuArray');
-            for jj=1:N_j
-
-                % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names) % || strcmp(FnsToEvaluateParamNames(1),'')) % check for 'FnsToEvaluateParamNames={}'
-                    FnToEvaluateParamsVec=[];
-                else
-                    FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                end
-                Values(:,jj)=EvalFnOnAgentDist_Grid(FnsToEvaluate{ii}, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_grid,z_gridvals_J(:,:,jj));
-            end
-            AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDist,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
-            %% If there are any conditional restrictions then deal with these
-            % Evaluate AllStats, but conditional on the restriction being one.
-            if useCondlRest==1
-                % Evaluate the conditinal restrictions:
-                % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
-                for rr=1:length(CondlRestnFnNames)
-                    if restrictedsamplemass(rr)>0
-                        AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec(:,jj),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                    end
+        %% If there are any conditional restrictions then deal with these
+        % Evaluate AllStats, but conditional on the restriction being one.
+        if useCondlRest==1
+            % Evaluate the conditinal restrictions:
+            % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+            for rr=1:length(CondlRestnFnNames)
+                if restrictedsamplemass(rr)>0
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
                 end
             end
         end

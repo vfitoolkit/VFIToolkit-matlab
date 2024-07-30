@@ -8,7 +8,6 @@ if ~isfield(FnsToEvaluateParamNames,'ExitStatus')
 end
 
 if Parallel==2 || Parallel==4
-    Parallel=2;
     StationaryDistpdf=gpuArray(StationaryDistpdf);
     StationaryDistmass=gpuArray(StationaryDistmass);
     PolicyIndexes=gpuArray(PolicyIndexes);
@@ -18,7 +17,9 @@ if Parallel==2 || Parallel==4
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
-    z_grid=gpuArray(z_grid);
+    l_daprime=size(PolicyIndexes,1);
+    a_gridvals=CreateGridVals(n_a,gpuArray(a_grid),1);
+    z_gridvals=CreateGridVals(n_z,gpuArray(z_grid),1);
     
     % l_d not needed with Parallel=2 implementation
     l_a=length(n_a);
@@ -39,18 +40,20 @@ if Parallel==2 || Parallel==4
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     PolicyValuesPermuteWhenExiting=permute(PolicyValuesWhenExiting,permuteindexes); %[n_a,n_s,l_d+l_a]
     
-    for i=1:length(FnsToEvaluate)
+    for ff=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(i).Names)  % check for 'SSvalueParamNames={}'
-            FnToEvaluateParamsCell=StationaryDistmass;
+        if isempty(FnsToEvaluateParamNames(ff).Names)
+            FnToEvaluateParamsCell={StationaryDistmass};
         else
-            FnToEvaluateParamsCell=[StationaryDistmass,gpuArray(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names))];
+            FnToEvaluateParamsCell=cell(1,1+length(FnsToEvaluateParamNames(ff).Names));
+            FnToEvaluateParamsCell(1)={StationaryDistmass};
+            FnToEvaluateParamsCell(2:end)=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
         end
         
-        if ~isempty(FnsToEvaluateParamNames(i).ExitStatus)
-            ExitStatus=FnsToEvaluateParamNames(i).ExitStatus;
-            calcNotExit=1-prod(1-FnsToEvaluateParamNames(i).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
-            calcExit=1-prod(1-FnsToEvaluateParamNames(i).ExitStatus(3:4)); % check if either of the third or fourth elements of ExitStatus is 1
+        if ~isempty(FnsToEvaluateParamNames(ff).ExitStatus)
+            ExitStatus=FnsToEvaluateParamNames(ff).ExitStatus;
+            calcNotExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
+            calcExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(3:4)); % check if either of the third or fourth elements of ExitStatus is 1
         else
             ExitStatus=[1,1,1,1]; % Default
             calcNotExit=1;
@@ -58,11 +61,11 @@ if Parallel==2 || Parallel==4
         end
         
         if calcNotExit==1
-            Values=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsCell,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+            Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
             Values=reshape(Values,[N_a*N_z,1]);
         end
         if calcExit==1
-            ValuesWhenExiting=EvalFnOnAgentDist_Grid_Case1(FnsToEvaluate{i}, FnToEvaluateParamsCell,PolicyValuesPermuteWhenExiting,n_d,n_a,n_z,a_grid,z_grid,Parallel);
+            ValuesWhenExiting=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermuteWhenExiting,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
             ValuesWhenExiting=reshape(ValuesWhenExiting,[N_a*N_z,1]);
         end
         
@@ -85,7 +88,7 @@ if Parallel==2 || Parallel==4
         end
         % Following commented out line is just doing the same as the above four if statements but in a single line. Is residual code from earlier version.
 %         temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ExitPolicy).*Values+ExitPolicy.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
-        AggVars(i)=sum(temp(~isnan(temp)));
+        AggVars(ff)=sum(temp(~isnan(temp)));
     end
     
 else
@@ -115,11 +118,11 @@ else
     
     if l_d>0
         
-        for i=1:length(FnsToEvaluate)
-            if ~isempty(FnsToEvaluateParamNames(i).ExitStatus)
-                ExitStatus=FnsToEvaluateParamNames(i).ExitStatus;
-                calcNotExit=1-prod(1-FnsToEvaluateParamNames(i).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
-                calcExit=1-prod(1-FnsToEvaluateParamNames(i).ExitStatus(3:4)); % check if either of the third or fourth elements of ExitStatus is 1
+        for ff=1:length(FnsToEvaluate)
+            if ~isempty(FnsToEvaluateParamNames(ff).ExitStatus)
+                ExitStatus=FnsToEvaluateParamNames(ff).ExitStatus;
+                calcNotExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
+                calcExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(3:4)); % check if either of the third or fourth elements of ExitStatus is 1
             else
                 ExitStatus=[1,1,1,1]; % Default
                 calcNotExit=1;
@@ -134,54 +137,33 @@ else
             end
             
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
 
                 for ii=1:N_a*N_z
                     %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val);
                     if calcNotExit==1
-                        Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
+                        Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                     end
                     if calcExit==1
-                        ValuesWhenExiting(ii)=FnsToEvaluate{i}(d_gridvalsWhenExiting{j1+(j2-1)*N_a,:},aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
+                        ValuesWhenExiting(ii)=FnsToEvaluate{ff}(d_gridvalsWhenExiting{j1+(j2-1)*N_a,:},aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                     end
                 end
-%                 % When evaluating value function (which may sometimes give -Inf
-%                 % values) on StationaryDistVec (which at those points will be
-%                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-%                 temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ExitPolicy).*Values+ExitPolicy.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
-%                 AggVars(i)=sum(temp(~isnan(temp)));
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
 
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     d_val=d_gridvals{j1+(j2-1)*N_a,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(d_val,aprime_val,a_val,z_val,StationaryDistmass, SSvalueParamsVec);
                     if calcNotExit==1
-                        Values(ii)=FnsToEvaluate{i}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
+                        Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
                     end
                     if calcExit==1
-                        ValuesWhenExiting(ii)=FnsToEvaluate{i}(d_gridvalsWhenExiting{j1+(j2-1)*N_a,:},aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
+                        ValuesWhenExiting(ii)=FnsToEvaluate{ff}(d_gridvalsWhenExiting{j1+(j2-1)*N_a,:},aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
                     end
                 end
                         
-%                 % When evaluating value function (which may sometimes give -Inf
-%                 % values) on StationaryDistVec (which at those points will be
-%                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-%                 temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ExitPolicy).*Values+ExitPolicy.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
-%                 AggVars(i)=sum(temp(~isnan(temp)));
             end
             if ExitStatus(1)==1
                 temp=exitprobs(1)*Values.*StationaryDistpdfVec;
@@ -197,16 +179,16 @@ else
             if ExitStatus(4)==1
                 temp=temp+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
             end
-            AggVars(i)=sum(temp(~isnan(temp)));
+            AggVars(ff)=sum(temp(~isnan(temp)));
         end
     
     else %l_d=0
         
-        for i=1:length(FnsToEvaluate)
-            if ~isempty(FnsToEvaluateParamNames(i).ExitStatus)
-                ExitStatus=FnsToEvaluateParamNames(i).ExitStatus;
-                calcNotExit=1-prod(1-FnsToEvaluateParamNames(i).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
-                calcExit=1-prod(1-FnsToEvaluateParamNames(i).ExitStatus(3:4)); % check if either of the third or fourth elements of ExitStatus is 1
+        for ff=1:length(FnsToEvaluate)
+            if ~isempty(FnsToEvaluateParamNames(ff).ExitStatus)
+                ExitStatus=FnsToEvaluateParamNames(ff).ExitStatus;
+                calcNotExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(1:2)); % check if either of the first two elements of ExitStatus is 1
+                calcExit=1-prod(1-FnsToEvaluateParamNames(ff).ExitStatus(3:4)); % check if either of the third or fourth elements of ExitStatus is 1
             else
                 ExitStatus=[1,1,1,1]; % Default
                 calcNotExit=1;
@@ -221,50 +203,30 @@ else
             end
             
             % Includes check for cases in which no parameters are actually required
-            if isempty(FnsToEvaluateParamNames(i).Names) % check for 'SSvalueParamNames={}'
+            if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val);
                     if calcNotExit==1
-                        Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
+                        Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                     end
                     if calcExit==1
-                        ValuesWhenExiting(ii)=FnsToEvaluate{i}(aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
+                        ValuesWhenExiting(ii)=FnsToEvaluate{ff}(aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass);
                     end
                 end
-%                 % When evaluating value function (which may sometimes give -Inf
-%                 % values) on StationaryDistVec (which at those points will be
-%                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-%                 temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ExitPolicy).*Values+ExitPolicy.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
-%                 AggVars(i)=sum(temp(~isnan(temp)));
             else
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(i).Names));
+                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
    
                 for ii=1:N_a*N_z
-                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
-%                     a_val=a_gridvals{j1,:};
-%                     z_val=z_gridvals{j2,:};
-%                     aprime_val=aprime_gridvals{j1+(j2-1)*N_a,:};
-%                     Values(ii)=SSvaluesFn{i}(aprime_val,a_val,z_val,SSvalueParamsVec);
                     if calcNotExit==1
-                        Values(ii)=FnsToEvaluate{i}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
+                        Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
                     end
                     if calcExit==1
-                        ValuesWhenExiting(ii)=FnsToEvaluate{i}(aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
+                        ValuesWhenExiting(ii)=FnsToEvaluate{ff}(aprime_gridvalsWhenExiting{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},StationaryDistmass,FnToEvaluateParamsCell{:});
                     end
                 end
-%                 % When evaluating value function (which may sometimes give -Inf
-%                 % values) on StationaryDistVec (which at those points will be
-%                 % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
-%                 temp=exitprobs(1)*Values.*StationaryDistpdfVec+exitprobs(2)*((1-ExitPolicy).*Values+ExitPolicy.*ValuesWhenExiting).*StationaryDistpdfVec+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
-%                 AggVars(i)=sum(temp(~isnan(temp)));
             end
             
             if ExitStatus(1)==1
@@ -281,7 +243,7 @@ else
             if ExitStatus(4)==1
                 temp=temp+exitprobs(3)*ValuesWhenExiting.*StationaryDistpdfVec;
             end
-            AggVars(i)=sum(temp(~isnan(temp)));
+            AggVars(ff)=sum(temp(~isnan(temp)));
         end
     end
     
