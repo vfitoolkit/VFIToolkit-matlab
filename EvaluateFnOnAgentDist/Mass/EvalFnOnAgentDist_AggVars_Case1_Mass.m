@@ -55,8 +55,8 @@ if Parallel==2 || Parallel==4
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
-    permuteindexes=[1+(1:1:(l_a+l_z)),1];    
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_a,N_z,l_d+l_a]
+    PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1]); %[N_a,N_z,l_d+l_a]
     
     for ff=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required

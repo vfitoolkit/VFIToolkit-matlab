@@ -31,7 +31,8 @@ while currdist>Tolerance && tempcounter<=maxiter
     [VKron,PolicyIndexes]=max(entireRHS,[],1);
 
     tempmaxindex=shiftdim(PolicyIndexes,1)+addindexforaz; % aprime index, add the index for a and z
-    Ftemp=ReturnMatrix(tempmaxindex); % keep return function of optimal policy for using in Howards
+
+    Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
 
     PolicyIndexes=PolicyIndexes(:); % a by z (this shape is just convenient for Howards)
     VKron=shiftdim(VKron,1); % a by z
@@ -44,7 +45,6 @@ while currdist>Tolerance && tempcounter<=maxiter
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
-            
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);

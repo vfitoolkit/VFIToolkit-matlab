@@ -56,8 +56,8 @@ if Parallel==2 || Parallel==4
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
     l_daprime=size(PolicyIndexes,1);
-    a_gridvals=CreateGridVals(n_a,gpuArray(a_grid),1);
-    z_gridvals=CreateGridVals(n_z,gpuArray(z_grid),1);
+    a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
+    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
@@ -85,8 +85,10 @@ if Parallel==2 || Parallel==4
     ValuesOnGrid=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
     
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
-    permuteindexes=[1+(1:1:(l_a+l_z)),1];    
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+    PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
+    % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
+    % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1]); %[n_a,n_s,l_d+l_a]
     
     for ff=1:length(FnsToEvaluate)
         if isempty(FnsToEvaluateParamNames(ff).Names)
