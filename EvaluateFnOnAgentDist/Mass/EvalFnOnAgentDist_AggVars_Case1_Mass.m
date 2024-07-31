@@ -13,7 +13,6 @@ else
     end
 end
 
-
 if Parallel==2 || Parallel==4
     StationaryDistpdf=gpuArray(StationaryDistpdf);
     StationaryDistmass=gpuArray(StationaryDistmass);
@@ -23,8 +22,8 @@ if Parallel==2 || Parallel==4
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
     l_daprime=size(PolicyIndexes,1);
-    a_gridvals=CreateGridVals(n_a,gpuArray(a_grid),1);
-    z_gridvals=CreateGridVals(n_z,gpuArray(z_grid),1);
+    a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
+    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
     
     % l_d not needed with Parallel=2 implementation
     l_a=length(n_a);
@@ -47,8 +46,7 @@ if Parallel==2 || Parallel==4
             end
             % Add one to PolicyIndexes
             PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And make the corresponding StationaryDistpdfVec entries zero,
-            % so the values are anyway ignored.
+            % And make the corresponding StationaryDistpdfVec entries zero, so the values are anyway ignored.
             ExitPolicy=logical(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
             StationaryDistpdfVec(ExitPolicy)=0;
         end
@@ -58,7 +56,7 @@ if Parallel==2 || Parallel==4
 
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[N_a,N_z,l_d+l_a]
     
     for ff=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
@@ -86,6 +84,7 @@ if Parallel==2 || Parallel==4
     end
     
 else
+
     if n_d(1)==0
         l_d=0;
     else
@@ -108,8 +107,7 @@ else
         if simoptions.keeppolicyonexit==0
             % Add one to PolicyIndexes which correspond to exit
             PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And make the corresponding StationaryDistpdfVec entries zero,
-            % so the values are anyway ignored.
+            % And make the corresponding StationaryDistpdfVec entries zero, so the values are anyway ignored.
             ExitPolicy=1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]);
             StationaryDistpdfVec(logical(ExitPolicy))=0;
         end
@@ -140,14 +138,11 @@ else
             end
             Values=zeros(N_a*N_z,1);
             for ii=1:N_a*N_z
-                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
                 Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsVec{:});
             end
-            % When evaluating value function (which may sometimes give -Inf
-            % values) on StationaryDistVec (which at those points will be
-            % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+            % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistpdfVec;
             AggVars(ff)=sum(temp(~isnan(temp)));
         end
@@ -171,14 +166,11 @@ else
             end
             Values=zeros(N_a*N_z,1);
             for ii=1:N_a*N_z
-                %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                 j1=rem(ii-1,N_a)+1;
                 j2=ceil(ii/N_a);
                 Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsVec{:});
             end
-            % When evaluating value function (which may sometimes give -Inf
-            % values) on StationaryDistVec (which at those points will be
-            % 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
+            % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
             temp=Values.*StationaryDistpdfVec;
             AggVars(ff)=sum(temp(~isnan(temp)));
         end
