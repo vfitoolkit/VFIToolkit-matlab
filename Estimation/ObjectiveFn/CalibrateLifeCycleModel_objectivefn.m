@@ -6,7 +6,6 @@ function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames
 % Do any transformations of parameters before we say what they are
 penalty=zeros(length(calibparamsvec),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
 for pp=1:length(CalibParamNames)
-
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*(temp<-51); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
@@ -166,9 +165,6 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
         end
     end
-    fprintf(' \n')
-    fprintf(' \n')
-    penalty
 end
 
 

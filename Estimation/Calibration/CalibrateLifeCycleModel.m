@@ -73,17 +73,54 @@ if ~isempty(caliboptions.constrainAtoBnames)
     caliboptions.constrainAtoBlimits=zeros(length(CalibParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
 end
 
+
+% Sometimes we want to omit parameters
+if isfield(caliboptions,'omitcalibparam')
+    OmitCalibParamsNames=fieldnames(caliboptions.omitcalibparam);
+else
+    OmitCalibParamsNames={''};
+end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
+calibomitparams_counter=zeros(length(CalibParamNames)); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
+calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
 for pp=1:length(CalibParamNames)
-    % Get all the parameters
-    if size(Parameters.(CalibParamNames{pp}),2)==1
-        calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
+    if any(strcmp(OmitEstimParamsNames,CalibParamNames{pp}))
+        % This parameter is under an omit-mask, so need to only use part of it
+        tempparam=Parameters.(CalibParamNames{pp});
+        tempomitparam=caliboptions.omitcalibparam.(CalibParamNames{pp});
+        % Make them both column vectors
+        if size(tempparam,1)==1
+            tempparam=tempparam';
+        end
+        if size(tempparam,1)==1
+            tempomitparam=tempomitparam';
+        end
+        % If the omit and initial guess do not fit together, throw an error
+        if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
+            fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be calibated) \n')
+            CalibParamNames{pp}
+            caliboptions.omitcalibparam.(CalibParamNames{pp})
+            Parameters.(CalibParamNames{pp})
+            error('You have set an omitted calibated parameter, but the set values do not match the initial guess')
+        end
+        tempparam=tempparam(isnan(tempomitparam)); % only keep those which are NaN, not those with value for omitted
+        % Keep the parts which should be calibated
+        calibparamsvec0=[calibparamsvec0; tempparam]; % Note: it is already a column
+        calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(tempparam);
+        % Store the whole thing
+        calibomitparams_counter(pp)=1;
+        calibomitparamsmatrix(:,sum(calibomitparams_counter))=tempomitparam;
     else
-        calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})']; % transpose
+        % Get all the parameters
+        if size(Parameters.(CalibParamNames{pp}),2)==1
+            calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
+        else
+            calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})']; % transpose
+        end
+        calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(Parameters.(CalibParamNames{pp}));
     end
-    calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(Parameters.(CalibParamNames{pp}));
-    
+
     % If the parameter is constrained in some way then we need to transform it
 
     % First, check the name, and convert it if relevant
@@ -420,13 +457,13 @@ if isstruct(caliboptions.logmoments)
 % If caliboptions.logmoments is not a structure, then...
 % caliboptions.logmoments will either be scalar, or a vector of zeros and ones
 %    [scalar of zero is interpreted as vector of zeros, scalar of one is interpreted as vector of ones]
-elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(EstimParamNames),1)
+elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up as vector, zeros(length(CalibParamNames),1)
    % If set this up, and then set up 
    if isscalar(caliboptions.logmoments)
        caliboptions.logmoments=ones(length(targetmomentvec),1); % log all of them
    else
         if length(caliboptions.logmoments)==(length(acsmomentnames)+length(allstatmomentnames))
-            % Covert caliboptions.logmoments from being about EstimParamNames
+            % Covert caliboptions.logmoments from being about CalibParamNames
             temp=caliboptions.logmoments;
             caliboptions.logmoments=zeros(length(targetmomentvec),1);
             cumsofar=1;
@@ -444,7 +481,7 @@ elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up a
         else
             fprintf('Relevant to following error: length(caliboptions.logmoments)=%i \n', length(caliboptions.logmoments))
             fprintf('Relevant to following error: length(acsmomentnames)=%i, length(allstatmomentnames)=%i \n', length(acsmomentnames), length(allstatmomentnames))
-            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to estimate [they should be equal]')
+            error('You are using caliboptions.logmoments, but length(caliboptions.logmoments) does not match number of moments to calibate [they should be equal]')
         end
    end
    % log of targetmoments [no need to do this as inputs should already be log()]
@@ -454,7 +491,7 @@ end
 
 
 %% Set up the objective function and the initial calibration parameter vector
-CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, caliboptions, vfoptions,simoptions);
+CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_objectivefn(calibparamsvec,CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
 
 
 % calibparamsvec0 is our initial guess for calibparamsvec

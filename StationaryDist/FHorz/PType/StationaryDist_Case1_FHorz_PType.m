@@ -45,22 +45,6 @@ end
 %% Deal with jequaloneDist
 [jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames,0);
 
-%% If PTypeDistParamNames is a function handle, then deal with this
-if isa(PTypeDistParamNames, 'function_handle')
-    % Inputs are N_i, then parameters, so go get them
-    temp=getAnonymousFnInputNames(PTypeDistParamNames);
-    inputparamcell=cell(length(temp)-1,1);
-    for pp=1:length(temp)-1
-        inputparamcell{pp}=Parameters.(temp{pp+1});
-    end
-    [PTypeDistParamNames,PTypeParams]=PTypeDistParamNames(N_i,inputparamcell{:});
-    % Store the parameters
-    ptypeparamnames=fieldnames(PTypeParams);
-    for pp=1:length(ptypeparamnames)
-        Parameters.(ptypeparamnames{pp})=PTypeParams.(ptypeparamnames{pp});
-    end
-end
-
 
 %%
 for ii=1:N_i

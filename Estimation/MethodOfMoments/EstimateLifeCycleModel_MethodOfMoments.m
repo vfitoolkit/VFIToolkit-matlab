@@ -836,8 +836,15 @@ for pp=1:length(EstimParamNames)
             % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
             % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
         end
+   
         % Now store the unconstrained values
-        EstimParams.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+        if estimomitparams_counter(pp)>0
+            currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
+            currparamraw(isnan(currparamraw))=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            EstimParams.(EstimParamNames{pp})=currparamraw;
+        else
+            EstimParams.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+        end
     else
         EstimParams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % When skipping estimation, just returns the same parameters as you input
     end

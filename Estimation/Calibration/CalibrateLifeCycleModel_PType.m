@@ -1,4 +1,4 @@
-function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, FnsToEvaluate, caliboptions, vfoptions,simoptions)
+function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -72,19 +72,55 @@ if ~isempty(caliboptions.constrainAtoBnames)
     caliboptions.constrainAtoBlimits=zeros(length(CalibParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
 end
 
+% Sometimes we want to omit parameters
+if isfield(estimoptions,'omitcalibparam')
+    OmitCalibParamsNames=fieldnames(caliboptions.omitcalibparam);
+else
+    OmitCalibParamsNames={''};
+end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
 calibparamssizes=zeros(length(CalibParamNames),1); % with PType, some parameters may be matrices (depend on both j and i)
+calibomitparams_counter=zeros(length(CalibParamNames)); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
+calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
 for pp=1:length(CalibParamNames)
     calibparamssizes(pp,1:2)=size(Parameters.(CalibParamNames{pp}));
     % Get all the parameters
-    if size(Parameters.(CalibParamNames{pp}),2)==1
-        calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
+    if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
+        % This parameter is under an omit-mask, so need to only use part of it
+        tempparam=Parameters.(CalibParamNames{pp});
+        tempomitparam=caliboptions.omitcalibparam.(CalibParamNames{pp});
+        % Make them both column vectors
+        if size(tempparam,1)==1
+            tempparam=tempparam';
+        end
+        if size(tempparam,1)==1
+            tempomitparam=tempomitparam';
+        end
+        % If the omit and initial guess do not fit together, throw an error
+        if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
+            fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be estimated) \n')
+            CalibParamNames{pp}
+            caliboptions.omitcalibparam.(CalibParamNames{pp})
+            Parameters.(CalibParamNames{pp})
+            error('You have set an omitted calibration parameter, but the set values do not match the initial guess')
+        end
+        tempparam=tempparam(isnan(tempomitparam)); % only keep those which are NaN, not those with value for omitted
+        % Keep the parts which should be estimated
+        calibparamsvec0=[calibparamsvec0; tempparam]; % Note: it is already a column
+        calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(tempparam);
+        % Store the whole thing
+        calibomitparams_counter(pp)=1;
+        calibomitparamsmatrix(:,sum(calibomitparams_counter))=tempomitparam;
     else
-        calibparamsvec0=[calibparamsvec0; reshape(Parameters.(CalibParamNames{pp}),[numel(Parameters.(CalibParamNames{pp})),1])]; % store parameter as a column vector
-    end
-    calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+numel(Parameters.(CalibParamNames{pp})); % Note: numel(), was length() without PType
-    
+        % Get all the parameters
+        if size(Parameters.(CalibParamNames{pp}),2)==1
+            calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
+        else
+            calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})']; % transpose
+        end
+        calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(Parameters.(CalibParamNames{pp}));
+    end    
     % If the parameter is constrained in some way then we need to transform it
 
     % First, check the name, and convert it if relevant
@@ -533,7 +569,7 @@ end
 
 
 %% Set up the objective function and the initial calibration parameter vector
-CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions)
+CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 
 % calibparamsvec0 is our initial guess for calibparamsvec
 
@@ -604,7 +640,7 @@ calibsummary.objvalue=calibobjvalue; % Output the objective value
 
 % Calculate all the model moments (this is something people will often want to look at, and compared to calibration itself runtime cost is negligible)
 caliboptions.vectoroutput=1;
-calibsummary.calibmoments=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, caliboptions, vfoptions,simoptions)
+calibsummary.calibmoments=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 
 
 
