@@ -128,17 +128,53 @@ if ~isempty(estimoptions.constrainAtoBnames)
     estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
 end
 
+% Sometimes we want to omit parameters
+if isfield(estimoptions,'omitestimparam')
+    OmitEstimParamsNames=fieldnames(estimoptions.omitestimparam);
+else
+    OmitEstimParamsNames={''};
+end
 estimparamsvec0=[]; % column vector
 estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
+estimomitparams_counter=zeros(length(EstimParamNames)); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
+estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
 for pp=1:length(EstimParamNames)
-    % Get all the parameters
-    if size(Parameters.(EstimParamNames{pp}),2)==1
-        estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})];
+    if any(strcmp(OmitEstimParamsNames,EstimParamNames{pp}))
+        % This parameter is under an omit-mask, so need to only use part of it
+        tempparam=Parameters.(EstimParamNames{pp});
+        tempomitparam=estimoptions.omitestimparam.(EstimParamNames{pp});
+        % Make them both column vectors
+        if size(tempparam,1)==1
+            tempparam=tempparam';
+        end
+        if size(tempparam,1)==1
+            tempomitparam=tempomitparam';
+        end
+        % If the omit and initial guess do not fit together, throw an error
+        if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
+            fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be estimated) \n')
+            EstimParamNames{pp}
+            estimoptions.omitestimparam.(EstimParamNames{pp})
+            Parameters.(EstimParamNames{pp})
+            error('You have set an omitted estimated parameter, but the set values do not match the initial guess')
+        end
+        tempparam=tempparam(isnan(tempomitparam)); % only keep those which are NaN, not those with value for omitted
+        % Keep the parts which should be estimated
+        estimparamsvec0=[estimparamsvec0; tempparam]; % Note: it is already a column
+        estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(tempparam);
+        % Store the whole thing
+        estimomitparams_counter(pp)=1;
+        estimomitparamsmatrix(:,sum(estimomitparams_counter))=tempomitparam;
     else
-        estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})']; % transpose
+        % Get all the parameters
+        if size(Parameters.(EstimParamNames{pp}),2)==1
+            estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})];
+        else
+            estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})']; % transpose
+        end
+        estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
     end
-    estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
-    
+
     % If the parameter is constrained in some way then we need to transform it
 
     % First, check the name, and convert it if relevant
@@ -488,7 +524,7 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
 
 
 % estimparamsvec0 is our initial guess for estimparamsvec

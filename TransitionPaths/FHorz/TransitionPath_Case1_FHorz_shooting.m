@@ -182,7 +182,7 @@ if transpathoptions.ageweightstrivial==0
     % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j*N_z-by-T )
     AgeWeights_T=AgeWeights; % Has already been adjusted based on simoptions.fastOLG
 elseif transpathoptions.ageweightstrivial==1
-    if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
+    if max(abs(AgeWeights_initial-AgeWeights))>10^(-10)
         error('AgeWeights differs from the weights implicit in the initial agent distribution (get different weights if calculate from AgentDist_initial vs if look in Parameters at AgeWeightsParamNames)')
     end
     AgeWeights=AgeWeights_initial;

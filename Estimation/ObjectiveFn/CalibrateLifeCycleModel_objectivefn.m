@@ -1,15 +1,20 @@
-function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
 
 % Do any transformations of parameters before we say what they are
+penalty=zeros(length(calibparamsvec),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
 for pp=1:length(CalibParamNames)
+
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
+        temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*(temp<-51); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))).*(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))>-5); % Note: I force anything less that -50 to evaluate to exp(-50)~=0 rounding off what would otherwise be 10e-22, as otherwise can get stuck wandering around crazy negative numbers 
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
     elseif caliboptions.constrain0to1(pp)==1
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*((temp>51)+(temp<-51)); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
         % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
         calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
         % Note: This does not include the endpoints of 0 and 1 as 1/(1+exp(-x)) maps from the Real line into the open interval (0,1)
@@ -26,8 +31,14 @@ for pp=1:length(CalibParamNames)
         % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
     end
 end
+if sum(penalty)>0
+    penalty=1/prod(1./penalty(penalty>0)); % Turn into a scalar penalty [I try to do opposite of geometric mean, and penalize more when one gets extreme]
+else
+    penalty=0;
+end
 
 if caliboptions.verbose==1 && caliboptions.vectoroutput==0
+    fprintf(' \n')
     fprintf('Current parameter values: \n')
     for pp=1:length(CalibParamNames)
         if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
@@ -39,8 +50,15 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     end
 end
 
+
 for pp=1:length(CalibParamNames)
-    Parameters.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+    if calibomitparams_counter(pp)>0
+        currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
+        currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        Parameters.(CalibParamNames{pp})=currparamraw;
+    else
+        Parameters.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+    end
 end
 
 
@@ -97,7 +115,7 @@ if any(caliboptions.logmoments>0) % need to log some moments
 end
 
 
-%% Evaluate the objective function
+%% Evaluate the objective function (which is being minimized)
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
@@ -124,6 +142,14 @@ else
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
     Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
+
+    if penalty>0
+        if Obj>0
+            Obj=1.2*penalty*Obj; % 20% penalty for being too far in violation of restrictions
+        else % Obj is negative, so penalty is to reduce magnitude
+            Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
+        end
+    end
 end
 
 
@@ -133,6 +159,16 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf('Current and target moments (first row is current, second row is target) \n')
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
     fprintf('Current objective fn value is %8.12f \n', Obj)
+    if penalty>0
+        if Obj>0
+            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
+        else  % Obj is negative, so penalty is to reduce magnitude
+            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+        end
+    end
+    fprintf(' \n')
+    fprintf(' \n')
+    penalty
 end
 
 

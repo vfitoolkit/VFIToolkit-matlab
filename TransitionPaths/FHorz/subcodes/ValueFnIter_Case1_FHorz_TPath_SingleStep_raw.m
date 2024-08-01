@@ -82,46 +82,20 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
         
-        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
-        
-        if vfoptions.paroverz==1
 
-            EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
-            
-%            entireEV=kron(EV,ones(N_d,1)); % For some reason this threw error (works just fine in standard finite horz value fn codes)
-            entireEV=repelem(EV,N_d,1,1);
-%             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            
-            V(:,:,jj)=shiftdim(Vtemp,1);
-            Policy(:,:,jj)=shiftdim(maxindex,1);
-            
-            
-        elseif vfoptions.paroverz==0
-            
-            for z_c=1:N_z
-                ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-                
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-                
-                entireEV_z=kron(EV_z,ones(N_d,1));
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z*ones(1,N_a,1);
-                
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                V(:,z_c,jj)=Vtemp;
-                Policy(:,z_c,jj)=maxindex;
-            end
-        end
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
+        entireEV=repelem(EV,N_d,1,1);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repmat(entireEV,1,N_a,1);
+
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+
+        V(:,:,jj)=shiftdim(Vtemp,1);
+        Policy(:,:,jj)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
