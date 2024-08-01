@@ -323,6 +323,7 @@ if isfield(simoptions,'conditionalrestrictions')
 end
 
 
+AgeMasses=zeros(N_i,N_j,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
 
 %% Do an outerloop over ptypes and an inner loop over FnsToEvaluate
 if simoptions.lowmemory==0
@@ -444,7 +445,7 @@ if simoptions.lowmemory==0
 
         StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
-
+        AgeMasses(ii,:)=sum(StationaryDist_ii,1);
 
         %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
         if useCondlRest==1
@@ -467,10 +468,10 @@ if simoptions.lowmemory==0
                 end
 
                 if l_z_temp==0
-                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j_temp,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
                     RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,0,a_gridvals_temp,[]));
                 else
-                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters,CondlRestnFnParamNames,N_j_temp,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
                     RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp));
                 end
                 RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp*N_j_temp,1]);
@@ -484,17 +485,11 @@ if simoptions.lowmemory==0
                 % Store for later
                 RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
 
-                if sum(restrictedsamplemass(ii,:,rr))==0
-                    warning('One of the conditional restrictions evaluates to a zero mass')
-                    fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
-                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(Names_i{ii})=restrictedsamplemass(ii,:,rr); % Just return this and hopefully it is clear to the user
-                else
-                    AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(Names_i{ii})=restrictedsamplemass(ii,:,rr); % Seems likely this would be something user might want
-                end
+                AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(Names_i{ii})=restrictedsamplemass(ii,:,rr); % Seems likely this would be something user might want
 
             end
         end
-
+        
         
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
@@ -503,8 +498,8 @@ if simoptions.lowmemory==0
                 
                 % Get parameter names for current FnsToEvaluate functions
                 tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
-                if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_z_temp)
-                    FnsToEvaluateParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+                if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
+                    FnsToEvaluateParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 else
                     FnsToEvaluateParamNames={};
                 end
@@ -766,9 +761,9 @@ if simoptions.lowmemory==0
                                 error('Code should never get here (should have thrown an error earlier')
                             else
                                 if simoptions.ptypestorecpu==1
-                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii))];
+                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(RestrictedSortedWeights)*gather(sum(AgeMasses(ii,j1:jend)))*gather(StationaryDist.ptweights(ii))];
                                 else
-                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); RestrictedSortedWeights*StationaryDist.ptweights(ii)];
+                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); RestrictedSortedWeights*sum(AgeMasses(ii,j1:jend))*StationaryDist.ptweights(ii)];
                                 end
                             end
 
@@ -782,8 +777,11 @@ if simoptions.lowmemory==0
     end % end ii over N_i
 
 
-
+    
     %% Now we compute the grouped stats
+    if simoptions_temp.verbose==1
+        fprintf('Permanent type: Grouped Stats \n')
+    end
     % Preallocate various things for the stats (as many will have jj as a dimension)
     % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
     for ff=1:numFnsToEvaluate
@@ -864,6 +862,7 @@ if simoptions.lowmemory==0
     end
 
 
+    %% Now compute the grouped stats
     if simoptions.groupptypesforstats==1
         for ff=1:numFnsToEvaluate
             for jj=1:1:maxngroups
@@ -976,8 +975,8 @@ if simoptions.lowmemory==0
                             elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
                                 % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                                 AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
-                                AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(sum(restrictedsamplemass(:,j1:jend,rr)));
-
+                                AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
+                                
                                 tempStats2=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                             end
                             % Store them in AgeConditionalStats
@@ -1024,6 +1023,20 @@ if simoptions.lowmemory==0
             end
         end
     end
+
+    if useCondlRest==1 % Store the restricted masses
+        for rr=1:length(CondlRestnFnNames)
+            if sum(sum(restrictedsamplemass(:,:,rr)))==0
+                warning('One of the conditional restrictions evaluates to a zero mass')
+                fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
+            end
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByAge=sum(restrictedsamplemass(:,:,rr).*StationaryDist.ptweights,1); % Conditional on age, what fraction satisfy restriction
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.ByPType=sum(restrictedsamplemass(:,:,rr).*AgeMasses,2); % Conditional on ptype, what fraction satisfy restriction
+            AgeConditionalStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.Total=sum(sum(restrictedsamplemass(:,:,rr).*AgeMasses.*StationaryDist.ptweights,1),2); % What fraction satisfy restriction
+
+        end
+    end
+    
 
     %%
 elseif simoptions.lowmemory==1
