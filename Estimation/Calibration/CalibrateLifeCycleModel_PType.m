@@ -73,7 +73,7 @@ if ~isempty(caliboptions.constrainAtoBnames)
 end
 
 % Sometimes we want to omit parameters
-if isfield(estimoptions,'omitcalibparam')
+if isfield(caliboptions,'omitcalibparam')
     OmitCalibParamsNames=fieldnames(caliboptions.omitcalibparam);
 else
     OmitCalibParamsNames={''};
