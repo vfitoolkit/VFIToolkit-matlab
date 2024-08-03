@@ -1,4 +1,4 @@
-function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, caliboptions, vfoptions,simoptions)
+function [CalibParams,calibsummary]=CalibrateLifeCycleModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -58,19 +58,56 @@ caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with o
 
 
 
+%% Set up Names_i and N_i
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
+    for ii=2:N_i
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
+    end
+end
+
 %% Setup for which parameters are being calibrated
+% First figure out how many parameters there are (tricky as they can be dependent on ptype)
+nCalibParams=0;
+nCalibParamsFinder=[]; % rows are the nCalibParams, first column is pp, second column is ii
+for pp=1:length(CalibParamNames)
+    if isstruct(Parameters.(CalibParamNames{pp}))
+        for ii=1:N_i
+            if isfield(Parameters.(CalibParamNames{pp}),Names_i{ii})
+                nCalibParams=nCalibParams+1;
+                nCalibParamsFinder(nCalibParams,1)=pp;
+                nCalibParamsFinder(nCalibParams,2)=ii;
+            end
+        end
+    else
+        nCalibParams=nCalibParams+1;
+        nCalibParamsFinder(nCalibParams,1)=pp;
+        nCalibParamsFinder(nCalibParams,2)=0;
+    end
+end
+
 
 % Backup the parameter constraint names, so I can replace them with vectors
 caliboptions.constrainpositivenames=caliboptions.constrainpositive;
-caliboptions.constrainpositive=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be positive
+caliboptions.constrainpositive=zeros(nCalibParams,1); % if equal 1, then that parameter is constrained to be positive
 caliboptions.constrain0to1names=caliboptions.constrain0to1;
-caliboptions.constrain0to1=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+caliboptions.constrain0to1=zeros(nCalibParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
 caliboptions.constrainAtoBnames=caliboptions.constrainAtoB;
-caliboptions.constrainAtoB=zeros(length(CalibParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+caliboptions.constrainAtoB=zeros(nCalibParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
 if ~isempty(caliboptions.constrainAtoBnames)
     caliboptions.constrainAtoBlimitsnames=caliboptions.constrainAtoBlimits;
-    caliboptions.constrainAtoBlimits=zeros(length(CalibParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+    caliboptions.constrainAtoBlimits=zeros(nCalibParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
 end
+
 
 % Sometimes we want to omit parameters
 if isfield(caliboptions,'omitcalibparam')
@@ -79,17 +116,23 @@ else
     OmitCalibParamsNames={''};
 end
 calibparamsvec0=[]; % column vector
-calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
-calibparamssizes=zeros(length(CalibParamNames),1); % with PType, some parameters may be matrices (depend on both j and i)
-calibomitparams_counter=zeros(length(CalibParamNames)); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
+calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
+calibparamssizes=zeros(nCalibParams,1); % with PType, some parameters may be matrices (depend on both j and i)
+calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
 calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
-for pp=1:length(CalibParamNames)
-    calibparamssizes(pp,1:2)=size(Parameters.(CalibParamNames{pp}));
+for pp=1:nCalibParams
+    if nCalibParamsFinder(pp,2)==0 % Doesn't depend on ptype
+        currentparameter=Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)});
+    else % depends on ptype
+        currentparameter=Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)});
+    end
+    
+    calibparamssizes(pp,1:2)=size(currentparameter);
     % Get all the parameters
-    if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
+    if any(strcmp(OmitCalibParamsNames,CalibParamNames{nCalibParamsFinder(pp,1)})) % Omitting part of parameters cannot differ across permanent types
         % This parameter is under an omit-mask, so need to only use part of it
-        tempparam=Parameters.(CalibParamNames{pp});
-        tempomitparam=caliboptions.omitcalibparam.(CalibParamNames{pp});
+        tempparam=currentparameter;
+        tempomitparam=caliboptions.omitcalibparam.(CalibParamNames{nCalibParamsFinder(pp,1)});
         % Make them both column vectors
         if size(tempparam,1)==1
             tempparam=tempparam';
@@ -99,14 +142,14 @@ for pp=1:length(CalibParamNames)
         end
         % If the omit and initial guess do not fit together, throw an error
         if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
-            fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be estimated) \n')
+            fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be calibrated) \n')
             CalibParamNames{pp}
-            caliboptions.omitcalibparam.(CalibParamNames{pp})
-            Parameters.(CalibParamNames{pp})
-            error('You have set an omitted calibration parameter, but the set values do not match the initial guess')
+            caliboptions.omitcalibparam.(CalibParamNames{nCalibParamsFinder(pp,1)})
+            currentparameter
+            error('You have set an omitted calibrated parameter, but the set values do not match the initial guess')
         end
         tempparam=tempparam(isnan(tempomitparam)); % only keep those which are NaN, not those with value for omitted
-        % Keep the parts which should be estimated
+        % Keep the parts which should be calibrated
         calibparamsvec0=[calibparamsvec0; tempparam]; % Note: it is already a column
         calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(tempparam);
         % Store the whole thing
@@ -114,29 +157,31 @@ for pp=1:length(CalibParamNames)
         calibomitparamsmatrix(:,sum(calibomitparams_counter))=tempomitparam;
     else
         % Get all the parameters
-        if size(Parameters.(CalibParamNames{pp}),2)==1
-            calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})];
+        if size(currentparameter,2)==1
+            calibparamsvec0=[calibparamsvec0; currentparameter];
         else
-            calibparamsvec0=[calibparamsvec0; Parameters.(CalibParamNames{pp})']; % transpose
+            calibparamsvec0=[calibparamsvec0; currentparameter']; % transpose
         end
-        calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(Parameters.(CalibParamNames{pp}));
-    end    
+        calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(currentparameter);
+    end
+    
     % If the parameter is constrained in some way then we need to transform it
 
+    % Contraints cannot differ across ptypes
+    
     % First, check the name, and convert it if relevant
-    if any(strcmp(caliboptions.constrainpositivenames,CalibParamNames{pp}))
+    if any(strcmp(caliboptions.constrainpositivenames,CalibParamNames{nCalibParamsFinder(pp,1)}))
         caliboptions.constrainpositive(pp)=1;
     end
-    if any(strcmp(caliboptions.constrain0to1names,CalibParamNames{pp}))
+    if any(strcmp(caliboptions.constrain0to1names,CalibParamNames{nCalibParamsFinder(pp,1)}))
         caliboptions.constrain0to1(pp)=1;
     end
-    if any(strcmp(caliboptions.constrainAtoBnames,CalibParamNames{pp}))
+    if any(strcmp(caliboptions.constrainAtoBnames,CalibParamNames{nCalibParamsFinder(pp,1)}))
         % For parameters A to B, I convert via 0 to 1
         caliboptions.constrain0to1(pp)=1;
         caliboptions.constrainAtoB(pp)=1;
-        caliboptions.constrainAtoBlimits(pp,:)=caliboptions.constrainAtoBlimitsnames.(CalibParamNames{pp});
+        caliboptions.constrainAtoBlimits(pp,:)=caliboptions.constrainAtoBlimitsnames.(CalibParamNames{nCalibParamsFinder(pp,1)});
     end
-
     if caliboptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=max(log(calibparamsvec0(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))),-49.99);
@@ -155,9 +200,10 @@ for pp=1:length(CalibParamNames)
     end
     if caliboptions.constrainpositive(pp)==1 && caliboptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(CalibParamNames))])
-        error('You cannot constrain parameter twice (you are constraining one of the parameters using both caliboptions.constrainpositive and caliboptions.constrain0to1')
+        error('You cannot constrain parameter twice (you are constraining one of the parameters using both caliboptions.constrainpositive and in one of caliboptions.constrain0to1 and caliboptions.constrainAtoB')
     end
 end
+
 
 
 
@@ -569,7 +615,7 @@ end
 
 
 %% Set up the objective function and the initial calibration parameter vector
-CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
 
 % calibparamsvec0 is our initial guess for calibparamsvec
 
@@ -627,23 +673,43 @@ end
 
 
 %% Clean up output
-for pp=1:length(CalibParamNames)
-    if caliboptions.constrainpositive(pp)==0
-        CalibParams.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-    elseif caliboptions.constrainpositive(pp)==1
+for pp=1:nCalibParams
+    % If parameter is constrained, switch it back to the unconstrained value
+    if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        CalibParams.(CalibParamNames{pp})=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
+    elseif caliboptions.constrain0to1(pp)==1
+        % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
+    end
+    % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
+    if caliboptions.constrainAtoB(pp)==1
+        % Constrain parameter to be A to B
+        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=caliboptions.constrainAtoBlimits(pp,1)+(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1))*calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
+        % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
+    end
+
+    % Now store the unconstrained values
+    if calibomitparams_counter(pp)>0
+        currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
+        currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
+        else % depends on ptype
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
+        end
+    else
+        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        else
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        end
     end
 end
+clear calibparamsvec % I modified it, so want to make sure I don't accidently use it again later
 
 calibsummary.objvalue=calibobjvalue; % Output the objective value
-
-% Calculate all the model moments (this is something people will often want to look at, and compared to calibration itself runtime cost is negligible)
-caliboptions.vectoroutput=1;
-calibsummary.calibmoments=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
-
-
-
 
 
 

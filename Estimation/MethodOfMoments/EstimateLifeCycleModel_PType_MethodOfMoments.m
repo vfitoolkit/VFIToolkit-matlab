@@ -1,4 +1,4 @@
-function [EstimParams, EstimParamsConfInts,estsummary]=EstimateLifeCycleModel_PType_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, estimoptions, vfoptions,simoptions)
+function [EstimParams, EstimParamsConfInts,estsummary]=EstimateLifeCycleModel_PType_MethodOfMoments(EstimParamNames,TargetMoments,WeightingMatrix,CoVarMatrixDataMoments,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, estimoptions, vfoptions,simoptions)
 % Note: Inputs are EstimParamNames,TargetMoments, WeightingMatrix, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is estimoptions.
@@ -112,21 +112,56 @@ if estimoptions.bootstrapStdErrors==1
     end
 end
 
-
+%% Set up Names_i and N_i
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i; % It is the number of PTypes (which have not been given names)
+    Names_i={'ptype001'};
+    for ii=2:N_i
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
+    end
+end
 
 %% Setup for which parameters are being estimated
+% First figure out how many parameters there are (tricky as they can be dependent on ptype)
+nEstimParams=0;
+nEstimParamsFinder=[]; % rows are the nEstimParams, first column is pp, second column is ii
+for pp=1:length(EstimParamNames)
+    if isstruct(Parameters.(EstimParamNames{pp}))
+        for ii=1:N_i
+            if isfield(Parameters.(EstimParamNames{pp}),Names_i{ii})
+                nEstimParams=nEstimParams+1;
+                nEstimParamsFinder(nEstimParams,1)=pp;
+                nEstimParamsFinder(nEstimParams,2)=ii;
+            end
+        end
+    else
+        nEstimParams=nEstimParams+1;
+        nEstimParamsFinder(nEstimParams,1)=pp;
+        nEstimParamsFinder(nEstimParams,2)=0;
+    end
+end
+
 
 % Backup the parameter constraint names, so I can replace them with vectors
 estimoptions.constrainpositivenames=estimoptions.constrainpositive;
-estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
+estimoptions.constrainpositive=zeros(nEstimParams,1); % if equal 1, then that parameter is constrained to be positive
 estimoptions.constrain0to1names=estimoptions.constrain0to1;
-estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+estimoptions.constrain0to1=zeros(nEstimParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
 estimoptions.constrainAtoBnames=estimoptions.constrainAtoB;
-estimoptions.constrainAtoB=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
+estimoptions.constrainAtoB=zeros(nEstimParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
 if ~isempty(estimoptions.constrainAtoBnames)
     estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
-    estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+    estimoptions.constrainAtoBlimits=zeros(nEstimParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
 end
+
 
 % Sometimes we want to omit parameters
 if isfield(estimoptions,'omitestimparam')
@@ -135,17 +170,23 @@ else
     OmitEstimParamsNames={''};
 end
 estimparamsvec0=[]; % column vector
-estimparamsvecindex=zeros(length(EstimParamNames)+1,1); % Note, first element remains zero
-estimparamssizes=zeros(length(EstimParamNames),1); % with PType, some parameters may be matrices (depend on both j and i)
-estimomitparams_counter=zeros(length(EstimParamNames)); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
+estimparamsvecindex=zeros(nEstimParams+1,1); % Note, first element remains zero
+estimparamssizes=zeros(nEstimParams,1); % with PType, some parameters may be matrices (depend on both j and i)
+estimomitparams_counter=zeros(nEstimParams,1); % column vector: estimomitparamsvec allows omiting the parameter for certain ages
 estimomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
-for pp=1:length(EstimParamNames)
-    estimparamssizes(pp,1:2)=size(Parameters.(EstimParamNames{pp}));
+for pp=1:nEstimParams
+    if nEstimParamsFinder(pp,2)==0 % Doesn't depend on ptype
+        currentparameter=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)});
+    else % depends on ptype
+        currentparameter=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)});
+    end
+    
+    estimparamssizes(pp,1:2)=size(currentparameter);
     % Get all the parameters
-    if any(strcmp(OmitEstimParamsNames,EstimParamNames{pp}))
+    if any(strcmp(OmitEstimParamsNames,EstimParamNames{nEstimParamsFinder(pp,1)})) % Omitting part of parameters cannot differ across permanent types
         % This parameter is under an omit-mask, so need to only use part of it
-        tempparam=Parameters.(EstimParamNames{pp});
-        tempomitparam=estimoptions.omitestimparam.(EstimParamNames{pp});
+        tempparam=currentparameter;
+        tempomitparam=estimoptions.omitestimparam.(EstimParamNames{nEstimParamsFinder(pp,1)});
         % Make them both column vectors
         if size(tempparam,1)==1
             tempparam=tempparam';
@@ -157,8 +198,8 @@ for pp=1:length(EstimParamNames)
         if ~all(tempomitparam(~isnan(tempomitparam))==tempparam(~isnan(tempomitparam)))
             fprintf('Following are the name, omit value, and initial value that related to following error (they should be the same in the non-NaN entries to be estimated) \n')
             EstimParamNames{pp}
-            estimoptions.omitestimparam.(EstimParamNames{pp})
-            Parameters.(EstimParamNames{pp})
+            estimoptions.omitestimparam.(EstimParamNames{nEstimParamsFinder(pp,1)})
+            currentparameter
             error('You have set an omitted estimated parameter, but the set values do not match the initial guess')
         end
         tempparam=tempparam(isnan(tempomitparam)); % only keep those which are NaN, not those with value for omitted
@@ -170,30 +211,31 @@ for pp=1:length(EstimParamNames)
         estimomitparamsmatrix(:,sum(estimomitparams_counter))=tempomitparam;
     else
         % Get all the parameters
-        if size(Parameters.(EstimParamNames{pp}),2)==1
-            estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})];
+        if size(currentparameter,2)==1
+            estimparamsvec0=[estimparamsvec0; currentparameter];
         else
-            estimparamsvec0=[estimparamsvec0; Parameters.(EstimParamNames{pp})']; % transpose
+            estimparamsvec0=[estimparamsvec0; currentparameter']; % transpose
         end
-        estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
+        estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(currentparameter);
     end
     
     % If the parameter is constrained in some way then we need to transform it
 
+    % Contraints cannot differ across ptypes
+    
     % First, check the name, and convert it if relevant
-    if any(strcmp(estimoptions.constrainpositivenames,EstimParamNames{pp}))
+    if any(strcmp(estimoptions.constrainpositivenames,EstimParamNames{nEstimParamsFinder(pp,1)}))
         estimoptions.constrainpositive(pp)=1;
     end
-    if any(strcmp(estimoptions.constrain0to1names,EstimParamNames{pp}))
+    if any(strcmp(estimoptions.constrain0to1names,EstimParamNames{nEstimParamsFinder(pp,1)}))
         estimoptions.constrain0to1(pp)=1;
     end
-    if any(strcmp(estimoptions.constrainAtoBnames,EstimParamNames{pp}))
+    if any(strcmp(estimoptions.constrainAtoBnames,EstimParamNames{nEstimParamsFinder(pp,1)}))
         % For parameters A to B, I convert via 0 to 1
         estimoptions.constrain0to1(pp)=1;
         estimoptions.constrainAtoB(pp)=1;
-        estimoptions.constrainAtoBlimits(pp,:)=estimoptions.constrainAtoBlimitsnames.(EstimParamNames{pp});
+        estimoptions.constrainAtoBlimits(pp,:)=estimoptions.constrainAtoBlimitsnames.(EstimParamNames{nEstimParamsFinder(pp,1)});
     end
-
     if estimoptions.constrainpositive(pp)==1
         % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
         estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-49.99);
@@ -212,7 +254,7 @@ for pp=1:length(EstimParamNames)
     end
     if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
         fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
-        error('You cannot constrain parameter twice (you are constraining one of the parameters using both estimoptions.constrainpositive and estimoptions.constrain0to1')
+        error('You cannot constrain parameter twice (you are constraining one of the parameters using both estimoptions.constrainpositive and in one of estimoptions.constrain0to1 and estimoptions.constrainAtoB')
     end
 end
 
@@ -608,7 +650,7 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
 
 % estimparamsvec0 is our initial guess for estimparamsvec
 
@@ -779,15 +821,15 @@ if estimoptions.bootstrapStdErrors==0
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-
+        
         % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
-        ObjValue=CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+        ObjValue=CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
         for pp=1:length(estimparamsvec)
             epsilonparamvec=estimparamsvec;
             epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
-            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
             epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
-            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec, EstimParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(epsilonparamvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
         end
 
         % Use finite-difference to compute the derivatives
@@ -875,9 +917,9 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
 
         for pp=1:length(estimoptions.CalibParamsNames)
             Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilon)*CalibParams.(estimoptions.CalibParamsNames{pp}); % add epsilon*x to the pp-th parameter
-            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
             Parameters.(estimoptions.CalibParamsNames{pp})=(1-epsilon)*CalibParams.(estimoptions.CalibParamsNames{pp}); % subtract epsilon*x from the pp-th parameter
-            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimoptions, vfoptions,simoptions);
+            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
             % restore calib param
             Parameters.(estimoptions.CalibParamsNames{pp})=CalibParams.(estimoptions.CalibParamsNames{pp});
         end
@@ -900,7 +942,7 @@ end
 
 
 %% Clean up the first two outputs
-for pp=1:length(EstimParamNames)
+for pp=1:nEstimParams
     if estimoptions.skipestimation==0
         % If parameter is constrained, switch it back to the unconstrained value
         if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
@@ -922,21 +964,41 @@ for pp=1:length(EstimParamNames)
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
             currparamraw(isnan(currparamraw))=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            EstimParams.(EstimParamNames{pp})=currparamraw;
+            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=currparamraw;
+            else % depends on ptype
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=currparamraw;                
+            end
         else
-            EstimParams.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            else
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            end
         end
     else
-        EstimParams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % When skipping estimation, just returns the same parameters as you input
+        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+            EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)}); % When skipping estimation, just returns the same parameters as you input
+        else
+            EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=Parameters.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)}); % When skipping estimation, just returns the same parameters as you input
+        end
     end
 
     if estimoptions.bootstrapStdErrors==0
         estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector
         if estimoptions.constrainpositive(pp)==0
-            estsummary.EstimParamsStdDev.(EstimParamNames{pp})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            else
+                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            end
         elseif estimoptions.constrainpositive(pp)==1
             % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            estsummary.EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            else
+                estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+            end
         end
         % If bootstrap std errors, then replace the std dev with the bootstrap distribuiton
     elseif estimoptions.bootstrapStdErrors==1
@@ -970,7 +1032,11 @@ end
 % Instead they will hopefully focus on what is likely and plausible.
 EstimParamsConfInts.notes='These are 90-percent confidence intervals';
 for pp=1:length(EstimParamNames)
-    EstimParamsConfInts.(EstimParamNames{pp})=EstimParams.(EstimParamNames{pp}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{pp});
+    if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+        EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)});
+    else
+        EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)});
+    end
 end
 
 % Give lots of alternative confidence intervals in the estsummary
@@ -980,7 +1046,11 @@ for ii=1:length(confintvec)
     confint=confintvec(ii);
     critval=criticalvalue_normaldist_z_alphadiv2_vec(ii);
     for pp=1:length(EstimParamNames)
-        estsummary.confidenceintervals.(['confint',num2str(confint)]).EstimParamsConfInts.(EstimParamNames{pp})=EstimParams.(EstimParamNames{pp}) + [-1,1]*critval*estsummary.EstimParamsStdDev.(EstimParamNames{pp});
+        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+            estsummary.confidenceintervals.(['confint',num2str(confint)]).EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}) + [-1,1]*critval*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)});
+        else
+            estsummary.confidenceintervals.(['confint',num2str(confint)]).EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)}) + [-1,1]*critval*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)});
+        end
     end
 end
 

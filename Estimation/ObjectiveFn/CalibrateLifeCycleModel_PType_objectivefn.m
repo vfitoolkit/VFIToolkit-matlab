@@ -1,12 +1,11 @@
-function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
 
-
 % Do any transformations of parameters before we say what they are
 penalty=zeros(length(calibparamsvec),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
-for pp=1:length(CalibParamNames)
+for pp=1:nCalibParams
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*(temp<-51); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
@@ -40,43 +39,62 @@ end
 if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     fprintf(' \n')
     fprintf('Current parameter values: \n')
-    for pp=1:length(CalibParamNames)
-        if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
-            fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
-        else
-            fprintf(['    ',CalibParamNames{pp},'=  \n'])
-            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
+    for pp=1:nCalibParams
+        if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
+            if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+            else
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'=  \n'])
+                calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
+            end
+        else  % parameter depends on ptype
+            if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'.',Names_i{nCalibParamsFinder(pp,2)},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+            else
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'.',Names_i{nCalibParamsFinder(pp,2)},'=  \n'])
+                calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
+            end
         end
     end
 end
 
-for pp=1:length(CalibParamNames)
+for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        Parameters.(CalibParamNames{pp})=reshape(currparamraw,calibparamssizes(pp,:));
+        if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(currparamraw,calibparamssizes(pp,:));
+        else
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(currparamraw,calibparamssizes(pp,:));
+        end
     else
-        Parameters.(CalibParamNames{pp})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
+        if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
+        else
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
+        end
     end
 end
 
-%% ParametrizePTypeFn can be used to parametrize the permanent types
-if ~isempty(ParametrizePTypeFn)
-    Parameters=ParametrizePTypeFn(Parameters);
+
+%% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
+if ~isempty(ParametrizeParamsFn)
+    Parameters=ParametrizeParamsFn(Parameters);
 end
 
-%% Solve the model and calculate the stats
-[~, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,N_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
 
-StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,N_i,pi_z_J,Parameters,simoptions);
+%% Solve the model and calculate the stats
+[~, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+
+StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z_J,Parameters,simoptions);
 
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,N_i,d_grid,a_grid,z_gridvals_J,simoptions);
+    AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
 end
 if usinglcp==1
     simoptions.whichstats=ACStats_whichstats;
-    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,N_i,d_grid,a_grid,z_gridvals_J,simoptions);
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
 end
 
 if caliboptions.simulatemoments==1
