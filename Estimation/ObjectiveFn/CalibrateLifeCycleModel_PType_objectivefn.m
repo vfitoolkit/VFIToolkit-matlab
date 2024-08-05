@@ -155,11 +155,6 @@ else
     elseif strcmp(caliboptions.metric,'sum_squared')
         Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,[],'omitnan');
     elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-
-        disp('WHAT?')
-        size(caliboptions.weights) % row vector
-        size((log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2)) % column vector
-
         Obj=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),[],'omitnan');
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end

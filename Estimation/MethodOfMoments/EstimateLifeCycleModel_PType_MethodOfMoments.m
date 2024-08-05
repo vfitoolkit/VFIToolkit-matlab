@@ -858,11 +858,6 @@ if estimoptions.bootstrapStdErrors==0
         end
         if ee==eedefault
             J=J_centered; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
-
-            disp('Denominator')
-            epsilonparamup(:,ee)
-            estimparamsvec
-            epsilonparamdown(:,ee)
         end
     end
     
@@ -893,8 +888,6 @@ end
 %% Local identification
 if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
-    size(J)
-    J
     estsummary.localidentification.rankJ=rank(J); % If this is greater or equal to number of parameters, then locally identified
     estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
     estsummary.notes.localidentification='If the Jacobian matrix (derivatives of model moments with respect to parameter vector) is full rank then the model is locally identified [so rank(J) should be greater than or equal to number of parameters being estimated]';
