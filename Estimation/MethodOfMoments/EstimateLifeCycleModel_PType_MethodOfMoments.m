@@ -759,7 +759,7 @@ if estimoptions.bootstrapStdErrors==0
     modelestimparamsvecup=zeros(size(modelestimparamsvec));
     modelestimparamsvecdown=zeros(size(modelestimparamsvec));
     % Switch modelestimparamsvec to the constrained (model) parameters
-    for pp=1:length(EstimParamNames)
+    for pp=1:nEstimParams
         if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
             % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
             modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
@@ -778,7 +778,7 @@ if estimoptions.bootstrapStdErrors==0
     % Now, multiply by (1+-epsilon) and then convert back to unconstrained parameter value
     for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
-        for pp=1:length(EstimParamNames)
+        for pp=1:nEstimParams
             if modelestimparamsvec(pp)>10*epsilon
                 modelestimparamsvecup(pp)=(1+epsilon)*modelestimparamsvec(pp); % add epsilon*x to the pp-th parameter
                 modelestimparamsvecdown(pp)=(1-epsilon)*modelestimparamsvec(pp); % subtract epsilon*x from the pp-th parameter
@@ -816,11 +816,11 @@ if estimoptions.bootstrapStdErrors==0
     %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
     for ee=1:length(epsilonmodvec)
         % epsilon=epsilonmodvec(ee)*epsilonraw; % Not actually used for anything (as I used it to create epsilonparamup and epsilonparamdown, and these are used below)
-
         % ObjValue=zeros(sum(~isnan(targetmomentvec)),1);
+        % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
+        
         ObjValue_upwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         ObjValue_downwind=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
-        % J=zeros(sum(~isnan(targetmomentvec)),length(estimparamsvec)); % Jacobian matrix of 'derivative of model moments with respect to parameters, evaluated at parameter point estimates'
         
         % Note: estimoptions.vectoroutput=1, so ObjValue is a vector
         ObjValue=CalibrateLifeCycleModel_PType_objectivefn(estimparamsvec, EstimParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nEstimParams, nEstimParamsFinder, estimparamsvecindex, estimparamssizes, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
@@ -858,6 +858,11 @@ if estimoptions.bootstrapStdErrors==0
         end
         if ee==eedefault
             J=J_centered; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
+
+            disp('Denominator')
+            epsilonparamup(:,ee)
+            estimparamsvec
+            epsilonparamdown(:,ee)
         end
     end
     
@@ -888,6 +893,8 @@ end
 %% Local identification
 if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
+    size(J)
+    J
     estsummary.localidentification.rankJ=rank(J); % If this is greater or equal to number of parameters, then locally identified
     estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
     estsummary.notes.localidentification='If the Jacobian matrix (derivatives of model moments with respect to parameter vector) is full rank then the model is locally identified [so rank(J) should be greater than or equal to number of parameters being estimated]';

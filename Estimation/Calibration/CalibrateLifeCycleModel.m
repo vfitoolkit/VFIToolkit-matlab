@@ -302,6 +302,10 @@ end
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if isscalar(caliboptions.weights)
     caliboptions.weights=caliboptions.weights.*ones(size(targetmomentvec(actualtarget)));
+else % Make sure it is a column vector
+    if size(caliboptions.weights,1)==1 % currently a row vetor
+        caliboptions.weights=caliboptions.weights';
+    end
 end
 if length(caliboptions.weights)~=length(targetmomentvec(actualtarget))
     error('caliboptions.weights is not the length same as number of target moments (ignoring any NaN)')
