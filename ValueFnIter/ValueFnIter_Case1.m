@@ -187,7 +187,7 @@ if max(vfoptions.endotype)==1
     l_z_temp=l_z+sum(vfoptions.endotype); % The variables after z is the endogenous types
 end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
-if isempty(ReturnFnParamNames)
+if isempty(ReturnFnParamNames) && vfoptions.returnmatrix~=1
     temp=getAnonymousFnInputNames(ReturnFn);
     if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
         ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
