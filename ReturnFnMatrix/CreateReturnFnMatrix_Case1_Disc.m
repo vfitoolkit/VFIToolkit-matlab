@@ -42,24 +42,52 @@ if N_d~=0
 end
 
 if Parallel==0
-        
-    if N_d==0
-        Fmatrix=zeros(N_a,N_a,N_z);
-        for i1=1:N_a
-            for i2=1:N_a
-                for i3=1:N_z
-                    tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:)]);
-                    Fmatrix(i1,i2,i3)=ReturnFn(tempcell{:},ParamCell{:});
+    
+    if length(n_d)==1 && length(n_a)==1 && length(n_z)==1
+        % hardcode the 1D for speed
+        if N_d==0
+            Fmatrix=zeros(N_a,N_a,N_z);
+            for i3=1:N_z
+                for i2=1:N_a
+                    for i1=1:N_a
+                        Fmatrix(i1,i2,i3)=ReturnFn(a_gridvals(i1),a_gridvals(i2),z_gridvals(i3),ParamCell{:});
+                    end
+                end
+            end
+
+        else
+            % N_d
+            Fmatrix=zeros(N_d*N_a,N_a,N_z);
+            for i1i2=1:N_d*N_a
+                i1=rem(i1i2-1,N_d)+1;
+                i2=ceil(i1i2/N_d);
+                for i3=1:N_a
+                    for i4=1:N_z
+                        Fmatrix(i1i2,i3,i4)=ReturnFn(d_gridvals(i1),a_gridvals(i2),a_gridvals(i3),z_gridvals(i4),ParamCell{:});
+                    end
                 end
             end
         end
-            
-    else
-        Fmatrix=zeros(N_d*N_a,N_a,N_z);
-                   
-        for i1=1:N_d
-            for i2=1:N_a
-                i1i2=i1+(i2-1)*N_d;
+
+    else % more than one-dimensional
+
+        if N_d==0
+            Fmatrix=zeros(N_a,N_a,N_z);
+            for i3=1:N_z
+                for i2=1:N_a
+                    for i1=1:N_a
+                        tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals(i3,:)]);
+                        Fmatrix(i1,i2,i3)=ReturnFn(tempcell{:},ParamCell{:});
+                    end
+                end
+            end
+
+        else
+            % N_d
+            Fmatrix=zeros(N_d*N_a,N_a,N_z);
+            for i1i2=1:N_d*N_a
+                i1=rem(i1i2-1,N_d)+1;
+                i2=ceil(i1i2/N_d);
                 for i3=1:N_a
                     for i4=1:N_z
                         tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals(i4,:)]);
@@ -68,39 +96,71 @@ if Parallel==0
                 end
             end
         end
+
     end
     
 elseif Parallel==1
     
-    if N_d==0
-        Fmatrix=zeros(N_a,N_a,N_z);
-        parfor i3=1:N_z
-            z_gridvals_c=z_gridvals(i3,:);
-            
-            Fmatrix_z=zeros(N_a,N_a);
-            for i1=1:N_a
-                for i2=1:N_a
-                    tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:),z_gridvals_c]);
-                    Fmatrix_z(i1,i2)=ReturnFn(tempcell{:},ParamCell{:});
-                end
-            end
-            Fmatrix(:,:,i3)=Fmatrix_z;
-        end
-    else        
-        Fmatrix=zeros(N_d*N_a,N_a,N_z);
-        parfor i4=1:N_z
-            z_gridvals_c=z_gridvals(i4,:);
-            
-            Fmatrix_z=zeros(N_d*N_a,N_a);
-            for i1=1:N_d
-                for i2=1:N_a
-                    for i3=1:N_a
-                        tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),z_gridvals_c]);
-                        Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(tempcell{:},ParamCell{:});
+    if length(n_d)==1 && length(n_a)==1 && length(n_z)==1
+        % hardcode the 1D for speed
+
+        if N_d==0
+            Fmatrix=zeros(N_a,N_a,N_z);
+            parfor i3=1:N_z
+                zval=z_gridvals(i3,:);
+                Fmatrix_z=zeros(N_a,N_a);
+                for i1=1:N_a
+                    for i2=1:N_a
+                        Fmatrix_z(i1,i2)=ReturnFn(a_gridvals(i1),a_gridvals(i2),zval,ParamCell{:});
                     end
                 end
+                Fmatrix(:,:,i3)=Fmatrix_z;
             end
-            Fmatrix(:,:,i4)=Fmatrix_z;
+        else
+            Fmatrix=zeros(N_d*N_a,N_a,N_z);
+            parfor i4=1:N_z
+                zval=z_gridvals(i4);
+                Fmatrix_z=zeros(N_d*N_a,N_a);
+                for i1=1:N_d
+                    for i2=1:N_a
+                        for i3=1:N_a
+                            Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_gridvals(i1),a_gridvals(i2),a_gridvals(i3),zval,ParamCell{:});
+                        end
+                    end
+                end
+                Fmatrix(:,:,i4)=Fmatrix_z;
+            end
+        end
+
+    else % more than one-dimensional
+        if N_d==0
+            Fmatrix=zeros(N_a,N_a,N_z);
+            parfor i3=1:N_z
+                zval=z_gridvals(i3,:);
+                Fmatrix_z=zeros(N_a,N_a);
+                for i1=1:N_a
+                    for i2=1:N_a
+                        tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:),zval]);
+                        Fmatrix_z(i1,i2)=ReturnFn(tempcell{:},ParamCell{:});
+                    end
+                end
+                Fmatrix(:,:,i3)=Fmatrix_z;
+            end
+        else
+            Fmatrix=zeros(N_d*N_a,N_a,N_z);
+            parfor i4=1:N_z
+                zval=z_gridvals(i4,:);
+                Fmatrix_z=zeros(N_d*N_a,N_a);
+                for i1=1:N_d
+                    for i2=1:N_a
+                        for i3=1:N_a
+                            tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:),zval]);
+                            Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(tempcell{:},ParamCell{:});
+                        end
+                    end
+                end
+                Fmatrix(:,:,i4)=Fmatrix_z;
+            end
         end
     end
 end
