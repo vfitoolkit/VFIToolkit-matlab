@@ -54,10 +54,6 @@ while currdist>Tolerance
 
 end
   
-
-
 Policy=reshape(PolicyIndexes,[N_a,N_z]);
-
-
 
 end
