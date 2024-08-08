@@ -85,7 +85,7 @@ if SortedValues(1)==SortedValues(end)
         AllStats.Minimum=SortedValues(1);
     end
     if whichstats(6)>=1
-        AllStats.QuantileCutoffs=nan(nquantiles+1,1,'gpuArray');
+        AllStats.QuantileCutoffs=nan(nquantiles+1,1);
         AllStats.QuantileMeans=SortedValues(1)*ones(nquantiles,1);
     end
     if whichstats(7)==1
@@ -165,7 +165,7 @@ else
             end
             % Calculate the quantile means (ventiles by default)
             % Calculate the quantile cutoffs (ventiles by default)
-            QuantileMeans=zeros(nquantiles,1,'gpuArray');
+            QuantileMeans=zeros(nquantiles,1);
             quantilecutoffindexes=zeros(nquantiles-1,1);
             quantilecvec=1/nquantiles:1/nquantiles:1-1/nquantiles;
             for quantilecind=1:nquantiles-1 % Note: because there are nquantiles points in quantiles, avoiding a loop here can be prohibitive in terms of memory use
