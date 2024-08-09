@@ -21,6 +21,15 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+l_daprime=size(PolicyIndexes,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+if all(size(z_grid)==[sum(n_z),1]) % stacked-column
+    z_gridvals=CreateGridvals(n_z,z_grid,1);
+elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid 
+    z_gridvals=z_grid;
+end
+
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
@@ -58,9 +67,10 @@ if Parallel==2
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
     l_daprime=size(PolicyIndexes,1);
-    a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
-    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
-        
+    %a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
+    %z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
+    a_grid=gpuArray(a_grid);
+
     PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
