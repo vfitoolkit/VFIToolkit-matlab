@@ -195,7 +195,7 @@ else
             quantilecutoffindexes_lower=[1,quantilecutoffindexes];
             quantilecutoffindexes_upper=[quantilecutoffindexes,numel(SortedValues)];
 
-            QuantileMeans=sum(WeightedSortedValues(quantilecutoffindexes_lower:quantilecutoffindexes_upper))  -SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles)  +SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
+            QuantileMeans=sum(WeightedSortedValues(quantilecutoffindexes_lower:quantilecutoffindexes_upper))  -SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles)  +SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles); 
             AllStats.QuantileMeans=QuantileMeans*nquantiles;
         end        
     end
