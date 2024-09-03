@@ -106,7 +106,7 @@ a_grid=gpuArray(a_grid);
 
 %% Exogenous shock grids
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
-[n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions);
+[n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy

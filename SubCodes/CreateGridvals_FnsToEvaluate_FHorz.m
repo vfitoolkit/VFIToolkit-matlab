@@ -1,4 +1,4 @@
-function [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions)
+function [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters)
 % Note: removes n_e from simoptions (if it is there)
 % Note: removes n_semiz from simoptions (if it is there)
 

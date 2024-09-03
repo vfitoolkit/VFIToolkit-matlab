@@ -17,7 +17,7 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% Exogenous shock grids
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
-[n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions);
+[n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
 
 %% Implement new way of handling FnsToEvaluate
