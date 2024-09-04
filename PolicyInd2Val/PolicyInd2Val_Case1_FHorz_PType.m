@@ -38,7 +38,7 @@ for ii=1:N_i
         a_grid_temp=a_grid.(names{ii});        
     end
     
-    PolicyValues.(Names_i{ii})=PolicyInd2Val_FHorz_Case1(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp);
+    PolicyValues.(Names_i{ii})=PolicyInd2Val_Case1_FHorz(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp);
 end
 
 
