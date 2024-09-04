@@ -402,6 +402,7 @@ end
 
 %% Implement new way of handling warm-glow of bequests (currently only used by Epstein-Zin preferences)
 if isfield(vfoptions,'WarmGlowBequestsFn')
+    l_a=length(n_a);
     temp=getAnonymousFnInputNames(vfoptions.WarmGlowBequestsFn);
     vfoptions.WarmGlowBequestsFnParamsNames={temp{l_a+1:end}}; % the first inputs will always be aprime
 end
