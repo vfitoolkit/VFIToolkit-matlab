@@ -16,6 +16,7 @@ for ii=1:length(aprimeFnParams)
 end
 
 N_d=prod(n_d);
+N_a2=prod(n_a2);
 N_u=prod(n_u);
 
 l_d=length(n_d);
