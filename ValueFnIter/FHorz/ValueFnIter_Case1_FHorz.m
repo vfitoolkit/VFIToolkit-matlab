@@ -834,7 +834,7 @@ if vfoptions.divideandconquer==1
         end
     end
     % Solve using Divide-and-Conquer algorithm
-    [V,Policy]=ValueFnIter_Case1_FHorz_DC1(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_Case1_FHorz_DC(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 
