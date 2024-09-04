@@ -1,12 +1,14 @@
-function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_Kirkby(mew,rho,sigma,znum,J,kirkbyoptions)
+function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_KFTT(mew,rho,sigma,znum,J,kfttoptions)
 % Please cite: Kirkby (working paper)
 %
-% Kirkby discretization method for a 'life-cycle non-stationary AR(1) process with 
+% KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
 %    gaussian innovations'. 
 % This is an extension of the Farmer-Toda method to 'age-dependent parameters' 
 %    (apply concepts of Farmer & Toda (2017) in combination with extension of Fella, Gallipoli & Pan (2019))
+% Which in turn is an extension of the Tanaka & Toda (2013).
+% Hence: KFTT=Kirkby-Farmer-Tanaka-Toda
 % 
-%  Extended-Farmer-Toda method to approximate life-cycle AR(1) process by a discrete Markov chain
+%  KFTT method to approximate life-cycle AR(1) process by a discrete Markov chain
 %       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilon(j)~iid  N(0,sigma(j))
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1))
 %
@@ -16,7 +18,7 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %   sigma        - (1-by-J) standard deviations of the gaussian innovations
 %   znum         - Number of grid points (scalar, is the same for all ages)
 %   J            - Number of 'ages' (finite number of periods)
-% Optional inputs (kirkbyoptions)
+% Optional inputs (kfttoptions)
 %   method         - The method used to determine the grid ('even','gauss-legendre', 'clenshaw-curtis','gauss-hermite')
 %   nMoments       - Number of conditional moments to match (default=4)
 %   nSigmas        - (Hyperparameter) Defines max/min grid points as mew+-nSigmas*sigmaz (default depends on znum)
@@ -51,35 +53,35 @@ pi_z_J = zeros(znum,znum,J); % period j transition probabilities for z
 
 
 %% Set options
-if ~exist('kirkbyoptions','var')
-    kirkbyoptions.method='even'; % Informally I have the impression even is more robust
-    kirkbyoptions.nMoments=4; % Innovations are normal, but probably still nice to hit these higher moments.
+if ~exist('kfttoptions','var')
+    kfttoptions.method='even'; % Informally I have the impression even is more robust
+    kfttoptions.nMoments=4; % Innovations are normal, but probably still nice to hit these higher moments.
     if rho <= 1-2/(znum-1)  % This is just what Toda used.
-        kirkbyoptions.nSigmas = min(sqrt(2*(znum-1)),3); % Maximum of +-3 standard deviation
+        kfttoptions.nSigmas = min(sqrt(2*(znum-1)),3); % Maximum of +-3 standard deviation
     else
-        kirkbyoptions.nSigmas = min(sqrt(znum-1),3); % Maximum of +-3 standard deviations
+        kfttoptions.nSigmas = min(sqrt(znum-1),3); % Maximum of +-3 standard deviations
     end
-    kirkbyoptions.parallel=1+(gpuDeviceCount>0);
-    kirkbyoptions.setmixturemutoenforcezeromean=0;
+    kfttoptions.parallel=1+(gpuDeviceCount>0);
+    kfttoptions.setmixturemutoenforcezeromean=0;
 else
-    if ~isfield(kirkbyoptions,'method')
-        kirkbyoptions.method='even'; % Informally I have the impression even is more robust
+    if ~isfield(kfttoptions,'method')
+        kfttoptions.method='even'; % Informally I have the impression even is more robust
     end
-    if ~isfield(kirkbyoptions,'nMoments')
-        kirkbyoptions.nMoments = 4;  % Innovations are normal, but probably still nice to hit these higher moments.
+    if ~isfield(kfttoptions,'nMoments')
+        kfttoptions.nMoments = 4;  % Innovations are normal, but probably still nice to hit these higher moments.
     end
-    if ~isfield(kirkbyoptions,'nSigmas')
+    if ~isfield(kfttoptions,'nSigmas')
         if rho <= 1-2/(znum-1) % This is just what Toda used.
-            kirkbyoptions.nSigmas = min(sqrt(2*(znum-1)),3); % Maximum of +-3 standard deviation
+            kfttoptions.nSigmas = min(sqrt(2*(znum-1)),3); % Maximum of +-3 standard deviation
         else
-            kirkbyoptions.nSigmas = min(sqrt(znum-1),3); % Maximum of +-3 standard deviation
+            kfttoptions.nSigmas = min(sqrt(znum-1),3); % Maximum of +-3 standard deviation
         end
     end
-    if ~isfield(kirkbyoptions,'parallel')
-        kirkbyoptions.parallel=1+(gpuDeviceCount>0);
+    if ~isfield(kfttoptions,'parallel')
+        kfttoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if ~isfield(kirkbyoptions,'setmixturemutoenforcezeromean')
-        kirkbyoptions.setmixturemutoenforcezeromean=0;
+    if ~isfield(kfttoptions,'setmixturemutoenforcezeromean')
+        kfttoptions.setmixturemutoenforcezeromean=0;
     end
 end
 % Note: the choice of setting nSigmas to sqrt(znum-1) is based on
@@ -129,17 +131,17 @@ if ~isnumeric(znum) || znum < 3 || rem(znum,1) ~= 0
     error('znum must be a positive integer greater than 3')
 end
 % Check that nMoments is a valid number
-if ~isnumeric(kirkbyoptions.nMoments) || kirkbyoptions.nMoments < 1 || kirkbyoptions.nMoments > 4 || ~((rem(kirkbyoptions.nMoments,1) == 0) || (kirkbyoptions.nMoments == 1))
-    error('kirkbyoptions.nMoments must be either 1, 2, 3, 4')
+if ~isnumeric(kfttoptions.nMoments) || kfttoptions.nMoments < 1 || kfttoptions.nMoments > 4 || ~((rem(kfttoptions.nMoments,1) == 0) || (kfttoptions.nMoments == 1))
+    error('kfttoptions.nMoments must be either 1, 2, 3, 4')
 end
 
-% For convenience, make kirkbyoptions.nSigmas an age-dependent vector
-if isscalar(kirkbyoptions.nSigmas)
-    kirkbyoptions.nSigmas=kirkbyoptions.nSigmas*ones(J,1);
+% For convenience, make kfttoptions.nSigmas an age-dependent vector
+if isscalar(kfttoptions.nSigmas)
+    kfttoptions.nSigmas=kfttoptions.nSigmas*ones(J,1);
 end
 
 % % Everything has to be on cpu otherwise fminunc throws an error
-% if kirkbyoptions.parallel==2
+% if kfttoptions.parallel==2
 %     mew=gather(mew);
 %     rho=gather(rho);
 %     sigma_j=gather(sigma_j);
@@ -159,19 +161,19 @@ T4 = 3*sigma.^4; % uncentered fourth moment
 TBar_J = [T1; T2; T3; T4]; % (4,J), The 4 conditional moments for each period
 
 %% Step 2: construct the state space z_grid_J(j) in each period j.
-% Evenly-spaced N-state space over [-kirkbyoptions.nSigmas*sigmaz(j),kirkbyoptions.nSigmas*sigmaz(j)].
+% Evenly-spaced N-state space over [-kfttoptions.nSigmas*sigmaz(j),kfttoptions.nSigmas*sigmaz(j)].
 
 % Note: I set up the period 0, but this won't end up used if you have used options to set period 1.
 
 % By default I assume z0=0
 z0=0;
 % You can change the mean of z0 using
-if isfield(kirkbyoptions,'initialj0mewz')
-    z0=kirkbyoptions.initialj0mewz;
+if isfield(kfttoptions,'initialj0mewz')
+    z0=kfttoptions.initialj0mewz;
 end
 % You can add variance to z0 as a N(z0,initialj0sigmaz) using
-if isfield(kirkbyoptions,'initialj0sigmaz')
-	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(z0,0,kirkbyoptions.initialj0sigmaz,znum);
+if isfield(kfttoptions,'initialj0sigmaz')
+	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(z0,0,kfttoptions.initialj0sigmaz,znum);
     jequalzeroDistz=pi_z_0(1,:)'; % iid, so first row is the dist
 else
     z_grid_0=z0*ones(znum,1);
@@ -180,23 +182,23 @@ end
 clear pi_z_0
 
 % If you are not setting period 1, then period 1 follows from this
-% if ~isfield(kirkbyoptions,'initialj1mewz') && ~ isfield(kirkbyoptions,'initialj1sigmaz')
-if isfield(kirkbyoptions,'initialj0sigmaz')
-    sigmaz(1) = sqrt(rho(1)^2*kirkbyoptions.initialj0sigma_z^2+sigma(1)^2);
+% if ~isfield(kfttoptions,'initialj1mewz') && ~ isfield(kfttoptions,'initialj1sigmaz')
+if isfield(kfttoptions,'initialj0sigmaz')
+    sigmaz(1) = sqrt(rho(1)^2*kfttoptions.initialj0sigma_z^2+sigma(1)^2);
 else
     sigmaz(1) = sigma(1);
 end
 mewz(1)=mew(1)+rho(1)*z0;
 % If you have set period 1, then overwrite some of this
-if isfield(kirkbyoptions,'initialj1mewz') && isfield(kirkbyoptions,'initialj1sigmaz')
-    mewz(1)=kirkbyoptions.initialj1mewz;
-    sigmaz(1)=kirkbyoptions.initialj1sigmaz;
-elseif isfield(kirkbyoptions,'initialj1mewz')
-    mewz(1)=kirkbyoptions.initialj1mewz;
+if isfield(kfttoptions,'initialj1mewz') && isfield(kfttoptions,'initialj1sigmaz')
+    mewz(1)=kfttoptions.initialj1mewz;
+    sigmaz(1)=kfttoptions.initialj1sigmaz;
+elseif isfield(kfttoptions,'initialj1mewz')
+    mewz(1)=kfttoptions.initialj1mewz;
     sigmaz(1)=0;
-elseif isfield(kirkbyoptions,'initialj1sigmaz')
+elseif isfield(kfttoptions,'initialj1sigmaz')
     mewz(1)=0;
-    sigmaz(1)=kirkbyoptions.initialj1sigmaz;
+    sigmaz(1)=kfttoptions.initialj1sigmaz;
 end
 
 % Now that we have period 1, just fill in the rest of the periods
@@ -210,15 +212,15 @@ end
 z_grid_J=zeros(znum,J);
 for jj=1:J
     % construct the one dimensional grid
-    switch kirkbyoptions.method
+    switch kfttoptions.method
         case 'even' % evenly-spaced grid
-            X1 = linspace(mewz(jj)-kirkbyoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas(jj)*sigmaz(jj),znum);
+            X1 = linspace(mewz(jj)-kfttoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kfttoptions.nSigmas(jj)*sigmaz(jj),znum);
             W = ones(1,znum);
         case 'gauss-legendre' % Gauss-Legendre quadrature
-            [X1,W] = legpts(znum,[mewz(jj)-kirkbyoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas(jj)*sigmaz(jj)]);
+            [X1,W] = legpts(znum,[mewz(jj)-kfttoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kfttoptions.nSigmas(jj)*sigmaz(jj)]);
             X1 = X1';
         case 'clenshaw-curtis' % Clenshaw-Curtis quadrature
-            [X1,W] = fclencurt(znum,mewz(jj)-kirkbyoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kirkbyoptions.nSigmas(jj)*sigmaz(jj));
+            [X1,W] = fclencurt(znum,mewz(jj)-kfttoptions.nSigmas(jj)*sigmaz(jj),mewz(jj)+kfttoptions.nSigmas(jj)*sigmaz(jj));
             X1 = fliplr(X1');
             W = fliplr(W');
         case 'gauss-hermite' % Gauss-Hermite quadrature
@@ -246,7 +248,7 @@ for jj=1:J
     if jj>1
         zlag_grid=z_grid_J(:,jj-1);
     else
-        if ~isfield(kirkbyoptions,'initialj1mewz') && ~ isfield(kirkbyoptions,'initialj1sigmaz')
+        if ~isfield(kfttoptions,'initialj1mewz') && ~ isfield(kfttoptions,'initialj1sigmaz')
             zlag_grid=z_grid_0; % Need to get pi_z_J(:,:,1) so we can compute jequaloneDistz
         else % Have set period 1
             continue % We already have jequaloneDistz
@@ -262,7 +264,7 @@ for jj=1:J
     for z_c = 1:znum
         
         condMean = mew(jj)+rho(jj)*zlag_grid(z_c); % conditional mean
-        if strcmp(kirkbyoptions.method,'gauss-hermite')  % define prior probabilities
+        if strcmp(kfttoptions.method,'gauss-hermite')  % define prior probabilities
             q = W;
         else
             q = W.*normpdf(z_grid,condMean,sigma(jj));
@@ -272,7 +274,7 @@ for jj=1:J
             q(q < kappa) = kappa; % replace by small number for numerical stability
         end
 
-        if kirkbyoptions.nMoments == 1 % match only 1 moment
+        if kfttoptions.nMoments == 1 % match only 1 moment
             P(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
             nMoments_grid(z_c,jj)=1;
         else % match 2 moments first
@@ -283,10 +285,10 @@ for jj=1:J
                 % warning('Failed to match first 2 moments. Just matching 1.')
                 P(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,0,q,0);
                 nMoments_grid(z_c,jj)=1;
-            elseif kirkbyoptions.nMoments == 2
+            elseif kfttoptions.nMoments == 2
                 P(z_c,:) = p;
                 nMoments_grid(z_c,jj)=2;
-            elseif kirkbyoptions.nMoments == 3 % 3 moments
+            elseif kfttoptions.nMoments == 3 % 3 moments
                 [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
                     ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                     TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
@@ -298,7 +300,7 @@ for jj=1:J
                     P(z_c,:) = pnew;
                     nMoments_grid(z_c,jj)=3;
                 end
-            elseif kirkbyoptions.nMoments == 4 % 4 moments
+            elseif kfttoptions.nMoments == 4 % 4 moments
                 [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
                     ((x-condMean)./scalingFactor).^2; ((x-condMean)./scalingFactor).^3;...
                     ((x-condMean)./scalingFactor).^4],TBar./(scalingFactor.^(1:4)'),q,[lambda;0;0]);
@@ -334,13 +336,13 @@ hits(2)=sum(sum(nMoments_grid==2));
 hits(3)=sum(sum(nMoments_grid==3));
 hits(4)=sum(sum(nMoments_grid==4));
 hits=hits./sum(hits);
-fprintf('discretizeLifeCycleAR1_Kirkby: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kirkbyoptions.nMoments)
-if hits(4)<0.8 && kirkbyoptions.nMoments==4
+fprintf('discretizeLifeCycleAR1_Kirkby: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kfttoptions.nMoments)
+if hits(4)<0.8 && kfttoptions.nMoments==4
     warning('discretizeLifeCycleAR1_Kirkby: failed to hit four moments in more than 20% of conditional distributions')
 end
 
 %%
-if isfield(kirkbyoptions,'initialj1mewz') || isfield(kirkbyoptions,'initialj0sigmaz')
+if isfield(kfttoptions,'initialj1mewz') || isfield(kfttoptions,'initialj0sigmaz')
     % If period 1 was set, we need to get the jequaloneDistz
     if sigmaz(1)>0
         [~,pi_z_1] = discretizeAR1_FarmerToda(mewz(1),0,sigmaz(1),znum);
@@ -363,7 +365,7 @@ pi_z_J(:,:,1:end-1)=pi_z_J(:,:,2:end);
 pi_z_J(:,:,J)=ones(znum,znum)/znum;
 
 %% I AM BEING LAZY AND JUST MOVING RESULT TO GPU RATHER THAN CREATING IT THERE IN THE FIRST PLACE
-if kirkbyoptions.parallel==2
+if kfttoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
     pi_z_J=gpuArray(pi_z_J);
 end

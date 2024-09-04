@@ -1,12 +1,14 @@
-function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_Kirkby(rho,mixprobs_i,mu_i,sigma_i,znum,J,kirkbyoptions)
+function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_KFTT(rho,mixprobs_i,mu_i,sigma_i,znum,J,kfttoptions)
 % Please cite: Kirkby (working paper)
 %
-% Kirkby discretization method for a 'life-cycle non-stationary AR(1) process with 
+% KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
 %    gaussian-mixture innovations'. 
 % This is an extension of the Farmer-Toda method to 'age-dependent parameters' 
 %    (essentially combine Farmer & Toda (2017) with Fella, Gallipoli & Pan (2019)
+% Which in turn is an extension of Tanaka & Toda (2013).
+% Hence KFTT=Kirkby-Farmer-Tanaka-Toda
 % 
-%  Extended-Farmer-Toda method to approximate life-cycle AR(1) process by a discrete Markov chain
+%  KFTT method to approximate life-cycle AR(1) process by a discrete Markov chain
 %       z(j) = rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid F(j)
 %           where F(j)=sum_{i=1}^nmix mixprobs_i(j)*N(mu_i(j),sigma_i(j)^2) is a gaussian mixture
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1)) 
@@ -21,7 +23,7 @@ function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wG
 %   sigma_i      - (nmix-by-J) standard deviations of the gaussian mixture innovations
 %   znum         - Number of grid points (scalar, is the same for all ages)
 %   J            - Number of 'ages' (finite number of periods)
-% Optional inputs (kirkbyoptions)
+% Optional inputs (kfttoptions)
 %   parallel:    - set equal to 2 to use GPU, 0 to use CPU
 %   nSigmas      - the grid used will be +-nSigmas*(standard deviation of z)
 % Output: 
@@ -42,35 +44,35 @@ sigma_z = zeros(1,J);
 P_J = zeros(znum,znum,J);
 
 %% Set options
-if ~exist('kirkbyoptions','var')
-    kirkbyoptions.method='even'; % Informally I have the impression even is more robust
-    kirkbyoptions.nMoments=4; % Have used 4 as the point of gaussian mixtures is typically to get higher order moments. 4 moments covers skewness and kurtosis.
+if ~exist('kfttoptions','var')
+    kfttoptions.method='even'; % Informally I have the impression even is more robust
+    kfttoptions.nMoments=4; % Have used 4 as the point of gaussian mixtures is typically to get higher order moments. 4 moments covers skewness and kurtosis.
     if rho <= 1-2/(znum-1)  % This is just what Toda used.
-        kirkbyoptions.nSigmas = min(sqrt(2*(znum-1)),4); % Maximum of +-4 standard deviation
+        kfttoptions.nSigmas = min(sqrt(2*(znum-1)),4); % Maximum of +-4 standard deviation
     else
-        kirkbyoptions.nSigmas = min(sqrt(znum-1),4); % Maximum of +-4 standard deviations
+        kfttoptions.nSigmas = min(sqrt(znum-1),4); % Maximum of +-4 standard deviations
     end
-    kirkbyoptions.parallel=1+(gpuDeviceCount>0);
-    kirkbyoptions.setmixturemutoenforcezeromean=0;
+    kfttoptions.parallel=1+(gpuDeviceCount>0);
+    kfttoptions.setmixturemutoenforcezeromean=0;
 else
-    if ~isfield(kirkbyoptions,'method')
-        kirkbyoptions.method='even'; % Informally I have the impression even is more robust
+    if ~isfield(kfttoptions,'method')
+        kfttoptions.method='even'; % Informally I have the impression even is more robust
     end
-    if ~isfield(kirkbyoptions,'nMoments')
-        kirkbyoptions.nMoments = 4;  % Have used 4 as the point of gaussian mixtures is typically to get higher order moments. 4 covers skewness and kurtosis.
+    if ~isfield(kfttoptions,'nMoments')
+        kfttoptions.nMoments = 4;  % Have used 4 as the point of gaussian mixtures is typically to get higher order moments. 4 covers skewness and kurtosis.
     end
-    if ~isfield(kirkbyoptions,'nSigmas')
+    if ~isfield(kfttoptions,'nSigmas')
         if rho <= 1-2/(znum-1) % This is just what Toda used.
-            kirkbyoptions.nSigmas = min(sqrt(2*(znum-1)),4); % Maximum of +-4 standard deviation
+            kfttoptions.nSigmas = min(sqrt(2*(znum-1)),4); % Maximum of +-4 standard deviation
         else
-            kirkbyoptions.nSigmas = min(sqrt(znum-1),4); % Maximum of +-4 standard deviation
+            kfttoptions.nSigmas = min(sqrt(znum-1),4); % Maximum of +-4 standard deviation
         end
     end
-    if ~isfield(kirkbyoptions,'parallel')
-        kirkbyoptions.parallel=1+(gpuDeviceCount>0);
+    if ~isfield(kfttoptions,'parallel')
+        kfttoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if ~isfield(kirkbyoptions,'setmixturemutoenforcezeromean')
-        kirkbyoptions.setmixturemutoenforcezeromean=0;
+    if ~isfield(kfttoptions,'setmixturemutoenforcezeromean')
+        kfttoptions.setmixturemutoenforcezeromean=0;
     end
 end
 
@@ -104,7 +106,7 @@ if size(sigma_i,2)~=J
 end
 
 nmix=size(sigma_i,1);
-if kirkbyoptions.setmixturemutoenforcezeromean==0
+if kfttoptions.setmixturemutoenforcezeromean==0
     if size(mu_i,1)~=nmix
         error('sigma_i and mu_i must all have same number of rows (nmix)')
     end
@@ -122,12 +124,12 @@ if ~isnumeric(znum) || znum < 3 || rem(znum,1) ~= 0
     error('znum must be a positive integer greater than 3')
 end
 % Check that nMoments is a valid number
-if ~isnumeric(kirkbyoptions.nMoments) || kirkbyoptions.nMoments < 1 || kirkbyoptions.nMoments > 4 || ~((rem(kirkbyoptions.nMoments,1) == 0) || (kirkbyoptions.nMoments == 1))
-    error('kirkbyoptions.nMoments must be either 1, 2, 3, 4')
+if ~isnumeric(kfttoptions.nMoments) || kfttoptions.nMoments < 1 || kfttoptions.nMoments > 4 || ~((rem(kfttoptions.nMoments,1) == 0) || (kfttoptions.nMoments == 1))
+    error('kfttoptions.nMoments must be either 1, 2, 3, 4')
 end
 
 % % Everything has to be on cpu otherwise fminunc throws an error
-% if kirkbyoptions.parallel==2
+% if kfttoptions.parallel==2
 %     rho=gather(rho);
 %     mixprobs_i=gather(mixprobs_i);
 %     mu_i=gather(mu_i);
@@ -138,13 +140,13 @@ end
 
 
 %%
-if kirkbyoptions.setmixturemutoenforcezeromean==1
+if kfttoptions.setmixturemutoenforcezeromean==1
     mu_i=[mu_i;zeros(1,J)]; % Need to fill in the last of the mu_i to get mu=0
     for jj=1:J
         mu_i(end,jj)=-(sum(mu_i(1:end-1,jj).*mixprobs_i(1:end-1,jj)))/mixprobs_i(end,jj); % Simple rearrangement of mu_i(:,jj).*mixprob_i(:,jj)=0, which is the requirement that mean of gaussian-mixture innovations=0
     end
 end
-% Note: when using kirkbyoptions.setmixturemutoenforcezeromean it must be
+% Note: when using kfttoptions.setmixturemutoenforcezeromean it must be
 % the 'last' mu_i that is missing and which will be set to enforce zero
 % mean of the gaussian-mixture innovations.
 
@@ -169,17 +171,17 @@ for jj=1:J
 end
 
 % MAYBE I SHOULD ADD A CHECK HERE THAT T1=0
-if kirkbyoptions.setmixturemutoenforcezeromean==1
+if kfttoptions.setmixturemutoenforcezeromean==1
     if any(TBar_J(1,:)~=0)
         warning('Mean of gaussian-mixture innovations is not equal to zero for all agej')
     end
 end
 
 %% Step 2: construct the state space z_grid_J(j) in each period j.
-% Evenly-spaced N-state space over [-kirkbyoptions.nSigmas*sigma_y(t),kirkbyoptions.nSigmas*sigma_y(t)].
+% Evenly-spaced N-state space over [-kfttoptions.nSigmas*sigma_y(t),kfttoptions.nSigmas*sigma_y(t)].
 % By default I assume z0=0, but you can set it as N(0,sigma_z0) using
-if isfield(kirkbyoptions,'initialj0sigma_z')
-	[z_grid_0,P_0] = discretizeAR1_FarmerToda(0,0,kirkbyoptions.initialj0sigma_z,znum);
+if isfield(kfttoptions,'initialj0sigma_z')
+	[z_grid_0,P_0] = discretizeAR1_FarmerToda(0,0,kfttoptions.initialj0sigma_z,znum);
     jequalzeroDistz=P_0(1,:)'; % iid, so first row is the dist
 else
     z_grid_0=zeros(znum,1);
@@ -187,8 +189,8 @@ else
 end
 clear P_0
 
-if isfield(kirkbyoptions,'initialj0sigma_z')
-    sigma_z(1) = sqrt(rho(1)^2*kirkbyoptions.initialj0sigma_z^2+sigma(1)^2);
+if isfield(kfttoptions,'initialj0sigma_z')
+    sigma_z(1) = sqrt(rho(1)^2*kfttoptions.initialj0sigma_z^2+sigma(1)^2);
 else
     sigma_z(1) = sigma(1);
 end
@@ -200,15 +202,15 @@ mew=0; % It is enforced that the process is mean zero
 z_grid_J=zeros(znum,J);
 for jj=1:J
     % construct the one dimensional grid
-    switch kirkbyoptions.method
+    switch kfttoptions.method
         case 'even' % evenly-spaced grid
-            X1 = linspace(mew-kirkbyoptions.nSigmas*sigma_z(jj),mew+kirkbyoptions.nSigmas*sigma_z(jj),znum);
+            X1 = linspace(mew-kfttoptions.nSigmas*sigma_z(jj),mew+kfttoptions.nSigmas*sigma_z(jj),znum);
             W = ones(1,znum);
         case 'gauss-legendre' % Gauss-Legendre quadrature
-            [X1,W] = legpts(znum,[mew-kirkbyoptions.nSigmas*sigma_z(jj),mew+kirkbyoptions.nSigmas*sigma_z(jj)]);
+            [X1,W] = legpts(znum,[mew-kfttoptions.nSigmas*sigma_z(jj),mew+kfttoptions.nSigmas*sigma_z(jj)]);
             X1 = X1';
         case 'clenshaw-curtis' % Clenshaw-Curtis quadrature
-            [X1,W] = fclencurt(znum,mew-kirkbyoptions.nSigmas*sigma_z(jj),mew+kirkbyoptions.nSigmas*sigma_z(jj));
+            [X1,W] = fclencurt(znum,mew-kfttoptions.nSigmas*sigma_z(jj),mew+kfttoptions.nSigmas*sigma_z(jj));
             X1 = fliplr(X1');
             W = fliplr(W');
         case 'gauss-hermite' % Gauss-Hermite quadrature
@@ -264,7 +266,7 @@ for jj=1:J
         % First, calculate what Farmer & Toda (2017) call qnn', which are essentially an inital guess for pnn'
         condMean = rho(jj)*zlag_grid(z_c); % z_grid(ii) here is the lag grid point
         xPDF = (z_grid-condMean)';
-        switch kirkbyoptions.method
+        switch kfttoptions.method
             case 'gauss-hermite'
                 q = W.*(pdf(gmObj,xPDF)./normpdf(xPDF,0,sigma(jj)))';
             case 'GMQ'
@@ -277,7 +279,7 @@ for jj=1:J
             q(q < kappa) = kappa;
         end
         
-        if kirkbyoptions.nMoments == 1 % match only 1 moment
+        if kfttoptions.nMoments == 1 % match only 1 moment
             P1(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
             nMoments_grid(z_c,jj)=1;
         else % match 2 moments first
@@ -288,10 +290,10 @@ for jj=1:J
                 warning('Failed to match first 2 moments. Just matching 1.')
                 P1(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
                 nMoments_grid(z_c,jj)=1;
-            elseif kirkbyoptions.nMoments == 2
+            elseif kfttoptions.nMoments == 2
                 P1(z_c,:) = p;
                 nMoments_grid(z_c,jj)=2;
-            elseif kirkbyoptions.nMoments == 3
+            elseif kfttoptions.nMoments == 3
                 [pnew,~,momentError] = discreteApproximation(z_grid,@(x) [(x-condMean)./scalingFactor;...
                     ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                     TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
@@ -344,7 +346,7 @@ P_J(:,:,1:end-1)=P_J(:,:,2:end);
 P_J(:,:,J)=ones(znum,znum)/znum;
 
 %% I AM BEING LAZY AND JUST MOVING RESULT TO GPU RATHER THAN CREATING IT THERE IN THE FIRST PLACE
-if kirkbyoptions.parallel==2
+if kfttoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
     P_J=gpuArray(P_J);
 end
