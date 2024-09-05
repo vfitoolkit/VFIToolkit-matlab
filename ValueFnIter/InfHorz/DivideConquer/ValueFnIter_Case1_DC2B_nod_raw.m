@@ -100,7 +100,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % aprime possibilities are (maxgap(ii)+1)-n_a2-by-1-by-n_a2-by-n_z
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(aprimeindexes), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2);
             aprimez=repelem(aprimeindexes,1,1,level1iidiff(ii),1,1)+N_a1*(0:1:N_a2-1)+N_a*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_z]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[(maxgap(ii)+1)*N_a2,level1iidiff(ii)*N_a2,N_z]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex needs to be reworked:
@@ -122,7 +122,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nod_Par2(ReturnFn, n_z, a1_grid(loweredge), a2_grid, a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2);
             aprimez=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*(0:1:N_a2-1)+N_a*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[1*N_a2,level1iidiff(ii)*N_a2,N_z]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprimez,[1*N_a2,level1iidiff(ii)*N_a2,N_z]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex needs to be reworked:
