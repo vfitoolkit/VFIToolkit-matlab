@@ -8,6 +8,9 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 % N_a=prod(n_a);
 N_z=prod(n_z);
 N_p=prod(n_p);
+if isempty(n_p)
+    N_p=0;
+end
 
 l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
 %l_p=length(n_p);
@@ -117,7 +120,6 @@ else
 end
 
 %%
-
 if N_p~=0
     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
     return

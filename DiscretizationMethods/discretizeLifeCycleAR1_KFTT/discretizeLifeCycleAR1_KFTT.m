@@ -342,7 +342,7 @@ if hits(4)<0.8 && kfttoptions.nMoments==4
 end
 
 %%
-if isfield(kfttoptions,'initialj1mewz') || isfield(kfttoptions,'initialj0sigmaz')
+if isfield(kfttoptions,'initialj1mewz') || isfield(kfttoptions,'initialj1sigmaz')
     % If period 1 was set, we need to get the jequaloneDistz
     if sigmaz(1)>0
         [~,pi_z_1] = discretizeAR1_FarmerToda(mewz(1),0,sigmaz(1),znum);
