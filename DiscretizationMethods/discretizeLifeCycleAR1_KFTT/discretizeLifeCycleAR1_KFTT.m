@@ -336,9 +336,9 @@ hits(2)=sum(sum(nMoments_grid==2));
 hits(3)=sum(sum(nMoments_grid==3));
 hits(4)=sum(sum(nMoments_grid==4));
 hits=hits./sum(hits);
-fprintf('discretizeLifeCycleAR1_Kirkby: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kfttoptions.nMoments)
+fprintf('discretizeLifeCycleAR1_KFTT: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kfttoptions.nMoments)
 if hits(4)<0.8 && kfttoptions.nMoments==4
-    warning('discretizeLifeCycleAR1_Kirkby: failed to hit four moments in more than 20% of conditional distributions')
+    warning('discretizeLifeCycleAR1_KFTT: failed to hit four moments in more than 20% of conditional distributions')
 end
 
 %%
