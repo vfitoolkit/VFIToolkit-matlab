@@ -583,7 +583,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         [p_eqm_vec,GeneralEqmConditions]=fmincon(GeneralEqmConditionsFnOpt,p0,[],[],[],[],heteroagentoptions.lb,heteroagentoptions.ub,[],minoptions);
     elseif heteroagentoptions.fminalgo==7 % Matlab fsolve()
         heteroagentoptions.multiGEcriterion=0;
-        [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
+        [p_eqm_vec,GeneralEqmConditions]=fsolve(GeneralEqmConditionsFnOpt,p0,minoptions);
     end
 
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
