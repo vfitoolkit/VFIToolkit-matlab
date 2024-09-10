@@ -57,15 +57,18 @@ if ~exist('simoptions','var')
     simoptions.verboseparams=0;
     defaultagegroupings=1;
     if isstruct(N_j)
+        N_j_max=0;
         for ii=1:N_i
             if isfinite(N_j.(Names_i{ii}))
                 simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
+                N_j_max=max(N_j_max,N_j.(Names_i{ii}));
             else % Infinite horizon
                 computeForThesei(ii)=0;
             end
         end
     else
         simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+        N_j_max=N_j;
     end
     simoptions.nquantiles=20; % by default gives ventiles
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
@@ -95,15 +98,18 @@ else
     if isfield(simoptions,'agegroupings')==0
         defaultagegroupings=1;
         if isstruct(N_j)
+            N_j_max=0;
             for ii=1:N_i
                 if isfinite(N_j.(Names_i{ii}))
                     simoptions.agegroupings.(Names_i{ii})=1:1:N_j.(Names_i{ii});
+                    N_j_max=max(N_j_max,N_j.(Names_i{ii}));
                 else % Infinite horizon
                     computeForThesei(ii)=0;
                 end
             end
         else
             simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+            N_j_max=N_j;
         end
     else
         defaultagegroupings=0;
@@ -181,10 +187,20 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
         simoptions.agejshifter(ii)=tempagejshifter.(Names_i{ii});
     end
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
+    % Need an alternative version of N_j_max for grouped stats
+    if isstruct(N_j)
+        N_j_max2=0;
+        for ii=1:N_i
+            if isfinite(N_j.(Names_i{ii}))
+                N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
+            end
+        end
+    end
 elseif length(simoptions.agejshifter)==1 % not using agejshifter
     simoptions.agejshifter=zeros(N_i,1);
 else % have inputed as a vector
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
+    N_j_max2=N_j_max;
 end
 % You cannot use agejshifter together with any age grouping other than just every period
 if max(simoptions.agejshifter)>0 && defaultagegroupings==0
@@ -322,8 +338,10 @@ if isfield(simoptions,'conditionalrestrictions')
     end
 end
 
-
-AgeMasses=zeros(N_i,N_j,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
+AgeMasses=zeros(N_i,N_j_max,'gpuArray'); % Only ends up used if using simoptions.conditionalrestrictions
+if useCondlRest==1 && isstruct(N_j)
+    error('LifeCycleProfiles: Have not implemented combination of doing conditional restrictions with N_j being a structure (differing across agents)')
+end
 
 %% Do an outerloop over ptypes and an inner loop over FnsToEvaluate
 if simoptions.lowmemory==0
@@ -448,7 +466,8 @@ if simoptions.lowmemory==0
 
         StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
-        AgeMasses(ii,:)=sum(StationaryDist_ii,1);
+        AgeMasses(ii,simoptions.agejshifter(ii)+(1:N_j_temp))=sum(StationaryDist_ii,1); % I think this is right, but haven't tested yet
+        % AgeMasses(ii,:)=sum(StationaryDist_ii,1);
 
         %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
         if useCondlRest==1
@@ -632,44 +651,44 @@ if simoptions.lowmemory==0
                     %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and ff)
                     tempStats=StatsFromWeightedGrid(SortedValues_jj,SortedWeights_jj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
 
-                    % Now store these based on jjageshifted
+                    % Now store these based on jj
                     if simoptions.whichstats(1)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean(jjageshifted)=tempStats.Mean;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean(jj)=tempStats.Mean;
                     end
                     if simoptions.whichstats(2)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Median(jjageshifted)=tempStats.Median;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Median(jj)=tempStats.Median;
                         if simoptions.whichstats(1)==1
-                            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).RatioMeanToMedian(jjageshifted)=tempStats.RatioMeanToMedian;
+                            AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).RatioMeanToMedian(jj)=tempStats.RatioMeanToMedian;
                         end
                     end
                     if simoptions.whichstats(3)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jjageshifted)=tempStats.Variance;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jjageshifted)=tempStats.StdDeviation;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jj)=tempStats.Variance;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jj)=tempStats.StdDeviation;
                     end
                     if simoptions.whichstats(4)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jjageshifted)=tempStats.LorenzCurve;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jjageshifted)=tempStats.Gini;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jj)=tempStats.LorenzCurve;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jj)=tempStats.Gini;
                     end
                     if simoptions.whichstats(5)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jjageshifted)=tempStats.Minimum;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jjageshifted)=tempStats.Maximum;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jj)=tempStats.Minimum;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jj)=tempStats.Maximum;
                     end
                     if simoptions.whichstats(6)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jjageshifted)=tempStats.QuantileCutoffs;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jjageshifted)=tempStats.QuantileMeans;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jj)=tempStats.QuantileMeans;
                     end
                     if simoptions.whichstats(7)==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top1share(jjageshifted)=tempStats.MoreInequality.Top1share;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top5share(jjageshifted)=tempStats.MoreInequality.Top5share;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top10share(jjageshifted)=tempStats.MoreInequality.Top10share;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Bottom50share(jjageshifted)=tempStats.MoreInequality.Bottom50share;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile50th(jjageshifted)=tempStats.MoreInequality.Percentile50th;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile90th(jjageshifted)=tempStats.MoreInequality.Percentile90th;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile95th(jjageshifted)=tempStats.MoreInequality.Percentile95th;
-                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile99th(jjageshifted)=tempStats.MoreInequality.Percentile99th;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top1share(jj)=tempStats.MoreInequality.Top1share;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top5share(jj)=tempStats.MoreInequality.Top5share;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top10share(jj)=tempStats.MoreInequality.Top10share;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Bottom50share(jj)=tempStats.MoreInequality.Bottom50share;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile50th(jj)=tempStats.MoreInequality.Percentile50th;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile90th(jj)=tempStats.MoreInequality.Percentile90th;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile95th(jj)=tempStats.MoreInequality.Percentile95th;
+                        AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile99th(jj)=tempStats.MoreInequality.Percentile99th;
                     end
 
-                    % For later, put the mean and std dev in a convenient place
+                    % For later, put the mean and std dev in a convenient place. These are instead done on jjageshifted (so they can be grouped across ptypes later)
                     if simoptions.whichstats(1)==1
                         MeanVec(ff,ii,jjageshifted)=tempStats.Mean;
                     end
@@ -717,41 +736,41 @@ if simoptions.lowmemory==0
 
                                 tempStatsRestricted=StatsFromWeightedGrid(SortedValues_jj,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
 
-                                % Now store these based on jjageshifted
+                                % Now store these based on jj
                                 if simoptions.whichstats(1)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Mean(jjageshifted)=tempStatsRestricted.Mean;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Mean(jj)=tempStatsRestricted.Mean;
                                 end
                                 if simoptions.whichstats(2)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Median(jjageshifted)=tempStatsRestricted.Median;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Median(jj)=tempStatsRestricted.Median;
                                     if simoptions.whichstats(1)==1
-                                        AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).RatioMeanToMedian(jjageshifted)=tempStatsRestricted.RatioMeanToMedian;
+                                        AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).RatioMeanToMedian(jj)=tempStatsRestricted.RatioMeanToMedian;
                                     end
                                 end
                                 if simoptions.whichstats(3)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jjageshifted)=tempStatsRestricted.Variance;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jjageshifted)=tempStatsRestricted.StdDeviation;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jj)=tempStatsRestricted.Variance;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jj)=tempStatsRestricted.StdDeviation;
                                 end
                                 if simoptions.whichstats(4)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jjageshifted)=tempStatsRestricted.LorenzCurve;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jjageshifted)=tempStatsRestricted.Gini;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jj)=tempStatsRestricted.LorenzCurve;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jj)=tempStatsRestricted.Gini;
                                 end
                                 if simoptions.whichstats(5)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jjageshifted)=tempStatsRestricted.Minimum;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jjageshifted)=tempStatsRestricted.Maximum;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jj)=tempStatsRestricted.Minimum;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jj)=tempStatsRestricted.Maximum;
                                 end
                                 if simoptions.whichstats(6)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jjageshifted)=tempStatsRestricted.QuantileCutoffs;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jjageshifted)=tempStatsRestricted.QuantileMeans;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jj)=tempStatsRestricted.QuantileCutoffs;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jj)=tempStatsRestricted.QuantileMeans;
                                 end
                                 if simoptions.whichstats(7)==1
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top1share(jjageshifted)=tempStatsRestricted.MoreInequality.Top1share;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top5share(jjageshifted)=tempStatsRestricted.MoreInequality.Top5share;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top10share(jjageshifted)=tempStatsRestricted.MoreInequality.Top10share;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Bottom50share(jjageshifted)=tempStatsRestricted.MoreInequality.Bottom50share;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile50th(jjageshifted)=tempStatsRestricted.MoreInequality.Percentile50th;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile90th(jjageshifted)=tempStatsRestricted.MoreInequality.Percentile90th;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile95th(jjageshifted)=tempStatsRestricted.MoreInequality.Percentile95th;
-                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile99th(jjageshifted)=tempStatsRestricted.MoreInequality.Percentile99th;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top1share(jj)=tempStatsRestricted.MoreInequality.Top1share;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top5share(jj)=tempStatsRestricted.MoreInequality.Top5share;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Top10share(jj)=tempStatsRestricted.MoreInequality.Top10share;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Bottom50share(jj)=tempStatsRestricted.MoreInequality.Bottom50share;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile50th(jj)=tempStatsRestricted.MoreInequality.Percentile50th;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile90th(jj)=tempStatsRestricted.MoreInequality.Percentile90th;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile95th(jj)=tempStatsRestricted.MoreInequality.Percentile95th;
+                                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).MoreInequality.Percentile99th(jj)=tempStatsRestricted.MoreInequality.Percentile99th;
                                 end
                             else
                                 RestrictedSortedWeights=zeros(size(SortedValues_jj),'gpuArray'); % Need this size for groupstats later
@@ -789,81 +808,80 @@ if simoptions.lowmemory==0
     % Stats to calculate and store in AgeConditionalStats.(FnsToEvalNames{ff})
     for ff=1:numFnsToEvaluate
         if simoptions.whichstats(1)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray'); % Note: N_j_max2=length(simoptions.agegroupings) in basic setup, will be different when N_j or agejshifter varies by PType
         end
         if simoptions.whichstats(2)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
             if simoptions.whichstats(1)==1
-                AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,length(simoptions.agegroupings),'gpuArray');
+                AgeConditionalStats.(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,N_j_max2,'gpuArray');
             end
         end
         if simoptions.whichstats(3)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,N_j_max2,'gpuArray');
         end
         if simoptions.whichstats(4)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,N_j_max2,'gpuArray');
         end
         if simoptions.whichstats(5)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,N_j_max2,'gpuArray');
         end
         if simoptions.whichstats(6)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
-            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,N_j_max2,'gpuArray'); % Includes the min and max values
+            AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,N_j_max2,'gpuArray');
         end
         if simoptions.whichstats(7)==1
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
-            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,N_j_max2,'gpuArray');
+            AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,N_j_max2,'gpuArray');
         end
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
                 if simoptions.whichstats(1)==1
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Mean=nan(1,N_j_max2,'gpuArray');
                 end
                 if simoptions.whichstats(2)==1
-                    AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(FnsToEvalNames{ff}).Median=nan(1,N_j_max2,'gpuArray');
                     if simoptions.whichstats(1)==1
-                        AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,length(simoptions.agegroupings),'gpuArray');
+                        AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).RatioMeanToMedian=nan(1,N_j_max2,'gpuArray');
                     end
                 end
                 if simoptions.whichstats(3)==1
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,N_j_max2,'gpuArray');
                 end
                 if simoptions.whichstats(4)==1
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,N_j_max2,'gpuArray');
                 end
                 if simoptions.whichstats(5)==1
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,N_j_max2,'gpuArray');
                 end
                 if simoptions.whichstats(6)==1
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,N_j_max2,'gpuArray'); % Includes the min and max values
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,N_j_max2,'gpuArray');
                 end
                 if simoptions.whichstats(7)==1
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,length(simoptions.agegroupings),'gpuArray');
-                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,length(simoptions.agegroupings),'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top1share=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top5share=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Top10share=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Bottom50share=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile50th=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile90th=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile95th=nan(1,N_j_max2,'gpuArray');
+                    AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).MoreInequality.Percentile99th=nan(1,N_j_max2,'gpuArray');
                 end
             end
         end
     end
-
 
     %% Now compute the grouped stats
     if simoptions.groupptypesforstats==1
@@ -880,10 +898,20 @@ if simoptions.lowmemory==0
                     % Merge the digests
                     [C_ff,digestweights_ff,~]=mergeDigest(Cmerge, digestweightsmerge, delta);
 
+                    % digestweights_ff will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
+                    if sum(digestweights_ff)>0
+                        digestweights_ff=digestweights_ff/sum(digestweights_ff);
+                    end
+                    
                     tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
                     [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                     AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
+
+                    % AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}) will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
+                    if sum(AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}))>0
+                        AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}));
+                    end
 
                     tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 end
@@ -923,8 +951,6 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile95th(jj)=tempStats.MoreInequality.Percentile95th;
                     AgeConditionalStats.(FnsToEvalNames{ff}).MoreInequality.Percentile99th(jj)=tempStats.MoreInequality.Percentile99th;
                 end
-
-
 
                 % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
                 SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
@@ -979,6 +1005,11 @@ if simoptions.lowmemory==0
                                 % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
                                 AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
                                 AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
+                                
+                                % AllRestrictedWeights_rrffjj will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
+                                if sum(AllRestrictedWeights_rrffjj)>0
+                                    AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj);
+                                end
                                 
                                 tempStats2=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                             end
