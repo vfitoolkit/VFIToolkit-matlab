@@ -113,7 +113,7 @@ elseif length(n_a)==2
                 if N_z==0
                     % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
         end
