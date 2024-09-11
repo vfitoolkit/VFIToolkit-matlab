@@ -82,6 +82,8 @@ if heteroagentoptions.fminalgo==5
         heteroagentoptions.toleranceGEprices_percent=10^(-3); % one-tenth of one percent
     end
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=5
+elseif heteroagentoptions.fminalgo==7
+    heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=7
 else
     heteroagentoptions.outputGEform=0;
 end
