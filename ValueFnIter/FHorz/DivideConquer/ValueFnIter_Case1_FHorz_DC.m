@@ -113,7 +113,11 @@ elseif length(n_a)==2
                 if N_z==0
                     % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    if vfoptions.lowmemory==0
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1 % loop over z
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_lowmem_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    end
                 end
             end
         end
@@ -121,7 +125,6 @@ elseif length(n_a)==2
 else
     error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
 end
-
 
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
@@ -147,6 +150,7 @@ else
     V=VKron;
     Policy=PolicyKron;
 end
+
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then
