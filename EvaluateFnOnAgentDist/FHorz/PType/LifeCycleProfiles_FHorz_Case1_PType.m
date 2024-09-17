@@ -198,9 +198,19 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
     end
 elseif length(simoptions.agejshifter)==1 % not using agejshifter
     simoptions.agejshifter=zeros(N_i,1);
+    N_j_max2=N_j_max;
 else % have inputed as a vector
     simoptions.agejshifter=simoptions.agejshifter-min(simoptions.agejshifter); % put them all relative to the minimum
-    N_j_max2=N_j_max;
+    if isstruct(N_j)
+        N_j_max2=0;
+        for ii=1:N_i
+            if isfinite(N_j.(Names_i{ii}))
+                N_j_max2=max(N_j_max2,simoptions.agejshifter(ii)+N_j.(Names_i{ii}));
+            end
+        end
+    else
+        N_j_max2=N_j_max;
+    end
 end
 % You cannot use agejshifter together with any age grouping other than just every period
 if max(simoptions.agejshifter)>0 && defaultagegroupings==0
