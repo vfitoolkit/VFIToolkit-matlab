@@ -32,9 +32,14 @@ if heteroagentoptions.outputGEform==0 % scalar
     elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
         GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
     end
-    GeneralEqmConditions=gather(GeneralEqmConditions);
+    if heteroagentoptions.outputgather==1
+        GeneralEqmConditions=gather(GeneralEqmConditions);
+    end
 elseif heteroagentoptions.outputGEform==1 % vector
     GeneralEqmConditions=GeneralEqmConditionsVec;
+    if heteroagentoptions.outputgather==1
+        GeneralEqmConditions=gather(GeneralEqmConditions);
+    end
 elseif heteroagentoptions.outputGEform==2 % structure
     clear GeneralEqmConditions
     GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);

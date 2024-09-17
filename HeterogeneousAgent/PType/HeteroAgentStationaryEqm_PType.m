@@ -1,4 +1,5 @@
 function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, Phi_aprime, Case2_Type, ReturnFn, FnsToEvaluateFn, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, PhiaprimeParamNames, AgeWeightParamNames, PTypeDistNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+error('This function  has been abolished (let me know if you run into this)')
 % Inputting vfoptions and simoptions is optional (they are not required inputs)
 %
 % Allows for different permanent (fixed) types of agent. 

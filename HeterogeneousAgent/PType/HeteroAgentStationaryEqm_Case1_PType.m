@@ -38,6 +38,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % heteroagentoptions.outputGEform=0; % For internal use only
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
+    heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
 else
     if isfield(heteroagentoptions,'multiGEcriterion')==0
         heteroagentoptions.multiGEcriterion=1;
@@ -73,6 +74,9 @@ else
     if ~isfield(heteroagentoptions,'outputGEstruct')
         heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     end
+    if ~isfield(heteroagentoptions,'outputgather')
+        heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
+    end
 end
 
 if heteroagentoptions.fminalgo==5
@@ -80,6 +84,7 @@ if heteroagentoptions.fminalgo==5
         heteroagentoptions.toleranceGEprices_percent=10^(-3); % one-tenth of one percent
     end
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=5
+    heteroagentoptions.outputgather=0; % leave GE condns vector on GPU
 elseif heteroagentoptions.fminalgo==7
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=7
 else
