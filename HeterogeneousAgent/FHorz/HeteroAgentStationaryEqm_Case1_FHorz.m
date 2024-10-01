@@ -6,7 +6,7 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
-N_z=prod(n_z);
+% N_z=prod(n_z);
 N_p=prod(n_p);
 if isempty(n_p)
     N_p=0;
@@ -234,6 +234,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             % inopts: options struct, see defopts below
             heteroagentoptions.inopts=[];
         end
+        if isfield(heteroagentoptions,'toleranceobjective')
+            heteroagentoptions.inopts.StopFitness=heteroagentoptions.toleranceobjective;
+        end
         % varargin (unused): arguments passed to objective function
         if heteroagentoptions.verbose==1
             disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
@@ -276,11 +279,11 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
                 Parameters.(GEPriceParamNames{ii})=p_new(ii);
             end
 
-            %         fprintf('Current iteration \n')
-            %         p_percentchange
-            %         p_new
-            %         p
-            %         p_i
+            % fprintf('Current iteration \n')
+            % p_percentchange
+            % p_new
+            % p
+            % p_i
 
             p_percentchange=max(abs(p_new-p)./abs(p));
             p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
