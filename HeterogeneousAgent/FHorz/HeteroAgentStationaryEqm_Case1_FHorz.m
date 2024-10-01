@@ -234,8 +234,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             % inopts: options struct, see defopts below
             heteroagentoptions.inopts=[];
         end
-        if isfield(heteroagentoptions,'toleranceobjective')
-            heteroagentoptions.inopts.StopFitness=heteroagentoptions.toleranceobjective;
+        if isfield(heteroagentoptions,'toleranceGEcondns')
+            heteroagentoptions.inopts.StopFitness=heteroagentoptions.toleranceGEcondns;
         end
         % varargin (unused): arguments passed to objective function
         if heteroagentoptions.verbose==1

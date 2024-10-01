@@ -450,6 +450,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             % inopts: options struct, see defopts below
             heteroagentoptions.inopts=[];
         end
+        if isfield(heteroagentoptions,'toleranceGEcondns')
+            heteroagentoptions.inopts.StopFitness=heteroagentoptions.toleranceGEcondns;
+        end
         % varargin (unused): arguments passed to objective function
         if heteroagentoptions.verbose==1
             disp('VFI Toolkit is using the CMA-ES algorithm, consider giving a cite to: Hansen, N. and S. Kern (2004). Evaluating the CMA Evolution Strategy on Multimodal Test Functions' )
