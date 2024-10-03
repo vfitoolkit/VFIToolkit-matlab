@@ -22,9 +22,11 @@ a2_grid=a_grid(N_a1+1:end);
 % vfoptions.level1n=[21,21];
 level1ii=round(linspace(1,n_a(1),vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
-Policytemp=zeros(N_a,N_e,'gpuArray');
 
 pi_e_J=shiftdim(pi_e_J,-1);
+
+% precompute
+eind=shiftdim((0:1:N_e-1),-1); % already includes -1
 
 %% j=N_j
 
@@ -46,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % Store
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
     V(curraindex,:,N_j)=shiftdim(Vtempii,1);
-    Policytemp(curraindex,:)=shiftdim(maxindex2,1);
+    Policy(curraindex,:,N_j)=shiftdim(maxindex2,1);
     
     % Attempt for improved version
     maxgap=squeeze(max(max(max(max(maxindex1(:,1,:,2:end,:,:)-maxindex1(:,1,:,1:end-1,:,:),[],6),[],5),[],3),[],1));
@@ -68,9 +70,8 @@ if ~isfield(vfoptions,'V_Jplus1')
             maxindexfix=dind+N_d*a1primeind+N_d*N_a1*a2primeind; % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-            eind=shiftdim((0:1:N_e-1),-1); % already includes -1
             allind=dind+N_d*a2primeind+N_d*N_a2*a2ind+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
-            Policytemp(curraindex,:)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         else
             loweredge=maxindex1(:,1,:,ii,:,:);
             % Just use aprime(ii) for everything
@@ -85,15 +86,12 @@ if ~isfield(vfoptions,'V_Jplus1')
             maxindexfix=dind+N_d*a1primeind+N_d*N_a1*a2primeind; % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-            eind=shiftdim((0:1:N_e-1),-1); % already includes -1
             allind=dind+N_d*a2primeind+N_d*N_a2*a2ind+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
-            Policytemp(curraindex,:)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         end
 
     end
     
-    Policy(:,:,N_j)=Policytemp;
-
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
@@ -120,7 +118,7 @@ else
     % Store
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
     V(curraindex,:,N_j)=shiftdim(Vtempii,1);
-    Policytemp(curraindex,:)=shiftdim(maxindex2,1);
+    Policy(curraindex,:,N_j)=shiftdim(maxindex2,1);
     
     % Attempt for improved version
     maxgap=squeeze(max(max(max(max(maxindex1(:,1,:,2:end,:,:)-maxindex1(:,1,:,1:end-1,:,:),[],6),[],5),[],3),[],1));
@@ -144,9 +142,8 @@ else
             maxindexfix=dind+N_d*a1primeind+N_d*N_a1*a2primeind; % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-            eind=shiftdim((0:1:N_e-1),-1); % already includes -1
             allind=dind+N_d*a2primeind+N_d*N_a2*a2ind+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
-            Policytemp(curraindex,:)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         else
             loweredge=maxindex1(:,1,:,ii,:,:);
             % Just use aprime(ii) for everything
@@ -163,14 +160,12 @@ else
             maxindexfix=dind+N_d*a1primeind+N_d*N_a1*a2primeind; % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-            eind=shiftdim((0:1:N_e-1),-1); % already includes -1
             allind=dind+N_d*a2primeind+N_d*N_a2*a2ind+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
-            Policytemp(curraindex,:)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,N_j)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         end
 
     end
 
-    Policy(:,:,N_j)=Policytemp;
 end
 
 %% Iterate backwards through j.
@@ -206,7 +201,7 @@ for reverse_j=1:N_j-1
     % Store
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
     V(curraindex,:,jj)=shiftdim(Vtempii,1);
-    Policytemp(curraindex,:)=shiftdim(maxindex2,1);
+    Policy(curraindex,:,jj)=shiftdim(maxindex2,1);
     
     % Attempt for improved version
     maxgap=squeeze(max(max(max(max(maxindex1(:,1,:,2:end,:,:)-maxindex1(:,1,:,1:end-1,:,:),[],6),[],5),[],3),[],1));
@@ -230,9 +225,8 @@ for reverse_j=1:N_j-1
             maxindexfix=dind+N_d*a1primeind+N_d*N_a1*a2primeind; % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-            eind=shiftdim((0:1:N_e-1),-1); % already includes -1
             allind=dind+N_d*a2primeind+N_d*N_a2*a2ind+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
-            Policytemp(curraindex,:)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,jj)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         else
             loweredge=maxindex1(:,1,:,ii,:,:);
             % Just use aprime(ii) for everything
@@ -249,14 +243,11 @@ for reverse_j=1:N_j-1
             maxindexfix=dind+N_d*a1primeind+N_d*N_a1*a2primeind; % put maxindex back together, using N_a1 to determine a2prime, rather than using (maxgap(ii)+1) which is what it originally was in maxindex
             %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
             a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-            eind=shiftdim((0:1:N_e-1),-1); % already includes -1
             allind=dind+N_d*a2primeind+N_d*N_a2*a2ind+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
-            Policytemp(curraindex,:)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
+            Policy(curraindex,:,jj)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         end
 
     end
-
-    Policy(:,:,jj)=Policytemp;
 
 end
 

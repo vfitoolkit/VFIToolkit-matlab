@@ -17,7 +17,6 @@ a_grid=gpuArray(a_grid);
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
-Policytemp=zeros(N_a,1,'gpuArray');
 
 %% j=N_j
 
@@ -42,7 +41,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     % Store
     V(level1ii,N_j)=shiftdim(Vtempii,2);
-    Policytemp(level1ii)=shiftdim(maxindex2,2)+N_d*(maxindex1d-1); % d,aprime
+    Policy(level1ii,N_j)=shiftdim(maxindex2,2)+N_d*(maxindex1d-1); % d,aprime
     
     % Attempt for improved version
     maxindex1=squeeze(maxindex1);
@@ -56,19 +55,17 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,ii);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
     
-    Policy(:,N_j)=Policytemp;
-
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -93,7 +90,7 @@ else
 
     % Store
     V(level1ii,N_j)=shiftdim(Vtempii,2);
-    Policytemp(level1ii)=shiftdim(maxindex2,2)+N_d*(maxindex1d-1); % d,aprime
+    Policy(level1ii,N_j)=shiftdim(maxindex2,2)+N_d*(maxindex1d-1); % d,aprime
     
     % Attempt for improved version
     maxindex1=squeeze(maxindex1);
@@ -109,7 +106,7 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,ii);
             % Just use aprime(ii) for everything
@@ -118,11 +115,10 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
 
-    Policy(:,N_j)=Policytemp;
 end
 
 %% Iterate backwards through j.
@@ -157,7 +153,7 @@ for reverse_j=1:N_j-1
 
     % Store
     V(level1ii,jj)=shiftdim(Vtempii,2);
-    Policytemp(level1ii)=shiftdim(maxindex2,2)+N_d*(maxindex1d-1); % d,aprime
+    Policy(level1ii,jj)=shiftdim(maxindex2,2)+N_d*(maxindex1d-1); % d,aprime
     
     % Attempt for improved version
     maxindex1=squeeze(maxindex1);
@@ -173,7 +169,7 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         else
             loweredge=maxindex1(:,ii);
             % Just use aprime(ii) for everything
@@ -182,11 +178,9 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(daprime);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(maxindex,1)+N_d*(loweredge(rem(maxindex-1,N_d)+1)-1); % loweredge(given the d)
         end
     end
-
-    Policy(:,jj)=Policytemp;
 
 end
 

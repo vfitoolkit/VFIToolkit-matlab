@@ -10,12 +10,12 @@ if ~isfield(vfoptions,'level1n')
             vfoptions.level1n=21; % set a larger default for larger models
         end
     elseif length(n_a)==2
-        vfoptions.level1n=[9,9];
+        vfoptions.level1n=[9,n_a(2)]; % default is DC2B
         if n_a(1)>300
             vfoptions.level1n(1)=21; % set a larger default for larger models
         end
         if n_a(2)>300
-            vfoptions.level1n(2)=21; % set a larger default for larger models
+            vfoptions.level1n(2)=n_a(2); % default is DC2B % set a larger default for larger models
         end
     end
     if vfoptions.verbose==1
@@ -24,7 +24,7 @@ if ~isfield(vfoptions,'level1n')
 end
 vfoptions.level1n=min(vfoptions.level1n,n_a);
 
-
+%% 1 endogenous state
 if length(n_a)==1
     if N_d==0
         if isfield(vfoptions,'n_e')
@@ -55,6 +55,7 @@ if length(n_a)==1
             end
         end
     end
+%% 2 endogenous states
 elseif length(n_a)==2
     if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
         vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
@@ -75,52 +76,67 @@ elseif length(n_a)==2
         else % N_d
             if isfield(vfoptions,'n_e')
                 if N_z==0
-                    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    if vfoptions.lowmemory==0
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1 % loop over e
+
+                    end
                 else
-                    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    if vfoptions.lowmemory==0
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1 % loop over e
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_e_lowmem_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==2 % loop over e and z
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_e_lowmem2_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    end
                 end
             else
                 if N_z==0
                     [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            end
-        end
-    else
-        if N_d==0
-            if isfield(vfoptions,'n_e')
-                if N_z==0
-                    % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            else
-                if N_z==0
-                    % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            end
-        else % N_d
-            if isfield(vfoptions,'n_e')
-                if N_z==0
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                end
-            else
-                if N_z==0
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                else
                     if vfoptions.lowmemory==0
-                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-                    elseif vfoptions.lowmemory==1 % loop over z
-                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_lowmem_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_lowmem_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     end
                 end
             end
         end
+    else
+        error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
+        % if N_d==0
+        %     if isfield(vfoptions,'n_e')
+        %         if N_z==0
+        %             % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         else
+        %             % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         end
+        %     else
+        %         if N_z==0
+        %             % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         else
+        %             % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         end
+        %     end
+        % else % N_d
+        %     if isfield(vfoptions,'n_e')
+        %         if N_z==0
+        %             % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         else
+        %             % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         end
+        %     else
+        %         if N_z==0
+        %             % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %         else
+        %             if vfoptions.lowmemory==0
+        %                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %             elseif vfoptions.lowmemory==1 % loop over z
+        %                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2_lowmem_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        %             end
+        %         end
+        %     end
+        % end
     end
 else
     error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')

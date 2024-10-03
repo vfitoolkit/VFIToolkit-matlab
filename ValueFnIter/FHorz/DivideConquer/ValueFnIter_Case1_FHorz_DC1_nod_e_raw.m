@@ -14,7 +14,6 @@ a_grid=gpuArray(a_grid);
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
-Policytemp=zeros(N_a,N_z,N_e,'gpuArray');
 
 %% j=N_j
 
@@ -31,7 +30,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     [Vtempii,maxindex1]=max(ReturnMatrix_ii,[],1);
 
     V(level1ii,:,:,N_j)=shiftdim(Vtempii,1);
-    Policytemp(level1ii,:,:)=shiftdim(maxindex1,1);
+    Policy(level1ii,:,:,N_j)=shiftdim(maxindex1,1);
 
     % Attempt for improved version
     maxgap=max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3);
@@ -44,18 +43,16 @@ if ~isfield(vfoptions,'V_Jplus1')
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+loweredge-1,1);
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(maxindex+loweredge-1,1);
         else
             loweredge=maxindex1(1,ii,:,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, n_e, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+loweredge-1,1);
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(maxindex+loweredge-1,1);
         end
     end
-
-    Policy(:,:,:,N_j)=Policytemp;
 
 else
     % Using V_Jplus1
@@ -79,7 +76,7 @@ else
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
     
     V(level1ii,:,:,N_j)=shiftdim(Vtempii,1);
-    Policytemp(level1ii,:,:)=shiftdim(maxindex1,1);
+    Policy(level1ii,:,:,N_j)=shiftdim(maxindex1,1);
 
     % Attempt for improved version
     maxgap=max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3);
@@ -94,7 +91,7 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[1,level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+loweredge-1,1);
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(maxindex+loweredge-1,1);
         else
             loweredge=maxindex1(1,ii,:,:);
             % Just use aprime(ii) for everything
@@ -103,11 +100,10 @@ else
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[1,level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+loweredge-1,1);
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,N_j)=shiftdim(maxindex+loweredge-1,1);
         end
     end
     
-    Policy(:,:,:,N_j)=Policytemp;
 end
 
 
@@ -143,7 +139,7 @@ for reverse_j=1:N_j-1
     [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
     
     V(level1ii,:,:,jj)=shiftdim(Vtempii,1);
-    Policytemp(level1ii,:,:)=shiftdim(maxindex1,1);
+    Policy(level1ii,:,:,jj)=shiftdim(maxindex1,1);
     
     % Attempt for improved version
     maxgap=max(max(maxindex1(1,2:end,:,:)-maxindex1(1,1:end-1,:,:),[],4),[],3);
@@ -158,7 +154,7 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[maxgap(ii)+1,level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+loweredge-1,1);
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,jj)=shiftdim(maxindex+loweredge-1,1);
         else % maxgap(ii)==0
             loweredge=maxindex1(1,ii,:,:);
             % Just use aprime(ii) for everything
@@ -167,13 +163,9 @@ for reverse_j=1:N_j-1
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[1,level1iidiff(ii),N_z,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:,jj)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+loweredge-1,1);
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:,jj)=shiftdim(maxindex+loweredge-1,1);
         end
-    end
-
-    Policy(:,:,:,jj)=Policytemp;
-
-    
+    end    
     
 end
 
