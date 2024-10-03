@@ -215,7 +215,7 @@ for reverse_j=1:N_j-1
             aprime=repelem(loweredge,1,1,level1iidiff(ii),1,1)+N_a1*(0:1:N_a2-1); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(aprime,[1*N_a2,level1iidiff(ii)*N_a2,N_e]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-            V(curraindex,jj)=shiftdim(Vtempii,1);
+            V(curraindex,:,jj)=shiftdim(Vtempii,1);
             % maxindex needs to be reworked:
             %  the a2prime is only an 'after maxgap(ii)+1, but needs to be after N_a1'
             a1primeind=1;

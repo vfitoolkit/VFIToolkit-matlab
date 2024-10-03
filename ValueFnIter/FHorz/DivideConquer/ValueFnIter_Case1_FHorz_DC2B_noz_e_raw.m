@@ -182,7 +182,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    EV=sum(V(:,:,jj+1).*pi_e_J(1,:,N_j),2);
+    EV=sum(V(:,:,jj+1).*pi_e_J(1,:,jj),2);
     DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1,1),[N_d,N_a1,N_a2,1,1]); % [d,aprime,1,1]
 
     % n-Monotonicity
