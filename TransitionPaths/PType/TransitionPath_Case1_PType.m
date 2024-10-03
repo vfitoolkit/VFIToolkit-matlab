@@ -116,9 +116,26 @@ end
 %% Some internal commands require a few vfoptions and simoptions to be set
 if exist('vfoptions','var')==0
     vfoptions.policy_forceintegertype=0;
+    vfoptions.exoticpreferences='none';
+    vfoptions.divideandconquer=0;
+    vfoptions.lowmemory=0;
 else
-    if isfield(vfoptions,'policy_forceintegertype')==0
+    if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
+    end
+    if ~isfield(vfoptions,'exoticpreferences')
+        vfoptions.exoticpreferences='none';
+    end
+    if ~isfield(vfoptions,'divideandconquer')
+        vfoptions.divideandconquer=0;
+    end
+    if ~isfield(vfoptions,'lowmemory')
+        vfoptions.lowmemory=0;
+    end
+end
+if vfoptions.divideandconquer==1
+    if length(n_a)==1
+        vfoptions.level1n=11;
     end
 end
 

@@ -156,6 +156,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % type. So arbitrarilty use the last agent (current content of iistr)
         Parameters=PTypeStructure.(iistr).Parameters;
 
+        % ParamPath and PricePath may be used in the general eqm conditions, so grab those
+        for nn=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{nn})=ParamPath(tt,nn);
+        end
+        for nn=1:length(PricePathNames)
+            Parameters.(PricePathNames{nn})=PricePathOld(tt,nn);
+        end
+
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
             % When using negative powers matlab will often return complex
@@ -182,24 +190,24 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
             p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-%             GEcondnspath(i,:)=p_i;
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
             PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
+
     end
     
 %     % Free up space on GPU by deleting things no longer needed
 %     clear AgentDist
     
-    %See how far apart the price paths are
+    % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
-    %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
+    % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converge
     
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
-        
+
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}
@@ -237,7 +245,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             title(AggVarNames{pp})
         end
     end
-    
+
     % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0
         PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
@@ -269,7 +277,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
-
+    
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations
         PricePathHistory{pathcounter,1}=PricePathDist;

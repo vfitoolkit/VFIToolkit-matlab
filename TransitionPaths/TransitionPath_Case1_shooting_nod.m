@@ -294,16 +294,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     % Free up space on GPU by deleting things no longer needed
     clear Ptemp Ptran AgentDistnext AgentDist
         
-    %See how far apart the price paths are
+    % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
-    %Notice that the distance is always calculated ignoring the time t=1 &
-    %t=T periods, as these needn't ever converges
+    % Notice that the distance is always calculated ignoring the time t=1 & t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
-        % Would be nice to have a way to get the iteration count without having the whole
-        % printout of path values (I think that would be useful?)
+        % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
     end
@@ -368,6 +366,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
+        fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
     

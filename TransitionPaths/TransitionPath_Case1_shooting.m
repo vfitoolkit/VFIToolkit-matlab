@@ -398,6 +398,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
+        fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
         fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     end
     

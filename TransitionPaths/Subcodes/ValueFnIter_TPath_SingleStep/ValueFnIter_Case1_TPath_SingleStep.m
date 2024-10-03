@@ -22,7 +22,6 @@ elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
     error('EpsteinZin Preferences Not yet supported')
 end
 
-
 %% Solve the standard problem
 % Note: being infinite horizon, I don't imagine anyone will come here without z variable
 if vfoptions.divideandconquer==0
