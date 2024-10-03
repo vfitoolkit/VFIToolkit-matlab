@@ -62,15 +62,29 @@ elseif length(n_a)==2
         if N_d==0
             if isfield(vfoptions,'n_e')
                 if N_z==0
-                    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    if vfoptions.lowmemory==0
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1 % loop over e
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_noz_e_lowmem_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    end
                 else
-                    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    if vfoptions.lowmemory==0
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1 % loop over e
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_e_lowmem_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==2 % loop over e and z
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_e_lowmem2_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    end
                 end
             else
                 if N_z==0
                     [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    if vfoptions.lowmemory==0
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    elseif vfoptions.lowmemory==1 % loop over z
+                        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_nod_lowmem_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    end
                 end
             end
         else % N_d
@@ -79,7 +93,7 @@ elseif length(n_a)==2
                     if vfoptions.lowmemory==0
                         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
-
+                        [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_DC2B_noz_e_lowmem_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     end
                 else
                     if vfoptions.lowmemory==0
