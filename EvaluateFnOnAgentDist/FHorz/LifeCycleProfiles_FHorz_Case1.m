@@ -245,7 +245,8 @@ if isfield(simoptions,'conditionalrestrictions')
         
         % Need to keep two things, the restrictedsamplemass and the RestrictedStationaryDistVec (normalized to have mass of 1)
         restrictedsamplemass(rr,:)=sum(RestrictedStationaryDistVec,1);
-        RestrictionStruct(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec./restrictedsamplemass(rr,:);
+        noonethatagej=(restrictedsamplemass(rr,:)==0); % 1 when mass of that age is 0
+        RestrictionStruct(rr).RestrictedStationaryDistVec=(1-noonethatagej).*(RestrictedStationaryDistVec./(restrictedsamplemass(rr,:)+noonethatagej)); % Just RestrictedStationaryDistVec./restrictedsamplemass(rr,:), but get 0 instead of NaN if that agej is mass zero in restrictedsamplemass(rr,:) 
 
         if all(restrictedsamplemass(rr,:)==0)
             warning('One of the conditional restrictions evaluates to a zero mass (at all j)')
