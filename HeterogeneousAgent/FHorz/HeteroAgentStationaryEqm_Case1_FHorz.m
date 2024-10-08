@@ -36,10 +36,14 @@ end
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
-    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.fminalgo=1;
+    if length(fieldnames(GeneralEqmEqns))==1
+        heteroagentoptions.fminalgo=0; % use fzero
+    else
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000;
     % heteroagentoptions.outputGEform=0; % For internal use only
@@ -67,7 +71,11 @@ else
         heteroagentoptions.verbose=0;
     end
     if ~isfield(heteroagentoptions,'fminalgo')
-        heteroagentoptions.fminalgo=1; % use fminsearch
+        if length(fieldnames(GeneralEqmEqns))==1
+            heteroagentoptions.fminalgo=0; % use fzero
+        else
+            heteroagentoptions.fminalgo=1; % use fminsearch
+        end
     end
     if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % use fminsearch

@@ -49,7 +49,11 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.fminalgo=1;  % use fminsearch
+    if length(fieldnames(GeneralEqmEqns))==1
+        heteroagentoptions.fminalgo=0; % use fzero
+    else
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     heteroagentoptions.oldGE=1;
@@ -78,7 +82,11 @@ else
         heteroagentoptions.verbose=0;
     end
     if isfield(heteroagentoptions,'fminalgo')==0
-        heteroagentoptions.fminalgo=1; % use fminsearch
+        if length(fieldnames(GeneralEqmEqns))==1
+            heteroagentoptions.fminalgo=0; % use fzero
+        else
+            heteroagentoptions.fminalgo=1; % use fminsearch
+        end
     end
     if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine

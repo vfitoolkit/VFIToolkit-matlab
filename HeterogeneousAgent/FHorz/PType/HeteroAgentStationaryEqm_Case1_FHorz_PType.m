@@ -39,13 +39,17 @@ p_eqm_vec=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
-    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    heteroagentoptions.fminalgo=1; % use fminsearch
+    if length(fieldnames(GeneralEqmEqns))==1
+        heteroagentoptions.fminalgo=0; % use fzero
+    else
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     heteroagentoptions.saveprogresseachiter=0;
     heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
     % heteroagentoptions.outputGEform=0; % For internal use only
@@ -77,7 +81,11 @@ else
         heteroagentoptions.verbose=0;
     end
     if ~isfield(heteroagentoptions,'fminalgo')
-        heteroagentoptions.fminalgo=1; % use fminsearch
+        if length(fieldnames(GeneralEqmEqns))==1
+            heteroagentoptions.fminalgo=0; % use fzero
+        else
+            heteroagentoptions.fminalgo=1; % use fminsearch
+        end
     end
     if ~isfield(heteroagentoptions,'parallel')
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.

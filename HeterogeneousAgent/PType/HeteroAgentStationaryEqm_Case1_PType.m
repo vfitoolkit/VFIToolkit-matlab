@@ -34,7 +34,11 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    heteroagentoptions.fminalgo=1; % use fminsearch
+    if length(fieldnames(GeneralEqmEqns))==1
+        heteroagentoptions.fminalgo=0; % use fzero
+    else
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % heteroagentoptions.outputGEform=0; % For internal use only
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
@@ -62,7 +66,11 @@ else
         heteroagentoptions.verbose=0;
     end
     if isfield(heteroagentoptions,'fminalgo')==0
-        heteroagentoptions.fminalgo=1; % use fminsearch
+        if length(fieldnames(GeneralEqmEqns))==1
+            heteroagentoptions.fminalgo=0; % use fzero
+        else
+            heteroagentoptions.fminalgo=1; % use fminsearch
+        end
     end
     if isfield(heteroagentoptions,'parallel')==0
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
