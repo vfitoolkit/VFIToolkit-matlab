@@ -27,9 +27,9 @@ end
 
 % We might want to output GE conditions as a vector or structure
 if heteroagentoptions.outputGEform==0 % scalar
-    if heteroagentoptions.multiGEcriterion==0 %only used when there is only one price
+    if heteroagentoptions.multiGEcriterion==0 % only used when there is only one price
         GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
-    elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market
+    elseif heteroagentoptions.multiGEcriterion==1 % the measure of market clearance is to take the sum of squares of clearance in each market
         GeneralEqmConditions=sqrt(sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2)));
     end
     if heteroagentoptions.outputgather==1

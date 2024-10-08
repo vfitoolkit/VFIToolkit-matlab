@@ -45,11 +45,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    if length(fieldnames(GeneralEqmEqns))==1
-        heteroagentoptions.fminalgo=0; % use fzero
-    else
-        heteroagentoptions.fminalgo=1; % use fminsearch
-    end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.saveprogresseachiter=0;
     heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
     % heteroagentoptions.outputGEform=0; % For internal use only
@@ -80,13 +76,7 @@ else
     if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    if ~isfield(heteroagentoptions,'fminalgo')
-        if length(fieldnames(GeneralEqmEqns))==1
-            heteroagentoptions.fminalgo=0; % use fzero
-        else
-            heteroagentoptions.fminalgo=1; % use fminsearch
-        end
-    end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     if ~isfield(heteroagentoptions,'parallel')
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
@@ -502,8 +492,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
-    if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-        heteroagentoptions.multimarketcriterion=0;
+    if heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
+        heteroagentoptions.outputGEform=1;
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
     elseif heteroagentoptions.fminalgo==1
         [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);

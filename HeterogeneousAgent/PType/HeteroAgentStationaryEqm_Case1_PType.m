@@ -34,11 +34,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    if length(fieldnames(GeneralEqmEqns))==1
-        heteroagentoptions.fminalgo=0; % use fzero
-    else
-        heteroagentoptions.fminalgo=1; % use fminsearch
-    end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % heteroagentoptions.outputGEform=0; % For internal use only
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
@@ -65,13 +61,7 @@ else
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
     end
-    if isfield(heteroagentoptions,'fminalgo')==0
-        if length(fieldnames(GeneralEqmEqns))==1
-            heteroagentoptions.fminalgo=0; % use fzero
-        else
-            heteroagentoptions.fminalgo=1; % use fminsearch
-        end
-    end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     if isfield(heteroagentoptions,'parallel')==0
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
@@ -426,8 +416,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns);
-    if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-        heteroagentoptions.multimarketcriterion=0;
+    if heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
+        heteroagentoptions.outputGEform=1;
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
     elseif heteroagentoptions.fminalgo==1
         [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);

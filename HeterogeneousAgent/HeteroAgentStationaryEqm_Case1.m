@@ -49,11 +49,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    if length(fieldnames(GeneralEqmEqns))==1
-        heteroagentoptions.fminalgo=0; % use fzero
-    else
-        heteroagentoptions.fminalgo=1; % use fminsearch
-    end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.verbose=0;
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     heteroagentoptions.oldGE=1;
@@ -78,16 +74,11 @@ else
     if isfield(heteroagentoptions,'toleranceGEcondns')==0
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
     end
-    if isfield(heteroagentoptions,'fminalgo')==0
-        if length(fieldnames(GeneralEqmEqns))==1
-            heteroagentoptions.fminalgo=0; % use fzero
-        else
-            heteroagentoptions.fminalgo=1; % use fminsearch
-        end
-    end
+    heteroagentoptions.fminalgo=1; % use fminsearch
     if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     end
@@ -228,7 +219,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
-    if heteroagentoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
+    if heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
+        heteroagentoptions.outputGEform=1;
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
     elseif heteroagentoptions.fminalgo==1
         [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);
