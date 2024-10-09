@@ -81,7 +81,9 @@ else
     end
 end
 
-if heteroagentoptions.fminalgo==5
+if heteroagentoptions.fminalgo==0
+    heteroagentoptions.outputGEform=1;
+elseif heteroagentoptions.fminalgo==5
     if isfield(heteroagentoptions,'toleranceGEprices_percent')==0
         heteroagentoptions.toleranceGEprices_percent=10^(-3); % one-tenth of one percent
     end
@@ -188,6 +190,7 @@ if heteroagentoptions.fminalgo==5
     end
 end
 
+
 %%
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
 
@@ -203,7 +206,6 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
     if heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
-        heteroagentoptions.outputGEform=1;
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
     elseif heteroagentoptions.fminalgo==1
         [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);
