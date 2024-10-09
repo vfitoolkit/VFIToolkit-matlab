@@ -66,7 +66,9 @@ else
     if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    heteroagentoptions.fminalgo=1; % use fminsearch
+    if ~isfield(heteroagentoptions,'fminalgo')
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % use fminsearch
     end

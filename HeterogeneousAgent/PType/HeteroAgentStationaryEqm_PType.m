@@ -41,29 +41,31 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
 else
-    if isfield(heteroagentoptions,'multiGEcriterion')==0
+    if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
-    if isfield(heteroagentoptions,'multiGEweights')==0
+    if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     end
     if N_p~=0
-        if isfield(heteroagentoptions,'p_grid')==0
+        if ~isfield(heteroagentoptions,'p_grid')
             disp('ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
             dbstack
         end
     end
-    if isfield(heteroagentoptions,'toleranceGEprices')==0
+    if ~isfield(heteroagentoptions,'toleranceGEprices')
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+    if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'verbose')==0
+    if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    heteroagentoptions.fminalgo=1; % use fminsearch
-    if isfield(heteroagentoptions,'parallel')==0
+    if ~isfield(heteroagentoptions,'fminalgo')
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
+    if ~isfield(heteroagentoptions,'parallel')
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
 end

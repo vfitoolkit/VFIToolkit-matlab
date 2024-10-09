@@ -61,7 +61,9 @@ else
     if isfield(heteroagentoptions,'verbose')==0
         heteroagentoptions.verbose=0;
     end
-    heteroagentoptions.fminalgo=1; % use fminsearch
+    if isfield(heteroagentoptions,'fminalgo')==0
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     if isfield(heteroagentoptions,'parallel')==0
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end

@@ -57,32 +57,33 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
 else
-    if isfield(heteroagentoptions,'multiGEcriterion')==0
+    if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
-    if isfield(heteroagentoptions,'multiGEweights')==0
+    if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
     end
     if N_p~=0
-        if isfield(heteroagentoptions,'pgrid')==0
-            disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
+        if ~isfield(heteroagentoptions,'pgrid')
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
     end
-    if isfield(heteroagentoptions,'toleranceGEprices')==0
+    if ~isfield(heteroagentoptions,'toleranceGEprices')
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     end
-    if isfield(heteroagentoptions,'toleranceGEcondns')==0
+    if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     end
-    heteroagentoptions.fminalgo=1; % use fminsearch
-    if isfield(heteroagentoptions,'verbose')==0
+    if ~isfield(heteroagentoptions,'fminalgo')
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
+    if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    heteroagentoptions.fminalgo=1; % use fminsearch
-    if isfield(heteroagentoptions,'maxiter')==0
+    if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     end
-    if isfield(heteroagentoptions,'oldGE')==0
+    if ~isfield(heteroagentoptions,'oldGE')
         heteroagentoptions.oldGE=1;
     end
     % heteroagentoptions.outputGEform=0; % For internal use only
@@ -215,14 +216,15 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         p0(ii)=Parameters.(GEPriceParamNames{ii});
     end
 
-
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
     if heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
         heteroagentoptions.outputGEform=1;
+        disp('fzero')
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,p0,minoptions);
     elseif heteroagentoptions.fminalgo==1
+        disp('fminsearch')
         [p_eqm_vec,GeneralEqmConditions]=fminsearch(GeneralEqmConditionsFnOpt,p0,minoptions);
     elseif heteroagentoptions.fminalgo==2
         % Use the optimization toolbox so as to take advantage of automatic differentiation
