@@ -163,6 +163,7 @@ end
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
+    vfoptions.divideandconquer=0;
     vfoptions.parallel=transpathoptions.parallel;
     vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
@@ -174,6 +175,13 @@ if exist('vfoptions','var')==0
     vfoptions.endotype=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(vfoptions,'divideandconquer')
+        vfoptions.divideandconquer=0;
+    else
+        if ~isfield(vfoptions,'level1n')
+            vfoptions.level1n=11;
+        end
+    end
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
     end
@@ -222,6 +230,8 @@ else
         vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
     end
 end
+
+
 
 %% Check which simoptions have been used, set all others to defaults 
 if transpathoptions.fastOLG==1

@@ -188,13 +188,15 @@ elseif transpathoptions.ageweightstrivial==1
 end
 
 
+% Set up some things for the FnsToEvaluate with fastOLG
+a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
+% d_gridvals=CreateGridvals(n_d,d_grid,1);
+daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
-    if N_d>0
-        PolicyIndexesPath=zeros(2,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
-    else
-        PolicyIndexesPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
-    end
+
+    PolicyIndexesPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
     
     %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
     % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
@@ -210,12 +212,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_noz(V,n_d,n_a,N_j,d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
-        
-        if N_d>0
-            PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        else
-            PolicyIndexesPath(:,:,T-ttr)=Policy;
-        end
+
+        PolicyIndexesPath(:,:,T-ttr)=Policy;
     end
     % Free up space on GPU by deleting things no longer needed
     clear V    
@@ -229,11 +227,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     for tt=1:T-1
                 
         %Get the current optimal policy
-        if N_d>0
-            Policy=PolicyIndexesPath(:,:,:,tt);
-        else
-            Policy=PolicyIndexesPath(:,:,tt);
-        end
+        Policy=PolicyIndexesPath(:,:,tt);
         
         GEprices=PricePathOld(tt,:);
         
@@ -278,8 +272,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
         
-        PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(Policy, n_d, n_a, N_j,vfoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_noz(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, N_j, d_grid, a_grid, 2,simoptions); % The 2 is for Parallel (use GPU)
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,N_j,daprime_gridvals,a_gridvals);
         
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
@@ -328,7 +321,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             AgeWeightsOld=AgeWeights;
             AgeWeights=AgeWeights_T(:,tt);
         end
-        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_j);
+
+        % if simoptions.fastOLG=1 is hardcoded
+        if N_d==0
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_d,N_a,N_j);
+        else
+            % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j);
+        end
     end
     % Free up space on GPU by deleting things no longer needed
     clear AgentDist

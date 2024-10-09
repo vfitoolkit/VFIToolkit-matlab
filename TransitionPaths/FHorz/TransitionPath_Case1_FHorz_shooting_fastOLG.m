@@ -204,7 +204,6 @@ a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
 daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
 
-
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     
@@ -305,10 +304,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J);
 
-        % % if tt<4
-        % %     [AggVars.H.Mean, AggVars.L.Mean, AggVars.K.Mean, AggVars.PensionSpending.Mean, AggVars.AccidentalBeqLeft.Mean]
-        % % end
-
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
             % When using negative powers matlab will often return complex
@@ -355,27 +350,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             AgeWeightsOld=AgeWeights;
             AgeWeights=AgeWeights_T(:,tt);
         end
+
         % if simoptions.fastOLG=1 is hardcoded
         if N_d==0
             AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(1:end-N_a,:),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj); % Policy for jj=1:N_j-1
         else
             % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
             AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(1:end-N_a,:)/N_d),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj); % Policy for jj=1:N_j-1
-
-            % if tt<4
-            %     % temp=gather(reshape(ceil(Policy(1:end-N_a,:)/N_d),[1,N_a*(N_j-1)*N_z]));
-            %     % temp(1:100)
-            %     % AgeWeights(51:150)'
-            %     % AgeWeightsOld(51:150)'
-            %     pi_z_J_sim(1:100)'
-            % end
-
         end
-
-        % if tt<4
-        %     disp('Dist')
-        %     [median(AgentDist),max(AgentDist)]
-        % end
     end
     % Free up space on GPU by deleting things no longer needed
     clear AgentDist

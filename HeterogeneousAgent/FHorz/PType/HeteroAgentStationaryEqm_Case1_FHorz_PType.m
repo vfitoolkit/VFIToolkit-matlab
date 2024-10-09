@@ -146,6 +146,9 @@ end
 
 % If jequaloneDist is not a structure, then we deal with it here (as it may be dependent on PType, and we will turn it into a structure if it is)
 if ~isstruct(jequaloneDist)
+    if ~exist("simoptions","var")
+        error('You must input simoptions to HeteroAgentStationaryEqm_Case1_FHorz_PType when using jequaloneDist as a structure')
+    end
     [jequaloneDist,~,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,PTypeStructure.N_i,PTypeStructure.Names_i,PTypeDistParamNames,1);
 end
 

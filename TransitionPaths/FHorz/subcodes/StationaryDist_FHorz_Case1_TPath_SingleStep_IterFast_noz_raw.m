@@ -1,13 +1,15 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,PolicyIndexesKron,N_d,N_a,N_j)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j)
 % Parallelizes over age jj
 % AgentDist is [N_a*N_j,1]
 % AgeWeights is [N_a*N_j,1] (obviously just repeats same numbers over the N_a)
 
-if N_d==0
-    optaprime=gather(reshape(PolicyIndexesKron(:,1:end-1),[1,N_a*(N_j-1)]));
-else
-    optaprime=gather(reshape(PolicyIndexesKron(2,:,1:end-1),[1,N_a*(N_j-1)]));
-end
+% if N_d==0
+%     optaprime=gather(reshape(PolicyIndexesKron(:,1:end-1),[1,N_a*(N_j-1)]));
+% else
+%     optaprime=gather(reshape(PolicyIndexesKron(2,:,1:end-1),[1,N_a*(N_j-1)]));
+% end
+% optaprime is [1,N_a*(N_j-1)*N_z]
+
 
 % Remove the existing age weights, then impose the new age weights at the end
 AgentDist=AgentDist./AgeWeightsOld;
