@@ -484,12 +484,36 @@ if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
     else
         SemiExoStateFnParamNames={};
     end
+    % Create pi_semiz_J
     pi_semiz_J=zeros(N_semiz,N_semiz,n_d3,N_j,'gpuArray');
     for jj=1:N_j
         SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
         pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_d3,vfoptions.n_semiz,d3_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues));
     end
-    semiz_gridvals_J=gpuArray(CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j));
+    % Check that pi_semiz_J has rows summing to one, if not, print a warning
+    for jj=1:N_j
+        if any(abs(sum(pi_semiz_J(:,:,:,jj),2)-1)>10^(-14))
+            warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
+        end
+    end
+    % Create semiz_gridvals_J
+    if ndims(vfoptions.semiz_grid)==2
+        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),1])
+            semiz_gridvals_J=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
+        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz)])
+            semiz_gridvals_J=vfoptions.semiz_grid.*ones(1,1,N_j,'gpuArray');
+        end
+    else % Already age-dependent
+        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),N_j])
+            semiz_gridvals_J=zeros(prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j,'gpuArray');
+            for jj=1:N_j
+                semiz_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid(:,jj),1);
+            end
+        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j])
+            semiz_gridvals_J=vfoptions.semiz_grid;
+        end
+    end
+    % semiz_gridvals_J=gpuArray(CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j));
 
     % Now just send it off
     [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -711,11 +735,19 @@ if isfield(vfoptions,'SemiExoStateFn')
     else
         SemiExoStateFnParamNames={};
     end
+    % Create pi_semiz_J
     pi_semiz_J=zeros(N_semiz,N_semiz,prod(n_d2),N_j);
     for jj=1:N_j
         SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
         pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,vfoptions.n_semiz,d2_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues);
     end
+    % Check that pi_semiz_J has rows summing to one, if not, print a warning
+    for jj=1:N_j
+        if any(abs(sum(pi_semiz_J(:,:,:,jj),2)-1)>10^(-14))
+            warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
+        end
+    end
+    % Create semiz_gridvals_J
     if ndims(vfoptions.semiz_grid)==2
         if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),1])
             semiz_gridvals_J=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
