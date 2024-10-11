@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,PolicyIndexesKron,N_d,N_a,N_z,N_j,pi_z_J)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J)
 % Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -11,11 +11,7 @@ function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(Age
 % Remove the existing age weights, then impose the new age weights at the end
 AgentDist=AgentDist./AgeWeightsOld;
 
-if N_d==0
-    PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z,N_j]));
-else
-    PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:),[1,N_a*N_z,N_j]));
-end
+optaprime=gather(reshape(optaprime,[1,N_a*N_z,N_j]));
 
 pi_z_J=gather(pi_z_J);
 
@@ -24,10 +20,10 @@ for jjr=1:(N_j-1)
     AgentDist_jj=sparse(gather(AgentDist(:,jj)));
     pi_z=sparse(pi_z_J(:,:,jj));
 
-    optaprime=PolicyIndexesKron(1,:,jj);
+    optaprime_jj=optaprime(1,:,jj);
 
     % Tan improvement
-    firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
+    firststep=optaprime_jj+kron(N_a*(0:1:N_z-1),ones(1,N_a));
     Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
 
      % Two steps of the Tan improvement

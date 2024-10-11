@@ -8,7 +8,7 @@ function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(
 % else
 %     optaprime=gather(reshape(PolicyIndexesKron(2,:,1:end-1),[1,N_a*(N_j-1)]));
 % end
-% optaprime is [1,N_a*(N_j-1)*N_z]
+% optaprime is [1,N_a*(N_j-1)]
 
 
 % Remove the existing age weights, then impose the new age weights at the end

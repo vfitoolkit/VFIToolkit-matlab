@@ -412,8 +412,26 @@ else
     end
 end
 
-%%
+%% We only need aprime for the AgentDistPath, so throw away and d variables
+if N_d==0
+    optaprimePath=PolicyPath;
+else
+    if N_e==0
+        if N_z==0
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:),1); % a,j,t
+        else
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:),1);            
+        end
+    else
+        if N_z==0
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:),1);            
+        else
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:,:),1);            
+        end
+    end
+end
 
+%%
 if N_e==0
     if N_z==0
         %%
@@ -431,26 +449,18 @@ if N_e==0
         end
         for tt=1:T-1
             %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,tt);
-            end
+            optaprime=optaprimePath(:,:,tt);
+
             if transpathoptions.ageweightstrivial==0
                 AgeWeightsOld=AgeWeights;
                 AgeWeights=AgeWeights_T(:,tt);
             end
             if simoptions.fastOLG==0
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_j);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j);
                 AgentDistPath(:,:,tt+1)=AgentDist;
             else % simoptions.fastOLG==1
-                % size(AgentDist)
-                % N_a
-                % size(AgentDist(1:end-N_a))
-                % N_j-1
-                % size(AgeWeights)
-
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_j);
+                optaprime=gather(reshape(optaprime(:,1:end-1),[1,N_a*(N_j-1)])); % swap order to j,z
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j);
                 AgentDistPath(:,tt+1)=AgentDist;
             end
         end
@@ -469,13 +479,9 @@ if N_e==0
             AgeWeights=AgeWeights_initial;
         end
         for tt=1:T-1
-
             %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,:,tt);
-            end
+            optaprime=optaprimePath(:,:,:,tt);
+
             if transpathoptions.zpathtrivial==0
                 pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
                 if simoptions.fastOLG==1
@@ -490,14 +496,10 @@ if N_e==0
             end
 
             if simoptions.fastOLG==0
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_j,pi_z_J);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J);
                 AgentDistPath(:,:,tt+1)=AgentDist;
             else % simoptions.fastOLG==1
-                if N_d==0
-                    optaprime=gather(reshape(permute(Policy(:,:,1:end-1),[1,3,2]),[1,N_a*(N_j-1)*N_z])); % swap order to j,z
-                else
-                    optaprime=gather(reshape(permute(Policy(2,:,:,1:end-1),[1,2,4,3]),[1,N_a*(N_j-1)*N_z])); % swap order to j,z
-                end
+                optaprime=gather(reshape(permute(optaprime(:,:,1:end-1),[1,3,2]),[1,N_a*(N_j-1)*N_z])); % swap order to j,z
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj);
                 AgentDistPath(:,tt+1)=AgentDist;
             end
@@ -506,6 +508,9 @@ if N_e==0
 else
     if N_z==0
         % Not implemented yet
+
+
+
     else
         AgentDistPath=zeros(N_a*N_j*N_z,N_e,T,'gpuArray'); % Whether or not using simoptions.fastOLG
         AgentDistPath(:,:,1)=AgentDist_initial;
@@ -516,17 +521,12 @@ else
         end
 
         for tt=1:T-1
-
-            %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyPath(:,:,:,:,:,tt);
-            else
-                Policy=PolicyPath(:,:,:,:,tt);
-            end
+            % Get the current optimal policy
+            optaprime=optaprimePath(:,:,:,:,tt);
 
             if transpathoptions.zpathtrivial==0
                 pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-                z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
+                % z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
                 if simoptions.fastOLG==1
                     pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
                     pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
@@ -548,14 +548,10 @@ else
             end
 
             if simoptions.fastOLG==0
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J);
                 AgentDistPath(:,:,tt+1)=AgentDist;
             else % simoptions.fastOLG==1
-                if N_d==0
-                    optaprime=gather(reshape(permute(Policy(:,:,:,1:end-1),[1,4,2,3]),[1,N_a*(N_j-1)*N_z*N_e])); % swap order to j,z
-                else
-                    optaprime=gather(reshape(permute(Policy(2,:,:,:,1:end-1),[1,2,5,3,4]),[1,N_a*(N_j-1)*N_z*N_e])); % swap order to j,z
-                end
+                optaprime=gather(reshape(permute(optaprime(:,:,:,1:end-1),[1,4,2,3]),[1,N_a*(N_j-1)*N_z*N_e])); % swap order to j,z
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj);
                 AgentDistPath(:,:,tt+1)=AgentDist;
             end

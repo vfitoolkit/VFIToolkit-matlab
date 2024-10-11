@@ -1,14 +1,8 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,PolicyIndexesKron,N_d,N_a,N_j)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j)
 % AgentDist is [N_a,N_j]
 % AgeWeights is [1,N_j]
 
-if N_d==0
-    optaprime=reshape(PolicyIndexesKron,[1,N_a,N_j]);
-else
-    optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a,N_j]);
-end
-
-optaprime=gather(optaprime);
+optaprime=gather(reshape(optaprime,[1,N_a,N_j]));
 
 % Remove the existing age weights, then impose the new age weights at the end
 AgentDist=AgentDist./AgeWeightsOld;

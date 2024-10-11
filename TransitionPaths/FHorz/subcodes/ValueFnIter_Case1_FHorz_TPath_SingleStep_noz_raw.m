@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_TPath_SingleStep_noz_raw(V,n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_noz_raw(V,n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -91,8 +91,8 @@ for reverse_j=1:N_j-1
 end
 
 %%
-Policy2=zeros(2,N_a,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+% Policy2=zeros(2,N_a,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
+% Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+% Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end
