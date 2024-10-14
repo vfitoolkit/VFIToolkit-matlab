@@ -6,50 +6,25 @@ function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(VK
 PolicyKron=nan;
 
 N_d=prod(n_d);
-N_e=0;
-if isfield(vfoptions,'n_e')
-    N_e=prod(vfoptions.n_e);
-end
 % N_z=0 is handled elsewhere
+% N_e is handled elsewhere
 
 if strcmp(vfoptions.exoticpreferences,'None')
-    if N_e==0
+    if vfoptions.divideandconquer==0
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
-    else
+    else % vfoptions.divideandconquer==1
         if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_e_raw(VKron,n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_e_raw(VKron,n_d,n_a,n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_grid_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 else 
     error('Not yet implemented exoticpreferences for transtion paths (email me :)')
-% elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-%     if strcmp(vfoptions.quasi_hyperbolic,'Naive')
-%         if N_d==0
-%             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_NQHyperbolic_SingleStep_fOLG_nod_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid_J, pi_z_J, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         else
-%             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_NQHyperbolic_SingleStep_fOLG_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid_J, pi_z_J, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         end
-%     elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-%         if N_d==0
-%             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SQHyperbolic_SingleStep_fOLG_nod_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid_J, pi_z_J, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         else
-%             [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SQHyperbolic_SingleStep_fOLG_raw(V0, n_d,n_a,n_z,d_grid,a_grid,z_grid_J, pi_z_J, DiscountFactorParamNames, ReturnFn, vfoptions,Parameters,ReturnFnParamNames);
-%         end
-%     end
-%     return
-% elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-%     if N_d==0
-%         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_fastOLG_no_d_raw(VKron,n_a, n_z, N_j, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%     else
-%         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpZin_TPath_SingleStep_fastOLG_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-%     end
-%     return
 end
 
 
