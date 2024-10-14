@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_e_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J,e_gridvals_J, pi_z_J,pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J,e_gridvals_J, pi_z_J,pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % fastOLG: fastOLG uses (a,j,z,e) instead of the standard (a,z,e,j)
 % This (a,j,z,e) is important for ability to implement codes based on matrix
 % multiplications (especially for Tan improvement)
@@ -223,10 +223,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %Vnext, and the current period one to be calculated in V
     V=V_final;
 
-    % % % disp('HereFinal')
-    % % % temp=reshape(permute(reshape(V_final,[N_a,N_j,N_z,N_e]),[1,3,4,2]),[N_a,N_z,N_e,N_j]);
-    % % % temp(1:100)
-
     for ttr=1:T-1 %so tt=T-ttr
         
         for kk=1:length(PricePathNames)
@@ -241,29 +237,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             z_gridvals_J=transpathoptions.z_gridvals_J(:,:,T-ttr);
         end
         if transpathoptions.epathtrivial==0
-            vfoptions.pi_e_J=transpathoptions.pi_e_J_T(:,1,:,T-ttr);
-            vfoptions.e_grid_J=transpathoptions.e_gridvals_J_T(:,:,:,:,T-ttr);
+            pi_e_J=transpathoptions.pi_e_J_T(:,1,:,T-ttr);
+            e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,T-ttr);
         end
         % transpathoptions.epathtrivial==1 % Does not depend on T        
-
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        
+        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
-        % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
+        % Policy in fastOLG is [1,N_a*N_j*N_z*N_e] and contains the joint-index for (d,aprime)
 
-        PolicyIndexesPath(:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
-
-        % if ttr==1
-        %     disp('Here')
-        %     temp=reshape(permute(reshape(V,[N_a,N_j,N_z,N_e]),[1,3,4,2]),[N_a,N_z,N_e,N_j]);
-        %     temp(1:100)
-        % end
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z-by-e
 
     end
-
-    % disp('Here')
-    % temp=reshape(permute(reshape(V,[N_a,N_j,N_z,N_e]),[1,3,4,2]),[N_a,N_z,N_e,N_j]);
-    % temp(1:100)
-
     % Free up space on GPU by deleting things no longer needed
     clear V    
     
@@ -278,7 +263,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     for tt=1:T-1
                 
         %Get the current optimal policy
-        Policy=PolicyIndexesPath(:,:,:,tt); % fastOLG: so (a,j)-by-z
+        Policy=PolicyIndexesPath(:,:,:,tt); % fastOLG: so (a,j)-by-z-by-e
         
         GEprices=PricePathOld(tt,:);
         
@@ -337,10 +322,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % transpathoptions.epathtrivial==1 % Does not depend on T
 
         AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J);
-
-        % if tt<4
-        %     [AggVars.H.Mean, AggVars.L.Mean, AggVars.K.Mean, AggVars.PensionSpending.Mean, AggVars.AccidentalBeqLeft.Mean]
-        % end
 
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
