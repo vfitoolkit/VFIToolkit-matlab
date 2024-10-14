@@ -87,11 +87,13 @@ if isfield(simoptions,'n_semiz')
         if N_z==0
             n_z=simoptions.n_semiz;
         else
-            n_z=[n_z,simoptions.n_semiz];
+            n_z=[simoptions.n_semiz,n_z];
         end
         N_z=prod(n_z);
     end
 end
+
+
 
 
 %%
