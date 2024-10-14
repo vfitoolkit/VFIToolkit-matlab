@@ -19,7 +19,7 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znu
 %   xnum      - number of grid points for x process
 % Optional nputs (farmertodaoptions):
 %   method    - quadrature method for x process
-%   nSigmaZ   - grid spacing parameter for z (default = sqrt((Nz-1)/2)
+%   nSigmas   - grid spacing parameter for z (default = sqrt((Nz-1)/2)
 % Output: 
 %   z_grid:   - stacked column vector, x on top, z below (so z_grid(1:xnum)is the grid on x, z_grid(xnum+1:end) is the grid on z)
 %   P:        - joint transition matrix on (x,z)
@@ -41,12 +41,12 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znu
 %% Set defaults
 if ~exist('farmertodaoptions','var')
     % If farmertodaoptions.method is not declared then just leave it to discretizeAR1_FarmerToda
-    farmertodaoptions.nSigmaZ = min(sqrt((znum-1)/2),2); % spacing parameter for z process
+    farmertodaoptions.nSigmas = min(sqrt((znum-1)/2),2); % spacing parameter for z process
     farmertodaoptions.parallel=1+(gpuDeviceCount>0);
 else
     % define grid spacing parameter if not provided (only used for 'even' method)
-    if ~isfield(farmertodaoptions,'nSigmaZ') 
-        farmertodaoptions.nSigmaZ = min(sqrt((znum-1)/2),2); % spacing parameter for z process
+    if ~isfield(farmertodaoptions,'nSigmas')
+        farmertodaoptions.nSigmas = min(sqrt((znum-1)/2),2); % spacing parameter for z process
     end
     if ~isfield(farmertodaoptions,'parallel')
         farmertodaoptions.parallel=1+(gpuDeviceCount>0);
@@ -54,11 +54,16 @@ else
 end
 % farmertodaoptions.nMoments = 2; % This could be used to change nMoments for x (to 1,2,3 or 4; is set to default of 2 by discretizeAR1_FarmerToda)
 
+if farmertodaoptions.nSigmas<1.2
+    warning('Trying to hit the 2nd moment with farmertodaoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for farmertodaoptions.nSigmas<1.2).')
+end
+
+
 %% Compute some uncondtional moments
 
 sigmaX = (sigmae^2)/(1-phi^2); % unconditional variance of variance process
 xBar = 2*log(sigmau)-sigmaX/2; % unconditional mean of variance process, targeted to match a mean standard deviation of sigmaU
-sigmaZ = sqrt(exp(xBar+sigmaX/2)/(1-rho^2)); % uncondtional standard deviation of technology shock
+sigmaz = sqrt(exp(xBar+sigmaX/2)/(1-rho^2)); % uncondtional standard deviation of technology shock
 
 %% Construct technology process approximation
 if farmertodaoptions.parallel==2
@@ -73,7 +78,7 @@ end
 % [Px,x_grid] = discreteVAR(xBar*(1-phi),phi,sigmae^2,xnum,2,farmertodaoptions.method); % discretization of variance process
 
 
-z_grid = linspace(-farmertodaoptions.nSigmaZ*sigmaZ,farmertodaoptions.nSigmaZ*sigmaZ,znum);
+z_grid = linspace(-farmertodaoptions.nSigmas*sigmaz,farmertodaoptions.nSigmas*sigmaz,znum);
 
 Nm = xnum*znum; % total number of state variable pairs
 %zxGrids = flipud(combvec(xGrid,zGrid))';

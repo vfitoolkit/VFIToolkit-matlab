@@ -99,6 +99,11 @@ if ~isnumeric(farmertodaoptions.nMoments) || farmertodaoptions.nMoments < 1 || f
     error('farmertodaoptions.nMoments must be either 1, 2, 3, 4')
 end
 
+if farmertodaoptions.nSigmas<1.2
+    warning('Trying to hit the 2nd moment with farmertodaoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for farmertodaoptions.nSigmas<1.2).')
+end
+
+
 sigmaz = sigma/sqrt(1-rho^2); % unconditional standard deviation
 mewz=mew/(1-rho); % unconditional mean
 

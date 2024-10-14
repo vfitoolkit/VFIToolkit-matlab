@@ -128,6 +128,10 @@ if ~isnumeric(kfttoptions.nMoments) || kfttoptions.nMoments < 1 || kfttoptions.n
     error('kfttoptions.nMoments must be either 1, 2, 3, 4')
 end
 
+if kfttoptions.nSigmas<1.2
+    warning('Trying to hit the 2nd moment with kfttoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for kfttoptions.nSigmas<1.2).')
+end
+
 % % Everything has to be on cpu otherwise fminunc throws an error
 % if kfttoptions.parallel==2
 %     rho=gather(rho);

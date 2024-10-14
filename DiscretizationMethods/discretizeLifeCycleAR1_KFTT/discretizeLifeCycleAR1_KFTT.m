@@ -140,6 +140,10 @@ if isscalar(kfttoptions.nSigmas)
     kfttoptions.nSigmas=kfttoptions.nSigmas*ones(J,1);
 end
 
+if kfttoptions.nSigmas<1.2
+    warning('Trying to hit the 2nd moment with kfttoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for kfttoptions.nSigmas<1.2).')
+end
+
 % % Everything has to be on cpu otherwise fminunc throws an error
 % if kfttoptions.parallel==2
 %     mew=gather(mew);
@@ -175,11 +179,16 @@ end
 if isfield(kfttoptions,'initialj0sigmaz')
 	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(z0,0,kfttoptions.initialj0sigmaz,znum);
     jequalzeroDistz=pi_z_0(1,:)'; % iid, so first row is the dist
+    clear pi_z_0
 else
-    z_grid_0=z0*ones(znum,1);
-    jequalzeroDistz=ones(znum,1)/znum; % Is irrelevant where we put the mass (because z_grid_0 is all just same value anyway)
+    z_grid_0=z0*linspace(0.8,1.2,znum)'; % z0*ones(znum,1); % I originally just set them all to same value, but this caused problems, not entirely sure why
+    jequalzeroDistz=zeros(znum,1);
+    if rem(znum,2)==1 % znum is odd
+        jequalzeroDistz((znum+1)/2)=1; % note, by construction of grid all the mass should be on middle grid point
+    else
+        jequalzeroDistz((znum/2-1):znum/2)=[0.5;0.5]; % note, by construction of grid all the mass should be on middle grid point
+    end
 end
-clear pi_z_0
 
 % If you are not setting period 1, then period 1 follows from this
 % if ~isfield(kfttoptions,'initialj1mewz') && ~ isfield(kfttoptions,'initialj1sigmaz')
@@ -259,7 +268,7 @@ for jj=1:J
     TBar=TBar_J(:,jj);
 
     P = nan(znum,znum); % The transition matrix for age jj
-    scalingFactor = max(abs(z_grid));
+    scalingFactor = max(abs(z_grid)); % WHY NOT LET THIS DEPEND ON z_c?
     
     for z_c = 1:znum
         
@@ -268,12 +277,16 @@ for jj=1:J
             q = W;
         else
             q = W.*normpdf(z_grid,condMean,sigma(jj));
+            % % This command discretizes based on normal innovations, so use Tauchen to get initial guess
+            % midpoints=z_grid(1:end-1)+(z_grid(2:end)-z_grid(1:end-1))/2;
+            % Tauchen=normcdf(midpoints-condMean,0,sigma(jj));
+            % q=[Tauchen(1),Tauchen(2:end)-Tauchen(1:end-1),1-Tauchen(end)];
         end
         
         if any(q < kappa)
             q(q < kappa) = kappa; % replace by small number for numerical stability
         end
-
+        
         if kfttoptions.nMoments == 1 % match only 1 moment
             P(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
             nMoments_grid(z_c,jj)=1;
@@ -324,10 +337,14 @@ for jj=1:J
                 end
             end
         end
+
     end
     pi_z_J(:,:,jj)=P;
-    
+
+
 end
+
+
 
 % Instead of warning about each time it fails to match, just give a summary of how many matches succeed
 hits=zeros(1,4);
@@ -336,7 +353,14 @@ hits(2)=sum(sum(nMoments_grid==2));
 hits(3)=sum(sum(nMoments_grid==3));
 hits(4)=sum(sum(nMoments_grid==4));
 hits=hits./sum(hits);
-fprintf('discretizeLifeCycleAR1_KFTT: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kfttoptions.nMoments)
+if kfttoptions.nMoments==4
+    fprintf('discretizeLifeCycleAR1_KFTT: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases, 4 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), hits(4), kfttoptions.nMoments)
+elseif kfttoptions.nMoments==3
+    fprintf('discretizeLifeCycleAR1_KFTT: 1 moment in %1.2f cases, 2 moments in %1.2f cases, 3 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), hits(3), kfttoptions.nMoments)
+elseif kfttoptions.nMoments==2
+    fprintf('discretizeLifeCycleAR1_KFTT: 1 moment in %1.2f cases, 2 moments in %1.2f cases (target was %i moments) \n', hits(1), hits(2), kfttoptions.nMoments)
+    % Can't imagine anyone wanting to use kfttoptions.nMoments=1
+end
 if hits(4)<0.8 && kfttoptions.nMoments==4
     warning('discretizeLifeCycleAR1_KFTT: failed to hit four moments in more than 20% of conditional distributions')
 end
