@@ -2,8 +2,9 @@ function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(VK
 % The VKron input is next period value fn, the VKron output is this period.
 % 'fastOLG' just means parallelizing across all of the "ages" (j) at once.
 
-% VKron=reshape(VKron,[prod(n_a),prod(n_z),N_j]);
-PolicyKron=nan;
+% V is done as (a,j)-by-z [this form makes the expectations easier]
+% Policy is done as a-by-j-by-z [this form is easier later, and easier for handling DC1]
+% (fastOLG requires swapping order of j and z)
 
 N_d=prod(n_d);
 % N_z=0 is handled elsewhere
@@ -20,7 +21,7 @@ if strcmp(vfoptions.exoticpreferences,'None')
         if N_d==0
             % [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_DC1_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_DC1_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 else 

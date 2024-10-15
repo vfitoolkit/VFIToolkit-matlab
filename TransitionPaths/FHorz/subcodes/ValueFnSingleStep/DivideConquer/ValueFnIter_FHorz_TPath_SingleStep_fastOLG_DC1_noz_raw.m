@@ -21,8 +21,7 @@ level1ii=round(linspace(1,n_a,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 %% First, create the big 'next period (of transition path) expected value fn.
-
-% VfastOLG will be N_d*N_aprime by N_a*N_j (note: N_aprime is just equal to N_a)
+% fastOLG will be N_d*N_aprime by N_a*N_j (note: N_aprime is just equal to N_a)
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
