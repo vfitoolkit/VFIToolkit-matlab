@@ -2,6 +2,7 @@ function [V,Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_raw(V,n_d,n
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
+% Policy is (a,j,z)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -50,13 +51,12 @@ if vfoptions.lowmemory==0
 
 elseif vfoptions.lowmemory==1
 
-    n_z_special=ones(1,length(n_z));
+    special_n_z=ones(1,length(n_z));
 
     for z_c=1:N_z
         z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
-        % z_vals=vfoptions.z_gridvals_J(z_c,:,:);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, n_z_special, N_j, d_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(ReturnFn, n_d, n_a, special_n_z, N_j, d_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix);
         % fastOLG: ReturnMatrix is [d,aprime,a,j,z]
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
@@ -77,10 +77,9 @@ elseif vfoptions.lowmemory==1
     end
 end
 
-
-%%
-% Policy2=zeros(2,N_a*N_j,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-% Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+%% fastOLG with z, so need to output to take certain shapes
+% V=reshape(V,[N_a*N_j,N_z]);
+Policy=reshape(Policy,[N_a,N_j,N_z]);
+% Note that in fastOLG, we do not separate d from aprime in Policy
 
 end

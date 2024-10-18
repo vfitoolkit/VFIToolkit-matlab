@@ -57,7 +57,8 @@ if isfield(simoptions,'n_e')
     if N_e==0
     else
         if isfield(simoptions,'e_grid_J')
-            error('No longer use simoptions.e_grid_J, instead just put the age-dependent grid in simoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
+            simoptions.e_grid=simoptions.e_grid_J;
+            % error('No longer use simoptions.e_grid_J, instead just put the age-dependent grid in simoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
         end
         if ~isfield(simoptions,'e_grid') % && ~isfield(simoptions,'e_grid_J')
             error('You are using an e (iid) variable, and so need to declare simoptions.e_grid')

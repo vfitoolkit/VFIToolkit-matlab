@@ -194,7 +194,7 @@ a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
 
 %%
-while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
 
     PolicyIndexesPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
     

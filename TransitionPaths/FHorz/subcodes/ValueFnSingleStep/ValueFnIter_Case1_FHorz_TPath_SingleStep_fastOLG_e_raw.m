@@ -104,10 +104,10 @@ elseif vfoptions.lowmemory==2
      end
 end
 
+%% fastOLG with z & e, so need output to take certain shapes
+% V=reshape(V,[N_a*N_j,N_z,N_e]);
+Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
+% Note that in fastOLG, we do not separate d from aprime in Policy
 
-%%
-% Policy2=zeros(2,N_a*N_j,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-% Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

@@ -163,13 +163,7 @@ PricePathDist=Inf;
 pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_j]);
-V=zeros(size(V_final),'gpuArray'); %preallocate space
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-if N_d>0
-    Policy=zeros(2,N_a,N_j,'gpuArray');
-else
-    Policy=zeros(N_a,N_j,'gpuArray');
-end
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
 AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]); % if simoptions.fastOLG==0
@@ -209,7 +203,7 @@ daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(
 
 
 %%
-while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
     PolicyIndexesPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
     
     %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value

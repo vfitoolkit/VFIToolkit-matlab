@@ -14,7 +14,7 @@ V=zeros(N_a,N_j,N_z,'gpuArray'); % V is over (a,j)
 Policy=zeros(N_a,N_j,N_z,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
 % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
-z_gridvals_J=reshape(z_gridvals_J,[1,1,1,N_j,N_z]); % needed shape for ReturnFnMatrix with fastOLG and DC1
+z_gridvals_J=reshape(z_gridvals_J,[1,1,1,N_j,N_z,length(n_z)]); % needed shape for ReturnFnMatrix with fastOLG and DC1
 % pi_z_J=permute(pi_z_J,[3,2,1]); % Give it the size best for the loop below: (j,z',z)
 
 %%
@@ -49,7 +49,7 @@ if vfoptions.lowmemory==0
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, n_z, N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
-    entireRHS_ii=ReturnMatrix_ii+discountedentireEV; % (d,aprime,a and j,z), autofills j for expectation term
+    entireRHS_ii=ReturnMatrix_ii+discountedentireEV; % (d,aprime,a and j,z), autofills a for expectation term
      
     % First, we want aprime conditional on (d,1,a,j)
     [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
@@ -58,7 +58,7 @@ if vfoptions.lowmemory==0
     %Calc the max and it's index
     [Vtempii,maxindex2]=max(RMtemp_ii,[],1);
     maxindex2=shiftdim(maxindex2,2); % d
-    maxindex1d=maxindex1(maxindex2+N_d*(0:1:vfoptions.level1n-1)'+N_d*vfoptions.level1n*(0:1:N_j-1)); % aprime
+    maxindex1d=maxindex1(maxindex2+N_d*(0:1:vfoptions.level1n-1)'+N_d*vfoptions.level1n*(0:1:N_j-1)+N_d*vfoptions.level1n*N_j*shiftdim((0:1:N_z-1),-1)); % aprime
 
     % Store
     V(level1ii,:,:)=shiftdim(Vtempii,2);
@@ -78,7 +78,6 @@ if vfoptions.lowmemory==0
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(Vtempii,1);
             Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_j-1),-1)+N_d*N_j*shiftdim((0:1:N_z-1),-2))-1),1); % loweredge(given the d)
-
         else
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
@@ -87,7 +86,7 @@ if vfoptions.lowmemory==0
             entireRHS_ii=ReturnMatrix_ii+discountedentireEV(daprimez);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(Vtempii,1);
-            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_j-1),-1)+N_d*N_j*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d)
+            Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_j-1),-1)+N_d*N_j*shiftdim((0:1:N_z-1),-2))-1),1); % loweredge(given the d)
         end
     end
 
@@ -96,7 +95,7 @@ elseif vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 
     for z_c=1:N_z
-        z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
+        z_vals=z_gridvals_J(1,1,1,:,z_c,:); % z_gridvals_J has shape (1,1,1,N_j,N_z,l_z) for fastOLG
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronNext.*repelem(pi_z_J(:,:,z_c),N_a,1,1);
@@ -151,10 +150,9 @@ elseif vfoptions.lowmemory==1
     end
 end
 
-
-%%
-% Policy2=zeros(2,N_a*N_j,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-% Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+%% fastOLG with z, so need to output to take certain shapes
+V=reshape(V,[N_a*N_j,N_z]);
+% Policy=reshape(Policy,[N_a,N_j,N_z]);
+% Note that in fastOLG, we do not separate d from aprime in Policy
 
 end

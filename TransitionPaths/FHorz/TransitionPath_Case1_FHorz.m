@@ -22,7 +22,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
+    transpathoptions.maxiter=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
     transpathoptions.graphpricepath=0;
     transpathoptions.graphaggvarspath=0;
@@ -56,8 +56,8 @@ else
     if isfield(transpathoptions,'Ttheta')==0
         transpathoptions.Ttheta=1;
     end
-    if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=1000;
+    if isfield(transpathoptions,'maxiter')==0
+        transpathoptions.maxiter=1000;
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
@@ -434,8 +434,8 @@ if N_z>0
 
     if ismatrix(pi_z) % (z,zprime)
         % Just a basic pi_z, but convert to pi_z_J for codes
-        z_grid_J=z_grid.*ones(1,N_j);
-        pi_z_J=pi_z.*ones(1,1,N_j);
+        z_grid_J=z_grid.*ones(1,N_j,'gpuArray');
+        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
         transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
         if isfield(vfoptions,'pi_z_J') % This is just legacy, intend to depreciate it
             z_grid_J=vfoptions.z_grid_J;
@@ -443,8 +443,8 @@ if N_z>0
         end
     elseif ndims(pi_z)==3 % (z,zprime,j)
         % Inputs are already z_grid_J and pi_z_J
-        z_grid_J=z_grid;
-        pi_z_J=pi_z;
+        z_grid_J=gpuArray(z_grid);
+        pi_z_J=gpuArray(pi_z);
         transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
     elseif ndims(pi_z)==4 % (z,zprime,j,t)
         transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J var over the path
@@ -528,9 +528,9 @@ if N_z>0
     for jj=1:N_j
         z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1);
     end
-
+    
     if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-        z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
+        z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
         pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function 
         transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
         if transpathoptions.zpathtrivial==0
@@ -542,11 +542,19 @@ if N_z>0
                     z_gridvals_J(:,:,jj,tt)=CreateGridvals(n_z,temp(:,jj,tt),1);
                 end
             end
-            transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from (j,z,t) to (z,j,t)
+            transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
             transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,1,2,4]);  % We want it to be (j,z,z',t)
             transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % We want it to be (j,z',z,t) [note, this permute is off the previous one]
         end
     end
+
+    % z_gridvals_J is [N_z,l_z,N_j] if transpathoptions.fastOLG=0
+    %              is [N_j,N_z,l_z] if transpathoptions.fastOLG=1
+    % pi_z_J is [N_z,N_z,N_j]       if transpathoptions.fastOLG=0 (j,z,z')
+    % pi_z_J is [N_j,N_z,N_z]       if transpathoptions.fastOLG=1 (j,z',z)
+    % pi_z_J and z_gridvals_J are both gpuArrays
+    z_gridvals_J=gpuArray(z_gridvals_J);
+    pi_z_J=gpuArray(pi_z_J);
 end
 
 %% If using e variables do the same for e as we just did for z
@@ -556,13 +564,13 @@ if N_e>0
 
     transpathoptions.epathprecomputed=0;
     if isfield(vfoptions,'pi_e')
-        e_grid_J=vfoptions.e_grid.*ones(1,N_j);
-        pi_e_J=vfoptions.pi_e.*ones(1,N_j);
+        e_grid_J=vfoptions.e_grid.*ones(1,N_j,'gpuArray');
+        pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
         transpathoptions.epathprecomputed=1;
         transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
     elseif isfield(vfoptions,'pi_e_J')
-        e_grid_J=vfoptions.e_grid_J;
-        pi_e_J=vfoptions.pi_e_J;
+        e_grid_J=gpuArray(vfoptions.e_grid_J);
+        pi_e_J=gpuArray(vfoptions.pi_e_J);
         transpathoptions.epathprecomputed=1;
         transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
     elseif isfield(vfoptions,'EiidShockFn')
@@ -662,6 +670,15 @@ if N_e>0
     vfoptions.pi_e_J=pi_e_J;
     simoptions.e_grid_J=e_gridvals_J;
     simoptions.pi_e_J=pi_e_J;
+
+
+    % e_gridvals_J is [N_e,l_e,N_j]   if transpathoptions.fastOLG=0
+    %              is [N_j,1,N_e,l_e] if transpathoptions.fastOLG=1
+    % pi_e_J is [N_e,N_j]             if transpathoptions.fastOLG=0 (e,j)
+    % pi_e_J is [N_a*N_j,1,N_e]       if transpathoptions.fastOLG=1 (a-j,1,e)
+    % pi_e_J and e_gridvals_J are both gpuArrays
+    e_gridvals_J=gpuArray(e_gridvals_J);
+    pi_e_J=gpuArray(pi_e_J);
 end
 
 %%
@@ -754,8 +771,6 @@ end
 % else
 %     [PricePath,~]=fminsearch(GeneralEqmConditionsPathFn,PricePathOld);
 % end
-%
-% LOOK INTO USING 'SURROGATE OPTIMIZATION'
 
 if transpathoptions.parallel==2
     PricePath=gpuArray(reshape(PricePath,[T,length(PricePathNames)])); % Switch back to appropriate shape (out of the vector required to use fminsearch)

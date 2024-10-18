@@ -1,9 +1,13 @@
 function AgentDistPath=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,pi_z, T,Parameters, transpathoptions, simoptions)
 % Note: PricePath is not used, it is just there for legacy compatibility
 
+if isempty(n_d)
+    N_d=0;
+else
+    N_d=prod(n_d);
+end
 N_a=prod(n_a);
 N_z=prod(n_z);
-
 N_e=0;
 if exist('simoptions','var')
     if isfield(simoptions,'n_e')
@@ -44,7 +48,11 @@ else
         simoptions.iterate=1;
     end
     if ~isfield(simoptions,'fastOLG')
-        simoptions.fastOLG=1;
+        if isfield(transpathoptions,'fastOLG')
+            simoptions.fastOLG=transpathoptions.fastOLG;
+        else
+            simoptions.fastOLG=1;
+        end
     end
 end
 
@@ -73,17 +81,6 @@ for ii=1:length(ParamPathNames)
         ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii})';
     end
 end
-
-
-
-%% Check the sizes of some of the inputs
-if isempty(n_d)
-    N_d=0;
-else
-    N_d=prod(n_d);
-end
-N_z=prod(n_z);
-N_a=prod(n_a);
 
 
 %%
@@ -289,8 +286,7 @@ end
 % This is dones later, as want to keep current AgeWeights so when it is
 % zpathtrival==0 we can make sure the age weights match what is implicit in the AgentDist_initial
 
-
-%% Setup for various objects
+%% Reorganize PolicyPath to get just what we need, and in the shape needed
 if N_e==0
     if N_z==0
         PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T);
@@ -304,9 +300,28 @@ else
         PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, n_e);
     end
 end
+% We only need aprime for the AgentDistPath, so throw away and d variables
+if N_d==0
+    optaprimePath=PolicyPath;
+else
+    if N_e==0
+        if N_z==0
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:),1); % a,j,t
+        else
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:),1);            
+        end
+    else
+        if N_z==0
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:),1);            
+        else
+            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:,:),1);            
+        end
+    end
+end
 
+%% Setup for various objects
 if N_e==0
-    if N_z==0
+    if N_z==0 % no z, no e
         AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]); % if simoptions.fastOLG==0
         AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
         if transpathoptions.ageweightstrivial==0
@@ -334,7 +349,7 @@ if N_e==0
                 AgeWeightsOld=AgeWeights;
             end
         end
-    else
+    else % z, no e
         AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]); % if simoptions.fastOLG==0
         AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
         if transpathoptions.ageweightstrivial==0
@@ -370,9 +385,9 @@ if N_e==0
         end
     end
 else
-    if N_z==0
+    if N_z==0 % no z, e
         % Not supported yet
-    else
+    else % z & e
         AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
         AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
         if transpathoptions.ageweightstrivial==0
@@ -412,145 +427,185 @@ else
     end
 end
 
-%% We only need aprime for the AgentDistPath, so throw away and d variables
-if N_d==0
-    optaprimePath=PolicyPath;
-else
-    if N_e==0
-        if N_z==0
-            optaprimePath=shiftdim(PolicyPath(2,:,:,:),1); % a,j,t
-        else
-            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:),1);            
-        end
-    else
-        if N_z==0
-            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:),1);            
-        else
-            optaprimePath=shiftdim(PolicyPath(2,:,:,:,:,:),1);            
-        end
-    end
-end
 
 %%
 if N_e==0
     if N_z==0
-        %%
         if simoptions.fastOLG==0
+            %% fastOLG=0, no z, no e
             AgentDistPath=zeros(N_a,N_j,T,'gpuArray');
             AgentDistPath(:,:,1)=AgentDist_initial;
-        else
-            AgentDistPath=zeros(N_a*N_j,T,'gpuArray');
-            AgentDistPath(:,1)=AgentDist_initial;
-        end
 
-        AgentDist=AgentDist_initial;
-        if transpathoptions.ageweightstrivial==0
-            AgeWeights=AgeWeights_initial;
-        end
-        for tt=1:T-1
-            %Get the current optimal policy
-            optaprime=optaprimePath(:,:,tt);
-
+            AgentDist=AgentDist_initial;
             if transpathoptions.ageweightstrivial==0
-                AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
+                AgeWeights=AgeWeights_initial;
             end
-            if simoptions.fastOLG==0
+            for tt=1:T-1
+                if transpathoptions.ageweightstrivial==0
+                    AgeWeightsOld=AgeWeights;
+                    AgeWeights=AgeWeights_T(:,tt);
+                end
+                %Get the current optimal policy
+                optaprime=optaprimePath(:,:,tt);
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j);
                 AgentDistPath(:,:,tt+1)=AgentDist;
-            else % simoptions.fastOLG==1
+            end
+        else
+            %% fastOLG=1, no z, no e
+            AgentDistPath=zeros(N_a*N_j,T,'gpuArray');
+            AgentDistPath(:,1)=AgentDist_initial;
+
+            AgentDist=AgentDist_initial;
+            if transpathoptions.ageweightstrivial==0
+                AgeWeights=AgeWeights_initial;
+            end
+            for tt=1:T-1
+                if transpathoptions.ageweightstrivial==0
+                    AgeWeightsOld=AgeWeights;
+                    AgeWeights=AgeWeights_T(:,tt);
+                end
+                %Get the current optimal policy
+                optaprime=optaprimePath(:,:,tt);
                 optaprime=gather(reshape(optaprime(:,1:end-1),[1,N_a*(N_j-1)])); % swap order to j,z
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j);
                 AgentDistPath(:,tt+1)=AgentDist;
             end
         end
+
     else
-        %%
         if simoptions.fastOLG==0
+            %% fastOLG=0, z, no e
             AgentDistPath=zeros(N_a*N_z,N_j,T,'gpuArray');
             AgentDistPath(:,:,1)=AgentDist_initial;
+            AgentDist=AgentDist_initial;
+            if transpathoptions.ageweightstrivial==0
+                AgeWeights=AgeWeights_initial;
+            end
+            for tt=1:T-1
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                end
+                % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
+                if transpathoptions.ageweightstrivial==0
+                    AgeWeightsOld=AgeWeights;
+                    AgeWeights=AgeWeights_T(:,tt);
+                end
+
+                %Get the current optimal policy
+                optaprime=optaprimePath(:,:,:,tt);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J);
+                AgentDistPath(:,:,tt+1)=AgentDist;
+            end
         else
+            %% fastOLG=1, z, no e
             AgentDistPath=zeros(N_a*N_j*N_z,T,'gpuArray');
             AgentDistPath(:,1)=AgentDist_initial;
-        end
-
-        AgentDist=AgentDist_initial;
-        if transpathoptions.ageweightstrivial==0
-            AgeWeights=AgeWeights_initial;
-        end
-        for tt=1:T-1
-            %Get the current optimal policy
-            optaprime=optaprimePath(:,:,:,tt);
-
-            if transpathoptions.zpathtrivial==0
-                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-                if simoptions.fastOLG==1
+            AgentDist=AgentDist_initial;
+            if transpathoptions.ageweightstrivial==0
+                AgeWeights=AgeWeights_initial;
+            end
+            for tt=1:T-1
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
                     pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
                     pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
                 end
-            end
-
-            if transpathoptions.ageweightstrivial==0
-                AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
-            end
-
-            if simoptions.fastOLG==0
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J);
-                AgentDistPath(:,:,tt+1)=AgentDist;
-            else % simoptions.fastOLG==1
+                % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
+                if transpathoptions.ageweightstrivial==0
+                    AgeWeightsOld=AgeWeights;
+                    AgeWeights=AgeWeights_T(:,tt);
+                end
+                %Get the current optimal policy
+                optaprime=optaprimePath(:,:,:,tt);
                 optaprime=gather(reshape(permute(optaprime(:,:,1:end-1),[1,3,2]),[1,N_a*(N_j-1)*N_z])); % swap order to j,z
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj);
                 AgentDistPath(:,tt+1)=AgentDist;
             end
         end
+
     end
 else
     if N_z==0
-        % Not implemented yet
-
-
-
-    else
-        AgentDistPath=zeros(N_a*N_j*N_z,N_e,T,'gpuArray'); % Whether or not using simoptions.fastOLG
-        AgentDistPath(:,:,1)=AgentDist_initial;
-
-        AgentDist=AgentDist_initial;
-        if transpathoptions.ageweightstrivial==0
-            AgeWeights=AgeWeights_initial;
+        if simoptions.fastOLG==0
+            %% fastOLG=0, no z, e
+        else
+            %% fastOLG=1, no z, e
         end
 
-        for tt=1:T-1
-            % Get the current optimal policy
-            optaprime=optaprimePath(:,:,:,:,tt);
+    else
+        if simoptions.fastOLG==0
+            %% fastOLG=0, z, e
+            AgentDistPath=zeros(N_a*N_z*N_e,N_j,T,'gpuArray'); % Whether or not using simoptions.fastOLG
+            AgentDistPath(:,:,1)=AgentDist_initial;
 
-            if transpathoptions.zpathtrivial==0
-                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-                % z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
-                if simoptions.fastOLG==1
-                    pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
-                    pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
-                end
-            end
-            % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
-            if transpathoptions.epathtrivial==0
-                simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
-                simoptions.e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
-                if simoptions.fastOLG==1
-                    pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(simoptions.pi_e_J)'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e
-                end
-            end
-            % transpathoptions.epathtrivial==1 % Does not depend on T
-
+            AgentDist=AgentDist_initial;
             if transpathoptions.ageweightstrivial==0
-                AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
+                AgeWeights=AgeWeights_initial;
             end
 
-            if simoptions.fastOLG==0
+            for tt=1:T-1
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                    % z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
+                    if simoptions.fastOLG==1
+                        pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
+                        pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+                    end
+                end
+                % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
+                if transpathoptions.epathtrivial==0
+                    simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+                    simoptions.e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
+                    if simoptions.fastOLG==1
+                        pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(simoptions.pi_e_J)'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e
+                    end
+                end
+                % transpathoptions.epathtrivial==1 % Does not depend on T
+
+                if transpathoptions.ageweightstrivial==0
+                    AgeWeightsOld=AgeWeights;
+                    AgeWeights=AgeWeights_T(:,tt);
+                end
+                % Get the current optimal policy
+                optaprime=optaprimePath(:,:,:,:,tt);
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J);
                 AgentDistPath(:,:,tt+1)=AgentDist;
-            else % simoptions.fastOLG==1
+            end
+        else
+            %% fastOLG=1, z, e
+            AgentDistPath=zeros(N_a*N_j*N_z,N_e,T,'gpuArray'); % Whether or not using simoptions.fastOLG
+            AgentDistPath(:,:,1)=AgentDist_initial;
+
+            AgentDist=AgentDist_initial;
+            if transpathoptions.ageweightstrivial==0
+                AgeWeights=AgeWeights_initial;
+            end
+
+            for tt=1:T-1
+                if transpathoptions.zpathtrivial==0
+                    pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                    % z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
+                    if simoptions.fastOLG==1
+                        pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
+                        pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+                    end
+                end
+                % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
+                if transpathoptions.epathtrivial==0
+                    simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+                    simoptions.e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
+                    if simoptions.fastOLG==1
+                        pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(simoptions.pi_e_J)'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e
+                    end
+                end
+                % transpathoptions.epathtrivial==1 % Does not depend on T
+
+                if transpathoptions.ageweightstrivial==0
+                    AgeWeightsOld=AgeWeights;
+                    AgeWeights=AgeWeights_T(:,tt);
+                end
+                % Get the current optimal policy
+                optaprime=optaprimePath(:,:,:,:,tt);
                 optaprime=gather(reshape(permute(optaprime(:,:,:,1:end-1),[1,4,2,3]),[1,N_a*(N_j-1)*N_z*N_e])); % swap order to j,z
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj);
                 AgentDistPath(:,:,tt+1)=AgentDist;

@@ -167,13 +167,7 @@ PricePathDist=Inf;
 pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z,N_j]);
-V=zeros(size(V_final),'gpuArray'); %preallocate space
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-if N_d>0
-    Policy=zeros(2,N_a,N_z,N_j,'gpuArray');
-else
-    Policy=zeros(N_a,N_z,N_j,'gpuArray');
-end
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]); % if simoptions.fastOLG==0
@@ -218,7 +212,7 @@ a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
 
 %%
-while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
     PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
 
     
@@ -245,11 +239,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Policy is kept in the form where it is just a single-value in (d,a')
         
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-
     end
-
     % Free up space on GPU by deleting things no longer needed
-    clear V    
+    % clear V    
     
     %% Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path
     % Call AgentDist the current periods distn
@@ -316,7 +308,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already
         
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J);
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,permute(z_gridvals_J,[3,1,2]),0);
         
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
@@ -364,7 +356,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             AgeWeightsOld=AgeWeights;
             AgeWeights=AgeWeights_T(:,tt);
         end
-
+        
         if simoptions.fastOLG==0
             if N_d==0
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_a,N_z,N_j,pi_z_J);

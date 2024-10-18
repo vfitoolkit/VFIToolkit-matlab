@@ -1,6 +1,6 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,fastOLGpolicy)
 % fastOLG: so (a,j)-by-z
-% Policy is in Kron form
+% Policy can be in fastOLG for or not, use fastOLGpolicy=1 or 0 to indicate this
 % No z is treated elsewhere
 
 % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
@@ -14,7 +14,6 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsTo
 % simoptions.outputasstructure=0; % hardcoded
 
 l_a=length(n_a);
-% l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
@@ -28,17 +27,22 @@ N_z=prod(n_z);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-1);
 
+if fastOLGpolicy==0 
+    Policy=permute(Policy,[1,3,2]);
+    PolicyValues=reshape(daprime_gridvals(Policy(:),:),[N_a,N_j,N_z,l_d+l_a]);
+else % ==1 if Policy is in fastOLG form
+    PolicyValues=reshape(daprime_gridvals(Policy(:),:),[N_a,N_j,N_z,l_d+l_a]);
+end
 
 %%
 AggVars=struct();
 
 % AgentDist is [N_a*N_j*N_z,1]
-% Policy is [N_a*N_j,N_z], it contains the index for (d,aprime)
+% PolicyValues is [N_a,N_j,N_z]
 
 for ff=1:length(FnsToEvaluate)
     Values=zeros(N_a,N_j,N_z,'gpuArray');
 
-    PolicyValues=reshape(daprime_gridvals(Policy(:),:),[N_a,N_j,N_z,l_d+l_a]);
 
     if isempty(FnsToEvaluateParamNames(ff).Names)
         ParamCell=cell(0,1);

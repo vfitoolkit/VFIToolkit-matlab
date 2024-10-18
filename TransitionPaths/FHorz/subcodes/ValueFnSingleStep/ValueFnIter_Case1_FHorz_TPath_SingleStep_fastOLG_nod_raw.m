@@ -69,4 +69,10 @@ elseif vfoptions.lowmemory==1
 end
 
 
+%% fastOLG with z, so need to output to take certain shapes
+% V=reshape(V,[N_a*N_j,N_z]);
+Policy=reshape(Policy,[N_a,N_j,N_z]);
+% Note that in fastOLG, we do not separate d from aprime in Policy
+
+
 end
