@@ -260,7 +260,7 @@ for jj=1:J
         if ~isfield(kfttoptions,'initialj1mewz') && ~ isfield(kfttoptions,'initialj1sigmaz')
             zlag_grid=z_grid_0; % Need to get pi_z_J(:,:,1) so we can compute jequaloneDistz
         else % Have set period 1
-            continue % We already have jequaloneDistz
+            continue % We already have jequaloneDistz and will use this to write pi_z_J(:,:,1) later
         end
     end
     z_grid=z_grid_J(:,jj)';

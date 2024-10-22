@@ -604,8 +604,8 @@ end
 
 %% Compute the standard deviation of the estimated parameters
 % Part of the standard deviations is to compute J (the jacobian matrix of derivatives of model moments to the estimated parameters).
-% To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the constrained 
-% parameter values directly. Just makes it easier to follow what is going on (at least in my head).
+% To make it easier to compute the derivatives by finite-difference, I turn off the parameter constraints and just use the model 
+% parameter values (rather than the internal-transformed-parameters) directly. Just makes it easier to follow what is going on (at least in my head).
 % To faciliate this I use estimoptionsJacobian=estimoptions, but with modifications.
 % Later I did some searching, and it seems there are no precise answers online, but some people (Python 'optimagic' on github) made same decision I did, of taking 
 % derivatives based on 'external' parameters rather than 'internal' (transformed) parameters.
@@ -618,7 +618,6 @@ if estimoptions.bootstrapStdErrors==0
     estimoptionsJacobian.constrain0to1=zeros(length(EstimParamNames),1); % eliminate constraints for Jacobian
     estimoptionsJacobian.constrainAtoB=zeros(length(EstimParamNames),1); % eliminate constraints for Jacobian
     % Note: idea is that we don't want to apply constraints inside CalibrateLifeCycleModel_objectivefn() while computing finite-differences
-
     estimoptionsJacobian.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
 
     % According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
@@ -701,27 +700,6 @@ if estimoptions.bootstrapStdErrors==0
                     violateconstrainttop(pp)=1;
                 end
             end
-        
-        % % % Switch back to the unconstrained
-        % % if estimoptions.constrainpositive(pp)==1
-        % %     % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        % %     modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
-        % %     modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-10^3);
-        % %     % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-10^3) as zero]
-        % % end
-        % % if estimoptions.constrainAtoB(pp)==1
-        % %     % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
-        % %     modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
-        % %     modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
-        % %     % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
-        % %     % And then the next if-statement converts this 0-to-1 into unconstrained
-        % % end
-        % % if estimoptions.constrain0to1(pp)==1
-        % %     % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        % %     modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecup(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
-        % %     modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(50,max(-50,  log(modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-modelestimparamsvecdown(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
-        % %     % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22.
-        % % end
         end
         % Store the epsilon parameters
         epsilonparamup(:,ee)=modelestimparamsvecup;
@@ -807,6 +785,15 @@ if estimoptions.bootstrapStdErrors==0
     elseif estimoptions.efficientW==1
         % When using the efficient weighting matrix W=Omega^(-1), the asymptotic variance of the method of moments estimator simplifies to
         estimparamscovarmatrix=(J'*WeightingMatrix*J)^(-1);
+    end
+
+
+    % While we are here, if you do skip estimation, compute the objective function and output this (is useful for checking out alternative estimates)
+    if estimoptions.skipestimation==1
+        estimoptionsJacobian.vectoroutput=0; % using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
+        ObjValue=CalibrateLifeCycleModel_objectivefn(modelestimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+        fval=ObjValue;
+        clear estimoptionsJacobian
     end
 end
 
@@ -907,13 +894,15 @@ for pp=1:length(EstimParamNames)
     end
     
     if estimoptions.bootstrapStdErrors==0
+        % Note: J and Sigma where calculated on 'external' parameters
         estimparamscovarmatrix_diag=diag(estimparamscovarmatrix); % Just the diagonal of the covar matrix of the parameter vector
-        if estimoptions.constrainpositive(pp)==0
-            estsummary.EstimParamsStdDev.(EstimParamNames{pp})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        elseif estimoptions.constrainpositive(pp)==1
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            estsummary.EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        end
+        estsummary.EstimParamsStdDev.(EstimParamNames{pp})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        % if estimoptions.constrainpositive(pp)==0 % THIS IS NO LONGER NEEDED AS J and Sigma TO CALCULATE FROM EXTERNAL PARAMETERS
+        %     estsummary.EstimParamsStdDev.(EstimParamNames{pp})=sqrt(estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        % elseif estimoptions.constrainpositive(pp)==1
+        %     % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
+        %     estsummary.EstimParamsStdDev.(EstimParamNames{pp})=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))+estimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))-exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
+        % end
         % If bootstrap std errors, then replace the std dev with the bootstrap distribuiton
     elseif estimoptions.bootstrapStdErrors==1
         estsummary.EstimParamsStdDev=EstimParamsBootStrapDist;
@@ -964,10 +953,9 @@ end
 %% Give various outputs
 estsummary.variousmatrices.W=WeightingMatrix; % This is just a duplicate of the input, but I figure it is handy to keep in same place as the rest of estimation results
 
-if estimoptions.skipestimation==0
-    estsummary.objectivefnval=fval;
-    estsummary.notes.objectivefnval='The objective function value is the value of (M_d-M_m)W(M_d-M_m).';
-else
+estsummary.objectivefnval=fval;
+estsummary.notes.objectivefnval='The objective function value is the value of (M_d-M_m)W(M_d-M_m).';
+if estimoptions.skipestimation==1
     estsummary.warningskipestimation='Warning: this estimation used estimoptions.skipestimation=1 (all good, just reminding you as you need to be careful when using skipestimation=1 :)';
 end
 
