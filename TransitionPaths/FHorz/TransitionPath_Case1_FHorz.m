@@ -32,72 +32,65 @@ if exist('transpathoptions','var')==0
     % transpathoptions.updateageweights % Don't declare if not being used
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
+    if ~isfield(transpathoptions,'tolerance')
         transpathoptions.tolerance=10^(-4);
     end
-    if isfield(transpathoptions,'parallel')==0
+    if ~isfield(transpathoptions,'parallel')
         transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(transpathoptions,'GEnewprice')==0
+    if ~isfield(transpathoptions,'GEnewprice')
         transpathoptions.GEnewprice=1; % 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                        % 1 is shooting algorithm, 
                                        % 2 is to do optimization routine with 'distance between old and new path'
                                        % 3 is just same as 0, but easier to set 
     end
-    if isfield(transpathoptions,'oldpathweight')==0
+    if ~isfield(transpathoptions,'oldpathweight')
         transpathoptions.oldpathweight=0.9;
         % Note that when using transpathoptions.GEnewprice==3
         % Implicitly it is setting transpathoptions.oldpathweight=0
         % because the user anyway has to specify them as part of setup
     end
-    if isfield(transpathoptions,'weightscheme')==0
+    if ~isfield(transpathoptions,'weightscheme')
         transpathoptions.weightscheme=1;
     end
-    if isfield(transpathoptions,'Ttheta')==0
+    if ~isfield(transpathoptions,'Ttheta')
         transpathoptions.Ttheta=1;
     end
-    if isfield(transpathoptions,'maxiter')==0
+    if ~isfield(transpathoptions,'maxiter')
         transpathoptions.maxiter=1000;
     end
-    if isfield(transpathoptions,'verbose')==0
+    if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;
     end
-    if isfield(transpathoptions,'graphpricepath')==0
+    if ~isfield(transpathoptions,'graphpricepath')
         transpathoptions.graphpricepath=0;
     end
-    if isfield(transpathoptions,'graphaggvarspath')==0
+    if ~isfield(transpathoptions,'graphaggvarspath')
         transpathoptions.graphaggvarspath=0;
     end
-    if isfield(transpathoptions,'historyofpricepath')==0
+    if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
     end
-    if isfield(transpathoptions,'usestockvars')==0 % usestockvars is solely for internal use, the user does not need to set it
-        if isfield(transpathoptions,'stockvarinit')==0 && isfield(transpathoptions,'usestockvars')==0 && isfield(transpathoptions,'usestockvars')==0
-            transpathoptions.usestockvars=0;
+    if ~isfield(transpathoptions,'stockvars') % stockvars is solely for internal use, the user does not need to set it
+        if ~isfield(transpathoptions,'stockvarinit') && ~isfield(transpathoptions,'stockvars') && ~isfield(transpathoptions,'stockvars')
+            transpathoptions.stockvars=0;
         else
-            transpathoptions.usestockvars=1; % If usestockvars has not itself been declared, but at least one of the stock variable options has then set usestockvars to 1.
+            transpathoptions.stockvars=1; % If stockvars has not itself been declared, but at least one of the stock variable options has then set stockvars to 1.
         end
     end
-    if transpathoptions.usestockvars==1 % Note: If this is not inputted then it is created by the above lines.
-        if isfield(transpathoptions,'stockvarinit')==0
+    if transpathoptions.stockvars==1 % Note: If this is not inputted then it is created by the above lines.
+        if ~isfield(transpathoptions,'stockvarinit')
             error('transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
-        elseif isfield(transpathoptions,'stockvarpath0')==0
+        elseif ~isfield(transpathoptions,'stockvarpath0')
             error('transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
-        elseif isfield(transpathoptions,'stockvareqns')==0
+        elseif ~isfield(transpathoptions,'stockvareqns')
             error('transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
         end
     end
-    if isfield(transpathoptions,'fastOLG')==0
+    if ~isfield(transpathoptions,'fastOLG')
         transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
     end
     % transpathoptions.updateageweights %Don't declare if not being used
-end
-
-if isfield(transpathoptions,'p_eqm_init')
-    p_eqm_init=transpathoptions.p_eqm_init;
-    use_p_eqm_init=1;
-else
-    use_p_eqm_init=0;
 end
 
 
@@ -337,7 +330,7 @@ V_final=gpuArray(V_final);
 AgentDist_init=gather(AgentDist_init);
 
 %%
-if transpathoptions.usestockvars==1 
+if transpathoptions.stockvars==1 
     % Get the stock variable objects out of transpathoptions.
     StockVariable_init=transpathoptions.stockvarinit;
     StockVariableEqns=transpathoptions.stockvareqns.lawofmotion;
@@ -688,7 +681,7 @@ end
 
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
-        if transpathoptions.usestockvars==0
+        if transpathoptions.stockvars==0
             if transpathoptions.fastOLG==0
                 if N_z==0
                     if N_e==0
@@ -718,7 +711,7 @@ if transpathoptions.GEnewprice~=2
                     end
                 end
             end
-        else % transpathoptions.usestockvars==1
+        else % transpathoptions.stockvars==1
             error('StockVars does not yet work correctly')
             % if transpathoptions.fastOLG==0
             %     [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, AgentDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z_J, d_grid,a_grid,z_grid_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
@@ -733,7 +726,7 @@ if transpathoptions.GEnewprice~=2
     for ii=1:length(PricePathNames)
         PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
     end
-    if transpathoptions.usestockvars==1
+    if transpathoptions.stockvars==1
         for ii=1:length(StockVarsPathNames)
             PricePath.(StockVarsPathNames{ii})=StockVarsPathOld(:,ii);
         end

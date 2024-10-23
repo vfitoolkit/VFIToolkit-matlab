@@ -33,83 +33,82 @@ if exist('transpathoptions','var')==0
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-4);
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
+                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
+    transpathoptions.maxiter=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
-    transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
-    transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
-    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.    transpathoptions.fastOLG=0;
-    transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up    transpathoptions.historyofpricepath=0;
-    transpathoptions.usestockvars=0;
-    transpathoptions.fastOLG=0;
+    transpathoptions.graphpricepath=0;
+    transpathoptions.graphaggvarspath=0;
+    transpathoptions.historyofpricepath=0;
+    transpathoptions.stockvars=0;
+    transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
+    % transpathoptions.updateageweights % Don't declare if not being used
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
-    if isfield(transpathoptions,'tolerance')==0
+    if ~isfield(transpathoptions,'tolerance')
         transpathoptions.tolerance=10^(-4);
     end
-    if isfield(transpathoptions,'parallel')==0
+    if ~isfield(transpathoptions,'parallel')
         transpathoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if isfield(transpathoptions,'oldpathweight')==0
-        transpathoptions.oldpathweight=0.9;
+    if ~isfield(transpathoptions,'GEnewprice')
+        transpathoptions.GEnewprice=1; % 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
+                                       % 1 is shooting algorithm, 
+                                       % 2 is to do optimization routine with 'distance between old and new path'
+                                       % 3 is just same as 0, but easier to set 
     end
-    if isfield(transpathoptions,'weightscheme')==0
+    if ~isfield(transpathoptions,'oldpathweight')
+        transpathoptions.oldpathweight=0.9;
+        % Note that when using transpathoptions.GEnewprice==3
+        % Implicitly it is setting transpathoptions.oldpathweight=0
+        % because the user anyway has to specify them as part of setup
+    end
+    if ~isfield(transpathoptions,'weightscheme')
         transpathoptions.weightscheme=1;
     end
-    if isfield(transpathoptions,'Ttheta')==0
+    if ~isfield(transpathoptions,'Ttheta')
         transpathoptions.Ttheta=1;
     end
-    if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=500;
+    if ~isfield(transpathoptions,'maxiter')
+        transpathoptions.maxiter=1000;
     end
-    if isfield(transpathoptions,'verbose')==0
+    if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;
     end
-    if isfield(transpathoptions,'graphpricepath')==0
-        transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
+    if ~isfield(transpathoptions,'graphpricepath')
+        transpathoptions.graphpricepath=0;
     end
-    if isfield(transpathoptions,'graphaggvarspath')==0
-        transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
+    if ~isfield(transpathoptions,'graphaggvarspath')
+        transpathoptions.graphaggvarspath=0;
     end
-    if isfield(transpathoptions,'graphGEcondns')==0
-        transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
-    end
-    if isfield(transpathoptions,'GEnewprice')==0
-        transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
-                                   % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up    
-    end
-    if isfield(transpathoptions,'fastOLG')==0
-        transpathoptions.fastOLG=0;
-    end
-    if isfield(transpathoptions,'historyofpricepath')==0
+    if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
     end
-    if isfield(transpathoptions,'usestockvars')==0 % usestockvars is solely for internal use, the user does not need to set it
-        if isfield(transpathoptions,'stockvarinit')==0 && isfield(transpathoptions,'usestockvars')==0 && isfield(transpathoptions,'usestockvars')==0
-            transpathoptions.usestockvars=0;
+    if ~isfield(transpathoptions,'stockvars') % stockvars is solely for internal use, the user does not need to set it
+        if ~isfield(transpathoptions,'stockvarinit') && ~isfield(transpathoptions,'stockvars') && ~isfield(transpathoptions,'stockvars')
+            transpathoptions.stockvars=0;
         else
-            transpathoptions.usestockvars=1; % If usestockvars has not itself been declared, but at least one of the stock variable options has then set usestockvars to 1.
+            transpathoptions.stockvars=1; % If stockvars has not itself been declared, but at least one of the stock variable options has then set stockvars to 1.
         end
     end
-    if transpathoptions.usestockvars==1 % Note: If this is not inputted then it is created by the above lines.
-        if isfield(transpathoptions,'stockvarinit')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
-            dbstack
-            return
-        elseif isfield(transpathoptions,'stockvarpath0')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
-            dbstack
-            return
-        elseif isfield(transpathoptions,'stockvareqns')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
-            dbstack
-            return
+    if transpathoptions.stockvars==1 % Note: If this is not inputted then it is created by the above lines.
+        if ~isfield(transpathoptions,'stockvarinit')
+            error('transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
+        elseif ~isfield(transpathoptions,'stockvarpath0')
+            error('transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
+        elseif ~isfield(transpathoptions,'stockvareqns')
+            error('transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
         end
     end
+    if ~isfield(transpathoptions,'fastOLG')
+        transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
+    end
+    % transpathoptions.updateageweights %Don't declare if not being used
 end
+
 
 
 %% Some internal commands require a few vfoptions and simoptions to be set
@@ -567,8 +566,8 @@ end
 % end
 
 %%
-if transpathoptions.usestockvars==1 
-    error('transpathoptions.usestockvars=1 not yet implemented with PType \n')
+if transpathoptions.stockvars==1 
+    error('transpathoptions.stockvars=1 not yet implemented with PType \n')
 end
 
 if transpathoptions.verbose==1
@@ -632,27 +631,59 @@ end
 
 
 %%
+
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
-        if transpathoptions.usestockvars==0
-            if ~isfield(vfoptions,'n_e')
-                PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
-            else
-                PricePathOld=TransitionPath_Case1_FHorz_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+        if transpathoptions.stockvars==0
+            if transpathoptions.fastOLG==0
+                if N_z==0
+                    if N_e==0
+                        PricePathOld=TransitionPath_Case1_FHorz_PType_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                    else
+                        error('e without z not yet implemented for TPath with FHorz')
+                    end
+                else
+                    if N_e==0
+                        PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                    else
+                        PricePathOld=TransitionPath_Case1_FHorz_PType_shooting_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                    end
+                end
+            else % use fastOLG setting
+                if N_z==0
+                    if N_e==0
+                        % PricePathOld=TransitionPath_Case1_FHorz_PType_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                    else
+                        error('e without z not yet implemented for TPath with FHorz')
+                    end
+                else
+                    if N_e==0
+                        % PricePathOld=TransitionPath_Case1_FHorz_PType_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                    else % use fastOLG setting
+                        % PricePathOld=TransitionPath_Case1_FHorz_PType_shooting_fastOLG_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                    end
+                end
             end
-        else % transpathoptions.usestockvars==1
-            % NOT YET IMPLEMENTED
-%             [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_PType_shooting(PricePathOld, PricePathNames, StockVarsPathOld, StockVarsPathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, StockVariableEqnParamNames, vfoptions, simoptions, transpathoptions);
+        else % transpathoptions.stockvars==1
+            error('StockVars does not yet work correctly')
+            % if transpathoptions.fastOLG==0
+            %     [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, AgentDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z_J, d_grid,a_grid,z_grid_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+            % else % use fastOLG setting
+            %     [PricePathOld,StockVarsPathOld]=TransitionPath_Case1_FHorz_StockVar_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, StockVarsPathOld, StockVarsPathNames, T, V_final, AgentDist_init, StockVariable_init, n_d, n_a, n_z, N_j, pi_z_J, d_grid,a_grid,z_grid_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, StockVariableEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+            % end
         end
     else
-        error('transpathoptions can only be used on GPU (transpathoptions.parallel=2) \n')
-%         PricePathOld=TransitionPath_Case1_FHorz_Par1_PType, shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, AgeWeightsParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, vfoptions, simoptions, transpathoptions);
+        error('VFI Toolkit does not offer transition path without gpu. Would be too slow to be useful.')
     end
     % Switch the solution into structure for output.
     for ii=1:length(PricePathNames)
         PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
     end
-    if transpathoptions.usestockvars==1
+    if transpathoptions.stockvars==1
         for ii=1:length(StockVarsPathNames)
             PricePath.(StockVarsPathNames{ii})=StockVarsPathOld(:,ii);
         end
@@ -660,17 +691,11 @@ if transpathoptions.GEnewprice~=2
     return
 end
 
-l_p=size(PricePathOld,2);
 
-if transpathoptions.verbose==1
-    transpathoptions
-end
-
-if transpathoptions.verbose==1
-    DiscountFactorParamNames
-    ReturnFnParamNames
-    ParamPathNames
-    PricePathNames
+%%
+if transpathoptions.GEnewprice==2 % Function minimization
+    % Have not attempted implementing this for PType yet, no point until I
+    % get it to be useful without PType
 end
 
 
