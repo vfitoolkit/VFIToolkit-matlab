@@ -135,7 +135,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % AgentDist=AgentDist_initial.(iistr);
         % AgentDist=AgentDist_initial;
         
-        AggVarsPath=TransitionPath_FHorz_PType_subfn_AggVarsPath(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,AgentDist_init.(iistr),V_final.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
+        AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,AgentDist_init.(iistr),V_final.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
         % AggVarsPath=zeros(length(FnsToEvaluate),T-1);
 
         AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath;

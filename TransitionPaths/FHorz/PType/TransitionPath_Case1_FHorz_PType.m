@@ -854,7 +854,7 @@ end
 if transpathoptions.GEnewprice~=2
     % For permanent type, there is just one shooting command,
     % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
-    PricePathOld=TransitionPath_Case1_FHorz_PType_shooting_noz(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
     % Switch the solution into structure for output.
     for ii=1:length(PricePathNames)
         PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
