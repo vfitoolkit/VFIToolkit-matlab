@@ -6,6 +6,7 @@ function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_no
 % Policy is done as a-by-j
 % (fastOLG is easy without z)
 
+
 N_d=prod(n_d);
 % z and e are handled elsewhere
 

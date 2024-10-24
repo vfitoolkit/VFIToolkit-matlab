@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,N_j,daprime_gridvals,a_gridvals)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,N_j,daprime_gridvals,a_gridvals,outputasstructure)
 % fastOLG: so (a,j)-by-1
 % Policy is in Kron form
 
@@ -15,7 +15,11 @@ l_a=length(n_a);
 N_a=prod(n_a);
 
 %%
-AggVars=struct();
+if outputasstructure==1
+    AggVars=struct();
+else % outputasstructure==0
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+end
 
 % AgentDist is [N_a*N_j,1]
 % Policy is [N_a*N_j,1], it contains the index for (d,aprime)
@@ -46,7 +50,11 @@ for ff=1:length(FnsToEvaluate)
         Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,1), PolicyValues(:,:,2), a_gridvals, ParamCell{:});
     end
     
-    AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist);
+    if outputasstructure==1
+        AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist);
+    else % outputasstructure==0
+        AggVars(ff)=sum(Values(:).*AgentDist);
+    end
 end
 
 

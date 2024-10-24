@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J,fastOLGpolicy)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J,fastOLGpolicy,outputasstructure)
 % fastOLG: so (a,j)-by-z-by-e
 % Policy can be in fastOLG for or not, use fastOLGpolicy=1 or 0 to indicate this
 % No z is treated elsewhere
@@ -42,7 +42,11 @@ end
 
 
 %%
-AggVars=struct();
+if outputasstructure==1
+    AggVars=struct();
+else % outputasstructure==0
+    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+end
 
 % AgentDist is [N_a*N_j*N_z*N_e,1]
 % PolicyValues is [N_a,N_j,N_z,N_e]
@@ -71,7 +75,11 @@ for ff=1:length(FnsToEvaluate)
         Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,:,1), PolicyValues(:,:,:,:,2), a_gridvals, z_gridvals_J, e_gridvals_J, ParamCell{:});
     end
     
-    AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist(:));
+    if outputasstructure==1
+        AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist);
+    else % outputasstructure==0
+        AggVars(ff)=sum(Values(:).*AgentDist);
+    end
 end
 
 

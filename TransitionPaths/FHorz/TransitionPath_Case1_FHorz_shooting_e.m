@@ -325,7 +325,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         % transpathoptions.epathtrivial==1 % Does not depend on T
 
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,permute(z_gridvals_J,[3,1,2]),permute(e_gridvals_J,[3,4,1,2]),0);
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,permute(z_gridvals_J,[3,1,2]),permute(e_gridvals_J,[3,4,1,2]),0,1);
         
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices

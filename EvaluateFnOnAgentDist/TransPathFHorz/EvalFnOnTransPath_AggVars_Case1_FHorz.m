@@ -370,7 +370,6 @@ end
 
 AggVarsPath=struct();
 
-
 if N_e==0
     if N_z==0
         AgentDistPath=reshape(AgentDistPath,[N_a,N_j,T]);

@@ -206,8 +206,8 @@ daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(
 while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
     PolicyIndexesPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
     
-    %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
-    % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
+    %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. 
+    % Note that we don't need to keep V for anything
     V=V_final;
     for tt=1:T-1 %so t=T-i   
         for kk=1:length(PricePathNames)
@@ -281,7 +281,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
         end
         
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,N_j,daprime_gridvals,a_gridvals);
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,N_j,daprime_gridvals,a_gridvals,1);
         
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
