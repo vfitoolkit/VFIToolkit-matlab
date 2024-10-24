@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j,jequalOneDist)
 % Parallelizes over age jj
 % AgentDist is [N_a*N_j,1]
 % AgeWeights is [N_a*N_j,1] (obviously just repeats same numbers over the N_a)
@@ -22,6 +22,7 @@ Gammatranspose=sparse(optaprime+N_a*repelem((0:1:N_j-2),1,N_a),1:1:N_a*(N_j-1),o
 AgentDist_tt=Gammatranspose*AgentDist_tt;
 
 AgentDist(N_a+1:end)=gpuArray(full(AgentDist_tt)); % N_a+1 is avoiding those that correspond to jj=1
+AgentDist(1:N_a)=jequalOneDist; % age j=1 dist
 
 % Need to remove the old age weights, and impose the new ones
 % Already removed the old age weights earlier, so now just impose the new ones.

@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist)
 % Will treat the agents as being on a continuum of mass 1.
 
 % Parallelizes over age jj
@@ -36,6 +36,8 @@ AgentDist_tt=reshape(AgentDist_tt*pi_z_J_sim,[N_a*(N_j-1)*N_z,1]);
 
 % exceptfirstj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
 AgentDist(exceptfirstj)=gpuArray(full(AgentDist_tt)); % N_a*N_z+1 is avoiding those that correspond to jj=1
+
+AgentDist(justfirstj)=jequalOneDist; % Age j=1 dist
 
 % Need to remove the old age weights, and impose the new ones
 AgentDist=AgentDist.*AgeWeights;

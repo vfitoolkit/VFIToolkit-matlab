@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
@@ -167,13 +167,7 @@ AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j,1]);
 % Note: do the double reshape() as cannot get AgeWeights_initial from the final shape
 AgeWeights_initial=kron(AgeWeights_initial',ones(N_a,1,'gpuArray'));
-V=zeros(size(V_final),'gpuArray'); %preallocate space
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-if N_d>0
-    Policy=zeros(2,N_a,N_j,'gpuArray');
-else
-    Policy=zeros(N_a,N_j,'gpuArray');
-end
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
 if transpathoptions.ageweightstrivial==0
@@ -187,6 +181,10 @@ elseif transpathoptions.ageweightstrivial==1
     AgeWeightsOld=AgeWeights;
 end
 
+if transpathoptions.trivialjequalonedist==0
+    jequalOneDist_T=jequalOneDist;
+    jequalOneDist=jequalOneDist_T(:,1);
+end
 
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
@@ -321,13 +319,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AgeWeightsOld=AgeWeights;
             AgeWeights=AgeWeights_T(:,tt);
         end
+        if transpathoptions.trivialjequalonedist==0
+            jequalOneDist=jequalOneDist_T(:,tt);
+        end
 
         % if simoptions.fastOLG=1 is hardcoded
         if N_d==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_d,N_a,N_j);
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_d,N_a,N_j,jequalOneDist);
         else
             % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j);
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
         end
     end
     % Free up space on GPU by deleting things no longer needed

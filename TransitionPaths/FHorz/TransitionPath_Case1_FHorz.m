@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_FHorz(PricePathOld, ParamPath, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
+function PricePath=TransitionPath_Case1_FHorz(PricePathOld, ParamPath, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, N_j, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, transpathoptions, simoptions, vfoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -7,6 +7,8 @@ function PricePath=TransitionPath_Case1_FHorz(PricePathOld, ParamPath, T, V_fina
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 %
 % Only works for v2, and only with GPU
+
+% jequalOneDist can be a path
 
 % Remark to self: No real need for T as input, as this is anyway the length
 % of PricePathOld. Keeping it as helps double-check inputs are correct size.
@@ -674,6 +676,67 @@ if N_e>0
     pi_e_J=gpuArray(pi_e_J);
 end
 
+
+%% Check if jequalOneDistPath is a path or not (and reshape appropriately)
+jequalOneDist=gpuArray(jequalOneDist);
+temp=size(jequalOneDist);
+if temp(end)==T % jequalOneDist depends on T
+    transpathoptions.trivialjequalonedist=0;
+    if N_z==0
+        if N_e==0
+            jequalOneDist=reshape(jequalOneDist,[N_a,T]);
+        else
+            if simoptions.fastOLG==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,N_e,T]);
+            elseif simoptions.fastOLG==1
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_e,T]);            
+            end
+        end
+    else
+        if N_e==0
+            if simoptions.fastOLG==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,N_z,T]);
+            elseif simoptions.fastOLG==1
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_z,T]);            
+            end
+        else
+            if simoptions.fastOLG==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,N_z,N_e,T]);
+            elseif simoptions.fastOLG==1
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,T]);            
+            end
+        end
+    end
+else
+    transpathoptions.trivialjequalonedist=1;
+    if N_z==0
+        if N_e==0
+            jequalOneDist=reshape(jequalOneDist,[N_a,1]);
+        else
+            if simoptions.fastOLG==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,N_e]);
+            elseif simoptions.fastOLG==1
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_e,1]);
+            end
+        end
+    else
+        if N_e==0
+            if simoptions.fastOLG==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,N_z]);
+            elseif simoptions.fastOLG==1
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_z,1]);
+            end
+        else
+            if simoptions.fastOLG==0
+                jequalOneDist=reshape(jequalOneDist,[N_a,N_z,N_e]);
+            elseif simoptions.fastOLG==1
+                jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
+            end        
+        end
+    end
+end
+
+
 %%
 if transpathoptions.verbose==1
     transpathoptions
@@ -685,29 +748,29 @@ if transpathoptions.GEnewprice~=2
             if transpathoptions.fastOLG==0
                 if N_z==0
                     if N_e==0
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     else
                         error('e without z not yet implemented for TPath with FHorz')
                     end
                 else
                     if N_e==0
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     else
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     end
                 end
             else % use fastOLG setting
                 if N_z==0
                     if N_e==0
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     else
                         error('e without z not yet implemented for TPath with FHorz')
                     end
                 else
                     if N_e==0
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     else % use fastOLG setting
-                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+                        PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG_e(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, n_e, N_j, d_grid,a_grid,z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
                     end
                 end
             end

@@ -1,4 +1,4 @@
-function AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,AgentDist,V_final,AgeWeights_T,l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions)
+function AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist,jequalOneDist_T,AgeWeights_T,l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions)
 % When doing shooting alogrithm on TPath FHorz PType, this is for a given
 % ptype, and does the steps of back-iterate to get policy, then forward to
 % get agent dist and agg vars.
@@ -90,18 +90,20 @@ if transpathoptions.fastOLG==0
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
                 AgeWeights=AgeWeights_T(:,tt);
+                % if transpathoptions.trivialjequalonedist==0 is hardcoded
+                jequalOneDist=jequalOneDist_T(:,tt);
 
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j);
+                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
                 else
                     % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j);
+                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
                 end
 
                 AggVarsPath(:,tt)=AggVars;
             end
-
+            
         else % N_e>0
             error('e without z not yet implemented for TPath with FHorz')
         end
@@ -138,7 +140,12 @@ elseif transpathoptions.fastOLG==1
             % Free up space on GPU by deleting things no longer needed
             clear V
 
+            save temp.mat PolicyIndexesPath
+
             %% Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path
+
+            AgentDistPath=zeros([N_a*N_j,T]);
+
             % Call AgentDist the current periods distn
             for tt=1:T-1
 
@@ -193,15 +200,22 @@ elseif transpathoptions.fastOLG==1
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
                 AgeWeights=AgeWeights_T(:,tt);
+                % if transpathoptions.trivialjequalonedist==0 is hardcoded
+                jequalOneDist=jequalOneDist_T(:,tt);
+
+
+                AgentDistPath(:,tt)=AgentDist; % JUST FOR DEBUG. DELETE WHEN DONE
 
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_d,N_a,N_j);
+                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_d,N_a,N_j,jequalOneDist);
                 else
                     % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j);
+                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
                 end
             end
+
+            save temp2.mat AgentDistPath
 
         else % N_e>0
             error('e without z not yet implemented for TPath with FHorz')

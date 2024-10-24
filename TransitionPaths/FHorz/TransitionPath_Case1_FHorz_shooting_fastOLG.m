@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting_fastOLG(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d, n_a, n_z, N_j, d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 % fastOLG: fastOLG uses (a,j,z) instead of the standard (a,z,j)
 % This (a,j,z) is important for ability to implement codes based on matrix
 % multiplications (especially for Tan improvement)
@@ -189,9 +189,15 @@ pi_z_J_sim=gather(reshape(transpathoptions.pi_z_J_alt(1:end-1,:,:),[(N_j-1)*N_z,
 % Precompute some things needed for fastOLG agent dist iteration
 exceptlastj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
 exceptfirstj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
+justfirstj=kron(ones(1,N_z),1:1:N_a)+N_a+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a));
 II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
 II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
 pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);  
+
+if transpathoptions.trivialjequalonedist==0
+    jequalOneDist_T=jequalOneDist;
+    jequalOneDist=jequalOneDist_T(:,1);
+end
 
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
@@ -344,13 +350,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AgeWeightsOld=AgeWeights;
             AgeWeights=AgeWeights_T(:,tt);
         end
+        if transpathoptions.trivialjequalonedist==0
+            jequalOneDist=jequalOneDist_T(:,tt);
+        end
 
         % if simoptions.fastOLG=1 is hardcoded
         if N_d==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1,:),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj); % Policy for jj=1:N_j-1
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1,:),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % Policy for jj=1:N_j-1
         else
             % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1,:)/N_d),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj); % Policy for jj=1:N_j-1
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1,:)/N_d),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % Policy for jj=1:N_j-1
         end
     end
     % Free up space on GPU by deleting things no longer needed

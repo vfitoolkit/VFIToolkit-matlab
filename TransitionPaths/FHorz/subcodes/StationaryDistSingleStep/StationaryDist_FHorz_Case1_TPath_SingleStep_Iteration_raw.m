@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J,jequalOneDist)
 % Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -35,6 +35,7 @@ end
 % Move result to gpu
 AgentDist=gpuArray(AgentDist);
 % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
+AgentDist(:,1)=jequalOneDist;
 
 % Need to remove the old age weights, and impose the new ones
 % Already removed the old age weights earlier, so now just impose the new ones.

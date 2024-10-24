@@ -6,12 +6,10 @@ function [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_no
 % Policy is done as a-by-j
 % (fastOLG is easy without z)
 
-
 N_d=prod(n_d);
 % z and e are handled elsewhere
 
 if strcmp(vfoptions.exoticpreferences,'None')
-    % N_z==0
     if vfoptions.divideandconquer==0
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_nod_noz_raw(VKron,n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames);
@@ -26,12 +24,6 @@ if strcmp(vfoptions.exoticpreferences,'None')
         end
     end
 end
-
-
-%%
-% %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-% V=reshape(VKron,[n_a,n_z,N_j]);
-% Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then

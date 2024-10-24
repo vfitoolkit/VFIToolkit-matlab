@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j)
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j,jequalOneDist)
 % AgentDist is [N_a,N_j]
 % AgeWeights is [1,N_j]
 
@@ -22,6 +22,7 @@ end
 
 % Move the solution to the gpu
 AgentDist=gpuArray(AgentDist);
+AgentDist(:,1)=jequalOneDist; % age j=1 dist
 
 % Need to remove the old age weights, and impose the new ones
 % Already removed the old age weights earlier, so now just impose the new ones.

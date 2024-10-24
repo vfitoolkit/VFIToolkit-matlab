@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_Case1_FHorz_shooting_noz(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d, n_a, N_j, d_grid,a_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeights, ReturnFnParamNames, vfoptions, simoptions, transpathoptions)
 %
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
@@ -196,6 +196,11 @@ elseif transpathoptions.ageweightstrivial==1
     AgeWeightsOld=AgeWeights;
 end
 
+if transpathoptions.trivialjequalonedist==0
+    jequalOneDist_T=jequalOneDist;
+    jequalOneDist=jequalOneDist_T(:,1);
+end
+
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
@@ -329,19 +334,22 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AgeWeightsOld=AgeWeights;
             AgeWeights=AgeWeights_T(:,tt);
         end
+        if transpathoptions.trivialjequalonedist==0
+            jequalOneDist=jequalOneDist_T(:,tt);
+        end
         if simoptions.fastOLG==0
             if N_d==0
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_a,N_j);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_a,N_j,jequalOneDist);
             else
                 % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,shiftdim(ceil(Policy/N_d),-1),N_a,N_j);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,shiftdim(ceil(Policy/N_d),-1),N_a,N_j,jequalOneDist);
             end
         else % simoptions.fastOLG==1
             if N_d==0
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
             else
                 % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
-                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j);
+                AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
             end
         end
         

@@ -12,11 +12,9 @@ Vnext=sum(V.*shiftdim(pi_e_J,-2),3); % Take expectations over e
 %%
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
-    % e_gridvals is created below
 end
 if vfoptions.lowmemory>1
     special_n_z=ones(1,length(n_z));
-    % z_gridvals is created below
 end
 
 %% j=N_j
@@ -143,9 +141,6 @@ for reverse_j=1:N_j-1
     end
 end
 
-% %%
-% Policy2=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-% Policy2(2,:,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+% SingleStep, so leave d and aprime together in a single index.
 
 end
