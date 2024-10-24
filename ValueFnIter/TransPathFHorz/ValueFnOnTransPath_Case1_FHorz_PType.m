@@ -26,10 +26,10 @@ for ii=1:N_i
     % First set up transpathoptions
     if exist('transpathoptions','var')
         transpathoptions_temp=PType_Options(transpathoptions,Names_i,ii);
-        if ~isfield(vfoptions_temp,'verbose')
+        if ~isfield(transpathoptions_temp,'verbose')
             transpathoptions_temp.verbose=0;
         end
-        if ~isfield(vfoptions_temp,'verboseparams')
+        if ~isfield(transpathoptions_temp,'verboseparams')
             transpathoptions_temp.verboseparams=0;
         end
     else
@@ -149,32 +149,11 @@ for ii=1:N_i
         end
     end
     
-    if simoptions_temp.verboseparams==1
+    if vfoptions_temp.verboseparams==1
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
     
-    jequaloneDist_temp=jequaloneDist;
-    if isa(jequaloneDist,'struct')
-        if isfield(jequaloneDist,Names_i{ii})
-            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
-            % jequaloneDist_temp must be of mass one for the codes to work.
-            if sum(jequaloneDist_temp(:))~=1
-                error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
-            end
-        else
-            if isfinite(N_j_temp)
-                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
-            end
-        end
-    else
-        if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
-            error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
-        end
-    end
-
-
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);

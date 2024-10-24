@@ -1,9 +1,13 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, PricePath, ParamPath, Parameters, T, PolicyPath, AgentDistPath, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, transpathoptions, simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, AgentDistPath, PolicyPath, PricePath, ParamPath, Parameters, T, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, transpathoptions, simoptions)
 % AggVars is simple in the sense we can just solve to get AggVars for each ptype and then take the weigthed sum over them
 % This only works because we are just after the mean
 
 
 AggVarsPath=struct();
+
+Names_i
+simoptions
+T
 
 %%
 if iscell(Names_i)
@@ -24,8 +28,8 @@ end
 
 % Need to initialize the aggregates as zeros, these will then be updated adding on each ptype
 FnNames=fieldnames(FnsToEvaluate);
-for nn=1:length(FnNames)
-    AggVarsPath.(FnNames).Mean=0;
+for ff=1:length(FnNames)
+    AggVarsPath.(FnNames{ff}).Mean=zeros(1,T);
 end
 
 
@@ -167,8 +171,8 @@ for ii=1:N_i
     AggVarsPath.(Names_i{ii})=AggVarsPath_ii;
     % And also create the actual aggregate values
     FnNames_temp=fieldnames(FnsToEvaluate_temp);
-    for nn=1:length(FnNames_temp)
-        AggVarsPath.(FnNames_temp).Mean=AggVarsPath.(FnNames_temp).Mean+AgentDist_initial.ptypeweights(ii)*AggVarsPath_ii.(FnNames_temp).Mean;
+    for ff=1:length(FnNames_temp)
+        AggVarsPath.(FnNames_temp{ff}).Mean=AggVarsPath.(FnNames_temp{ff}).Mean+AgentDist_initial.ptypeweights(ii)*AggVarsPath_ii.(FnNames_temp{ff}).Mean;
     end
 end
 

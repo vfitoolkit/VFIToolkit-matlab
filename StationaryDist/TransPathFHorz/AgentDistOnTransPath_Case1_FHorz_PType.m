@@ -1,7 +1,8 @@
-function AgentDistPath=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial,PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z, T,Parameters, transpathoptions, simoptions)
 % Remark to self: No real need for T as input, as this is anyway the length of PricePath
 
 AgentDistPath=struct();
+
 
 %%
 if iscell(Names_i)
@@ -26,10 +27,10 @@ for ii=1:N_i
     % First set up transpathoptions
     if exist('transpathoptions','var')
         transpathoptions_temp=PType_Options(simoptions,Names_i,ii);
-        if ~isfield(simoptions_temp,'verbose')
+        if ~isfield(transpathoptions_temp,'verbose')
             transpathoptions_temp.verbose=0;
         end
-        if ~isfield(simoptions_temp,'verboseparams')
+        if ~isfield(transpathoptions_temp,'verboseparams')
             transpathoptions_temp.verboseparams=0;
         end
     else
@@ -125,37 +126,12 @@ for ii=1:N_i
         Parameters_temp
     end
     
-    jequaloneDist_temp=jequaloneDist;
-    if isa(jequaloneDist,'struct')
-        if isfield(jequaloneDist,Names_i{ii})
-            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
-            % jequaloneDist_temp must be of mass one for the codes to work.
-            if sum(jequaloneDist_temp(:))~=1
-                error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
-            end
-        else
-            if isfinite(N_j_temp)
-                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
-            end
-        end
+    if isstruct(jequalOneDist)
+        jequalOneDist_temp=jequalOneDist.(iistr);
     else
-        if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
-            error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
-        end
+        jequalOneDist_temp=jequalOneDist;
     end
     
-    AgeWeightParamNames_temp=AgeWeightsParamNames;
-    if isa(AgeWeightsParamNames,'struct')
-        if isfield(AgeWeightsParamNames,Names_i{ii})
-            AgeWeightParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
-        else
-            if isfinite(N_j_temp)
-                sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
-            end
-        end
-    end
 
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
@@ -167,14 +143,14 @@ for ii=1:N_i
     end
 
     % Compute the agent distribution path for permanent type ii
-    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp,PricePath, ParamPath_temp, PolicyPath_temp, AgeWeightParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
+    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp,PricePath, ParamPath_temp, PolicyPath_temp, AgeWeightParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     AgentDistPath.(Names_i{ii})=AgentDistPath_ii;
 
 end
 
-AgentDistPath.ptypeweights=AgentDist_initial.ptypeweights;
+AgentDistPath.ptweights=AgentDist_initial.ptweights;
 
 
 end
