@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure)
+function PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, AgeWeights_T, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -10,152 +10,150 @@ function PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, Pr
 
 l_p=size(PricePathOld,2);
 
+
 if transpathoptions.verbose==1
     transpathoptions
 end
-if transpathoptions.verbosegraphs==1
-    pricepathfig=figure;
-    title('Price Path') 
-    plot(PricePathOld)
-    legend(PricePathNames{:})
-    
-%     timeperiodstoplot=[1,2,3,round(T/3),round(T/2),round(2*T/3),T-2,T-1,T];
-%     agestoplot=[1,floor(N_j/5),floor(2*N_j/5),floor(3*N_j/5),floor(4*N_j/5),N_j]; % When plotting agent distribution
-end
-
-PricePathDist=Inf;
-pathcounter=1;
-
-AgentDist_initial.ptweights=StationaryDist_init.ptweights;
-for ii=1:PTypeStructure.N_i
-    iistr=PTypeStructure.Names_i{ii};
-
-    N_a=prod(PTypeStructure.(iistr).n_a);
-    N_z=prod(PTypeStructure.(iistr).n_z);
-    N_j=PTypeStructure.(iistr).N_j;
-    V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j]);
-    AgentDist_initial.(iistr)=reshape(StationaryDist_init.(iistr),[N_a*N_z,N_j]);
-end
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
-
 if transpathoptions.verbose==1
+    % Set up some things to be used later
+    pathnametitles=cell(1,2*length(PricePathNames));
+    for ii=1:length(PricePathNames)
+        pathnametitles{ii}={['Old ',PricePathNames{ii}]};
+        pathnametitles{ii+length(PricePathNames)}={['New ',PricePathNames{ii}]};
+    end
+end
+if transpathoptions.verbose>1
+    DiscountFactorParamNames
+    ReturnFnParamNames
     ParamPathNames
     PricePathNames
 end
 
-while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+
+%% Set up GEnewprice==3 (if relevant)
+if transpathoptions.GEnewprice==3
+    transpathoptions.weightscheme=0;
     
-    % For each agent type, first go back through the value & policy fns.
-    % Then forwards through agent dist and agg vars.
+    if isstruct(GeneralEqmEqns) 
+        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
+        % Is same as order of fields in GeneralEqmEqns
+        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
+        temp=transpathoptions.GEnewprice3.howtoupdate;
+        GEeqnNames=fieldnames(GeneralEqmEqns);
+        for ii=1:length(GEeqnNames)
+            for jj=1:size(temp,1)
+                if strcmp(temp{jj,1},GEeqnNames{ii}) % Names match
+                    transpathoptions.GEnewprice3.howtoupdate{ii,1}=temp{jj,1};
+                    transpathoptions.GEnewprice3.howtoupdate{ii,2}=temp{jj,2};
+                    transpathoptions.GEnewprice3.howtoupdate{ii,3}=temp{jj,3};
+                    transpathoptions.GEnewprice3.howtoupdate{ii,4}=temp{jj,4};
+                end
+            end
+        end
+        nGeneralEqmEqns=length(GEeqnNames);
+    else
+        nGeneralEqmEqns=length(GeneralEqmEqns);
+    end
+    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
+    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    tempweight=transpathoptions.oldpathweight;
+    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
+    for ii=1:length(transpathoptions.GEnewprice3.factor)
+        if transpathoptions.GEnewprice3.factor(ii)==Inf
+            transpathoptions.GEnewprice3.factor(ii)=1;
+            transpathoptions.GEnewprice3.keepold(ii)=0;
+            transpathoptions.oldpathweight(ii)=tempweight;
+        end
+    end
+    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
+        % do nothing, this is how things should be
+    else
+        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+    end
+    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
+    for ii=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for jj=1:length(PricePathNames)
+            if strcmp(transpathoptions.GEnewprice3.howtoupdate{ii,2},PricePathNames{jj})
+                transpathoptions.GEnewprice3.permute(ii)=jj;
+            end
+        end
+    end
+    if isfield(transpathoptions,'updateaccuracycutoff')==0
+        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
+    end
+end
+
+
+%%
+PricePathDist=Inf;
+pathcounter=1;
+
+PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+
+%%
+while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
+    
+    %% For each agent type, first go back through the value & policy fns, then forwards through agent dist and agg vars.
+    % After that is finished we can put the AggVars together, evaluate GE conditions, and update price path
     AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T-1,PTypeStructure.N_i); % Does not include period T
     for ii=1:PTypeStructure.N_i
         iistr=PTypeStructure.Names_i{ii};
         
         % Grab everything relevant out of PTypeStructure
-        n_d=PTypeStructure.(iistr).n_d; N_d=prod(n_d);
+        n_d=PTypeStructure.(iistr).n_d; N_d=prod(n_d); l_d=length(n_d);
         n_a=PTypeStructure.(iistr).n_a; N_a=prod(n_a);
         n_z=PTypeStructure.(iistr).n_z; N_z=prod(n_z);
+        n_e=PTypeStructure.(iistr).n_e; N_e=prod(n_e);
         N_j=PTypeStructure.(iistr).N_j;
         d_grid=PTypeStructure.(iistr).d_grid;
         a_grid=PTypeStructure.(iistr).a_grid;
-        z_grid=PTypeStructure.(iistr).z_grid;
-        pi_z=PTypeStructure.(iistr).pi_z;
+        a_gridvals=PTypeStructure.(iistr).a_gridvals;
+        daprime_gridvals=PTypeStructure.(iistr).daprime_gridvals;
+        if N_z>0
+            z_gridvals_J=PTypeStructure.(iistr).z_gridvals_J;
+            pi_z_J=PTypeStructure.(iistr).pi_z_J;
+        end
+        if N_e>0
+            e_gridvals_J=PTypeStructure.(iistr).e_gridvals_J;
+            pi_e_J=PTypeStructure.(iistr).pi_e_J;
+        end
         ReturnFn=PTypeStructure.(iistr).ReturnFn;
         Parameters=PTypeStructure.(iistr).Parameters;
         DiscountFactorParamNames=PTypeStructure.(iistr).DiscountFactorParamNames;
         ReturnFnParamNames=PTypeStructure.(iistr).ReturnFnParamNames;
-        AgeWeightsParamNames=PTypeStructure.(iistr).AgeWeightsParamNames;
         vfoptions=PTypeStructure.(iistr).vfoptions;
         simoptions=PTypeStructure.(iistr).simoptions;
         FnsToEvaluate=PTypeStructure.(iistr).FnsToEvaluate;
         FnsToEvaluateParamNames=PTypeStructure.(iistr).FnsToEvaluateParamNames;
-        
-        if N_d>0
-            PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
-        else
-            PolicyIndexesPath=zeros(N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
-        end
-        
-        %First, go from T-1 to 1 calculating the Value function and Optimal
-        %policy function at each step. Since we won't need to keep the value
-        %functions for anything later we just store the next period one in
-        %Vnext, and the current period one to be calculated in V
-        Vnext=V_final.(iistr);
-        for tt=1:T-1 %so t=T-i
-            
-            
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePathOld(T-tt,kk);
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(T-tt,kk);
-            end
-            
-            if transpathoptions.fastOLG==0
-                [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            else
-                [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            end
-            % The VKron input is next period value fn, the VKron output is this period.
-            % Policy is kept in the form where it is just a single-value in (d,a')
-            
-            if N_d>0
-                PolicyIndexesPath(:,:,:,:,T-tt)=Policy;
-%                 PolicyIndexesPath.(iistr)(:,:,:,:,T-tt)=Policy;
-            else
-                PolicyIndexesPath(:,:,:,T-tt)=Policy;
-%                 PolicyIndexesPath.(iistr)(:,:,:,T-tt)=Policy;
-            end
-            Vnext=V;
-            
-        end
-        % Free up space on GPU by deleting things no longer needed
-        clear V Vnext
-        
-        %Now we have the full PolicyIndexesPath, we go forward in time from 1
-        %to T using the policies to update the agents distribution generating a
-        %new price path
-        %Call AgentDist the current periods distn
-        AgentDist=AgentDist_initial.(iistr);
-        AggVarsPath=zeros(length(FnsToEvaluate),T-1);
-        for tt=1:T-1
-            
-            %Get the current optimal policy
-            if N_d>0
-                Policy=PolicyIndexesPath(:,:,:,:,tt);
-            else
-                Policy=PolicyIndexesPath(:,:,:,tt);
-            end
-            
-            GEprices=PricePathOld(tt,:);
-            
-            for nn=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{nn})=ParamPath(tt,nn);
-            end
-            for nn=1:length(PricePathNames)
-                Parameters.(PricePathNames{nn})=PricePathOld(tt,nn);
-            end
-            
-            PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(Policy, n_d, n_a, n_z, N_j,vfoptions);
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDist, PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2, simoptions); % The 2 is for Parallel (use GPU)
-            
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep(AgentDist,AgeWeightsParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
-            
-            AggVarsPath(:,tt)=AggVars;
-        end
-        AggVarsFullPath(:,:,ii)=AggVarsPath;
-    end
-    
-    
-    % Note: Cannot do transition paths in which the mass of each agent type changes.
-    AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath.*shiftdim(StationaryDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
-    AggVarNames=fieldnames(FullFnsToEvaluate);
+        AggVarNames=PTypeStructure.(iistr).AggVarNames;
 
+
+        % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
+        % AgeWeights=AgeWeights_initial.(iistr);
+        % AgentDist=AgentDist_initial.(iistr);
+        % AgentDist=AgentDist_initial;
+        
+        AggVarsPath=TransitionPath_FHorz_PType_subfn_AggVarsPath(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,AgentDist_init.(iistr),V_final.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
+        % AggVarsPath=zeros(length(FnsToEvaluate),T-1);
+
+        AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath;
+
+    end % done loop over ii
+    
+    
+    %% Note: Cannot do transition paths in which the mass of each agent type changes.
+    AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath.*shiftdim(AgentDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
+    FullAggVarNames=fieldnames(FullFnsToEvaluate);
+    
     for tt=1:T-1
         % Note that the parameters that are relevant to the GeneralEqmEqns
         % (those in GeneralEqmEqnParamNames) must be independent of agent
         % type. So arbitrarilty use the last agent (current content of iistr)
         Parameters=PTypeStructure.(iistr).Parameters;
+
+        GEprices=PricePathOld(tt,:);
 
         %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
         %and then adjust it for the current prices
@@ -164,49 +162,48 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             % force converting these to real, albeit at the risk of missing problems
             % created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-            for ff=1:length(AggVarNames)
-                Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
+            for ff=1:length(FullAggVarNames)
+                Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
             PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
             for j=1:length(GeneralEqmEqns)
-                for ff=1:length(AggVarNames)
-                    Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
+                for ff=1:length(FullAggVarNames)
+                    Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
                 end
                 GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
                 PricePathNew(tt,j)=fminsearch(GEeqn_temp,GEprices);
             end
         % Note there is no GEnewprice==2, it uses a completely different code
         elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-            for ff=1:length(AggVarNames)
-                Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
+            for ff=1:length(FullAggVarNames)
+                Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
             p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-%             GEcondnspath(i,:)=p_i;
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
             PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
-    end
+
+    end % Done loop over tt, evaluating the GE conditions
     
-%     % Free up space on GPU by deleting things no longer needed
-%     clear AgentDist
     
-    %See how far apart the price paths are
+    %% Now we just check for convergence, update prices, and give some feedback on progress
+    % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
-    %Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
+    % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
-    if transpathoptions.verbose==1
-        fprintf('Number of iteration on the path: %i \n',pathcounter)
-        
+    if transpathoptions.verbose==1     
+        pathcounter
+        disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole
         % printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
     end
-
+    
     if transpathoptions.graphpricepath==1
         if length(PricePathNames)>12
             ncolumns=4;
@@ -224,18 +221,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     end
     if transpathoptions.graphaggvarspath==1
         % Do an additional graph, this one of the AggVars
-        if length(AggVarNames)>12
+        if length(FullAggVarNames)>12
             ncolumns=4;
-        elseif length(AggVarNames)>6
+        elseif length(FullAggVarNames)>6
             ncolumns=3;
         else
             ncolumns=2;
         end
-        nrows=ceil(length(AggVarNames)/ncolumns);
+        nrows=ceil(length(FullAggVarNames)/ncolumns);
         fig2=figure(2);
-        for pp=1:length(AggVarNames)
-            subplot(nrows,ncolumns,pp); plot(AggVarsPooledPath(:,pp))
-            title(AggVarNames{pp})
+        for pp=1:length(FullAggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(FullAggVarNames{pp})
         end
     end
     
@@ -246,7 +243,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PricePathOld(1:T-1,:)=transpathoptions.oldpathweight.*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight).*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
-%         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
         Ttheta=transpathoptions.Ttheta;
         PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
         PricePathOld(Ttheta:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-Ttheta)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(Ttheta:T-1,:)+((exp(linspace(0,log(0.2),T-Ttheta)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(Ttheta:T-1,:);
