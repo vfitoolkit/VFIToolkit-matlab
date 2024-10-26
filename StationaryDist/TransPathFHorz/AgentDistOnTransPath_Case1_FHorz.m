@@ -384,7 +384,7 @@ else
             % Precompute some things needed for fastOLG agent dist iteration
             exceptlastj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
             exceptfirstj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-            justfirstj=kron(ones(1,N_z),1:1:N_a)+N_a+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a));
+            justfirstj=repmat(1:1:N_a,1,N_z)+N_a*N_j*repelem(0:1:N_z-1,1,N_a);
             II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
             II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
             pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
@@ -419,7 +419,7 @@ else
             % Precompute some things needed for fastOLG agent dist iteration
             exceptlastj=kron(ones(1,(N_j-1)*N_z*N_e),1:1:N_a)+kron(kron(ones(1,N_z*N_e),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z*N_e-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
             exceptfirstj=kron(ones(1,(N_j-1)*N_z*N_e),1:1:N_a)+kron(kron(ones(1,N_z*N_e),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z*N_e-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-            justfirstj=kron(ones(1,N_z*N_e),1:1:N_a)+N_a++kron(N_a*N_j*(0:1:N_z*N_e-1),ones(1,N_a));
+            justfirstj=repmat(1:1:N_a,1,N_z*N_e)+N_a*N_j*repelem(0:1:N_z*N_e-1,1,N_a);
             % note that following are not affected by e
             II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
             II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
@@ -434,31 +434,20 @@ end
 %% Check if jequalOneDistPath is a path or not (and reshape appropriately)
 jequalOneDist=gpuArray(jequalOneDist);
 temp=size(jequalOneDist);
+% Note: simoptions.fastOLG is handled via 'justfirstj', rather than via shape of jequalOneDist
 if temp(end)==T % jequalOneDist depends on T
     transpathoptions.trivialjequalonedist=0;
     if N_z==0
         if N_e==0
             jequalOneDist=reshape(jequalOneDist,[N_a,T]);
         else
-            if simoptions.fastOLG==0
-                jequalOneDist=reshape(jequalOneDist,[N_a,N_e,T]);
-            elseif simoptions.fastOLG==1
-                jequalOneDist=reshape(jequalOneDist,[N_a*N_e,T]);            
-            end
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_e,T]);
         end
     else
         if N_e==0
-            if simoptions.fastOLG==0
-                jequalOneDist=reshape(jequalOneDist,[N_a,N_z,T]);
-            elseif simoptions.fastOLG==1
-                jequalOneDist=reshape(jequalOneDist,[N_a*N_z,T]);            
-            end
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_z,T]);
         else
-            if simoptions.fastOLG==0
-                jequalOneDist=reshape(jequalOneDist,[N_a,N_z,N_e,T]);
-            elseif simoptions.fastOLG==1
-                jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,T]);            
-            end
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,T]);
         end
     end
 else
@@ -467,25 +456,13 @@ else
         if N_e==0
             jequalOneDist=reshape(jequalOneDist,[N_a,1]);
         else
-            if simoptions.fastOLG==0
-                jequalOneDist=reshape(jequalOneDist,[N_a,N_e]);
-            elseif simoptions.fastOLG==1
-                jequalOneDist=reshape(jequalOneDist,[N_a*N_e,1]);
-            end
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_e,1]);
         end
     else
         if N_e==0
-            if simoptions.fastOLG==0
-                jequalOneDist=reshape(jequalOneDist,[N_a,N_z]);
-            elseif simoptions.fastOLG==1
-                jequalOneDist=reshape(jequalOneDist,[N_a*N_z,1]);
-            end
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_z,1]);
         else
-            if simoptions.fastOLG==0
-                jequalOneDist=reshape(jequalOneDist,[N_a,N_z,N_e]);
-            elseif simoptions.fastOLG==1
-                jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
-            end        
+            jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
         end
     end
 end
@@ -567,7 +544,6 @@ if N_e==0
                 if transpathoptions.trivialjequalonedist==0
                     jequalOneDist=jequalOneDist_T(:,tt);
                 end
-
                 %Get the current optimal policy
                 optaprime=optaprimePath(:,:,:,tt);
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J,jequalOneDist);
@@ -575,6 +551,8 @@ if N_e==0
             end
         else
             %% fastOLG=1, z, no e
+            % AgentDist is [N_a*N_j*N_z,1]
+
             AgentDistPath=zeros(N_a*N_j*N_z,T,'gpuArray');
             AgentDistPath(:,1)=AgentDist_initial;
             AgentDist=AgentDist_initial;
@@ -626,12 +604,10 @@ else
             for tt=1:T-1
                 if transpathoptions.zpathtrivial==0
                     pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-                    % z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
                 end
                 % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
                 if transpathoptions.epathtrivial==0
                     simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
-                    simoptions.e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
                 end
                 % transpathoptions.epathtrivial==1 % Does not depend on T
 
@@ -660,7 +636,6 @@ else
             for tt=1:T-1
                 if transpathoptions.zpathtrivial==0
                     pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
-                    % z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
                     if simoptions.fastOLG==1
                         pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
                         pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
@@ -669,7 +644,6 @@ else
                 % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
                 if transpathoptions.epathtrivial==0
                     simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
-                    simoptions.e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
                     if simoptions.fastOLG==1
                         pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(simoptions.pi_e_J)'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e
                     end
@@ -706,6 +680,9 @@ if N_e==0
     end
 else
     if N_z==0
+        if simoptions.fastOLG==1
+            AgentDistPath=permute(reshape(AgentDistPath,[N_a,N_j,N_e,T]),[1,3,2,4]);
+        end
         AgentDistPath=reshape(AgentDistPath,[n_a,n_e,N_j,T]);
     else
         if simoptions.fastOLG==1

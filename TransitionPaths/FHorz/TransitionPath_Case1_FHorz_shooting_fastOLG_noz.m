@@ -189,7 +189,11 @@ end
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
-daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+if l_d==0
+    daprime_gridvals=a_gridvals;
+else
+    daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+end
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
@@ -325,7 +329,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         % if simoptions.fastOLG=1 is hardcoded
         if N_d==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_d,N_a,N_j,jequalOneDist);
+            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
         else
             % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
             AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);

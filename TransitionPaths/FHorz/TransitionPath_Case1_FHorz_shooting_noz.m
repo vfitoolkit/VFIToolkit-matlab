@@ -204,8 +204,11 @@ end
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
 % d_gridvals=CreateGridvals(n_d,d_grid,1);
-daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-
+if l_d==0
+    daprime_gridvals=a_gridvals;
+else
+    daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(n_d,d_grid,1)), kron(a_gridvals,ones(N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+end
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter

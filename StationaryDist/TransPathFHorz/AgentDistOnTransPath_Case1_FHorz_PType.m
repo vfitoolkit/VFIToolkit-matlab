@@ -3,7 +3,6 @@ function AgentDistPath=AgentDistOnTransPath_Case1_FHorz_PType(AgentDist_initial,
 
 AgentDistPath=struct();
 
-
 %%
 if iscell(Names_i)
     N_i=length(Names_i);
@@ -20,6 +19,7 @@ else
         end
     end
 end
+
 
 %% Loop over permanent types
 for ii=1:N_i
@@ -60,10 +60,8 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
            
-    AgentDist_initial_temp=AgentDist_initial.(Names_i{ii});
     PolicyPath_temp=PolicyPath.(Names_i{ii});
 
-    
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -126,6 +124,16 @@ for ii=1:N_i
         Parameters_temp
     end
     
+    if isstruct(AgentDist_initial)
+        AgentDist_initial_temp=AgentDist_initial.(Names_i{ii});
+    else
+        AgentDist_initial_temp=AgentDist_initial; % NEED TO DEAL WITH THIS PROPERLY
+    end
+    if isstruct(AgeWeightsParamNames)
+        AgeWeightsParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
+    else
+        AgeWeightsParamNames_temp=AgeWeightsParamNames;
+    end
     if isstruct(jequalOneDist)
         jequalOneDist_temp=jequalOneDist.(iistr);
     else
@@ -141,14 +149,15 @@ for ii=1:N_i
             ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(Names_i{ii});
         end
     end
-
+    
     % Compute the agent distribution path for permanent type ii
-    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp,PricePath, ParamPath_temp, PolicyPath_temp, AgeWeightParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
+    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp,PricePath, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     AgentDistPath.(Names_i{ii})=AgentDistPath_ii;
 
 end
+
 
 AgentDistPath.ptweights=AgentDist_initial.ptweights;
 

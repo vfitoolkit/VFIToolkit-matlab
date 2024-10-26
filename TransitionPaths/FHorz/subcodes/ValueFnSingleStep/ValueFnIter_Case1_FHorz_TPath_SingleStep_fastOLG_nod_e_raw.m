@@ -14,7 +14,7 @@ Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray'); %first dim indexes the optimal choice 
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=repelem(DiscountFactorParamsVec,N_a,1);
+DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-1);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -34,12 +34,11 @@ if vfoptions.lowmemory==0
 
     discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
 
-    entirediscountedEV=repelem(discountedEV,1,N_a,1,N_e); % (d,aprime)-by-(a,j)-by-z-by-e
-
-    entirediscountedEV=ReturnMatrix+entirediscountedEV; %(aprime)-by-(a,j,z,e)
+    entireRHS=ReturnMatrix+repelem(discountedEV,1,N_a,1,N_e); %(aprime)-by-(a,j)-by-z-by-e
 
     %Calc the max and it's index
-    [V,Policy]=max(entirediscountedEV,[],1);
+    [V,Policy]=max(entireRHS,[],1);
+    V=shiftdim(V,1);
 
 elseif vfoptions.lowmemory==1
 
@@ -57,12 +56,10 @@ elseif vfoptions.lowmemory==1
 
         discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
 
-        entirediscountedEV=repelem(discountedEV,1,N_a,1); % (d,aprime)-by-(a,j)-by-z
-
-        entirediscountedEV_e=ReturnMatrix_e+entirediscountedEV; %(aprime)-by-(a,j,z)
+        entireRHS_e=ReturnMatrix_e+repelem(discountedEV,1,N_a,1); %(aprime)-by-(a,j)-by-z
 
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entirediscountedEV_e,[],1);
+        [Vtemp,maxindex]=max(entireRHS_e,[],1);
         V(:,:,e_c)=Vtemp;
         Policy(:,:,e_c)=maxindex;
     end
@@ -86,18 +83,22 @@ elseif vfoptions.lowmemory==2
 
             discountedEV_z=DiscountFactorParamsVec.*reshape(EV_z,[N_a,N_j]); % aprime-j
 
-            entirediscountedEV_ez=repelem(discountedEV_z,1,N_a); % (d,aprime)-by-(a,j)
-
-            entirediscountedEV_ez=ReturnMatrix_ez+entirediscountedEV_ez; %(aprime)-by-(a,j)
+            entireRHS_ez=ReturnMatrix_ez+repelem(discountedEV_z,1,N_a); %(aprime)-by-(a,j)
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entirediscountedEV_ez,[],1);
+            [Vtemp,maxindex]=max(entireRHS_ez,[],1);
             V(:,z_c,e_c)=Vtemp;
             Policy(:,z_c,e_c)=maxindex;
         end
     end
 
 end
+
+
+%% fastOLG with z & e, so need to output to take certain shapes
+% V=reshape(V,[N_a*N_j,N_z,N_e]);
+Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
+% Note that in fastOLG, we do not separate d from aprime in Policy
 
 
 end

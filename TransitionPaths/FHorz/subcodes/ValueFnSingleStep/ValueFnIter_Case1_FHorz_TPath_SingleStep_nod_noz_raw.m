@@ -15,8 +15,8 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, 0, n_a, 0, a_grid, ReturnFnParamsVec,0);
 %Calc the max and it's index
 [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-V(:,:,N_j)=Vtemp;
-Policy(:,:,N_j)=maxindex;
+V(:,N_j)=Vtemp;
+Policy(:,N_j)=maxindex;
 
 
 %% Iterate backwards through j.

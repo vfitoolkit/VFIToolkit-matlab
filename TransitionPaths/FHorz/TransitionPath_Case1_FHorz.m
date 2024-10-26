@@ -160,10 +160,8 @@ if exist('vfoptions','var')==0
     %If vfoptions is not given, just use all the defaults
     vfoptions.divideandconquer=0;
     vfoptions.parallel=transpathoptions.parallel;
-    vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.paroverz=1;
     vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
@@ -180,24 +178,11 @@ else
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
     end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if ~isfield(vfoptions,'paroverz')
-        vfoptions.paroverz=1;
-    end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
-    end
-    if ~isfield(vfoptions,'returnmatrix')
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
     end
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
@@ -233,15 +218,8 @@ if transpathoptions.fastOLG==1
     simoptions.fastOLG=1;
 end
 if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
     simoptions.parallel=transpathoptions.parallel; % GPU where available, otherwise parallel CPU.
     simoptions.verbose=0;
-    try 
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
     simoptions.fastOLG=1;
@@ -251,22 +229,11 @@ else
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
-    if ~isfield(simoptions,'nsims')
-        simoptions.nsims=10^4;
-    end
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=transpathoptions.parallel;
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
-    end
-    if ~isfield(simoptions,'ncores')
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
     end
     if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;

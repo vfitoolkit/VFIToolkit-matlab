@@ -790,6 +790,21 @@ if N_d>0
             PolicyPath(2,:,:,:,:,:)=shiftdim(ceil(PolicyPath2/N_d),-1);
         end
     end
+elseif transpathoptions.fastOLG==1
+    % no d, but as fastOLG, still need to permute
+    if N_e==0
+        if N_z==0
+            % no need to do anything
+        else
+            PolicyPath=permute(PolicyPath,[1,3,2,4]); % was (a,j,e,t), now (a,e,j,t)
+        end
+    else
+        if N_z==0
+            PolicyPath=permute(PolicyPath,[1,3,2,4]); % was (a,j,z,t), now (a,z,j,t)
+        else
+            PolicyPath=permute(PolicyPath,[1,3,4,2,5]); % was (a,j,z,e,t), now (a,z,e,j,t)
+        end
+    end
 end
 
 

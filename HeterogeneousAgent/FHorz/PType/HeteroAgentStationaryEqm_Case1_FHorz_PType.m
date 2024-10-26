@@ -33,7 +33,6 @@ if ~isempty(n_p)
 else
     N_p=0;
 end
-l_p=length(n_p);
 
 p_eqm_vec=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 

@@ -13,15 +13,8 @@ function AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate, AgentD
 
 %% Check which simoptions have been used, set all others to defaults
 if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
     simoptions.parallel=2;
     simoptions.verbose=0;
-    try
-        PoolDetails=gcp;
-        simoptions.ncores=PoolDetails.NumWorkers;
-    catch
-        simoptions.ncores=1;
-    end
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
     simoptions.fastOLG=1;
@@ -32,22 +25,11 @@ else
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
-    if ~isfield(simoptions,'nsims')
-        simoptions.nsims=10^4;
-    end
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=2;
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
-    end
-    if ~isfield(simoptions,'ncores')
-        try
-            PoolDetails=gcp;
-            simoptions.ncores=PoolDetails.NumWorkers;
-        catch
-            simoptions.ncores=1;
-        end
     end
     if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;

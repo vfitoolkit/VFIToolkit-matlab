@@ -14,6 +14,7 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsTo
 % simoptions.outputasstructure=0; % hardcoded
 
 l_a=length(n_a);
+l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
@@ -63,12 +64,32 @@ for ff=1:length(FnsToEvaluate)
         end
     end
     
-    if l_d==0 && l_a==1
-        Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J, ParamCell{:});
-    elseif l_d==1 && l_a==1
-        Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J, ParamCell{:});
+    if l_z==1
+        if l_d==0 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+        elseif l_d==1 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+        end
+    elseif l_z==2
+        if l_d==0 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+        elseif l_d==1 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+        end
+    elseif l_z==3
+        if l_d==0 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+        elseif l_d==1 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+        end
+    elseif l_z==4
+        if l_d==0 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+        elseif l_d==1 && l_a==1
+            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+        end
     end
-    
+
     if outputasstructure==1
         AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist);
     else % outputasstructure==0

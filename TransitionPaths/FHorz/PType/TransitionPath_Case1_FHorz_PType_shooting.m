@@ -148,48 +148,107 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     AggVarsPooledPath=reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*sum(AggVarsFullPath.*shiftdim(AgentDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
     FullAggVarNames=fieldnames(FullFnsToEvaluate);
     
-    for tt=1:T-1
-        % Note that the parameters that are relevant to the GeneralEqmEqns
-        % (those in GeneralEqmEqnParamNames) must be independent of agent
-        % type. So arbitrarilty use the last agent (current content of iistr)
-        Parameters=PTypeStructure.(iistr).Parameters;
+    %% Do the general eqm conditions and create PricePathNew based on these
+    if all(transpathoptions.GEptype==0)
+        for tt=1:T-1
+            % Note that the parameters that are relevant to the GeneralEqmEqns
+            % (those in GeneralEqmEqnParamNames) must be independent of agent
+            % type. So arbitrarilty use the last agent (current content of iistr)
+            Parameters=PTypeStructure.(iistr).Parameters;
 
-        GEprices=PricePathOld(tt,:);
+            GEprices=PricePathOld(tt,:);
 
-        %An easy way to get the new prices is just to call GeneralEqmConditions_Case1
-        %and then adjust it for the current prices
-            % When using negative powers matlab will often return complex
-            % numbers, even if the solution is actually a real number. I
-            % force converting these to real, albeit at the risk of missing problems
-            % created by actual complex numbers.
-        if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
+            % An easy way to get the new prices is just to call GeneralEqmConditions_Case1 and then adjust it for the current prices
+            % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
+            % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
-            PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-            % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
-            for j=1:length(GeneralEqmEqns)
-                for ff=1:length(FullAggVarNames)
-                    Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
+            if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
+                PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+            elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+                % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
+                for gg=1:length(GeneralEqmEqns)
+                    GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
+                    PricePathNew(tt,gg)=fminsearch(GEeqn_temp,GEprices);
                 end
-                GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
-                PricePathNew(tt,j)=fminsearch(GEeqn_temp,GEprices);
+                % Note there is no GEnewprice==2, it uses a completely different code
+            elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
+                p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+                p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+                I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
+                p_i=I_makescutoff.*p_i;
+                PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
             end
-        % Note there is no GEnewprice==2, it uses a completely different code
-        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
+
+        end % Done loop over tt, evaluating the GE conditions
+    else 
+        % Some of the General eqm eqns depend on ptype
+        for tt=1:T-1
+            % Note that the parameters that are relevant to the GeneralEqmEqns
+            % (those in GeneralEqmEqnParamNames) must be independent of agent
+            % type. So arbitrarilty use the last agent (current content of iistr)
+            Parameters=PTypeStructure.(iistr).Parameters;
+
+            GEprices=PricePathOld(tt,:);
+
+            % An easy way to get the new prices is just to call GeneralEqmConditions_Case1 and then adjust it for the current prices
+            % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
+            % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
-            p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-            p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
-            I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
-            p_i=I_makescutoff.*p_i;
-            PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
-        end
+            if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
+                % Loop over the general eqm conditions, so we can deal seperately with those that depend on ptype and those that do not
+                gg_c=0;
+                for gg=1:length(GeneralEqmEqns)
+                    if transpathoptions.GEptype(gg)==0
+                        gg_c=gg_c+1;
+                        PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns{gg},Parameters, 2));
+                    elseif transpathoptions.GEptype(gg)==1
+                        gg_c=gg_c+1;
+                        error('NEED TO GET THE ptype SPECIFIC PARAMETER/AGGVARS')
+                        PricePathNew(tt,gg_c)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns{gg},Parameters, 2));
+                    end
+                end
+            elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
+                % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
+                for gg=1:length(GeneralEqmEqns)
+                    if transpathoptions.GEptype(gg)==0
+                        gg_c=gg_c+1;
+                        GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns{gg},Parameters, 2)).^2);
+                        PricePathNew(tt,gg_c)=fminsearch(GEeqn_temp,GEprices);
+                    elseif transpathoptions.GEptype(gg)==1
+                        gg_c=gg_c+1;
+                        error('NEED TO GET THE ptype SPECIFIC PARAMETER/AGGVARS')
+                        GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns{gg},Parameters, 2)).^2);
+                        PricePathNew(tt,gg_c)=fminsearch(GEeqn_temp,GEprices);
+                    end
+                end
+                % Note there is no GEnewprice==2, it uses a completely different code
+            elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
+                p_i=zeros(1,length(GeneralEqmEqns)+sum(transpathoptions.GEptype),'gpuArray');
+                gg_c=0;
+                for gg=1:length(GeneralEqmEqns)
+                    if transpathoptions.GEptype(gg)==0
+                        gg_c=gg_c+1;
+                        p_i(gg_c)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns{gg},Parameters, 2));
+                    elseif transpathoptions.GEptype(gg)==1
+                        for ii2=1:N_i
+                            gg_c=gg_c+1;
+                            error('NEED TO GET THE ptype SPECIFIC PARAMETER/AGGVARS')
+                            p_i(gg_c)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns{gg},Parameters, 2));
+                        end
+                    end
+                end
+                p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
+                I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
+                p_i=I_makescutoff.*p_i;
+                PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
+            end
 
-    end % Done loop over tt, evaluating the GE conditions
-    
+        end % Done loop over tt, evaluating the GE conditions
+    end
     
     %% Now we just check for convergence, update prices, and give some feedback on progress
     % See how far apart the price paths are

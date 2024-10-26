@@ -13,7 +13,8 @@ Policy=zeros(N_a*N_j,N_z,'gpuArray'); %first dim indexes the optimal choice for 
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=repelem(DiscountFactorParamsVec,N_a,1);
+DiscountFactorParamsVec=DiscountFactorParamsVec';
+% DiscountFactorParamsVec=repelem(DiscountFactorParamsVec,N_a,1);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -30,7 +31,7 @@ if vfoptions.lowmemory==0
     EV=VKronNext.*repelem(pi_z_J,N_a,1,1);
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
-
+    
     discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
 
     entirediscountedEV=repelem(discountedEV,1,N_a,1); % (d,aprime)-by-(a,j)-by-z
@@ -39,6 +40,7 @@ if vfoptions.lowmemory==0
 
     %Calc the max and it's index
     [V,Policy]=max(entirediscountedEV,[],1);
+    V=shiftdim(V,1);
 
 elseif vfoptions.lowmemory==1
 

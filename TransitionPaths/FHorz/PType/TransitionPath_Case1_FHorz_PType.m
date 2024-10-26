@@ -27,6 +27,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
+    transpathoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
@@ -51,6 +52,9 @@ else
                                        % 1 is shooting algorithm, 
                                        % 2 is to do optimization routine with 'distance between old and new path'
                                        % 3 is just same as 0, but easier to set 
+    end
+    if ~isfield(transpathoptions,'GEptype')
+        transpathoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
     end
     if ~isfield(transpathoptions,'oldpathweight')
         transpathoptions.oldpathweight=0.9;
