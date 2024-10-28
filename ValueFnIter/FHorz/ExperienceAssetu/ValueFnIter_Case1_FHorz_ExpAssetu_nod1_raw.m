@@ -66,7 +66,7 @@ else
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
 
     if vfoptions.lowmemory==0
         EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
@@ -136,7 +136,7 @@ for reverse_j=1:N_j-1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
 
     if vfoptions.lowmemory==0
         % EV is over (d2,a1prime,a2,zprime)

@@ -5,24 +5,15 @@ N_z=prod(n_z);
 
 if ~isfield(vfoptions,'level1n')
     if length(n_a)==1
-        vfoptions.level1n=9;
-        if prod(n_d)*prod(n_a)>100*500
-            vfoptions.level1n=21; % set a larger default for larger models
-        end
+        vfoptions.level1n=ceil(n_a(1)/50);
     elseif length(n_a)==2
-        vfoptions.level1n=[9,n_a(2)]; % default is DC2B
-        if n_a(1)>300
-            vfoptions.level1n(1)=21; % set a larger default for larger models
-        end
-        if n_a(2)>300
-            vfoptions.level1n(2)=n_a(2); % default is DC2B % set a larger default for larger models
-        end
+        vfoptions.level1n=[ceil(n_a(1)/50),n_a(2)]; % default is DC2B
     end
     if vfoptions.verbose==1
         fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
     end
 end
-vfoptions.level1n=min(vfoptions.level1n,n_a);
+vfoptions.level1n=min(vfoptions.level1n,n_a); % Otherwise causes errors
 
 %% 1 endogenous state
 if length(n_a)==1

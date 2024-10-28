@@ -57,9 +57,9 @@ else
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
    
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
-    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
     
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d2, n_a2, n_e, d2_grid, a2_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
@@ -114,9 +114,9 @@ for reverse_j=1:N_j-1
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
    
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
-    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d2, n_a2,n_e, d2_grid, a2_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command

@@ -20,6 +20,11 @@ a2_grid=gpuArray(a2_grid);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
+% For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
+n_d=[n_d1,n_d2];
+d_grid=[d1_grid;d2_grid];
+
+
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
@@ -75,7 +80,7 @@ else
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
 
     if vfoptions.lowmemory==0
         EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
@@ -165,7 +170,7 @@ for reverse_j=1:N_j-1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
 
     if vfoptions.lowmemory==0
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);

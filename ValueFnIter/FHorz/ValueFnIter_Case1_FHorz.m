@@ -525,7 +525,7 @@ end
 % experienceasset: aprime(d,a)
 % experienceassetu: aprime(d,a,u)
 % experienceassetz: aprime(d,a,z)
-% experienceassetz: aprime(d,a,z,e)
+% experienceassetze: aprime(d,a,z,e)
 
 if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.

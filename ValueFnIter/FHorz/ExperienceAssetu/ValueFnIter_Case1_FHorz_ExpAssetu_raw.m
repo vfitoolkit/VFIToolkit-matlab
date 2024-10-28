@@ -19,6 +19,10 @@ a2_grid=gpuArray(a2_grid);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
+% For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
+n_d=[n_d1,n_d2];
+d_grid=[d1_grid;d2_grid];
+
 if vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 end
@@ -135,16 +139,17 @@ for reverse_j=1:N_j-1
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
    
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2-a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
+    % (d2-a1prime,a2,zprime)
 
     if vfoptions.lowmemory==0
         % EV is over (d2,a1prime,a2,zprime)
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
         EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
         EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
+        % EV is over (d2-a1prime,a2,z)
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,n_z, [d1_grid; d2_grid], a1_grid, a2_grid,z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)

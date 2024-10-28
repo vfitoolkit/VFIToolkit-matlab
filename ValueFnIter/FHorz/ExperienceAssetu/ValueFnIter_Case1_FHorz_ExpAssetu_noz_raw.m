@@ -53,9 +53,9 @@ else
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
    
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, [n_d1,n_d2], n_a1,n_a2, [d1_grid;d2_grid], a1_grid, a2_grid, ReturnFnParamsVec);
 
@@ -98,9 +98,9 @@ for reverse_j=1:N_j-1
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
    
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
-    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
+    EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u)
     % Already applied the probabilities from interpolating onto grid
-    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
+    EV=sum((EV.*pi_u),3); % (d2,a1prime,a2)
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, [n_d1,n_d2], n_a1,n_a2, [d1_grid;d2_grid], a1_grid, a2_grid, ReturnFnParamsVec);
 
