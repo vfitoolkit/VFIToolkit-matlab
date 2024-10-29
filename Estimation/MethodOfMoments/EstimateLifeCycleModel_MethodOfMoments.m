@@ -61,7 +61,7 @@ if ~isfield(estimoptions,'toleranceobjective')
     estimoptions.toleranceobjective=10^(-6); % tolerance accuracy of the objective function
 end
 if ~isfield(estimoptions,'fminalgo')
-    estimoptions.fminalgo=4; % CMA-ES by default, I tried fminsearch() by default but it regularly fails to converge to a decent solution
+    estimoptions.fminalgo=8; % lsqnonlin(), recast GMM as a least-squares residuals problem and solve it that way
 end
 if ~isfield(estimoptions,'iterateGMM')
     estimoptions.iterateGMM=1;
