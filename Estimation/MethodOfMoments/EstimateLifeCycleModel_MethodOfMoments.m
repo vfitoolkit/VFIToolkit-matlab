@@ -49,6 +49,11 @@ end
 if ~isfield(estimoptions,'confidenceintervals')
     estimoptions.confidenceintervals=90; % the default is to report 90-percent confidence intervals
 end
+if ~isfield(estimoptions,'eedefault')
+    estimoptions.eedefault=2; % 1,2,3 or 4: Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
+    % Controls how big is the epsilon used to calculate derivatives as finite difference
+    % Roughly, 1 means e-08, 2 means e-06, 3 means e-04, 4 means e-02,
+end
 if ~isfield(estimoptions,'toleranceparams')
     estimoptions.toleranceparams=10^(-4); % tolerance accuracy of the calibrated parameters
 end
@@ -524,8 +529,14 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration
-EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
-
+if estimoptions.fminalgo~=8
+    EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+elseif estimoptions.fminalgo==8
+    estimoptions.vectoroutput=2;
+    estimoptions.weights=chol(estimoptions.weights,'upper'); % To use a weighting matrix in lsqnonlin(), we work with the upper-cholesky decomposition
+    EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+    estimoptions.weights=WeightingMatrix; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+end
 
 % estimparamsvec0 is our initial guess for estimparamsvec
 
@@ -534,9 +545,8 @@ EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(est
 if estimoptions.skipestimation==0
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
     minoptions = optimset('TolX',estimoptions.toleranceparams,'TolFun',estimoptions.toleranceobjective);
-    if estimoptions.fminalgo==0 % fzero doesn't appear to be a good choice in practice, at least not with it's default settings.
-        estimoptions.multiGEcriterion=0;
-        [estimparamsvec,fval]=fzero(EstimateMoMObjectiveFn,estimparamsvec0,minoptions);
+    if estimoptions.fminalgo==0
+        error('cannot use fminalgo=0 for estimation (as fzero() is a multi-objective method)')
     elseif estimoptions.fminalgo==1
         [estimparamsvec,fval]=fminsearch(EstimateMoMObjectiveFn,estimparamsvec0,minoptions);
     elseif estimoptions.fminalgo==2
@@ -585,6 +595,10 @@ if estimoptions.skipestimation==0
             error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub')
         end
         [estimparamsvec,fval]=fmincon(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],estimoptions.lb,estimoptions.ub,[],minoptions);
+    elseif estimoptions.fminalgo==7 % fsolve()
+        error('cannot use fminalgo=7 for estimation (as fsolve() is a multi-objective method)')
+    elseif estimoptions.fminalgo==8 % lsqnonlin()
+        [estimparamsvec,fval]=lsqnonlin(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],[],[],[],minoptions);
     end
 
 else % estimoptions.skipestimation==1    
@@ -630,7 +644,7 @@ if estimoptions.bootstrapStdErrors==0
     % for all so user can see how they look (are the derivatives sensitive to epsilon)
     epsilonmodvec=[1,10^2,10^4,10^6];
     % Default value of epsilon
-    eedefault=3; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
+    eedefault=estimoptions.eedefault; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
 
     % For parameters of size 10^(-2) or less, use alternative epsilon values
     epsilonalt=[10^(-2),10^(-2),10^(-1),10^(-1)]; % Note: this must be same length as epsilonmodvec (default follows eedefault)
