@@ -535,7 +535,6 @@ elseif estimoptions.fminalgo==8
     estimoptions.vectoroutput=2;
     estimoptions.weights=chol(estimoptions.weights,'upper'); % To use a weighting matrix in lsqnonlin(), we work with the upper-cholesky decomposition
     EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
-    estimoptions
     estimoptions.weights=WeightingMatrix; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
 end
 
