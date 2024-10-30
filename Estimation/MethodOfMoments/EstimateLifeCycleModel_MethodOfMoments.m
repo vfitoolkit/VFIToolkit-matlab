@@ -535,6 +535,7 @@ elseif estimoptions.fminalgo==8
     estimoptions.vectoroutput=2;
     estimoptions.weights=chol(estimoptions.weights,'upper'); % To use a weighting matrix in lsqnonlin(), we work with the upper-cholesky decomposition
     EstimateMoMObjectiveFn=@(estimparamsvec) CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptions, vfoptions,simoptions);
+    estimoptions
     estimoptions.weights=WeightingMatrix; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
 end
 
@@ -598,6 +599,7 @@ if estimoptions.skipestimation==0
     elseif estimoptions.fminalgo==7 % fsolve()
         error('cannot use fminalgo=7 for estimation (as fsolve() is a multi-objective method)')
     elseif estimoptions.fminalgo==8 % lsqnonlin()
+        minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',estimoptions.toleranceparams,'TolFun',estimoptions.toleranceobjective);
         [estimparamsvec,fval]=lsqnonlin(EstimateMoMObjectiveFn,estimparamsvec0,[],[],[],[],[],[],[],minoptions);
     end
 
@@ -633,6 +635,7 @@ if estimoptions.bootstrapStdErrors==0
     estimoptionsJacobian.constrainAtoB=zeros(length(EstimParamNames),1); % eliminate constraints for Jacobian
     % Note: idea is that we don't want to apply constraints inside CalibrateLifeCycleModel_objectivefn() while computing finite-differences
     estimoptionsJacobian.vectoroutput=1; % Was set to zero to get point estimates, now set to one as part of computing std deviations.
+    estimoptionsJacobian.verbose=0; % otherwise looks a bit weird
 
     % According to https://en.wikipedia.org/wiki/Numerical_differentiation#Step_size
     % A good step size to compute the derivative of f(x) is epsilon*x with
@@ -788,8 +791,8 @@ if estimoptions.bootstrapStdErrors==0
     end
     
     % For later
-    epsilon=epsilonmodvec(eedefault)*epsilonraw; % sqrt(2.2)*10^(-4)
-    % What I have here as default uses epsilon of the order 10^(-4)
+    epsilon=epsilonmodvec(eedefault)*epsilonraw; % sqrt(2.2)*10^(-6)
+    % What I have here as default uses epsilon of the order 10^(-6)
     % Grey Gordon's numerical derivative code used 10^(-6)
     
     if estimoptions.efficientW==0

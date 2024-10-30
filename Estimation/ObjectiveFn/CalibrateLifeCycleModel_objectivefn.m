@@ -36,7 +36,7 @@ else
     penalty=0;
 end
 
-if caliboptions.verbose==1 && caliboptions.vectoroutput==0
+if caliboptions.verbose==1
     fprintf(' \n')
     fprintf('Current parameter values: \n')
     for pp=1:length(CalibParamNames)
@@ -155,6 +155,7 @@ elseif caliboptions.vectoroutput==0 % scalar output
 elseif caliboptions.vectoroutput==2
     % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
     Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
 
@@ -183,7 +184,6 @@ elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
         end
     end
 end
-
 
 
 

@@ -36,7 +36,7 @@ else
     penalty=0;
 end
 
-if caliboptions.verbose==1 && caliboptions.vectoroutput==0
+if caliboptions.verbose==1
     fprintf(' \n')
     fprintf('Current parameter values: \n')
     for pp=1:nCalibParams
@@ -132,15 +132,13 @@ if any(caliboptions.logmoments>0) % need to log some moments
 end
 
 
-%% Evaluate the objective function
+%% Evaluate the objective function (which is being minimized)
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
-    % This is only used to get standard deviations of parameters as part of
-    % method of moments estimation (rather than writing a whole new
-    % function), it is not what you want most of the time.
+    % Main use it for computing derivatives of moments with respect to parameters
     Obj=currentmomentvec(actualtarget);
-else
+elseif caliboptions.vectoroutput==0 % scalar output
     % currentmomentvec is the current moment values
     % targetmomentvec is the target moment values
     % Both are column vectors
@@ -167,8 +165,11 @@ else
             Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
         end
     end
+elseif caliboptions.vectoroutput==2
+    % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
+    Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
-
 
 
 %% Verbose
@@ -183,7 +184,20 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
         end
     end
+elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
+    fprintf('Current and target moments (first row is current, second row is target) \n')
+    [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
+    fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+    if penalty>0
+        if Obj>0
+            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
+        else  % Obj is negative, so penalty is to reduce magnitude
+            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+        end
+    end
 end
+
+
 
 
 
