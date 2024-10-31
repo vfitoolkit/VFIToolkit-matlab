@@ -75,25 +75,22 @@ else
     end
 end
 
-if simoptions.groupptypesforstats==1 
-    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-        AggVars=zeros(numFnsToEvaluate,1,'gpuArray');
-    else
-        AggVars=zeros(numFnsToEvaluate,1);
-    end
-else % simoptions.groupptypesforstats==0
-    AggVars=struct();
+if isa(StationaryDist.(Names_i{1}), 'gpuArray')
+    AggVarsFull=zeros(numFnsToEvaluate,N_i,'gpuArray');
+else
+    AggVarsFull=zeros(numFnsToEvaluate,N_i);
 end
+
 
 %%
 for ii=1:N_i
-    
+
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
-    
+
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
-    end    
+    end
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
         StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
@@ -106,14 +103,14 @@ for ii=1:N_i
     else
         Parallel_temp=1;
     end
-    
+
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    
+
     if isa(n_d,'struct')
         n_d_temp=n_d.(Names_i{ii});
     else
@@ -149,7 +146,7 @@ for ii=1:N_i
     else
         z_grid_temp=z_grid;
     end
-    
+
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
@@ -174,12 +171,12 @@ for ii=1:N_i
             end
         end
     end
-    
+
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
-    end    
-    
+    end
+
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
     % Allows for FnsToEvaluate as structure.
@@ -189,52 +186,41 @@ for ii=1:N_i
         l_d_temp=1;
     end
     l_a_temp=length(n_a_temp);
-    l_z_temp=length(n_z_temp);  
-    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
-    
+    l_z_temp=length(n_z_temp);
+    [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
+
     simoptions_temp.outputasstructure=0;
     if isfinite(N_j_temp)
-        StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
+        AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp,simoptions_temp);
     else % PType actually allows for infinite horizon as well
-        StatsFromDist_AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
+        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
     end
-    
-    if simoptions.groupptypesforstats==1
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                AggVars(kk)=AggVars(kk)+StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
-            end
-        end
-    else
-        for kk=1:numFnsToEvaluate
-            jj=WhichFnsForCurrentPType(kk);
-            if jj>0
-                AggVars(kk).(Names_i{ii})=StationaryDist.ptweights(ii)*StatsFromDist_AggVars_ii(jj,:);
-            end
-        end
-    end
+
+    AggVarsFull(logical(FnsAndPTypeIndicator_ii),ii)=AggVars_ii;
 end
+
+if size(StationaryDist.ptweights,2)==1
+    StationaryDist.ptweights=StationaryDist.ptweights'; % make sure it is a row vector
+end
+AggVars2=sum(StationaryDist.ptweights.*AggVarsFull,2); % sum across agents
 
 % If using FnsToEvaluate as structure need to get in appropriate form for output
 if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     % Change the output into a structure
-    AggVars2=AggVars;
-    clear AggVars
     AggVars=struct();
-    %     AggVarNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(AggVarNames)
+        for ii=1:N_i
+            AggVars.(AggVarNames{ff}).(Names_i{ii}).Mean=AggVarsFull(ff,ii);
+        end
+    end
     if simoptions.groupptypesforstats==1
         for ff=1:length(AggVarNames)
             AggVars.(AggVarNames{ff}).Mean=AggVars2(ff);
         end
-    else % simoptions.groupptypesforstats==0
-        for ff=1:length(AggVarNames)
-            for ii=1:N_i
-                AggVars.(AggVarNames{ff}).(Names_i{ii}).Mean=AggVars2(ff).(Names_i{ii});
-            end
-        end
     end
+elseif simoptions.grouptypesforstats==1
+    AggVars=AggVars2;
 end
 
 

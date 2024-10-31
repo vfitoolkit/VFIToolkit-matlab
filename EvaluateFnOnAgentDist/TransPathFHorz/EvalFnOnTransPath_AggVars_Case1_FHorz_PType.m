@@ -161,11 +161,12 @@ for ii=1:N_i
 
     AggVarsPath_ii=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp,z_grid_temp, transpathoptions_temp, simoptions_temp);
 
-    % Keep the ptype-conditional values
-    AggVarsPath.(Names_i{ii})=AggVarsPath_ii;
-    % And also create the actual aggregate values
+
     FnNames_temp=fieldnames(FnsToEvaluate_temp);
     for ff=1:length(FnNames_temp)
+        % Keep the ptype-conditional values
+        AggVarsPath.(FnNames_temp{ff}).(Names_i{ii}).Mean=AggVarsPath_ii.(FnNames_temp{ff}).Mean;
+        % And also create the actual aggregate values
         AggVarsPath.(FnNames_temp{ff}).Mean=AggVarsPath.(FnNames_temp{ff}).Mean+AgentDistPath.ptweights(ii)*AggVarsPath_ii.(FnNames_temp{ff}).Mean;
     end
 end

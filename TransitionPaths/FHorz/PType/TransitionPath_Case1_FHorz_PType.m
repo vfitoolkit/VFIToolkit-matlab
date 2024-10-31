@@ -35,6 +35,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbose=0;
     transpathoptions.graphpricepath=0;
     transpathoptions.graphaggvarspath=0;
+    transpathoptions.graphGEconditions=0;
     transpathoptions.historyofpricepath=0;
     transpathoptions.stockvars=0;
     transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
@@ -79,6 +80,9 @@ else
     end
     if ~isfield(transpathoptions,'graphaggvarspath')
         transpathoptions.graphaggvarspath=0;
+    end
+    if ~isfield(transpathoptions,'graphGEconditions')
+        transpathoptions.graphGEconditions=0;
     end
     if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;
@@ -276,43 +280,58 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).N_j=N_j(ii);
     end
     
-    PTypeStructure.(iistr).n_d=n_d;
     if isa(n_d,'struct')
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
+    else
+        PTypeStructure.(iistr).n_d=n_d;
     end
     N_d=prod(PTypeStructure.(iistr).n_d);
     PTypeStructure.(iistr).N_d=N_d;
-    PTypeStructure.(iistr).n_a=n_a;
+    if N_d==0
+        PTypeStructure.(iistr).l_d=0;
+    else
+        PTypeStructure.(iistr).l_d=length(n_d);
+    end
     if isa(n_a,'struct')
         PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
+    else
+        PTypeStructure.(iistr).n_a=n_a;
     end
     N_a=prod(PTypeStructure.(iistr).n_a);
     PTypeStructure.(iistr).N_a=N_a;
-    PTypeStructure.(iistr).n_z=n_z;
     if isa(n_z,'struct')
         PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
+    else
+        PTypeStructure.(iistr).n_z=n_z;
     end
     N_z=prod(PTypeStructure.(iistr).n_z);
     PTypeStructure.(iistr).N_z=N_z;
     N_e=prod(PTypeStructure.(iistr).n_e);
     PTypeStructure.(iistr).N_e=N_e;
 
-    PTypeStructure.(iistr).d_grid=d_grid;
     if isa(d_grid,'struct')
-        PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
+        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(Names_i{ii}));
+    else
+        PTypeStructure.(iistr).d_grid=gpuArray(d_grid);
     end
-    PTypeStructure.(iistr).a_grid=a_grid;
     if isa(a_grid,'struct')
-        PTypeStructure.(iistr).a_grid=a_grid.(Names_i{ii});
+        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(Names_i{ii}));
+    else
+        PTypeStructure.(iistr).a_grid=gpuArray(a_grid);
     end
-    PTypeStructure.(iistr).z_grid=z_grid;
     if isa(z_grid,'struct')
-        PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
+        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(Names_i{ii}));
+    else
+        PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
     end
     % to be able to EvalFnsOnAgentDist using fastOLG we also need
-    PTypeStructure.(iistr).a_gridvals=CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1); % a_grivdals is [N_a,l_a]
-    PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-    
+    PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
+    if N_d==0
+        PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
+    else
+        PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+    end
+
     PTypeStructure.(iistr).pi_z=pi_z;
     % If using 'agedependentgrids' then pi_z will actually be the AgeDependentGridParamNames, which is a structure. 
     % Following gets complicated as pi_z being a structure could be because
@@ -388,6 +407,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
+    PTypeStructure.ParametersRaw=Parameters; % For use in General eqm conditions (as we might want them across ptypes for some purposes)
     
     
     % The parameter names can be made to depend on the permanent-type
@@ -899,6 +919,7 @@ end
 
 if transpathoptions.verbose==1
     transpathoptions
+    % fprintf('Finished setting up ptypes, now starting to compute the transition path \n')
 end
 
 if transpathoptions.GEnewprice~=2

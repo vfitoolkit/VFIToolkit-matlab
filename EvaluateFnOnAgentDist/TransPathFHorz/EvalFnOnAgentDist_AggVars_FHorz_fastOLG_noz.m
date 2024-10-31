@@ -14,6 +14,8 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, F
 l_a=length(n_a);
 N_a=prod(n_a);
 
+PolicyValues=reshape(daprime_gridvals(Policy(:),:),[N_a,N_j,l_d+l_a]);
+
 %%
 if outputasstructure==1
     AggVars=struct();
@@ -27,8 +29,6 @@ end
 for ff=1:length(FnsToEvaluate)
     Values=zeros(N_a,N_j,'gpuArray');
 
-    PolicyValues=reshape(daprime_gridvals(Policy(:),:),[N_a,N_j,l_d+l_a]);
-
     if isempty(FnsToEvaluateParamNames(ff).Names)
         ParamCell=cell(0,1);
     else
@@ -40,7 +40,7 @@ for ff=1:length(FnsToEvaluate)
 
         ParamCell=cell(nFnToEvaluateParams,1);
         for ii=1:nFnToEvaluateParams
-            ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,z,l_d+l_a), so we want j to be after a (which is N_a)
+            ParamCell(ii,1)={shiftdim(FnToEvaluateParamsAgeMatrix(:,ii),-1)}; % (a,j,l_d+l_a), so we want j to be after a (which is N_a)
         end
     end
     

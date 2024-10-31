@@ -758,7 +758,7 @@ if estimoptions.bootstrapStdErrors==0
     % for all so user can see how they look (are the derivatives sensitive to epsilon)
     epsilonmodvec=[1,10^2,10^4,10^6];
     % Default value of epsilon
-    eedefault=estimoption.eedefault; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
+    eedefault=estimoptions.eedefault; % Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
 
     %% We want to calculate derivatives from epsilon changes in the model parameters
     % I want to do epsilon change in the model parameter, but here I have

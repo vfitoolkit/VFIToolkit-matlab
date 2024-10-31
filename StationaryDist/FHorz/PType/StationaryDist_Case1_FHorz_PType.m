@@ -42,6 +42,11 @@ if ~exist('simoptions','var')
     simoptions=struct(); % defaults are filled in later
 end
 
+%% Check inputs
+if sum(Parameters.(PTypeDistParamNames{1}))~=1
+    error('The permanent type mass weights must sum to one (PTypeDistParamNames points to weights that do not sum to one)')
+end
+
 %% Deal with jequaloneDist
 [jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames,0);
 

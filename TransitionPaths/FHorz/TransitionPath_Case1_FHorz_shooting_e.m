@@ -270,15 +270,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         %Get the current optimal policy
         Policy=PolicyIndexesPath(:,:,:,:,tt);
         
-        GEprices=PricePathOld(tt,:);
-
-        for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-        end
-        for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-        end
-        
+         % Get t-1 PricePath and ParamPath before we update them
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
                 if tt>1
@@ -297,12 +289,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
         end
-        if use_tplus1price==1
-            for pp=1:length(tplus1priceNames)
-                kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
-            end
-        end
+        % Get t-1 AggVars before we update them
         if use_tminus1AggVars==1
             for pp=1:length(tminus1AggVarsNames)
                 if tt>1
@@ -311,6 +298,22 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 else
                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
                 end
+            end
+        end
+
+        % Update current PricePath and ParamPath
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+        end
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        end
+        
+        % Get t+1 PricePath
+        if use_tplus1price==1
+            for pp=1:length(tplus1priceNames)
+                kk=tplus1pricePathkk(pp);
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
             end
         end
         
@@ -348,6 +351,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
         elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
             % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
+            GEprices=PricePathOld(tt,:);
             for j=1:length(GeneralEqmEqns)
                 AggVarNames=fieldnames(AggVars);
                 for ii=1:length(AggVarNames)
