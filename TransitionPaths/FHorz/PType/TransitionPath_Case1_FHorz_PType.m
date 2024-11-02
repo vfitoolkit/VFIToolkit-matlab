@@ -139,11 +139,12 @@ jequalOneDist_T=struct();
 PricePathNames=fieldnames(PricePathOld);
 PricePathStruct=PricePathOld; 
 PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(PricePathNames)
-    temp=PricePathStruct.(PricePathNames{ii});
+for pp=1:length(PricePathNames)
+    temp=PricePathStruct.(PricePathNames{pp});
     tempsize=size(temp);
-    PricePathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
+    PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
 end
+PricePathSizeVec_ii=PricePathSizeVec;% Also need what size these are conditional on ptype (as some of PricePath/ParamPath may differ by ptype) [deal with this below]
 PricePathSizeVec=cumsum(PricePathSizeVec);
 if length(PricePathNames)>1
     PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];
@@ -151,22 +152,23 @@ else
     PricePathSizeVec=[1;PricePathSizeVec];
 end
 PricePathOld=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(PricePathNames)
-    if size(PricePathStruct.(PricePathNames{ii}),1)==T
-        PricePathOld(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii});
+for pp=1:length(PricePathNames)
+    if size(PricePathStruct.(PricePathNames{pp}),1)==T
+        PricePathOld(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp});
     else % Need to transpose
-        PricePathOld(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii})';
+        PricePathOld(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp})';
     end
 end
 
 ParamPathNames=fieldnames(ParamPath);
 ParamPathStruct=ParamPath;
 ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{ii});
+for pp=1:length(ParamPathNames)
+    temp=ParamPathStruct.(ParamPathNames{pp});
     tempsize=size(temp);
-    ParamPathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
+    ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
 end
+ParamPathSizeVec_ii=ParamPathSizeVec;% Also need what size these are conditional on ptype (as some of PricePath/ParamPath may differ by ptype) [deal with this below]
 ParamPathSizeVec=cumsum(ParamPathSizeVec);
 if length(ParamPathNames)>1
     ParamPathSizeVec=[[1,ParamPathSizeVec(1:end-1)+1];ParamPathSizeVec];
@@ -174,11 +176,11 @@ else
     ParamPathSizeVec=[1;ParamPathSizeVec];
 end
 ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{ii}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii});
+for pp=1:length(ParamPathNames)
+    if size(ParamPathStruct.(ParamPathNames{pp}),1)==T
+        ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp});
     else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii})';
+        ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
     end
 end
 
@@ -187,6 +189,18 @@ PricePath=struct();
 if transpathoptions.verbose>1
     PricePathNames
     ParamPathNames
+end
+
+
+%% Check some inputs
+if isstruct(GeneralEqmEqns)
+    if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
+        error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
+    end
+else
+    if length(PricePathNames)~=length(GeneralEqmEqns)
+        error('Initial PricePath contains less variables than GeneralEqmEqns')
+    end
 end
 
 
@@ -212,6 +226,25 @@ else
     end
 end
 
+%% 
+% PricePathSizeVec_ii=PricePathSizeVec;% Also need what size these are conditional on ptype (as some of PricePath/ParamPath may differ by ptype) [deal with this below]
+PricePathSizeVec_ii(PricePathSizeVec_ii==PTypeStructure.N_i)=1; % Just use one of a price that depends on ptype
+PricePathSizeVec_ii=cumsum(PricePathSizeVec_ii);
+if length(PricePathNames)>1
+    PricePathSizeVec_ii=[[1,PricePathSizeVec_ii(1:end-1)+1];PricePathSizeVec_ii];
+else
+    PricePathSizeVec_ii=[1;PricePathSizeVec_ii];
+end
+% ParamPathSizeVec_ii=ParamPathSizeVec;% Also need what size these are conditional on ptype (as some of PricePath/ParamPath may differ by ptype) [deal with this below]
+ParamPathSizeVec_ii(ParamPathSizeVec_ii==PTypeStructure.N_i)=1; % Just use one of a price that depends on ptype
+ParamPathSizeVec_ii=cumsum(ParamPathSizeVec_ii);
+if length(ParamPathNames)>1
+    ParamPathSizeVec_ii=[[1,ParamPathSizeVec_ii(1:end-1)+1];ParamPathSizeVec_ii];
+else
+    ParamPathSizeVec_ii=[1;ParamPathSizeVec_ii];
+end
+
+%% Fill out all of PTypeStructure
 PTypeStructure.FnsAndPTypeIndicator=zeros(length(FnsToEvaluate),PTypeStructure.N_i,'gpuArray');
 
 if transpathoptions.verbose==1
@@ -781,6 +814,42 @@ for ii=1:PTypeStructure.N_i
         jequalOneDist_T.(iistr)=jequalOneDist_temp.*ones(1,T,'gpuArray');
     end
 
+    %% Which parts of ParamPath and PricePath relate to ptype ii
+    % Some ParamPath and PricePath parameters may depend on ptype
+    PTypeStructure.(iistr).RelevantPricePath=ones(1,size(PricePathOld,2)); % start will all relevant
+    for pp=1:length(PricePathNames)
+        if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1==PTypeStructure.N_i
+            % This depends on ii, so only keep the ii-th one
+            PTypeStructure.(iistr).RelevantPricePath(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=zeros(1,PTypeStructure.N_i);
+            PTypeStructure.(iistr).RelevantPricePath(PricePathSizeVec(1,pp)+ii-1)=1;
+        end
+    end
+    PTypeStructure.(iistr).RelevantPricePath=logical(PTypeStructure.(iistr).RelevantPricePath); % logical, so easier to use later
+    PTypeStructure.(iistr).RelevantParamPath=ones(1,size(ParamPath,2)); % start will all relevant
+    for pp=1:length(ParamPathNames)
+        if ParamPathSizeVec(2,pp)-ParamPathSizeVec(1,pp)+1==PTypeStructure.N_i
+            % This depends on ii, so only keep the ii-th one
+            PTypeStructure.(iistr).RelevantParamPath(ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=zeros(1,PTypeStructure.N_i);
+            PTypeStructure.(iistr).RelevantParamPath(ParamPathSizeVec(1,pp)+ii-1)=1;
+        end
+    end
+    PTypeStructure.(iistr).RelevantParamPath=logical(PTypeStructure.(iistr).RelevantParamPath); % logical, so easier to use later
+
+
+    if ii==1
+        PTypeStructure.PricePath_Idependsonptype=zeros(1,length(PricePathNames));
+        for pp=1:length(PricePathNames)
+            if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1==PTypeStructure.N_i
+                PTypeStructure.PricePath_Idependsonptype(pp)=1; % This depends on ii
+            end
+        end
+        PTypeStructure.ParamPath_Idependsonptype=zeros(1,length(ParamPathNames));
+        for pp=1:length(ParamPathNames)
+            if ParamPathSizeVec(2,pp)-ParamPathSizeVec(1,pp)+1==PTypeStructure.N_i
+                PTypeStructure.ParamPath_Idependsonptype(pp)=1; % This depends on ii
+            end
+        end
+    end
 end
 
 
@@ -840,10 +909,10 @@ if transpathoptions.GEnewprice==3
             transpathoptions.oldpathweight(tt)=tempweight;
         end
     end
-    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
+    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns
         % do nothing, this is how things should be
     else
-        fprintf('ERROR: transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (number of rows is different to the number of GeneralEqmEqns fields) \n')
     end
     transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
     for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
@@ -925,14 +994,27 @@ end
 if transpathoptions.GEnewprice~=2
     % For permanent type, there is just one shooting command,
     % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
-    PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, jequalOneDist_T, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, jequalOneDist_T, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+
     % Switch the solution into structure for output.
-    for ii=1:length(PricePathNames)
-        PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+    pp_indexinpricepath=zeros(1,length(PricePathNames));
+    pp_c=0;
+    for pp=1:length(PricePathNames)
+        if PTypeStructure.PricePath_Idependsonptype(pp)==0
+            pp_c=pp_c+1;
+            pp_indexinpricepath(pp)=pp_c;
+        else
+            pp_c=pp_c+1;
+            pp_indexinpricepath(pp)=pp_c;
+            pp_c=pp_c+(PTypeStructure.N_i-1);
+        end
     end
-    if transpathoptions.stockvars==1
-        for ii=1:length(StockVarsPathNames)
-            PricePath.(StockVarsPathNames{ii})=StockVarsPathOld(:,ii);
+
+    for pp=1:length(PricePathNames)
+        if PTypeStructure.PricePath_Idependsonptype(pp)==0
+            PricePath.(PricePathNames{pp})=PricePathOld(:,pp_indexinpricepath(pp));
+        else
+            PricePath.(PricePathNames{pp})=PricePathOld(:,pp_indexinpricepath(pp):pp_indexinpricepath(pp)+PTypeStructure.N_i-1);
         end
     end
     return

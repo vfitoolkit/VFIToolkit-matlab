@@ -57,11 +57,6 @@ end
 %% Iterate backwards through j.
 for reverse_j=1:N_j-1
     jj=N_j-reverse_j;
-
-    if vfoptions.verbose==1
-        sprintf('Finite horizon: %i of %i',jj, N_j)
-    end
-    
     
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);

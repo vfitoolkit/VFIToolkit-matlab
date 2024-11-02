@@ -1,19 +1,11 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqns,  GeneralEqmEqnsCell, GeneralEqmEqnParamNames,GEPriceParamNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions)
 
 %%
 for pp=1:nGEprices % Not sure this is needed, have it just in case they are used when calling 'GeneralEqmConditionsFn', but I am pretty sure they never would be.
     Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
 end
 
-if heteroagentoptions.parallel==2
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
-else
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1); % numFnsToEvaluate is independent of the ptype
-end
-
-% if sum(heteroagentoptions.GEptype)>0
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Only needed if doing some GeneralEqmEqns condtionaon on PType, but easiest to just calculate regardless
-% end
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -22,10 +14,9 @@ for ii=1:PTypeStructure.N_i
         if GEprice_ptype(pp)==0
             PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1));
         else
-            PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1)+pp-1);
+            PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1)+ii-1);
         end
     end
-    
     
     if isfinite(PTypeStructure.(iistr).N_j)
         [~, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
@@ -39,36 +30,25 @@ for ii=1:PTypeStructure.N_i
         AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, [], PTypeStructure.(iistr).simoptions);     
     end
 
-    AggVars_ConditionalOnPType(:,ii)=AggVars_ii;
-    
-    for kk=1:PTypeStructure.numFnsToEvaluate
-        jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-        if jj>0
-            AggVars(kk)=AggVars(kk)+PTypeStructure.(iistr).PTypeWeight*AggVars_ii(jj);
-        end
-    end
-
+    AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
 end
-
-% Note: AggVars is a matrix
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
+% Note: AggVars is a vector
 
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-% if isstruct(GeneralEqmEqns)
-% Some general eqm conditions are conditional on ptype, so go through one by one
-GeneralEqmConditionsVec=[];
 GEeqnnames=fieldnames(GeneralEqmEqns);
+GeneralEqmConditionsVec=sum(heteroagentoptions.GEptype==0)+N_i*sum(heteroagentoptions.GEptype==1);
+% Some general eqm conditions are conditional on ptype, so go through one by one
 for gg=1:length(GEeqnnames)
-    clear GeneralEqmEqns_gg
-    GeneralEqmEqns_gg.(GEeqnnames{gg})=GeneralEqmEqns.(GEeqnnames{gg});
-    if heteroagentoptions.GEptype(gg)==0
+    if heteroagentoptions.GEptype(gg)==0 % Standard general eqm condition
         for pp=1:nGEprices
             Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
         end
         for aa=1:length(AggVarNames)
             Parameters.(AggVarNames{aa})=AggVars(aa);
         end
-        GeneralEqmConditionsVec=[GeneralEqmConditionsVec, real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns_gg, Parameters))];
-    else
+        GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    else % Do this general eqm condition conditional on ptype
         for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
             for pp=1:length(GEPriceParamNames)
                 if GEprice_ptype(pp)==0
@@ -80,12 +60,11 @@ for gg=1:length(GEeqnnames)
             for aa=1:length(AggVarNames)
                 Parameters.(AggVarNames{aa})=AggVars_ConditionalOnPType(aa,ii);
             end
-            GeneralEqmConditionsVec=[GeneralEqmConditionsVec, real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns_gg, Parameters))];
+            GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
         end
     end
 
 end
-% end
 
 
 % We might want to output GE conditions as a vector or structure

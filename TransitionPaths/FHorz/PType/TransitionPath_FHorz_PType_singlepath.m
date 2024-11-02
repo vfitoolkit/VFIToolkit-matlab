@@ -19,7 +19,7 @@ if transpathoptions.fastOLG==0
             PolicyIndexesPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
             % Note that we don't need to keep V for anything
             V=V_final;
-            for tt=1:T-1 %so t=T-i
+            for tt=1:T-1 % so t=T-i
                 for kk=1:length(PricePathNames)
                     Parameters.(PricePathNames{kk})=PricePathOld(T-tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
                 end

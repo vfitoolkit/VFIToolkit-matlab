@@ -1,4 +1,4 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames, AggVarNames, nGEprices, heteroagentoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, AggVarNames, nGEprices, heteroagentoptions)
 
 
 %%
@@ -6,12 +6,7 @@ for pp=1:nGEprices % Not sure this is needed, have it just in case they are used
     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 end
 
-if heteroagentoptions.parallel==2
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
-else
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1); % numFnsToEvaluate is independent of the ptype
-end
-
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -33,24 +28,16 @@ for ii=1:PTypeStructure.N_i
         AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, [], PTypeStructure.(iistr).simoptions);     
     end
     
-    for kk=1:PTypeStructure.numFnsToEvaluate
-        jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-        if jj>0
-            AggVars(kk)=AggVars(kk)+PTypeStructure.(iistr).PTypeWeight*AggVars_ii(jj);
-        end
-    end
-
+    AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
 end
-
-% Note: AggVars is a matrix
+AggVars=gather(sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2));
+% Note: AggVars is a vector
 
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-% if isstruct(GeneralEqmEqns)
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns, Parameters));
-% end
+GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
 
 
 % We might want to output GE conditions as a vector or structure

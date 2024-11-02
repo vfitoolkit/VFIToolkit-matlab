@@ -82,7 +82,7 @@ elseif FnsToEvaluate_StructToCell==1 % Structure, but output as cell
     end
 end
 
-
+FnsAndPTypeIndicator_ii=logical(FnsAndPTypeIndicator_ii);
 
 end
     

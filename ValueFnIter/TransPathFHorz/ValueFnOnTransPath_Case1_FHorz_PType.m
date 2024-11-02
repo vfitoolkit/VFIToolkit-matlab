@@ -47,12 +47,12 @@ for ii=1:N_i
             vfoptions_temp.verboseparams=0;
         end
         if ~isfield(vfoptions_temp,'ptypestorecpu')
-            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+            vfoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu
         end
     else
         vfoptions_temp.verbose=0;
         vfoptions_temp.verboseparams=0;
-        vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        vfoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu
     end 
     
     if vfoptions_temp.verbose==1
@@ -154,17 +154,41 @@ for ii=1:N_i
         Parameters_temp
     end
     
+    % PricePath can include parameters that differ by ptype
+    PricePath_temp=PricePath;
+    PricePathNames=fieldnames(PricePath);
+    for nn=1:length(PricePathNames)
+        if isstruct(PricePath_temp.(PricePathNames{nn}))
+            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(Names_i{ii});
+        elseif any(size(PricePath_temp.(PricePathNames{nn}))==N_i)
+            if size(PricePath_temp.(PricePathNames{nn}),1)==N_i
+                temp=PricePath_temp.(PricePathNames{nn});
+                PricePath_temp.(PricePathNames{nn})=temp(ii,:);
+            elseif size(PricePath_temp.(PricePathNames{nn}),2)==N_i
+                temp=PricePath_temp.(PricePathNames{nn});
+                PricePath_temp.(PricePathNames{nn})=temp(:,ii);
+            end
+        end
+    end
+
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
             ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(Names_i{ii});
+        elseif any(size(ParamPath_temp.(ParamPathNames{nn}))==N_i)
+            if size(ParamPath_temp.(ParamPathNames{nn}),1)==N_i
+                temp=ParamPath_temp.(ParamPathNames{nn});
+                ParamPath_temp.(ParamPathNames{nn})=temp(ii,:);
+            elseif size(ParamPath_temp.(ParamPathNames{nn}),2)==N_i
+                temp=ParamPath_temp.(ParamPathNames{nn});
+                ParamPath_temp.(ParamPathNames{nn})=temp(:,ii);
+            end
         end
     end
 
-
-    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1_FHorz(PricePath, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, pi_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
+    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1_FHorz(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, pi_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     if vfoptions_temp.ptypestorecpu==1

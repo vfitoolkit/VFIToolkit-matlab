@@ -148,18 +148,43 @@ for ii=1:N_i
         Parameters_temp
     end
     
+    % PricePath can include parameters that differ by ptype
+    PricePath_temp=PricePath;
+    PricePathNames=fieldnames(PricePath);
+    for nn=1:length(PricePathNames)
+        if isstruct(PricePath_temp.(PricePathNames{nn}))
+            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(Names_i{ii});
+        elseif any(size(PricePath_temp.(PricePathNames{nn}))==N_i)
+            if size(PricePath_temp.(PricePathNames{nn}),1)==N_i
+                temp=PricePath_temp.(PricePathNames{nn});
+                PricePath_temp.(PricePathNames{nn})=temp(ii,:);
+            elseif size(PricePath_temp.(PricePathNames{nn}),2)==N_i
+                temp=PricePath_temp.(PricePathNames{nn});
+                PricePath_temp.(PricePathNames{nn})=temp(:,ii);
+            end
+        end
+    end
+
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
             ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(Names_i{ii});
+        elseif any(size(ParamPath_temp.(ParamPathNames{nn}))==N_i)
+            if size(ParamPath_temp.(ParamPathNames{nn}),1)==N_i
+                temp=ParamPath_temp.(ParamPathNames{nn});
+                ParamPath_temp.(ParamPathNames{nn})=temp(ii,:);
+            elseif size(ParamPath_temp.(ParamPathNames{nn}),2)==N_i
+                temp=ParamPath_temp.(ParamPathNames{nn});
+                ParamPath_temp.(ParamPathNames{nn})=temp(:,ii);
+            end
         end
     end
 
     [FnsToEvaluate_temp,~, ~,~]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
-    AggVarsPath_ii=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp,z_grid_temp, transpathoptions_temp, simoptions_temp);
+    AggVarsPath_ii=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath_temp, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp,z_grid_temp, transpathoptions_temp, simoptions_temp);
 
 
     FnNames_temp=fieldnames(FnsToEvaluate_temp);

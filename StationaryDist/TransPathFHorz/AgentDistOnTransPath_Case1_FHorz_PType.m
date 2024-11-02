@@ -141,17 +141,43 @@ for ii=1:N_i
     end
     
 
+    % PricePath can include parameters that differ by ptype
+    PricePath_temp=PricePath;
+    PricePathNames=fieldnames(PricePath);
+    for nn=1:length(PricePathNames)
+        if isstruct(PricePath_temp.(PricePathNames{nn}))
+            PricePath_temp.(PricePathNames{nn})=PricePath.(PricePathNames{nn}).(Names_i{ii});
+        elseif any(size(PricePath_temp.(PricePathNames{nn}))==N_i)
+            if size(PricePath_temp.(PricePathNames{nn}),1)==N_i
+                temp=PricePath_temp.(PricePathNames{nn});
+                PricePath_temp.(PricePathNames{nn})=temp(ii,:);
+            elseif size(PricePath_temp.(PricePathNames{nn}),2)==N_i
+                temp=PricePath_temp.(PricePathNames{nn});
+                PricePath_temp.(PricePathNames{nn})=temp(:,ii);
+            end
+        end
+    end
+
     % ParamPath can include parameters that differ by ptype
     ParamPath_temp=ParamPath;
     ParamPathNames=fieldnames(ParamPath);
     for nn=1:length(ParamPathNames)
         if isstruct(ParamPath_temp.(ParamPathNames{nn}))
             ParamPath_temp.(ParamPathNames{nn})=ParamPath.(ParamPathNames{nn}).(Names_i{ii});
+        elseif any(size(ParamPath_temp.(ParamPathNames{nn}))==N_i)
+            if size(ParamPath_temp.(ParamPathNames{nn}),1)==N_i
+                temp=ParamPath_temp.(ParamPathNames{nn});
+                ParamPath_temp.(ParamPathNames{nn})=temp(ii,:);
+            elseif size(ParamPath_temp.(ParamPathNames{nn}),2)==N_i
+                temp=ParamPath_temp.(ParamPathNames{nn});
+                ParamPath_temp.(ParamPathNames{nn})=temp(:,ii);
+            end
         end
     end
     
+    
     % Compute the agent distribution path for permanent type ii
-    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp,PricePath, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
+    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     AgentDistPath.(Names_i{ii})=AgentDistPath_ii;
