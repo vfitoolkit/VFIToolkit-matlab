@@ -289,6 +289,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
+                % No need for AggVars by ptype here, as the GE conditions do not depend on 
             end
 
             % Get t+1 PricePath
@@ -322,7 +323,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 iistr=PTypeStructure.Names_i{ii};
                 Parameters_ii.(iistr)=PTypeStructure.(iistr).Parameters; % For use with General Eqm conditions that are evaluated conditional on ptype
             end
-
+            
             % Get t-1 PricePath and ParamPath before we update them
             if use_tminus1price==1
                 for pp=1:length(tminus1priceNames)
@@ -397,12 +398,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
+                % Keep the AggVars conditional on ptype for all the AggVars; overkill but that is fine
                 for ii=1:N_i
                     iistr=PTypeStructure.Names_i{ii};
                     Parameters_ii.(iistr).(FullAggVarNames{ff})=AggVarsFullPath(ff,tt,ii);
                 end
             end
-
+            
             % Get t+1 PricePath
             if use_tplus1price==1
                 for pp=1:length(tplus1priceNames)

@@ -28,6 +28,13 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 
 
 %%
+% Get N_i so can use it to check inputs and set things up
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i;
+end
+
 if ~isempty(n_p)
     N_p=prod(n_p);
 else
@@ -55,7 +62,7 @@ else
         heteroagentoptions.multiGEcriterion=1;
     end
     if ~isfield(heteroagentoptions,'multiGEweights')
-        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+        heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     end
     if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
@@ -114,6 +121,28 @@ AggVarNames=fieldnames(FnsToEvaluate);
 nGEprices=length(GEPriceParamNames);
 
 PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
+
+
+if any(heteroagentoptions.GEptype==1)
+    % Adjust the size of weights for the dependence on ptype
+    temp=heteroagentoptions.multiGEweights;
+    heteroagentoptions.multiGEweights=zeros(1,sum(heteroagentoptions.GEptype==0)+N_i*sum(heteroagentoptions.GEptype==1));
+    gg_c=0;
+    for gg=1:length(fieldnames(GeneralEqmEqns))
+        if heteroagentoptions.GEptype(gg)==0
+            gg_c=gg_c+1;
+            heteroagentoptions.multiGEweights(gg_c)=temp(gg);
+        elseif heteroagentoptions.GEptype(gg)==1
+            for ii=1:N_i
+                gg_c=gg_c+1;
+                heteroagentoptions.multiGEweights(gg_c)=temp(gg);
+            end
+        end
+    end
+elseif length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
+    error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
+end
+
 
 %%
 % PTypeStructure contains everything for the different permanent types.
@@ -509,7 +538,6 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     else
         GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
     end
-
 
 
     % Choosing algorithm for the optimization problem

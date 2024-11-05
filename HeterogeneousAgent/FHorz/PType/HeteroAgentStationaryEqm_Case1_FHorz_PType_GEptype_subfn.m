@@ -39,6 +39,7 @@ AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
 GEeqnnames=fieldnames(GeneralEqmEqns);
 GeneralEqmConditionsVec=zeros(1,sum(heteroagentoptions.GEptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.GEptype==1));
 % Some general eqm conditions are conditional on ptype, so go through one by one
+gg_c=0;
 for gg=1:length(GEeqnnames)
     if heteroagentoptions.GEptype(gg)==0 % Standard general eqm condition
         for pp=1:nGEprices
@@ -47,7 +48,8 @@ for gg=1:length(GEeqnnames)
         for aa=1:length(AggVarNames)
             Parameters.(AggVarNames{aa})=AggVars(aa);
         end
-        GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+        gg_c=gg_c+1;
+        GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
     else % Do this general eqm condition conditional on ptype
         for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
             for pp=1:length(GEPriceParamNames)
@@ -60,12 +62,11 @@ for gg=1:length(GEeqnnames)
             for aa=1:length(AggVarNames)
                 Parameters.(AggVarNames{aa})=AggVars_ConditionalOnPType(aa,ii);
             end
-            GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+            gg_c=gg_c+1;
+            GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
         end
     end
-
 end
-
 
 % We might want to output GE conditions as a vector or structure
 if heteroagentoptions.outputGEform==0 % scalar
@@ -89,6 +90,7 @@ elseif heteroagentoptions.outputGEform==2 % structure
         GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
     end
 end
+
 
 if heteroagentoptions.verbose==1
     if all(heteroagentoptions.GEptype==0)

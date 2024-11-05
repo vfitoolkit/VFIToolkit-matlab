@@ -8,6 +8,13 @@ function PricePath=TransitionPath_Case1_FHorz_PType(PricePathOld, ParamPath, T, 
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
 
+% Create N_i so I can use it
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i;
+end
+
 %% PType hardcodes some things that are options when not using PTypes
 % Namely, 
 % hardcodes simoptions.fastOLG=1
@@ -138,7 +145,7 @@ for pp=1:length(PricePathNames)
     temp=PricePathStruct.(PricePathNames{pp});
     tempsize=size(temp);
     PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
-    if any(PricePathSizeVec(pp)~=[1,N_i,N_j])
+    if ~any(PricePathSizeVec(pp)==[1,N_i,N_j])
         error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
     end
 end
@@ -165,7 +172,7 @@ for pp=1:length(ParamPathNames)
     temp=ParamPathStruct.(ParamPathNames{pp});
     tempsize=size(temp);
     ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
-    if any(ParamPathSizeVec(pp)~=[1,N_i,N_j])
+    if ~any(ParamPathSizeVec(pp)==[1,N_i,N_j])
         error(['ParamPath for ', ParamPathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
     end
 end
