@@ -107,10 +107,13 @@ end
 PricePathNames=fieldnames(PricePathOld);
 PricePathStruct=PricePathOld; 
 PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(PricePathNames)
-    temp=PricePathStruct.(PricePathNames{ii});
+for pp=1:length(PricePathNames)
+    temp=PricePathStruct.(PricePathNames{pp});
     tempsize=size(temp);
-    PricePathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
+    PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+    if any(PricePathSizeVec(pp)~=[1,N_j])
+        error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T)'])
+    end
 end
 PricePathSizeVec=cumsum(PricePathSizeVec);
 if length(PricePathNames)>1
@@ -119,21 +122,24 @@ else
     PricePathSizeVec=[1;PricePathSizeVec];
 end
 PricePathOld=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(PricePathNames)
-    if size(PricePathStruct.(PricePathNames{ii}),1)==T
-        PricePathOld(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii});
+for pp=1:length(PricePathNames)
+    if size(PricePathStruct.(PricePathNames{pp}),1)==T
+        PricePathOld(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp});
     else % Need to transpose
-        PricePathOld(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii})';
+        PricePathOld(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp})';
     end
 end
 
 ParamPathNames=fieldnames(ParamPath);
 ParamPathStruct=ParamPath;
 ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{ii});
+for pp=1:length(ParamPathNames)
+    temp=ParamPathStruct.(ParamPathNames{pp});
     tempsize=size(temp);
-    ParamPathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
+    ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
+    if any(ParamPathSizeVec(pp)~=[1,N_j])
+        error(['ParamPath for ', ParamPathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T)'])
+    end
 end
 ParamPathSizeVec=cumsum(ParamPathSizeVec);
 if length(ParamPathNames)>1
@@ -142,11 +148,11 @@ else
     ParamPathSizeVec=[1;ParamPathSizeVec];
 end
 ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{ii}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii});
+for pp=1:length(ParamPathNames)
+    if size(ParamPathStruct.(ParamPathNames{pp}),1)==T
+        ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp});
     else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii})';
+        ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
     end
 end
 
@@ -766,23 +772,20 @@ end
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
     [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
-    if transpathoptions.verbose>1
-        tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
-    end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
     tminus1paramNames=[];
     tminus1AggVarsNames=[];
-    tplus1pricePathkk=[];
+    tplus1pricePathkk=[]; % I cannot remember what this was even for (how is it different rom tplus1priceNames??)
 end
- 
+
 use_tplus1price=0;
-if length(tplus1priceNames)>0
+if ~isempty(tplus1priceNames)
     use_tplus1price=1;
 end
 use_tminus1price=0;
-if length(tminus1priceNames)>0
+if ~isempty(tminus1priceNames)
     use_tminus1price=1;
     for ii=1:length(tminus1priceNames)
         if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
@@ -791,7 +794,7 @@ if length(tminus1priceNames)>0
     end
 end
 use_tminus1params=0;
-if length(tminus1paramNames)>0
+if ~isempty(tminus1paramNames)
     use_tminus1params=1;
     for ii=1:length(tminus1paramNames)
         if ~isfield(transpathoptions.initialvalues,tminus1paramNames{ii})
@@ -800,7 +803,7 @@ if length(tminus1paramNames)>0
     end
 end
 use_tminus1AggVars=0;
-if length(tminus1AggVarsNames)>0
+if ~isempty(tminus1AggVarsNames)
     use_tminus1AggVars=1;
     for ii=1:length(tminus1AggVarsNames)
         if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
@@ -815,6 +818,7 @@ if transpathoptions.verbose>1
     use_tminus1price
     use_tminus1params
     use_tminus1AggVars
+    % tplus1pricePathkk
 end
 
 

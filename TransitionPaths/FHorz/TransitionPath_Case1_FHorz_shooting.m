@@ -135,7 +135,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
     % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
     V=V_final;
-    for ttr=1:T-1 %so t=T-i
+    for ttr=1:T-1 %so tt=T-ttr
 
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
@@ -145,8 +145,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
             z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
+            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
         end
         % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in vfoptions already
         
@@ -218,11 +218,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
             z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
-            if simoptions.fastOLG==1
-                pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
-                pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+            if simoptions.fastOLG==0
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+            else
+                pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
             end
         end
         % transpathoptions.zpathtrivial==0 % Does not depend on T, so is just in simoptions already

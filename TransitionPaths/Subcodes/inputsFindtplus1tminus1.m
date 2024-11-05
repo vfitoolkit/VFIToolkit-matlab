@@ -2,7 +2,7 @@ function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNam
 % Subscript that is used to determine if there are any '_tminus1' or
 % '_tplus1' variables used as inputs to FnsToEvaluate or GeneralEqmEqns
 % (Used as part of transition path codes)
-% Look for the _tplus1 in PircePath, and for _tminus1 in AggVars, PricePath, and ParamPath
+% Look for the _tplus1 in PricePath, and for _tminus1 in AggVars, PricePath, and ParamPath
 
 % Check for using _tminus1 (for price or AggVars) or _tplus1
 FnInputNames={};
@@ -96,15 +96,11 @@ for ii=1:ntminus1
         end
     end
 end
-% Check that they have all been use, otherwise error
+% Check that they have all been used, otherwise error
 if prod(tplus1UsedAsPriceOrAggVar)==0
-    fprintf('ERROR: FnsToEvaluate or GeneralEqmEqns are trying to use a _tplus1 input that is NOT a price \n')
-    dbstack
-    return
+    error('FnsToEvaluate or GeneralEqmEqns are trying to use a _tplus1 input that is NOT a price')
 elseif prod(tminus1UsedAsPriceOrAggVar)==0
-    fprintf('ERROR: FnsToEvaluate or GeneralEqmEqns are trying to use a _tminus1 input that NEITHER a price NOR an an aggregate (determined by FnsToEvaluate) \n')
-    dbstack
-    return
+    error('FnsToEvaluate or GeneralEqmEqns are trying to use a _tminus1 input that NEITHER a price NOR an an aggregate (determined by FnsToEvaluate)')
 end
 
 

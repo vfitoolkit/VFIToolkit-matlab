@@ -37,7 +37,7 @@ AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
 
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GEeqnnames=fieldnames(GeneralEqmEqns);
-GeneralEqmConditionsVec=sum(heteroagentoptions.GEptype==0)+N_i*sum(heteroagentoptions.GEptype==1);
+GeneralEqmConditionsVec=zeros(1,sum(heteroagentoptions.GEptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.GEptype==1));
 % Some general eqm conditions are conditional on ptype, so go through one by one
 for gg=1:length(GEeqnnames)
     if heteroagentoptions.GEptype(gg)==0 % Standard general eqm condition

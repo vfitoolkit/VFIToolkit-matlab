@@ -141,7 +141,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
     V=V_final;
 
-    for ttr=1:T-1 %so t=T-i
+    for ttr=1:T-1 %so tt=T-ttr
 
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
@@ -151,12 +151,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
             z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
+            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
         end
         if transpathoptions.epathtrivial==0
-            pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
             e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
+            pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
         end
 
         [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -227,22 +227,24 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
             z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
-            if simoptions.fastOLG==1
-                pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
-                pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+            if simoptions.fastOLG==0
+                pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+            else
+                pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
             end
         end
-        % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
+        % transpathoptions.zpathtrivial==1 % Does not depend on tt
         if transpathoptions.epathtrivial==0
-            pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
             e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
-            if simoptions.fastOLG==1
-                pi_e_J_sim=kron(kron(ones(N_z,1,'gpuArray'),gpuArray(pi_e_J)'),ones(N_a,1,'gpuArray')); % (a,j,z)-by-e
+            if simoptions.fastOLG==0
+                pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+            else
+                pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);
             end
+
         end
-        % transpathoptions.epathtrivial==1 % Does not depend on T
+        % transpathoptions.epathtrivial==1 % Does not depend on tt
 
         AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,permute(z_gridvals_J,[3,1,2]),permute(e_gridvals_J,[3,4,1,2]),0,1);
         

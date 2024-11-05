@@ -142,8 +142,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
             z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
+            pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
         end
         
         [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -217,10 +217,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T_alt(:,:,:,tt); % fastOLG value function uses (j,z,z')
             z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
-            pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
-            pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+            pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt); % fastOLG value function uses (j,z,z')
         end
         % transpathoptions.zpathtrivial==1 % Does not depend on tt
 

@@ -230,17 +230,15 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         
         if transpathoptions.zpathtrivial==0
-            pi_z_J=transpathoptions.pi_z_J_T_alt(:,:,:,tt); % fastOLG value function uses (j,z,z')
             z_gridvals_J=transpathoptions.z_gridvals_J(:,:,tt);
-            pi_z_J_sim=gather(pi_z_J(1:end-1,:,:));
-            pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
+            pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
         end
         % transpathoptions.zpathtrivial==1 % Does not depend on tt
         if transpathoptions.epathtrivial==0
             e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,tt);
             pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % (a,j,z)-by-e
         end
-        % transpathoptions.epathtrivial==1 % Does not depend on T
+        % transpathoptions.epathtrivial==1 % Does not depend on tt
 
         AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J,1,1);
         
