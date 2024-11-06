@@ -17,9 +17,13 @@ if transpathoptions.verbose==1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));
     for ii=1:length(PricePathNames)
-        pathnametitles{ii}={['Old ',PricePathNames{ii}]};
-        pathnametitles{ii+length(PricePathNames)}={['New ',PricePathNames{ii}]};
+        pathnametitles{ii}={['Old ',PricePathNames{ii},', ']};
+        pathnametitles{ii+length(PricePathNames)}={['New ',PricePathNames{ii},', ']};
     end
+    % Make it something I can just print to screen
+    pathnametitles=append(pathnametitles{:});
+    pathnametitles=pathnametitles{1};
+    pathnametitles=pathnametitles(1:end-2);
 end
 if transpathoptions.verbose>1
     DiscountFactorParamNames
@@ -45,9 +49,27 @@ end
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
 
-
 %% Set up GEnewprice==3 (if relevant) [More complex than normal as have to allow for transpathoptions.GEptype]
 if transpathoptions.GEnewprice==3
+    % Before starting, make sure that GE that depend on ptype match up with PricePaths that depend on ptype
+    for gg=1:nGeneralEqmEqns
+        if transpathoptions.GEptype(gg)==1
+            for gg2=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
+                if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{gg})
+                    pricename_gg=transpathoptions.GEnewprice3.howtoupdate{gg2,2};
+                end
+            end
+            for pp=1:length(PricePathNames)
+                if strcmp(pricename_gg,PricePathNames{pp})
+                    if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
+                        fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},PricePathNames{pp})
+                        error('You declared a GE condition to depend on permenent type, but the price that relates to it (in transpathoptions.GEnewprice3.howtoupdate) does not depend on ptype')
+                    end
+                end
+            end
+        end
+    end
+
     transpathoptions.weightscheme=0;
     
     % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
@@ -55,8 +77,9 @@ if transpathoptions.GEnewprice==3
     % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
     temp=transpathoptions.GEnewprice3.howtoupdate;
     % GEeqnNames=fieldnames(GeneralEqmEqns);
+    gg_index=zeros(1,nGeneralEqmEqns+(N_i-1)*sum(transpathoptions.GEptype==1));
     gg_c=0;
-    for gg=1:length(GEeqnNames)
+    for gg=1:nGeneralEqmEqns
         for jj=1:size(temp,1)
             if strcmp(temp{jj,1},GEeqnNames{gg}) % Names match
                 for ii=1:(1+transpathoptions.GEptype(gg)*(N_i-1)) % Note: 1 or N_i, depending on transpathoptions.GEptype(gg)
@@ -65,11 +88,12 @@ if transpathoptions.GEnewprice==3
                     transpathoptions.GEnewprice3.howtoupdate{gg_c,2}=temp{jj,2};
                     transpathoptions.GEnewprice3.howtoupdate{gg_c,3}=temp{jj,3};
                     transpathoptions.GEnewprice3.howtoupdate{gg_c,4}=temp{jj,4};
+                    gg_index(gg_c)=gg;
                 end
             end
         end
     end
-    % nGeneralEqmEqns=length(GEeqnNames);
+    % Note: transpathoptions.GEnewprice3.howtoupdate will have extra repeated rows whenever transpathoptions.GEptype(gg)=1
 
     transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
     transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
@@ -90,18 +114,36 @@ if transpathoptions.GEnewprice==3
         error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions) \n')
     end
     transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
-    for gg=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for pp=1:length(PricePathNames)
-            if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg,2},PricePathNames{pp})
-                transpathoptions.GEnewprice3.permute(gg)=pp;
+
+    gg_c=1;
+    for gg=1:nGeneralEqmEqns % number of GE conditions
+        if transpathoptions.GEptype(gg)==0
+            for pp=1:length(PricePathNames)
+                if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg_c,2},PricePathNames{pp}) % Take advantage that transpathoptions.GEnewprice3.howtoupdate has been set to same order as GEeqnNames
+                    transpathoptions.GEnewprice3.permute(PricePathSizeVec(1,pp))=gg_c;
+                end
             end
+            gg_c=gg_c+1;
+        elseif transpathoptions.GEptype(gg)==1
+            for pp=1:length(PricePathNames)
+                if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg_c,2},PricePathNames{pp}) % Take advantage that transpathoptions.GEnewprice3.howtoupdate has been set to same order as GEeqnNames
+                    for ii=PricePathSizeVec(1,pp):PricePathSizeVec(2,pp)
+                        transpathoptions.GEnewprice3.permute(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=gg_c+(0:1:N_i-1);
+                    end
+                end
+            end
+            gg_c=gg_c+N_i;
         end
     end
+    
     if isfield(transpathoptions,'updateaccuracycutoff')==0
         transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
     end
 end
-% Note: permute is a bit odd, but I think I get away with it because the repeated entries are always going to have the same order as the permanenty types so will work out okay
+% Note: if some GE conditions are done conditional on ptype then
+% transpathoptions.GEnewprice3.howtoupdate
+% transpathoptions.GEnewprice3.permute 
+% reflect this.
 
 
 %% Setup used for graphs
@@ -138,6 +180,29 @@ else
 end
 nrows_aggvars=ceil(length(FullAggVarNames)/ncolumns_aggvars);
 
+% which AggVars are used in a GE condition that gets evaluated based on ptype (so can plot them too)
+aa_aggvarbyptype=zeros(1,length(FullAggVarNames));
+for aa=1:length(FullAggVarNames)
+    for gg=1:length(GEeqnNames)
+        if transpathoptions.GEptype(gg)==1
+            % if any(strcmp(GeneralEqmEqnParamNames(gg).Names,FullAggVarNames{aa}). But we have to allow for the inputs to GE to have endings like _tminus1
+            temp=FullAggVarNames{aa};
+            for aa2=1:length(GeneralEqmEqnParamNames(gg).Names)
+                temp2=GeneralEqmEqnParamNames(gg).Names{aa2};
+                if length(temp2)==length(temp)
+                    if strcmp(temp2,temp)
+                        aa_aggvarbyptype(aa)=1; % aa AggVar is in this GE condition that depends on ptype
+                    end
+                elseif length(temp2)>length(temp)
+                    if strcmp(temp2(1:length(temp)+1),[temp,'_']) % all the 'versions' have an underscore (e.g. _tminus1 or _tplus1)
+                        aa_aggvarbyptype(aa)=1; % aa AggVar is in this GE condition that depends on ptype
+                    end
+                end
+            end
+        end
+    end
+end
+
 % For graph of the General Eqm Conditions
 if length(GEeqnNames)>12
     ncolumns_GEcondns=4;
@@ -160,6 +225,7 @@ for gg=1:length(GEeqnNames)
         gg_c=gg_c+(N_i-1);
     end
 end
+
 
 %%
 PricePathDist=Inf;
@@ -244,9 +310,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     %% Do the general eqm conditions and create PricePathNew based on these
     if all(transpathoptions.GEptype==0)
         GECondnPath=zeros(T,length(GEeqnNames));
+            
+        % Parameters that may be relevant to General Eqm
+        Parameters=PTypeStructure.ParametersRaw;
+
         for tt=1:T-1
-            % Parameters that may be relevant to General Eqm
-            Parameters=PTypeStructure.ParametersRaw;
 
             % Get t-1 PricePath and ParamPath before we update them
             if use_tminus1price==1
@@ -286,6 +354,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             for kk=1:length(ParamPathNames)
                 Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
             end
+
             % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
@@ -315,14 +384,17 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end % Done loop over tt, evaluating the GE conditions
     else % Some GE conditions depend on PType
         GECondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
+
+        % Parameters that may be relevant to General Eqm
+        Parameters=PTypeStructure.ParametersRaw;
+        for ii=1:N_i
+            iistr=PTypeStructure.Names_i{ii};
+            Parameters_ii.(iistr)=PTypeStructure.(iistr).Parameters; % For use with General Eqm conditions that are evaluated conditional on ptype
+        end
+
         % Some of the General eqm eqns depend on ptype
         for tt=1:T-1
-           % Parameters that may be relevant to General Eqm
-            Parameters=PTypeStructure.ParametersRaw;
-            for ii=1:N_i
-                iistr=PTypeStructure.Names_i{ii};
-                Parameters_ii.(iistr)=PTypeStructure.(iistr).Parameters; % For use with General Eqm conditions that are evaluated conditional on ptype
-            end
+
             
             % Get t-1 PricePath and ParamPath before we update them
             if use_tminus1price==1
@@ -357,6 +429,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     end
                 end
             end
+
             % Get t-1 AggVars before we update them
             if use_tminus1AggVars==1
                 for pp=1:length(tminus1AggVarsNames)
@@ -366,16 +439,26 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     else
                         Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
                     end
-                    if length(Parameters.([tminus1AggVarsNames{pp},'_tminus1']))==N_i % Depends on ptype
-                        for ii=1:N_i
-                            iistr=PTypeStructure.Names_i{ii};
-                            tempii=Parameters.([tminus1AggVarsNames{pp},'_tminus1']);
-                            Parameters_ii.(iistr).([tminus1AggVarsNames{pp},'_tminus1'])=tempii(ii);
+                    if tt>1
+                        if length(Parameters.(tminus1AggVarsNames{pp}))==N_i % Depends on ptype
+                            for ii=1:N_i
+                                iistr=PTypeStructure.Names_i{ii};
+                                Parameters_ii.(iistr).([tminus1AggVarsNames{pp},'_tminus1'])=Parameters_ii.(iistr).(tminus1AggVarsNames{pp});
+                            end
+                        end
+                    else
+                        if length(transpathoptions.initialvalues.(tminus1AggVarsNames{pp}))==N_i % Depends on ptype
+                            temp=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+                            for ii=1:N_i
+                                iistr=PTypeStructure.Names_i{ii};
+                                Parameters_ii.(iistr).([tminus1AggVarsNames{pp},'_tminus1'])=temp(ii);
+                            end
                         end
                     end
                 end
             end
-
+            
+            
             % Update current PricePath and ParamPath
             for kk=1:length(PricePathNames)
                 Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
@@ -395,6 +478,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     end
                 end
             end
+
             % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
@@ -405,20 +489,22 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
             
+            
             % Get t+1 PricePath
             if use_tplus1price==1
                 for pp=1:length(tplus1priceNames)
                     kk=tplus1pricePathkk(pp);
                     Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
                     if length(Parameters.([tplus1priceNames{pp},'_tplus1']))==N_i % Depends on ptype
+                        temp=Parameters.([tplus1priceNames{pp},'_tplus1']);
                         for ii=1:N_i
                             iistr=PTypeStructure.Names_i{ii};
-                            tempii=Parameters.([tplus1priceNames{pp},'_tplus1']);
-                            Parameters_ii.(iistr).([tplus1priceNames{pp},'_tplus1'])=tempii(ii);
+                            Parameters_ii.(iistr).([tplus1priceNames{pp},'_tplus1'])=temp(ii);
                         end
                     end
                 end
             end
+
 
             if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
                 % Loop over the general eqm conditions, so we can deal seperately with those that depend on ptype and those that do not
@@ -448,6 +534,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                         end
                     end
                 end
+
+                % if tt==T-1
+                %     for ii=1:N_i
+                %         ii
+                %         iistr=PTypeStructure.Names_i{ii};
+                %         Parameters_ii.(iistr).AccidentalBeqLeft_tminus1
+                %         Parameters_ii.(iistr).AccidentBeq
+                %         Parameters_ii.(iistr).n
+                %     end
+                % end
+                p_i_raw=p_i; % PURELY FOR DEBUG
+
                 p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
                 I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
                 p_i=I_makescutoff.*p_i;
@@ -456,6 +554,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
 
         end % Done loop over tt, evaluating the GE conditions
+
+        disp('erhe')
+        GEeqnNames
+        p_i_raw
+        PricePathNames
+        p_i
+        transpathoptions.GEnewprice3.permute % I THINK THIS IS THE WRONG PERMUTE! (GOES P to G, should be G to P
+        
+        
+
+        % p_i_raw(3)-p_i_raw(2)
+        % p_i(3)-p_i(4)
     end
     
     %% Now we just check for convergence, update prices, and give some feedback on progress
@@ -465,10 +575,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     
     if transpathoptions.verbose==1     
         pathcounter
-        disp('Old, New')
-        % Would be nice to have a way to get the iteration count without having the whole
-        % printout of path values (I think that would be useful?)
-        pathnametitles{:}
+        % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
+        pathnametitles
         [PricePathOld,PricePathNew]
     end
     
@@ -495,6 +603,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         for aa=1:length(FullAggVarNames)
             subplot(nrows_aggvars,ncolumns_aggvars,aa); plot(1:1:T-1,AggVarsPooledPath(aa,:))
             title(FullAggVarNames{aa})
+            if aa_aggvarbyptype(aa)==1 % We care about the value conditional on ptype
+                hold on
+                for ii=1:N_i
+                    subplot(nrows_aggvars,ncolumns_aggvars,aa); plot(1:1:T-1,AggVarsFullPath(aa,:,ii),'-')
+                end
+                hold off
+            end
         end
     end
     if transpathoptions.graphGEconditions==1

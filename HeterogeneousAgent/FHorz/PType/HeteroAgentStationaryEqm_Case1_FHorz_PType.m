@@ -53,7 +53,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.saveprogresseachiter=0;
-    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+    heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     % heteroagentoptions.outputGEform=0; % For internal use only
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
@@ -92,7 +92,7 @@ else
         heteroagentoptions.saveprogresseachiter=0;
     end
     if ~isfield(heteroagentoptions,'GEptype')
-        heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+        heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     end
     % heteroagentoptions.outputGEform=0; % For internal use only
     if ~isfield(heteroagentoptions,'outputGEstruct')
@@ -123,6 +123,21 @@ nGEprices=length(GEPriceParamNames);
 PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
 
 
+%% Reformat transpathoptions.GEptype from cell of names into vector of 1s and 0s
+if isempty(heteroagentoptions.GEptype)
+    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+else
+    temp=heteroagentoptions.GEptype;
+    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+    GEeqnNames=fieldnames(GeneralEqmEqns);
+    for gg1=1:length(temp)
+        for gg2=1:length(GEeqnNames)
+            if strcmp(temp{gg1},GEeqnNames{gg2})
+                heteroagentoptions.GEptype(gg2)=1;
+            end
+        end
+    end
+end
 if any(heteroagentoptions.GEptype==1)
     % Adjust the size of weights for the dependence on ptype
     temp=heteroagentoptions.multiGEweights;

@@ -29,7 +29,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up
-    transpathoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+    transpathoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
@@ -57,7 +57,7 @@ else
                                        % 3 is just same as 0, but easier to set 
     end
     if ~isfield(transpathoptions,'GEptype')
-        transpathoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+        transpathoptions.GEptype={}; %zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
     end
     if ~isfield(transpathoptions,'oldpathweight')
         transpathoptions.oldpathweight=0.9;
@@ -114,6 +114,23 @@ end
 if transpathoptions.parallel~=2
     error('Sorry but transition paths are not implemented for cpu, you will need a gpu to use them')
 end
+
+%% Reformat transpathoptions.GEptype from cell of names into vector of 1s and 0s
+if isempty(transpathoptions.GEptype)
+    transpathoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+else
+    temp=transpathoptions.GEptype;
+    transpathoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+    GEeqnNames=fieldnames(GeneralEqmEqns);
+    for gg1=1:length(temp)
+        for gg2=1:length(GEeqnNames)
+            if strcmp(temp{gg1},GEeqnNames{gg2})
+                transpathoptions.GEptype(gg2)=1;
+            end
+        end
+    end
+end
+
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 if exist('vfoptions','var')==0
@@ -203,6 +220,7 @@ end
 %% Check some inputs
 if isstruct(GeneralEqmEqns)
     if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
+        fprintf('length(PricePathNames)=%i and length(fieldnames(GeneralEqmEqns))=%i (relates to following error) \n', length(PricePathNames), length(fieldnames(GeneralEqmEqns)))
         error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
     end
 else
@@ -483,7 +501,7 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
         end
     end
-    PTypeStructure.(iistr).AggVarNames=PTypeStructure.(iistr).FnsToEvaluate;
+    PTypeStructure.(iistr).AggVarNames=FnNames;
 
 
     %% Check if pi_z and z_grid can be precomputed
@@ -888,61 +906,6 @@ end
 
 if transpathoptions.verbose==1
     fprintf('Completed setup, beginning transition computination \n')
-end
-
-%% Set up GEnewprice==3 (if relevant)
-if transpathoptions.GEnewprice==3
-    transpathoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
-    
-    if isstruct(GeneralEqmEqns) 
-        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-        % Is same as order of fields in GeneralEqmEqns
-        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-        temp=transpathoptions.GEnewprice3.howtoupdate;
-        GEeqnNames=fieldnames(GeneralEqmEqns);
-        for tt=1:length(GEeqnNames)
-            for jj=1:size(temp,1)
-                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
-                    transpathoptions.GEnewprice3.howtoupdate{tt,1}=temp{jj,1};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,2}=temp{jj,2};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,3}=temp{jj,3};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,4}=temp{jj,4};
-                end
-            end
-        end
-        nGeneralEqmEqns=length(GEeqnNames);
-    else
-        nGeneralEqmEqns=length(GeneralEqmEqns);
-    end
-    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
-    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    tempweight=transpathoptions.oldpathweight;
-    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
-    for tt=1:length(transpathoptions.GEnewprice3.factor)
-        if transpathoptions.GEnewprice3.factor(tt)==Inf
-            transpathoptions.GEnewprice3.factor(tt)=1;
-            transpathoptions.GEnewprice3.keepold(tt)=0;
-            transpathoptions.oldpathweight(tt)=tempweight;
-        end
-    end
-    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns
-        % do nothing, this is how things should be
-    else
-        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (number of rows is different to the number of GeneralEqmEqns fields) \n')
-    end
-    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
-    for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(PricePathNames)
-            if strcmp(transpathoptions.GEnewprice3.howtoupdate{tt,2},PricePathNames{jj})
-                transpathoptions.GEnewprice3.permute(tt)=jj;
-            end
-        end
-    end
-    if isfield(transpathoptions,'updateaccuracycutoff')==0
-        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
 end
 
 

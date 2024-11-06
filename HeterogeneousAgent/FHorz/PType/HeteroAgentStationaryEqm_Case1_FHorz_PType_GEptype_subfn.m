@@ -50,7 +50,7 @@ for gg=1:length(GEeqnnames)
         end
         gg_c=gg_c+1;
         GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
-    else % Do this general eqm condition conditional on ptype
+    elseif heteroagentoptions.GEptype(gg)==1 % Do this general eqm condition conditional on ptype
         for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
             for pp=1:length(GEPriceParamNames)
                 if GEprice_ptype(pp)==0
@@ -85,9 +85,15 @@ elseif heteroagentoptions.outputGEform==1 % vector
     end
 elseif heteroagentoptions.outputGEform==2 % structure
     clear GeneralEqmConditions
-    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
-    for ii=1:length(GeneralEqmEqnsNames)
-        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
+    gg_c=1;
+    for gg=1:length(GEeqnnames)
+        if heteroagentoptions.GEptype(gg)==0 % Standard general eqm condition
+            GeneralEqmConditions.(GEeqnnames{gg})=GeneralEqmConditionsVec(gg_c);
+            gg_c=gg_c+1;
+        elseif heteroagentoptions.GEptype(gg)==1 % Do this general eqm condition conditional on ptype
+            GeneralEqmConditions.(GEeqnnames{gg})=GeneralEqmConditionsVec(gg_c:gg_c+PTypeStructure.N_i-1);
+            gg_c=gg_c+PTypeStructure.N_i;
+        end
     end
 end
 

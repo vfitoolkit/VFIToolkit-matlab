@@ -88,6 +88,8 @@ if transpathoptions.fastOLG==0
 
                 AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,N_j,daprime_gridvals,a_gridvals,0);
 
+                AggVarsPath(:,tt)=AggVars;
+
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
                 AgeWeights=AgeWeights_T(:,tt);
@@ -102,7 +104,13 @@ if transpathoptions.fastOLG==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
                 end
 
-                AggVarsPath(:,tt)=AggVars;
+                % Sometimes, we need AggVars to be kept as structure in Parameters (when doing PType_singlepath AggVars is a vector, whereas the rest of the time it is a structure, hence this bit is only needed in PType_singlepath)
+                if use_tminus1AggVars==1
+                    for aa=1:length(AggVarNames)
+                        Parameters.(AggVarNames{aa})=AggVars(aa);
+                    end
+                end
+
             end
             
         else % N_e>0
@@ -196,6 +204,8 @@ if transpathoptions.fastOLG==0
 
                 AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,0,0);
 
+                AggVarsPath(:,tt)=AggVars;
+
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
                 AgeWeights=AgeWeights_T(:,tt);
@@ -210,7 +220,13 @@ if transpathoptions.fastOLG==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,:,1:end-1)/N_d),[1,N_a*N_z*(N_j-1)])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                 end
 
-                AggVarsPath(:,tt)=AggVars;
+                % Sometimes, we need AggVars to be kept as structure in Parameters (when doing PType_singlepath AggVars is a vector, whereas the rest of the time it is a structure, hence this bit is only needed in PType_singlepath)
+                if use_tminus1AggVars==1
+                    for aa=1:length(AggVarNames)
+                        Parameters.(AggVarNames{aa})=AggVars(aa);
+                    end
+                end
+
             end
         else  % z, e, fastOLG=0
             %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -306,6 +322,8 @@ if transpathoptions.fastOLG==0
 
                 AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,permute(z_gridvals_J,[3,1,2]),permute(e_gridvals_J,[3,4,1,2]),0,1);
 
+                AggVarsPath(:,tt)=AggVars;
+
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
                 AgeWeights=AgeWeights_T(:,tt);
@@ -319,7 +337,13 @@ if transpathoptions.fastOLG==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(permute(ceil(Policy(:,:,:,1:end-1)/N_d),[1,4,2,3]),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                 end
 
-                AggVarsPath(:,tt)=AggVars;
+                % Sometimes, we need AggVars to be kept as structure in Parameters (when doing PType_singlepath AggVars is a vector, whereas the rest of the time it is a structure, hence this bit is only needed in PType_singlepath)
+                if use_tminus1AggVars==1
+                    for aa=1:length(AggVarNames)
+                        Parameters.(AggVarNames{aa})=AggVars(aa);
+                    end
+                end
+
             end
         end
     end
@@ -424,6 +448,14 @@ elseif transpathoptions.fastOLG==1
                     % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1)/N_d),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
                 end
+
+                % Sometimes, we need AggVars to be kept as structure in Parameters (when doing PType_singlepath AggVars is a vector, whereas the rest of the time it is a structure, hence this bit is only needed in PType_singlepath)
+                if use_tminus1AggVars==1
+                    for aa=1:length(AggVarNames)
+                        Parameters.(AggVarNames{aa})=AggVars(aa);
+                    end
+                end
+
             end
 
         else % N_e>0
@@ -535,7 +567,16 @@ elseif transpathoptions.fastOLG==1
                     % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1,:)/N_d),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % Policy for jj=1:N_j-1
                 end
+
+                % Sometimes, we need AggVars to be kept as structure in Parameters (when doing PType_singlepath AggVars is a vector, whereas the rest of the time it is a structure, hence this bit is only needed in PType_singlepath)
+                if use_tminus1AggVars==1
+                    for aa=1:length(AggVarNames)
+                        Parameters.(AggVarNames{aa})=AggVars(aa);
+                    end
+                end
+
             end
+
 
         else % N_e>0
             %% z, e, fastOLG=1
@@ -653,8 +694,15 @@ elseif transpathoptions.fastOLG==1
                     % Note, difference is that we do ceil(Policy/N_d) so as to just pass optaprime
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(ceil(Policy(:,1:end-1,:)/N_d),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                 end
-            end
+            
+                % Sometimes, we need AggVars to be kept as structure in Parameters (when doing PType_singlepath AggVars is a vector, whereas the rest of the time it is a structure, hence this bit is only needed in PType_singlepath)
+                if use_tminus1AggVars==1
+                    for aa=1:length(AggVarNames)
+                        Parameters.(AggVarNames{aa})=AggVars(aa);
+                    end
+                end
 
+            end
 
         end
     end
