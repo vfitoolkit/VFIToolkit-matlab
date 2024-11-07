@@ -79,7 +79,7 @@ end
 
 % N_d=prod(n_d);
 N_a=prod(n_a);
-N_z=prod(n_z);
+% N_z=prod(n_z);
 
 l_a=length(n_a);
 

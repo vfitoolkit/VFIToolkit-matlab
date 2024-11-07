@@ -50,7 +50,7 @@ if ~isfield(estimoptions,'confidenceintervals')
     estimoptions.confidenceintervals=90; % the default is to report 90-percent confidence intervals
 end
 if ~isfield(estimoptions,'eedefault')
-    estimoptions.eedefault=2; % 1,2,3 or 4: Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
+    estimoptions.eedefault=3; % 1,2,3 or 4: Default epsilon value is epsilonraw*epsilonmodvec(eedefault)
     % Controls how big is the epsilon used to calculate derivatives as finite difference
     % Roughly, 1 means e-08, 2 means e-06, 3 means e-04, 4 means e-02,
 end

@@ -74,6 +74,10 @@ if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
     Parameters.(AgeWeightParamNames{1})=Parameters.(AgeWeightParamNames{1})'; 
     % Note: assumed there is only one AgeWeightParamNames
 end
+% And check that the age weights sum to one
+if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
+    warning('StationaryDist: The age-weights do not sum to one')
+end
 
 %% Set up pi_z_J (transition matrix for markov exogenous state z, depending on age)
 if ismatrix(pi_z)

@@ -30,10 +30,10 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(level1ii,N_j)=shiftdim(maxindex,1);
 
     for ii=1:(vfoptions.level1n-1)
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policy(level1ii(ii)):Policy(level1ii(ii+1))), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), ReturnFnParamsVec);
         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-        Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii))-1;
+        Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii),N_j)-1;
     end
   
 else
@@ -53,11 +53,11 @@ else
     Policy(level1ii,N_j)=shiftdim(maxindex,1);
 
     for ii=1:(vfoptions.level1n-1)
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policy(level1ii(ii)):Policy(level1ii(ii+1))), ReturnFnParamsVec);
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*V_Jplus1(Policy(level1ii(ii)):Policy(level1ii(ii+1)));
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), ReturnFnParamsVec);
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*V_Jplus1(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j));
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(Vtempii,1);
-        Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii))-1;
+        Policy(level1ii(ii)+1:level1ii(ii+1)-1,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii),N_j)-1;
     end
         
 end
@@ -89,11 +89,11 @@ for reverse_j=1:N_j-1
     Policy(level1ii,jj)=shiftdim(maxindex,1);
     
     for ii=1:(vfoptions.level1n-1)
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policy(level1ii(ii)):Policy(level1ii(ii+1))), ReturnFnParamsVec);
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j(Policy(level1ii(ii)):Policy(level1ii(ii+1)));
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii(ii)+1:level1ii(ii+1)-1), a_grid(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj)), ReturnFnParamsVec);
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj));
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(Vtempii,1);
-        Policy(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(maxindex,1)+Policy(level1ii(ii))-1;
+        Policy(level1ii(ii)+1:level1ii(ii+1)-1,jj)=shiftdim(maxindex,1)+Policy(level1ii(ii),jj)-1;
     end
 
 end
