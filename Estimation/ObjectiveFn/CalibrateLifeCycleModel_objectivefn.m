@@ -65,7 +65,6 @@ if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
 end
 
-
 %% Solve the model and calculate the stats
 [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 

@@ -391,8 +391,8 @@ for ii=1:N_i
 
             % Get parameter names for current FnsToEvaluate functions
             tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
-            if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_z_temp)
-                FnsToEvaluateParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
+                FnsToEvaluateParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
             else
                 FnsToEvaluateParamNames={};
             end

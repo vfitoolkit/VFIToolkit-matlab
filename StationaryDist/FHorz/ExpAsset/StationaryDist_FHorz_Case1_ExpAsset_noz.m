@@ -64,14 +64,17 @@ if simoptions.iterate==0
     dbstack
     error('This combo only supports iteration')
 elseif simoptions.iterate==1
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
+if simoptions.parallel==2
+    StationaryDist=gpuArray(StationaryDist);
+end
 if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDistKron,[n_a,N_j]);
+    StationaryDist=reshape(StationaryDist,[n_a,N_j]);
 else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDistKron,[N_a,N_j]);
+    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
 end
 
 end
