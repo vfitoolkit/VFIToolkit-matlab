@@ -796,7 +796,7 @@ if estimoptions.bootstrapStdErrors==0
     % Now, multiply by (1+-epsilon)
     for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
-        for pp=1:length(EstimParamNames)
+        for pp=1:length(estimparamsvec)
             % 'Add/subtract' epsilon
             if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
                 modelestimparamsvecup(pp)=(1+epsilon)*modelestimparamsvec(pp); % add epsilon*x to the pp-th parameter
@@ -991,7 +991,7 @@ end
 
 
 %% Clean up the first two outputs
-for pp=1:nEstimParams
+for pp=1:length(estimparamsvec)
     if estimoptions.skipestimation==0
         % If parameter is constrained, switch it back to the unconstrained value
         if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
@@ -1055,7 +1055,6 @@ for pp=1:nEstimParams
         estsummary.notes.bootstrap=['Standard errors report distribution of parameter estimates based on ',num2str(estimoptions.numbootstrapsims),' bootstraps, each had ',num2str(estimoptions.numberinvidualsperbootstrapsim),' agents for ',num2str(N_j),' periods (so some ',num2str(N_j*estimoptions.numberinvidualsperbootstrapsim),' observations)' ];
     end
 end
-clear estimparamsvec % I modified it, so want to make sure I don't accidently use it again later
 
 if estimoptions.confidenceintervals==68
     criticalvalue_normaldist_z_alphadiv2=1;
@@ -1080,7 +1079,7 @@ end
 % This avoids people focusing on statistical significance and the 'star wars'.
 % Instead they will hopefully focus on what is likely and plausible.
 EstimParamsConfInts.notes='These are 90-percent confidence intervals';
-for pp=1:length(EstimParamNames)
+for pp=1:length(estimparamsvec)
     if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
         EstimParamsConfInts.(EstimParamNames{nEstimParamsFinder(pp,1)})=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}) + [-1,1]*criticalvalue_normaldist_z_alphadiv2*estsummary.EstimParamsStdDev.(EstimParamNames{nEstimParamsFinder(pp,1)});
     else
@@ -1103,6 +1102,8 @@ for ii=1:length(confintvec)
     end
 end
 
+%%
+clear estimparamsvec % I modified it, so want to make sure I don't accidently use it again later
 
 %% Give various outputs
 estsummary.variousmatrices.W=WeightingMatrix; % This is just a duplicate of the input, but I figure it is handy to keep in same place as the rest of estimation results
