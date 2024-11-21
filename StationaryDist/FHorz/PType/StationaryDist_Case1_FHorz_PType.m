@@ -43,7 +43,7 @@ if ~exist('simoptions','var')
 end
 
 %% Check inputs
-if sum(Parameters.(PTypeDistParamNames{1}))~=1
+if abs(sum(Parameters.(PTypeDistParamNames{1}))-1)>10^(-15)
     error('The permanent type mass weights must sum to one (PTypeDistParamNames points to weights that do not sum to one)')
 end
 
