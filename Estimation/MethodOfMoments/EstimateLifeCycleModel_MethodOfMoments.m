@@ -232,8 +232,11 @@ else
     usinglcp=0;
 end
 
-% NEED TO ADD A CHECK THAT THE INPUT TARGETS ARE THE CORRECT SIZES!!!
+if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AgeConditionalStats') )
+    warning('TargetMoments seems to be set up incorrect: it has a field which is neither AllStats nor AgeConditionalStats')
+end
 
+% conditionalrestrictions means we need the third level a3vec
 
 % Get all of the moments out of TargetMoments and make them into a vector
 % Also, store all the names
@@ -242,57 +245,77 @@ targetmomentvec=[]; % Can't preallocate as have no idea how big this will be
 
 % First, do those in AllStats
 if usingallstats==1
-    allstatmomentnames={};
+    allstatmomentnames=cell(1,3);
     allstatmomentcounter=0;
     allstatmomentsizes=0;
-    if isfield(TargetMoments,'AllStats')
-        a1vec=fieldnames(TargetMoments.AllStats); % This will be the FnsToEvaluate names
-        for a1=1:length(a1vec)
-            a2vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}));% These will be Mean, etc
-            for a2=1:length(a2vec)
+    a1vec=fieldnames(TargetMoments.AllStats); % This will be the FnsToEvaluate names
+    for a1=1:length(a1vec)
+        a2vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}));% These will be Mean, etc
+        for a2=1:length(a2vec)
+            if isstruct(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}))
+                a3vec=fieldnames(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
+                for a3=1:length(a3vec)
+                    allstatmomentcounter=allstatmomentcounter+1;
+                    if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
+                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
+                    else
+                        targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
+                    end
+                    allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
+                    allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
+                end
+            else
                 allstatmomentcounter=allstatmomentcounter+1;
                 if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
                     targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
                 else
                     targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
                 end
-                allstatmomentnames(allstatmomentcounter,:)={a1vec{a1},a2vec{a2}};
+                allstatmomentnames(allstatmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
                 allstatmomentsizes(allstatmomentcounter)=length(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}));
-                % Note: PType will require an extra possible level of depth where this is still a structure (for ptype specific moments)
             end
         end
     end
     allstatcummomentsizes=cumsum(allstatmomentsizes); % Note: this is zero is AllStats is unused
     % To do AllStats faster, we use simoptions.whichstats so that we only compute the stats we want.
     AllStats_whichstats=zeros(7,1);
-    if any(strcmp(allstatmomentnames(:,2),'Mean'))
-        AllStats_whichstats(1)=1;
+    for aa=2:3
+        if any(strcmp(allstatmomentnames(:,aa),'Mean'))
+            AllStats_whichstats(1)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'Median'))
+            AllStats_whichstats(2)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'RatioMeanToMedian'))
+            AllStats_whichstats(1)=1;
+            AllStats_whichstats(2)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'Variance')) || any(strcmp(allstatmomentnames(:,aa),'StdDeviation'))
+            AllStats_whichstats(3)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'LorenzCurve')) || any(strcmp(allstatmomentnames(:,aa),'Gini'))
+            AllStats_whichstats(4)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'Maximum')) || any(strcmp(allstatmomentnames(:,aa),'Minimum'))
+            AllStats_whichstats(5)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'QuantileCutoffs')) || any(strcmp(allstatmomentnames(:,aa),'QuantileMeans'))
+            AllStats_whichstats(5)=1;
+        end
+        if any(strcmp(allstatmomentnames(:,aa),'MoreInequality'))
+            AllStats_whichstats(7)=1;
+        end
     end
-    if any(strcmp(allstatmomentnames(:,2),'Median'))
-        AllStats_whichstats(2)=1;
-    end
-    if any(strcmp(allstatmomentnames(:,2),'RatioMeanToMedian'))
-        AllStats_whichstats(1)=1;
-        AllStats_whichstats(2)=1;
-    end
-    if any(strcmp(allstatmomentnames(:,2),'Variance')) || any(strcmp(allstatmomentnames(:,2),'StdDeviation'))
-        AllStats_whichstats(3)=1;
-    end
-    if any(strcmp(allstatmomentnames(:,2),'LorenzCurve')) || any(strcmp(allstatmomentnames(:,2),'Gini'))
-        AllStats_whichstats(4)=1;
-    end
-    if any(strcmp(allstatmomentnames(:,2),'Maximum')) || any(strcmp(allstatmomentnames(:,2),'Minimum'))
-        AllStats_whichstats(5)=1;
-    end
-    if any(strcmp(allstatmomentnames(:,2),'QuantileCutoffs')) || any(strcmp(allstatmomentnames(:,2),'QuantileMeans'))
-        AllStats_whichstats(5)=1;
-    end
-    if any(strcmp(allstatmomentnames(:,2),'MoreInequality'))
-        AllStats_whichstats(7)=1;
-    end
+    % % all stats should be of length 1 [actually, no, they might be, e.g., QuantileMeans]
+    % for ii=1:length(allstatmomentsizes)
+    %     if allstatmomentsizes(ii)~=1
+    %         errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', allstatmomentsizes{ii,1}, ' ', allstatmomentsizes{ii,2}, ' ',allstatmomentsizes{ii,3},' \n'];
+    %         error(errorstr)
+    %     end
+    % end
 else
     % Placeholders
-    allstatmomentnames={};
+    allstatmomentnames=cell(1,3);
     allstatcummomentsizes=0;
     AllStats_whichstats=zeros(7,1);
 end
@@ -303,54 +326,74 @@ if usinglcp==1
     acsmomentnames={};
     acsmomentcounter=0;
     acsmomentsizes=0;
-    if isfield(TargetMoments,'AgeConditionalStats')
-        a1vec=fieldnames(TargetMoments.AgeConditionalStats); % This will be the FnsToEvaluate names
-        for a1=1:length(a1vec)
-            a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));% These will be Mean, etc
-            for a2=1:length(a2vec)
+    a1vec=fieldnames(TargetMoments.AgeConditionalStats); % This will be the FnsToEvaluate names
+    for a1=1:length(a1vec)
+        a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));% These will be Mean, etc
+        for a2=1:length(a2vec)
+            if isstruct(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}))
+                a3vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));% These will be Mean, etc
+                for a3=1:length(a3vec)
+                    acsmomentcounter=acsmomentcounter+1;
+                    if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}),2)==1 % already column vector
+                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})]; % append to end
+                    else
+                        targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3})']; % transpose, then append to end
+                    end
+                    acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2},a3vec{a3}};
+                    acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}).(a3vec{a3}));
+                end
+            else
                 acsmomentcounter=acsmomentcounter+1;
                 if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
                     targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
                 else
                     targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})']; % transpose, then append to end
                 end
-                acsmomentnames(acsmomentcounter,:)={a1vec{a1},a2vec{a2}};
+                acsmomentnames(acsmomentcounter,1:2)={a1vec{a1},a2vec{a2}};
                 acsmomentsizes(acsmomentcounter)=length(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}));
-                % Note: PType will require an extra possible level of depth where this is still a structure (for ptype specific moments)
             end
         end
     end
     acscummomentsizes=cumsum(acsmomentsizes); % Note: this is zero is AgeConditionalStats is unused
     % To do AgeConditionalStats faster, we use simoptions.whichstats so that we only compute the stats we want.
     ACStats_whichstats=zeros(7,1);
-    if any(strcmp(acsmomentnames(:,2),'Mean'))
-        ACStats_whichstats(1)=1;
+    for aa=2:3
+        if any(strcmp(acsmomentnames(:,aa),'Mean'))
+            ACStats_whichstats(1)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'Median'))
+            ACStats_whichstats(2)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'RatioMeanToMedian'))
+            ACStats_whichstats(1)=1;
+            ACStats_whichstats(2)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'Variance')) || any(strcmp(acsmomentnames(:,aa),'StdDeviation'))
+            ACStats_whichstats(3)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'LorenzCurve')) || any(strcmp(acsmomentnames(:,aa),'Gini'))
+            ACStats_whichstats(4)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'Maximum')) || any(strcmp(acsmomentnames(:,aa),'Minimum'))
+            ACStats_whichstats(5)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'QuantileCutoffs')) || any(strcmp(acsmomentnames(:,aa),'QuantileMeans'))
+            ACStats_whichstats(5)=1;
+        end
+        if any(strcmp(acsmomentnames(:,aa),'MoreInequality'))
+            ACStats_whichstats(7)=1;
+        end
     end
-    if any(strcmp(acsmomentnames(:,2),'Median'))
-        ACStats_whichstats(2)=1;
-    end
-    if any(strcmp(acsmomentnames(:,2),'RatioMeanToMedian'))
-        ACStats_whichstats(1)=1;
-        ACStats_whichstats(2)=1;
-    end
-    if any(strcmp(acsmomentnames(:,2),'Variance')) || any(strcmp(acsmomentnames(:,2),'StdDeviation'))
-        ACStats_whichstats(3)=1;
-    end
-    if any(strcmp(acsmomentnames(:,2),'LorenzCurve')) || any(strcmp(acsmomentnames(:,2),'Gini'))
-        ACStats_whichstats(4)=1;
-    end
-    if any(strcmp(acsmomentnames(:,2),'Maximum')) || any(strcmp(acsmomentnames(:,2),'Minimum'))
-        ACStats_whichstats(5)=1;
-    end
-    if any(strcmp(acsmomentnames(:,2),'QuantileCutoffs')) || any(strcmp(acsmomentnames(:,2),'QuantileMeans'))
-        ACStats_whichstats(5)=1;
-    end
-    if any(strcmp(acsmomentnames(:,2),'MoreInequality'))
-        ACStats_whichstats(7)=1;
-    end
+    % % age-conditional stats should be of length N_j [actually, no, they might be, e.g., QuantileMeans]
+    % for ii=1:length(acsmomentsizes)
+    %     if acsmomentsizes(ii)~=N_j
+    %         errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', acsmomentnames{ii,1}, ' ', acsmomentnames{ii,2}, ' ',acsmomentnames{ii,3},' \n'];
+    %         error(errorstr)
+    %     end
+    % end
 else
     % Placeholders
-    acsmomentnames={};
+    acsmomentnames=cell(1,3);
     acscummomentsizes=0;
     ACStats_whichstats=zeros(7,1);
 end
