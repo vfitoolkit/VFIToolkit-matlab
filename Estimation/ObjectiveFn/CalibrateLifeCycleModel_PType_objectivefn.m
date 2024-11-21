@@ -101,6 +101,10 @@ if caliboptions.simulatemoments==1
     error('simulatemoments=1 option is not supported for PType')
 end
 
+AllStats.assets.Mean
+AllStats.bequest.Mean
+AllStats.bequestages.bequest.RatioMeanToMedian
+
 
 %% Get current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
@@ -125,6 +129,12 @@ if usinglcp==1
     end
 end
 
+currentmomentvec(1)
+currentmomentvec(2)
+currentmomentvec(3)
+
+currentmomentvec
+actualtarget
 
 %% Option to log moments (if targets are log, then this will have been already applied)
 if any(caliboptions.logmoments>0) % need to log some moments
@@ -166,8 +176,17 @@ elseif caliboptions.vectoroutput==0 % scalar output
         end
     end
 elseif caliboptions.vectoroutput==2
-    % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
-    Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    % Weighted vector (for use with least-squares residuals algorithms)
+    % Note: the outer-layers of code already took 'square root' of the weights
+    if strcmp(caliboptions.metric,'MethodOfMoments')
+        % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
+        Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    elseif strcmp(caliboptions.metric,'sum_squared')
+        Obj=caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    elseif strcmp(caliboptions.metric,'sum_logratiosquared')
+        Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
+        % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
+    end
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 

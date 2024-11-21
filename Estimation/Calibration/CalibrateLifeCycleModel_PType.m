@@ -51,7 +51,9 @@ if ~isfield(caliboptions,'toleranceobjective')
     caliboptions.toleranceobjective=10^(-6); % tolerance accuracy of the objective function
 end
 if ~isfield(caliboptions,'fminalgo')
-    caliboptions.fminalgo=4; % CMA-ES by default, I tried fminsearch() by default but it regularly fails to converge to a decent solution
+    caliboptions.fminalgo=8; % lsqnonlin(), recast as a least-squares residuals problem and solve it that way
+    % Currently, all the caliboptions.metric choices can be done as setup as least-squares residuals problems
+    % caliboptions.fminalgo=4; % CMA-ES, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
 caliboptions.simulatemoments=0; % Not needed here (the objectivefn is shared with other estimation commands)
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
@@ -220,6 +222,9 @@ else
     usinglcp=0;
 end
 
+if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AgeConditionalStats') )
+    warning('TargetMoments seems to be set up incorrect: it has a field which is neither AllStats nor AgeConditionalStats')
+end
 % NEED TO ADD A CHECK THAT THE INPUT TARGETS ARE THE CORRECT SIZES!!!
 
 
@@ -299,6 +304,10 @@ if usingallstats==1
     if any(strcmp(allstatmomentnames(:,3),'Median'))
         AllStats_whichstats(2)=1;
     end
+    if any(strcmp(allstatmomentnames(:,3),'RatioMeanToMedian'))
+        AllStats_whichstats(1)=1;
+        AllStats_whichstats(2)=1;
+    end
     if any(strcmp(allstatmomentnames(:,3),'Variance')) || any(strcmp(allstatmomentnames(:,3),'StdDeviation'))
         AllStats_whichstats(3)=1;
     end
@@ -320,8 +329,6 @@ else
     allstatcummomentsizes=0;
     AllStats_whichstats=zeros(7,1);
 end
-
-
 
 
 
@@ -394,6 +401,10 @@ if usinglcp==1
     if any(strcmp(acsmomentnames(:,3),'Median'))
         ACStats_whichstats(2)=1;
     end
+    if any(strcmp(acsmomentnames(:,3),'RatioMeanToMedian'))
+        ACStats_whichstats(1)=1;
+        ACStats_whichstats(2)=1;
+    end
     if any(strcmp(acsmomentnames(:,3),'Variance')) || any(strcmp(acsmomentnames(:,3),'StdDeviation'))
         ACStats_whichstats(3)=1;
     end
@@ -409,18 +420,19 @@ if usinglcp==1
     if any(strcmp(acsmomentnames(:,3),'MoreInequality'))
         ACStats_whichstats(7)=1;
     end
+
+    % age-conditional stats should be of length N_j
+    for ii=1:length(acsmomentsizes)
+        if acsmomentsizes(ii)~=N_j
+            errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', acsmomentnames{ii,1}, ' ', acsmomentnames{ii,2}, ' ',acsmomentnames{ii,3},' \n'];
+            error(errorstr)
+        end
+    end
 else
     % Placeholders
     acsmomentnames=cell(1,3);
     acscummomentsizes=0;
     ACStats_whichstats=zeros(7,1);
-end
-% age-conditional stats should be of length N_j
-for ii=1:length(acsmomentsizes)
-    if acsmomentsizes(ii)~=N_j
-        errorstr=['Target Age-Conditional Stats must be of length() N_j (if you want to ignore some ages, use NaN for those ages); problem is with ', acsmomentnames{ii,1}, ' ', acsmomentnames{ii,2}, ' ',acsmomentnames{ii,3},' \n'];
-        error(errorstr)
-    end
 end
 
 
@@ -619,7 +631,15 @@ end
 
 
 %% Set up the objective function and the initial calibration parameter vector
-CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
+if caliboptions.fminalgo~=8
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
+elseif caliboptions.fminalgo==8
+    caliboptions.vectoroutput=2;
+    weightsbackup=caliboptions.weights;
+    caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizePTypeFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
+    caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+end
 
 % calibparamsvec0 is our initial guess for calibparamsvec
 
@@ -673,6 +693,11 @@ elseif caliboptions.fminalgo==6
         error('When using constrained optimization (caliboptions.fminalgo=6) you must set the lower and upper bounds of the GE price parameters using caliboptions.lb and caliboptions.ub') 
     end
     [calibparamsvec,calibobjvalue]=fmincon(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],caliboptions.lb,caliboptions.ub,[],minoptions);    
+elseif caliboptions.fminalgo==7 % fsolve()
+    error('cannot use fminalgo=7 for estimation (as fsolve() is a multi-objective method)')
+elseif caliboptions.fminalgo==8 % lsqnonlin()
+    minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',caliboptions.toleranceparams,'TolFun',caliboptions.toleranceobjective);
+    [calibparamsvec,calibobjvalue]=lsqnonlin(CalibrationObjectiveFn,calibparamsvec0,[],[],[],[],[],[],[],minoptions);
 end
 
 

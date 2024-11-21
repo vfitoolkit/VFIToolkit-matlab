@@ -129,12 +129,12 @@ elseif caliboptions.vectoroutput==0 % scalar output
     % targetmomentvec is the target moment values
     % Both are column vectors
 
-    % Note: MethodOfMoments and sum_squared are doing the same calculation, I
-    % just write them in ways that make it more obvious that they do what they say.
+    % Note: MethodOfMoments and sum_squared are doing essentially the same calculation (only different is size of weights, 
+    % which will be a matrix for MethodOfMoments but a vector for sum_squared), I just write them in ways that make it more 
+    % obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
         % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
-        % For the purpose of doing log(moments) I switched to the following
-        % (otherwise getting silly current moments can seem attractive)
+        % For the purpose of doing log(moments) I switched to the following (otherwise getting silly current moments can seem attractive)
         Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
         Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,[],'omitnan');
@@ -152,8 +152,17 @@ elseif caliboptions.vectoroutput==0 % scalar output
         end
     end
 elseif caliboptions.vectoroutput==2
-    % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
-    Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    % Weighted vector (for use with least-squares residuals algorithms)
+    % Note: the outer-layers of code already took 'square root' of the weights
+    if strcmp(caliboptions.metric,'MethodOfMoments')
+        % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
+        Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    elseif strcmp(caliboptions.metric,'sum_squared')
+        Obj=caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+    elseif strcmp(caliboptions.metric,'sum_logratiosquared')
+        Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
+        % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
+    end
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
