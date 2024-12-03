@@ -10,37 +10,18 @@ Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d an
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 
-if vfoptions.lowmemory>0
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
-end
-
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    if vfoptions.lowmemory==0
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
 
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,N_j)=Vtemp;
-        Policy(:,N_j)=maxindex;
-
-    elseif vfoptions.lowmemory==1
-        %if vfoptions.returnmatrix==2 % GPU
-        for a_c=1:N_a
-            a_val=a_gridvals(a_c,:);
-            ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, special_n_a, d_grid, a_val, ReturnFnParamsVec,0);
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_a,[],1);
-            V(a_c,N_j)=Vtemp;
-            Policy(a_c,N_j)=maxindex;
-        end
-    end
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+    V(:,N_j)=Vtemp;
+    Policy(:,N_j)=maxindex;
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -48,35 +29,16 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    if vfoptions.lowmemory==0
-        
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
-        % (d,aprime,a)
-        
-        entireEV=kron(V_Jplus1,ones(N_d,1));
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
-        
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,N_j)=Vtemp;
-        Policy(:,N_j)=maxindex;
-        
-    elseif vfoptions.lowmemory==1
-       
-       for a_c=1:N_a
-           a_val=a_gridvals(a_c,:);
-           ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, special_n_a, d_grid, a_val, ReturnFnParamsVec,0);
-           
-           entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*V_Jplus1; % aprime-by-1
-           
-           %Calc the max and it's index
-           [Vtemp,maxindex]=max(entireRHS_a,[],1);
-           V(a_c,N_j)=Vtemp;
-           Policy(a_c,N_j)=maxindex;
-        end
-        
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    % (d,aprime,a)
+
+    entireEV=kron(V_Jplus1,ones(N_d,1));
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
+
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(entireRHS,[],1);
+    V(:,N_j)=Vtemp;
+    Policy(:,N_j)=maxindex;
 end
 
 %% Iterate backwards through j.
@@ -87,45 +49,23 @@ for reverse_j=1:N_j-1
         fprintf('Finite horizon: %i of %i \n',jj, N_j)
     end
     
-    
     % Create a vector containing all the return function parameters (in order)
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     VKronNext_j=V(:,jj+1);
-    
-    if vfoptions.lowmemory==0
-        
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
-        % (d,aprime,a)
-        
-        entireEV=kron(VKronNext_j,ones(N_d,1));
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
-        
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,jj)=Vtemp;
-        Policy(:,jj)=maxindex;
-        
-    elseif vfoptions.lowmemory==1
-       
-       for a_c=1:N_a
-           a_val=a_gridvals(a_c,:);
-           ReturnMatrix_a=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, special_n_a, d_grid, a_val, ReturnFnParamsVec,0);
 
-           size(ReturnMatrix_a)
-           size(VKronNext_j)
-           entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*VKronNext_j; % aprime-by-1
-           
-           %Calc the max and it's index
-           [Vtemp,maxindex]=max(entireRHS_a,[],1);
-           V(a_c,jj)=Vtemp;
-           Policy(a_c,jj)=maxindex;
-        end
-        
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    % (d,aprime,a)
+
+    entireEV=kron(VKronNext_j,ones(N_d,1));
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
+
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(entireRHS,[],1);
+    V(:,jj)=Vtemp;
+    Policy(:,jj)=maxindex;
 end
 
 %%
