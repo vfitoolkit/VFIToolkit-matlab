@@ -372,19 +372,19 @@ for rr=1:nReveals
     for ii=1:N_i
         temp=multirevealsummary.RealizedVPath.(Names_i{ii});
         temp2=multirevealsummary.VPath.(revealperiodnames{rr}).(Names_i{ii});
-        temp2=reshape(temp2,[prod(temp_vsize(1:end-1)),T]);
+        temp2=reshape(temp2,[prod(sizesbyptype(ii).temp_vsize(1:end-1)),T]);
         temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
         multirevealsummary.RealizedVPath.(Names_i{ii})=temp;
 
         temp=multirevealsummary.RealizedPolicyPath.(Names_i{ii});
         temp2=multirevealsummary.PolicyPath.(revealperiodnames{rr}).(Names_i{ii});
-        temp2=reshape(temp2,[prod(temp_policysize(1:end-1)),T]);
+        temp2=reshape(temp2,[prod(sizesbyptype(ii).temp_policysize(1:end-1)),T]);
         temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
         multirevealsummary.RealizedPolicyPath.(Names_i{ii})=temp;
 
         temp=multirevealsummary.RealizedAgentDistPath.(Names_i{ii});
         temp2=multirevealsummary.AgentDistPath.(revealperiodnames{rr}).(Names_i{ii});
-        temp2=reshape(temp2,[prod(temp_agentdistsize(1:end-1)),T]);
+        temp2=reshape(temp2,[prod(sizesbyptype(ii).temp_agentdistsize(1:end-1)),T]);
         temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
         multirevealsummary.RealizedAgentDistPath.(Names_i{ii})=temp;
     end
