@@ -246,8 +246,6 @@ for rr=1:nReveals
     multirevealsummary.AgentDistPath.(revealperiodnames{rr})=AgentDistPath_rr;
     multirevealsummary.AggVarsPath.(revealperiodnames{rr})=AggVarsPath_rr;
 
-    save temp.mat PricePath0_rr ParamPath_rr PricePath_rr AgentDistPath_rr
-
     %% Update the StationaryDist_initial for use in the next transition
     if rr<nReveals
         StationaryDist_initial=struct();
@@ -278,11 +276,9 @@ for rr=1:nReveals
         end
     end
 
-    save temp2.mat
-
 end
 
-save temp3.mat
+save temp.mat
 
 %% Create the realized paths for RealizedPricePath and RealizedParamPath from the reveals
 % (I deliberately did not put this inside the same for loop so that it is easier to see how they are constructed)
