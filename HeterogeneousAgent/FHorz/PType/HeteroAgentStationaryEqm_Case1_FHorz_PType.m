@@ -123,7 +123,7 @@ nGEprices=length(GEPriceParamNames);
 PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
 
 
-%% Reformat transpathoptions.GEptype from cell of names into vector of 1s and 0s
+%% Reformat heteroagentoptions.GEptype from cell of names into vector of 1s and 0s
 if isempty(heteroagentoptions.GEptype)
     heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
 else
@@ -153,6 +153,9 @@ if any(heteroagentoptions.GEptype==1)
                 heteroagentoptions.multiGEweights(gg_c)=temp(gg);
             end
         end
+    end
+    if ~isfield(heteroagentoptions,'GEptype_vectoroutput')
+        heteroagentoptions.GEptype_vectoroutput=0;
     end
 elseif length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
@@ -549,9 +552,31 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
 
     %%  Otherwise, use fminsearch to find the general equilibrium
     if all(heteroagentoptions.GEptype==0)
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
-    else
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+        if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==3
+            heteroagentoptions.outputGEform=1; % vector
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==8
+            heteroagentoptions.outputGEform=1; % vector
+            weightsbackup=heteroagentoptions.multiGEweights;
+            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+        end
+    else % some GE condns depend on ptype
+        if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==3
+            heteroagentoptions.outputGEform=1; % vector
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==8
+            heteroagentoptions.outputGEform=1; % vector
+            weightsbackup=heteroagentoptions.multiGEweights;
+            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
+            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+        end
     end
 
 
@@ -659,14 +684,29 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     elseif heteroagentoptions.fminalgo==7 % Matlab fsolve()
         heteroagentoptions.multiGEcriterion=0;
         [p_eqm_vec,GeneralEqmConditions]=fsolve(GeneralEqmConditionsFnOpt,p0,minoptions);
+    elseif heteroagentoptions.fminalgo==8 % Matlab lsqnonlin()
+        minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
+        [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,p0,[],[],[],[],[],[],[],minoptions);
     end
-
+    
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
 
+    
     for pp=1:nGEprices
-        p_eqm.(GEPriceParamNames{pp})=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+        if GEprice_ptype(pp)==0
+            p_eqm.(GEPriceParamNames{pp})=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+        else
+            if heteroagentoptions.GEptype_vectoroutput==1
+                p_eqm.(GEPriceParamNames{pp})=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+            elseif heteroagentoptions.GEptype_vectoroutput==0
+                temp=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+                for ii=1:N_i
+                    p_eqm.(GEPriceParamNames{pp}).(Names_i{ii})=temp(ii);
+                end
+            end
+        end
     end
-
+    
     % vargout={p_eqm,p_eqm_index,GeneralEqmConditions};
     % if heteroagentoptions.fminalgo==3
     %     vargout={p_eqm,GeneralEqmConditions,counteval,stopflag,out,bestever};

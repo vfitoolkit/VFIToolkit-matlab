@@ -36,6 +36,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
+    heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     % heteroagentoptions.outputGEform=0; % For internal use only
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
@@ -70,6 +71,9 @@ else
     if isfield(heteroagentoptions,'maxiter')==0
         heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     end
+    if ~isfield(heteroagentoptions,'GEptype')
+        heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
+    end
     % heteroagentoptions.outputGEform=0; % For internal use only
     if ~isfield(heteroagentoptions,'outputGEstruct')
         heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
@@ -98,6 +102,45 @@ AggVarNames=fieldnames(FnsToEvaluate);
 nGEprices=length(GEPriceParamNames);
 
 PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
+
+%% Reformat heteroagentoptions.GEptype from cell of names into vector of 1s and 0s
+if isempty(heteroagentoptions.GEptype)
+    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+else
+    temp=heteroagentoptions.GEptype;
+    heteroagentoptions.GEptype=zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type'
+    GEeqnNames=fieldnames(GeneralEqmEqns);
+    for gg1=1:length(temp)
+        for gg2=1:length(GEeqnNames)
+            if strcmp(temp{gg1},GEeqnNames{gg2})
+                heteroagentoptions.GEptype(gg2)=1;
+            end
+        end
+    end
+end
+if any(heteroagentoptions.GEptype==1)
+    % Adjust the size of weights for the dependence on ptype
+    temp=heteroagentoptions.multiGEweights;
+    heteroagentoptions.multiGEweights=zeros(1,sum(heteroagentoptions.GEptype==0)+N_i*sum(heteroagentoptions.GEptype==1));
+    gg_c=0;
+    for gg=1:length(fieldnames(GeneralEqmEqns))
+        if heteroagentoptions.GEptype(gg)==0
+            gg_c=gg_c+1;
+            heteroagentoptions.multiGEweights(gg_c)=temp(gg);
+        elseif heteroagentoptions.GEptype(gg)==1
+            for ii=1:N_i
+                gg_c=gg_c+1;
+                heteroagentoptions.multiGEweights(gg_c)=temp(gg);
+            end
+        end
+    end
+    if ~isfield(heteroagentoptions,'GEptype_vectoroutput')
+        heteroagentoptions.GEptype_vectoroutput=0;
+    end
+elseif length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
+    error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
+end
+
 
 %%
 % PTypeStructure contains everything for the different permanent types.
@@ -403,14 +446,49 @@ if heteroagentoptions.fminalgo==5
     end
 end
 
-
+%% Permit that some GEPriceParamNames might depend on PType
+p0=[]; % column vector
+GEpriceindexes=zeros(nGEprices,1);
+GEprice_ptype=zeros(nGEprices,1);
+for pp=1:nGEprices
+    if isstruct(Parameters.(GEPriceParamNames{pp}))
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.Names_i{ii};
+            p0=[p0; gather(Parameters.(GEPriceParamNames{pp}).(iistr))]; % reshape()' is making sure it is a row vector
+        end
+        GEpriceindexes(pp)=PTypeStructure.N_i;
+        GEprice_ptype(pp)=1;
+    else
+        p0=[p0;reshape(gather(Parameters.(GEPriceParamNames{pp})),[],1)]; % reshape() is making sure it is a column vector
+        GEpriceindexes(pp)=length(Parameters.(GEPriceParamNames{pp}));
+        if length(Parameters.(GEPriceParamNames{pp}))>1
+            GEprice_ptype(pp)=1;
+        end
+    end
+end
+GEpriceindexes=[[1; 1+cumsum(GEpriceindexes(1:end-1))],cumsum(GEpriceindexes)];
 
 
 %%
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
-
+    
     %%  Otherwise, use fminsearch to find the general equilibrium
-    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+    if all(heteroagentoptions.GEptype==0)
+        if heteroagentoptions.fminalgo~=8 && heteroagentoptions.fminalgo~=3
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==3
+            heteroagentoptions.outputGEform=1; % vector
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+        elseif heteroagentoptions.fminalgo==8
+            heteroagentoptions.outputGEform=1; % vector
+            weightsbackup=heteroagentoptions.multiGEweights;
+            heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+            GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
+            heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+        end
+    else
+        error('Have not actually yet implemented GEptype for infinite horizon, contact me and I will do so')
+    end
 
     p0=nan(nGEprices,1);
     for ii=1:nGEprices
@@ -515,12 +593,26 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     elseif heteroagentoptions.fminalgo==7 % Matlab fsolve()
         heteroagentoptions.multiGEcriterion=0;
         [p_eqm_vec,GeneralEqmConditions]=fsolve(GeneralEqmConditionsFnOpt,p0,minoptions);
+    elseif heteroagentoptions.fminalgo==8 % Matlab lsqnonlin()
+        minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
+        [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,p0,[],[],[],[],[],[],[],minoptions);
     end
-
+    
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
-
-    for ii=1:nGEprices
-        p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
+    
+    for pp=1:nGEprices
+        if GEprice_ptype(pp)==0
+            p_eqm.(GEPriceParamNames{pp})=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+        else
+            if heteroagentoptions.GEptype_vectoroutput==1
+                p_eqm.(GEPriceParamNames{pp})=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+            elseif heteroagentoptions.GEptype_vectoroutput==0
+                temp=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+                for ii=1:N_i
+                    p_eqm.(GEPriceParamNames{pp}).(Names_i{ii})=temp(ii);
+                end
+            end
+        end
     end
 
     % vargout={p_eqm,p_eqm_index,GeneralEqmConditions};

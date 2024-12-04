@@ -193,10 +193,21 @@ end
 
 %%
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
-
+    
     %% Otherwise, use fminsearch to find the general equilibrium
-    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
-
+    if heteroagentoptions.fminalgo~=3 && heteroagentoptions.fminalgo~=8
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
+    elseif heteroagentoptions.fminalgo==3
+        heteroagentoptions.outputGEform=1; % vector
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
+    elseif heteroagentoptions.fminalgo==8
+        heteroagentoptions.outputGEform=1; % vector
+        weightsbackup=heteroagentoptions.multiGEweights;
+        heteroagentoptions.multiGEweights=sqrt(heteroagentoptions.multiGEweights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
+        heteroagentoptions.multiGEweights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
+    end
+    
     p0=nan(length(GEPriceParamNames),1);
     for ii=1:length(GEPriceParamNames)
         p0(ii)=Parameters.(GEPriceParamNames{ii});
@@ -301,6 +312,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     elseif heteroagentoptions.fminalgo==7 % Matlab fsolve()
         heteroagentoptions.multiGEcriterion=0;
         [p_eqm_vec,GeneralEqmConditions]=fsolve(GeneralEqmConditionsFnOpt,p0,minoptions);
+    elseif heteroagentoptions.fminalgo==8 % Matlab lsqnonlin()
+        minoptions = optimoptions('lsqnonlin','FiniteDifferenceStepSize',1e-2,'TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
+        [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,p0,[],[],[],[],[],[],[],minoptions);
     end
 
 
