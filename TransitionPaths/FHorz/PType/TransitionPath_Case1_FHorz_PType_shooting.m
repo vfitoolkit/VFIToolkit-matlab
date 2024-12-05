@@ -404,7 +404,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     else
                         Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
                     end
-                    if length(Parameters.([tminus1priceNames{pp},'_tminus1']))==N_i % Depends on ptype
+                    if isstruct(Parameters.([tminus1priceNames{pp},'_tminus1']))
+                        for ii=1:N_i
+                            iistr=PTypeStructure.Names_i{ii};
+                            Parameters_ii.(iistr).([tminus1priceNames{pp},'_tminus1'])=Parameters.([tminus1priceNames{pp},'_tminus1']).(iistr);
+                        end
+                    elseif length(Parameters.([tminus1priceNames{pp},'_tminus1']))==N_i % Depends on ptype
                         for ii=1:N_i
                             iistr=PTypeStructure.Names_i{ii};
                             tempii=Parameters.([tminus1priceNames{pp},'_tminus1']);
@@ -420,7 +425,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     else
                         Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
                     end
-                    if length(Parameters.([tminus1paramNames{pp},'_tminus1']))==N_i % Depends on ptype
+                    if isstruct(Parameters.([tminus1paramNames{pp},'_tminus1']))
+                        for ii=1:N_i
+                            iistr=PTypeStructure.Names_i{ii};
+                            Parameters_ii.(iistr).([tminus1paramNames{pp},'_tminus1'])=Parameters.([tminus1paramNames{pp},'_tminus1']).(iistr);
+                        end
+                    elseif length(Parameters.([tminus1paramNames{pp},'_tminus1']))==N_i % Depends on ptype
                         for ii=1:N_i
                             iistr=PTypeStructure.Names_i{ii};
                             tempii=Parameters.([tminus1paramNames{pp},'_tminus1']);
@@ -429,7 +439,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     end
                 end
             end
-
+            
             % Get t-1 AggVars before we update them
             if use_tminus1AggVars==1
                 for pp=1:length(tminus1AggVarsNames)
@@ -447,7 +457,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                             end
                         end
                     else
-                        if length(transpathoptions.initialvalues.(tminus1AggVarsNames{pp}))==N_i % Depends on ptype
+                        if isstruct(transpathoptions.initialvalues.(tminus1AggVarsNames{pp}))
+                            for ii=1:N_i
+                                iistr=PTypeStructure.Names_i{ii};
+                                Parameters_ii.(iistr).([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp}).(iistr);
+                            end
+                        elseif length(transpathoptions.initialvalues.(tminus1AggVarsNames{pp}))==N_i % Depends on ptype
                             temp=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
                             for ii=1:N_i
                                 iistr=PTypeStructure.Names_i{ii};
@@ -495,7 +510,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 for pp=1:length(tplus1priceNames)
                     kk=tplus1pricePathkk(pp);
                     Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
-                    if length(Parameters.([tplus1priceNames{pp},'_tplus1']))==N_i % Depends on ptype
+                    if isstruct(Parameters.([tplus1priceNames{pp},'_tplus1']))
+                        for ii=1:N_i
+                            iistr=PTypeStructure.Names_i{ii};
+                            Parameters_ii.(iistr).([tplus1priceNames{pp},'_tplus1'])=Parameters.([tplus1priceNames{pp},'_tplus1']).(iistr);
+                        end
+                    elseif length(Parameters.([tplus1priceNames{pp},'_tplus1']))==N_i % Depends on ptype
                         temp=Parameters.([tplus1priceNames{pp},'_tplus1']);
                         for ii=1:N_i
                             iistr=PTypeStructure.Names_i{ii};
@@ -535,17 +555,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                     end
                 end
 
-                % if tt==T-1
-                %     for ii=1:N_i
-                %         ii
-                %         iistr=PTypeStructure.Names_i{ii};
-                %         Parameters_ii.(iistr).AccidentalBeqLeft_tminus1
-                %         Parameters_ii.(iistr).AccidentBeq
-                %         Parameters_ii.(iistr).n
-                %     end
-                % end
-                p_i_raw=p_i; % PURELY FOR DEBUG
-
                 p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
                 I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
                 p_i=I_makescutoff.*p_i;
@@ -555,17 +564,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         end % Done loop over tt, evaluating the GE conditions
 
-        disp('erhe')
-        GEeqnNames
-        p_i_raw
-        PricePathNames
-        p_i
-        transpathoptions.GEnewprice3.permute % I THINK THIS IS THE WRONG PERMUTE! (GOES P to G, should be G to P
-        
-        
-
-        % p_i_raw(3)-p_i_raw(2)
-        % p_i(3)-p_i(4)
     end
     
     %% Now we just check for convergence, update prices, and give some feedback on progress
