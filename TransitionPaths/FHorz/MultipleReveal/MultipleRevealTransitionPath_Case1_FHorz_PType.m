@@ -1,4 +1,4 @@
-function [RealizedPricePath, RealizedParamPath, PricePath, multirevealsummary]=MultipleRevealTransitionPath_Case1_FHorz_PType(PricePathShaper, ParamPath, T, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, heteroagentoptions, simoptions, vfoptions)
+function [RealizedPricePath, RealizedParamPath, PricePath, multirevealsummary]=MultipleRevealTransitionPath_Case1_FHorz_PType(PricePathShaper, ParamPath, T, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions_path, vfoptions_path, heteroagentoptions, simoptions_finaleqm, vfoptions_finaleqm)
 
 % This is essentially going to call each of HeteroAgentStationaryEqm_Case1_FHorz_PType and TransitionPath_Case1_FHorz_PType repeatedly
 % It is mostly just handling a large amount of for loops for you.
@@ -10,6 +10,9 @@ function [RealizedPricePath, RealizedParamPath, PricePath, multirevealsummary]=M
 %    get the agent dist when we are about the make the next reveal (and the
 %    prices so we can use them as initial guess for next path)
 % End
+
+% Note: vfoptions_finaleqm and vfoptions_path can be used to set vfoptions differently 
+% for the final eqm and for the transition path (same for simoptions)
 
 %% Get N_i so can use it to check inputs and set things up
 if iscell(Names_i)
@@ -209,7 +212,7 @@ for rr=1:nReveals
         end
     end
     % Now solve the stationary general eqm
-    [p_eqm_final,~,GeneralEqmCondnValues]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j,Names_i, 0, pi_z, d_grid, a_grid, z_grid, jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
+    [p_eqm_final,~,GeneralEqmCondnValues]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j,Names_i, 0, pi_z, d_grid, a_grid, z_grid, jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames, heteroagentoptions, simoptions_finaleqm, vfoptions_finaleqm);
     % Store the final stationary eqm
     multirevealsummary.finaleqm.(revealperiodnames{rr}).p_eqm_final=p_eqm_final;
     multirevealsummary.finaleqm.(revealperiodnames{rr}).GeneralEqmCondnValues=GeneralEqmCondnValues;
@@ -219,7 +222,7 @@ for rr=1:nReveals
     end
 
     % Get V_final
-    [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions_finaleqm);
 
     %% Set up guess on PricePath0
     PricePath0_rr=struct();
@@ -261,20 +264,20 @@ for rr=1:nReveals
 
     
     %% Compute the transition path
-    PricePath_rr=TransitionPath_Case1_FHorz_PType(PricePath0_rr, ParamPath_rr, T, V_final, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, Names_i,d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
+    PricePath_rr=TransitionPath_Case1_FHorz_PType(PricePath0_rr, ParamPath_rr, T, V_final, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, Names_i,d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions_path, vfoptions_path);
     % Keep each of the price paths
     PricePath.(revealperiodnames{rr})=PricePath_rr;
     
     %% Need the agent dist along the path so that we can move to the next reveal
 
     % You can calculate the value and policy functions for the transition path
-    [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, transpathoptions,vfoptions);
+    [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, transpathoptions,vfoptions_path);
     
     % You can then use these to calculate the agent distribution for the transition path
-    AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz_PType(StationaryDist_initial, jequaloneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T, Parameters, transpathoptions, simoptions);
+    AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz_PType(StationaryDist_initial, jequaloneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T, Parameters, transpathoptions, simoptions_path);
 
     % And then we can calculate AggVars for the path
-    AggVarsPath_rr=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, AgentDistPath_rr, PolicyPath_rr, PricePath_rr, ParamPath_rr, Parameters, T, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions);
+    AggVarsPath_rr=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, AgentDistPath_rr, PolicyPath_rr, PricePath_rr, ParamPath_rr, Parameters, T, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions_path);
     
     % Store these, they might be of interest if user wants to see way too much info about each path :)
     multirevealsummary.VPath.(revealperiodnames{rr})=VPath_rr;
