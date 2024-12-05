@@ -50,10 +50,14 @@ for rr=1:nReveals
             for ii=1:N_i
                 if any(strcmp(tempNames_i,Names_i{ii}))
                     ParamsOnPath_ptypedependence(pp,ii)=1;
-                    if ~any(size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})))
+                    if ~any(size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii}))==T)
                         fprintf('Problem with ParamPath is in reveal %s and parmeter %s for ptype %i \n', revealperiodnames{rr}, ParamsOnPathNames{pp}, Names_i{ii})
                         error('Something in ParamPath does not have the T periods (see previous line of output)')
                     end
+                end
+                % Make sure it is T-by-something
+                if size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii}),2)==T
+                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})'; % transpose
                 end
             end
         elseif any(size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}))==N_i) % vector that depends on ptype
@@ -62,12 +66,20 @@ for rr=1:nReveals
             temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp});
             ParamPath.(revealperiodnames{rr})=rmfield(ParamPath.(revealperiodnames{rr}),ParamsOnPathNames{pp});
             for ii=1:N_i
-                ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names{ii})=temp(ii);
+                if size(temp(ii),1)==T % Make sure it is T-by-something
+                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names{ii})=temp(ii);
+                else
+                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names{ii})=temp(ii)';
+                end
             end
         else
-            if ~any(size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp})))
+            if ~any(size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}))==T)
                 fprintf('Problem with ParamPath is in reveal %s and parmeter %s \n', revealperiodnames{rr}, ParamsOnPathNames{pp})
                 error('Something in ParamPath does not have the T periods (see previous line of output)')
+            end
+            % Make sure it is T-by-something
+            if size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}),2)==T
+                ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp})=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp})'; % transpose
             end
         end
     end
@@ -93,6 +105,10 @@ if any(strcmp(PricesOnPathNames,'t0001'))
                             error('Something in PricePathShaper does not have the T periods (see previous line of output)')
                         end
                     end
+                    % Make sure it is T-by-something
+                    if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii}),2)==T
+                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii})=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii})'; % transpose
+                    end
                 end
             elseif any(size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}))==N_i) % vector that depends on ptype
                 PricesOnPath_ptypedependence(pp,:)=1; % Note, this won't differ by reveal, so is just overwriting unnecessarily, but not big deal
@@ -100,13 +116,21 @@ if any(strcmp(PricesOnPathNames,'t0001'))
                 temp=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp});
                 PricePathShaper.(revealperiodnames{rr})=rmfield(PricePathShaper.(revealperiodnames{rr}),PricesOnPathNames{pp});
                 for ii=1:N_i
-                    PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names{ii})=temp(ii);
+                    if size(temp(ii),1)==T % Make sure it is T-by-something
+                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names{ii})=temp(ii);
+                    else
+                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names{ii})=temp(ii)';
+                    end
                 end
             else
                 if ~any(size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}))==T)
                     fprintf('Problem with PricePathShaper is in reveal %s and parmeter %s \n', revealperiodnames{rr}, PricesOnPathNames{pp})
                     error('Something in PricePathShaper does not have the T periods (see previous line of output)')
                 end
+            end
+            % Make sure it is T-by-something
+            if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}),2)==T
+                PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})'; % transpose
             end
         end
     end
@@ -125,6 +149,10 @@ else
                         error('Something in PricePathShaper does not have the T periods (see previous line of output)')
                     end
                 end
+                % Make sure it is T-by-something
+                if size(PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii}),2)==T
+                    PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii})=PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii})'; % transpose
+                end
             end
         elseif any(size(PricePathShaper.(PricesOnPathNames{pp}))==N_i) % vector that depends on ptype
             PricesOnPath_ptypedependence(pp,:)=1; % Note, this won't differ by reveal, so is just overwriting unnecessarily, but not big deal
@@ -132,12 +160,20 @@ else
             temp=PricePathShaper.(PricesOnPathNames{pp});
             PricePathShaper=rmfield(PricePathShaper,PricesOnPathNames{pp});
             for ii=1:N_i
-                PricePathShaper.(PricesOnPathNames{pp}).(Names{ii})=temp(ii);
+                if size(temp(ii),1)==T % Make sure it is T-by-something
+                    PricePathShaper.(PricesOnPathNames{pp}).(Names{ii})=temp(ii);
+                else
+                    PricePathShaper.(PricesOnPathNames{pp}).(Names{ii})=temp(ii)';
+                end
             end
         else
             if ~any(size(PricePathShaper.(PricesOnPathNames{pp}))==T)
                 fprintf('Problem with PricePathShaper is in parmeter %s \n', PricesOnPathNames{pp})
                 error('Something in PricePathShaper does not have the T periods (see previous line of output)')
+            end
+            % Make sure it is T-by-something
+            if size(PricePathShaper.(PricesOnPathNames{pp}),2)==T
+                PricePathShaper.(PricesOnPathNames{pp})=PricePathShaper.(PricesOnPathNames{pp})'; % transpose
             end
         end
     end
@@ -164,12 +200,12 @@ for rr=1:nReveals
             for ii=1:N_i
                 if ParamsOnPath_ptypedependence(pp,ii)==1
                     temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii});
-                    Parameters.(ParamsOnPathNames{pp}).(Names_i{ii})=temp(end); % the final value of the ParamPath on this parameter
+                    Parameters.(ParamsOnPathNames{pp}).(Names_i{ii})=temp(end,:); % the final value of the ParamPath on this parameter
                 end
             end
         else
             temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp});
-            Parameters.(ParamsOnPathNames{pp})=temp(end); % the final value of the ParamPath on this parameter
+            Parameters.(ParamsOnPathNames{pp})=temp(end,:); % the final value of the ParamPath on this parameter
         end
     end
     % Now solve the stationary general eqm

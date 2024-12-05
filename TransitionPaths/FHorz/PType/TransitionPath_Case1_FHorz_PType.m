@@ -187,7 +187,7 @@ if length(PricePathNames)>1
 else
     PricePathSizeVec=[1;PricePathSizeVec];
 end
-PricePathOld=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
+PricePathOld=zeros(T,PricePathSizeVec(2,end)); % Do this seperately afterwards so that can preallocate the memory
 for pp=1:length(PricePathNames)
     if isstruct(PricePathStruct.(PricePathNames{pp})) % depends on ptype as structure
         tempptypenames=fieldnames(PricePathStruct.(PricePathNames{pp}));
