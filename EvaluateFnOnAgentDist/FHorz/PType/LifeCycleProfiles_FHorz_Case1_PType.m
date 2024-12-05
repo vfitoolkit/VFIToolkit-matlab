@@ -113,6 +113,7 @@ else
         end
     else
         defaultagegroupings=0;
+        N_j_max=length(simoptions.agegroupings);
     end
     if isfield(simoptions,'nquantiles')==0
         simoptions.nquantiles=20; % by default gives ventiles
