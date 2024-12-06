@@ -50,7 +50,7 @@ if simoptions.loopovere==0
         % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
     end
 
-elseif simoption.loopovere==1
+elseif simoptions.loopovere==1
     StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
@@ -91,7 +91,7 @@ elseif simoption.loopovere==1
         StationaryDistKron=gpuArray(StationaryDistKron);
         % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
     end
-elseif simoption.loopovere==2 % loop over e, but using a parfor loop
+elseif simoptions.loopovere==2 % loop over e, but using a parfor loop
     StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
