@@ -28,6 +28,9 @@ if ~exist('whichstats','var')
     % 6th element: quantiles
     % 7th element: More Inequality
     % Note: RatioMeanToMedian is computed whenever both mean and median are
+    %
+    % For 4th and 6th elements, setting whichstats(4)=2 and ichstats(6)=2
+    % switches to a faster but more memory intensive version.
 end
 
 
@@ -38,14 +41,22 @@ if presorted==0
     Weights=reshape(Weights,[numel(Weights),1]);
 
     % Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
-    temp=logical(Weights~=0);
-    Weights=Weights(temp);
-    Values=Values(temp);
+    temp=logical(Weights==0);
+    Weights=Weights(~temp);
+    Values=Values(~temp);
 
     %% Sorted weighted values
     [SortedValues,SortedValues_index] = sort(Values);
     SortedWeights = Weights(SortedValues_index);
 elseif presorted==1
+    SortedValues=Values;
+    SortedWeights=Weights;
+elseif presorted==2
+    % sorted and unique, but might sill contain some zero weights
+    % Eliminate all the zero-weights from these (trivial increase in runtime, but makes it easier to spot when there is no variance)
+    temp=logical(Weights==0);
+    Weights=Weights(~temp);
+    Values=Values(~temp);    
     SortedValues=Values;
     SortedWeights=Weights;
 end
@@ -70,13 +81,18 @@ end
 
 
 %% Deal with case where all the values are just the same anyway
-if SortedValues(1)==SortedValues(end)
+if SortedValues(1)==SortedValues(end) || all(CumSumSortedWeights==1)
     % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
+    % OR
+    % Due to numerical rounding, it has multiple values but only one has
+    % any meaning as all the mass is in one place (weights of magnitude,
+    % e.g. 1e-26 can turn into cumulative weights with zero difference
+    % between them)
     if whichstats(3)==1
         AllStats.Variance=0;
         AllStats.StdDeviation=0;
     end
-    if whichstats(4)==1
+    if whichstats(4)>=1
         AllStats.LorenzCurve=1/npoints:1/npoints:1;
         AllStats.Gini=0;
     end
@@ -108,7 +124,7 @@ else
         AllStats.StdDeviation=sqrt(AllStats.Variance);
     end
 
-    if whichstats(4)==1
+    if whichstats(4)>=1
         % Lorenz curve and Gini coefficient
         if npoints>0
             if WeightedSortedValues(1)<0
@@ -122,15 +138,30 @@ else
                 % (note, we already eliminated the zero mass points, and dealt with case that the remaining grid is just one point)
                 LorenzCurve=zeros(npoints,1);
                 llvec=1/npoints:1/npoints:1;
-                for ll=1:npoints-1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
-                    [~,lorenzcind]=max(CumSumSortedWeights >= llvec(ll));
-                    if lorenzcind==1
-                        LorenzCurve(ll)=llvec(ll)*SortedValues(lorenzcind);
-                    else
-                        LorenzCurve(ll)=CumSumSortedWeightedValues(lorenzcind-1)+(llvec(ll)-CumSumSortedWeights(lorenzcind-1))*SortedValues(lorenzcind);
+                if whichstats(4)==1
+                    for ll=1:npoints-1 % Note: because there are npoints points in lorenz curve, avoiding a loop here can be prohibitive in terms of memory use
+                        [~,lorenzcind]=max(CumSumSortedWeights >= llvec(ll));
+                        if lorenzcind==1
+                            LorenzCurve(ll)=llvec(ll)*SortedValues(lorenzcind);
+                        else
+                            LorenzCurve(ll)=CumSumSortedWeightedValues(lorenzcind-1)+(llvec(ll)-CumSumSortedWeights(lorenzcind-1))*SortedValues(lorenzcind);
+                        end
                     end
+                    LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
+                elseif whichstats(4)==2 % faster option, but can run out of memory
+                    % Even thought the weights themselves are non-zero, you can still get that two consecutive elements of CumSumSortedWeights are the same (happened when the weight was 1e-26)
+                    [CumSumSortedWeights2,u1index,u2index]=unique(CumSumSortedWeights);
+                    temp=interp1(CumSumSortedWeights2,CumSumSortedWeightedValues(u1index),llvec(1:end-1));
+                    LorenzCurve(1:end-1)=temp;
+                    % Because of how interp1() works, it will put NaN at the bottom of the curve if there is a bunch of mass at first value
+                    temp2=sum(isnan(temp));
+                    if abs(LorenzCurve(temp2+1)-CumSumSortedWeightedValues(1))<1e-15
+                        temp2=temp2+1;
+                    end
+                    LorenzCurve(1:temp2)=(CumSumSortedWeightedValues(1) - SortedValues(1)*(CumSumSortedWeights(1)-temp2/npoints)) .*((1:1:temp2)/temp2);
+                    % Finished cleaning up the isnan()
+                    LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
                 end
-                LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
                 % Now normalize the curve so that they are fractions of the total.
                 SumWeightedValues=sum(WeightedSortedValues);
                 AllStats.LorenzCurve=LorenzCurve/SumWeightedValues;
@@ -158,46 +189,55 @@ else
         AllStats.Minimum=minvalue;
     end
 
-    if whichstats(6)==1
-        if nquantiles>0
-            if nquantiles==1
-                error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
-            end
-            % Calculate the quantile means (ventiles by default)
-            % Calculate the quantile cutoffs (ventiles by default)
-            QuantileMeans=zeros(nquantiles,1);
-            quantilecutoffindexes=zeros(nquantiles-1,1);
-            quantilecvec=1/nquantiles:1/nquantiles:1-1/nquantiles;
-            for quantilecind=1:nquantiles-1 % Note: because there are nquantiles points in quantiles, avoiding a loop here can be prohibitive in terms of memory use
-                [~,quantilecutoffindexes_quantilec]=max(CumSumSortedWeights >= quantilecvec(quantilecind));
-                quantilecutoffindexes(quantilecind)=quantilecutoffindexes_quantilec;
-            end
-            AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
-            % Note: following lines replace /(1/nquantiles) with *nquantiles
-            QuantileMeans(1)=sum(WeightedSortedValues(1:quantilecutoffindexes(1)))  -SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles);
-            for ll=2:nquantiles-1
-                QuantileMeans(ll)=sum(WeightedSortedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll)))  -SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)  +SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles);
-            end
-            QuantileMeans(nquantiles)=sum(WeightedSortedValues(quantilecutoffindexes(nquantiles-1)+1:end))  +SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles);
-            AllStats.QuantileMeans=QuantileMeans*nquantiles;
+    if whichstats(6)>=1
+        if nquantiles==1
+            error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
         end
-    elseif whichstats(6)==2 % Vectorizes so faster, but uses more memory (can cause out of memory errors if you have large nquantiles, hence it is not the default)
-        if nquantiles>0
-            if nquantiles==1
-                error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')
+        % Calculate the quantile means (ventiles by default)
+        % Calculate the quantile cutoffs (ventiles by default)
+        if whichstats(6)==1
+            if nquantiles>0
+                QuantileMeans=zeros(nquantiles,1);
+                quantilecutoffindexes=zeros(nquantiles-1,1);
+                quantilecvec=1/nquantiles:1/nquantiles:1-1/nquantiles;
+                for quantilecind=1:nquantiles-1 % Note: because there are nquantiles points in quantiles, avoiding a loop here can be prohibitive in terms of memory use
+                    [~,quantilecutoffindexes_quantilec]=max(CumSumSortedWeights >= quantilecvec(quantilecind));
+                    quantilecutoffindexes(quantilecind)=quantilecutoffindexes_quantilec;
+                end
+                AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
+                QuantileMeans(1)=sum(WeightedSortedValues(1:quantilecutoffindexes(1))) - SortedValues(quantilecutoffindexes(1))*(CumSumSortedWeights(quantilecutoffindexes(1))-1/nquantiles);
+                for ll=2:nquantiles-1
+                    if quantilecutoffindexes(ll-1)==quantilecutoffindexes(ll)
+                        QuantileMeans(ll)=SortedValues(quantilecutoffindexes(ll))/nquantiles; % Note: need to /nquantiles, because later I *nquantiles
+                    else
+                        QuantileMeans(ll)=sum(WeightedSortedValues(quantilecutoffindexes(ll-1)+1:quantilecutoffindexes(ll))) - SortedValues(quantilecutoffindexes(ll))*(CumSumSortedWeights(quantilecutoffindexes(ll))-ll/nquantiles)  + SortedValues(quantilecutoffindexes(ll-1))*(CumSumSortedWeights(quantilecutoffindexes(ll-1))-(ll-1)/nquantiles);
+                    end
+                end
+                QuantileMeans(nquantiles)=sum(WeightedSortedValues(quantilecutoffindexes(nquantiles-1)+1:end)) + SortedValues(quantilecutoffindexes(nquantiles-1))*(CumSumSortedWeights(quantilecutoffindexes(nquantiles-1))-(nquantiles-1)/nquantiles);
+                AllStats.QuantileMeans=QuantileMeans*nquantiles; % Note: *nquantiles is really /(1/nquantiles), it is dividing by the mass of the quantile
             end
-            % Calculate the quantile means (ventiles by default)
-            % Calculate the quantile cutoffs (ventiles by default)
-            % QuantileMeans=zeros(nquantiles,1,'gpuArray');
-            [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
-            AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
+        elseif whichstats(6)==2 % Vectorizes so faster, but uses more memory (can cause out of memory errors if you have large nquantiles, hence it is not the default)
+            if nquantiles>0
+                % QuantileMeans=zeros(nquantiles,1,'gpuArray');
+                [~,quantilecutoffindexes]=max(CumSumSortedWeights >= 1/nquantiles:1/nquantiles:1-1/nquantiles);
+                AllStats.QuantileCutoffs=[minvalue; SortedValues(quantilecutoffindexes); maxvalue];
+                
+                quantilecutoffindexes_lower=[1; quantilecutoffindexes'];
+                quantilecutoffindexes_upper=[quantilecutoffindexes'; numel(WeightedSortedValues)];
+                
+                CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
+                term1=CumSumSortedWeightedValues(quantilecutoffindexes_upper)-CumSumSortedWeightedValues(quantilecutoffindexes_lower);
+                term2=SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles);
+                term3=SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
+                QuantileMeans=term1-term2+term3;
+                
+                % This formula only works when the cutoff indexes are different, so when they are not, do some overwriting
+                temp=logical(quantilecutoffindexes_lower==quantilecutoffindexes_upper);
+                QuantileMeans(temp)=SortedValues(quantilecutoffindexes_upper(temp))/nquantiles;  % Note: need to /nquantiles, because later I *nquantiles
+                AllStats.QuantileMeans=QuantileMeans*nquantiles; % Note: *nquantiles is really /(1/nquantiles), it is dividing by the mass of the quantile
+            end
+        end
 
-            quantilecutoffindexes_lower=[1,quantilecutoffindexes];
-            quantilecutoffindexes_upper=[quantilecutoffindexes,numel(SortedValues)];
-
-            QuantileMeans=sum(WeightedSortedValues(quantilecutoffindexes_lower:quantilecutoffindexes_upper))  -SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles)  +SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
-            AllStats.QuantileMeans=QuantileMeans*nquantiles;
-        end        
     end
     
     if whichstats(7)==1

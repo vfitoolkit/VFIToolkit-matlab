@@ -74,7 +74,7 @@ if ~exist('simoptions','var')
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
-    simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+    simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -130,7 +130,7 @@ else
         simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
 end
 
@@ -321,7 +321,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(4)==1
+            if simoptions.whichstats(4)>=1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
             end
@@ -329,7 +329,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
             end
-            if simoptions.whichstats(6)==1
+            if simoptions.whichstats(6)>=1
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
             end
@@ -568,7 +568,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions.whichstats(4)==1
+                if simoptions.whichstats(4)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
@@ -576,7 +576,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions.whichstats(6)==1
+                if simoptions.whichstats(6)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
                 end
@@ -605,7 +605,7 @@ if simoptions.lowmemory==0
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                         end
-                        if simoptions.whichstats(4)==1
+                        if simoptions.whichstats(4)>=1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Gini=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                         end
@@ -613,7 +613,7 @@ if simoptions.lowmemory==0
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Minimum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Maximum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                         end
-                        if simoptions.whichstats(6)==1
+                        if simoptions.whichstats(6)>=1
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
                             AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
                         end
@@ -647,9 +647,9 @@ if simoptions.lowmemory==0
 
                     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
                     % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
-                    temp=logical(StationaryDistVec_jj~=0); % NOTE: This and the next line could in principle be done outside all of these loops (just looping over j)
-                    StationaryDistVec_jj=StationaryDistVec_jj(temp);
-                    Values_jj=Values_jj(temp);
+                    temp=logical(StationaryDistVec_jj==0); % NOTE: This and the next line could in principle be done outside all of these loops (just looping over j)
+                    StationaryDistVec_jj=StationaryDistVec_jj(~temp);
+                    Values_jj=Values_jj(~temp);
 
                     % I want to use unique to make it easier to put the different agent
                     % ptypes together (as all the matrices are typically smaller).
@@ -676,7 +676,7 @@ if simoptions.lowmemory==0
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jj)=tempStats.Variance;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jj)=tempStats.StdDeviation;
                     end
-                    if simoptions.whichstats(4)==1
+                    if simoptions.whichstats(4)>=1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jj)=tempStats.LorenzCurve;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jj)=tempStats.Gini;
                     end
@@ -684,7 +684,7 @@ if simoptions.lowmemory==0
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jj)=tempStats.Minimum;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jj)=tempStats.Maximum;
                     end
-                    if simoptions.whichstats(6)==1
+                    if simoptions.whichstats(6)>=1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jj)=tempStats.QuantileMeans;
                     end
@@ -741,11 +741,11 @@ if simoptions.lowmemory==0
                             if sum(restrictedsamplemass(ii,j1:jend,rr))~=0
                                 % Do same to RestrictionStruct_ii(rr).RestrictedStationaryDistVec(:,jj) as was done to get SortedWeights_jj
                                 RestrictedSortedWeights=RestrictionStruct_ii(rr).RestrictedStationaryDistVec(:,j1:jend);
-                                RestrictedSortedWeights=RestrictedSortedWeights(temp);
+                                RestrictedSortedWeights=RestrictedSortedWeights(~temp); % drop zeros masses (but ignoring the restrictions; this is just to match what was already done to SortedValues_jj)
                                 RestrictedSortedWeights=accumarray(sortindex,RestrictedSortedWeights,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
                                 RestrictedSortedWeights=RestrictedSortedWeights/sum(RestrictedSortedWeights(:)); % renormalize to 1
-
-                                tempStatsRestricted=StatsFromWeightedGrid(SortedValues_jj,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
+                                
+                                tempStatsRestricted=StatsFromWeightedGrid(SortedValues_jj,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,2,simoptions.whichstats);
 
                                 % Now store these based on jj
                                 if simoptions.whichstats(1)==1
@@ -761,7 +761,7 @@ if simoptions.lowmemory==0
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jj)=tempStatsRestricted.Variance;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jj)=tempStatsRestricted.StdDeviation;
                                 end
-                                if simoptions.whichstats(4)==1
+                                if simoptions.whichstats(4)>=1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jj)=tempStatsRestricted.LorenzCurve;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jj)=tempStatsRestricted.Gini;
                                 end
@@ -769,7 +769,7 @@ if simoptions.lowmemory==0
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jj)=tempStatsRestricted.Minimum;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jj)=tempStatsRestricted.Maximum;
                                 end
-                                if simoptions.whichstats(6)==1
+                                if simoptions.whichstats(6)>=1
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jj)=tempStatsRestricted.QuantileCutoffs;
                                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jj)=tempStatsRestricted.QuantileMeans;
                                 end
@@ -831,7 +831,7 @@ if simoptions.lowmemory==0
             AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,N_j_max2,'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,N_j_max2,'gpuArray');
         end
-        if simoptions.whichstats(4)==1
+        if simoptions.whichstats(4)>=1
             AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,N_j_max2,'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,N_j_max2,'gpuArray');
         end
@@ -839,7 +839,7 @@ if simoptions.lowmemory==0
             AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,N_j_max2,'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,N_j_max2,'gpuArray');
         end
-        if simoptions.whichstats(6)==1
+        if simoptions.whichstats(6)>=1
             AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,N_j_max2,'gpuArray'); % Includes the min and max values
             AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,N_j_max2,'gpuArray');
         end
@@ -868,7 +868,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance=nan(1,N_j_max2,'gpuArray');
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation=nan(1,N_j_max2,'gpuArray');
                 end
-                if simoptions.whichstats(4)==1
+                if simoptions.whichstats(4)>=1
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,N_j_max2,'gpuArray');
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini=nan(1,N_j_max2,'gpuArray');
                 end
@@ -876,7 +876,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum=nan(1,N_j_max2,'gpuArray');
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum=nan(1,N_j_max2,'gpuArray');
                 end
-                if simoptions.whichstats(6)==1
+                if simoptions.whichstats(6)>=1
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,N_j_max2,'gpuArray'); % Includes the min and max values
                     AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,N_j_max2,'gpuArray');
                 end
@@ -940,7 +940,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=tempStats.Variance;
                     AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=tempStats.StdDeviation;
                 end
-                if simoptions.whichstats(4)==1
+                if simoptions.whichstats(4)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Gini(jj)=tempStats.Gini;
                     AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,jj)=tempStats.LorenzCurve;
                 end
@@ -948,7 +948,7 @@ if simoptions.lowmemory==0
                     AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=tempStats.Minimum;
                     AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=tempStats.Maximum;
                 end
-                if simoptions.whichstats(6)==1
+                if simoptions.whichstats(6)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
                     AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,jj)=tempStats.QuantileMeans;
                 end
@@ -1038,7 +1038,7 @@ if simoptions.lowmemory==0
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Variance(jj)=tempStats2.Variance;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).StdDeviation(jj)=tempStats2.StdDeviation;
                             end
-                            if simoptions.whichstats(4)==1
+                            if simoptions.whichstats(4)>=1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Gini(jj)=tempStats2.Gini;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).LorenzCurve(:,jj)=tempStats2.LorenzCurve;
                             end
@@ -1046,7 +1046,7 @@ if simoptions.lowmemory==0
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Minimum(jj)=tempStats2.Minimum;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).Maximum(jj)=tempStats2.Maximum;
                             end
-                            if simoptions.whichstats(6)==1
+                            if simoptions.whichstats(6)>=1
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileCutoffs(:,jj)=tempStats2.QuantileCutoffs;
                                 AgeConditionalStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).QuantileMeans(:,jj)=tempStats2.QuantileMeans;
                             end
@@ -1276,7 +1276,7 @@ elseif simoptions.lowmemory==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions.whichstats(4)==1
+                if simoptions.whichstats(4)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve=nan(simoptions_temp.npoints,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
@@ -1284,7 +1284,7 @@ elseif simoptions.lowmemory==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum=nan(1,length(simoptions_temp.agegroupings),'gpuArray');
                 end
-                if simoptions.whichstats(6)==1
+                if simoptions.whichstats(6)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs=nan(simoptions_temp.nquantiles+1,length(simoptions_temp.agegroupings),'gpuArray'); % Includes the min and max values
                     AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans=nan(simoptions_temp.nquantiles,length(simoptions_temp.agegroupings),'gpuArray');
                 end
@@ -1317,9 +1317,9 @@ elseif simoptions.lowmemory==1
 
                     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
                     % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)
-                    temp=logical(StationaryDistVec_jj~=0); % NOTE: This and the next line could in principle be done outside all of these loops (just looping over j)
-                    StationaryDistVec_jj=StationaryDistVec_jj(temp);
-                    Values_jj=Values_jj(temp);
+                    temp=logical(StationaryDistVec_jj==0); % NOTE: This and the next line could in principle be done outside all of these loops (just looping over j)
+                    StationaryDistVec_jj=StationaryDistVec_jj(~temp);
+                    Values_jj=Values_jj(~temp);
 
                     % I want to use unique to make it easier to put the different agent
                     % ptypes together (as all the matrices are typically smaller).
@@ -1346,7 +1346,7 @@ elseif simoptions.lowmemory==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Variance(jjageshifted)=tempStats.Variance;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation(jjageshifted)=tempStats.StdDeviation;
                     end
-                    if simoptions.whichstats(4)==1
+                    if simoptions.whichstats(4)>=1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).LorenzCurve(:,jjageshifted)=tempStats.LorenzCurve;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Gini(jjageshifted)=tempStats.Gini;
                     end
@@ -1354,7 +1354,7 @@ elseif simoptions.lowmemory==1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum(jjageshifted)=tempStats.Minimum;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum(jjageshifted)=tempStats.Maximum;
                     end
-                    if simoptions.whichstats(6)==1
+                    if simoptions.whichstats(6)>=1
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileCutoffs(:,jjageshifted)=tempStats.QuantileCutoffs;
                         AgeConditionalStats.(FnsToEvalNames{ff}).(Names_i{ii}).QuantileMeans(:,jjageshifted)=tempStats.QuantileMeans;
                     end
@@ -1424,7 +1424,7 @@ elseif simoptions.lowmemory==1
             AgeConditionalStats.(FnsToEvalNames{ff}).Variance=nan(1,length(simoptions.agegroupings),'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation=nan(1,length(simoptions.agegroupings),'gpuArray');
         end
-        if simoptions.whichstats(4)==1
+        if simoptions.whichstats(4)>=1
             AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve=nan(simoptions.npoints,length(simoptions.agegroupings),'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).Gini=nan(1,length(simoptions.agegroupings),'gpuArray');
         end
@@ -1432,7 +1432,7 @@ elseif simoptions.lowmemory==1
             AgeConditionalStats.(FnsToEvalNames{ff}).Minimum=nan(1,length(simoptions.agegroupings),'gpuArray');
             AgeConditionalStats.(FnsToEvalNames{ff}).Maximum=nan(1,length(simoptions.agegroupings),'gpuArray');
         end
-        if simoptions.whichstats(6)==1
+        if simoptions.whichstats(6)>=1
             AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs=nan(simoptions.nquantiles+1,length(simoptions.agegroupings),'gpuArray'); % Includes the min and max values
             AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
         end
@@ -1482,7 +1482,7 @@ elseif simoptions.lowmemory==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=tempStats.Variance;
                     AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=tempStats.StdDeviation;
                 end
-                if simoptions.whichstats(4)==1
+                if simoptions.whichstats(4)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Gini(jj)=tempStats.Gini;
                     AgeConditionalStats.(FnsToEvalNames{ff}).LorenzCurve(:,jj)=tempStats.LorenzCurve;
                 end
@@ -1490,7 +1490,7 @@ elseif simoptions.lowmemory==1
                     AgeConditionalStats.(FnsToEvalNames{ff}).Minimum(jj)=tempStats.Minimum;
                     AgeConditionalStats.(FnsToEvalNames{ff}).Maximum(jj)=tempStats.Maximum;
                 end
-                if simoptions.whichstats(6)==1
+                if simoptions.whichstats(6)>=1
                     AgeConditionalStats.(FnsToEvalNames{ff}).QuantileCutoffs(:,jj)=tempStats.QuantileCutoffs;
                     AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans(:,jj)=tempStats.QuantileMeans;
                 end
