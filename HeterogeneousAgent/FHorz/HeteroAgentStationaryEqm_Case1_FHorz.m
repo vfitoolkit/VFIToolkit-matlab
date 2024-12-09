@@ -17,6 +17,21 @@ l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
 
 p_eqm_vec=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 
+%% Check 'double fminalgo'
+if exist('heteroagentoptions','var')
+    if isfield(heteroagentoptions,'fminalgo')
+        if length(heteroagentoptions.fminalgo)>1
+            temp=heteroagentoptions.fminalgo;
+            heteroagentoptions.fminalgo=heteroagentoptions.fminalgo(1);
+            p_eqm_previous=HeteroAgentStationaryEqm_Case1_FHorz(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
+            for pp=1:length(GEPriceParamNames)
+                Parameters.(GEPriceParamNames{pp})=p_eqm_previous.(GEPriceParamNames{pp});
+            end
+            heteroagentoptions.fminalgo=temp(2:end);
+        end
+    end
+end
+
 %% Check which options have been used, set all others to defaults 
 if exist('vfoptions','var')==0
     vfoptions.parallel=1+(gpuDeviceCount>0);
@@ -30,11 +45,11 @@ else
     end
 end
 
-if exist('simoptions','var')==0
+if ~exist('simoptions','var')
     simoptions=struct(); % create a 'placeholder' simoptions that can be passed to subcodes
 end
 
-if exist('heteroagentoptions','var')==0
+if ~exist('heteroagentoptions','var')
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices

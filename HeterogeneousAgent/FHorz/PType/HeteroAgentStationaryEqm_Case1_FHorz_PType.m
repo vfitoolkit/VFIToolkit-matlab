@@ -26,6 +26,21 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 % then Names_i can just be the number of permanent types (but does not have to be, can still be names).
 
 
+%% Check 'double fminalgo'
+if exist('heteroagentoptions','var')
+    if isfield(heteroagentoptions,'fminalgo')
+        if length(heteroagentoptions.fminalgo)>1
+            temp=heteroagentoptions.fminalgo;
+            heteroagentoptions.fminalgo=heteroagentoptions.fminalgo(1);
+            p_eqm_previous=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, n_p, pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
+            for pp=1:length(GEPriceParamNames)
+                Parameters.(GEPriceParamNames{pp})=p_eqm_previous.(GEPriceParamNames{pp});
+            end
+            heteroagentoptions.fminalgo=temp(2:end);
+        end
+    end
+end
+
 
 %%
 % Get N_i so can use it to check inputs and set things up
