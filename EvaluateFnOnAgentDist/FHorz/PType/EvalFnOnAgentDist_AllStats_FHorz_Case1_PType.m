@@ -214,42 +214,21 @@ for ii=1:N_i
         N_j_temp=N_j(ii);
     end
 
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
+    if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-        end
+        n_d_temp=n_d;
     end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         n_a_temp=n_a.(Names_i{ii});
     else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_a_temp=n_a;
     end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         n_z_temp=n_z.(Names_i{ii});
     else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_z_temp=n_z;
     end
-
 
     if isa(d_grid,'struct')
         d_grid_temp=d_grid.(Names_i{ii});
@@ -370,15 +349,12 @@ for ii=1:N_i
             RestrictedStationaryDistVec=RestrictedStationaryDistVec./restrictedsamplemass(ii,rr); % Normalize to mass of 1
             % Store for later
             RestrictionStruct_ii(rr).RestrictedStationaryDistVec=RestrictedStationaryDistVec;
-
+            
+            AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(Names_i{ii})=restrictedsamplemass(ii,rr); % Seems likely this would be something user might want
             if restrictedsamplemass(ii,rr)==0
                 warning('One of the conditional restrictions evaluates to a zero mass')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{rr},' has a restricted sample that is of zero mass \n'])
-                AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(Names_i{ii})=restrictedsamplemass(ii,rr); % Just return this and hopefully it is clear to the user
-            else
-                AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.(Names_i{ii})=restrictedsamplemass(ii,rr); % Seems likely this would be something user might want
             end
-
         end
     end
     
@@ -401,7 +377,7 @@ for ii=1:N_i
             else
                 CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
             end
-
+            
             %% We have set up the current PType, now do some calculations for it.
             simoptions_temp.keepoutputasmatrix=1;
             ValuesOnGrid_ii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
@@ -429,23 +405,24 @@ for ii=1:N_i
                 for rr=1:length(CondlRestnFnNames)
                     RestrictedSortedWeights=accumarray(sortindex,RestrictionStruct_ii(rr).RestrictedStationaryDistVec,[],@sum); % This has already been done to SortedValues, so have to do it to Restricted Agent Dist
                     AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,RestrictedSortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
-
+                    
                     % If doing grouped stats, store RestrictedSortedWeights
                     if simoptions_temp.groupusingtdigest==1
                         error('Code should never get here (should have thrown an error earlier')
                     else
                         if simoptions.ptypestorecpu==1
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); gather(RestrictedSortedWeights)*gather(StationaryDist.ptweights(ii))];
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); gather(RestrictedSortedWeights*restrictedsamplemass(ii,rr))]; %*gather(StationaryDist.ptweights(ii))];
                         else
-                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); RestrictedSortedWeights*StationaryDist.ptweights(ii)];
+                            AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}); RestrictedSortedWeights*restrictedsamplemass(ii,rr)]; %*StationaryDist.ptweights(ii)];
                         end
+                        % Note: later once we have all the ii do AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}) renormalized by sum(restrictedsamplemass(:,rr))
                     end
                 end
             end
-
+            
             %% For later, put the mean and std dev in a convenient place
             if simoptions.whichstats(1)==1
-            MeanVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean;
+                MeanVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Mean;
             end
             if simoptions.whichstats(3)==1
                 StdDevVec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).StdDeviation;
@@ -455,19 +432,19 @@ for ii=1:N_i
                 minvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Minimum;
                 maxvaluevec(ff,ii)=AllStats.(FnsToEvalNames{ff}).(Names_i{ii}).Maximum;
             end
-
+            
             if simoptions_temp.groupusingtdigest==1
                 Cmerge=AllCMerge.(FnsToEvalNames{ff});
                 digestweightsmerge=Alldigestweightsmerge.(FnsToEvalNames{ff});
 
                 %% Create digest (if unique() was not enough to make them small)
                 [C_ii,digestweights_ii,~]=createDigest(SortedValues, SortedWeights,delta,1); % 1 is presorted
-
+                
                 merge_nsofar2(ff)=merge_nsofar(ff)+length(C_ii);
                 Cmerge(merge_nsofar(ff)+1:merge_nsofar2(ff))=C_ii;
                 digestweightsmerge(merge_nsofar(ff)+1:merge_nsofar2(ff))=digestweights_ii*StationaryDist.ptweights(ii);
                 merge_nsofar(ff)=merge_nsofar2(ff);
-
+                
                 AllCMerge.(FnsToEvalNames{ff})=Cmerge;
                 Alldigestweightsmerge.(FnsToEvalNames{ff})=digestweightsmerge;
             else
@@ -511,7 +488,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         allstatnames=fieldnames(tempStats);
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),[],@sum);
+                AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(restrictedsamplemass(:,rr)),[],@sum);
                 tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
                 for aa=1:length(allstatnames)
@@ -528,7 +505,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     for aa=1:length(allstatnames)
         AllStats.(FnsToEvalNames{ff}).(allstatnames{aa})=tempStats.(allstatnames{aa});
     end
-
+    
 
     % Grouped mean and standard deviation are overwritten on a more direct calculation that does not involve the digests
     SigmaNxi=sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights)'); % The sum of the masses of the relevant types
@@ -565,7 +542,8 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     end
 end
 
-
+% JUST FOR DEBUG
+AllStats.restrictedsamplemass=restrictedsamplemass; % (ii,rr)
 
 
 end

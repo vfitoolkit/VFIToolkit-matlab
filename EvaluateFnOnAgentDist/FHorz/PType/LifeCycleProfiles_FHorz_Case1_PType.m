@@ -794,13 +794,12 @@ if simoptions.lowmemory==0
                                 error('Code should never get here (should have thrown an error earlier')
                             else
                                 if simoptions.ptypestorecpu==1
-                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(RestrictedSortedWeights)*gather(sum(AgeMasses(ii,j1:jend)))*gather(StationaryDist.ptweights(ii))];
+                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); gather(RestrictedSortedWeights)*gather(sum(AgeMasses(ii,j1:jend).*restrictedsamplemass(ii,j1:jend,rr)))];
                                 else
-                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); RestrictedSortedWeights*sum(AgeMasses(ii,j1:jend))*StationaryDist.ptweights(ii)];
+                                    AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted})=[AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jjageshifted}); RestrictedSortedWeights*sum(AgeMasses(ii,j1:jend).*restrictedsamplemass(ii,j1:jend,rr))];
                                 end
+                                % Note: later normalize by sum(sum(restrictedsamplemass(:,j1:jend,rr),2))
                             end
-
-
                         end
                     end
                     
@@ -1014,7 +1013,7 @@ if simoptions.lowmemory==0
                                 error('You should not be able to get here in the code')
                             elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
                                 % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
-                                AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
+                                AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(sum(restrictedsamplemass(:,j1:jend,rr),2)),[],@sum);
                                 AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
                                 
                                 % AllRestrictedWeights_rrffjj will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
