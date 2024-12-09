@@ -396,7 +396,7 @@ for ii=1:N_i
             % May as well do it before doing the StatsFromWeightedGrid
             [SortedValues,~,sortindex]=unique(ValuesOnGrid_ii);
             SortedWeights=accumarray(sortindex,StationaryDist_ii,[],@sum);
-
+            
             %% Use the full ValuesOnGrid_ii and StationaryDist_ii to calculate various statistics for the current PType-FnsToEvaluate (current ii and kk)
             AllStats.(FnsToEvalNames{ff}).(Names_i{ii})=StatsFromWeightedGrid(SortedValues,SortedWeights,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats); % 1 is presorted
 
@@ -491,8 +491,9 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                 AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})/sum(restrictedsamplemass(:,rr)),[],@sum);
                 tempStatsRestricted=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}),AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 % Following is necessary as just AllStats=StatsFromWeightedGrid() overwrote the existing subfields
-                for aa=1:length(allstatnames)
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(allstatnames{aa})=tempStatsRestricted.(allstatnames{aa});
+                rallstatnames=fieldnames(tempStatsRestricted);
+                for aa=1:length(rallstatnames)
+                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(rallstatnames{aa})=tempStatsRestricted.(rallstatnames{aa});
                 end
                 if ff==1
                     AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass.TotalAllPTypes=sum(restrictedsamplemass(:,rr));
@@ -541,9 +542,6 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
         AllStats.(FnsToEvalNames{ff}).Minimum=min(minvaluevec(ff,:));
     end
 end
-
-% JUST FOR DEBUG
-AllStats.restrictedsamplemass=restrictedsamplemass; % (ii,rr)
 
 
 end

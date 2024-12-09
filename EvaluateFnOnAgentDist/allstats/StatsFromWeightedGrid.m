@@ -84,16 +84,14 @@ end
 if SortedValues(1)==SortedValues(end) || all(CumSumSortedWeights==1)
     % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
     % OR
-    % Due to numerical rounding, it has multiple values but only one has
-    % any meaning as all the mass is in one place (weights of magnitude,
-    % e.g. 1e-26 can turn into cumulative weights with zero difference
-    % between them)
+    % Due to numerical rounding, it has multiple values but only one has any meaning as all the mass is in one place (weights of magnitude,
+    % e.g. 1e-26 can turn into cumulative weights with zero difference between them)
     if whichstats(3)==1
         AllStats.Variance=0;
         AllStats.StdDeviation=0;
     end
     if whichstats(4)>=1
-        AllStats.LorenzCurve=1/npoints:1/npoints:1;
+        AllStats.LorenzCurve=(1/npoints:1/npoints:1)';
         AllStats.Gini=0;
     end
     if whichstats(5)==1
@@ -124,6 +122,12 @@ else
         AllStats.StdDeviation=sqrt(AllStats.Variance);
     end
 
+    if (whichstats(4)>=1 && npoints>0 && WeightedSortedValues(1)>=0) || whichstats(6)==2
+        % precompute so don't duplicate
+        CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
+    end
+
+
     if whichstats(4)>=1
         % Lorenz curve and Gini coefficient
         if npoints>0
@@ -133,7 +137,7 @@ else
                 AllStats.Gini=nan;
                 AllStats.GiniComment={'Gini cannot be calculated as some values are negative'};
             else
-                CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
+                % CumSumSortedWeightedValues=cumsum(WeightedSortedValues); % precomputed
                 % Calculate the Lorenz curve
                 % (note, we already eliminated the zero mass points, and dealt with case that the remaining grid is just one point)
                 LorenzCurve=zeros(npoints,1);
@@ -150,7 +154,7 @@ else
                     LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
                 elseif whichstats(4)==2 % faster option, but can run out of memory
                     % Even thought the weights themselves are non-zero, you can still get that two consecutive elements of CumSumSortedWeights are the same (happened when the weight was 1e-26)
-                    [CumSumSortedWeights2,u1index,u2index]=unique(CumSumSortedWeights);
+                    [CumSumSortedWeights2,u1index,~]=unique(CumSumSortedWeights);
                     temp=interp1(CumSumSortedWeights2,CumSumSortedWeightedValues(u1index),llvec(1:end-1));
                     LorenzCurve(1:end-1)=temp;
                     % Because of how interp1() works, it will put NaN at the bottom of the curve if there is a bunch of mass at first value
@@ -225,7 +229,7 @@ else
                 quantilecutoffindexes_lower=[1; quantilecutoffindexes'];
                 quantilecutoffindexes_upper=[quantilecutoffindexes'; numel(WeightedSortedValues)];
                 
-                CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
+                % CumSumSortedWeightedValues=cumsum(WeightedSortedValues); % precomputed
                 term1=CumSumSortedWeightedValues(quantilecutoffindexes_upper)-CumSumSortedWeightedValues(quantilecutoffindexes_lower);
                 term2=SortedValues(quantilecutoffindexes_upper).*(CumSumSortedWeights(quantilecutoffindexes_upper)-(1:1:nquantiles)'/nquantiles);
                 term3=SortedValues(quantilecutoffindexes_lower).*(CumSumSortedWeights(quantilecutoffindexes_lower)-(0:1:nquantiles-1)'/nquantiles);
