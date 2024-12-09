@@ -7,7 +7,7 @@ function AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld, ParamPa
 % Note: the input AgentDist, is AgentDist_init
 
 % Note: use AgeWeights_T as transpathoptions.ageweightstrivial==0 is hardcoded
-AgeWeights=AgeWeights_T(:,1); % AgeWeights_T is (a,j)-by-T
+AgeWeights=AgeWeights_T(:,1); % AgeWeights_T is (a,j,z)-by-T (if z)
 
 AggVarsPath=zeros(length(FnsToEvaluate),T-1);
 

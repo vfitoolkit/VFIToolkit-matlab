@@ -326,12 +326,8 @@ if N_z==0
         AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]); % if simoptions.fastOLG==0
         AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
         if transpathoptions.ageweightstrivial==0
-            % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j-by-T )
-            if simoptions.fastOLG==1
-                AgeWeights_T=kron(AgeWeights,ones(N_a,1,'gpuArray')); % simoptions.fastOLG=1 so this is (a,j)-by-1
-            else
-                AgeWeights_T=AgeWeights;
-            end
+            % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j-by-T, which will be done later)
+            AgeWeights_T=AgeWeights;
         elseif transpathoptions.ageweightstrivial==1
             if max(abs(AgeWeights_initial-AgeWeights))>10^(-9) % was 10^(-13), but this was problematic with numerical rounding errors
                 error('AgeWeights differs from the weights implicit in the initial agent distribution')
@@ -344,7 +340,7 @@ if N_z==0
             % Note: do the double reshape() as cannot get AgeWeights_initial from the final shape
             AgeWeights_initial=kron(AgeWeights_initial',ones(N_a,1,'gpuArray'));
             if transpathoptions.ageweightstrivial==0
-                AgeWeights_T=kron(AgeWeights_T',ones(N_a,1,'gpuArray')); % Vectorized as N_a*N_j*N_z-by-T
+                AgeWeights_T=repelem(AgeWeights_T,N_a,1); % Vectorized as N_a*N_j-by-T
             else % AgeWeights do not change over time, so just set them all to same as AgeWeights_initial
                 AgeWeights=AgeWeights_initial;
                 AgeWeightsOld=AgeWeights;
@@ -358,8 +354,8 @@ else
         AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]); % if simoptions.fastOLG==0
         AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
         if transpathoptions.ageweightstrivial==0
-            % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j*N_z-by-T )
-            AgeWeights_T=AgeWeights; % Has already been adjusted based on simoptions.fastOLG
+            % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j*N_z-by-T, which will be done later)
+            AgeWeights_T=AgeWeights;
         elseif transpathoptions.ageweightstrivial==1
             if max(abs(AgeWeights_initial-AgeWeights))>10^(-9) % was 10^(-13), but this was problematic with numerical rounding errors
                 error('AgeWeights differs from the weights implicit in the initial agent distribution (get different weights if calculate from AgentDist_initial vs if look in Parameters at AgeWeightsParamNames)')
@@ -375,7 +371,7 @@ else
             % Similarly, we want pi_z_J to be (j,z,z'), but we need to keep the standard pi_z_J for the value function
             pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:N_j-1),[3,1,2]),[(N_j-1)*N_z,N_z])); % For agent dist we want it to be (j,z,z')
             if transpathoptions.ageweightstrivial==0
-                AgeWeights_T=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_T',ones(N_a,1,'gpuArray'))); % Vectorized as N_a*N_j*N_z-by-T
+                AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % Vectorized as N_a*N_j*N_z-by-T
             else % AgeWeights do not change over time, so just set them all to same as AgeWeights_initial
                 AgeWeights=AgeWeights_initial;
                 AgeWeightsOld=AgeWeights;
@@ -393,8 +389,8 @@ else
         AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
         AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
         if transpathoptions.ageweightstrivial==0
-            % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_z*N_e*N_j-by-T )
-            AgeWeights_T=AgeWeights; % Has already been adjusted based on simoptions.fastOLG
+            % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_z*N_e*N_j-by-T, which will be done later)
+            AgeWeights_T=AgeWeights;
         elseif transpathoptions.ageweightstrivial==1
             if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
                 error('AgeWeights differs from the weights implicit in the initial agent distribution (get different weights if calculate from AgentDist_initial vs if look in Parameters at AgeWeightsParamNames)')
@@ -410,7 +406,7 @@ else
             % Similarly, we want pi_z_J to be (j,z,z'), but we need to keep the standard pi_z_J for the value function
             pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:N_j-1),[3,1,2]),[(N_j-1)*N_z,N_z])); % For agent dist we want it to be (j,z,z')
             if transpathoptions.ageweightstrivial==0
-                AgeWeights_T=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_T',ones(N_a,1,'gpuArray'))); % Vectorized as N_a*N_j*N_z-by-T
+                AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % Vectorized as N_a*N_j*N_z-by-T
             else % AgeWeights do not change over time, so just set them all to same as AgeWeights_initial
                 AgeWeights=AgeWeights_initial;
                 AgeWeightsOld=AgeWeights;

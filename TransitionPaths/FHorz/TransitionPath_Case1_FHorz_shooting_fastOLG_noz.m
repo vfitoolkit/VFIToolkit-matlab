@@ -75,16 +75,12 @@ AgentDist_initial=reshape(AgentDist_initial,[N_a,N_j]);
 AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_j,1]);
 % Note: do the double reshape() as cannot get AgeWeights_initial from the final shape
-AgeWeights_initial=kron(AgeWeights_initial',ones(N_a,1,'gpuArray'));
+AgeWeights_initial=repelem(AgeWeights_initial',N_a,1);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
 if transpathoptions.ageweightstrivial==0
-    AgeWeights_T=AgeWeights;
-end
-
-if transpathoptions.ageweightstrivial==0
-    AgeWeights_T=AgeWeights;
+    AgeWeights_T=repelem(AgeWeights,N_a,1); % As simoptions.fastOLG=1 
 elseif transpathoptions.ageweightstrivial==1
     AgeWeights=AgeWeights_initial;
     AgeWeightsOld=AgeWeights;

@@ -98,7 +98,7 @@ if simoptions.fastOLG==1
     % Similarly, we want pi_z_J to be (j,z,z'), but we need to keep the standard pi_z_J for the value function 
     pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:N_j-1),[3,1,2]),[(N_j-1)*N_z,N_z])); % For agent dist we want it to be (j,z,z')
     if transpathoptions.ageweightstrivial==0
-        AgeWeights_T=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_T',ones(N_a,1,'gpuArray'))); % Vectorized as N_a*N_j*N_z-by-T
+        AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % Vectorized as N_a*N_j*N_z-by-T
     else % AgeWeights do not change over time, so just set them all to same as AgeWeights_initial
         AgeWeights=AgeWeights_initial;
         AgeWeightsOld=AgeWeights;

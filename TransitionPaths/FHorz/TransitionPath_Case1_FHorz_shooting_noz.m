@@ -81,7 +81,7 @@ end
 if transpathoptions.ageweightstrivial==0
     % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j-by-T )
     if simoptions.fastOLG==1
-        AgeWeights_T=kron(AgeWeights,ones(N_a,1,'gpuArray')); % simoptions.fastOLG=1 so this is (a,j)-by-1
+        AgeWeights_T=repelem(AgeWeights,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
     else
         AgeWeights_T=AgeWeights;
     end

@@ -818,7 +818,7 @@ for ii=1:PTypeStructure.N_i
     end
     % Get AgeWeights and switch into the transpathoptions.ageweightstrivial=0 setup (and this is what subfns hardcode when doing PTypes)
     % It is assumed there is only one Age Weight Parameter (name))
-    % AgeWeights_T is (a,j)-by-T (create as j-by-T to start, then switch)
+    % AgeWeights_T is (a,j,z)-by-T (create as j-by-T to start, then switch)
     if isstruct(AgeWeights)
         AgeWeights_ii=AgeWeights.(iistr);
         if all(size(AgeWeights_ii)==[N_j,1])
@@ -853,8 +853,11 @@ for ii=1:PTypeStructure.N_i
         % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
     end
     % Because ptypes hardcodes transpathoptions.ageweightstrivial=0 and fastOLG=1, we need
-    AgeWeights_T.(iistr)=repelem(AgeWeights_T.(iistr),N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-
+    if N_z==0
+        AgeWeights_T.(iistr)=repelem(AgeWeights_T.(iistr),N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+    else
+        AgeWeights_T.(iistr)=repmat(repelem(AgeWeights_T.(iistr),N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+    end
 
     %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0 and simoptions.fastOLG=1]
     if ~isstruct(jequalOneDist)

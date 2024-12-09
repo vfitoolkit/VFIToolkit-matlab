@@ -83,15 +83,14 @@ PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOl
 
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]); % if simoptions.fastOLG==0
 AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
+AgeWeights_initial=repmat(repelem(AgeWeights_initial',N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
 if transpathoptions.ageweightstrivial==0
-    AgeWeights_initial=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_initial',ones(N_a,1,'gpuArray'))); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
     % AgeWeights_T is N_a*N_j*N_z-by-T
-    AgeWeights_T=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights',ones(N_a,1,'gpuArray'))); % Vectorized as N_a*N_j*N_z-by-T
+    AgeWeights_T=repmat(repelem(AgeWeights,N_a,1),N_z,1); % N_a*N_j*N_z-by-T as simoptions.fastOLG=1
 elseif transpathoptions.ageweightstrivial==1
     if max(abs(AgeWeights_initial-AgeWeights))>10^(-9) % I first put this at 10^(-13), but this turned out to be problematic
         error('AgeWeights differs from the weights implicit in the initial agent distribution (get different weights if calculate from AgentDist_initial vs if look in Parameters at AgeWeightsParamNames)')
     end
-    AgeWeights_initial=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_initial',ones(N_a,1,'gpuArray'))); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
     AgeWeights=AgeWeights_initial;
     AgeWeightsOld=AgeWeights;
 end
