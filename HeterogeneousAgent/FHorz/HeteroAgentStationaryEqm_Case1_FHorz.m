@@ -21,13 +21,29 @@ p_eqm_vec=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 if exist('heteroagentoptions','var')
     if isfield(heteroagentoptions,'fminalgo')
         if length(heteroagentoptions.fminalgo)>1
+            if isfield(heteroagentoptions,'toleranceGEcondns')
+                heteroagentoptions.toleranceGEcondns=heteroagentoptions.toleranceGEcondns.*ones(1,length(heteroagentoptions.fminalgo));
+            else
+                heteroagentoptions.toleranceGEcondns=10^(-4).*ones(1,length(heteroagentoptions.fminalgo)); % Accuracy of general eqm prices
+            end
+            if isfield(heteroagentoptions,'toleranceGEprices')
+                heteroagentoptions.toleranceGEprices=heteroagentoptions.toleranceGEprices.*ones(1,length(heteroagentoptions.fminalgo));
+            else
+                heteroagentoptions.toleranceGEprices=10^(-4).*ones(1,length(heteroagentoptions.fminalgo)); % Accuracy of general eqm prices
+            end
             temp=heteroagentoptions.fminalgo;
-            heteroagentoptions.fminalgo=heteroagentoptions.fminalgo(1);
+            temp2=heteroagentoptions.toleranceGEcondns;
+            temp3=heteroagentoptions.toleranceGEprices;
+            heteroagentoptions.fminalgo=heteroagentoptions.fminalgo(1:end-1);
+            heteroagentoptions.toleranceGEcondns=heteroagentoptions.toleranceGEcondns(1:end-1);
+            heteroagentoptions.toleranceGEprices=heteroagentoptions.toleranceGEprices(1:end-1);
             p_eqm_previous=HeteroAgentStationaryEqm_Case1_FHorz(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
             for pp=1:length(GEPriceParamNames)
                 Parameters.(GEPriceParamNames{pp})=p_eqm_previous.(GEPriceParamNames{pp});
             end
-            heteroagentoptions.fminalgo=temp(2:end);
+            heteroagentoptions.fminalgo=temp(end);
+            heteroagentoptions.toleranceGEcondns=temp2(end);
+            heteroagentoptions.toleranceGEprices=temp3(end);
         end
     end
 end
