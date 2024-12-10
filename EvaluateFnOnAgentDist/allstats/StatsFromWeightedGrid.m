@@ -155,21 +155,26 @@ else
                 elseif whichstats(4)==2 % faster option, but can run out of memory
                     % Even thought the weights themselves are non-zero, you can still get that two consecutive elements of CumSumSortedWeights are the same (happened when the weight was 1e-26)
                     [CumSumSortedWeights2,u1index,~]=unique(CumSumSortedWeights);
-                    temp=interp1(CumSumSortedWeights2,CumSumSortedWeightedValues(u1index),llvec(1:end-1));
-                    LorenzCurve(1:end-1)=temp;
-                    % Because of how interp1() works, it will put NaN at the bottom of the curve if there is a bunch of mass at first value
-                    temp2=sum(isnan(temp));
-                    if abs(LorenzCurve(temp2+1)-CumSumSortedWeightedValues(1))<1e-15
-                        temp2=temp2+1;
+                    % Sometimes this will become a single value, so need to check for this again
+                    if length(CumSumSortedWeights2)==1
+                        LorenzCurve=1/npoints:1/npoints:1;
+                    else
+                        temp=interp1(CumSumSortedWeights2,CumSumSortedWeightedValues(u1index),llvec(1:end-1));
+                        LorenzCurve(1:end-1)=temp;
+                        % Because of how interp1() works, it will put NaN at the bottom of the curve if there is a bunch of mass at first value
+                        temp2=sum(isnan(temp));
+                        if abs(LorenzCurve(temp2+1)-CumSumSortedWeightedValues(1))<1e-15
+                            temp2=temp2+1;
+                        end
+                        LorenzCurve(1:temp2)=(CumSumSortedWeightedValues(1) - SortedValues(1)*(CumSumSortedWeights(1)-temp2/npoints)) .*((1:1:temp2)/temp2);
+                        % Finished cleaning up the isnan()
+                        LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
                     end
-                    LorenzCurve(1:temp2)=(CumSumSortedWeightedValues(1) - SortedValues(1)*(CumSumSortedWeights(1)-temp2/npoints)) .*((1:1:temp2)/temp2);
-                    % Finished cleaning up the isnan()
-                    LorenzCurve(npoints)=CumSumSortedWeightedValues(end);
                 end
                 % Now normalize the curve so that they are fractions of the total.
                 SumWeightedValues=sum(WeightedSortedValues);
                 AllStats.LorenzCurve=LorenzCurve/SumWeightedValues;
-
+                
                 % Calculate the 'age conditional' gini
                 % Use the Gini=A/(A+B)=2*A formulation for Gini coefficent (see wikipedia).
                 A=(1/npoints:1/npoints:1)-AllStats.LorenzCurve'; % 'Height' between 45-degree line and Lorenz curve
