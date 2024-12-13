@@ -1,4 +1,4 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 
 VPath=struct();
 PolicyPath=struct();
@@ -188,7 +188,7 @@ for ii=1:N_i
         end
     end
 
-    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1_FHorz(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, pi_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
+    [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1_FHorz(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp,z_grid_temp,pi_z_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     if vfoptions_temp.ptypestorecpu==1

@@ -85,6 +85,10 @@ if transpathoptions.ageweightstrivial==0
     else
         AgeWeights_T=AgeWeights;
     end
+    % Check that the ParamPath on AgeWeights in the first time period matches what is implicit in AgentDist_initial
+    if max(abs(AgeWeights_T(:,1)-AgeWeights_initial))>1e-15
+        warning('The first time period for the age weights in ParamPath does not match the age weights initial agent distribution')
+    end
 elseif transpathoptions.ageweightstrivial==1
     if simoptions.fastOLG==0 % Do an input check, making sure AgeWeights match those of the initial distribution (unless they are expected to anyway vary over the transition path)
         if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
@@ -233,10 +237,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         
         if transpathoptions.ageweightstrivial==0
             AgeWeightsOld=AgeWeights;
-            AgeWeights=AgeWeights_T(:,tt);
+            AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
         end
         if transpathoptions.trivialjequalonedist==0
-            jequalOneDist=jequalOneDist_T(:,tt);
+            jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
         end
         if simoptions.fastOLG==0
             if N_d==0

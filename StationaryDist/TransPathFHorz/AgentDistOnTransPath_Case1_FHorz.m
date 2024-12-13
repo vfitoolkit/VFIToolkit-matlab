@@ -484,10 +484,10 @@ if N_e==0
             for tt=1:T-1
                 if transpathoptions.ageweightstrivial==0
                     AgeWeightsOld=AgeWeights;
-                    AgeWeights=AgeWeights_T(:,tt);
+                    AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 if transpathoptions.trivialjequalonedist==0
-                    jequalOneDist=jequalOneDist_T(:,tt);
+                    jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 %Get the current optimal policy
                 optaprime=optaprimePath(:,:,tt);
@@ -506,10 +506,10 @@ if N_e==0
             for tt=1:T-1
                 if transpathoptions.ageweightstrivial==0
                     AgeWeightsOld=AgeWeights;
-                    AgeWeights=AgeWeights_T(:,tt);
+                    AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 if transpathoptions.trivialjequalonedist==0
-                    jequalOneDist=jequalOneDist_T(:,tt);
+                    jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 %Get the current optimal policy
                 optaprime=optaprimePath(:,:,tt);
@@ -535,10 +535,10 @@ if N_e==0
                 % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
                 if transpathoptions.ageweightstrivial==0
                     AgeWeightsOld=AgeWeights;
-                    AgeWeights=AgeWeights_T(:,tt);
+                    AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 if transpathoptions.trivialjequalonedist==0
-                    jequalOneDist=jequalOneDist_T(:,tt);
+                    jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 %Get the current optimal policy
                 optaprime=optaprimePath(:,:,:,tt);
@@ -564,10 +564,10 @@ if N_e==0
                 % transpathoptions.zpathtrivial==1 % Does not depend on T, so is just in simoptions already
                 if transpathoptions.ageweightstrivial==0
                     AgeWeightsOld=AgeWeights;
-                    AgeWeights=AgeWeights_T(:,tt);
+                    AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 if transpathoptions.trivialjequalonedist==0
-                    jequalOneDist=jequalOneDist_T(:,tt);
+                    jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 %Get the current optimal policy
                 optaprime=optaprimePath(:,:,:,tt);
@@ -609,10 +609,10 @@ else
 
                 if transpathoptions.ageweightstrivial==0
                     AgeWeightsOld=AgeWeights;
-                    AgeWeights=AgeWeights_T(:,tt);
+                    AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 if transpathoptions.trivialjequalonedist==0
-                    jequalOneDist=jequalOneDist_T(:,tt);
+                    jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 % Get the current optimal policy
                 optaprime=optaprimePath(:,:,:,:,tt);
@@ -648,10 +648,10 @@ else
 
                 if transpathoptions.ageweightstrivial==0
                     AgeWeightsOld=AgeWeights;
-                    AgeWeights=AgeWeights_T(:,tt);
+                    AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 if transpathoptions.trivialjequalonedist==0
-                    jequalOneDist=jequalOneDist_T(:,tt);
+                    jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 end
                 % Get the current optimal policy
                 optaprime=optaprimePath(:,:,:,:,tt);

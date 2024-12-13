@@ -58,8 +58,8 @@ for rr=1:nReveals
                         error('Something in ParamPath does not have the T periods (see previous line of output)')
                     end
                 end
-                % Make sure it is T-by-something
-                if size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii}),2)==T
+                % Make sure it is something-by-T
+                if size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii}),1)==T
                     ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})'; % transpose
                 end
             end
@@ -69,10 +69,10 @@ for rr=1:nReveals
             temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp});
             ParamPath.(revealperiodnames{rr})=rmfield(ParamPath.(revealperiodnames{rr}),ParamsOnPathNames{pp});
             for ii=1:N_i
-                if size(temp(ii),1)==T % Make sure it is T-by-something
-                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names{ii})=temp(ii);
+                if size(temp(ii),1)==T % Make sure it is something-by-T
+                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})=temp(ii)';
                 else
-                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names{ii})=temp(ii)';
+                    ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii})=temp(ii);
                 end
             end
         else
@@ -80,8 +80,8 @@ for rr=1:nReveals
                 fprintf('Problem with ParamPath is in reveal %s and parmeter %s \n', revealperiodnames{rr}, ParamsOnPathNames{pp})
                 error('Something in ParamPath does not have the T periods (see previous line of output)')
             end
-            % Make sure it is T-by-something
-            if size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}),2)==T
+            % Make sure it is something-by-T
+            if size(ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}),1)==T
                 ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp})=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp})'; % transpose
             end
         end
@@ -108,8 +108,8 @@ if any(strcmp(PricesOnPathNames,'t0001'))
                             error('Something in PricePathShaper does not have the T periods (see previous line of output)')
                         end
                     end
-                    % Make sure it is T-by-something
-                    if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii}),2)==T
+                    % Make sure it is something-by-T
+                    if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii}),1)==T
                         PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii})=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii})'; % transpose
                     end
                 end
@@ -119,10 +119,10 @@ if any(strcmp(PricesOnPathNames,'t0001'))
                 temp=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp});
                 PricePathShaper.(revealperiodnames{rr})=rmfield(PricePathShaper.(revealperiodnames{rr}),PricesOnPathNames{pp});
                 for ii=1:N_i
-                    if size(temp(ii),1)==T % Make sure it is T-by-something
-                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names{ii})=temp(ii);
+                    if size(temp(ii),1)==T % Make sure it is something-by-T
+                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii})=temp(ii)';
                     else
-                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names{ii})=temp(ii)';
+                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii})=temp(ii);
                     end
                 end
             else
@@ -131,8 +131,8 @@ if any(strcmp(PricesOnPathNames,'t0001'))
                     error('Something in PricePathShaper does not have the T periods (see previous line of output)')
                 end
             end
-            % Make sure it is T-by-something
-            if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}),2)==T
+            % Make sure it is something-by-T
+            if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}),1)==T
                 PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})'; % transpose
             end
         end
@@ -152,8 +152,8 @@ else
                         error('Something in PricePathShaper does not have the T periods (see previous line of output)')
                     end
                 end
-                % Make sure it is T-by-something
-                if size(PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii}),2)==T
+                % Make sure it is something-by-T
+                if size(PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii}),1)==T
                     PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii})=PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii})'; % transpose
                 end
             end
@@ -163,10 +163,10 @@ else
             temp=PricePathShaper.(PricesOnPathNames{pp});
             PricePathShaper=rmfield(PricePathShaper,PricesOnPathNames{pp});
             for ii=1:N_i
-                if size(temp(ii),1)==T % Make sure it is T-by-something
-                    PricePathShaper.(PricesOnPathNames{pp}).(Names{ii})=temp(ii);
+                if size(temp(ii),1)==T % Make sure it is something-by-T
+                    PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii})=temp(ii)';
                 else
-                    PricePathShaper.(PricesOnPathNames{pp}).(Names{ii})=temp(ii)';
+                    PricePathShaper.(PricesOnPathNames{pp}).(Names_i{ii})=temp(ii);
                 end
             end
         else
@@ -174,8 +174,8 @@ else
                 fprintf('Problem with PricePathShaper is in parmeter %s \n', PricesOnPathNames{pp})
                 error('Something in PricePathShaper does not have the T periods (see previous line of output)')
             end
-            % Make sure it is T-by-something
-            if size(PricePathShaper.(PricesOnPathNames{pp}),2)==T
+            % Make sure it is something-by-T
+            if size(PricePathShaper.(PricesOnPathNames{pp}),1)==T
                 PricePathShaper.(PricesOnPathNames{pp})=PricePathShaper.(PricesOnPathNames{pp})'; % transpose
             end
         end
@@ -203,12 +203,12 @@ for rr=1:nReveals
             for ii=1:N_i
                 if ParamsOnPath_ptypedependence(pp,ii)==1
                     temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii});
-                    Parameters.(ParamsOnPathNames{pp}).(Names_i{ii})=temp(end,:); % the final value of the ParamPath on this parameter
+                    Parameters.(ParamsOnPathNames{pp}).(Names_i{ii})=temp(:,end); % the final value of the ParamPath on this parameter
                 end
             end
         else
             temp=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp});
-            Parameters.(ParamsOnPathNames{pp})=temp(end,:); % the final value of the ParamPath on this parameter
+            Parameters.(ParamsOnPathNames{pp})=temp(:,end); % the final value of the ParamPath on this parameter
         end
     end
     % Now solve the stationary general eqm
@@ -262,16 +262,36 @@ for rr=1:nReveals
     
     ParamPath_rr=ParamPath.(revealperiodnames{rr});
 
+
+    % We already have StationaryDist_initial, but if one of our ParamPaths is on the age weights, we need to impose this onto StationaryDist_initial
+    if any(strcmp(ParamsOnPathNames,AgeWeightsParamNames))
+        for ii=1:N_i
+            tempsize=size(StationaryDist_initial.(Names_i{ii}));
+            StationaryDist_initial.(Names_i{ii})=reshape(StationaryDist_initial.(Names_i{ii}),[numel(StationaryDist_initial.(Names_i{ii}))/N_j,N_j]);
+            StationaryDist_initial.(Names_i{ii})=StationaryDist_initial.(Names_i{ii})./sum(StationaryDist_initial.(Names_i{ii}),1); % remove current age weights
+            temp=ParamPath.(revealperiodnames{rr}).(AgeWeightsParamNames{1});
+            StationaryDist_initial.(Names_i{ii})=StationaryDist_initial.(Names_i{ii}).*temp(:,1)'; % Note: we already put current ParamPath reveal into Parameters
+            StationaryDist_initial.(Names_i{ii})=reshape(StationaryDist_initial.(Names_i{ii}),tempsize);
+        end
+    end
     
     %% Compute the transition path
     PricePath_rr=TransitionPath_Case1_FHorz_PType(PricePath0_rr, ParamPath_rr, T, V_final, StationaryDist_initial, jequaloneDist, n_d, n_a, n_z, N_j, Names_i,d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions_path, vfoptions_path);
     % Keep each of the price paths
     PricePath.(revealperiodnames{rr})=PricePath_rr;
     
+    
+    % %% Purely for debugging purposes
+    % str=['temp',num2str(rr),'.mat'];
+    % StationaryDist_initial_rr=StationaryDist_initial;
+    % V_final_rr=V_final;
+    % p_eqm_final_rr=p_eqm_final;
+    % save(str, 'PricePath0_rr', 'PricePath_rr', 'ParamPath_rr', 'V_final_rr', 'StationaryDist_initial_rr','p_eqm_final_rr')
+
     %% Need the agent dist along the path so that we can move to the next reveal
 
     % You can calculate the value and policy functions for the transition path
-    [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, transpathoptions,vfoptions_path);
+    [VPath_rr,PolicyPath_rr]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath_rr, ParamPath_rr, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions,vfoptions_path);
     
     % You can then use these to calculate the agent distribution for the transition path
     AgentDistPath_rr=AgentDistOnTransPath_Case1_FHorz_PType(StationaryDist_initial, jequaloneDist, PricePath_rr, ParamPath_rr, PolicyPath_rr, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T, Parameters, transpathoptions, simoptions_path);
@@ -317,7 +337,6 @@ for rr=1:nReveals
 
 end
 
-save temp.mat
 
 %% Create the realized paths for RealizedPricePath and RealizedParamPath from the reveals
 % (I deliberately did not put this inside the same for loop so that it is easier to see how they are constructed)
@@ -327,22 +346,38 @@ for pp=1:nPricesOnPath
     if any(PricesOnPath_ptypedependence(pp,:)==1) % depends on ptype
         for ii=1:N_i
             if PricesOnPath_ptypedependence(pp,ii)==1
-                RealizedPricePath.(PricesOnPathNames{pp}).(Names_i{ii})=zeros(historylength,1);
+                if all(size(PricePath_rr.(PricesOnPathNames{pp}).(Names_i{ii}))==1)
+                    RealizedPricePath.(PricesOnPathNames{pp}).(Names_i{ii})=zeros(1,historylength);
+                else
+                    RealizedPricePath.(PricesOnPathNames{pp}).(Names_i{ii})=zeros(size(PricePath_rr.(PricesOnPathNames{pp}).(Names_i{ii}),2),historylength);
+                end
             end
         end
     else
-        RealizedPricePath.(PricesOnPathNames{pp})=zeros(historylength,1);
+        if all(size(PricePath_rr.(PricesOnPathNames{pp}))==1)
+            RealizedPricePath.(PricesOnPathNames{pp})=zeros(1,historylength);
+        else
+            RealizedPricePath.(PricesOnPathNames{pp})=zeros(size(PricePath_rr.(PricesOnPathNames{pp}),2),historylength);
+        end
     end
 end
 for pp=1:nParamsOnPath
     if any(ParamsOnPath_ptypedependence(pp,:)==1) % depends on ptype
         for ii=1:N_i
             if ParamsOnPath_ptypedependence(pp,ii)==1
-                RealizedParamPath.(ParamsOnPathNames{pp}).(Names_i{ii})=zeros(historylength,1);
+                if all(size(ParamPath.(revealperiodnames{1}).(ParamsOnPathNames{pp}).(Names_i{ii}))==1)
+                    RealizedParamPath.(ParamsOnPathNames{pp}).(Names_i{ii})=zeros(1,historylength);
+                else
+                    RealizedParamPath.(ParamsOnPathNames{pp}).(Names_i{ii})=zeros(size(ParamPath.(revealperiodnames{1}).(ParamsOnPathNames{pp}).(Names_i{ii}),1),historylength);
+                end
             end
         end
     else
-        RealizedParamPath.(ParamsOnPathNames{pp})=zeros(historylength,1);
+        if all(size(ParamPath.(revealperiodnames{1}).(ParamsOnPathNames{pp}))==1)
+            RealizedParamPath.(ParamsOnPathNames{pp})=zeros(1,historylength);
+        else
+            RealizedParamPath.(ParamsOnPathNames{pp})=zeros(size(ParamPath.(revealperiodnames{1}).(ParamsOnPathNames{pp}),1),historylength);
+        end
     end
 end
 for ii=1:N_i
@@ -356,11 +391,11 @@ for ii=1:N_i
 end
 AggVarNames=fieldnames(AggVarsPath_rr);
 for aa=1:length(AggVarNames)
-    multirevealsummary.RealizedAggVarsPath.(AggVarNames{aa}).Mean=zeros(historylength,1);
+    multirevealsummary.RealizedAggVarsPath.(AggVarNames{aa}).Mean=zeros(1,historylength);
     whichptypeforthisAggVar=fieldnames(AggVarsPath_rr.(AggVarNames{aa}));
     for ii=1:N_i
         if any(strcmp(whichptypeforthisAggVar,Names_i{ii}))
-            multirevealsummary.RealizedAggVarsPath.(AggVarNames{aa}).(Names_i{ii}).Mean=zeros(historylength,1);
+            multirevealsummary.RealizedAggVarsPath.(AggVarNames{aa}).(Names_i{ii}).Mean=zeros(1,historylength);
         end
     end
 end
@@ -378,32 +413,40 @@ for rr=1:nReveals
                 if PricesOnPath_ptypedependence(pp,ii)==1
                     temp=RealizedPricePath.(PricesOnPathNames{pp}).(Names_i{ii});
                     temp2=PricePath.(revealperiodnames{rr}).(PricesOnPathNames{pp}).(Names_i{ii});
-                    temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal2(rr));
+                    if any(size(temp2)==1)
+                        temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal2(rr));
+                    else
+                        temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
+                    end
                     RealizedPricePath.(PricesOnPathNames{pp}).(Names_i{ii})=temp;
                 end
             end
         else
             temp=RealizedPricePath.(PricesOnPathNames{pp});
             temp2=PricePath.(revealperiodnames{rr}).(PricesOnPathNames{pp});
-            temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal2(rr));
+            if any(size(temp2)==1)
+                temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal2(rr));
+            else
+                temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
+            end
             RealizedPricePath.(PricesOnPathNames{pp})=temp;
         end
     end
-
+    
     for pp=1:nParamsOnPath
         if any(ParamsOnPath_ptypedependence(pp,:)==1) % depends on ptype
             for ii=1:N_i
                 if ParamsOnPath_ptypedependence(pp,ii)==1
                     temp=RealizedParamPath.(ParamsOnPathNames{pp}).(Names_i{ii});
                     temp2=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp}).(Names_i{ii});
-                    temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal2(rr));
+                    temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
                     RealizedParamPath.(ParamsOnPathNames{pp}).(Names_i{ii})=temp;
                 end
             end
         else
             temp=RealizedParamPath.(ParamsOnPathNames{pp});
             temp2=ParamPath.(revealperiodnames{rr}).(ParamsOnPathNames{pp});
-            temp(revealperiods(rr):revealperiods(rr+1)-1)=temp2(1:durationofreveal2(rr));
+            temp(:,revealperiods(rr):revealperiods(rr+1)-1)=temp2(:,1:durationofreveal2(rr));
             RealizedParamPath.(ParamsOnPathNames{pp})=temp;
         end
     end
@@ -449,6 +492,14 @@ for ii=1:N_i
     multirevealsummary.RealizedPolicyPath.(Names_i{ii})=reshape(multirevealsummary.RealizedPolicyPath.(Names_i{ii}),[sizesbyptype(ii).temp_policysize(1:end-1),historylength]);
     multirevealsummary.RealizedAgentDistPath.(Names_i{ii})=reshape(multirevealsummary.RealizedAgentDistPath.(Names_i{ii}),[sizesbyptype(ii).temp_agentdistsize(1:end-1),historylength]);
 end
+
+% I feel like it just makes sense to keep copies of PricePath and
+% PolicyPath in multirevealsummary, as that way everything is in there if
+% you want it.
+multirevealsummary.PricePath=PricePath;
+multirevealsummary.ParamPath=ParamPath;
+multirevealsummary.RealizedPricePath=RealizedPricePath;
+multirevealsummary.RealizedParamPath=RealizedParamPath;
 
 
 

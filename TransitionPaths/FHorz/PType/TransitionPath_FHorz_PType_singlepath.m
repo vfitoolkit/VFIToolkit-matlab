@@ -90,12 +90,13 @@ if transpathoptions.fastOLG==0
 
                 AggVarsPath(:,tt)=AggVars;
 
+                % AgentDistPath(:,tt)=AgentDist;
+
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
+                AgeWeights=AgeWeights_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
                 % if transpathoptions.trivialjequalonedist==0 is hardcoded
-                jequalOneDist=jequalOneDist_T(:,tt);
-
+                jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
@@ -206,12 +207,13 @@ if transpathoptions.fastOLG==0
 
                 AggVarsPath(:,tt)=AggVars;
 
+                % AgentDistPath(:,tt)=AgentDist;
+
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
+                AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if transpathoptions.trivialjequalonedist==0 is hardcoded
-                jequalOneDist=jequalOneDist_T(:,tt);
-
+                jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,:,1:end-1),[1,N_a*N_z*(N_j-1)])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
@@ -324,12 +326,13 @@ if transpathoptions.fastOLG==0
 
                 AggVarsPath(:,tt)=AggVars;
 
+                % AgentDistPath(:,tt)=AgentDist;
+
                 % if transpathoptions.ageweightstrivial==0 is hardcoded
                 AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
+                AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if transpathoptions.trivialjequalonedist==0 is hardcoded
-                jequalOneDist=jequalOneDist_T(:,tt);
-
+                jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 if N_d==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(permute(Policy(:,:,:,1:end-1),[1,4,2,3]),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                 else
@@ -433,14 +436,13 @@ elseif transpathoptions.fastOLG==1
 
                 AggVarsPath(:,tt)=AggVars;
 
-                % if transpathoptions.ageweightstrivial==0 is hardcoded
-                AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
-                % if transpathoptions.trivialjequalonedist==0 is hardcoded
-                jequalOneDist=jequalOneDist_T(:,tt);
-
                 % AgentDistPath(:,tt)=AgentDist;
 
+                % if transpathoptions.ageweightstrivial==0 is hardcoded
+                AgeWeightsOld=AgeWeights;
+                AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                % if transpathoptions.trivialjequalonedist==0 is hardcoded
+                jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1),[1,N_a*(N_j-1)])),N_a,N_j,jequalOneDist);
@@ -552,14 +554,13 @@ elseif transpathoptions.fastOLG==1
 
                 AggVarsPath(:,tt)=AggVars;
 
-                % if transpathoptions.ageweightstrivial==0 is hardcoded
-                AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
-                % if transpathoptions.trivialjequalonedist==0 is hardcoded
-                jequalOneDist=jequalOneDist_T(:,tt);
-
                 % AgentDistPath(:,tt)=AgentDist;
 
+                % if transpathoptions.ageweightstrivial==0 is hardcoded
+                AgeWeightsOld=AgeWeights;
+                AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                % if transpathoptions.trivialjequalonedist==0 is hardcoded
+                jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1,:),[1,N_a*(N_j-1)*N_z])),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % Policy for jj=1:N_j-1
@@ -679,14 +680,13 @@ elseif transpathoptions.fastOLG==1
 
                 AggVarsPath(:,tt)=AggVars;
 
-                % if transpathoptions.ageweightstrivial==0 is hardcoded
-                AgeWeightsOld=AgeWeights;
-                AgeWeights=AgeWeights_T(:,tt);
-                % if transpathoptions.trivialjequalonedist==0 is hardcoded
-                jequalOneDist=jequalOneDist_T(:,tt);
-
                 % AgentDistPath(:,:,tt)=AgentDist;
 
+                % if transpathoptions.ageweightstrivial==0 is hardcoded
+                AgeWeightsOld=AgeWeights;
+                AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                % if transpathoptions.trivialjequalonedist==0 is hardcoded
+                jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                 % if simoptions.fastOLG=1 is hardcoded
                 if N_d==0
                     AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,AgeWeights,AgeWeightsOld,gather(reshape(Policy(:,1:end-1,:),[1,N_a*(N_j-1)*N_z*N_e])),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);

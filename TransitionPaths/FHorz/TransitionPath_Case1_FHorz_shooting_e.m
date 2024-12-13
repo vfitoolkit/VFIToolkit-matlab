@@ -86,6 +86,10 @@ AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
 if transpathoptions.ageweightstrivial==0
     % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_z*N_e*N_j-by-T )
     AgeWeights_T=AgeWeights; % Has already been adjusted based on simoptions.fastOLG
+    % Check that the ParamPath on AgeWeights in the first time period matches what is implicit in AgentDist_initial
+    if max(abs(AgeWeights_T(:,1)-AgeWeights_initial))>1e-15
+        warning('The first time period for the age weights in ParamPath does not match the age weights initial agent distribution')
+    end
 elseif transpathoptions.ageweightstrivial==1
     if max(abs(AgeWeights_initial-AgeWeights))>10^(-13)
         error('AgeWeights differs from the weights implicit in the initial agent distribution (get different weights if calculate from AgentDist_initial vs if look in Parameters at AgeWeightsParamNames)')
@@ -282,12 +286,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         if transpathoptions.ageweightstrivial==0
             AgeWeightsOld=AgeWeights;
-            AgeWeights=AgeWeights_T(:,tt);
+            AgeWeights=AgeWeights_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
         end
         if transpathoptions.trivialjequalonedist==0
-            jequalOneDist=jequalOneDist_T(:,tt);
+            jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
         end
-
         if simoptions.fastOLG==0
             if N_d==0
                 AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,jequalOneDist);
