@@ -11,6 +11,9 @@ function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_e_raw(jequalone
 % Ran a bunch of runtime tests. Tan improvement is always faster.
 % Seems loop over e vs parallel over e is essentially break-even.
 
+pi_e_J=gather(pi_e_J);
+pi_z_J=gather(pi_z_J);
+
 if simoptions.loopovere==0
 
     if N_d==0
@@ -34,8 +37,8 @@ if simoptions.loopovere==0
         firststep=optaprime+kron(ones(1,N_e),kron(N_a*(0:1:N_z-1),ones(1,N_a))); % Turn into index for (a',z)
         Gammatranspose=sparse(firststep,1:1:N_a*N_z*N_e,ones(N_a*N_z*N_e,1),N_a*N_z,N_a*N_z*N_e);
 
-        pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
-        pi_e=sparse(gather(pi_e_J(:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+        pi_z=sparse(pi_z_J(:,:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+        pi_e=sparse(pi_e_J(:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
         % Two steps of the Tan improvement
         StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
@@ -50,7 +53,7 @@ if simoptions.loopovere==0
         % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
     end
 
-elseif simoption.loopovere==1
+elseif simoptions.loopovere==1
     StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
@@ -65,7 +68,7 @@ elseif simoption.loopovere==1
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
-        pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+        pi_z=sparse(pi_z_J(:,:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
         for e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);
@@ -73,7 +76,6 @@ elseif simoption.loopovere==1
 
             firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
             Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
-
 
             % Two steps of the Tan improvement
             StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
@@ -91,22 +93,22 @@ elseif simoption.loopovere==1
         StationaryDistKron=gpuArray(StationaryDistKron);
         % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
     end
-elseif simoption.loopovere==2 % loop over e, but using a parfor loop
+elseif simoptions.loopovere==2 % loop over e, but using a parfor loop [Ran some runtime tests, this parfor is much slower than simoptions.loopovere=1]
     StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
     StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
     StationaryDistKron(:,:,1)=StationaryDist_jj;
 
     if N_d==0
-        PolicyIndexesKron=reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]);
+        PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]));
     else
-        PolicyIndexesKron=reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z,N_e,N_j]);
+        PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z,N_e,N_j]));
     end
 
     for jj=1:(N_j-1)
         if simoptions.verbose==1
             fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
         end
-        pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+        pi_z=sparse(pi_z_J(:,:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
 
         parfor e_c=1:N_e % you can probably parfor this?
             optaprime=PolicyIndexesKron(1,:,e_c,jj);

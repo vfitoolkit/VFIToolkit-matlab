@@ -70,6 +70,7 @@ N_d=prod(n_d);
 
 %%
 cumsumpi_z_J=cumsum(pi_z_J,2);
+InitialDist=gather(InitialDist);
 PolicyKron=gather(PolicyKron);
 cumsumpi_z_J=gather(cumsumpi_z_J);
 
