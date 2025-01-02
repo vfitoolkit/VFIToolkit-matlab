@@ -73,7 +73,7 @@ if vfoptions.EZutils==0
     ezc4=1;
     ezc5=1-crisk;
     ezc6=(1-1./ceis)./(1-crisk);
-    ezc7=1/(1-1./ceis);
+    ezc7=1./(1-1./ceis);
 elseif vfoptions.EZutils==1
     % EZ in utility-units
     ezc1=1; % used if vfoptions.EZoneminusbeta=1
