@@ -64,12 +64,12 @@ if vfoptions.EZutils==0
     ceis=Parameters.(vfoptions.EZeis);
     % Traditional EZ in consumption units
     ezc1=1; % used if vfoptions.EZoneminusbeta=1
-    ezc2=1-1/ceis; % ezc3 is same in both cases
+    ezc2=1-1./ceis; % ezc3 is same in both cases
     ezc3=1;
     ezc4=1;
     ezc5=1-crisk;
-    ezc6=(1-1/ceis)/(1-crisk);
-    ezc7=1/(1-1/ceis);
+    ezc6=(1-1./ceis)./(1-crisk);
+    ezc7=1/(1-1./ceis);
 elseif vfoptions.EZutils==1
     % EZ in utility-units
     ezc1=1; % used if vfoptions.EZoneminusbeta=1
@@ -86,10 +86,10 @@ elseif vfoptions.EZutils==1
     % the interpretation of crisk is identical in both cases
     if vfoptions.EZpositiveutility==1
         ezc5=1-crisk;
-        ezc6=1/(1-crisk);
+        ezc6=1./(1-crisk);
     elseif vfoptions.EZpositiveutility==0
         ezc5=1+crisk; % essentially, just use crisk as being - what it would otherwise be
-        ezc6=1/(1+crisk);
+        ezc6=1./(1+crisk);
     end
     ezc7=1;
 end
@@ -98,15 +98,15 @@ end
 if isfield(vfoptions,'EZmortalityriskaversion')
     mrisk=Parameters.(vfoptions.EZmortalityriskaversion);
     if vfoptions.EZutils==0
-    ezc6=(1-1/ceis)/(1-mrisk);
-    ezc8=(1-mrisk)/(1-crisk);
+    ezc6=(1-1./ceis)./(1-mrisk);
+    ezc8=(1-mrisk)./(1-crisk);
     elseif vfoptions.EZutils==1
         if vfoptions.EZpositiveutility==1
-            ezc6=1/(1-mrisk);
-            ezc8=(1-mrisk)/(1-crisk);
+            ezc6=1./(1-mrisk);
+            ezc8=(1-mrisk)./(1-crisk);
         elseif vfoptions.EZpositiveutility==0
-            ezc6=1/(1+mrisk);
-            ezc8=(1+mrisk)/(1+crisk);
+            ezc6=1./(1+mrisk);
+            ezc8=(1+mrisk)./(1+crisk);
         end
     end
     % Note: the baseline codes apply ezc5 to the warm-glow, so we also want
@@ -118,6 +118,28 @@ else
     ezc8=1;
 end
 
+% setup to permit age-dependence of these (and make them column vectors if they are not already)
+% Note: the only ones that need to permit this are ezc2, ezc5, ezc6, ezc7, ezc8
+if size(ezc2,1)==1
+    ezc2=ezc2';
+end
+ezc2=ezc2.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc5,1)==1
+    ezc5=ezc5';
+end
+ezc5=ezc5.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc6,1)==1
+    ezc6=ezc6';
+end
+ezc6=ezc6.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc7,1)==1
+    ezc7=ezc7';
+end
+ezc7=ezc7.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
+if size(ezc8,1)==1
+    ezc8=ezc8';
+end
+ezc8=ezc8.*ones(N_j,1); % this will work whether it starts N_j-by-1 or 1-by-1
 
 if vfoptions.EZoneminusbeta==1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j); 

@@ -40,7 +40,7 @@ if warmglow==1
     WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,N_j);
     WGmatrixraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n_a2, a2_grid, WGParamsVec); % This depends on aprime
     WGmatrix=WGmatrixraw;
-    WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5;
+    WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(N_j);
     WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
     %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
@@ -60,7 +60,7 @@ if warmglow==1
     % WGmatrix is over (d,1)
     if ~isfield(vfoptions,'V_Jplus1')
         becareful=(WGmatrix==0);
-        WGmatrix(isfinite(WGmatrix))=ezc3*DiscountFactorParamsVec*(((1-sj(N_j))*WGmatrix(isfinite(WGmatrix)).^ezc8).^ezc6);
+        WGmatrix(isfinite(WGmatrix))=ezc3*DiscountFactorParamsVec*(((1-sj(N_j))*WGmatrix(isfinite(WGmatrix)).^ezc8(N_j)).^ezc6(N_j));
         WGmatrix(becareful)=0;
     end
     % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
@@ -93,7 +93,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
-        ReturnMatrix(becareful)=(ezc1*ReturnMatrix(becareful).^ezc2).^ezc7; % Otherwise can get things like 0 to negative power equals infinity
+        ReturnMatrix(becareful)=(ezc1*ReturnMatrix(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
         ReturnMatrix(ReturnMatrix==0)=-Inf;
 
         %Calc the max and it's index
@@ -110,7 +110,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
-            ReturnMatrix_z(becareful)=(ezc1*ReturnMatrix_z(becareful).^ezc2).^ezc7; % Otherwise can get things like 0 to negative power equals infinity
+            ReturnMatrix_z(becareful)=(ezc1*ReturnMatrix_z(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
             ReturnMatrix_z(ReturnMatrix_z==0)=-Inf;
 
             %Calc the max and it's index
@@ -130,7 +130,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_az).*(ReturnMatrix_az~=0)); % finite and not zero
-                ReturnMatrix_az(becareful)=(ezc1*ReturnMatrix_az(becareful).^ezc2).^ezc7; % Otherwise can get things like 0 to negative power equals infinity
+                ReturnMatrix_az(becareful)=(ezc1*ReturnMatrix_az(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
                 ReturnMatrix_az(ReturnMatrix_az==0)=-Inf;
 
                 %Calc the max and it's index
@@ -154,7 +154,7 @@ else
 
     % Part of Epstein-Zin is before taking expectation
     temp=V_Jplus1;
-    temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5;
+    temp(isfinite(V_Jplus1))=(ezc4*V_Jplus1(isfinite(V_Jplus1))).^ezc5(N_j);
     temp(V_Jplus1==0)=0; % otherwise zero to negative power is set to infinity
     
     if vfoptions.lowmemory==0
@@ -165,7 +165,7 @@ else
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         temp2=ReturnMatrix;
-        temp2(becareful)=ReturnMatrix(becareful).^ezc2;
+        temp2(becareful)=ReturnMatrix(becareful).^ezc2(N_j);
         temp2(ReturnMatrix==0)=-Inf;
         
         if vfoptions.paroverz==1
@@ -190,17 +190,17 @@ else
             temp4=EV;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8+(1-sj(N_j))*WGmatrix(becareful).^ezc8).^ezc6;
+                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
                 temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
                 temp4(EV==0)=0;
             end
 
-            entireRHS=ezc2*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
+            entireRHS=ezc2(N_j)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-            entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -231,17 +231,17 @@ else
                 temp4=EV_z;
                 if warmglow==1
                     becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                    temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8+(1-sj(N_j))*WGmatrix(becareful).^ezc8).^ezc6;
+                    temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
                     temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
                 else % not using warmglow
-                    temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                    temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
                     temp4(EV_z==0)=0;
                 end
                 
-                entireRHS_z=ezc2*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+                entireRHS_z=ezc2(N_j)*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
                 temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-                entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -258,7 +258,7 @@ else
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
             temp2=ReturnMatrix_z;
-            temp2(becareful)=ReturnMatrix_z(becareful).^ezc2;
+            temp2(becareful)=ReturnMatrix_z(becareful).^ezc2(N_j);
             temp2(ReturnMatrix_z==0)=-Inf;
 
             %Calc the condl expectation term (except beta), which depends on z but
@@ -280,17 +280,17 @@ else
             temp4=EV_z;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8+(1-sj(N_j))*WGmatrix(becareful).^ezc8).^ezc6;
+                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
                 temp4(EV_z==0)=0;
             end
 
-            entireRHS_z=ezc2*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+            entireRHS_z=ezc2(N_j)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -319,10 +319,10 @@ else
             temp4=EV_z;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8+(1-sj(N_j))*WGmatrix(becareful).^ezc8).^ezc6;
+                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
                 temp4(EV_z==0)=0;
             end
             
@@ -334,13 +334,13 @@ else
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_az).*(ReturnMatrix_az~=0)); % finite and not zero
                 temp2=ReturnMatrix_az;
-                temp2(becareful)=ReturnMatrix_az(becareful).^ezc2;
+                temp2(becareful)=ReturnMatrix_az(becareful).^ezc2(N_j);
                 temp2(ReturnMatrix_az==0)=-Inf;
 
-                entireRHS_az=ezc2*temp2+ezc3*DiscountFactorParamsVec*temp4;
+                entireRHS_az=ezc2(N_j)*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
                 temp5=logical(isfinite(entireRHS_az).*(entireRHS_az~=0));
-                entireRHS_az(temp5)=ezc1*entireRHS_az(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_az(temp5)=ezc1*entireRHS_az(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
@@ -380,7 +380,7 @@ for reverse_j=1:N_j-1
         WGParamsVec=CreateVectorFromParams(Parameters, vfoptions.WarmGlowBequestsFnParamsNames,jj);
         WGmatrixraw=CreateWarmGlowFnMatrix_Case1_Disc_Par2(vfoptions.WarmGlowBequestsFn, n_a2, a2_grid, WGParamsVec);
         WGmatrix=WGmatrixraw;
-        WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5;
+        WGmatrix(isfinite(WGmatrixraw))=(ezc4*WGmatrixraw(isfinite(WGmatrixraw))).^ezc5(jj);
         WGmatrix(WGmatrixraw==0)=0; % otherwise zero to negative power is set to infinity
         %  Switch WGmatrix from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
         
@@ -408,7 +408,7 @@ for reverse_j=1:N_j-1
     
     % Part of Epstein-Zin is before taking expectation
     temp=VKronNext_j;
-    temp(isfinite(VKronNext_j))=(ezc4*VKronNext_j(isfinite(VKronNext_j))).^ezc5;
+    temp(isfinite(VKronNext_j))=(ezc4*VKronNext_j(isfinite(VKronNext_j))).^ezc5(jj);
     temp(VKronNext_j==0)=0;
 
     if vfoptions.lowmemory==0
@@ -419,7 +419,7 @@ for reverse_j=1:N_j-1
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
         temp2=ReturnMatrix;
-        temp2(becareful)=ReturnMatrix(becareful).^ezc2;
+        temp2(becareful)=ReturnMatrix(becareful).^ezc2(jj);
         temp2(ReturnMatrix==0)=-Inf;
 
         
@@ -445,17 +445,17 @@ for reverse_j=1:N_j-1
             temp4=EV;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8+(1-sj(jj))*WGmatrix(becareful).^ezc8).^ezc6;
+                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EV==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV==0)=0;
             end
 
-            entireRHS=ezc2*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
+            entireRHS=ezc2(jj)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
-            entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -486,17 +486,17 @@ for reverse_j=1:N_j-1
                 temp4=EV_z;
                 if warmglow==1
                     becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                    temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8+(1-sj(jj))*WGmatrix(becareful).^ezc8).^ezc6;
+                    temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                     temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
                 else % not using warmglow
-                    temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                    temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                     temp4(EV_z==0)=0;
                 end
                 
-                entireRHS_z=ezc2*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+                entireRHS_z=ezc2(jj)*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
                 temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-                entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -513,7 +513,7 @@ for reverse_j=1:N_j-1
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
             temp2=ReturnMatrix_z;
-            temp2(becareful)=ReturnMatrix_z(becareful).^ezc2;
+            temp2(becareful)=ReturnMatrix_z(becareful).^ezc2(jj);
             temp2(ReturnMatrix_z==0)=-Inf;
 
             %Calc the condl expectation term (except beta), which depends on z but
@@ -535,17 +535,17 @@ for reverse_j=1:N_j-1
             temp4=EV_z;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8+(1-sj(jj))*WGmatrix(becareful).^ezc8).^ezc6;
+                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV_z==0)=0;
             end
             
-            entireRHS_z=ezc2*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+            entireRHS_z=ezc2(jj)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
-            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+            entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -574,10 +574,10 @@ for reverse_j=1:N_j-1
             temp4=EV_z;
             if warmglow==1
                 becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8+(1-sj(jj))*WGmatrix(becareful).^ezc8).^ezc6;
+                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
                 temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
             else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8).^ezc6;
+                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
                 temp4(EV_z==0)=0;
             end
 
@@ -589,13 +589,13 @@ for reverse_j=1:N_j-1
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_az).*(ReturnMatrix_az~=0)); % finite and not zero
                 temp2=ReturnMatrix_az;
-                temp2(becareful)=ReturnMatrix_az(becareful).^ezc2;
+                temp2(becareful)=ReturnMatrix_az(becareful).^ezc2(jj);
                 temp2(ReturnMatrix_az==0)=-Inf;
 
-                entireRHS_az=ezc2*temp2+ezc3*DiscountFactorParamsVec*temp4;
+                entireRHS_az=ezc2(jj)*temp2+ezc3*DiscountFactorParamsVec*temp4;
 
                 temp5=logical(isfinite(entireRHS_az).*(entireRHS_az~=0));
-                entireRHS_az(temp5)=ezc1*entireRHS_az(temp5).^ezc7;  % matlab otherwise puts 0 to negative power to infinity
+                entireRHS_az(temp5)=ezc1*entireRHS_az(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_az);
