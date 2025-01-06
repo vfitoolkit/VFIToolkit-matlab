@@ -62,7 +62,10 @@ elseif presorted==2
 end
 WeightedSortedValues=SortedValues.*SortedWeights;
 if any(whichstats(4:7)>=1) || whichstats(2)==1
-    CumSumSortedWeights=cumsum(SortedWeights); % not needed if only want mean, median and std dev (& variance)
+    CumSumSortedWeights=cumsum(SortedWeights);  % not needed if only want mean, median and std dev (& variance)
+    skipcheck=all(CumSumSortedWeights==1);
+else
+    skipcheck=0;
 end
 
 %% Now the stats themselves
@@ -81,7 +84,7 @@ end
 
 
 %% Deal with case where all the values are just the same anyway
-if SortedValues(1)==SortedValues(end) || all(CumSumSortedWeights==1)
+if SortedValues(1)==SortedValues(end) || skipcheck
     % The current FnsToEvaluate takes only one value, so nothing but the mean and median make sense
     % OR
     % Due to numerical rounding, it has multiple values but only one has any meaning as all the mass is in one place (weights of magnitude,
