@@ -333,6 +333,7 @@ if usinglcp==1
     acsmomentnames=cell(1,4);
     acsmomentcounter=0;
     acsmomentsizes=0;
+    a1vec=fieldnames(TargetMoments.AgeConditionalStats); % This will be the FnsToEvaluate names
     for a1=1:length(a1vec)
         a2vec=fieldnames(TargetMoments.AgeConditionalStats.(a1vec{a1}));% These will be Mean, etc
         for a2=1:length(a2vec)
@@ -611,7 +612,10 @@ elseif any(caliboptions.logmoments>0) % =1 means log of moments (can be set up a
    % targetmomentvec=(1-caliboptions.logmoments).*targetmomentvec + caliboptions.logmoments.*log(targetmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
-
+%% Turn off some warnings that would normally be given (as they are otherwise repeated ad infinitum)
+if ~isfield(simoptions,'warnjequaloneptypeasdim')
+    simoptions.warnjequaloneptypeasdim=0;
+end
 
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.fminalgo~=8

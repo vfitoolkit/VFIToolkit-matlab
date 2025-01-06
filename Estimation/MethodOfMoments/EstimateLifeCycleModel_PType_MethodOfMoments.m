@@ -639,6 +639,10 @@ elseif any(estimoptions.logmoments>0) % =1 means log of moments (can be set up a
    % targetmomentvec=(1-estimoptions.logmoments).*targetmomentvec + estimoptions.logmoments.*log(targetmomentvec.*estimoptions.logmoments+(1-estimoptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
+%% Turn off some warnings that would normally be given (as they are otherwise repeated ad infinitum)
+if ~isfield(simoptions,'warnjequaloneptypeasdim')
+    simoptions.warnjequaloneptypeasdim=0;
+end
 
 %% Set up the objective function and the initial calibration parameter vector
 % Note: _objectivefn is shared between Method of Moments Estimation and Calibration

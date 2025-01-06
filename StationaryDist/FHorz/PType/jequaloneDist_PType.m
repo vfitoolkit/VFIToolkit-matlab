@@ -2,6 +2,10 @@ function [jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDi
 % Deal with jequaloneDist for models with PType
 % Parameters is only needed as we might update Parameters.(PTypeDistParamNames{1})
 
+if ~isfield(simoptions,'warnjequaloneptypeasdim')
+    simoptions.warnjequaloneptypeasdim=1;
+end
+
 % If age one distribution is input as a function, then evaluate it
 if isa(jequaloneDist, 'function_handle')
     jequaloneDistFn=jequaloneDist;
@@ -176,7 +180,9 @@ end
 
 % If the initial agent distribution has ptype as a dimension, then use this to overwrite what the ptype masses are
 if idiminj1dist==1
-    warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
+    if simoptions.warnjequaloneptypeasdim==1
+        warning('jequaloneDist has ptype as a dimension, so using implicit masses for ptypes and ignoring value of Parameter PTypeDistParamNames')
+    end
     if outputstruct==1
         ptypemass=zeros(N_i,1);
         for ii=1:N_i
