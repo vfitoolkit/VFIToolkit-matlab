@@ -184,9 +184,11 @@ if N_z==0 && N_e==0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
         
+        PolicyValuesPermute=permute(PolicyValues(:,:,jj),[2,1]); %[N_a,N_z,l_d+l_a]
+
         % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
-        FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,ReturnFnParamNames,jj));
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsVec,PolicyValues(:,:,jj),l_daprime,n_a,0,a_gridvals,[]);
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
    
         if jj==N_j
             V(:,jj)=FofPolicy_jj;
@@ -223,9 +225,11 @@ elseif N_z==0 && N_e>0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
         
+        PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
+
         % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
-        FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,ReturnFnParamNames,jj));
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_e,a_gridvals,e_gridvals_J(:,:,jj));
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_e,a_gridvals,e_gridvals_J(:,:,jj));
    
         if jj==N_j
             V(:,:,jj)=FofPolicy_jj;
@@ -262,9 +266,11 @@ elseif N_z>0 && N_e==0
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
         
+        PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
+
         % Evaluate Return Fn (this part is essentially copy-paste from the 'EvaluateFnOnAgentDist' commands)
-        FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,ReturnFnParamNames,jj));
-        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
+        FofPolicy_jj=EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals_J(:,:,jj));
    
         if jj==N_j
             V(:,:,jj)=FofPolicy_jj;
@@ -296,15 +302,18 @@ elseif N_z>0 && N_e>0
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
     PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j,n_e);
+
     
     %% Calculate the Value Fn by backward iteration
     V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
     
     for reverse_j=0:N_j-1
         jj=N_j-reverse_j; % current period, counts backwards from J-1
-          
-        FnToEvaluateParamsVec=gpuArray(CreateVectorFromParams(Parameters,ReturnFnParamNames,jj));
-        FofPolicy_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsVec,PolicyValues(:,:,:,jj),l_daprime,n_a,[n_z,n_e],a_gridvals,[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(e_gridvals_J(:,:,jj),N_z,1)]),[N_a,N_z,N_e]);
+
+        PolicyValuesPermute=permute(PolicyValues(:,:,:,jj),[2,3,1]); %[N_a,N_z,l_d+l_a]
+
+        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames,jj);
+        FofPolicy_jj=reshape(EvalFnOnAgentDist_Grid(ReturnFn, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,[n_z,n_e],a_gridvals,[repmat(z_gridvals_J(:,:,jj),N_e,1), repelem(e_gridvals_J(:,:,jj),N_z,1)]),[N_a,N_z,N_e]);
         
         if jj==N_j
             V(:,:,:,jj)=FofPolicy_jj;

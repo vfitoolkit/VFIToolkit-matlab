@@ -1,6 +1,6 @@
 function Values=EvalFnOnAgentDist_Grid(FnToEvaluate,FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals)
 % Note: This also handles e and semiz, just put them together with the z as for this function there is no difference
-% Note: z_grid needs to be a joint-gridç
+% Note: z_grid needs to be a joint-grid
 
 % N_a=prod(n_a);
 N_z=prod(n_z);
