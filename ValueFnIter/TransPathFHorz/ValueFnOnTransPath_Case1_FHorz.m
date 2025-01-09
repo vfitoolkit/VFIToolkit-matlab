@@ -194,6 +194,7 @@ end
 % Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
 
 if N_z>0
+
     % transpathoptions.zpathprecomputed=1; % Hardcoded: I do not presently allow for z to be determined by an ExogShockFn which includes parameters from PricePath
 
     if ismatrix(pi_z) % (z,zprime)

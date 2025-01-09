@@ -249,7 +249,6 @@ for ff=1:length(fnnames)
     % acsmomentsizes(acsmomentcounter)=N_j;
     % acsmomentnames(acsmomentcounter,:)={fnnames{ff},'MoreInequality'};
 
-
 end
 allstatcummomentsizes=cumsum(allstatmomentsizes); % Note: this is zero is AllStats is unused
 acscummomentsizes=cumsum(acsmomentsizes); % Note: this is zero is AllStats is unused

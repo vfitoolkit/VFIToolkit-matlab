@@ -131,7 +131,6 @@ else % N_z
 
     if simoptions.lowmemory==0
         AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
-
         StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
 
         PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);

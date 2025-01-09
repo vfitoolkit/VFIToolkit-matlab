@@ -246,12 +246,12 @@ N_z=prod(n_z);
 N_a=prod(n_a);
 
 if N_d>0
-    if size(d_grid)~=[N_d, 1]
-        error('d_grid is not the correct shape (should be of size N_d-by-1) \n')
+    if size(d_grid)~=[sum(n_d), 1]
+        error('d_grid is not the correct shape (should be of size sum(n_d)-by-1) \n')
     end
 end
-if ~all(size(a_grid)==[N_a, 1])
-    error('a_grid is not the correct shape (should be of size N_a-by-1) \n')
+if ~all(size(a_grid)==[sum(n_a), 1])
+    error('a_grid is not the correct shape (should be of size sum(n_a)-by-1) \n')
 elseif N_z>0
     if ndims(z_grid)==2 % 2-dimensional
         if ~all(size(z_grid)==[N_z, 1])

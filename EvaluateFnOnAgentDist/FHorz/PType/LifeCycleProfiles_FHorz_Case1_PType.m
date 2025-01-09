@@ -1237,23 +1237,23 @@ elseif simoptions.lowmemory==1
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
 
                 % Get parameter names for current FnsToEvaluate functions
-                tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{kk}));
+                tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
                 if length(tempnames)>(l_d_temp+l_a_temp+l_a_temp+l_z_temp)
                     FnsToEvaluateParamNames={tempnames{l_d_temp+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 else
                     FnsToEvaluateParamNames={};
                 end
                 if l_z_temp==0
-                    CellOverAgeOfParamValues.(FnsToEvalNames{kk})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
+                    CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
                 else
-                    CellOverAgeOfParamValues.(FnsToEvalNames{kk})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
+                    CellOverAgeOfParamValues.(FnsToEvalNames{ff})=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
                 end
                 
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2;
-                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
-                
-                % ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]); Already has this shape
+                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues.(FnsToEvalNames{ff}),PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
+                ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]);
+
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
                 % Note, eliminating zero weights and unique() cannot be done yet as they need to be conditional on j
@@ -1312,6 +1312,9 @@ elseif simoptions.lowmemory==1
 
                     % Calculate the individual stats
                     StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
+                    size(ValuesOnGrid_ffii)
+                    size(ValuesOnGrid_ffii(:,j1:jend))
+                    [N_a_temp,N_z_temp,(jend-j1+1)]
                     Values_jj=reshape(ValuesOnGrid_ffii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
 
                     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
