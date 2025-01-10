@@ -1312,9 +1312,6 @@ elseif simoptions.lowmemory==1
 
                     % Calculate the individual stats
                     StationaryDistVec_jj=reshape(StationaryDist_ii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
-                    size(ValuesOnGrid_ffii)
-                    size(ValuesOnGrid_ffii(:,j1:jend))
-                    [N_a_temp,N_z_temp,(jend-j1+1)]
                     Values_jj=reshape(ValuesOnGrid_ffii(:,j1:jend),[N_a_temp*N_z_temp*(jend-j1+1),1]);
 
                     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
