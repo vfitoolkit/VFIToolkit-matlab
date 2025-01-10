@@ -281,9 +281,7 @@ for reverse_j=1:N_j-1
         Policy(:,:,jj)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
-       
-       betaEV=DiscountFactorParamsVec*temp4.*ones(1,N_a2,1);
-        
+               
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,jj);
            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a2, special_n_e, d_grid, a2_grid, e_val, ReturnFnParamsVec);

@@ -119,28 +119,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(:,z_c,N_j)=maxindex;
         end
 
-    elseif vfoptions.lowmemory==2
-
-        %if vfoptions.returnmatrix==2 % GPU
-        for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a_c=1:N_a2
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-
-                % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(ReturnMatrix_az).*(ReturnMatrix_az~=0)); % finite and not zero
-                ReturnMatrix_az(becareful)=(ezc1*ReturnMatrix_az(becareful).^ezc2(N_j)).^ezc7(N_j); % Otherwise can get things like 0 to negative power equals infinity
-                ReturnMatrix_az(ReturnMatrix_az==0)=-Inf;
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(ReturnMatrix_az+WGmatrix);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-
-            end
-        end
-
     end
 else
     % Using V_Jplus1
@@ -197,7 +175,7 @@ else
                 temp4(EV==0)=0;
             end
 
-            entireRHS=ezc2(N_j)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
+            entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
             entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
@@ -238,7 +216,7 @@ else
                     temp4(EV_z==0)=0;
                 end
                 
-                entireRHS_z=ezc2(N_j)*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+                entireRHS_z=ezc1*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
                 temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
                 entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
@@ -287,7 +265,7 @@ else
                 temp4(EV_z==0)=0;
             end
 
-            entireRHS_z=ezc2(N_j)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+            entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
             entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
@@ -297,58 +275,6 @@ else
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=temp.*(ones(N_a2,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
-            % EV_z is over (d,1)
-            
-            % Part of Epstein-Zin is after taking expectation
-            temp4=EV_z;
-            if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(N_j)*temp4(becareful).^ezc8(N_j)+(1-sj(N_j))*WGmatrix(becareful).^ezc8(N_j)).^ezc6(N_j);
-                temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
-            else % not using warmglow
-                temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
-                temp4(EV_z==0)=0;
-            end
-            
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a_c=1:N_a2
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(ReturnMatrix_az).*(ReturnMatrix_az~=0)); % finite and not zero
-                temp2=ReturnMatrix_az;
-                temp2(becareful)=ReturnMatrix_az(becareful).^ezc2(N_j);
-                temp2(ReturnMatrix_az==0)=-Inf;
-
-                entireRHS_az=ezc2(N_j)*temp2+ezc3*DiscountFactorParamsVec*temp4;
-
-                temp5=logical(isfinite(entireRHS_az).*(entireRHS_az~=0));
-                entireRHS_az(temp5)=ezc1*entireRHS_az(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-            end
-        end
-        
     end
 end
 
@@ -452,7 +378,7 @@ for reverse_j=1:N_j-1
                 temp4(EV==0)=0;
             end
 
-            entireRHS=ezc2(jj)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
+            entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %*repmat(temp4,1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
             entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
@@ -493,7 +419,7 @@ for reverse_j=1:N_j-1
                     temp4(EV_z==0)=0;
                 end
                 
-                entireRHS_z=ezc2(jj)*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+                entireRHS_z=ezc1*temp2_z+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
                 temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
                 entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
@@ -542,7 +468,7 @@ for reverse_j=1:N_j-1
                 temp4(EV_z==0)=0;
             end
             
-            entireRHS_z=ezc2(jj)*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
+            entireRHS_z=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %*ones(1,N_a2,1);
 
             temp5=logical(isfinite(entireRHS_z).*(entireRHS_z~=0));
             entireRHS_z(temp5)=ezc1*entireRHS_z(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
@@ -552,58 +478,6 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=temp.*(ones(N_a2,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
-            % EV_z is over (d,1)
-            
-            % Part of Epstein-Zin is after taking expectation
-            temp4=EV_z;
-            if warmglow==1
-                becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
-                temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);
-                temp4((EV_z==0)&(WGmatrix==0))=0; % Is actually zero
-            else % not using warmglow
-                temp4(isfinite(temp4))=(sj(jj)*temp4(isfinite(temp4)).^ezc8(jj)).^ezc6(jj);
-                temp4(EV_z==0)=0;
-            end
-
-            z_val=z_gridvals_J(z_c,:,jj);
-            for a_c=1:N_a2
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                % Modify the Return Function appropriately for Epstein-Zin Preferences
-                becareful=logical(isfinite(ReturnMatrix_az).*(ReturnMatrix_az~=0)); % finite and not zero
-                temp2=ReturnMatrix_az;
-                temp2(becareful)=ReturnMatrix_az(becareful).^ezc2(jj);
-                temp2(ReturnMatrix_az==0)=-Inf;
-
-                entireRHS_az=ezc2(jj)*temp2+ezc3*DiscountFactorParamsVec*temp4;
-
-                temp5=logical(isfinite(entireRHS_az).*(entireRHS_az~=0));
-                entireRHS_az(temp5)=ezc1*entireRHS_az(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,jj)=Vtemp;
-                Policy(a_c,z_c,jj)=maxindex;
-            end
-        end
-        
     end
 end
 
