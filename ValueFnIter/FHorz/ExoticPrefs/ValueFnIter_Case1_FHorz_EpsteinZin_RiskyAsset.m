@@ -98,8 +98,8 @@ end
 if isfield(vfoptions,'EZmortalityriskaversion')
     mrisk=Parameters.(vfoptions.EZmortalityriskaversion);
     if vfoptions.EZutils==0
-    ezc6=(1-1./ceis)./(1-mrisk);
-    ezc8=(1-mrisk)./(1-crisk);
+        ezc6=(1-1./ceis)./(1-mrisk);
+        ezc8=(1-mrisk)./(1-crisk);
     elseif vfoptions.EZutils==1
         if vfoptions.EZpositiveutility==1
             ezc6=1./(1-mrisk);
@@ -157,7 +157,11 @@ if vfoptions.EZutils==0
     if ceis<=0
         error('Cannot use EZeis parameter less than zero with Epstein-Zin preferences')
     end
+    if ceis==1
+        error('Cannot use EZeis parameter equal to one with Epstein-Zin preferences (look at formula, it would mean having to raise to the power of zero; you can always put 0.99 or 1.01)')
+    end
 end
+
 
 %% Just do the standard case
 if vfoptions.parallel~=2

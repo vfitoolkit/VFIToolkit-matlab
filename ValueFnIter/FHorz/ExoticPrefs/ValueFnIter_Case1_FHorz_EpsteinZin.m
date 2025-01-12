@@ -161,6 +161,9 @@ if vfoptions.EZutils==0
     if ceis<=0
         error('Cannot use EZeis parameter less than zero with Epstein-Zin preferences')
     end
+    if ceis==1
+        error('Cannot use EZeis parameter equal to one with Epstein-Zin preferences (look at formula, it would mean having to raise to the power of zero; you can always put 0.99 or 1.01)')
+    end
 end
 
 
