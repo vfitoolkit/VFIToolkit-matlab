@@ -65,28 +65,60 @@ for ff=1:length(FnsToEvaluate)
     end
     
     if l_z==1
-        if l_d==0 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
-        elseif l_d==1 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+        if l_d==0
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+            end
+        elseif l_d==1
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), PolicyValues(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+            end
         end
     elseif l_z==2
-        if l_d==0 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
-        elseif l_d==1 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+        if l_d==0
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+            end
+        elseif l_d==1
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), PolicyValues(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+            end
         end
     elseif l_z==3
-        if l_d==0 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
-        elseif l_d==1 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+        if l_d==0
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+            end
+        elseif l_d==1
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), PolicyValues(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+            end
         end
     elseif l_z==4
-        if l_d==0 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
-        elseif l_d==1 && l_a==1
-            Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+        if l_d==0
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+            end
+        elseif l_d==1
+            if l_a==1
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+            elseif l_a==2
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues(:,:,:,1), PolicyValues(:,:,:,2), PolicyValues(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+            end
         end
     end
 
@@ -96,7 +128,6 @@ for ff=1:length(FnsToEvaluate)
         AggVars(ff)=sum(Values(:).*AgentDist);
     end
 end
-
 
 
 end

@@ -78,7 +78,9 @@ V_final=reshape(V_final,[N_a,N_z,N_j]);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
+
 AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,N_j]); % if simoptions.fastOLG==0
+save tempA.mat AgentDist_initial % DEBUG
 AgeWeights_initial=sum(AgentDist_initial,1); % [1,N_j]
 if transpathoptions.ageweightstrivial==0
     % AgeWeights_T is N_j-by-T (or if simoptions.fastOLG=1, then N_a*N_j*N_z-by-T )
@@ -99,7 +101,7 @@ if simoptions.fastOLG==1
     AgentDist_initial=reshape(permute(reshape(AgentDist_initial,[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j*N_z,1]);
     % Note: do the double reshape() as cannot get AgeWeights_initial from the final shape
     AgeWeights_initial=kron(ones(N_z,1,'gpuArray'),kron(AgeWeights_initial',ones(N_a,1,'gpuArray'))); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
-    % Similarly, we want pi_z_J to be (j,z,z'), but we need to keep the standard pi_z_J for the value function 
+    % Similarly, we want pi_z_J to be (j,z,z'), but we need to keep the standard pi_z_J for the value function
     pi_z_J_sim=gather(reshape(permute(pi_z_J(:,:,1:N_j-1),[3,1,2]),[(N_j-1)*N_z,N_z])); % For agent dist we want it to be (j,z,z')
     if transpathoptions.ageweightstrivial==0
         AgeWeights_T=repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % Vectorized as N_a*N_j*N_z-by-T
@@ -107,11 +109,11 @@ if simoptions.fastOLG==1
         AgeWeights=AgeWeights_initial;
         AgeWeightsOld=AgeWeights;
     end
-
+    
     % Precompute some things needed for fastOLG agent dist iteration
     exceptlastj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
     exceptfirstj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-    justfirstj=kron(ones(1,N_z),1:1:N_a)+N_a+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a));
+    justfirstj=repmat(1:1:N_a,1,N_z)+N_a*N_j*repelem(0:1:N_z-1,1,N_a);
     II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
     II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
     pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
@@ -121,6 +123,9 @@ if transpathoptions.trivialjequalonedist==0
     jequalOneDist_T=jequalOneDist;
     jequalOneDist=jequalOneDist_T(:,1);
 end
+
+save tempB.mat AgentDist_initial simoptions transpathoptions % DEBUG
+
 
 % Set up some things for the FnsToEvaluate with fastOLG
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_grivdals is [N_a,l_a]
@@ -161,7 +166,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
     end
     % Free up space on GPU by deleting things no longer needed
-    % clear V    
+    % clear V
     
     %% Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path
     % Call AgentDist the current periods distn
@@ -169,6 +174,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     if transpathoptions.ageweightstrivial==0
         AgeWeights=AgeWeights_initial;
     end
+    
     for tt=1:T-1
 
         %Get the current optimal policy
@@ -289,6 +295,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
 
     end
+
     % Free up space on GPU by deleting things no longer needed
     clear AgentDist
     
