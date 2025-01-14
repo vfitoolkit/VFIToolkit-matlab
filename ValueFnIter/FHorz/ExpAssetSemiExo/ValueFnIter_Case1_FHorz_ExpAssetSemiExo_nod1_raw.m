@@ -192,13 +192,10 @@ else
                 Policy_ford3_jj(:,z_c,d3_c)=maxindex;
             end
         end
-        
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not yet implemented (email me if you want/need it)')
     end
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
-    [V_jj,maxindex]=max(V_ford3_jj,[],3); % max over d2
+    [V_jj,maxindex]=max(V_ford3_jj,[],3); % max over d3
     V(:,:,N_j)=V_jj;
     Policy3(2,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z,1]); % This is the value of d that corresponds, make it this shape for addition just below
@@ -279,7 +276,7 @@ for reverse_j=1:N_j-1
                     ReturnMatrix_d3z=ReturnMatrix_d3(:,:,z_c);
 
                     %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                    EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                    EV_z=VKronNext_j.*shiftdim(pi_bothz(z_c,:)',-1); %.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
                     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                     EV_z=sum(EV_z,2);
 
@@ -318,7 +315,7 @@ for reverse_j=1:N_j-1
                 ReturnMatrix_d3z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d2,1], n_a1,n_a2, special_n_bothz, [d2_grid;d3_val], a1_grid, a2_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                EV_z=VKronNext_j.*shiftdim(pi_bothz(z_c,:)',-1); %(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
@@ -334,7 +331,7 @@ for reverse_j=1:N_j-1
                 entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
-                entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*kron(entireEV_z,ones(1,N_a1));
+                entireRHS_z=ReturnMatrix_d3z+DiscountFactorParamsVec*repelem(entireEV_z,1,N_a1);
 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
@@ -343,9 +340,6 @@ for reverse_j=1:N_j-1
                 Policy_ford3_jj(:,z_c,d3_c)=shiftdim(maxindex,1);
             end
         end
-
-    elseif vfoptions.lowmemory==2
-        error('lowmemory=2 not yet implemented (email me if you want/need it)')
     end
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)

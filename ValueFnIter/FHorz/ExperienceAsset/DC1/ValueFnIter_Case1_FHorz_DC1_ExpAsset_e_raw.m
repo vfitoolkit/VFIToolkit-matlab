@@ -406,7 +406,7 @@ else
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
                         ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2e(ReturnFn, [n_d1,n_d2], special_n_z, special_n_e, d_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, e_val, ReturnFnParamsVec,2);
-                        daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+                        daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
                         [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
                         V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii,1);
@@ -641,7 +641,7 @@ for reverse_j=1:N_j-1
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
                         ReturnMatrix_ii_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2e(ReturnFn, [n_d1,n_d2], special_n_z, special_n_e, d_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, e_val, ReturnFnParamsVec,2);
-                        daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+                        daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii_ze=ReturnMatrix_ii_ze+DiscountedentireEV_z(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
                         [Vtempii,maxindex]=max(entireRHS_ii_ze,[],1);
                         V(curraindex,z_c,e_c,jj)=shiftdim(Vtempii,1);
