@@ -1,10 +1,11 @@
 function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_DC1_raw(n_d1,n_d2,n_a,n_z,n_semiz,N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+n_d=[n_d1,n_d2];
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
-N_d=prod([n_d1,n_d2]); % Needed for N_j when converting to form of Policy3
+N_d=prod(n_d); % Needed for N_j when converting to form of Policy3
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 N_z=prod(n_z);
@@ -19,7 +20,9 @@ d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
-special_n_d2=ones(1,length(n_d2));
+special_n_d=[n_d1,ones(1,length(n_d2))];
+
+d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
 
 % Preallocate
 V_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
@@ -44,7 +47,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
 
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2], n_bothz, [d1_grid; d2_grid], a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_bothz, d_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
         % First, we want aprime conditional on (d,1,a,z)
         [RMtemp_ii,maxindex1]=max(ReturnMatrix_ii,[],2);
@@ -59,20 +62,27 @@ if ~isfield(vfoptions,'V_Jplus1')
         V(level1ii,:,N_j)=shiftdim(Vtempii,2);
         Policytemp(level1ii,:)=maxindex2+N_d*(reshape(maxindex1d,[vfoptions.level1n,N_bothz])-1); % d,aprime
 
-        % We just want aprime to use in n-Monotonicity. But we want it conditional on a, but allow for full range that different d give
-        [maxaprimeii,~]=max(max(maxindex1,[],1),[],4); % Get the max aprime index, conditional on a, across all possible d & z
-        [minaprimeii,~]=min(min(maxindex1,[],1),[],4); % Get the min aprime index, conditional on a, across all possible d & z
-        maxaprimeii=maxaprimeii(:); % turn into column vector
-        minaprimeii=minaprimeii(:); % turn into column vector
-        % COMMENT TO SELF: I tried to instead "Get max aprime index, conditional on (a,z), across all possible d". But then I have to add a for-loop over z (when doing ReturnMatrix_ii) and this was slower.
-
-        % Note: because of monotonicity, can just use minaprimeii(ii) & maxaprimeii(ii+1)
-        %       [as minaprimeii(ii) will be less than or equal to minaprime(ii+1) anyway, and analagously for max]
+        % Second level based on montonicity
+        maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2], n_bothz, [d1_grid; d2_grid], a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-            [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
-            V(level1ii(ii)+1:level1ii(ii+1)-1,:,N_j)=shiftdim(Vtempii,1);
-            Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+N_d*(minaprimeii(ii)-1);
+            curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
+            if maxgap(ii)>0
+                loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                % loweredge is n_d-by-1-by-n_z
+                aprimeindexes=loweredge+(0:1:maxgap(ii));
+                % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_bothz, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
+                V(curraindex,:,N_j)=shiftdim(Vtempii,1);
+                Policytemp(curraindex,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d and z)
+            else
+                loweredge=maxindex1(:,1,ii,:);
+                % Just use aprime(ii) for everything
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_bothz, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
+                V(curraindex,:,N_j)=shiftdim(Vtempii,1);
+                Policytemp(curraindex,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_z-1),-1))-1),1); % loweredge(given the d and z)
+            end
         end
 
         % Deal with policy for semi-exo
@@ -89,6 +99,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     for d2_c=1:N_d2
+        d12_gridvals=[d1_grid; d2_grid(d2_c)*ones(n_d1,1)];
         % Note: By definition V_Jplus1 does not depend on d (only aprime)
         pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
@@ -99,7 +110,7 @@ else
         entireEV=repmat(shiftdim(EV,-1),N_d1,1,1,1); % [d1,aprime,1,z]
 
         % n-Monotonicity
-        ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, [d1_grid; d2_grid(d2_c)], a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
         entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*entireEV;
 
@@ -116,31 +127,30 @@ else
         V_ford2_jjtemp(level1ii,:)=shiftdim(Vtempii,2);
         Policytemp(level1ii,:)=shiftdim(maxindex2,2)+N_d1*(reshape(maxindex1d,[vfoptions.level1n,N_bothz])-1); % d,aprime
 
-        % We just want aprime to use in n-Monotonicity. But we want it conditional on a, but allow for full range that different d give
-        [maxaprimeii,~]=max(max(maxindex1,[],1),[],4); % Get the max aprime index, conditional on a, across all possible d & z
-        [minaprimeii,~]=min(min(maxindex1,[],1),[],4); % Get the min aprime index, conditional on a, across all possible d & z
-        maxaprimeii=maxaprimeii(:); % turn into column vector
-        minaprimeii=minaprimeii(:); % turn into column vector
-        % COMMENT TO SELF: I tried to instead "Get max aprime index, conditional on (a,z), across all possible d". But then I have to add a for-loop over z (when doing ReturnMatrix_ii) and this was slower.
-    
-        % Note: because of monotonicity, can just use minaprimeii(ii) & maxaprimeii(ii+1)
-        %       [as minaprimeii(ii) will be less than or equal to minaprime(ii+1) anyway, and analagously for max]
+        % Second level based on montonicity
+        maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
+            curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
             if maxaprimeii(ii+1)>minaprimeii(ii)
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, [d1_grid; d2_grid(d2_c)], a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                % loweredge is n_d-by-1-by-n_z
+                aprimeindexes=loweredge+(0:1:maxgap(ii));
+                % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 daprimez=(repmat(1:1:N_d1,1,maxaprimeii(ii+1)-minaprimeii(ii)+1)+N_d1*repelem(minaprimeii(ii)-1:1:maxaprimeii(ii+1)-1,1,N_d1))'+N_d1*N_a*(0:1:N_bothz-1); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV(daprimez(:)),[N_d1*(maxaprimeii(ii+1)-minaprimeii(ii)+1),1,N_bothz]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                V_ford2_jjtemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
-                Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
+                V_ford2_jjtemp(curraindex,:)=shiftdim(Vtempii,1);
+                Policytemp(curraindex,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
             else
+                loweredge=maxindex1(:,1,ii,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, [d1_grid; d2_grid(d2_c)], a_grid(minaprimeii(ii)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 daprimez=((1:1:N_d1)+N_d1*(minaprimeii(ii)-1))'+N_d1*N_a*(0:1:N_bothz-1); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV(daprimez(:)),[N_d1,1,N_bothz]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                V_ford2_jjtemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
-                Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
+                V_ford2_jjtemp(curraindex,:)=shiftdim(Vtempii,1);
+                Policytemp(curraindex,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
             end
         end
 
@@ -176,6 +186,7 @@ for reverse_j=1:N_j-1
     VKronNext_j=V(:,:,jj+1);
 
     for d2_c=1:N_d2
+        d12_gridvals=[d1_grid; d2_grid(d2_c)*ones(n_d1,1)];
         % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
         pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
@@ -186,7 +197,7 @@ for reverse_j=1:N_j-1
         entireEV=repmat(shiftdim(EV,-1),N_d1,1,1,1); % [d1,aprime,1,z]
 
         % n-Monotonicity
-        ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, [d1_grid; d2_grid(d2_c)], a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+        ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
         entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*entireEV;
 
@@ -203,31 +214,30 @@ for reverse_j=1:N_j-1
         V_ford2_jjtemp(level1ii,:)=shiftdim(Vtempii,2);
         Policytemp(level1ii,:)=shiftdim(maxindex2,2)+N_d1*(reshape(maxindex1d,[vfoptions.level1n,N_bothz])-1); % d,aprime
 
-        % We just want aprime to use in n-Monotonicity. But we want it conditional on a, but allow for full range that different d give
-        [maxaprimeii,~]=max(max(maxindex1,[],1),[],4); % Get the max aprime index, conditional on a, across all possible d & z
-        [minaprimeii,~]=min(min(maxindex1,[],1),[],4); % Get the min aprime index, conditional on a, across all possible d & z
-        maxaprimeii=maxaprimeii(:); % turn into column vector
-        minaprimeii=minaprimeii(:); % turn into column vector
-        % COMMENT TO SELF: I tried to instead "Get max aprime index, conditional on (a,z), across all possible d". But then I have to add a for-loop over z (when doing ReturnMatrix_ii) and this was slower.
-    
-        % Note: because of monotonicity, can just use minaprimeii(ii) & maxaprimeii(ii+1)
-        %       [as minaprimeii(ii) will be less than or equal to minaprime(ii+1) anyway, and analagously for max]
+        % Second level based on montonicity
+        maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
         for ii=1:(vfoptions.level1n-1)
+            curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
             if maxaprimeii(ii+1)>minaprimeii(ii)
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, [d1_grid; d2_grid(d2_c)], a_grid(minaprimeii(ii):maxaprimeii(ii+1)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+                loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                % loweredge is n_d-by-1-by-n_z
+                aprimeindexes=loweredge+(0:1:maxgap(ii));
+                % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
                 daprimez=(repmat(1:1:N_d1,1,maxaprimeii(ii+1)-minaprimeii(ii)+1)+N_d1*repelem(minaprimeii(ii)-1:1:maxaprimeii(ii+1)-1,1,N_d1))'+N_d1*N_a*(0:1:N_bothz-1); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV(daprimez(:)),[N_d1*(maxaprimeii(ii+1)-minaprimeii(ii)+1),1,N_bothz]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                V_ford2_jjtemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
-                Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
+                V_ford2_jjtemp(curraindex,:)=shiftdim(Vtempii,1);
+                Policytemp(curraindex,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
             else
+                loweredge=maxindex1(:,1,ii,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, [d1_grid; d2_grid(d2_c)], a_grid(minaprimeii(ii)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
                 daprimez=((1:1:N_d1)+N_d1*(minaprimeii(ii)-1))'+N_d1*N_a*(0:1:N_bothz-1); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEV(daprimez(:)),[N_d1,1,N_bothz]);
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                V_ford2_jjtemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
-                Policytemp(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
+                V_ford2_jjtemp(curraindex,:)=shiftdim(Vtempii,1);
+                Policytemp(curraindex,:)=shiftdim(maxindex,1)+N_d1*(minaprimeii(ii)-1);
             end
         end
 

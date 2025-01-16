@@ -37,7 +37,7 @@ if length(n_a)==1
         end
     end
 else
-    error('vfoptions.divideandconquer==1 is currently only possible for one endogenous state (so length(n_a)=1)')
+    error('vfoptions.divideandconquer==1 is currently only possible for one endogenous state (when using semi-exo)')
 end
 
 
