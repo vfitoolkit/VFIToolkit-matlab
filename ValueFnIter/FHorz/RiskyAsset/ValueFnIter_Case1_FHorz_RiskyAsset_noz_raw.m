@@ -16,37 +16,19 @@ a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
 u_grid=gpuArray(u_grid);
 
-if vfoptions.lowmemory>0
-    special_n_a1=ones(1,length(n_a1));
-    a1_gridvals=CreateGridvals(n_a1,a1_grid,1); % The 1 at end indicates want output in form of matrix.
-end
-
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    if vfoptions.lowmemory==0
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
 
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,N_j)=Vtemp;
-        Policy(:,N_j)=maxindex;
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
 
-    elseif vfoptions.lowmemory==1
-        %if vfoptions.returnmatrix==2 % GPU
-        for a1_c=1:N_a1
-            a1_val=a1_gridvals(a1_c,:);
-            ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2], [d_grid; a1_grid], [a1_val; a2_grid], ReturnFnParamsVec);
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_a,[],1);
-            V(a1_c+N_a1*(0:1:N_a2-1),N_j)=Vtemp;
-            Policy(a1_c+N_a1*(0:1:N_a2-1),N_j)=maxindex;
-        end
-    end
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+    V(:,N_j)=Vtemp;
+    Policy(:,N_j)=maxindex;
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a2,1]);    % First, switch V_Jplus1 into Kron form
@@ -77,31 +59,15 @@ else
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
     
-    if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
-        % (d,aprime,a)
-  
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1); % d-by-a
-        
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,N_j)=Vtemp;
-        Policy(:,N_j)=maxindex;
-        
-    elseif vfoptions.lowmemory==1
-       for a1_c=1:N_a1
-           a1_val=a1_gridvals(a1_c,:);
-           ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2],  [d_grid; a1_grid],  [a1_val; a2_grid], ReturnFnParamsVec);
-           
-           entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*EV; % d-by-1
-           
-           %Calc the max and it's index
-           [Vtemp,maxindex]=max(entireRHS_a,[],1);
-           V(a1_c+N_a1*(0:1:N_a2-1),N_j)=Vtemp;
-           Policy(a1_c+N_a1*(0:1:N_a2-1),N_j)=maxindex;
-        end
-        
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
+    % (d,aprime,a)
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1); % d-by-a
+
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(entireRHS,[],1);
+    V(:,N_j)=Vtemp;
+    Policy(:,N_j)=maxindex;
 end
 
 %% Iterate backwards through j.
@@ -142,32 +108,15 @@ for reverse_j=1:N_j-1
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
     
-    if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
-        % (d,aprime,a)
-        
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1); % aprime-by-a
-        
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS,[],1);
-        V(:,jj)=Vtemp;
-        Policy(:,jj)=maxindex;
-        
-    elseif vfoptions.lowmemory==1
-       
-       for a1_c=1:N_a1
-           a1_val=a1_gridvals(a1_c,:);
-           ReturnMatrix_a=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2],  [d_grid; a1_grid],  [a1_val; a2_grid], ReturnFnParamsVec);
-           
-           entireRHS_a=ReturnMatrix_a+DiscountFactorParamsVec*EV; % aprime-by-1
-           
-           %Calc the max and it's index
-           [Vtemp,maxindex]=max(entireRHS_a,[],1);
-           V(a1_c+N_a1*(0:1:N_a2-1),jj)=Vtemp;
-           Policy(a1_c+N_a1*(0:1:N_a2-1),jj)=maxindex;
-        end
-        
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, [n_d,n_a1], [n_a1,n_a2], [d_grid; a1_grid], [a1_grid; a2_grid], ReturnFnParamsVec);
+    % (d,aprime,a)
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1); % aprime-by-a
+
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(entireRHS,[],1);
+    V(:,jj)=Vtemp;
+    Policy(:,jj)=maxindex;
 end
 
 

@@ -16,10 +16,6 @@ u_grid=gpuArray(u_grid);
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
 end
-if vfoptions.lowmemory>1
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
-end
 
 
 %% j=N_j
@@ -45,21 +41,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
-        end
-
-    elseif vfoptions.lowmemory==2
-
-        for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(ReturnMatrix_az);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-
-            end
         end
 
     end
@@ -161,37 +142,6 @@ else
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
-            % EV_z is over (d,1)
-            
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z;
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-            end
-        end
-        
     end
 end
 
@@ -305,37 +255,6 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=VKronNext_j.*pi_z_J(z_c,:,jj);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeIndex+1),[N_d,N_u]); % (d,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d,1,z), sum over u
-            % EV_z is over (d,1)
-            
-            z_val=z_gridvals_J(z_c,:,jj);
-            for a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z;
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,jj)=Vtemp;
-                Policy(a_c,z_c,jj)=maxindex;
-            end
-        end
-        
     end
 end
 

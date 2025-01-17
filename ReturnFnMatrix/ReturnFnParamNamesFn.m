@@ -38,6 +38,10 @@ if isfield(vfoptions,'residualasset')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.residualasset;
 end
+if isfield(vfoptions,'refine_d')
+    % Remove d2
+    l_d=l_d-vfoptions.refine_d(2);
+end
 % Figure out ReturnFnParamNames from ReturnFn
 temp=getAnonymousFnInputNames(ReturnFn);
 if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters

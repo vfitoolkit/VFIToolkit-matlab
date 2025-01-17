@@ -8,6 +8,9 @@ N_z=prod(n_z);
 
 %% Get aprimeFnParamNames
 l_d=length(n_d); % because it is a risky asset there must be some decision variables
+if isfield(vfoptions,'refine_d')
+    l_d=l_d-vfoptions.refine_d(2);
+end
 l_u=length(n_u);
 temp=getAnonymousFnInputNames(aprimeFn);
 if length(temp)>(l_d+l_u)
@@ -60,37 +63,69 @@ end
 if length(n_a2)>1
     error('Have not yet implemented riskyasset for more than one riskyasset')
 end
-
 if isfield(vfoptions,'n_e')
-    if N_a1==0
-        if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_noz_e_raw(n_d,n_a2,vfoptions.n_e,n_u, N_j, d_grid, a2_grid, vfoptions.e_gridvals_J, u_grid, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_e_raw(n_d,n_a2,n_z,vfoptions.n_e,n_u, N_j, d_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        end
-    else
-        if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noz_e_raw(n_d,n_a1,n_a2,vfoptions.n_e,n_u, N_j, d_grid, a1_grid, a2_grid, vfoptions.e_gridvals_J, u_grid, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_e_raw(n_d,n_a1,n_a2,n_z,vfoptions.n_e,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        end
-    end
-else % no e
-    if N_a1==0
-        if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_noz_raw(n_d,n_a2,n_u, N_j, d_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_raw(n_d,n_a2,n_z,n_u, N_j, d_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        end
-    else
-        if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noz_raw(n_d,n_a1,n_a2,n_u, N_j, d_grid, a1_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_raw(n_d,n_a1,n_a2,n_z,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        end
-    end
+    N_e=prod(vfoptions.n_e);
+else
+    N_e=0;
 end
 
+if ~isfield(vfoptions,'refine_d')
+    if N_e>0
+        if N_a1==0
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_noz_e_raw(n_d,n_a2,vfoptions.n_e,n_u, N_j, d_grid, a2_grid, vfoptions.e_gridvals_J, u_grid, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_e_raw(n_d,n_a2,n_z,vfoptions.n_e,n_u, N_j, d_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        else
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noz_e_raw(n_d,n_a1,n_a2,vfoptions.n_e,n_u, N_j, d_grid, a1_grid, a2_grid, vfoptions.e_gridvals_J, u_grid, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_e_raw(n_d,n_a1,n_a2,n_z,vfoptions.n_e,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        end
+    else % no e
+        if N_a1==0
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_noz_raw(n_d,n_a2,n_u, N_j, d_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noa1_raw(n_d,n_a2,n_z,n_u, N_j, d_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        else
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_noz_raw(n_d,n_a1,n_a2,n_u, N_j, d_grid, a1_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_RiskyAsset_raw(n_d,n_a1,n_a2,n_z,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        end
+    end
+else 
+    if sum(vfoptions.refine_d)~=length(n_d)
+        error('vfoptions.refine_d seems to be set up wrong, it is inconsistent with n_d')
+    end
+    if any(vfoptions.refine_d==0)
+        error('vfoptions.refine_d cannot contain zeros (can only be used when you have all three)')
+    end
+    n_d1=n_d(1:vfoptions.refine_d(1));
+    n_d2=n_d(vfoptions.refine_d(1)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2));
+    n_d3=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1:end);
+    d1_grid=d_grid(1:sum(n_d1));
+    d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
+    d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
+    if N_e==0
+        if N_a1==0
+            if N_z==0
+                % not yet implemented
+            else
+                [VKron, Policy3]=ValueFnIter_FHorz_RiskyAsset_Refine_noa1_raw(n_d1,n_d2,n_d3,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        else
+            % not yet implemented
+        end
+    else
+        % not yet implemented
+    end
+end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if n_a1(1)==0
@@ -101,28 +136,48 @@ else
 end
 % Note, Policy has same shape as Case2, so just use that command
 if vfoptions.outputkron==0
-    if isfield(vfoptions,'n_e')
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+    if ~isfield(vfoptions,'refine_d')
+        if N_e>0
+            if N_z==0
+                V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+            else
+                V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+                Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            end
         else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            if N_z==0
+                V=reshape(VKron,[n_a,N_j]);
+                Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_z,N_j]);
+                Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+            end
         end
-    else
-        if N_z==0
-            V=reshape(VKron,[n_a,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+    else % isfield(vfoptions,'refine_d')
+        Policy=Policy3; % TEMPORARY
+        if N_e>0
+            if N_z==0
+                V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+                % Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+            else
+                V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+                % Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            end
         else
-            V=reshape(VKron,[n_a,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+            if N_z==0
+                V=reshape(VKron,[n_a,N_j]);
+                % Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+            else
+                V=reshape(VKron,[n_a,n_z,N_j]);
+                % Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+            end
         end
     end
 else
     V=VKron;
     Policy=PolicyKron;
 end
-
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then

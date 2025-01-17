@@ -20,11 +20,6 @@ u_grid=gpuArray(u_grid);
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
 end
-if vfoptions.lowmemory>1
-    special_n_a1=ones(1,length(n_a1));
-    a1_gridvals=CreateGridvals(n_a1,a1_grid,1); % The 1 at end indicates want output in form of matrix.
-end
-
 
 %% j=N_j
 
@@ -50,22 +45,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-
-    elseif vfoptions.lowmemory==2
-
-        for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a1_c=1:N_a1
-                a1_val=a1_gridvals(a1_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2], special_n_z, [d_grid; a1_grid], [a1_val; a2_grid], z_val, ReturnFnParamsVec);
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(ReturnMatrix_az);
-                V(a1_c+N_a1*(0:1:N_a2-1),z_c,N_j)=Vtemp;
-                Policy(a1_c+N_a1*(0:1:N_a2-1),z_c,N_j)=maxindex;
-
-            end
-        end
-
     end
 else
     % Using V_Jplus1
@@ -188,43 +167,6 @@ else
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=V_Jplus1.*pi_z_J(z_c,:,N_j);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-
-            % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
-            % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV_z(aprimeIndex)==EV_z(aprimeplus1Index)); % Note, probably just do this off of a2prime values
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
-            aprimeProbs(skipinterp)=0;
-            
-            % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
-            % EV_z is over (d&a1prime,1)
-            
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a1_c=1:N_a1
-                a1_val=a1_gridvals(a1_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2], special_n_z, [d_grid; a1_grid], [a1_val; a2_grid], z_val, ReturnFnParamsVec);
-                
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z; %*ones(1,N_a2,1);
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a1_c+N_a1*(0:1:N_a2-1),z_c,N_j)=Vtemp;
-                Policy(a1_c+N_a1*(0:1:N_a2-1),z_c,N_j)=maxindex;
-            end
-        end
-        
     end
 end
 
@@ -362,43 +304,6 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=VKronNext_j.*pi_z_J(z_c,:,jj);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-
-            % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
-            % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV_z(aprimeIndex)==EV_z(aprimeplus1Index)); % Note, probably just do this off of a2prime values
-            aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
-            aprimeProbs(skipinterp)=0;
-            
-            % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1_z=aprimeProbs.*reshape(EV_z(aprimeIndex),[N_d*N_a1,N_u]); % (d,u), the lower aprime
-            EV2_z=(1-aprimeProbs).*reshape(EV_z(aprimeplus1Index),[N_d*N_a1,N_u]); % (d,u), the upper aprime
-            % Already applied the probabilities from interpolating onto grid
-            
-            % Expectation over u (using pi_u), and then add the lower and upper
-            EV_z=sum((EV1_z.*pi_u'),2)+sum((EV2_z.*pi_u'),2); % (d&a1prime,u), sum over u
-            % EV_z is over (d&a1prime,1)
-            
-            z_val=z_gridvals_J(z_c,:,jj);
-            for a1_c=1:N_a1
-                a1_val=a1_gridvals(a1_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d,n_a1], [special_n_a1,n_a2], special_n_z, [d_grid; a1_grid], [a1_val; a2_grid], z_val, ReturnFnParamsVec);
-                
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*EV_z; %*ones(1,N_a2,1);
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a1_c+N_a1*(0:1:N_a2-1),z_c,jj)=Vtemp;
-                Policy(a1_c+N_a1*(0:1:N_a2-1),z_c,jj)=maxindex;
-            end
-        end
-        
     end
 end
 
