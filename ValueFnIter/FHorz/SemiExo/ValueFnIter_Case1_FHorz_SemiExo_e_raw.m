@@ -182,7 +182,7 @@ else
                 z_val=bothz_gridvals_J(z_c,:,N_j);
 
                 %Calc the condl expectation term (except beta) which depends on z but not control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                EV_z=V_Jplus1.*shiftdim(pi_bothz(z_c,:)',-1);
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 entireEV_z=kron(EV_z,ones(N_d1,1));
@@ -308,7 +308,7 @@ for reverse_j=1:N_j-1
                 z_val=bothz_gridvals_J(z_c,:,jj);
 
                 %Calc the condl expectation term (except beta) which depends on z but not control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                EV_z=VKronNext_j.*shiftdim(pi_bothz(z_c,:)',-1);
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 entireEV_z=kron(EV_z,ones(N_d1,1));

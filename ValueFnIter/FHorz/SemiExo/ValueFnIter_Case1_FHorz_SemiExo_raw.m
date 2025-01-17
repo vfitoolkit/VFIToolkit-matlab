@@ -20,7 +20,6 @@ d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
 if vfoptions.lowmemory>0
-    l_z=length(n_z);
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
 
@@ -63,6 +62,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
 
     end
+
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);    % First, switch V_Jplus1 into Kron form
@@ -100,7 +100,7 @@ else
                     ReturnMatrix_d2z=ReturnMatrix_d2(:,:,z_c);
 
                     %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                    EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                    EV_z=V_Jplus1.*shiftdim(pi_bothz(z_c,:)',-1);
                     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                     EV_z=sum(EV_z,2);
 
@@ -134,7 +134,7 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                EV_z=V_Jplus1.*shiftdim(pi_bothz(z_c,:)',-1);
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
@@ -203,7 +203,7 @@ for reverse_j=1:N_j-1
                     ReturnMatrix_d2z=ReturnMatrix_d2(:,:,z_c);
 
                     %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                    EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                    EV_z=VKronNext_j.*shiftdim(pi_bothz(z_c,:)',-1);
                     EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                     EV_z=sum(EV_z,2);
 
@@ -238,7 +238,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
+                EV_z=VKronNext_j.*shiftdim(pi_bothz(z_c,:)',-1);
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 

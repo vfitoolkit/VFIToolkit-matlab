@@ -45,6 +45,10 @@ if N_a1>0 % set up for divide-and-conquer
     end
 end
 
+if vfoptions.lowmemory>0
+    error('vfoptions.lowmemory is temporarily disabled for models with experienceasset and semi-exogenous shocks (needs to be fixed/cleaned)')
+end
+
 if isfield(vfoptions,'n_e')
     if vfoptions.divideandconquer==0
         if N_d1==0
