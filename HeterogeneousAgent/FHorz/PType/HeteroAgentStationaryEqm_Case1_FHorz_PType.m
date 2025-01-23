@@ -290,35 +290,14 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).n_d=n_d;
     if isa(n_d,'struct')
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
-    else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            PTypeStructure.(iistr).n_d=n_d(ii,:);
-        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            warning('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-        end
     end
     PTypeStructure.(iistr).n_a=n_a;
     if isa(n_a,'struct')
         PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
-    else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            PTypeStructure.(iistr).n_a=n_a(ii,:);
-        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            warning('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-        end
     end
     PTypeStructure.(iistr).n_z=n_z;
     if isa(n_z,'struct')
         PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
-    else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            PTypeStructure.(iistr).n_z=n_z(ii,:);
-        elseif temp(2)==PTypeStructure.N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            warning('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-        end
     end
     
     if PTypeStructure.(iistr).n_d(1)==0
