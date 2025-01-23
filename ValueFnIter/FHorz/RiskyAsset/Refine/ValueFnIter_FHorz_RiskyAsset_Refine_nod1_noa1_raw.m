@@ -1,9 +1,7 @@
-function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_Refine_noa1_raw(n_d1,n_d2,n_d3,n_a,n_z,n_u,N_j, d1_grid, d2_grid, d3_grid, a_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
-% d1: ReturnFn but not aprimeFn
+function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_Refine_nod1_noa1_raw(n_d2,n_d3,n_a,n_z,n_u,N_j, d2_grid, d3_grid, a_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % d2: aprimeFn but not ReturnFn
 % d3: both ReturnFn and aprimeFn
 
-N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_d3=prod(n_d3);
 N_a=prod(n_a);
@@ -11,19 +9,19 @@ N_z=prod(n_z);
 N_u=prod(n_u);
 
 % For ReturnFn
-n_d13=[n_d1,n_d3];
-N_d13=prod(n_d13);
-d13_grid=[d1_grid; d3_grid];
+% n_d3
+% N_d3
+% d3_grid
 % For aprimeFn
 n_d23=[n_d2,n_d3];
 N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_z,N_j,'gpuArray');
-Policy3=zeros(3,N_a,N_z,N_j,'gpuArray'); % three: d1, d2, d3 
+Policy2=zeros(2,N_a,N_z,N_j,'gpuArray'); % two: d2, d3 
 
 %%
-d13_grid=gpuArray(d13_grid);
+d3_grid=gpuArray(d3_grid);
 d23_grid=gpuArray(d23_grid);
 a_grid=gpuArray(a_grid);
 u_grid=gpuArray(u_grid);
@@ -32,7 +30,6 @@ if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
 end
 
-aind=(0:1:N_a-1);
 zind=shiftdim(0:1:N_z-1,-1);
 
 
@@ -44,25 +41,23 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d3, n_a, n_z, d3_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy3(1,:,:,N_j)=shiftdim(rem(maxindex-1,N_d1)+1,-1);
-        Policy3(2,:,:,N_j)=1; % is meaningless anyway
-        Policy3(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d1),-1);
+        Policy2(1,:,:,N_j)=1; % d2, is meaningless anyway
+        Policy2(2,:,:,N_j)=shiftdim(maxindex,-1); % d3
         
     elseif vfoptions.lowmemory==1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d3, n_a, special_n_z, d3_grid, a_grid, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy3(1,:,z_c,N_j)=shiftdim(rem(maxindex-1,N_d1)+1,-1);
-            Policy3(2,:,z_c,N_j)=1; % is meaningless anyway
-            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d1),-1);
+            Policy2(1,:,z_c,N_j)=1; % d2, is meaningless anyway
+            Policy2(2,:,z_c,N_j)=shiftdim(maxindex,-1); % d3
         end
 
     end
@@ -79,7 +74,7 @@ else
 
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d3, n_a, n_z, d3_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
         EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
@@ -100,24 +95,23 @@ else
 
         % Time to refine
         % First: ReturnMatrix, we can refine out d1
-        [ReturnMatrix_onlyd3,d1index]=max(reshape(ReturnMatrix,[N_d1,N_d3,N_a,N_z]),[],1);
+        % No d1 here
         % Second: EV, we can refine out d2
         [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3,1,N_z]),[],1);
         % Now put together entireRHS, which just depends on d3
-        entireRHS=shiftdim(ReturnMatrix_onlyd3+DiscountFactorParamsVec*EV_onlyd3,1);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,N_j)=shiftdim(Vtemp,1);
-        Policy3(3,:,:,N_j)=shiftdim(maxindex,1);
-        Policy3(1,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
-        Policy3(2,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1);
+        Policy2(2,:,:,N_j)=shiftdim(maxindex,1); % d3
+        Policy2(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*zind),1); % d2
                     
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d3, n_a, special_n_z, d3_grid, a_grid, z_val, ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -136,18 +130,17 @@ else
             
             % Time to refine
             % First: ReturnMatrix, we can refine out d1
-            [ReturnMatrix_onlyd3,d1index]=max(reshape(ReturnMatrix_z,[N_d1,N_d3,N_a]),[],1);
+            % no d1 here
             % Second: EV, we can refine out d2
             [EV_onlyd3,d2index]=max(reshape(EV_z,[N_d2,N_d3,1]),[],1);
             % Now put together entireRHS, which just depends on d3
-            entireRHS_z=shiftdim(ReturnMatrix_onlyd3+DiscountFactorParamsVec*EV_onlyd3,1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy3(3,:,z_c,N_j)=shiftdim(maxindex,1);
-            Policy3(1,:,z_c,N_j)=shiftdim(d1index(maxindex+N_d3*aind),1);
-            Policy3(2,:,z_c,N_j)=shiftdim(d2index(maxindex),1);
+            Policy2(2,:,z_c,N_j)=shiftdim(maxindex,1); % d3
+            Policy2(1,:,z_c,N_j)=shiftdim(d2index(maxindex),1); % d2
         end
     end
 end
@@ -175,7 +168,7 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d3, n_a, n_z, d3_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
@@ -196,25 +189,24 @@ for reverse_j=1:N_j-1
 
         % Time to refine
         % First: ReturnMatrix, we can refine out d1
-        [ReturnMatrix_onlyd3,d1index]=max(reshape(ReturnMatrix,[N_d1,N_d3,N_a,N_z]),[],1);
+        % no d1 here
         % Second: EV, we can refine out d2
         [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3,1,N_z]),[],1);
         % Now put together entireRHS, which just depends on d3
-        entireRHS=shiftdim(ReturnMatrix_onlyd3+DiscountFactorParamsVec*EV_onlyd3,1);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
         V(:,:,jj)=shiftdim(Vtemp,1);
-        Policy3(3,:,:,jj)=shiftdim(maxindex,1);
-        Policy3(1,:,:,jj)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*zind),1);
-        Policy3(2,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1);
+        Policy2(2,:,:,jj)=shiftdim(maxindex,1); % d3
+        Policy2(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*zind),1); % d2
 
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d3, n_a, special_n_z, d3_grid, a_grid, z_val, ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -233,23 +225,23 @@ for reverse_j=1:N_j-1
 
             % Time to refine
             % First: ReturnMatrix, we can refine out d1
-            [ReturnMatrix_onlyd3,d1index]=max(reshape(ReturnMatrix_z,[N_d1,N_d3,N_a]),[],1);
+            % no d1 here
             % Second: EV, we can refine out d2
             [EV_onlyd3,d2index]=max(reshape(EV_z,[N_d2,N_d3,1]),[],1);
             % Now put together entireRHS, which just depends on d3
-            entireRHS_z=shiftdim(ReturnMatrix_onlyd3+DiscountFactorParamsVec*EV_onlyd3,1);
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
                         
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
-            Policy3(3,:,z_c,jj)=shiftdim(maxindex,1);
-            Policy3(1,:,z_c,jj)=shiftdim(d1index(maxindex+N_d3*aind),1);
-            Policy3(2,:,z_c,jj)=shiftdim(d2index(maxindex),1);
+            Policy2(2,:,z_c,jj)=shiftdim(maxindex,1); % d3
+            Policy2(1,:,z_c,jj)=shiftdim(d2index(maxindex),1); % d2
+
         end
     end
 end
 
-Policy=Policy3(1,:,:,:)+N_d1*(Policy3(2,:,:,:)-1)+N_d1*N_d2*(Policy3(3,:,:,:)-1); % d1, d2, d3
+Policy=Policy2(1,:,:,:)+N_d2*(Policy2(2,:,:,:)-1); % two: d2, d3
 
 
 end
