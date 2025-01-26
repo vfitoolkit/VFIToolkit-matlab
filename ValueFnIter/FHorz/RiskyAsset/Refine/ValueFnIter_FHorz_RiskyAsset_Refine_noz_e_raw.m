@@ -37,6 +37,9 @@ if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
 
+aind=(0:1:N_a-1);
+eind=shiftdim(0:1:N_e-1,-2);
+
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
@@ -118,7 +121,7 @@ else
         Policy4(3,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy4(4,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
         Policy4(1,:,:,N_j)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*eind),1);
-        Policy4(2,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*eind),1);
+        Policy4(2,:,:,N_j)=shiftdim(d2index(maxindex),1);
 
     elseif vfoptions.lowmemory==1
 
@@ -208,7 +211,7 @@ for reverse_j=1:N_j-1
         Policy4(3,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy4(4,:,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
         Policy4(1,:,:,jj)=shiftdim(d1index(maxindex+N_d3*aind+N_d3*N_a*eind),1);
-        Policy4(2,:,:,jj)=shiftdim(d2index(maxindex+N_d3*eind),1);
+        Policy4(2,:,:,jj)=shiftdim(d2index(maxindex),1);
         
     elseif vfoptions.lowmemory==1
        

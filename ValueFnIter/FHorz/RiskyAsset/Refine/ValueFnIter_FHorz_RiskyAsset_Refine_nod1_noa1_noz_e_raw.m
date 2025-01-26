@@ -30,7 +30,7 @@ if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
 
-eind=shiftdim(0:1:N_e-1,-1);
+% eind=shiftdim(0:1:N_e-1,-1);
 
 %% j=N_j
 
@@ -94,7 +94,7 @@ else
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy2(2,:,:,N_j)=shiftdim(maxindex,1);
-        Policy2(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*eind),1);
+        Policy2(1,:,:,N_j)=shiftdim(d2index(maxindex),1);
         
     elseif vfoptions.lowmemory==1
         % Time to refine
@@ -165,7 +165,7 @@ for reverse_j=1:N_j-1
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy2(2,:,:,jj)=shiftdim(maxindex,1);
-        Policy2(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*eind),1);
+        Policy2(1,:,:,jj)=shiftdim(d2index(maxindex),1);
         
     elseif vfoptions.lowmemory==1
        

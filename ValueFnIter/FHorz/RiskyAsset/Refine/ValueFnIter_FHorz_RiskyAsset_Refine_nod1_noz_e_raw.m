@@ -111,7 +111,7 @@ else
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy3(2,:,:,N_j)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy3(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d3),-1);
-        Policy3(1,:,:,N_j)=shiftdim(d2index(maxindex+N_d3*eind),1);
+        Policy3(1,:,:,N_j)=shiftdim(d2index(maxindex),1);
 
     elseif vfoptions.lowmemory==1
 
@@ -199,7 +199,7 @@ for reverse_j=1:N_j-1
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy3(2,:,:,jj)=shiftdim(rem(maxindex-1,N_d3)+1,1);
         Policy3(3,:,:,jj)=shiftdim(ceil(maxindex/N_d3),-1);
-        Policy3(1,:,:,jj)=shiftdim(d2index(maxindex+N_d3*eind),1);
+        Policy3(1,:,:,jj)=shiftdim(d2index(maxindex),1);
         
     elseif vfoptions.lowmemory==1
        
