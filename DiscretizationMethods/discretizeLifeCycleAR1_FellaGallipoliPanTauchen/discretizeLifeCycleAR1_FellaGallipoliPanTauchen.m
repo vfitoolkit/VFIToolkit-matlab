@@ -35,7 +35,7 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %                  P(:,:,j) is transition matrix from age j to j+1 (Modified from FGP where it is j-1 to j)
 %   jequaloneDistz - znum-by-1 vector, the distribution of z in period 1
 %   otheroutputs - optional output structure containing info for evaluating the distribution including,
-%        otheroutputs.sigmaz     - the standard deviation of z at each age (used to determine grid)
+%        otheroutputs.sigma_z     - the standard deviation of z at each age (used to determine grid)
 %
 % This code is by Fella, Gallipoli & Pan.
 % Lightly modified by Robert Kirkby (including add mew and j0)
@@ -69,9 +69,17 @@ end
 if znum < 2
     error('The state space has to have dimension znum>1')
 end
-
 if J < 2
     error('The time horizon has to have dimension J>1. Exiting.')
+end
+
+if size(mew,2)~=J
+    if isscalar(mew)
+        mew=mew*ones(1,J); % assume that scalars are simply age-independent parameters
+        % No warning, as good odds this is just a zero
+    else
+        error('mew_j must have J columns')
+    end
 end
 
 % For convenience, make kfttoptions.nSigmas an age-dependent vector
@@ -122,9 +130,6 @@ elseif isfield(fellagallipolipanoptions,'initialj1sigmaz')
     mewz(1)=0;
     sigmaz(1)=fellagallipolipanoptions.initialj1sigmaz;
 end
-
-z0
-mewz(1)
 
 %% Step 1: construct the state space y_grid(t) in each period t,
 % Evenly-spaced N-state space over [-fellagallipolipanoptions.nSigmas(t)*sigmaz(t),fellagallipolipanoptions.nSigmas(t)*sigmaz(t)].
@@ -216,7 +221,7 @@ pi_z_J(:,:,1:end-1)=pi_z_J(:,:,2:end);
 pi_z_J(:,:,J)=ones(znum,znum)/znum;
 
 %% Some additional outputs that can be used to evaluate the discretization
-otheroutputs.sigmaz=sigmaz; % Standard deviation of z (for each period)
+otheroutputs.sigma_z=sigmaz; % Standard deviation of z (for each period)
 
 %% I AM BEING LAZY AND JUST MOVING RESULT TO GPU RATHER THAN CREATING IT THERE IN THE FIRST PLACE
 if fellagallipolipanoptions.parallel==2

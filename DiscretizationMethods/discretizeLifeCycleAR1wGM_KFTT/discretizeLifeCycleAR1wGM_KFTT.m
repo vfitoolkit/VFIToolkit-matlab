@@ -1,4 +1,4 @@
-function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_KFTT(rho,mixprobs_i,mu_i,sigma_i,znum,J,kfttoptions)
+function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_KFTT(mew,rho,mixprobs_i,mu_i,sigma_i,znum,J,kfttoptions)
 % Please cite: Kirkby (working paper)
 %
 % KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
@@ -9,13 +9,14 @@ function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wG
 % Hence KFTT=Kirkby-Farmer-Tanaka-Toda
 % 
 %  KFTT method to approximate life-cycle AR(1) process by a discrete Markov chain
-%       z(j) = rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid F(j)
+%       z(j) = mew(j)+rho(j)*z(j-1)+ epsilon(j),   epsilion(j)~iid F(j)
 %           where F(j)=sum_{i=1}^nmix mixprobs_i(j)*N(mu_i(j),sigma_i(j)^2) is a gaussian mixture
 %       with initial condition z(0) = 0 (equivalently z(1)=epsilon(1)) 
 %
 %  Note: n, the number of normal distributions in the gaussian mixture, cannot depend on j
 %
 % Inputs:
+%   mew          - (1-by-J) vector of 'drifts'
 %   rho 	     - (1-by-J) vector of serial correlation coefficients
 %   sigma_i      - (nmix-by-J) vector of standard deviations of innovations
 %   mixprobs_i   - (nmix-by-J) mixture probabilities of the gaussian mixture innovations (must sum to 1)
@@ -39,7 +40,8 @@ function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wG
 % Original paper:
 % Kirkby (working paper)
 
-sigma_z = zeros(1,J);
+mewz=zeros(1,J); % period j mean of z
+sigmaz = zeros(1,J);
 % z_grid_J = zeros(znum,J); 
 P_J = zeros(znum,znum,J);
 
@@ -95,6 +97,14 @@ if any(sigma_i < 0)
     error('standard deviations must be positive')
 end
 
+if size(mew,2)~=J
+    if isscalar(mew)
+        mew=mew*ones(1,J); % assume that scalars are simply age-independent parameters
+        % No warning, as good odds this is just a zero
+    else
+        error('mew_j must have J columns')
+    end
+end
 if size(mixprobs_i,2)~=J
     error('mixprobs_i must have J columns')
 end
@@ -183,38 +193,50 @@ end
 
 %% Step 2: construct the state space z_grid_J(j) in each period j.
 % Evenly-spaced N-state space over [-kfttoptions.nSigmas*sigma_y(t),kfttoptions.nSigmas*sigma_y(t)].
-% By default I assume z0=0, but you can set it as N(0,sigma_z0) using
+% By default I assume z0=0
+z0=0;
+% You can change the mean of z0 using
+if isfield(kfttoptions,'initialj0mewz')
+    z0=kfttoptions.initialj0mewz;
+end
+% You can add variance to z0 as a N(z0,initialj0sigmaz) using
 if isfield(kfttoptions,'initialj0sigma_z')
-	[z_grid_0,P_0] = discretizeAR1_FarmerToda(0,0,kfttoptions.initialj0sigma_z,znum);
-    jequalzeroDistz=P_0(1,:)'; % iid, so first row is the dist
+	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(0,0,kfttoptions.initialj0sigma_z,znum);
+    jequalzeroDistz=pi_z_0(1,:)'; % iid, so first row is the dist
+    clear pi_z_0
 else
     z_grid_0=zeros(znum,1);
     jequalzeroDistz=[1;zeros(znum-1,1)]; % Is irrelevant where we put the mass
 end
-clear P_0
 
 if isfield(kfttoptions,'initialj0sigma_z')
-    sigma_z(1) = sqrt(rho(1)^2*kfttoptions.initialj0sigma_z^2+sigma(1)^2);
+    sigmaz(1) = sqrt(rho(1)^2*kfttoptions.initialj0sigma_z^2+sigma(1)^2);
 else
-    sigma_z(1) = sigma(1);
+    sigmaz(1) = sigma(1);
 end
+mewz(1)=mew(1)+rho(1)*z0;
+
+% Now that we have period 1, just fill in the rest of the periods
 for jj = 2:J
-    sigma_z(jj) = sqrt(rho(jj)^2*sigma_z(jj-1)^2+sigma(jj)^2);
+    sigmaz(jj) = sqrt(rho(jj)^2*sigmaz(jj-1)^2+sigma(jj)^2);
+end
+for jj=2:J
+    mewz(jj)=mew(jj)+rho(jj)*mewz(jj-1);
 end
 
-mew=0; % It is enforced that the process is mean zero
+
 z_grid_J=zeros(znum,J);
 for jj=1:J
     % construct the one dimensional grid
     switch kfttoptions.method
         case 'even' % evenly-spaced grid
-            X1 = linspace(mew-kfttoptions.nSigmas*sigma_z(jj),mew+kfttoptions.nSigmas*sigma_z(jj),znum);
+            X1 = linspace(mewz(jj)-kfttoptions.nSigmas*sigmaz(jj),mewz(jj)+kfttoptions.nSigmas*sigmaz(jj),znum);
             W = ones(1,znum);
         case 'gauss-legendre' % Gauss-Legendre quadrature
-            [X1,W] = legpts(znum,[mew-kfttoptions.nSigmas*sigma_z(jj),mew+kfttoptions.nSigmas*sigma_z(jj)]);
+            [X1,W] = legpts(znum,[mewz(jj)-kfttoptions.nSigmas*sigmaz(jj),mewz(jj)+kfttoptions.nSigmas*sigmaz(jj)]);
             X1 = X1';
         case 'clenshaw-curtis' % Clenshaw-Curtis quadrature
-            [X1,W] = fclencurt(znum,mew-kfttoptions.nSigmas*sigma_z(jj),mew+kfttoptions.nSigmas*sigma_z(jj));
+            [X1,W] = fclencurt(znum,mewz(jj)-kfttoptions.nSigmas*sigmaz(jj),mewz(jj)+kfttoptions.nSigmas*sigmaz(jj));
             X1 = fliplr(X1');
             W = fliplr(W');
         case 'gauss-hermite' % Gauss-Hermite quadrature
@@ -222,14 +244,14 @@ for jj=1:J
                 warning('Model is persistent; even-spaced grid is recommended')
             end
             [X1,W] = GaussHermite(znum);
-            X1 = mew+sqrt(2)*sigma_z(jj)*X1';
+            X1 = mewz(jj)+sqrt(2)*sigmaz(jj)*X1';
             W = W'./sqrt(pi);
         case 'GMQ' % Gaussian Mixture Quadrature
             if rho(jj) > 0.8
                 warning('Model is persistent; even-spaced grid is recommended')
             end
             [X1,W] = GaussianMixtureQuadrature(mixprobs_i(:,jj),mu_i(:,jj),sigma_i(:,jj),znum);
-            X1 = X1 + mew;
+            X1 = X1 + mewz(jj);
     end
     
     z_grid = allcomb2(X1); % Nm*1 matrix of grid points
@@ -357,8 +379,8 @@ end
 
 %% Some additional outputs that can be used to evaluate the discretization
 otheroutputs.nMoments_grid=nMoments_grid; % Heatmap of how many moments where hit by the conditional (difference) distribution
-otheroutputs.sigma_z=sigma_z; % Standard deviation of z (for each period)
-
+otheroutputs.sigma_z=sigmaz; % Standard deviation of z (for each period)
+otheroutputs.mew_z=mewz; % Mean of z (for each period)
 
 
 end

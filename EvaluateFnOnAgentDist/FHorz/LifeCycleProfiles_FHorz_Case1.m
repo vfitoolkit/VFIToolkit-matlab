@@ -73,7 +73,12 @@ else
         simoptions.SampleRestrictionFnParamNames=getAnonymousFnInputNames(simoptions.SampleRestrictionFn); % Note: we remove those relating to the state space later
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+        if any(simoptions.agegroupings(2:end)-simoptions.agegroupings(1:end-1)>4)
+            % if some agegroupings are 'large', use the slower but lower memory versions
+            simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        else
+            simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        end
     end
 end
 

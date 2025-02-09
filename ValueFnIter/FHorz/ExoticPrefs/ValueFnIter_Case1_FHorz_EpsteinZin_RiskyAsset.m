@@ -121,8 +121,10 @@ if ezc7(1)<0
     ezc9=-1; % Not allowed to vary by age
 end
 if ~isscalar(ezc7)
-    if ~any((ezc7<0)==[0,N_j])
-        error('Epsteinz-Zin preferences: you have set the elasticity-of-intertemporal-substution parameter (vfoptions.EZeis) to depend on age. You must have it either <1 or >1 for all ages.')
+    temp1=any(ezc7<0);
+    temp2=any(ezc7>0);
+    if temp1 && temp2
+        error('Epstein-Zin preferences: you have set the elasticity-of-intertemporal-substution parameter (vfoptions.EZeis) to depend on age. You must have it either <1 or >1 for all ages (cannot be <1 at some ages and >1 at other ages, which is what you currently have).')
     end
 end
 

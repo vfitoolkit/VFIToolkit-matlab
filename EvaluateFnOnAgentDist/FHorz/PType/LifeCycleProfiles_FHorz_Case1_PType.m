@@ -130,7 +130,12 @@ else
         simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
     end
     if ~isfield(simoptions,'whichstats')
-        simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        if any(simoptions.agegroupings(2:end)-simoptions.agegroupings(1:end-1)>4)
+            % if some agegroupings are 'large', use the slower but lower memory versions
+            simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        else
+            simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        end
     end
 end
 
@@ -1146,10 +1151,10 @@ elseif simoptions.lowmemory==1
             end
             if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
                 PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
-                StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
+                StationaryDist_ii=gpuArray(StationaryDist.(Names_i{ii}));
             else
                 PolicyIndexes_temp=Policy.(Names_i{ii});
-                StationaryDist_temp=StationaryDist.(Names_i{ii});
+                StationaryDist_ii=StationaryDist.(Names_i{ii});
             end
 
             % Go through everything which might be dependent on permanent type (PType)
@@ -1241,16 +1246,18 @@ elseif simoptions.lowmemory==1
             l_daprime_temp=size(PolicyIndexes_temp,1);
             % Switch to PolicyVals
             PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
+            clear PolicyIndexes_temp % trying to reduce memory usage
             if l_z_temp==0
                 PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_j,l_daprime)
             else
                 PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
             end
+            clear PolicyValues_temp % trying to reduce memory usage
 
             [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
             FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
-            StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
+            StationaryDist_ii=reshape(StationaryDist_ii,[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
 
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
 
