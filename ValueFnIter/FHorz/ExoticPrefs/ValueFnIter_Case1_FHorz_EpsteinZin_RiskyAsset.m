@@ -188,6 +188,10 @@ if isfield(vfoptions,'refine_d')
     else
         N_d1=prod(n_d(1:vfoptions.refine_d(1)));
     end
+    if vfoptions.refine_d(1)==0 && vfoptions.refine_d(2)==0
+        % when only d3, refine does nothing anyway, so just turn it off
+        vfoptions=rmfield(vfoptions, 'refine_d');
+    end
 end
 
 if ~isfield(vfoptions,'refine_d')
