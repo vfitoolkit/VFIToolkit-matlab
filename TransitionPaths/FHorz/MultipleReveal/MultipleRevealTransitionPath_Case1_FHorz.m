@@ -11,8 +11,6 @@ function [RealizedPricePath, RealizedParamPath, PricePath, multirevealsummary]=M
 %    prices so we can use them as initial guess for next path)
 % End
 
-
-
 %% A few checks on the inputs, figure out which periods we are revealing
 revealperiodnames=fieldnames(ParamPath);
 nReveals=length(revealperiodnames);
@@ -33,6 +31,16 @@ for rr=1:nReveals
 end
 durationofreveal=revealperiods(2:end)-revealperiods(1:end-1)+1; % E.g., if you have t0001 and t0005, then this will be 5, which is how many periods you follow the current reveal before being surprised by the new reveal (including today)
 
+%% Set default options
+if ~isfield(transpathoptions,'usepreviouspathshapeasinitialguess')
+    transpathoptions.usepreviouspathshapeasinitialguess=zeros(nReveals,1); % 1=reuse the solution from previous reveal
+elseif length(transpathoptions.usepreviouspathshapeasinitialguess)~=(nReveals)
+    error('transpathoptions.usepreviouspathshapeasinitialguess must be of length equal to the number of paths you are revealing minus one')
+end
+if transpathoptions.usepreviouspathshapeasinitialguess(1)~=0
+    error('transpathoptions.usepreviouspathshapeasinitialguess(1), must be equal to zero (cannot reuse previous path shape when it is the first path)')
+end
+
 %% How many parameters are in ParamPath for a given reveal
 ParamsOnPathNames=fieldnames(ParamPath.t0001);
 nParamsOnPath=length(ParamsOnPathNames);
@@ -52,7 +60,50 @@ end
 
 %% And price paths
 PricesOnPathNames=fieldnames(PricePathShaper);
-if any(strcmp(PricesOnPathNames,'t0001'))
+if any(transpathoptions.usepreviouspathshapeasinitialguess==1)
+    shaperdiffersbyreveal=1;
+    if any(strcmp(PricesOnPathNames,'t0001'))
+        PricesOnPathNames=fieldnames(PricePathShaper.t0001);
+        nPricesOnPath=length(PricesOnPathNames);
+        % Check the PricePathShaper is the right size
+        for pp=1:nPricesOnPath
+            for rr=1:nReveals
+                if transpathoptions.usepreviouspathshapeasinitialguess(rr)==0
+                    if ~any(size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}))==T)
+                        fprintf('Problem with PricePathShaper is in reveal %s and parmeter %s \n', revealperiodnames{rr}, PricesOnPathNames{pp})
+                        error('Something in PricePathShaper does not have the T periods (see previous line of output)')
+                    end
+                    % Make sure it is something-by-T
+                    if size(PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}),1)==T
+                        PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})=PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})'; % transpose
+                    end
+                end
+            end
+        end
+    else
+        nPricesOnPath=length(PricesOnPathNames);
+        for pp=1:nPricesOnPath
+            if ~any(size(PricePathShaper.(PricesOnPathNames{pp}))==T)
+                fprintf('Problem with PricePathShaper is in parmeter %s \n', PricesOnPathNames{pp})
+                error('Something in PricePathShaper does not have the T periods (see previous line of output)')
+            end
+            % Make sure it is something-by-T
+            if size(PricePathShaper.(PricesOnPathNames{pp}),1)==T
+                PricePathShaper.(PricesOnPathNames{pp})=PricePathShaper.(PricesOnPathNames{pp})'; % transpose
+            end
+            % Set it up as for each period (as need this so can interact with transpathoptions.usepreviouspathshapeasinitialguess
+            for rr=1:nReveals
+                if transpathoptions.usepreviouspathshapeasinitialguess(rr)==0
+                    PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp})=PricePathShaper.(PricesOnPathNames{pp});
+                end
+            end
+            PricePathShaper=rmfield(PricePathShaper,PricesOnPathNames{pp});
+        end
+    end
+    % Note: this PricePathShaper.(revealperiodnames{rr}).(PricesOnPathNames{pp}) is only created
+    % for reveals with transpathoptions.usepreviouspathshapeasinitialguess(rr)==0
+    % for the other rr it gets updated based on the previous path.
+elseif any(strcmp(PricesOnPathNames,'t0001'))
     shaperdiffersbyreveal=1;
     PricesOnPathNames=fieldnames(PricePathShaper.t0001);
     nPricesOnPath=length(PricesOnPathNames);
@@ -126,7 +177,7 @@ for rr=1:nReveals
             temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
             PricePath0_rr.(PricesOnPathNames{pp})=temp_pp1 + (temp_pp2-temp_pp1)*PricePathShaper.(PricesOnPathNames{pp});
         end
-    elseif shaperdiffersbyreveal==1
+    elseif shaperdiffersbyreveal==1 || shaperdiffersbyreveal==2
         for pp=1:nPricesOnPath
             temp_pp1=p_eqm_initial.(PricesOnPathNames{pp});
             temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
@@ -174,6 +225,16 @@ for rr=1:nReveals
     multirevealsummary.PolicyPath.(revealperiodnames{rr})=PolicyPath_rr;
     multirevealsummary.AgentDistPath.(revealperiodnames{rr})=AgentDistPath_rr;
     multirevealsummary.AggVarsPath.(revealperiodnames{rr})=AggVarsPath_rr;
+
+    %% Check if we need to use this reveal path for shaping initial guess for the next reveal
+    if transpathoptions.usepreviouspathshapeasinitialguess(rr+1)==1
+        % Set PricePathShaper for the next reveal based on the current transition path solution 
+        for pp=1:nPricesOnPath
+            temp_pp1=p_eqm_initial.(PricesOnPathNames{pp});
+            temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
+            PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp})=(PricePath_rr.(PricesOnPathNames{pp})-temp_pp1)./(temp_pp2-temp_pp1);
+        end
+    end
 
     %% Update the StationaryDist_initial for use in the next transition
     if rr<nReveals
