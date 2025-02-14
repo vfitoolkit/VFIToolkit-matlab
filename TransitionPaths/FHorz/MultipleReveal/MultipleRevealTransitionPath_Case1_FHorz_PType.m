@@ -419,22 +419,24 @@ for rr=1:nReveals
     multirevealsummary.AggVarsPath.(revealperiodnames{rr})=AggVarsPath_rr;
 
     %% Check if we need to use this reveal path for shaping initial guess for the next reveal
-    if transpathoptions.usepreviouspathshapeasinitialguess(rr+1)==1
-        % Set PricePathShaper for the next reveal based on the current transition path solution 
-        for pp=1:nPricesOnPath
-            if any(PricesOnPath_ptypedependence(pp,:)==1)
-                for ii=1:N_i
-                    if PricesOnPath_ptypedependence(pp,ii)==1
-                        temp_pp1=p_eqm_initial.(PricesOnPathNames{pp}).(Names_i{ii});
-                        temp_pp2=p_eqm_final.(PricesOnPathNames{pp}).(Names_i{ii});
-                        PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp}).(Names_i{ii})=(PricePath_rr.(PricesOnPathNames{pp}).(Names_i{ii})-temp_pp1)./(temp_pp2-temp_pp1);
+    if rr<nReveals
+        if transpathoptions.usepreviouspathshapeasinitialguess(rr+1)==1
+            % Set PricePathShaper for the next reveal based on the current transition path solution
+            for pp=1:nPricesOnPath
+                if any(PricesOnPath_ptypedependence(pp,:)==1)
+                    for ii=1:N_i
+                        if PricesOnPath_ptypedependence(pp,ii)==1
+                            temp_pp1=p_eqm_initial.(PricesOnPathNames{pp}).(Names_i{ii});
+                            temp_pp2=p_eqm_final.(PricesOnPathNames{pp}).(Names_i{ii});
+                            PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp}).(Names_i{ii})=(PricePath_rr.(PricesOnPathNames{pp}).(Names_i{ii})-temp_pp1)./(temp_pp2-temp_pp1);
+                        end
                     end
-                end
 
-            else
-                temp_pp1=p_eqm_initial.(PricesOnPathNames{pp});
-                temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
-                PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp})=(PricePath_rr.(PricesOnPathNames{pp})-temp_pp1)./(temp_pp2-temp_pp1);
+                else
+                    temp_pp1=p_eqm_initial.(PricesOnPathNames{pp});
+                    temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
+                    PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp})=(PricePath_rr.(PricesOnPathNames{pp})-temp_pp1)./(temp_pp2-temp_pp1);
+                end
             end
         end
     end

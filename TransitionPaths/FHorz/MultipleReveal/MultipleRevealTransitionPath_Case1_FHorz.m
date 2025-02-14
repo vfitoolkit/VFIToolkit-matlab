@@ -227,12 +227,14 @@ for rr=1:nReveals
     multirevealsummary.AggVarsPath.(revealperiodnames{rr})=AggVarsPath_rr;
 
     %% Check if we need to use this reveal path for shaping initial guess for the next reveal
-    if transpathoptions.usepreviouspathshapeasinitialguess(rr+1)==1
-        % Set PricePathShaper for the next reveal based on the current transition path solution 
-        for pp=1:nPricesOnPath
-            temp_pp1=p_eqm_initial.(PricesOnPathNames{pp});
-            temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
-            PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp})=(PricePath_rr.(PricesOnPathNames{pp})-temp_pp1)./(temp_pp2-temp_pp1);
+    if rr<nReveals
+        if transpathoptions.usepreviouspathshapeasinitialguess(rr+1)==1
+            % Set PricePathShaper for the next reveal based on the current transition path solution
+            for pp=1:nPricesOnPath
+                temp_pp1=p_eqm_initial.(PricesOnPathNames{pp});
+                temp_pp2=p_eqm_final.(PricesOnPathNames{pp});
+                PricePathShaper.(revealperiodnames{rr+1}).(PricesOnPathNames{pp})=(PricePath_rr.(PricesOnPathNames{pp})-temp_pp1)./(temp_pp2-temp_pp1);
+            end
         end
     end
 
