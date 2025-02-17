@@ -130,11 +130,27 @@ else
         simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
     end
     if ~isfield(simoptions,'whichstats')
-        if any(simoptions.agegroupings(2:end)-simoptions.agegroupings(1:end-1)>4)
-            % if some agegroupings are 'large', use the slower but lower memory versions
-            simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+        if ~isstruct(N_j)
+            if any(simoptions.agegroupings(2:end)-simoptions.agegroupings(1:end-1)>4)
+                % if some agegroupings are 'large', use the slower but lower memory versions
+                simoptions.whichstats=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+            else
+                simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+            end
         else
-            simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+            for ii=1:N_i
+                if isfinite(N_j.(Names_i{ii}))
+                    temp=simoptions.agegroupings.(Names_i{ii});
+                    if any(temp(2:end)-temp(1:end-1)>4)
+                        % if some agegroupings are 'large', use the slower but lower memory versions
+                        simoptions.whichstats.(Names_i{ii})=[1,1,1,1,1,1,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                    else
+                        simoptions.whichstats.(Names_i{ii})=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                    end
+                else % Infinite horizon
+                    simoptions.whichstats.(Names_i{ii})=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+                end
+            end
         end
     end
 end

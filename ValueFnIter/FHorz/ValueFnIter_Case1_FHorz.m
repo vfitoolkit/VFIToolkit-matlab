@@ -652,6 +652,8 @@ if isfield(vfoptions,'SemiExoStateFn')
     end
     if ~isfield(vfoptions,'semiz_grid')
         error('When using vfoptions.SemiExoShockFn you must declare vfoptions.semiz_grid')
+    elseif all(size(vfoptions.semiz_grid)==[1,sum(vfoptions.n_semiz)]) && sum(vfoptions.n_semiz)>1
+        error('vfoptions.semiz_grid must be a column vector (you have a row vector)')
     end
     if ~isfield(vfoptions,'numd_semiz')
         vfoptions.numd_semiz=1; % by default, only one decision variable influences the semi-exogenous state

@@ -176,6 +176,8 @@ if ~isstruct(jequaloneDist)
             end
         end
     end
+else % isstruct(jequaloneDist)
+    idiminj1dist=0;
 end
 
 % If the initial agent distribution has ptype as a dimension, then use this to overwrite what the ptype masses are
