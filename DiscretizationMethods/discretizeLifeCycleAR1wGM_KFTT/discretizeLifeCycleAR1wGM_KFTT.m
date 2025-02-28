@@ -1,4 +1,4 @@
-function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_KFTT(mew,rho,mixprobs_i,mu_i,sigma_i,znum,J,kfttoptions)
+function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_KFTT(mew,rho,mixprobs_i,mu_i,sigma_i,znum,J,kfttoptions)
 % Please cite: Kirkby (working paper)
 %
 % KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
@@ -43,7 +43,7 @@ function [z_grid_J, P_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wG
 mewz=zeros(1,J); % period j mean of z
 sigmaz = zeros(1,J);
 % z_grid_J = zeros(znum,J); 
-P_J = zeros(znum,znum,J);
+pi_z_J = zeros(znum,znum,J);
 
 %% Set options
 if ~exist('kfttoptions','var')
@@ -358,23 +358,23 @@ for jj=1:J
         end
         
     end
-    P_J(:,:,jj)=P;
+    pi_z_J(:,:,jj)=P;
     
 end
 
 %%
-jequaloneDistz=P_J(:,:,1)'*jequalzeroDistz;
+jequaloneDistz=pi_z_J(:,:,1)'*jequalzeroDistz;
 
 %% Change P_J so that P_J(:,:,jj) is the transition matrix from period jj to period jj+1
-P_J(:,:,1:end-1)=P_J(:,:,2:end);
+pi_z_J(:,:,1:end-1)=pi_z_J(:,:,2:end);
 
 %% For jj=J, P_J(:,:,J) is kind of meaningless (there is no period J+1 to transition to). I just fill it in as a uniform distribution
-P_J(:,:,J)=ones(znum,znum)/znum;
+pi_z_J(:,:,J)=ones(znum,znum)/znum;
 
 %% I AM BEING LAZY AND JUST MOVING RESULT TO GPU RATHER THAN CREATING IT THERE IN THE FIRST PLACE
 if kfttoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
-    P_J=gpuArray(P_J);
+    pi_z_J=gpuArray(pi_z_J);
 end
 
 %% Some additional outputs that can be used to evaluate the discretization
