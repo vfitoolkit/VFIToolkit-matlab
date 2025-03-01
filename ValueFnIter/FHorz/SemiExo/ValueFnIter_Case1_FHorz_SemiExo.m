@@ -67,6 +67,7 @@ else
     end
 end
 
+
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if vfoptions.outputkron==0
     if isfield(vfoptions,'n_e')

@@ -17,6 +17,9 @@ Policy3=zeros(2,N_a,N_semiz*N_z,N_j,'gpuArray');
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
+special_n_d2=ones(1,length(n_d2));
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+
 if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
@@ -70,7 +73,7 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 1, n_a, n_bothz, d2_grid(d2_c), a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_bothz, d2_gridvals(d2_c,:)', a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -100,7 +103,7 @@ else
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 1, n_a, special_n_bothz, d2_grid(d2_c), a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_gridvals(d2_c,:)', a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
@@ -146,7 +149,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 1, n_a, n_bothz, d2_grid(d2_c), a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_bothz, d2_gridvals(d2_c,:)', a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
@@ -174,11 +177,11 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
-            d2val=d2_grid(d2_c);
+            d2val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 1, n_a, special_n_bothz, d2val, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, special_n_bothz, d2val, a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables

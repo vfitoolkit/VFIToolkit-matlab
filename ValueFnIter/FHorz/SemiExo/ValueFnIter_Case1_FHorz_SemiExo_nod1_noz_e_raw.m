@@ -14,13 +14,8 @@ Policy3=zeros(3,N_a,N_semiz,N_e,N_j,'gpuArray');
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
-l_d2=length(n_d2);
-if l_d2==1
-    d2_gridvals=d2_grid;
-elseif l_d2==2
-    d2_gridvals=[kron(ones(n_d(2),1),d2_grid(1:n_d2(1))), kron(d2_grid(n_d2(1)+1:end),ones(n_d2(1),1))];
-end
 special_n_d2=ones(1,length(n_d2));
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -99,9 +94,8 @@ else
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_gridvals(d2_c,:)', a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_semiz',-1);

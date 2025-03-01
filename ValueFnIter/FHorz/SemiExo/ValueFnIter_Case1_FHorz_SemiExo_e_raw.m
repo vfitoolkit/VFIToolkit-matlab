@@ -11,12 +11,6 @@ N_z=prod(n_z);
 N_bothz=prod(n_bothz);
 N_e=prod(n_e);
 
-if n_z(1)==0
-    l_z=0;
-else
-    l_z=length(n_z);
-end
-
 V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
 Policy3=zeros(3,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
@@ -25,6 +19,9 @@ Policy3=zeros(3,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
+
+special_n_d2=ones(1,length(n_d2));
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -112,7 +109,7 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, n_e, [d1_grid; d2_gridvals(d2_c,:)'], a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z,e)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -141,7 +138,7 @@ else
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
-            d2_val=d2_grid(d2_c);
+            d2_val=d2_gridvals(d2_c,:)';
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -151,7 +148,7 @@ else
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_val], a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, special_n_e, [d1_grid;d2_val], a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
                 entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
@@ -176,7 +173,7 @@ else
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j));
-            d2_val=d2_grid(d2_c);
+            d2_val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_semiz*N_z
                 z_val=bothz_gridvals_J(z_c,:,N_j);
@@ -190,7 +187,7 @@ else
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
 
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_val], a_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_bothz, special_n_e, [d1_grid;d2_val], a_grid, z_val, e_val, ReturnFnParamsVec);
 
                     entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
 
@@ -236,7 +233,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d2_c,jj));
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, n_e, [d1_grid;d2_grid(d2_c)], a_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, n_e, [d1_grid; d2_gridvals(d2_c,:)'], a_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z,e)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
@@ -272,11 +269,11 @@ for reverse_j=1:N_j-1
 
             entireEV=repelem(EV,N_d1,1,1);
 
-            d2_val=d2_grid(d2_c);
+            d2_val=d2_gridvals(d2_c,:)';
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, n_bothz, special_n_e, [d1_grid;d2_val], a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+                ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, special_n_e, [d1_grid;d2_val], a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
                 entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV; %.*ones(1,N_a,1);
@@ -302,7 +299,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d2_c,jj));
 
-            d2_val=d2_grid(d2_c);
+            d2_val=d2_gridvals(d2_c,:)';
             
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
@@ -316,7 +313,7 @@ for reverse_j=1:N_j-1
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,jj);
 
-                    ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,1], n_a, special_n_bothz, special_n_e, [d1_grid;d2_val], a_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_bothz, special_n_e, [d1_grid;d2_val], a_grid, z_val, e_val, ReturnFnParamsVec);
 
                     entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
 

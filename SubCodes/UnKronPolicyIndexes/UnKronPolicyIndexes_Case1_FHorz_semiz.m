@@ -99,14 +99,14 @@ else
                 Policy(l_d1,:,:,jj)=ceil(Policy3(1,:,:,jj)/prod(n_d1(1:l_d1-1)));
             end
 
-            Policy(l_d2+1,:,:,jj)=rem(Policy3(2,:,:,jj)-1,n_d2(1))+1;
+            Policy(l_d1+1,:,:,jj)=rem(Policy3(2,:,:,jj)-1,n_d2(1))+1;
             if l_d2>1
                 if l_d2>2
                     for ii=1:l_d2-1
-                        Policy(l_d1+ii,:,:,jj)=rem(ceil(Policy3(1,:,:,jj)/prod(n_d2(1:ii-1)))-1,n_d2(ii))+1;
+                        Policy(l_d1+ii,:,:,jj)=rem(ceil(Policy3(2,:,:,jj)/prod(n_d2(1:ii-1)))-1,n_d2(ii))+1;
                     end
                 end
-                Policy(l_d1+l_d2,:,:,jj)=ceil(Policy3(1,:,:,jj)/prod(n_d2(1:l_d2-1)));
+                Policy(l_d1+l_d2,:,:,jj)=ceil(Policy3(2,:,:,jj)/prod(n_d2(1:l_d2-1)));
             end
 
             Policy(l_d1+l_d2+1,:,:,jj)=rem(Policy3(3,:,:,jj)-1,n_a(1))+1;

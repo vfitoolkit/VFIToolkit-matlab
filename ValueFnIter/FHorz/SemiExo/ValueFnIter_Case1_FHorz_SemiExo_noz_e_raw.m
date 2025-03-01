@@ -16,12 +16,8 @@ d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
-l_d2=length(n_d2);
-if l_d2==1
-    d2_gridvals=d2_grid;
-elseif l_d2==2
-    d2_gridvals=[kron(ones(n_d(2),1),d2_grid(1:n_d2(1))), kron(d2_grid(n_d2(1)+1:end),ones(n_d2(1),1))];
-end
+special_n_d2=ones(1,length(n_d2));
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
     
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -105,7 +101,7 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
             d2_val=d2_gridvals(d2_c,:)';
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz,n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_semiz',-1);
@@ -145,7 +141,7 @@ else
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz,special_n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,special_n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
                 % (d,aprime,a,z)
 
                 entireRHSe=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
@@ -185,7 +181,7 @@ else
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,ones(1,l_d2)], n_a, special_n_semiz, special_n_e, [d1_grid,d2_val], a_grid, z_val,e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_semiz, special_n_e, [d1_grid,d2_val], a_grid, z_val,e_val, ReturnFnParamsVec);
 
                     entireRHS_ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
@@ -229,7 +225,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
             d2_val=d2_gridvals(d2_c,:)';
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz,n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=VKronNext_j.*shiftdim(pi_semiz',-1);
@@ -273,7 +269,7 @@ for reverse_j=1:N_j-1
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,ones(1,l_d2)], n_a, n_semiz, special_n_e, [d1_grid;d2_val], a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz, special_n_e, [d1_grid;d2_val], a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
 
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
@@ -311,7 +307,7 @@ for reverse_j=1:N_j-1
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(:,:,jj);
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,ones(1,l_d2)], n_a, special_n_semiz, special_n_e, [d1_grid;d2_val], a_grid, z_val,e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_semiz, special_n_e, [d1_grid;d2_val], a_grid, z_val,e_val, ReturnFnParamsVec);
 
                     entireRHS_ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 

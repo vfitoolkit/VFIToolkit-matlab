@@ -20,13 +20,9 @@ Policy3=zeros(2,N_a,N_semiz,N_j,'gpuArray'); % just d2 and aprime
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
-l_d2=length(n_d2);
-if l_d2==1
-    d2_gridvals=d2_grid;
-elseif l_d2==2
-    d2_gridvals=[kron(ones(n_d2(2),1),d2_grid(1:n_d2(1))), kron(d2_grid(n_d2(1)+1:end),ones(n_d2(1),1))];
-end
-    
+special_n_d2=ones(1,length(n_d2));
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+
 if vfoptions.lowmemory>0
     special_n_semiz=ones(1,length(n_semiz));
 end
@@ -77,7 +73,7 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
             d2_val=d2_gridvals(d2_c,:)';
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, ones(1,l_d2), n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             if vfoptions.paroverz==1
@@ -129,7 +125,7 @@ else
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, ones(1,l_d2), n_a, special_n_semiz, d2_val, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, special_n_semiz, d2_val, a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
@@ -176,7 +172,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
             d2_val=d2_gridvals(d2_c,:)';
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, ones(1,l_d2), n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             
@@ -229,7 +225,7 @@ for reverse_j=1:N_j-1
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, ones(1,l_d2), n_a, special_n_semiz, d2_val, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, special_n_semiz, d2_val, a_grid, z_val, ReturnFnParamsVec);
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
