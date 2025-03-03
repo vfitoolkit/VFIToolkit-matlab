@@ -1,4 +1,4 @@
-function [z_grid,P,otheroutputs] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_i,mu_i,sigma_i,znum,farmertodaoptions)
+function [z_grid,pi_z,otheroutputs] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_i,mu_i,sigma_i,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments"
 %
 % Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation
@@ -23,8 +23,8 @@ function [z_grid,P,otheroutputs] = discretizeAR1wGM_FarmerToda(mew,rho,mixprobs_
 %   parallel:      - set equal to 2 to use GPU, 0 to use CPU
 % Outputs
 %   z_grid         - column vector containing the znum states of the discrete approximation of z
-%   P              - transition matrix of the discrete approximation of z;
-%                    transmatrix(i,j) is the probability of transitioning from state i to state j
+%   pi_z           - transition matrix of the discrete approximation of z;
+%                    pi_z(i,j) is the probability of transitioning from state i to state j
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
 %        otheroutputs.nMoments_grid  - optional output that shows how many moments were  matched from each grid point
 %
@@ -154,7 +154,7 @@ end
 
 z_grid = allcomb2(X1)'; % 1*Nm matrix of grid points
 
-P = NaN(znum,znum); % transition probability matrix
+pi_z = NaN(znum,znum); % transition probability matrix
 P1 = NaN(znum,znum); % matrix to store transition probability
 P2 = ones(znum,1); % znum*1 matrix used to construct P
 scalingFactor = max(abs(X1));
@@ -229,14 +229,14 @@ for z_c = 1:znum
                 nMoments_grid(z_c)=4;
             end
         end
-        P(z_c,:) = kron(P1(z_c,:),P2(z_c,:));
+        pi_z(z_c,:) = kron(P1(z_c,:),P2(z_c,:));
     end
     
 end
 
 
 if farmertodaoptions.parallel==2
-    P=gpuArray(P);
+    pi_z=gpuArray(pi_z);
     z_grid=gpuArray(z_grid);
 end
 

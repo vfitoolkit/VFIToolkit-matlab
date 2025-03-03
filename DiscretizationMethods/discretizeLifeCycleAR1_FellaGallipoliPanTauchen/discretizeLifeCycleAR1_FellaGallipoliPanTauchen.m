@@ -15,9 +15,9 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %   znum         - Number of grid points (scalar, is the same for all ages)
 %   J            - Number of 'ages' (finite number of periods)
 % Optional inputs (fellagallipolipanoptions)
-%   nSigmas      - the grid used will be +-nSigmas*(standard deviation of z)
-%                  nSigmas is the hyperparamer of the Tauchen method
-%   parallel:          - set equal to 2 to use GPU, 0 to use CPU
+%   nSigmas           - the grid used will be +-nSigmas*(standard deviation of z)
+%                        nSigmas is the hyperparamer of the Tauchen method
+%   parallel:         - set equal to 2 to use GPU, 0 to use CPU
 %        You can control the initial period with the following:
 %        By default, assume z0=0
 %   initialj0sigmaz:  - Set period 0 to be a N(z0, initialj0sigmaz^2) using initialj0sigmaz
@@ -29,10 +29,10 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %        mean and standard deviation (the other is interpreted as zero
 %        valued if not specified).
 % Output: 
-%   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
-%   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%   z_grid_J       - an znum-by-J matrix, each column stores the Markov state space for period j
+%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
 %                  Transition probabilities are arranged by row.
-%                  P(:,:,j) is transition matrix from age j to j+1 (Modified from FGP where it is j-1 to j)
+%                  pi_z_J(:,:,j) is transition matrix from age j to j+1 (Modified from FGP where it is j-1 to j)
 %   jequaloneDistz - znum-by-1 vector, the distribution of z in period 1
 %   otheroutputs - optional output structure containing info for evaluating the distribution including,
 %        otheroutputs.sigma_z     - the standard deviation of z at each age (used to determine grid)
@@ -44,8 +44,8 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 % it at the bottom of this script. (VFI Joolkit is GPL3 license, hence
 % having to reproduce.)
 
-fprintf('COMMENT: The Fella-Gallipoli-Pan extended Tauchen method is typically inferior to the Fella-Gallipoli-Pan extended Rouwenhorst method for discretizing life-cycle AR(1) processes. \n') 
-fprintf('         It is strongly recommended you use Fella-Gallipoli-Pan extended Rouwenhorst instead. \n')
+fprintf('COMMENT: The Fella-Gallipoli-Pan extended Tauchen method is typically inferior to the KFTT method for discretizing life-cycle AR(1) processes. \n') 
+fprintf('         It is strongly recommended you use KFTT instead. \n')
 
 mewz=zeros(1,J); % period j mean of z
 sigmaz = zeros(1,J);

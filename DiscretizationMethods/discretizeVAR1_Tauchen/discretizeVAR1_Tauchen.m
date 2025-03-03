@@ -1,4 +1,4 @@
-function [z_grid, P]=discretizeVAR1_Tauchen(Mew,Rho,SigmaSq,znum,Tauchen_q, tauchenoptions)
+function [z_grid, pi_z]=discretizeVAR1_Tauchen(Mew,Rho,SigmaSq,znum,Tauchen_q, tauchenoptions)
 % Create states vector and transition matrix for the discrete markov process approximation of 
 % M-variable VAR(1) process:
 %      z'=mew+rho*z+e, e~N(0,SigmaSq), by Tauchens method
@@ -16,14 +16,12 @@ function [z_grid, P]=discretizeVAR1_Tauchen(Mew,Rho,SigmaSq,znum,Tauchen_q, tauc
 % Outputs
 %   z_grid         - sum(znum)-by-1 column vector; stacked column vector containing the sum(znum) states of 
 %                    the discrete approximation of z for each of the n variables
-%   P              - prod(znum)-by-prod(znum) matrix; transition matrix of the discrete approximation of z;
-%                    transmatrix(i,j) is the probability of transitioning from state i to state j
+%   pi_z           - prod(znum)-by-prod(znum) matrix; transition matrix of the discrete approximation of z;
+%                    pi_z(i,j) is the probability of transitioning from state i to state j
 %
 %%%%%%%%%%%%%%%
-% Original paper:
-% Tauchen (1986) - "Finite state Markov-chain approximations to univariate and vector autoregressions"
-%
 % Note: This is not really the Tauchen method.
+%
 % Tauchen suggests using product of the joint marginal cdfs, but here
 % instead just use the multivariate cdf directly. (If Sigma is diagonal the
 % two coincide, but otherwise this code is really an modified version of
@@ -92,7 +90,7 @@ q_sigmaz = Tauchen_q.*sigmaz;
 
 
 %% Construct grids
-P=zeros(prod(znum),prod(znum)); % preallocate
+pi_z=zeros(prod(znum),prod(znum)); % preallocate
 
 % omega=q_sigmaz./((znum-1)/2); % The spacing between grid points
 % (below codes allows for non-even spacing, even though that is redundant here)
@@ -153,14 +151,14 @@ end
 
 for z_c=1:prod(znum) % lag of z
     conditionalmean=(Mew+Rho*z_gridvals(z_c,:)')';
-    P(z_c,:)=mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,conditionalmean,SigmaSq)';
+    pi_z(z_c,:)=mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,conditionalmean,SigmaSq)';
 end
 
 
 %%
 if tauchenoptions.parallel==2 
     z_grid=gpuArray(z_grid);
-    P=gpuArray(P); %(z,zprime)
+    pi_z=gpuArray(pi_z); %(z,zprime)
 end
 
 

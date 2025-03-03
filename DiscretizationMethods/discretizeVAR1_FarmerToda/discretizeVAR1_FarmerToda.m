@@ -1,4 +1,4 @@
-function [z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodaoptions)
+function [z_grid,pi_z] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
 % 
 % Purpose: 
@@ -30,7 +30,7 @@ function [z_grid,P] = discretizeVAR1_FarmerToda(Mew,Rho,SigmaSq,znum,farmertodao
 %               used to set the endpoints of the grid (mew+-nSigmas*standarddeviation)
 %
 % Outputs:
-%   P         - (znum^M x znum^M) probability transition matrix. Each row
+%   pi_z      - (znum^M x znum^M) probability transition matrix. Each row
 %               corresponds to a discrete conditional probability 
 %               distribution over the state M-tuples in X
 %   Z_grid    - (M x znum^M) matrix of states. Each column corresponds to an
@@ -210,7 +210,7 @@ D = allcomb2(y1D)';
 %% Construct finite-state Markov chain approximation
 
 condMean = A*D; % conditional mean of the VAR process at each grid point
-P = ones(znum^M); % probability transition matrix
+pi_z = ones(znum^M); % probability transition matrix
 scalingFactor = y1D(:,end); % normalizing constant for maximum entropy computations
 temp = zeros(M,znum); % used to store some intermediate calculations
 lambdaBar = zeros(2*M,znum^M); % store optimized values of lambda (2 moments) to improve initial guesses
@@ -277,7 +277,7 @@ for ii = 1:(znum^M)
         end
     end
     
-    P(ii,:) = prod(allcomb2(temp),2)';
+    pi_z(ii,:) = prod(allcomb2(temp),2)';
     
 end
 
@@ -292,7 +292,7 @@ warning on MATLAB:singularMatrix
 % CREATE ON GPU OR CPU AS APPROPRIATE. (AVOID THE OVERHEAD OF MOVING TO GPU)
 if farmertodaoptions.parallel==2 
     z_grid=gpuArray(z_grid);
-    P=gpuArray(P); %(z,zprime)  
+    pi_z=gpuArray(pi_z); %(z,zprime)  
 end
 
 end

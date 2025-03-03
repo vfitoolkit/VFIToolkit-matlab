@@ -19,10 +19,10 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %   znum         - Number of grid points (scalar, is the same for all ages)
 %   J            - Number of 'ages' (finite number of periods)
 % Optional inputs (kfttoptions)
-%   method         - The method used to determine the grid ('even','gauss-legendre', 'clenshaw-curtis','gauss-hermite')
-%   nMoments       - Number of conditional moments to match (default=4)
-%   nSigmas        - (Hyperparameter) Defines max/min grid points as mew+-nSigmas*sigmaz (default depends on znum)
-%   parallel:          - set equal to 2 to use GPU, 0 to use CPU
+%   method            - The method used to determine the grid ('even','gauss-legendre', 'clenshaw-curtis','gauss-hermite')
+%   nMoments          - Number of conditional moments to match (default=4)
+%   nSigmas           - (Hyperparameter) Defines max/min grid points as mew+-nSigmas*sigmaz (default depends on znum)
+%   parallel:         - set equal to 2 to use GPU, 0 to use CPU
 %        You can control the initial period with the following:
 %        By default, assume z0=0
 %   initialj0sigmaz:  - Set period 0 to be a N(z0, initialj0sigma_z^2) using initialj0sigma_z
@@ -34,9 +34,9 @@ function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1
 %        mean and standard deviation (the other is interpreted as zero
 %        valued if not specified).
 % Output: 
-%   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
-%   pi_z_J       - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
-%                  Transition probabilities are arranged by row.
+%   z_grid         - an znum-by-J matrix, each column stores the Markov state space for period j
+%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%                    Transition probabilities are arranged by row.
 %   jequaloneDistz - initial distribution of shocks for j=1
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
 %        otheroutputs.nMoments_grid  - shows how many moments were matched from each grid point (for the conditional distribution)

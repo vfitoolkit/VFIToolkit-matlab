@@ -1,4 +1,4 @@
-function [z_grid,P]=discretizeAR1_Rouwenhorst(mew,rho,sigma,znum,rouwenhorstoptions)
+function [z_grid,pi_z]=discretizeAR1_Rouwenhorst(mew,rho,sigma,znum,rouwenhorstoptions)
 % Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation 
 %    of AR(1) process z'=mew+rho*z+e, e~N(0,sigma^2), by Rouwenhorst method
 %
@@ -43,8 +43,7 @@ zbar=sqrt((znum-1))*(sigma/sqrt((1-rho^2)));
 z_grid=mew+linspace(-zbar,zbar,znum)';
 p=(1+rho)/2; q=p;
 
-P=rouwenhorst(znum,p,q);
-% [z_grid,P]=rouwenhorst(znum,mew/(1-rho),rho,sqrt(sigmasq));
+pi_z=rouwenhorst(znum,p,q);
 
 % Following is an faster-than-usual shortcut to calculate the stationary
 % distribution for Rouwenhorst quadrature.
@@ -59,7 +58,7 @@ P=rouwenhorst(znum,p,q);
 % CREATE ON GPU OR CPU AS APPROPRIATE. (AVOID THE OVERHEAD OF MOVING TO GPU)
 if rouwenhorstoptions.parallel==2 
     z_grid=gpuArray(z_grid);
-    P=gpuArray(P); %(z,zprime)  
+    pi_z=gpuArray(pi_z); %(z,zprime)  
 end
 
 end

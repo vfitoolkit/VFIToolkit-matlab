@@ -1,4 +1,4 @@
-function [z_grid,P] = discretizeAR1_TauchenHussey(mew,rho,sigma,znum,tauchenhusseyoptions)
+function [z_grid,pi_z] = discretizeAR1_TauchenHussey(mew,rho,sigma,znum,tauchenhusseyoptions)
 % Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation 
 %    of AR(1) process z'=mew+rho*z+e, e~N(0,sigma^2), by Tauchen-Hussey method
 %
@@ -15,7 +15,7 @@ function [z_grid,P] = discretizeAR1_TauchenHussey(mew,rho,sigma,znum,tauchenhuss
 %
 % Output:     
 %   z_grid    N*1 vector, nodes for Z
-%   P         N*N matrix, transition probabilities
+%   pi_z      N*N matrix, transition probabilities
 %
 % Martin Floden, Stockholm School of Economics
 % January 2007 (updated August 2007)
@@ -44,7 +44,7 @@ else
 end
 
 % z_grid=zeros(znum,1);
-P = zeros(znum,znum);
+pi_z = zeros(znum,znum);
 
 [z_grid,w] = gaussnorm(znum,mew,baseSigma^2);   % See note 1 below
 
@@ -52,12 +52,12 @@ P = zeros(znum,znum);
 for i = 1:znum
     for j = 1:znum
         EZprime    = (1-rho)*mew + rho*z_grid(i);
-        P(i,j) = w(j) * norm_pdf(z_grid(j),EZprime,sigma^2) / norm_pdf(z_grid(j),mew,baseSigma^2);
+        pi_z(i,j) = w(j) * norm_pdf(z_grid(j),EZprime,sigma^2) / norm_pdf(z_grid(j),mew,baseSigma^2);
     end
 end
 
 for i = 1:znum
-    P(i,:) = P(i,:) / sum(P(i,:),2);
+    pi_z(i,:) = pi_z(i,:) / sum(pi_z(i,:),2);
 end
 
 a = 1;
@@ -123,10 +123,3 @@ for i=1:m
     w(n+1-i) = w(i);
 end
 x(:) = x(end:-1:1);
-
-
-% Note 1: If you have Miranda and Fackler's CompEcon toolbox you can use
-% their qnwnorm function to obtain quadrature nodes and weights for the
-% normal function: [Z,w] = qnwnorm(N,mu,baseSigma^2);
-% Compecon is available at http://www4.ncsu.edu/~pfackler/compecon/
-% Otherwise, use gaussnorm as here.

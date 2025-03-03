@@ -1,4 +1,4 @@
-function [z_grid_J, P_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,znum,J,fellagallipolipanoptions)
+function [z_grid_J, pi_z_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_FellaGallipoliPan(rho,sigma,znum,J,fellagallipolipanoptions)
 % Please cite: Fella, Gallipoli & Pan (2019) "Markov-chain approximations for life-cycle models"
 %
 % Fella-Gallipoli-Pan discretization method for a 'life-cycle non-stationary AR(1) process'. 
@@ -16,8 +16,8 @@ function [z_grid_J, P_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_Fe
 % Optional inputs (fellagallipolipanoptions)
 %   parallel:    - set equal to 2 to use GPU, 0 to use CPU
 % Output: 
-%   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
-%   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%   z_grid_J     - an znum-by-J matrix, each column stores the Markov state space for period j
+%   pi_z_J       - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
 %                  Transition probabilities are arranged by row.
 %                  P(:,:,j) is transition matrix from age j to j+1 (Modified from FGP where it is j-1 to j)
 %   jequaloneDistz - znum-by-1 vector, the distribution of z in period 1
@@ -38,9 +38,12 @@ function [z_grid_J, P_J,jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1_Fe
 % FGP use MIT license, which must be included with the code, you can find it at the bottom of this 
 % script. (VFI Toolkit is GPL3 license, hence having to reproduce.)
 
+fprintf('COMMENT: The Fella-Gallipoli-Pan extended Rouwenhorst method is typically inferior to the KFTT method for discretizing life-cycle AR(1) processes. \n') 
+fprintf('         It is strongly recommended you use KFTT instead. \n')
+
 sigma_z = zeros(1,J);
 % z_grid = zeros(znum,J); 
-P_J = zeros(znum,znum,J);
+pi_z_J = zeros(znum,znum,J);
 
 %% Set options
 if ~exist('fellagallipolipanoptions','var')
@@ -94,29 +97,29 @@ z_grid_J = cumsum(z_grid_J,1);
 % Note: rhmat() is the 'Rouwenhorst matrix' subfunction
 
 p = 1/2; % First period: p(1) = 0.5 as y(1) is white noise.  
-P_J(:,:,1) = rhmat(p,znum);
+pi_z_J(:,:,1) = rhmat(p,znum);
 
 for jj = 2:J
     % Compute p for t>1
     p = (sigma_z(jj)+rho(jj)*sigma_z(jj-1))/(2*sigma_z(jj));
-    P_J(:,:,jj) = rhmat(p,znum);
+    pi_z_J(:,:,jj) = rhmat(p,znum);
     % Note that here P_J(:,:,jj) is the transition from jj-1 into jj
 end
 
 %% I AM BEING LAZY AND JUST MOVING RESULT TO GPU RATHER THAN CREATING IT THERE IN THE FIRST PLACE
 if fellagallipolipanoptions.parallel==2
     z_grid_J=gpuArray(z_grid_J);
-    P_J=gpuArray(P_J);
+    pi_z_J=gpuArray(pi_z_J);
 end
 
 %%
-jequaloneDistz=P_J(1,:,1)';
+jequaloneDistz=pi_z_J(1,:,1)';
 
 %% P(:,:,j) is transition from age j to j+1 (Modified from FGP where it is j-1 to j)
 % Change P_J so that P_J(:,:,jj) is the transition matrix from period jj to period jj+1
-P_J(:,:,1:end-1)=P_J(:,:,2:end);
+pi_z_J(:,:,1:end-1)=pi_z_J(:,:,2:end);
 % For jj=J, P_J(:,:,J) is kind of meaningless (there is no period jj+1 to transition to). I just fill it in as a uniform distribution
-P_J(:,:,J)=ones(znum,znum)/znum;
+pi_z_J(:,:,J)=ones(znum,znum)/znum;
 
 
 %% Subfunction rhmat()

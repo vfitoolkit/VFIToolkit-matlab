@@ -1,4 +1,4 @@
-function [z_grid,P]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, tauchenoptions)
+function [z_grid,pi_z]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, tauchenoptions)
 % Create states vector, z_grid, and transition matrix, P, for the discrete markov process approximation 
 %    of AR(1) process z'=mew+rho*z+e, e~N(0,sigma^2), by Tauchen method
 %
@@ -13,8 +13,8 @@ function [z_grid,P]=discretizeAR1_Tauchen(mew,rho,sigma,znum,Tauchen_q, taucheno
 %   dshift:        - allows approximating 'trend-reverting' process around a deterministic trend (not part of standard Tauchen method)
 % Outputs
 %   z_grid         - column vector containing the znum states of the discrete approximation of z
-%   P              - transition matrix of the discrete approximation of z;
-%                    transmatrix(i,j) is the probability of transitioning from state i to state j
+%   pi_z           - transition matrix of the discrete approximation of z;
+%                    pi_z(i,j) is the probability of transitioning from state i to state j
 %
 % Helpful info:
 %   Var(z)=(sigma^2)/(1-rho^2). So sigmaz=sigma/sqrt(1-rho^2);   sigma=sigmaz*sqrt(1-rho^2)
@@ -41,10 +41,10 @@ end
 
 if znum==1
     z_grid=mew/(1-rho); %expected value of z
-    P=1;
+    pi_z=1;
     if tauchenoptions.parallel==2
         z_grid=gpuArray(z_grid);
-        P=gpuArray(P);
+        pi_z=gpuArray(pi_z);
     end
     return
 end
@@ -65,9 +65,9 @@ if tauchenoptions.parallel==0 || tauchenoptions.parallel==1
     P_part1=normcdf(zj+omega/2-rho*zi,mew,sigma);
     P_part2=normcdf(zj-omega/2-rho*zi,mew,sigma);
     
-    P=P_part1-P_part2;
-    P(:,1)=P_part1(:,1);
-    P(:,znum)=1-P_part2(:,znum);
+    pi_z=P_part1-P_part2;
+    pi_z(:,1)=P_part1(:,1);
+    pi_z(:,znum)=1-P_part2(:,znum);
     
 elseif tauchenoptions.parallel==2 %Parallelize on GPU
     zstar=mew/(1-rho); %expected value of z
@@ -93,9 +93,9 @@ elseif tauchenoptions.parallel==2 %Parallelize on GPU
     erfinput=arrayfun(@(zi,zj,omega,rho,mew,sigma) ((zj-omega/2-rho*zi)-mew)/sqrt(2*sigma^2), z_grid,tauchenoptions.dshift+z_grid',omega, rho,mew,sigma);
     P_part2=0.5*(1+erf(erfinput));
     
-    P=P_part1-P_part2;
-    P(:,1)=P_part1(:,1);
-    P(:,znum)=1-P_part2(:,znum);
+    pi_z=P_part1-P_part2;
+    pi_z(:,1)=P_part1(:,1);
+    pi_z(:,znum)=1-P_part2(:,znum);
     
 end
 

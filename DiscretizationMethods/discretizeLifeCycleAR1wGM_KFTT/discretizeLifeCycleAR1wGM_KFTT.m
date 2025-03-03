@@ -28,9 +28,9 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 %   parallel:    - set equal to 2 to use GPU, 0 to use CPU
 %   nSigmas      - the grid used will be +-nSigmas*(standard deviation of z)
 % Output: 
-%   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
-%   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
-%                  Transition probabilities are arranged by row.
+%   z_grid         - an znum-by-J matrix, each column stores the Markov state space for period j
+%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%                     Transition probabilities are arranged by row.
 %   jequaloneDistz - initial distribution of shocks for j=1
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
 %        otheroutputs.nMoments_grid  - shows how many moments were  matched from each grid point (for the conditional distribution)

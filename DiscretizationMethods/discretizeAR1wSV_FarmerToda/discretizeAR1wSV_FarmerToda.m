@@ -1,4 +1,4 @@
-function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znum,farmertodaoptions)
+function [z_grid,pi_z] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znum,farmertodaoptions)
 % Please cite: Farmer & Toda (2017) - "Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
 %
 %  Discretize an AR(1) process with log AR(1) stochastic volatility using Farmer-Toda method
@@ -6,9 +6,6 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znu
 %       u_t ~ N(0,exp(x_t)); 
 %       x_t = (1-phi)*mu + phi*x_{t-1} + epsilon_t
 %       epsilon_t ~ N(0,sigma_e^2)
-%
-% Usage:
-%       [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,znum,xnum)
 %
 % Inputs:
 %   rho       - persistence of z process
@@ -21,8 +18,8 @@ function [z_grid,P] = discretizeAR1wSV_FarmerToda(rho,phi,sigmau,sigmae,xnum,znu
 %   method    - quadrature method for x process
 %   nSigmas   - grid spacing parameter for z (default = sqrt((Nz-1)/2)
 % Output: 
-%   z_grid:   - stacked column vector, x on top, z below (so z_grid(1:xnum)is the grid on x, z_grid(xnum+1:end) is the grid on z)
-%   P:        - joint transition matrix on (x,z)
+%   z_grid:   - stacked column vector, x on top, z below (so z_grid(1:xnum) is the grid on x, z_grid(xnum+1:end) is the grid on z)
+%   pi_z:     - joint transition matrix on (x,z)
 %     Note, the dimensions of the output are thus interpreted as [xnum,znum]
 %
 % Useful info: E[z_t]=mu (constant divided by 1-autocorrelation coeff; that is advantage of writing constant as (1-phi*mu).)
@@ -86,7 +83,7 @@ temp1 = repmat(x_grid',1,znum);
 temp2 = kron(z_grid,ones(1,xnum));
 
 zx_grid = flipud([temp1; temp2])'; % avoid using combvec, which requires deep learning toolbox
-P = zeros(Nm);
+pi_z = zeros(Nm);
 lambdaGuess = zeros(2,1);
 scalingFactor = max(abs(z_grid));
 kappa = 1e-8; % small positive constant for numerical stability
@@ -103,14 +100,13 @@ for ii = 1:Nm
         warning('Failed to match first 2 moments. Just matching 1.')
         p = discreteApproximation(z_grid,@(X) (X-rho*zx_grid(ii,1))./scalingFactor,0,q,0);
     end
-    P(ii,:) = kron(p,ones(1,xnum));
-    P(ii,:) = P(ii,:).*repmat(Px(mod(ii-1,xnum)+1,:),1,znum);
+    pi_z(ii,:) = kron(p,ones(1,xnum));
+    pi_z(ii,:) = pi_z(ii,:).*repmat(Px(mod(ii-1,xnum)+1,:),1,znum);
  
 end
-% zx_grid = zx_grid';
+
 % Original Farmer-Toda code output zx_grid.
 % I instead output a stacked vector.
-
 z_grid=[x_grid; z_grid'];
 
 %%

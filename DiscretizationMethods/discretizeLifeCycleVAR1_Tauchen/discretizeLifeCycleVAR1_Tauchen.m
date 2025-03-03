@@ -256,7 +256,7 @@ end
 
 %%
 if tauchenoptions.parallel==2 
-    z_grid=gpuArray(z_grid);
+    z_grid_J=gpuArray(z_grid_J);
     pi_z_J=gpuArray(pi_z_J); %(z,zprime)
 end
 
