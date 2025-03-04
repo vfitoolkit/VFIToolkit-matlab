@@ -60,7 +60,7 @@ l_p=length(n_p);
 
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
-    heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.verbose=0;
@@ -76,7 +76,7 @@ else
         heteroagentoptions.multiGEcriterion=1;
     end
     if isfield(heteroagentoptions,'multiGEweights')==0
-        heteroagentoptions.multiGEweights=ones(1,length(GeneralEqmEqns));
+        heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     end
     if N_p~=0
         if isfield(heteroagentoptions,'p_grid')==0
@@ -674,6 +674,13 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     % Run once more to get the general eqm eqns in a nice form for output
     GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GEPriceParamNames,AggVarNames,nGEprices,heteroagentoptions);
     GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
+    % structure is much easier to read if it is on cpu
+    if heteroagentoptions.outputGEstruct==1
+        GENames=fieldnames(GeneralEqmEqns);
+        for gg=1:length(GENames)
+            GeneralEqmConditions.(GENames{gg})=gather(GeneralEqmConditions.(GENames{gg}))
+        end
+    end
 end
 
 
