@@ -28,9 +28,9 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 %   parallel:    - set equal to 2 to use GPU, 0 to use CPU
 %   nSigmas      - the grid used will be +-nSigmas*(standard deviation of z)
 % Output: 
-%   z_grid         - an znum-by-J matrix, each column stores the Markov state space for period j
-%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
-%                     Transition probabilities are arranged by row.
+%   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
+%   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%                  Transition probabilities are arranged by row.
 %   jequaloneDistz - initial distribution of shocks for j=1
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
 %        otheroutputs.nMoments_grid  - shows how many moments were  matched from each grid point (for the conditional distribution)
@@ -144,12 +144,12 @@ end
 
 % % Everything has to be on cpu otherwise fminunc throws an error
 % if kfttoptions.parallel==2
-%     rho=gather(rho);
-%     mixprobs_i=gather(mixprobs_i);
-%     mu_i=gather(mu_i);
-%     sigma_i=gather(sigma_i);
-%     znum=gather(znum);
-%     J=gather(J);
+rho=gather(rho);
+mixprobs_i=gather(mixprobs_i);
+mu_i=gather(mu_i);
+sigma_i=gather(sigma_i);
+znum=gather(znum);
+J=gather(J);
 % end
 
 
@@ -201,7 +201,10 @@ if isfield(kfttoptions,'initialj0mewz')
 end
 % You can add variance to z0 as a N(z0,initialj0sigmaz) using
 if isfield(kfttoptions,'initialj0sigma_z')
-	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(0,0,kfttoptions.initialj0sigma_z,znum);
+    farmertodaoptions.nSigmas=kfttoptions.nSigmas;
+    farmertodaoptions.method=kfttoptions.method;
+    farmertodaoptions.parallel=1; % need to get solution on cpu, otherwise causes errors later
+	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(0,0,kfttoptions.initialj0sigma_z,znum,farmertodaoptions);
     jequalzeroDistz=pi_z_0(1,:)'; % iid, so first row is the dist
     clear pi_z_0
 else
@@ -265,6 +268,7 @@ nMoments_grid=zeros(znum,J); % Used to record number of moments matched in trans
 
 for jj=1:J
     %% compute conditional moments
+    fprintf('discretizeLifeCycleAR1wGM_KFTT: now doing period %i of %i \n',jj,J)
     sigmaC2 = sigma_i(:,jj).^2;
     
     if jj>1
@@ -313,7 +317,7 @@ for jj=1:J
                 ((x-condMean)./scalingFactor).^2],...
                 TBar(1:2)./(scalingFactor.^(1:2)'),q,zeros(2,1));
             if norm(momentError) > 1e-5 % if 2 moments fail, then just match 1 moment
-                warning('Failed to match first 2 moments. Just matching 1.')
+                % warning('Failed to match first 2 moments. Just matching 1.') % too many warnings in Life-Cycle AR(1), people can just look at heatmap instead
                 P1(z_c,:) = discreteApproximation(z_grid,@(x)(x-condMean)/scalingFactor,TBar(1)./scalingFactor,q,0);
                 nMoments_grid(z_c,jj)=1;
             elseif kfttoptions.nMoments == 2
@@ -324,7 +328,7 @@ for jj=1:J
                     ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                     TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
                 if norm(momentError) > 1e-5
-                    warning('Failed to match first 3 moments.  Just matching 2.')
+                    % warning('Failed to match first 3 moments.  Just matching 2.') % too many warnings in Life-Cycle AR(1), people can just look at heatmap instead
                     P1(z_c,:) = p;
                     nMoments_grid(z_c,jj)=2;
                 else
@@ -341,11 +345,11 @@ for jj=1:J
                         ((x-condMean)./scalingFactor).^2;((x-condMean)./scalingFactor).^3],...
                         TBar(1:3)./(scalingFactor.^(1:3)'),q,[lambda;0]);
                     if norm(momentError) > 1e-5
-                        warning('Failed to match first 3 moments.  Just matching 2.')
+                        % warning('Failed to match first 3 moments.  Just matching 2.') % too many warnings in Life-Cycle AR(1), people can just look at heatmap instead
                         P1(z_c,:) = p;
                         nMoments_grid(z_c,jj)=2;
                     else
-                        warning('Failed to match first 4 moments.  Just matching 3.')
+                        % warning('Failed to match first 4 moments.  Just matching 3.') % too many warnings in Life-Cycle AR(1), people can just look at heatmap instead
                         P1(z_c,:) = pnew;
                         nMoments_grid(z_c,jj)=3;
                     end
