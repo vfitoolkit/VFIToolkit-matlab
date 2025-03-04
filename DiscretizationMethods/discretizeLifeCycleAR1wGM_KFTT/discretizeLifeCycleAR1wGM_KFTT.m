@@ -266,9 +266,9 @@ end
 
 nMoments_grid=zeros(znum,J); % Used to record number of moments matched in transition from each point
 
-for jj=1:J
+parfor jj=1:J
     %% compute conditional moments
-    fprintf('discretizeLifeCycleAR1wGM_KFTT: now doing period %i of %i \n',jj,J)
+    % fprintf('discretizeLifeCycleAR1wGM_KFTT: now doing period %i of %i \n',jj,J) % commented out as parfor
     sigmaC2 = sigma_i(:,jj).^2;
     
     if jj>1
