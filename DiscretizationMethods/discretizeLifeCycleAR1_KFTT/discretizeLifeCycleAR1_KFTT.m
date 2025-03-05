@@ -144,14 +144,13 @@ if kfttoptions.nSigmas<1.2
     warning('Trying to hit the 2nd moment with kfttoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for kfttoptions.nSigmas<1.2).')
 end
 
-% % Everything has to be on cpu otherwise fminunc throws an error
-% if kfttoptions.parallel==2
-%     mew=gather(mew);
-%     rho=gather(rho);
-%     sigma_j=gather(sigma_j);
-%     znum=gather(znum);
-%     J=gather(J);
-% end
+% Everything has to be on cpu otherwise fminunc throws an error
+mew=gather(mew);
+rho=gather(rho);
+sigma=gather(sigma);
+znum=gather(znum);
+J=gather(J);
+
 
 %% Step 1: compute the conditional moments (will need the standard deviations to create grid)
 % sigma is of size (1,J); % standard deviation of innovations
@@ -177,7 +176,10 @@ if isfield(kfttoptions,'initialj0mewz')
 end
 % You can add variance to z0 as a N(z0,initialj0sigmaz) using
 if isfield(kfttoptions,'initialj0sigmaz')
-	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(z0,0,kfttoptions.initialj0sigmaz,znum);
+    farmertodaoptions.nSigmas=kfttoptions.nSigmas;
+    farmertodaoptions.method=kfttoptions.method;
+    farmertodaoptions.parallel=1; % need to get solution on cpu, otherwise causes errors later
+	[z_grid_0,pi_z_0] = discretizeAR1_FarmerToda(z0,0,kfttoptions.initialj0sigmaz,znum,farmertodaoptions);
     jequalzeroDistz=pi_z_0(1,:)'; % iid, so first row is the dist
     clear pi_z_0
 else
@@ -252,7 +254,7 @@ nMoments_grid=zeros(znum,J); % Used to record number of moments matched in trans
 
 kappa = 1e-8;
 
-for jj=1:J
+parfor jj=1:J
     
     if jj>1
         zlag_grid=z_grid_J(:,jj-1);

@@ -28,9 +28,9 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 %   parallel:    - set equal to 2 to use GPU, 0 to use CPU
 %   nSigmas      - the grid used will be +-nSigmas*(standard deviation of z)
 % Output: 
-%   z_grid       - an znum-by-J matrix, each column stores the Markov state space for period j
-%   P            - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
-%                  Transition probabilities are arranged by row.
+%   z_grid_J       - an znum-by-J matrix, each column stores the Markov state space for period j
+%   pi_z_J         - znum-by-znum-by-J matrix of J (znum-by-znum) transition matrices. 
+%                       Transition probabilities are arranged by row.
 %   jequaloneDistz - initial distribution of shocks for j=1
 %   otheroutputs   - optional output structure containing info for evaluating the distribution including,
 %        otheroutputs.nMoments_grid  - shows how many moments were  matched from each grid point (for the conditional distribution)
@@ -142,15 +142,13 @@ if kfttoptions.nSigmas<1.2
     warning('Trying to hit the 2nd moment with kfttoptions.nSigmas at 1 or less is odd. It will put lots of probability near edges of grid as you are trying to get the std dev, but you max grid points are only about plus/minus one std dev (warning shows for kfttoptions.nSigmas<1.2).')
 end
 
-% % Everything has to be on cpu otherwise fminunc throws an error
-% if kfttoptions.parallel==2
+% Everything has to be on cpu otherwise fminunc throws an error
 rho=gather(rho);
 mixprobs_i=gather(mixprobs_i);
 mu_i=gather(mu_i);
 sigma_i=gather(sigma_i);
 znum=gather(znum);
 J=gather(J);
-% end
 
 
 %%
