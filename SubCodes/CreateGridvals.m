@@ -37,9 +37,9 @@ else
         elseif l_x==3
             x_gridvals=[kron(ones(prod(n_x(2:3)),1),x_grid(1:n_x(1))),kron(kron(ones(n_x(3),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(n_x(1),1)),kron(x_grid(n_x(1)+n_x(2)+1:end),ones(prod(n_x(1:2)),1))];
         elseif l_x==4
-            x_gridvals=[kron(ones(prod(n_x(2:4)),1),x_grid(1:n_x(1))), kron(kron(ones(n_x(4),1),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(prod(n_x(1:2)),1)), kron(kron(ones(prod(n_x(1:2)),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(n_x(4),1)), kron(x_grid(n_x(1)+n_x(2)+n_x(3)+1:end),ones(prod(n_x(1:3)),1))];
+            x_gridvals=[kron(ones(prod(n_x(2:4)),1),x_grid(1:n_x(1))), kron(kron(ones(prod(n_x(3:4)),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(n_x(1),1)), kron(kron(ones(n_x(4),1),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(prod(n_x(1:2)),1)), kron(x_grid(n_x(1)+n_x(2)+n_x(3)+1:end),ones(prod(n_x(1:3)),1))];
         elseif l_x==5
-            x_gridvals=[kron(ones(prod(n_x(2:5)),1),x_grid(1:n_x(1))), kron(kron(ones(prod(n_x(3:5)),1),x_grid(n_x(1)+n_x(2)+n_x(3)+1:n_x(1)+n_x(2)+n_x(3)+n_x(4))),ones(n_x(1),1)), kron(kron(ones(prod(n_x(4:5)),1),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(prod(n_x(1:2)),1)), kron(kron(ones(n_x(5),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(prod(n_x(1:3)),1)), kron(x_grid(n_x(1)+n_x(2)+n_x(3)+n_x(4)+1:end),ones(prod(n_x(1:4)),1))];
+            x_gridvals=[kron(ones(prod(n_x(2:5)),1),x_grid(1:n_x(1))), kron(kron(ones(prod(n_x(3:5)),1),x_grid(n_x(1)+1:n_x(1)+n_x(2))),ones(n_x(1),1)), kron(kron(ones(prod(n_x(4:5)),1),x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3))),ones(prod(n_x(1:2)),1)), kron(kron(ones(n_x(5),1),x_grid(n_x(1)+n_x(2)+n_x(3)+1:n_x(1)+n_x(2)+n_x(3)+n_x(4))),ones(prod(n_x(1:3)),1)), kron(x_grid(n_x(1)+n_x(2)+n_x(3)+n_x(4)+1:end),ones(prod(n_x(1:4)),1))];
         else
             error('Cannot handle length(n_x)>5. Please email me if you need this functionality')
         end

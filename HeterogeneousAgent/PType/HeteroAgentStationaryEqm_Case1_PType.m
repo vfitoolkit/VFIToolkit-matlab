@@ -678,7 +678,7 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     if heteroagentoptions.outputGEstruct==1
         GENames=fieldnames(GeneralEqmEqns);
         for gg=1:length(GENames)
-            GeneralEqmConditions.(GENames{gg})=gather(GeneralEqmConditions.(GENames{gg}))
+            GeneralEqmConditions.(GENames{gg})=gather(GeneralEqmConditions.(GENames{gg}));
         end
     end
 end
