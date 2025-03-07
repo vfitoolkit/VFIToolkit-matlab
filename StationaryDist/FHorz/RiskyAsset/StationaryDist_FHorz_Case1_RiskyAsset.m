@@ -12,6 +12,13 @@ if ~isfield(simoptions,'d_grid')
     error('To use an risky asset you must define simoptions.d_grid')
 end
 
+% Sort out decision variables, need to get those for riskyasset
+if ~isfield(simoptions,'refine_d')
+    % When not using refine_d, everything is implicitly a d3
+    simoptions.refine_d=[0,0,length(n_d)];
+end
+n_d23=n_d(vfoptions.refine_d(1)+1:sum(vfoptions.refine_d(1:3))); % decision variables for riskyasset
+
 % Split endogenous assets into the standard ones and the risky asset
 if length(n_a)==1
     n_a1=0;
@@ -19,7 +26,6 @@ else
     n_a1=n_a(1:end-1);
 end
 n_a2=n_a(end); % n_a2 is the experience asset
-% a1_grid=simoptions.a_grid(1:sum(n_a1));
 a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
 
 %%
@@ -37,14 +43,29 @@ u_grid=gpuArray(simoptions.u_grid);
 pi_u=gpuArray(simoptions.pi_u);
 
 %%
+l_d=length(n_d);
+
+% aprimeFnParamNames in same fashion
+l_u=length(simoptions.n_u);
+l_d23=length(n_d23);
+temp=getAnonymousFnInputNames(simoptions.aprimeFn);
+if length(temp)>(l_d23+l_u)
+    aprimeFnParamNames={temp{l_d23+l_u+1:end}}; % the first inputs will always be (d,u)
+else
+    aprimeFnParamNames={};
+end
+
+%%
+if n_z(1)==0
+    error('Have not yet impelmented N_z=0 in StationaryDist_FHorz_Case1_RiskyAsset (contact me)')
+end
+%%
 if ~isfield(simoptions,'aprimedependsonage')
     simoptions.aprimedependsonage=0;
 end
 
-% N_d=prod(n_d);
 N_a=prod(n_a);
 N_a1=prod(n_a1);
-% N_a2=prod(n_a2);
 N_z=prod(n_z);
 N_u=prod(simoptions.n_u);
 
@@ -54,6 +75,8 @@ else
     n_a=[n_a1,n_a2];
 end
 
+
+%%
 if isfield(simoptions,'n_e')
     N_e=prod(simoptions.n_e);
     jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z*N_e,1]);
@@ -68,27 +91,11 @@ else
 end
 % NOTE: have rolled e into z
 
-%%
-l_d=length(n_d);
 
-if ~isfield(simoptions,'refine_d')
-    simoptions.refine_d=[0,l_d,0]; % silly, but does the job, only need it for whichisdforriskyasset
-end
-
-% aprimeFnParamNames in same fashion
-l_u=length(simoptions.n_u);
-temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d-simoptions.refine_d(1)+l_u)
-    aprimeFnParamNames={temp{l_d-simoptions.refine_d(1)+l_u+1:end}}; % the first inputs will always be (d,u)
-else
-    aprimeFnParamNames={};
-end
-
-
-%%
+%% riskyasset transitions
 Policy_a2prime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
-whichisdforriskyasset=1+simoptions.refine_d(1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
+whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndexes,a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_ze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
@@ -101,43 +108,29 @@ for jj=1:N_j
     PolicyProbs(:,:,:,2,jj)=(1-a2primeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
 end
 
-if N_a1>0
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(end,:,:,:),[N_a,N_ze,1,1,N_j])+N_a1*(Policy_a2prime(:,:,:,1,:)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(end,:,:,:),[N_a,N_ze,1,1,N_j])+N_a1*Policy_a2prime(:,:,:,1,:); % Note: upper grid point minus 1 is anyway just lower grid point
-    if length(n_a1)>1
-        error('Only one asset other than the risky asset is allowed (email if you need this)')
-    end
+if l_a==1 % just riskyasset
+    Policy_aprime=Policy_a2prime;
+elseif l_a==2 % one other asset, then riskyasset
+    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*(Policy_a2prime(:,:,:,1,:)-1);
+    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*Policy_a2prime(:,:,:,1,:); % Note: upper grid point minus 1 is anyway just lower grid point
+elseif l_a==3 % two other assets, then riskyasset
+    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*n_a(2)*(Policy_a2prime(:,:,:,1,:)-1);
+    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*n_a(2)*Policy_a2prime(:,:,:,1,:); % Note: upper grid point minus 1 is anyway just lower grid point
+elseif l_a>3
+    error('Only two assets other than the risky asset is allowed (email if you need this)')
 end
 
 
 %%
 % Note that PolicyProbs contains pi_u already.
-if N_a1==0
-    if simoptions.iterate==0
-        error('simulation of agent distribution is not yet supported with riskyasset')
-        % if isfield(simoptions,'n_e')
-        %     StationaryDistKron=StationaryDist_FHorz_Case1_RiskyAsset_Simulation_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,n_d,n_a2,n_z,simoptions.n_e,simoptions.n_u,N_j,simoptions.d_grid,a2_grid,u_grid,pi_z_J,pi_e_J,pi_u,simoptions.aprimeFn,Parameters,aprimeFnParamNames, simoptions);
-        % else
-        %     StationaryDistKron=StationaryDist_FHorz_Case1_RiskyAsset_Simulation_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,n_d,n_a2,n_z,simoptions.n_u,N_j,simoptions.d_grid,a2_grid,u_grid,pi_z_J,pi_u,simoptions.aprimeFn,Parameters,aprimeFnParamNames,simoptions);
-        % end
-    elseif simoptions.iterate==1
-        if isfield(simoptions,'n_e')
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
-        else
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
-        end
-    end
-else
-    if simoptions.iterate==0
-        error('simulation of agent distribution is not yet supported with riskyasset')
-    elseif simoptions.iterate==1
-        if isfield(simoptions,'n_e')
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
-        else
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
-        end
-    end
+
+% Note: N_z=0 is a different code
+if isfield(simoptions,'n_e')
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+else % no e
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
 end
+
 
 if simoptions.parallel==2
     StationaryDist=gpuArray(StationaryDist); % move output to gpu

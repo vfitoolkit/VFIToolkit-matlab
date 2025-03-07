@@ -1,9 +1,5 @@
 function StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
-if n_z(1)==0
-    error('Not yet implemented n_z=0 with SemiExo, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
-end
-
 %% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
 if ~isfield(simoptions,'n_semiz')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
@@ -53,17 +49,10 @@ N_z=prod(n_z);
 
 jequaloneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z,1]);
 Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z],N_j);
-if simoptions.iterate==0
-    Policy=gather(Policy);
-    jequaloneDist=gather(jequaloneDist);    
-end
 pi_z_J=gather(pi_z_J);
 
-if simoptions.iterate==0
-    StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Simulation_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions);
-elseif simoptions.iterate==1
-    StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Iteration_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions);
-end
+
+StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Iteration_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions);
 
 if simoptions.parallel==2
     StationaryDist=gpuArray(StationaryDist); % move output to gpu

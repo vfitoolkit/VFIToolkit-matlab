@@ -43,22 +43,33 @@ else
     error('To use an experience assetu you must define vfoptions.pi_u')
 end
 
-N_a1=prod(n_a1);
-N_a=prod(n_a);
-N_z=prod(n_z);
-N_u=prod(n_u);
 
 % Make sure u_grid and pi_u are on gpu
 u_grid=gpuArray(u_grid);
 pi_u=gpuArray(pi_u);
 simoptions.u_grid=gpuArray(simoptions.u_grid); % needed to by some subfns
 
+% aprimeFnParamNames in same fashion
+l_d2=length(n_d2);
+l_a2=length(n_a2);
+l_u=length(n_u);
+temp=getAnonymousFnInputNames(simoptions.aprimeFn);
+if length(temp)>(l_d2+l_a2+l_u)
+    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}}; % the first inputs will always be (d2,a2,u)
+else
+    aprimeFnParamNames={};
+end
 
 %%
-if N_z==0
+if n_z(1)==0
     StationaryDist=StationaryDist_FHorz_Case1_ExpAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
     return
 end
+
+%%
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_u=prod(n_u);
 
 
 %%
@@ -76,21 +87,10 @@ else
 end
 % NOTE: have rolled e into z
 
-% aprimeFnParamNames in same fashion
-l_d2=length(n_d2);
-l_a2=length(n_a2);
-l_u=length(n_u);
-temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d2+l_a2+l_u)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}}; % the first inputs will always be (d2,a2,u)
-else
-    aprimeFnParamNames={};
-end
 
 %%
 % Policy is currently about d and a2prime. Convert it to being about aprime
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
-Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
 Policy_a2prime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
 whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
@@ -106,36 +106,26 @@ for jj=1:N_j
     PolicyProbs(:,:,:,2,jj)=(1-a2primeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
 end
 
-if N_a1>0
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(end,:,:,:),[N_a,N_ze,1,1,N_j])+N_a1*(Policy_a2prime(:,:,:,1,jj)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(end,:,:,:),[N_a,N_ze,1,1,N_j])+N_a1*Policy_a2prime(:,:,:,1,jj); % Note: upper grid point minus 1 is anyway just lower grid point
-    if length(n_a1)>1
-        error('Only one asset other than the risky asset is allowed (email if you need this)')
-    end
+if l_a==1 % just experienceassetu
+    Policy_aprime=Policy_a2prime;
+elseif l_a==2 % one other asset, then experience assetu
+    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*(Policy_a2prime(:,:,:,1,jj)-1);
+    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*Policy_a2prime(:,:,:,1,jj); % Note: upper grid point minus 1 is anyway just lower grid point
+elseif l_a==3 % two other assets, then experience assetu
+    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+2,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*n_a(2)*(Policy_a2prime(:,:,:,1,jj)-1);
+    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+2,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*n_a(2)*Policy_a2prime(:,:,:,1,jj); % Note: upper grid point minus 1 is anyway just lower grid point
+elseif l_a>3
+    error('Not yet implemented experienceassetu with length(n_a)>3')
 end
 
 %%
-if N_a1==0
-    if simoptions.iterate==0
-        error('simulation of agent distribution is not yet supported with experienceassetu')
-    elseif simoptions.iterate==1
-        if isfield(simoptions,'n_e')
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
-        else
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
-        end
-    end
+% Note: N_z=0 is a different code
+if isfield(simoptions,'n_e')
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
 else
-    if simoptions.iterate==0
-        error('simulation of agent distribution is not yet supported with experienceassetu')
-    elseif simoptions.iterate==1
-        if isfield(simoptions,'n_e')
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
-        else
-            StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
-        end
-    end        
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
 end
+
 
 if simoptions.parallel==2
     StationaryDist=gpuArray(StationaryDist); % move output to gpu

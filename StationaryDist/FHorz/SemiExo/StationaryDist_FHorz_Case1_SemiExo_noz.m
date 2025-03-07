@@ -47,16 +47,8 @@ N_a=prod(n_a);
 
 jequaloneDist=reshape(jequaloneDist,[N_a*N_semiz,1]);
 Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz],N_j);
-if simoptions.iterate==0
-    Policy=gather(Policy);
-    jequaloneDist=gather(jequaloneDist);    
-end
 
-if simoptions.iterate==0
-    StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Simulation_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d1,n_d2,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
-elseif simoptions.iterate==1
-    StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
-end
+StationaryDist=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions);
 
 if simoptions.parallel==2
     StationaryDist=gpuArray(StationaryDist); % move output to gpu

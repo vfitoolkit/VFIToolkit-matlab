@@ -3,14 +3,9 @@ function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamN
 if isempty(n_d)
     n_d=0;
 end
-N_d=prod(n_d);
-N_a=prod(n_a);
 N_z=prod(n_z);
 
 if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
-    simoptions.iterate=1;
-    simoptions.ncores=1;
     simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
     simoptions.tanimprovement=1;  % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
     simoptions.verbose=0;
@@ -22,17 +17,7 @@ if exist('simoptions','var')==0
     simoptions.outputkron=0; % If 1 then leave output in Kron form
     simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
 else
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions,'nsims')
-        simoptions.nsims=10^4;
-    end
-    if ~isfield(simoptions,'iterate')
-        simoptions.iterate=1;
-    end
-    if ~isfield(simoptions,'ncores')
-        simoptions.ncores=1;
-    end
+    %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'parallel')
             simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
     end
@@ -41,9 +26,6 @@ else
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
-    end
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
     end
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
@@ -68,6 +50,12 @@ else
     end
 end
 
+% Check for something that used to be an option, but no longer is
+if isfield(simoptions,'iterate')
+    if simoptions.iterate==0
+        error('simoptions.iterate=0 is no longer supported (has been eliminated from VFI Toolkit)')
+    end
+end
 
 %% Check for the age weights parameter, and make sure it is a row vector
 if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
@@ -80,6 +68,10 @@ if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
 end
 
 %% Set up pi_z_J (transition matrix for markov exogenous state z, depending on age)
+if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+    simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
+end
+
 if ismatrix(pi_z)
     if simoptions.parallel==2
         pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
@@ -156,7 +148,7 @@ end
 
 
 %% Set up pi_e_J (if relevant)
-if isfield(simoptions,'n_e')
+if isfield(simoptions,'n_e') % THIS IS SILLY (DON'T THINK IT DOES ANYTHING WRONG, BUT IS NOT UP TO CURRENT TOOLKIT NOTATIONAL STANDARDS)
     if isfield(simoptions,'pi_e')
         simoptions.pi_e_J=simoptions.pi_e.*ones(1,N_j,'gpuArray');
     else
@@ -164,22 +156,12 @@ if isfield(simoptions,'n_e')
     end
 end
 
-%%
-if isfield(simoptions,'SemiExoStateFn')
-    if simoptions.experienceasset==1
+%% Non-standard endogenous states
+if simoptions.experienceasset==1
+    if isfield(simoptions,'SemiExoStateFn')
         StationaryDist=StationaryDist_FHorz_Case1_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
         return
     end
-    if N_z==0
-        StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
-    elseif isfield(simoptions,'n_e')
-        StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-    else
-        StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-    end
-    return
-end
-if simoptions.experienceasset==1
     StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
 end
@@ -188,6 +170,10 @@ if simoptions.experienceassetu==1
     return
 end
 if simoptions.riskyasset==1
+    if isfield(simoptions,'SemiExoStateFn')
+    StationaryDist=StationaryDist_FHorz_Case1_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        return
+    end
     StationaryDist=StationaryDist_FHorz_Case1_RiskyAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
 end
@@ -196,44 +182,43 @@ if simoptions.residualasset==1
     return
 end
 
+%% Standard endogenous states
 if isfield(simoptions,'n_e')
-    if n_z(1)==0
-        StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
-    else
-        StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-    end
-    return
-end
-
-if n_z(1)==0
-    StationaryDist=StationaryDist_FHorz_Case1_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
-    return
-end
-
-%% Solve the baseline case
-jequaloneDist=reshape(jequaloneDist,[N_a*N_z,1]);
-Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j);
-if simoptions.iterate==0
-    Policy=gather(Policy);
-    jequaloneDist=gather(jequaloneDist);    
-end
-pi_z_J=gather(pi_z_J);
-
-
-if simoptions.iterate==0
-    StationaryDist=StationaryDist_FHorz_Case1_Simulation_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_z,N_j,pi_z_J,Parameters,simoptions);
-elseif simoptions.iterate==1
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_z,N_j,pi_z_J,Parameters,simoptions);
-end
-
-if simoptions.parallel==2
-    StationaryDist=gpuArray(StationaryDist); % move output to gpu
-end
-if simoptions.outputkron==0
-    StationaryDist=reshape(StationaryDist,[n_a,n_z,N_j]);
+    N_e=prod(simoptions.n_e);
 else
-    % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
+    N_e=0;
 end
+
+if isfield(simoptions,'SemiExoStateFn')
+    if N_e==0
+        if N_z==0
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+        else
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        end
+    else
+        if N_z==0
+            error('Not yet implemented N_e=0 N_z>0 with SemiExo, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
+        else
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+        end
+    end
+else
+    if N_e==0
+        if N_z==0
+            StationaryDist=StationaryDist_FHorz_Case1_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+        else
+            StationaryDist=StationaryDist_FHorz_Case1_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        end
+    else
+        if N_z==0
+            StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+        else
+            StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+        end
+    end
+end
+
+
 
 end
