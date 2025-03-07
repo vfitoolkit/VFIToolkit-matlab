@@ -7,6 +7,9 @@ N_z=prod(n_z);
 l_d=length(n_d); % because it is a risky asset there must be some decision variables
 if isfield(vfoptions,'refine_d')
     l_d=l_d-vfoptions.refine_d(1);
+    if length(vfoptions.refine_d)==4 % only relevant if using semiz
+        l_d=l_d-vfoptions.refine_d(4);
+    end
 end
 l_u=length(n_u);
 temp=getAnonymousFnInputNames(aprimeFn);
@@ -77,6 +80,9 @@ end
 
 if ~isfield(vfoptions,'refine_d')
     warning('When using vfoptions.riskyasset you should also set vfoptions.refine_d (you do not have refine_d, and this is making codes way slower than they should be)')
+    if isfield(vfoptions,'n_semiz')
+        error('Cannot use semi-exo shocks and riskyasset without using vfoptions.refine_d')
+    end
     if N_e>0
         if N_a1==0
             if N_z==0
@@ -113,9 +119,26 @@ else
     if any(vfoptions.refine_d(2:3)==0)
         error('vfoptions.refine_d cannot contain zeros for d2 or d3 (you can do no d1, but you cannot do no d2 nor no d3)')
     end
-    n_d1=n_d(1:vfoptions.refine_d(1));
-    n_d2=n_d(vfoptions.refine_d(1)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2));
-    n_d3=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1:end);
+    if isfield(vfoptions,'n_semiz')
+        [V, Policy]=ValueFnIter_FHorz_RiskyAsset_Refine_semiz(n_d,n_a1,n_a2,n_z,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        return
+    end
+
+    if vfoptions.refine_d(1)>0
+        n_d1=n_d(1:vfoptions.refine_d(1));
+    else
+        n_d1=0;
+    end
+    if vfoptions.refine_d(2)>0
+        n_d2=n_d(vfoptions.refine_d(1)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2));
+    else
+        n_d2=0;
+    end
+    if vfoptions.refine_d(3)>0
+        n_d3=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1:end);
+    else
+        n_d3=0;
+    end
     d1_grid=d_grid(1:sum(n_d1));
     d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
     d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
@@ -182,6 +205,7 @@ else
     end
     % PolicyKron=squeeze(PolicyKron);
 end
+
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if n_a1(1)==0
     n_a=n_a2;

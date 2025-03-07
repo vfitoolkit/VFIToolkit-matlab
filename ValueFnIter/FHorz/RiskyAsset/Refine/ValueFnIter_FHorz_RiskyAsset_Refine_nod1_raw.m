@@ -66,7 +66,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             dindex=rem(maxindex-1,N_d)+1;
             Policy3(1,:,z_c,N_j)=1; % is meaningless anyway
             Policy3(2,:,z_c,N_j)=shiftdim(dindex,-1);
-            Policy3(3,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1);
+            Policy3(3,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d),-1);
         end
     end
 else
