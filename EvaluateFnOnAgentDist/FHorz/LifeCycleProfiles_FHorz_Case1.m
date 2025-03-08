@@ -453,7 +453,6 @@ else
         end
         StationaryDistVec_kk=reshape(StationaryDist(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
         StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
-        
 
         %%
         for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
@@ -465,7 +464,6 @@ else
             end
             
             Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
-
             tempStats=StatsFromWeightedGrid(Values,StationaryDistVec_kk,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
             % Store them in AgeConditionalStats
