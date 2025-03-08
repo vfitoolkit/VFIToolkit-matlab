@@ -29,7 +29,7 @@ if all(size(semiz_grid)==[sum(n_semiz),1]) % kroneker product semiz_grid
         z1vals=semiz_grid(1:n_semiz(1));
         z1primevals=shiftdim(z1vals,-l_semiz);
         if l_semiz>=2
-            z2vals=shiftdim(semiz_grid(n_semiz(1)+1:n_semiz(1)+n_semiz(2)),-1);
+            z2vals=shiftdim(semiz_grid(n_semiz(1)+1:sum(n_semiz(1:2))),-1);
             z2primevals=shiftdim(z2vals,-l_semiz);
             if l_semiz>=3
                 z3vals=shiftdim(semiz_grid(sum(n_semiz(1:2))+1:sum(n_semiz(1:3))),-2);

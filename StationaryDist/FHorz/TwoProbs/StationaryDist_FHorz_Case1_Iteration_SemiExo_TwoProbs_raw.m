@@ -10,6 +10,9 @@ Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_bothz,N_j])); % (a,z,j)
 Policy_aprime=gather(reshape(Policy_aprime,[N_a*N_bothz,2,N_j])); % (a,z,2,j)
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_bothz,2,N_j])); % (a,z,2,j)
 
+% precompute
+semizindexcorrespondingtod2_c=repelem(repmat((1:1:N_semiz)',N_z,1),N_a,1);
+
 %% Use Tan improvement
 % Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]
 % Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
@@ -32,9 +35,9 @@ for jj=1:(N_j-1)
     pi_semiz=pi_semiz_J(:,:,:,jj);
     % Get the right part of pi_semiz_J
     % d2 depends on (a,semiz,z), and pi_semiz is going to be about (semiz,semiz'), so I need to put it all together as (a,semiz,z,semiz').
-    semizindexcorrespondingtod2_c=kron(ones(N_z,1),kron((1:1:N_semiz)',ones(N_a,1)));
+    % semizindexcorrespondingtod2_c=repelem(repmat((1:1:N_semiz)',N_z,1),N_a,1); % precomputed
     fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo(:,jj)-1);
-    semiztransitions=pi_semiz(fullindex); % (a,z,semiz,semiz')
+    semiztransitions=pi_semiz(fullindex); % (a,z,semiz -by- semiz')
 
     % First, get Gamma
     Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,2))',N_a*N_bothz,N_a*N_bothz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]

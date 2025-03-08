@@ -16,12 +16,12 @@ end
 if ~isfield(simoptions,'refine_d')
     error('Cannot use riskyasset+semiz without setting simoptions.refine_d')
 end
-n_d23=n_d(vfoptions.refine_d(1)+1:sum(vfoptions.refine_d(1:3))); % decision variables for riskyasset
-n_d4=n_d(sum(vfoptions.refine_d(1:3))+1:sum(vfoptions.refine_d(1:4))); % decision variables for semiz
-d4_grid=simoptions.d_grid(sum(vfoptions.refine_d(1:3))+1:end);
+n_d23=n_d(simoptions.refine_d(1)+1:sum(simoptions.refine_d(1:3))); % decision variables for riskyasset
+n_d4=n_d(sum(simoptions.refine_d(1:3))+1:sum(simoptions.refine_d(1:4))); % decision variables for semiz
+d4_grid=simoptions.d_grid(sum(n_d(1:sum(simoptions.refine_d(1:3))))+1:end);
 
 % Split endogenous assets into the standard ones and the risky asset
-if length(n_a)==1
+if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
@@ -57,6 +57,7 @@ else
     aprimeFnParamNames={};
 end
 
+
 %% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
 if ~isfield(simoptions,'n_semiz')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
@@ -65,10 +66,11 @@ if ~isfield(simoptions,'semiz_grid')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
 end
 % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-l_semiz=length(simoptions.refine_d(4));
+l_d_semiz=length(simoptions.refine_d(4));
+l_semiz=length(simoptions.n_semiz);
 temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
-if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-    SemiExoStateFnParamNames={temp{1+l_semiz+l_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
+if length(temp)>(l_semiz+l_semiz+l_d_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
+    SemiExoStateFnParamNames={temp{l_semiz+l_semiz+l_d_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
 else
     SemiExoStateFnParamNames={};
 end
@@ -89,9 +91,10 @@ if ~isfield(simoptions,'aprimedependsonage')
     simoptions.aprimedependsonage=0;
 end
 
+l_a=length(n_a);
+
 N_a=prod(n_a);
 N_a1=prod(n_a1);
-% N_a2=prod(n_a2);
 N_z=prod(n_z);
 N_u=prod(simoptions.n_u);
 
@@ -123,7 +126,7 @@ end
 %% riskyasset transitions
 Policy_a2prime=zeros(N_a,N_bothze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_bothze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
-whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
+whichisdforriskyasset=(simoptions.refine_d(1)+1):1:sum(simoptions.refine_d(1:3));  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndexes,a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_bothze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
@@ -148,11 +151,27 @@ elseif l_a>3
     error('Only two assets other than the risky asset is allowed (email if you need this)')
 end
 
+%% debug only
+% % Check that pi_semiz_J has rows summing to one, if not, print a warning
+% for jj=1:N_j
+%     temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
+%     if any(temp(:)>1e-14)
+%         warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
+%     end
+% end
 
 %%
-% % Only d variables we need are the ones for the semi-exogenous asset
-% Policy_dsemiexo=shiftdim(PolicyKron(l_d,:,:,:); % The last d variable is the relevant one for the semi-exogenous asset. 
-% Rather than actually create Policy_dsemiexo we just pass this as the input to the simulation/iteration commands
+% d variables relevant for the semi-exogenous asset. 
+l_d123=sum(simoptions.refine_d(1:3));
+if simoptions.refine_d(4)==1
+    Policy_dsemiexo=shiftdim(Policy(l_d123+1,:,:,:),1);
+elseif simoptions.refine_d(4)==2
+    Policy_dsemiexo=shiftdim(Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*Policy(l_d123+2,:,:,:),1);
+elseif simoptions.refine_d(4)==3
+    Policy_dsemiexo=shiftdim(Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*Policy(l_d123+2,:,:,:)+n_d(l_d123+1)*n_d(l_d123+2)*Policy(l_d123+3,:,:,:),1); 
+elseif simoptions.refine_d(4)==4
+    Policy_dsemiexo=shiftdim(Policy(l_d123+1,:,:,:)+n_d(l_d123+1)*Policy(l_d123+2,:,:,:)+n_d(l_d123+1)*n_d(l_d123+2)*Policy(l_d123+3,:,:,:)+n_d(l_d123+1)*n_d(l_d123+2)*n_d(l_d123+3)*Policy(l_d123+4,:,:,:),1);
+end
 
 % Note that PolicyProbs contains pi_u already.
 

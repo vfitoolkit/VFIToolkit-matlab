@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_Refine_semiz(n_d,n_a1,n_a2,n_z,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+function [V, Policy]=ValueFnIter_FHorz_RiskyAsset_Refine_semiz(n_d,n_a1,n_a2,n_z,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
 
 if vfoptions.refine_d(1)>0
     n_d1=n_d(1:vfoptions.refine_d(1));
@@ -50,7 +50,7 @@ else
     SemiExoStateFnParamNames={};
 end
 % Create pi_semiz_J
-if N_semiz<=1000
+if N_semiz<=2000
     pi_semiz_J=zeros(N_semiz,N_semiz,prod(n_d4),N_j);
     for jj=1:N_j
         SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
@@ -58,7 +58,8 @@ if N_semiz<=1000
     end
     % Check that pi_semiz_J has rows summing to one, if not, print a warning
     for jj=1:N_j
-        if any(abs(sum(pi_semiz_J(:,:,:,jj),2)-1)>10^(-14))
+        temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
+        if any(temp(:)>1e-14)
             warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
         end
     end
@@ -73,7 +74,7 @@ else % same, but set up pi_semi_J as a structure, with fields being sparse gpu a
     fprintf('Finish. (Note: did not check the transtion matrix rows sum to one.) \n')
 end
 
-save huh.mat pi_semiz_J
+% save huh.mat pi_semiz_J % TO DEBUG
 
 % Create semiz_gridvals_J
 if ndims(vfoptions.semiz_grid)==2

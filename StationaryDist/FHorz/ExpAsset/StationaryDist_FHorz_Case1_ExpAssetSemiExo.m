@@ -5,13 +5,15 @@ n_d3=n_d(end); % decision variable that controls semi-exogenous state
 n_d2=n_d(end-1); % decision variables that controls experience asset
 if length(n_d)>2
     n_d1=n_d(1:end-2);
+    l_d1=length(n_d1);
 else
     n_d1=0;
+    l_d1=0;
 end
 
 %% Setup related to experience asset
 % Split endogenous assets into the standard ones and the experience asset
-if length(n_a)==1
+if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
@@ -131,15 +133,22 @@ end
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 
-% % Only d variables we need are the ones for the semi-exogenous asset
-% Policy_dsemiexo=shiftdim(PolicyKron(l_d,:,:,:); % The last d variable is the relevant one for the semi-exogenous asset. 
-% Rather than actually create Policy_dsemiexo we just pass this as the input to the simulation/iteration commands
+% d variables relevant for the semi-exogenous asset. 
+if l_d2==1
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:),1);
+elseif l_d2==2
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:),1);
+elseif l_d2==3
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*Policy(l_d1+3,:,:,:),1); 
+elseif l_d2==4
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*Policy(l_d1+3,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*n_d(l_d1+3)*Policy(l_d1+4,:,:,:),1);
+end
 
 % Note: N_z=0 is a different code
 if isfield(simoptions,'n_e')
     error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ExpAssetSemiExo (contact me)')
 else % no e
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,shiftdim(Policy(l_d,:,:,:),1),Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2

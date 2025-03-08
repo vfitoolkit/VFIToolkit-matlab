@@ -198,7 +198,7 @@ if isfield(simoptions,'SemiExoStateFn')
         end
     else
         if N_z==0
-            error('Not yet implemented N_e=0 N_z>0 with SemiExo, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
+            error('Not yet implemented N_e>0 N_z=0 with SemiExo, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
         else
             StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
         end

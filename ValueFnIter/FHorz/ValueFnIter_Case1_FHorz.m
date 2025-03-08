@@ -431,7 +431,8 @@ if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
     end
     % Check that pi_semiz_J has rows summing to one, if not, print a warning
     for jj=1:N_j
-        if any(abs(sum(pi_semiz_J(:,:,:,jj),2)-1)>10^(-14))
+        temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
+        if any(temp(:)>1e-14)
             warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
         end
     end
@@ -684,7 +685,8 @@ if isfield(vfoptions,'SemiExoStateFn')
     end
     % Check that pi_semiz_J has rows summing to one, if not, print a warning
     for jj=1:N_j
-        if any(abs(sum(pi_semiz_J(:,:,:,jj),2)-1)>10^(-14))
+        temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
+        if any(temp(:)>1e-14)
             warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
         end
     end
