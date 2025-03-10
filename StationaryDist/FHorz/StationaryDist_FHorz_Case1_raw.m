@@ -1,5 +1,9 @@
 function StationaryDist=StationaryDist_FHorz_Case1_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
 %% Solve the baseline case
 jequaloneDist=reshape(jequaloneDist,[N_a*N_z,1]);
 Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z,N_j);
