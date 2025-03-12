@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_Refine_nod1_noa1_e_raw(n_d2,n_d3,n_a,n_z,n_e,n_u,N_j, d2_grid, d3_grid, a_grid, z_gridvals_J, e_gridvals_J, u_grid, pi_z_J, pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_RiskyAsset_nod1_noa1_e_raw(n_d2,n_d3,n_a,n_z,n_e,n_u,N_j, d2_grid, d3_grid, a_grid, z_gridvals_J, e_gridvals_J, u_grid, pi_z_J, pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % d2: aprimeFn but not ReturnFn
 % d3: both ReturnFn and aprimeFn
 
