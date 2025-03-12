@@ -39,21 +39,6 @@ else
     error('u_grid is the wrong size (it should be a column vector of size prod(n_u)-by-1)')
 end
 
-if vfoptions.verbose==1
-    vfoptions
-end
-
-%% Deal with Epstein-Zin preferences if relevant
-if isfield(vfoptions,'exoticpreferences')
-    if strcmp(vfoptions.exoticpreferences,'None')
-        % Just ignore and will then continue on.
-    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-        error('Quasi-Hyperbolic preferences with a riskyasset have not been implemented')
-    elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_RiskyAsset(n_d,n_a1,n_a2,n_z,n_u,N_j,d_grid,a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, aprimeFn, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        return
-    end
-end
 
 %% Just do the standard case
 if length(n_a2)>1
@@ -118,10 +103,6 @@ else
     end
     if any(vfoptions.refine_d(2:3)==0)
         error('vfoptions.refine_d cannot contain zeros for d2 or d3 (you can do no d1, but you cannot do no d2 nor no d3)')
-    end
-    if isfield(vfoptions,'n_semiz')
-        [V, Policy]=ValueFnIter_FHorz_RiskyAsset_Refine_semiz(n_d,n_a1,n_a2,n_z,n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        return
     end
 
     if vfoptions.refine_d(1)>0
@@ -203,7 +184,6 @@ else
             end
         end
     end
-    % PolicyKron=squeeze(PolicyKron);
 end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
