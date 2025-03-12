@@ -55,6 +55,7 @@ if l_a>=1
         end
     end
 end
+
 % allow up to 8 z and it is potentially semiz and z
 if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
     if l_z>=1

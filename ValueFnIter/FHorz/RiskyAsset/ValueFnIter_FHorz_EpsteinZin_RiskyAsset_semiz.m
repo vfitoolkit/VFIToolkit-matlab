@@ -1,7 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_RiskyAsset(n_d,n_a1,n_a2,n_z,n_u,N_j,d_grid,a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-
-N_a1=prod(n_a1);
-N_z=prod(n_z);
+function [V, Policy]=ValueFnIter_FHorz_EpsteinZin_RiskyAsset_semiz(n_d,n_a1,n_a2,n_semiz,n_z,n_u,N_j,d_grid,a1_grid, a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 %% Get aprimeFnParamNames
 l_d=length(n_d); % because it is a risky asset there must be some decision variables
@@ -209,92 +206,111 @@ if vfoptions.EZutils==0
 end
 
 
-%% Just do the standard case
+%% Setup refine
 if length(n_a2)>1
     error('Have not yet implemented riskyasset for more than one riskyasset')
 end
-if isfield(vfoptions,'n_e')
-    N_e=prod(vfoptions.n_e);
-else
-    N_e=0;
-end
-if isfield(vfoptions,'refine_d')
-    if vfoptions.refine_d(1)==0
-        N_d1=0;
-    else
-        N_d1=prod(n_d(1:vfoptions.refine_d(1)));
-    end
-    if vfoptions.refine_d(1)==0 && vfoptions.refine_d(2)==0
-        % when only d3, refine does nothing anyway, so just turn it off
-        vfoptions=rmfield(vfoptions, 'refine_d');
-    end
-end
-
-if ~isfield(vfoptions,'refine_d')
-    error('When using vfoptions.riskyasset you must also set vfoptions.refine_d')
-end
-
 if sum(vfoptions.refine_d)~=length(n_d)
     error('vfoptions.refine_d seems to be set up wrong, it is inconsistent with n_d')
 end
 if any(vfoptions.refine_d(2:3)==0)
     error('vfoptions.refine_d cannot contain zeros for d2 or d3 (you can do no d1, but you cannot do no d2 nor no d3)')
 end
-n_d1=n_d(1:vfoptions.refine_d(1));
-n_d2=n_d(vfoptions.refine_d(1)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2));
-n_d3=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1:end);
+
+if vfoptions.refine_d(1)>0
+    n_d1=n_d(1:vfoptions.refine_d(1));
+else 
+    n_d1=0;
+end
+if vfoptions.refine_d(2)>0
+    n_d2=n_d(vfoptions.refine_d(1)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2));
+else 
+    n_d2=0;
+end
+if vfoptions.refine_d(3)>0
+    n_d3=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+1:vfoptions.refine_d(1)+vfoptions.refine_d(2)+vfoptions.refine_d(3));
+else 
+    n_d3=0;
+end
+if vfoptions.refine_d(4)>0
+    n_d4=n_d(vfoptions.refine_d(1)+vfoptions.refine_d(2)+vfoptions.refine_d(3)+1:end);
+else 
+    n_d4=0;
+end
 d1_grid=d_grid(1:sum(n_d1));
 d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
-d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
+d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:sum(n_d1)+sum(n_d2)+sum(n_d3));
+d4_grid=d_grid(sum(n_d1)+sum(n_d2)+sum(n_d3)+1:end);
+
+
+%% Solve
+N_d1=prod(n_d1);
+N_a1=prod(n_a1);
+if isfield(vfoptions,'n_e')
+    N_e=prod(vfoptions.n_e);
+else
+    N_e=0;
+end
+N_z=prod(n_z);
+
+
 if N_e>0
-    if N_a1==0
-        if N_z==0
-            if N_d1==0
-                error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-            else
-                error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-            end
-        else
-            if N_d1==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_e_raw(n_d2,n_d3, n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_grid, d3_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-            else
-                [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_e_raw(n_d1,n_d2,n_d3, n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-            end
-        end
-    else % N_a1>0
-        if N_z==0
-            if N_d1==0
-                error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-            else
-                error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
-            end
-        else
-            if N_d1==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_e_raw(n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-            else
-                [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_e_raw(n_d1,n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-            end
-        end
-    end
+    error('riskyasset+semiz with e not yet implemented')
+    % if N_a1==0
+    %     if N_z==0
+    %         if N_d1==0
+    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
+    %         else
+    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
+    %         end
+    %     else
+    %         if N_d1==0
+    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_e_raw(n_d2,n_d3, n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_grid, d3_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    %         else
+    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_e_raw(n_d1,n_d2,n_d3, n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    %         end
+    %     end
+    % else % N_a1>0
+    %     if N_z==0
+    %         if N_d1==0
+    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
+    %         else
+    %             error('I have not yet implemented Epstein-Zin preferences for riskyasset with e but without z shocks (contact me if you need this)')
+    %         end
+    %     else
+    %         if N_d1==0
+    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_e_raw(n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    %         else
+    %             [VKron,PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_e_raw(n_d1,n_d2,n_d3, n_a1,n_a2, n_z, vfoptions.n_e, n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, u_grid, pi_z_J, vfoptions.pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+    %         end
+    %     end
+    % end
 else % N_e==0
     if N_a1==0
-        if N_z==0
-            error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
-        else
-            if N_d1==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_raw(n_d2,n_d3,n_a2,n_z,n_u, N_j, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-            else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_raw(n_d1,n_d2,n_d3,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
-            end
-        end
+        % error('riskyasset+semiz without a1 not yet implemented')
+        % if N_z==0
+        %     error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
+        % else
+        %     if N_d1==0
+        %         [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_noa1_raw(n_d2,n_d3,n_a2,n_z,n_u, N_j, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+        %     else
+        %         [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_noa1_raw(n_d1,n_d2,n_d3,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+        %     end
+        % end
     else % N_a1>0
         if N_z==0
-            error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
+            error('riskyasset+semiz without z not yet implemented')
+            % if N_d1==0
+            % 
+            % else
+            % 
+            % end
         else
             if N_d1==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_nod1_semiz_raw(n_d2,n_d3,n_d4,n_a1,n_a2,n_semiz, n_z,n_u, N_j, d2_grid, d3_grid,d4_grid, a1_grid,a2_grid, semiz_gridvals_J, z_gridvals_J, u_grid, pi_semiz_J, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
+                error('riskyasset+semiz with d1 not yet implemented')
+                % [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_EpsteinZin_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_u, N_j, d1_grid, d2_grid, d3_grid, a1_grid,a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8,ezc9);
             end
         end
     end
@@ -315,15 +331,20 @@ if vfoptions.outputkron==0
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if isfield(vfoptions,'n_e')
         if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+            V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_semiz,vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
         else
             V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, [n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
         end
     else
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        if N_z==0
+            V=reshape(VKron,[n_a,n_semiz,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_semiz, N_j, vfoptions);
+        else
+            V=reshape(VKron,[n_a,n_semiz,n_z,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, [n_semiz,n_z], N_j, vfoptions);
+        end
     end
 else
     V=VKron;

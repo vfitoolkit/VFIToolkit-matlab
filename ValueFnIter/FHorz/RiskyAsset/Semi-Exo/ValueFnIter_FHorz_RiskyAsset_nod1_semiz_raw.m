@@ -19,7 +19,7 @@ N_u=prod(n_u);
 special_n_d4=ones(1,length(n_d4));
 d4_gridvals=CreateGridvals(n_d4,d4_grid,1);
 
-N_d=N_d2*N_d3*N_d4;
+% N_d=N_d2*N_d3*N_d4;
 N_a=N_a1*N_a2;
 
 % For ReturnFn
@@ -68,11 +68,11 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        dindex=rem(maxindex-1,N_d)+1;
+        dindex=rem(maxindex-1,N_d3*N_d4)+1;
         Policy4(1,:,:,N_j)=1; % d2, is meaningless anyway
         Policy4(2,:,:,N_j)=rem(dindex-1,N_d3)+1; % d3
         Policy4(3,:,:,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
-        Policy4(4,:,:,N_j)=shiftdim(ceil(maxindex/N_d),-1); % a1prime
+        Policy4(4,:,:,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime
 
     elseif vfoptions.lowmemory==1
 
@@ -82,11 +82,11 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            dindex=rem(maxindex-1,N_d)+1;
+            dindex=rem(maxindex-1,N_d3*N_d4)+1;
             Policy4(1,:,z_c,N_j)=1; % d2, is meaningless anyway
             Policy4(2,:,z_c,N_j)=rem(dindex-1,N_d3)+1; % d3
             Policy4(3,:,z_c,N_j)=shiftdim(ceil(dindex/N_d3),-1);% d4
-            Policy4(4,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d),-1); % a1prime     
+            Policy4(4,:,z_c,N_j)=shiftdim(ceil(maxindex/(N_d3*N_d4)),-1); % a1prime     
         end
     end
 else
@@ -117,7 +117,7 @@ else
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz(:,:,d4_c)); % reverse order
 
-            ReturnMatrix_d3p2=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -148,7 +148,7 @@ else
             % Second: EV, we can refine out d2
             [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,N_bothz]),[],1);
             % Now put together entireRHS, which just depends on d3
-            entireRHS=ReturnMatrix_d3p2+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
+            entireRHS=ReturnMatrix_d4+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -265,7 +265,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz(:,:,d4_c)); % reverse order
 
-            ReturnMatrix_d3p2=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
@@ -297,7 +297,7 @@ for reverse_j=1:N_j-1
             % Second: EV, we can refine out d2
             [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,N_bothz]),[],1);
             % Now put together entireRHS, which just depends on d3 (and a1prime)
-            entireRHS=ReturnMatrix_d3p2+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
+            entireRHS=ReturnMatrix_d4+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);

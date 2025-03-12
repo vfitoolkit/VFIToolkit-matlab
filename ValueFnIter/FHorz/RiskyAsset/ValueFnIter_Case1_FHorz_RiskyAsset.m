@@ -40,7 +40,7 @@ else
 end
 
 
-%% Just do the standard case
+%% Solve based on which setup we have 
 if length(n_a2)>1
     error('Have not yet implemented riskyasset for more than one riskyasset')
 end

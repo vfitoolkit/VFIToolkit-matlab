@@ -37,25 +37,10 @@ else
     error('u_grid is the wrong size (it should be a column vector of size prod(n_u)-by-1)')
 end
 
-
-
-%% Deal with Epstein-Zin preferences if relevant
-if isfield(vfoptions,'exoticpreferences')
-    if strcmp(vfoptions.exoticpreferences,'None')
-        % Just ignore and will then continue on.
-    elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-        error('Quasi-Hyperbolic preferences with a riskyasset have not been implemented')
-    elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-        [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_RiskyAsset_semiz(n_d,n_a1,n_a2,n_z,n_u,N_j,d_grid,a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, aprimeFn, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-        return
-    end
-end
-
+%% Setup refine
 if length(n_a2)>1
     error('Have not yet implemented riskyasset for more than one riskyasset')
 end
-
-%%
 if sum(vfoptions.refine_d)~=length(n_d)
     error('vfoptions.refine_d seems to be set up wrong, it is inconsistent with n_d')
 end
@@ -64,7 +49,6 @@ if any(vfoptions.refine_d(2:3)==0)
 end
 
 
-%%
 if vfoptions.refine_d(1)>0
     n_d1=n_d(1:vfoptions.refine_d(1));
 else 
@@ -90,7 +74,7 @@ d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
 d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:sum(n_d1)+sum(n_d2)+sum(n_d3));
 d4_grid=d_grid(sum(n_d1)+sum(n_d2)+sum(n_d3)+1:end);
 
-%%
+%% Solve 
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 if isfield(vfoptions,'n_e')
@@ -150,7 +134,7 @@ else % N_e==0
         % end
     else % N_a1>0
         if N_z==0
-            error('riskyasset+semiz with z not yet implemented')
+            error('riskyasset+semiz without z not yet implemented')
             % if N_d1==0
             %     % [VKron, PolicyKron]=ValueFnIter_FHorz_RiskyAsset_nod1_semiz_noz_raw(n_d2,n_d3,n_a1,n_a2,n_u, N_j, d2_grid, d3_grid, a1_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             % else
