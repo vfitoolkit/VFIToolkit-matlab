@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_semiz,N_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions)
 % 'TwoProbs' refers to two probabilities.
 % Policy_aprime has an additional final dimension of length 2 which is
 % the two points (and contains only the aprime indexes, no d indexes as would usually be the case). 

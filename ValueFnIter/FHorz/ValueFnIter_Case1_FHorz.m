@@ -66,12 +66,6 @@ else
     if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
-    if isfield(vfoptions,'ExogShockFn')
-        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    end
-    if isfield(vfoptions,'EiidShockFn')
-        vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    end
     if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0; % If 1 then leave output in Kron form
     end
@@ -194,11 +188,14 @@ if vfoptions.parallel<2
     if isfield(vfoptions,'n_e')
         error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
     end
+    if isfield(vfoptions,'SemiExoStateFn')
+        error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
+    end
+    if ~vfoptions.divideandconquer==0
+        error('Sorry but divideandconquer is not implemented for cpu, you will need a gpu to use this algorithm')
+    end
     if ~strcmp(vfoptions.exoticpreferences,'None')
         error('Sorry but exoticpreferences are not implemented for cpu, you will need a gpu to use them')
-    end
-    if ~vfoptions.dynasty==0
-        error('Sorry but dynasty are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.experienceasset==0
         error('Sorry but experienceasset are not implemented for cpu, you will need a gpu to use them')
@@ -212,122 +209,31 @@ if vfoptions.parallel<2
     if ~vfoptions.residualasset==0
         error('Sorry but residualasset are not implemented for cpu, you will need a gpu to use them')
     end
-    if isfield(vfoptions,'SemiExoStateFn')
-        error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
-    end
-    if ~vfoptions.divideandconquer==0
-        error('Sorry but divideandconquer is not implemented for cpu, you will need a gpu to use this algorithm')
+    if ~vfoptions.dynasty==0
+        error('Sorry but dynasty are not implemented for cpu, you will need a gpu to use them')
     end
 end
 
-%% Exogenous shock grids
+%% Exogenous shock gridvals and pi
+% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+[z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,vfoptions);
+% output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
+% 
+% size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
+% size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+% size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
+% size(pi_e_J)=[prod(n_e),N_j]
+% If no z, then z_gridvals_J=[] and pi_z_J=[]
+% If no e, then e_gridvals_J=[] and pi_e_J=[]
 
-% % % When using a joint-grid, change n_z to the form I always use internally: first element is N_z, followed by a bunch of ones (that way prod(n_z) still gives N_z)
-% % jointgrid=0;
-% % if all(size(z_grid)==[prod(n_z),length(n_z)])
-% %     jointgrid=1;
-% %     n_z=[prod(n_z,ones(1,length(n_z)-1))];
-% % elseif all(size(z_grid)==[n_z(1),length(n_z)])
-% %     % already in this form
-% %     jointgrid=1;
-% % end
-
-
-% NOTE: If vfoptions.parallel~=2 (so using cpu), then only simply stacked columns that do not depend on age are allowed for z_grid
-if vfoptions.parallel==2
+%% Semi-exogenous shock gridvals and pi 
+if isfield(vfoptions,'n_semiz')
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    % Gradually rolling these out so that all the commands build off of these
-    z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-    pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
-    if isfield(vfoptions,'ExogShockFn')
-        if ~isfield(vfoptions,'ExogShockFnParamNames')
-            vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-        end
-        for jj=1:N_j
-            ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-            for ii=1:length(ExogShockFnParamsVec)
-                ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-            end
-            [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            pi_z_J(:,:,jj)=gpuArray(pi_z);
-            if all(size(z_grid)==[sum(n_z),1])
-                z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-            else % already joint-grid
-                z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-            end
-        end
-    elseif prod(n_z)==0 % no z
-        z_gridvals_J=[];
-    elseif ndims(z_grid)==3 % already an age-dependent joint-grid
-        if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-            z_gridvals_J=z_grid;
-        end
-        pi_z_J=pi_z;
-    elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-        for jj=1:N_j
-            z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-        end
-        pi_z_J=pi_z;
-    elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-        z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-    elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-        z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-    end
-
-    % If using e variable, do same for this
-    if isfield(vfoptions,'n_e')
-        if prod(vfoptions.n_e)==0
-            vfoptions=rmfield(vfoptions,'n_e');
-        else
-            if ~isfield(vfoptions,'e_grid') % && ~isfield(vfoptions,'e_grid_J')
-                error('You are using an e (iid) variable, and so need to declare vfoptions.e_grid')
-            elseif ~isfield(vfoptions,'pi_e')
-                error('You are using an e (iid) variable, and so need to declare vfoptions.pi_e')
-            end
-            
-            vfoptions.e_gridvals_J=zeros(prod(vfoptions.n_e),length(vfoptions.n_e),'gpuArray');
-            vfoptions.pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
-
-            if isfield(vfoptions,'EiidShockFn')
-                if ~isfield(vfoptions,'EiidShockFnParamNames')
-                    vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-                end
-                for jj=1:N_j
-                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                    for ii=1:length(EiidShockFnParamsVec)
-                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                    end
-                    [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                    vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                    if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                    else % already joint-grid
-                        vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                    end
-                end
-            elseif ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
-                if all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
-                    vfoptions.e_gridvals_J=vfoptions.e_grid;
-                end
-                vfoptions.pi_e_J=vfoptions.pi_e;
-            elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),N_j]) % age-dependent stacked-grid
-                for jj=1:N_j
-                    vfoptions.e_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_e,vfoptions.e_grid(:,jj),1);
-                end
-                vfoptions.pi_e_J=vfoptions.pi_e;
-            elseif all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) % joint grid
-                vfoptions.e_gridvals_J=vfoptions.e_grid.*ones(1,1,N_j,'gpuArray');
-                vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-            elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1]) % basic grid
-                vfoptions.e_gridvals_J=CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
-                vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-            end
-        end
-    end
+    vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,2);
+    % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
+    % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
+    % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
+    % If no semiz, then vfoptions just does not contain these field
 end
 
 %% Implement new way of handling ReturnFn inputs
@@ -363,6 +269,7 @@ else
    z_grid=gather(z_grid);
 end
 
+%% Print out vfoptions (if vfoptions.verbose=1)
 if vfoptions.verbose==1
     vfoptions
 end
@@ -384,82 +291,6 @@ elseif strcmp(vfoptions.exoticpreferences,'AmbiguityAversion')
     return
 end
 
-%% Using both Experience Asset and Semi-Exogenous state
-if vfoptions.experienceasset==1 && isfield(vfoptions,'SemiExoStateFn')
-    % First, sort out splitting up the decision variables (other, semiexo, experienceasset)
-    if length(n_d)>2
-        n_d1=n_d(1:end-2);
-    else
-        n_d1=0;
-    end
-    n_d2=n_d(end-1); % n_d2 is the decision variable that influences the experience asset
-    n_d3=n_d(end); % n_d3 is the decision variable that influences the transition probabilities of the semi-exogenous state
-    d1_grid=d_grid(1:sum(n_d1));
-    d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
-    d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
-    % Split endogenous assets into the standard ones and the experience asset
-    if length(n_a)==1
-        n_a1=0;
-    else
-        n_a1=n_a(1:end-1);
-    end
-    n_a2=n_a(end); % n_a2 is the experience asset
-    a1_grid=a_grid(1:sum(n_a1));
-    a2_grid=a_grid(sum(n_a1)+1:end);
-
-    % Second, set up the semi-exogenous state
-    if ~isfield(vfoptions,'n_semiz')
-        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.n_semiz')
-    end
-    if ~isfield(vfoptions,'semiz_grid')
-        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.semiz_grid')
-    end
-    % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-    N_semiz=prod(vfoptions.n_semiz);
-    l_semiz=length(vfoptions.n_semiz);
-    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
-    if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-        SemiExoStateFnParamNames={temp{1+l_semiz+l_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
-    else
-        SemiExoStateFnParamNames={};
-    end
-    % Create pi_semiz_J
-    pi_semiz_J=zeros(N_semiz,N_semiz,n_d3,N_j,'gpuArray');
-    for jj=1:N_j
-        SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-        pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_d3,vfoptions.n_semiz,d3_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues));
-    end
-    % Check that pi_semiz_J has rows summing to one, if not, print a warning
-    for jj=1:N_j
-        temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
-        if any(temp(:)>1e-14)
-            warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
-        end
-    end
-    % Create semiz_gridvals_J
-    if ndims(vfoptions.semiz_grid)==2
-        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),1])
-            semiz_gridvals_J=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
-        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz)])
-            semiz_gridvals_J=vfoptions.semiz_grid.*ones(1,1,N_j,'gpuArray');
-        end
-    else % Already age-dependent
-        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),N_j])
-            semiz_gridvals_J=zeros(prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j,'gpuArray');
-            for jj=1:N_j
-                semiz_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid(:,jj),1);
-            end
-        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j])
-            semiz_gridvals_J=vfoptions.semiz_grid;
-        end
-    end
-    % semiz_gridvals_J=gpuArray(CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j));
-
-    % Now just send it off
-    [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-
-end
 
 %% Deal with Experience Asset if need to do that
 % experienceasset: aprime(d,a)
@@ -470,28 +301,56 @@ end
 if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     
-    % Split endogenous assets into the standard ones and the experience asset
-    if length(n_a)==1
-        n_a1=0;
-    else
-        n_a1=n_a(1:end-1);
+    if isfield(vfoptions,'SemiExoStateFn')
+        % Split decision variables (other, semiexo, experienceasset)
+        if length(n_d)>2
+            n_d1=n_d(1:end-2);
+        else
+            n_d1=0;
+        end
+        n_d2=n_d(end-1); % n_d2 is the decision variable that influences the experience asset
+        n_d3=n_d(end); % n_d3 is the decision variable that influences the transition probabilities of the semi-exogenous state
+        d1_grid=d_grid(1:sum(n_d1));
+        d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
+        d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
+        % Split endogenous assets into the standard ones and the experience asset
+        if length(n_a)==1
+            n_a1=0;
+        else
+            n_a1=n_a(1:end-1);
+        end
+        n_a2=n_a(end); % n_a2 is the experience asset
+        a1_grid=a_grid(1:sum(n_a1));
+        a2_grid=a_grid(sum(n_a1)+1:end);
+
+    else % no semiz
+        % Split decision variables into the standard ones and the one relevant to the experience asset
+        if length(n_d)==1
+            n_d1=0;
+        else
+            n_d1=n_d(1:end-1);
+        end
+        n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+        d1_grid=d_grid(1:sum(n_d1));
+        d2_grid=d_grid(sum(n_d1)+1:end);
+        % Split endogenous assets into the standard ones and the experience asset
+        if length(n_a)==1
+            n_a1=0;
+        else
+            n_a1=n_a(1:end-1);
+        end
+        n_a2=n_a(end); % n_a2 is the experience asset
+        a1_grid=a_grid(1:sum(n_a1));
+        a2_grid=a_grid(sum(n_a1)+1:end);
     end
-    n_a2=n_a(end); % n_a2 is the experience asset
-    a1_grid=a_grid(1:sum(n_a1));
-    a2_grid=a_grid(sum(n_a1)+1:end);
-    % Split decision variables into the standard ones and the one relevant to the experience asset
-    if length(n_d)==1
-        n_d1=0;
-    else
-        n_d1=n_d(1:end-1);
-    end
-    n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
-    d1_grid=d_grid(1:sum(n_d1));
-    d2_grid=d_grid(sum(n_d1)+1:end);
 
     % Now just send all this to the right value fn iteration command
     if vfoptions.experienceasset==1
-        [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isfield(vfoptions,'n_semiz')
+            [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
     elseif vfoptions.experienceassetu==1
         [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     elseif vfoptions.experienceassetz==1
@@ -533,7 +392,19 @@ if vfoptions.riskyasset==1
     end
 
     % Now just send all this to the right value fn iteration command
-    [V,Policy]=ValueFnIter_Case1_FHorz_RiskyAsset(n_d,n_a1,n_a2,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.u_grid, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    if isfield(vfoptions,'n_semiz')
+        if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+            [V, Policy]=ValueFnIter_FHorz_EpsteinZin_RiskyAsset_semiz(n_d,n_a1,n_a2,vfoptions.n_semiz,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, vfoptions.semiz_gridvals_J,z_gridvals_J, vfoptions.u_grid, vfoptions.pi_semiz_J, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [V, Policy]=ValueFnIter_FHorz_RiskyAsset_semiz(n_d,n_a1,n_a2,vfoptions.n_semiz,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, vfoptions.semiz_gridvals_J,z_gridvals_J, vfoptions.u_grid, vfoptions.pi_semiz_J, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    else
+        if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
+            [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin_RiskyAsset(n_d,n_a1,n_a2,n_z,n_u,N_j,d_grid,a1_grid, a2_grid, z_gridvals_J, u_grid, pi_z_J, pi_u, aprimeFn, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        else
+            [V,Policy]=ValueFnIter_Case1_FHorz_RiskyAsset(n_d,n_a1,n_a2,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.u_grid, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    end
     return
 end
 
@@ -569,32 +440,6 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
-    
-    % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-    % that Policy is not integer valued. The following corrects this by converting to int64 and then
-    % makes the output back into double as Matlab otherwise cannot use it in
-    % any arithmetical expressions.
-    if vfoptions.policy_forceintegertype==1
-        fprintf('USING vfoptions to force integer... \n')
-        % First, give some output on the size of any changes in Policy as a
-        % result of turning the values into integers
-        temp=max(max(max(abs(round(Policy)-Policy))));
-        while ndims(temp)>1
-            temp=max(temp);
-        end
-        fprintf('  CHECK: Maximum change when rounding values of Policy is %8.6f (if these are not of numerical rounding error size then something is going wrong) \n', temp)
-        % Do the actual rounding to integers
-        Policy=round(Policy);
-        % Somewhat unrelated, but also do a double-check that Policy is now all positive integers
-        temp=min(min(min(Policy)));
-        while ndims(temp)>1
-            temp=min(temp);
-        end
-        fprintf('  CHECK: Minimum value of Policy is %8.6f (if this is <=0 then something is wrong) \n', temp)
-        %     Policy=uint64(Policy);
-        %     Policy=double(Policy);
-    end
-    
     return
 end
 
@@ -616,100 +461,23 @@ if vfoptions.dynasty==1
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
-    
-    % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-    % that Policy is not integer valued. The following corrects this by converting to int64 and then
-    % makes the output back into double as Matlab otherwise cannot use it in
-    % any arithmetical expressions.
-    if vfoptions.policy_forceintegertype==1
-        fprintf('USING vfoptions to force integer... \n')
-        % First, give some output on the size of any changes in Policy as a
-        % result of turning the values into integers
-        temp=max(max(max(abs(round(Policy)-Policy))));
-        while ndims(temp)>1
-            temp=max(temp);
-        end
-        fprintf('  CHECK: Maximum change when rounding values of Policy is %8.6f (if these are not of numerical rounding error size then something is going wrong) \n', temp)
-        % Do the actual rounding to integers
-        Policy=round(Policy);
-        % Somewhat unrelated, but also do a double-check that Policy is now all positive integers
-        temp=min(min(min(Policy)));
-        while ndims(temp)>1
-            temp=min(temp);
-        end
-        fprintf('  CHECK: Minimum value of Policy is %8.6f (if this is <=0 then something is wrong) \n', temp)
-        %     Policy=uint64(Policy);
-        %     Policy=double(Policy);
-    end
-    
     return
 end
 
 %% Semi-exogenous state
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
 if isfield(vfoptions,'SemiExoStateFn')
-    if ~isfield(vfoptions,'n_semiz')
-        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.n_semiz')
-    end
-    if ~isfield(vfoptions,'semiz_grid')
-        error('When using vfoptions.SemiExoShockFn you must declare vfoptions.semiz_grid')
-    elseif all(size(vfoptions.semiz_grid)==[1,sum(vfoptions.n_semiz)]) && sum(vfoptions.n_semiz)>1
-        error('vfoptions.semiz_grid must be a column vector (you have a row vector)')
-    end
-    if ~isfield(vfoptions,'numd_semiz')
-        vfoptions.numd_semiz=1; % by default, only one decision variable influences the semi-exogenous state
-    end
-    if length(n_d)>vfoptions.numd_semiz
-        n_d1=n_d(1:end-vfoptions.numd_semiz);
+    if length(n_d)>vfoptions.l_dsemiz
+        n_d1=n_d(1:end-vfoptions.l_dsemiz);
         d1_grid=d_grid(1:sum(n_d1));
     else
         n_d1=0; d1_grid=[];
     end
-    n_d2=n_d(end-vfoptions.numd_semiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-    l_d2=length(n_d2);
+    n_d2=n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
     d2_grid=d_grid(sum(n_d1)+1:end);
-    % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-    N_semiz=prod(vfoptions.n_semiz);
-    l_semiz=length(vfoptions.n_semiz);
-    temp=getAnonymousFnInputNames(vfoptions.SemiExoStateFn);
-    if length(temp)>(l_semiz+l_semiz+l_d2) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-        SemiExoStateFnParamNames={temp{l_semiz+l_semiz+l_d2+1:end}}; % the first inputs will always be (semiz,semizprime,d)
-    else
-        SemiExoStateFnParamNames={};
-    end
-    % Create pi_semiz_J
-    pi_semiz_J=zeros(N_semiz,N_semiz,prod(n_d2),N_j);
-    for jj=1:N_j
-        SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-        pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,vfoptions.n_semiz,d2_grid,vfoptions.semiz_grid,vfoptions.SemiExoStateFn,SemiExoStateFnParamValues);
-    end
-    % Check that pi_semiz_J has rows summing to one, if not, print a warning
-    for jj=1:N_j
-        temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
-        if any(temp(:)>1e-14)
-            warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
-        end
-    end
-    % Create semiz_gridvals_J
-    if ndims(vfoptions.semiz_grid)==2
-        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),1])
-            semiz_gridvals_J=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
-        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz)])
-            semiz_gridvals_J=vfoptions.semiz_grid.*ones(1,1,N_j,'gpuArray');
-        end
-    else % Already age-dependent
-        if all(size(vfoptions.semiz_grid)==[sum(vfoptions.n_semiz),N_j])
-            semiz_gridvals_J=zeros(prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j,'gpuArray');
-            for jj=1:N_j
-                semiz_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_semiz,vfoptions.semiz_grid(:,jj),1);
-            end
-        elseif all(size(vfoptions.semiz_grid)==[prod(vfoptions.n_semiz),length(vfoptions.n_semiz),N_j])
-            semiz_gridvals_J=vfoptions.semiz_grid;
-        end
-    end
-
+    
     % Now that we have pi_semiz_J we are ready to compute the value function.
-    [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo(n_d1,n_d2,n_a,vfoptions.n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo(n_d1,n_d2,n_a,vfoptions.n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     return
 end
 
@@ -773,7 +541,7 @@ if vfoptions.parallel==2
             end
         end
     end
-elseif vfoptions.parallel==1
+elseif vfoptions.parallel==1 % parallel CPU
     if N_d==0
         if N_z==0
             [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_noz_Par1_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -826,8 +594,7 @@ end
 % any arithmetical expressions.
 if vfoptions.policy_forceintegertype==1
     fprintf('USING vfoptions to force integer... \n')
-    % First, give some output on the size of any changes in Policy as a
-    % result of turning the values into integers
+    % First, give some output on the size of any changes in Policy as a result of turning the values into integers
     temp=max(max(max(abs(round(Policy)-Policy))));
     while ndims(temp)>1
         temp=max(temp);
@@ -841,8 +608,6 @@ if vfoptions.policy_forceintegertype==1
         temp=min(temp);
     end
     fprintf('  CHECK: Minimum value of Policy is %8.6f (if this is <=0 then something is wrong) \n', temp)
-%     Policy=uint64(Policy);
-%     Policy=double(Policy);
 elseif vfoptions.policy_forceintegertype==2
     % Do the actual rounding to integers
     Policy=round(Policy);

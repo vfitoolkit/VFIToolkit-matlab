@@ -130,9 +130,9 @@ else
         V(:,:,:,N_j)=V_jj;
         Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z*N_e]);
-        Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
-        Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[N_a,N_semiz*N_z*N_e]);
+        Policy3(1,:,:,:,N_j)=rem(d1aprime_ind-1,N_d1)+1;
+        Policy3(3,:,:,:,N_j)=ceil(d1aprime_ind/N_d1);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2

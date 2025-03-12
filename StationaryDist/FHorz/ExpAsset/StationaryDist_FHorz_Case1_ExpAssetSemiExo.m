@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case1_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_semiz,n_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions)
 
 %% Experience asset and semi-exogenous state
 n_d3=n_d(end); % decision variable that controls semi-exogenous state
@@ -43,30 +43,6 @@ if length(temp)>(l_d2+l_a2)
     aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
 else
     aprimeFnParamNames={};
-end
-
-
-%% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
-if ~isfield(simoptions,'n_semiz')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
-end
-if ~isfield(simoptions,'semiz_grid')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
-end
-d3_grid=gpuArray(d_grid(sum(n_d1)+sum(n_d2)+1:end));
-% Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-l_semiz=length(simoptions.n_semiz);
-temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
-if length(temp)>(1+l_semiz+l_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-    SemiExoStateFnParamNames={temp{1+l_semiz+l_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
-else
-    SemiExoStateFnParamNames={};
-end
-N_semiz=prod(simoptions.n_semiz);
-pi_semiz_J=zeros(N_semiz,N_semiz,n_d3,N_j);
-for jj=1:N_j
-    SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d3,simoptions.n_semiz,d3_grid,gpuArray(simoptions.semiz_grid),simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
 end
 
 
@@ -148,7 +124,7 @@ end
 if isfield(simoptions,'n_e')
     error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ExpAssetSemiExo (contact me)')
 else % no e
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_z,N_semiz,N_j,pi_z_J,pi_semiz_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_semiz,N_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2

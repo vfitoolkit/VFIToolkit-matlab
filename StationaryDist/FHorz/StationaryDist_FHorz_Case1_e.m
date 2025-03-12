@@ -1,10 +1,5 @@
-function StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,pi_e_J,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,n_e,N_j,pi_z_J,pi_e_J,Parameters,simoptions)
 
-n_e=simoptions.n_e;
-
-if isempty(n_d)
-    n_d=0;
-end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);

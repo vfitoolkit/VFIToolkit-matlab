@@ -1,8 +1,6 @@
 function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_a,N_semiz,N_j,pi_semiz_J,Parameters,simoptions)
 % Will treat the agents as being on a continuum of mass 1.
 
-% simoptions.tanimprovement=1
-
 if N_d1==0
     optd2prime=gather(reshape(PolicyIndexesKron(1,:,:,:),[N_a*N_semiz,N_j])); % Note: column vector (conditional on jj)
 else
@@ -10,11 +8,8 @@ else
 end
 optaprime=gather(reshape(PolicyIndexesKron(2,:,:,:),[N_a*N_semiz,N_j])); % Note: column vector (conditional on jj)
 
-%% Tan improvement verion
+%% No z, so no Tan improvement
 
-% To do Tan improvement with semiz shocks we treat the first step as
-% (a,semiz,z) to (a',semiz',z) and then the second is the standard just
-% updating z to z'.
 StationaryDistKron=zeros(N_a*N_semiz,N_j,'gpuArray');
 StationaryDistKron(:,1)=jequaloneDistKron;
 StationaryDistKron_jj=sparse(gather(jequaloneDistKron));

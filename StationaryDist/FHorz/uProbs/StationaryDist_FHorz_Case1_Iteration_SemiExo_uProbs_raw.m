@@ -37,7 +37,7 @@ for jj=1:(N_j-1)
     % semizindexcorrespondingtod2_c=repelem(repmat((1:1:N_semiz)',N_z,1),N_a,1); % precomputed
     fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo(:,jj)-1);
     semiztransitions=pi_semiz(fullindex); % (a,z,semiz -by- semiz')
-
+    
     % First, get Gamma
     Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,N_u*2))',N_a*N_bothz,N_a*N_bothz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
     

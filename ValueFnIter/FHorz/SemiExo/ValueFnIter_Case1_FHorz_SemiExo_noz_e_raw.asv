@@ -27,8 +27,16 @@ if vfoptions.lowmemory>1
 end
 
 % Preallocate
-V_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
-Policy_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
+if vfoptions.lowmemory==0
+    V_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
+    Policy_ford2_jj=zeros(N_a,N_semiz,N_e,N_d2,'gpuArray');
+elseif vfoptions.lowmemory==1 % loops over e
+    V_ford2_jj=zeros(N_a,N_semiz,N_d2,'gpuArray');
+    Policy_ford2_jj=zeros(N_a,N_semiz,N_d2,'gpuArray');
+elseif vfoptions.lowmemory==2 % loops over e and z
+    V_ford2_jj=zeros(N_a,N_d2,'gpuArray');
+    Policy_ford2_jj=zeros(N_a,N_d2,'gpuArray');
+end
 
 pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
@@ -82,7 +90,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(1,1,:,N_j),3);    % First, switch V_Jplus1 into Kron form
+    V_Jplus1=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(:,N_j),3);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
@@ -100,7 +108,7 @@ else
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1);
+            entireEV=kron(EV,ones(N_d1,1));
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
 
             %Calc the max and it's index
@@ -192,6 +200,7 @@ else
         d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_e]);
         Policy3(1,:,:,:,N_j)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
         Policy3(3,:,:,:,N_j)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
+
     end
 end
 
@@ -208,7 +217,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+    VKronNext_j=sum(V(:,:,:,jj+1).*pi_e_J(:,jj),3);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
@@ -224,23 +233,27 @@ for reverse_j=1:N_j-1
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             entireEV=repelem(EV,N_d1,1,1);
+
+            size(ReturnMatrix_d2)
+            size(entireEV)
+
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; % autofill the N_a and N_e
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
 
-            V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
-            Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
+            V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
+            Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
+        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
         V(:,:,:,jj)=V_jj;
         Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[N_a,N_semiz,N_e]);
-        Policy3(1,:,:,:,jj)=rem(d1aprime_ind-1,N_d1)+1;
-        Policy3(3,:,:,:,jj)=ceil(d1aprime_ind/N_d1);
+        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_e]);
+        Policy3(1,:,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
+        Policy3(3,:,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 
     elseif vfoptions.lowmemory==1
 
@@ -274,7 +287,7 @@ for reverse_j=1:N_j-1
         V(:,:,:,jj)=V_jj;
         Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
+        d1aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_e]);
         Policy3(1,:,:,:,jj)=shiftdim(rem(d1aprime_ind-1,N_d1)+1,-1);
         Policy3(3,:,:,:,jj)=shiftdim(ceil(d1aprime_ind/N_d1),-1);
 

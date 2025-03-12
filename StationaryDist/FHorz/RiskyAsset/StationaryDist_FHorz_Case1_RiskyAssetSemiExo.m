@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_Case1_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_semiz,n_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions)
 
 
 %% Setup related to risky asset
@@ -58,29 +58,6 @@ else
 end
 
 
-%% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
-if ~isfield(simoptions,'n_semiz')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
-end
-if ~isfield(simoptions,'semiz_grid')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
-end
-% Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-l_d_semiz=length(simoptions.refine_d(4));
-l_semiz=length(simoptions.n_semiz);
-temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
-if length(temp)>(l_semiz+l_semiz+l_d_semiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-    SemiExoStateFnParamNames={temp{l_semiz+l_semiz+l_d_semiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
-else
-    SemiExoStateFnParamNames={};
-end
-N_semiz=prod(simoptions.n_semiz);
-pi_semiz_J=zeros(N_semiz,N_semiz,n_d4,N_j);
-for jj=1:N_j
-    SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d4,simoptions.n_semiz,d4_grid,gpuArray(simoptions.semiz_grid),simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
-end
-
 %%
 if n_z(1)==0
     error('Have not yet impelmented N_z=0 in StationaryDist_FHorz_Case1_RiskyAssetSemiExo (contact me)')
@@ -95,6 +72,7 @@ l_a=length(n_a);
 
 N_a=prod(n_a);
 N_a1=prod(n_a1);
+N_semiz=prod(n_semiz);
 N_z=prod(n_z);
 N_u=prod(simoptions.n_u);
 
@@ -104,7 +82,7 @@ else
     n_a=[n_a1,n_a2];
 end
 
-n_bothz=[simoptions.n_semiz,n_z];
+% n_bothz=[n_semiz,n_z];
 N_bothz=N_semiz*N_z;
 
 %%
@@ -112,12 +90,12 @@ if isfield(simoptions,'n_e')
     N_e=prod(simoptions.n_e);
     jequaloneDistKron=reshape(jequaloneDist,[N_a*N_bothz*N_e,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_bothz*N_e,N_j]);
-    n_bothze=[simoptions.n_semiz,n_z,simoptions.n_e];
+    n_bothze=[n_semiz,n_z,simoptions.n_e];
     N_bothze=N_bothz*N_e;
 else
     jequaloneDistKron=reshape(jequaloneDist,[N_a*N_bothz,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_bothz,N_j]);
-    n_bothze=[simoptions.n_semiz,n_z];
+    n_bothze=[n_semiz,n_z];
     N_bothze=N_bothz;
 end
 % NOTE: have rolled e into z
@@ -150,15 +128,6 @@ elseif l_a==3 % two other assets, then riskyasset
 elseif l_a>3
     error('Only two assets other than the risky asset is allowed (email if you need this)')
 end
-
-%% debug only
-% % Check that pi_semiz_J has rows summing to one, if not, print a warning
-% for jj=1:N_j
-%     temp=abs(sum(pi_semiz_J(:,:,:,jj),2)-1);
-%     if any(temp(:)>1e-14)
-%         warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
-%     end
-% end
 
 %%
 % d variables relevant for the semi-exogenous asset. 

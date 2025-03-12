@@ -6,27 +6,40 @@ end
 N_z=prod(n_z);
 
 if exist('simoptions','var')==0
-    simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
-    simoptions.tanimprovement=1;  % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
     simoptions.verbose=0;
+    simoptions.tolerance=10^(-9);
+    % Things that are really just for internal usage
+    simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
+    simoptions.outputkron=0; % If 1 then leave output in Kron form
+    simoptions.tanimprovement=1;  % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
+    simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
+    % Alternative endo states
     simoptions.experienceasset=0;
     simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
-    simoptions.tolerance=10^(-9);
-    simoptions.outputkron=0; % If 1 then leave output in Kron form
-    simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(simoptions,'verbose')
+        simoptions.verbose=0;
+    end
+    if ~isfield(simoptions,'tolerance')
+        simoptions.tolerance=10^(-9);
+    end
+    % Things that are really just for internal usage
     if ~isfield(simoptions,'parallel')
             simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
+    end
+    if ~isfield(simoptions,'outputkron')
+        simoptions.outputkron=0; % If 1 then leave output in Kron form
     end
     if ~isfield(simoptions,'tanimprovement')
         simoptions.tanimprovement=1; % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
     end
-    if ~isfield(simoptions,'verbose')
-        simoptions.verbose=0;
+    if ~isfield(simoptions,'loopovere')
+        simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
     end
+    % Alternative endo states
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
@@ -38,15 +51,6 @@ else
     end
     if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
-    end
-    if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-9);
-    end
-    if ~isfield(simoptions,'outputkron')
-        simoptions.outputkron=0; % If 1 then leave output in Kron form
-    end
-    if ~isfield(simoptions,'loopovere')
-        simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
     end
 end
 
@@ -67,51 +71,26 @@ if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
     warning('StationaryDist: The age-weights do not sum to one')
 end
 
-%% Set up pi_z_J (transition matrix for markov exogenous state z, depending on age)
-if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-    simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-end
+%% Exogenous shock grids
+% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+[~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,simoptions);
+% note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
+% 
+% size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
+% size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+% size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
+% size(pi_e_J)=[prod(n_e),N_j]
+% If no z, then z_gridvals_J=[] and pi_z_J=[]
+% If no e, then e_gridvals_J=[] and pi_e_J=[]
 
-if ismatrix(pi_z)
-    if simoptions.parallel==2
-        pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-    else
-        pi_z_J=pi_z.*ones(1,1,N_j);
-    end
-elseif ndims(pi_z)==3
-    pi_z_J=pi_z;
-end
-if isfield(simoptions,'pi_z_J')
-    pi_z_J=simoptions.pi_z_J;
-elseif isfield(simoptions,'ExogShockFn') && ~isa(jequaloneDist, 'function_handle')
-    N_z=prod(n_z);
-    pi_z_J=zeros(N_z,N_z,N_j);
-    for jj=1:N_j
-        ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, ExogShockFnParamNames,jj);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [~,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        pi_z_J(:,:,jj)=pi_z;
-    end
-elseif isfield(simoptions,'ExogShockFn') && isa(jequaloneDist, 'function_handle')
-    % Need to keep z_grid as it will be needed for jequaloneDist
-    N_z=prod(n_z);
-    pi_z_J=zeros(N_z,N_z,N_j);
-    simoptions.z_grid_J=zeros(N_z,length(n_z),N_j);
-    for jj=1:N_j
-        ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, ExogShockFnParamNames,jj);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        pi_z_J(:,:,jj)=pi_z;
-        simoptions.z_grid_J(:,:,jj)=CreateGridvals(n_z,z_grid,1);
-    end
+%% Semi-exogenous shock gridvals and pi 
+if isfield(simoptions,'n_semiz')
+    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+    simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1);
+    % output: simoptions.semiz_gridvals_J, simoptions.pi_semiz_J
+    % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
+    % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
+    % If no semiz, then simoptions just does not contain these field
 end
 
 
@@ -147,19 +126,10 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
 end
 
 
-%% Set up pi_e_J (if relevant)
-if isfield(simoptions,'n_e') % THIS IS SILLY (DON'T THINK IT DOES ANYTHING WRONG, BUT IS NOT UP TO CURRENT TOOLKIT NOTATIONAL STANDARDS)
-    if isfield(simoptions,'pi_e')
-        simoptions.pi_e_J=simoptions.pi_e.*ones(1,N_j,'gpuArray');
-    else
-        % simoptions.pi_e_J=simoptions.pi_e_J;
-    end
-end
-
 %% Non-standard endogenous states
 if simoptions.experienceasset==1
-    if isfield(simoptions,'SemiExoStateFn')
-        StationaryDist=StationaryDist_FHorz_Case1_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+    if isfield(simoptions,'n_semiz')
+        StationaryDist=StationaryDist_FHorz_Case1_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
         return
     end
     StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
@@ -170,8 +140,8 @@ if simoptions.experienceassetu==1
     return
 end
 if simoptions.riskyasset==1
-    if isfield(simoptions,'SemiExoStateFn')
-    StationaryDist=StationaryDist_FHorz_Case1_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+    if isfield(simoptions,'n_semiz')
+    StationaryDist=StationaryDist_FHorz_Case1_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
         return
     end
     StationaryDist=StationaryDist_FHorz_Case1_RiskyAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
@@ -189,18 +159,18 @@ else
     N_e=0;
 end
 
-if isfield(simoptions,'SemiExoStateFn')
+if isfield(simoptions,'n_semiz')
     if N_e==0
         if N_z==0
-            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
         else
-            StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
         end
     else
         if N_z==0
-            error('Not yet implemented N_e>0 N_z=0 with SemiExo, email me and I will do it (or you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
         else
-            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+            StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_j,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
         end
     end
 else
@@ -212,9 +182,9 @@ else
         end
     else
         if N_z==0
-            StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+            StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
         else
-            StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+            StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
         end
     end
 end
