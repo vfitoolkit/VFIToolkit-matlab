@@ -155,6 +155,7 @@ else % N_e==0
 end
 
 
+
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if n_a1(1)==0
     n_a=n_a2;
