@@ -10,6 +10,9 @@ else
     n_d1=0;
     l_d1=0;
 end
+l_d2=length(n_d2); % wouldn't be here if no d2
+l_d3=length(n_d3); % wouldn't be here if no d3
+
 
 %% Setup related to experience asset
 % Split endogenous assets into the standard ones and the experience asset
@@ -36,7 +39,7 @@ end
 
 
 % aprimeFnParamNames in same fashion
-l_d2=length(n_d2);
+% l_d2=length(n_d2);
 l_a2=length(n_a2);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
 if length(temp)>(l_d2+l_a2)
@@ -56,9 +59,10 @@ l_d=length(n_d);
 l_a=length(n_a);
 
 N_a=prod(n_a);
+N_semiz=prod(n_semiz);
 N_z=prod(n_z);
 
-n_bothz=[simoptions.n_semiz,n_z];
+% n_bothz=[simoptions.n_semiz,n_z];
 N_bothz=N_semiz*N_z;
 
 %%
@@ -96,11 +100,13 @@ end
 if l_a==1 % just experienceasset
     Policy_aprime=Policy_a2prime;
 elseif l_a==2 % one other asset, then experience asset
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,1,N_j])+n_a(1)*(Policy_a2prime(:,:,:,1,jj)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,1,N_j])+n_a(1)*Policy_a2prime(:,:,:,1,jj); % Note: upper grid point minus 1 is anyway just lower grid point
+    Policy_aprime=zeros([N_a,N_bothze,1,N_j]);
+    Policy_aprime(:,:,1,:)=gather(reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,N_j])+n_a(1)*(Policy_a2prime(:,:,1,:)-1));
+    Policy_aprime(:,:,2,:)=gather(reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,N_j])+n_a(1)*Policy_a2prime(:,:,1,:)); % Note: upper grid point minus 1 is anyway just lower grid point
 elseif l_a==3 % two other assets, then experience asset
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+2,:,:,:),[N_a,N_bothze,1,1,N_j])+n_a(1)*n_a(2)*(Policy_a2prime(:,:,:,1,jj)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+2,:,:,:),[N_a,N_bothze,1,1,N_j])+n_a(1)*n_a(2)*Policy_a2prime(:,:,:,1,jj); % Note: upper grid point minus 1 is anyway just lower grid point
+    Policy_aprime=zeros([N_a,N_bothze,1,N_j]);
+    Policy_aprime(:,:,1,:)=gather(reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,N_j])+n_a(1)*reshape(Policy(l_d+2,:,:,:),[N_a,N_bothze,1,N_j])+n_a(1)*n_a(2)*(Policy_a2prime(:,:,1,:)-1));
+    Policy_aprime(:,:,2,:)=gather(reshape(Policy(l_d+1,:,:,:),[N_a,N_bothze,1,N_j])+n_a(1)*reshape(Policy(l_d+2,:,:,:),[N_a,N_bothze,1,N_j])+n_a(1)*n_a(2)*Policy_a2prime(:,:,1,:)); % Note: upper grid point minus 1 is anyway just lower grid point
 elseif l_a>3
     error('Not yet implemented experienceassetu with length(n_a)>3')
 end
@@ -109,15 +115,15 @@ end
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 
-% d variables relevant for the semi-exogenous asset. 
-if l_d2==1
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:),1);
-elseif l_d2==2
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:),1);
-elseif l_d2==3
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*Policy(l_d1+3,:,:,:),1); 
-elseif l_d2==4
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*Policy(l_d1+3,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*n_d(l_d1+3)*Policy(l_d1+4,:,:,:),1);
+% d3 is the variable relevant for the semi-exogenous asset. 
+if l_d3==1
+    Policy_dsemiexo=shiftdim(Policy(l_d1+l_d2+1,:,:,:),1);
+elseif l_d3==2
+    Policy_dsemiexo=shiftdim(Policy(l_d1+l_d2+1,:,:,:)+n_d(l_d1+l_d2+1)*Policy(l_d1+l_d2+2,:,:,:),1);
+elseif l_d3==3
+    Policy_dsemiexo=shiftdim(Policy(l_d1+l_d2+1,:,:,:)+n_d(l_d1+l_d2+1)*Policy(l_d1+l_d2+2,:,:,:)+n_d(l_d1+l_d2+1)*n_d(l_d1+l_d2+2)*Policy(l_d1+l_d2+3,:,:,:),1); 
+elseif l_d3==4
+    Policy_dsemiexo=shiftdim(Policy(l_d1+l_d2+1,:,:,:)+n_d(l_d1+l_d2+1)*Policy(l_d1+l_d2+2,:,:,:)+n_d(l_d1+l_d2+1)*n_d(l_d1+l_d2+2)*Policy(l_d1+l_d2+3,:,:,:)+n_d(l_d1+l_d2+1)*n_d(l_d1+l_d2+2)*n_d(l_d1+l_d2+3)*Policy(l_d1+l_d2+4,:,:,:),1);
 end
 
 % Note: N_z=0 is a different code

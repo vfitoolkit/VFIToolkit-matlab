@@ -35,9 +35,9 @@ N_d=prod(n_d);
 d_grid=[d1_grid; d2_grid; d3_grid];
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 
+d12_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid;d2_grid],1);
 if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
-    d12_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid;d2_grid],1);
 else
     % precompute
     bothzind=shiftdim((0:1:N_bothz-1),-1); % already includes -1
@@ -228,7 +228,7 @@ else
             entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
             % entireEV is (d2,a1prime, a2,z)
 
-            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]),[N_d1,1,1]); % (d2,a1prime,1,a2,zprime)
+            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]),N_d1,1,1); % (d2,a1prime,1,a2,zprime)
 
             % n-Monotonicity
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_bothz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
@@ -312,7 +312,7 @@ else
                 entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
-                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),[N_d1,1,1]); % (d,a1prime,1,a2)
+                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),N_d1,1,1); % (d,a1prime,1,a2)
 
                 % n-Monotonicity
                 ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_bothz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, z_val, ReturnFnParamsVec,1);
@@ -434,7 +434,7 @@ for reverse_j=1:N_j-1
             entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
             % entireEV is (d,a1prime, a2,z)
 
-            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]),[N_d1,1,1]); % (d2,a1prime,1,a2,zprime)
+            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_bothz]),N_d1,1,1); % (d2,a1prime,1,a2,zprime)
 
             % n-Monotonicity
             ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_bothz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
@@ -518,7 +518,7 @@ for reverse_j=1:N_j-1
                 entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
-                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),[N_d1,1,1]); % (d,a1prime,1,a2)
+                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),N_d1,1,1); % (d,a1prime,1,a2)
 
                 % n-Monotonicity
                 ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_bothz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, z_val, ReturnFnParamsVec,1);

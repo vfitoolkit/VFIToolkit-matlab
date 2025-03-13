@@ -16,10 +16,10 @@ end
 l_a1=1; % hardcoded
 l_z=length(n_z);
 if l_d>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
+    error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
 end
-if l_z>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4)')
+if l_z>8
+    error('Using GPU for the return fn does not allow for more than four of each of semiz and z')
 end
 N_a1=length(a1_grid);
 N_a2=length(a2_grid);
@@ -71,6 +71,46 @@ elseif l_z==4
         Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), ParamCell{:});
     elseif l_d==4 && l_a1==1
         Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), ParamCell{:});
+    end
+elseif l_z==5
+    if l_d==1 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==2 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==3 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==4 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), ParamCell{:});
+    end
+elseif l_z==6
+    if l_d==1 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==2 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==3 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==4 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), ParamCell{:});
+    end
+elseif l_z==7
+    if l_d==1 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==2 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==3 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==4 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), ParamCell{:});
+    end
+elseif l_z==8
+    if l_d==1 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,8),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==2 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,8),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==3 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,8),-1-l_a1-l_a1-1), ParamCell{:});
+    elseif l_d==4 && l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1prime_grid, shiftdim(a1_grid,-2), expassetvals, shiftdim(z_gridvals(:,1),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,2),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,3),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,4),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,5),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,6),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,7),-1-l_a1-l_a1-1), shiftdim(z_gridvals(:,8),-1-l_a1-l_a1-1), ParamCell{:});
     end
 end
 
