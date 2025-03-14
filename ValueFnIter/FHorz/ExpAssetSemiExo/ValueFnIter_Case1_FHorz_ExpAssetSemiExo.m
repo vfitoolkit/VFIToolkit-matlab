@@ -36,7 +36,10 @@ end
 if N_a1>0 % set up for divide-and-conquer
     if vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
-            vfoptions.level1n=ceil(n_a1(1)/50);
+            vfoptions.level1n=max(ceil(n_a1(1)/50),5); % minimum of 5
+            if n_a1(1)<5
+                error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
+            end
             if vfoptions.verbose==1
                 fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
             end
