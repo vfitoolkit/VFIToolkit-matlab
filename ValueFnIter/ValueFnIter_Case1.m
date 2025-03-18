@@ -487,7 +487,9 @@ end
 
 
 %% Divide-and-conquer
-if vfoptions.divideandconquer==1
+if vfoptions.divideandconquer==1 && length(n_a)==1
+    warning('vfoptions.divideandconquer=1 has not yet been implemented for length(n_a)=1 in infinite horizon, so just ignoring it (and doing vfoptions.divideandconquer=0)')
+elseif vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
         if length(n_a)==1
             vfoptions.level1n=51;

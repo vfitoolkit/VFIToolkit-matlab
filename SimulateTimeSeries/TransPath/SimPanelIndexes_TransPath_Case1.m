@@ -171,8 +171,7 @@ if simoptions.parallel==0
 else
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
-        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,T,cumsumpi_z, [seedpoint,1], simoptions.simperiods,fieldexists_ExogShockFn,include_daprime);
-        
+        SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyIndexesKron,N_d,T,cumsumpi_z, [seedpoint,1], simoptions.simperiods);        
         SimPanel_ii=zeros(l_d+l_a+l_a+l_z,simoptions.simperiods);
          
         SimPanel_ii(1:l_d,:)=ind2sub_vec_homemadet(n_d, SimLifeCycleKron(1,:)); % d
