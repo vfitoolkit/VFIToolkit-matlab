@@ -1,12 +1,9 @@
-function SimPanelValues=SimPanelValues_TransPath_Case1(PricePath, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, simoptions, transpathoptions)
+function SimPanelValues=SimPanelValues_TransPath_Case1(PolicyPath, PricePath, ParamPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, FnsToEvaluate, Parameters, simoptions, transpathoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
 
-% PricePathOld is matrix of size T-by-'number of prices'
-% ParamPath is matrix of size T-by-'number of parameters that change over path'
-
-% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
+% Simulates a panel based on PolicyPath of 'numbersims' agents of length
 % 'T' beginning from randomly drawn InitialDist.
 % SimPanelValues is a 3-dimensional matrix with first dimension being the
 % number of 'variables' to be simulated, second dimension is FHorz, and
@@ -22,7 +19,6 @@ if exist('transpathoptions','var')==0
     %If transpathoptions is not given, just use all the defaults
     transpathoptions.parallel=2;
     transpathoptions.lowmemory=0;
-    transpathoptions.exoticpreferences=0;
     transpathoptions.verbose=0;
 else
     %Check transpathoptions for missing fields, if there are some fill them with the defaults
@@ -31,9 +27,6 @@ else
     end
     if isfield(transpathoptions,'lowmemory')==0
         transpathoptions.lowmemory=0;
-    end
-    if isfield(transpathoptions,'exoticpreferences')==0
-        transpathoptions.exoticpreferences=0;
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;
@@ -62,19 +55,6 @@ else
     simoptions.numbersims=10^3;
 end
 
-if transpathoptions.exoticpreferences~=0
-    disp('ERROR: Only transpathoptions.exoticpreferences==0 is supported by TransitionPath_Case1')
-    dbstack
-else
-    if length(DiscountFactorParamNames)~=1
-        disp('WARNING: DiscountFactorParamNames should be of length one')
-        dbstack
-    end
-end
-if transpathoptions.parallel~=2
-    disp('ERROR: Only transpathoptions.parallel==2 is supported by TransitionPath_Case1')
-end
-
 if n_d(1)==0
     l_d=0;
 else
@@ -82,8 +62,6 @@ else
 end
 l_a=length(n_a);
 l_z=length(n_z);
-l_p=size(PricePath,2);
-
 
 %%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
@@ -136,15 +114,6 @@ for tt=1:length(ParamPathNames)
 %     ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
 end
 
-%%
-% Create ReturnFnParamNames
-temp=getAnonymousFnInputNames(ReturnFn);
-if length(temp)>(l_d+l_a+l_a+l_z)
-    ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
-else
-    ReturnFnParamNames={};
-end
-
 
 if ~isstruct(FnsToEvaluate)
     error('Transition paths only work with version 2+ (FnsToEvaluate has to be a structure)')
@@ -170,9 +139,10 @@ PricePath=gather(PricePath);
 ParamPath=gather(ParamPath);
 
 %% Simulate the indexes
+PolicyPath=KronPolicyIndexes_TransPath_Case1(PolicyPath, n_d, n_a, n_z,T);
 if l_d==0
     fprintf('SimPanelValues_TransPath_Case1 with no d variable has not yet been implemented: please email me if you want to be able to do this \n')
-%     SimPanelValues=SimPanelValues_TransPath_Case1_nod(PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, InitialDist, n_a, n_z, pi_z, a_grid,z_grid, ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, transpathoptions,simoptions);
+    % SimPanelIndexes=SimPanelIndexes_TransPath_Case1_nod(PolicyPath, PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, Parameters, transpathoptions,simoptions);
     % NOTE: ACTUALLY, JUST NEED TO IMPLEMENT THE SimPanelIndexes FOR no_d,
     % THE LOWER PART OF THIS SCRIPT ALREADY ALLOWS FOR no d variable
     dbstack
@@ -180,14 +150,14 @@ if l_d==0
 else
     if transpathoptions.lowmemory==1
         % The lowmemory option is going to use gpu (but loop over z instead of parallelize) for value fn.
-        [SimPanelIndexes,PolicyIndexesKron]=SimPanelIndexes_TransPath_Case1_lowmem(PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,simoptions);
+        SimPanelIndexes=SimPanelIndexes_TransPath_Case1_lowmem(PolicyPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, simoptions);
     else
-        [SimPanelIndexes,PolicyIndexesKron]=SimPanelIndexes_TransPath_Case1(PricePath, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,simoptions);
+        SimPanelIndexes=SimPanelIndexes_TransPath_Case1(PolicyPath, T, AgentDist_initial, n_d, n_a, n_z, pi_z, simoptions);
     end
 end
 
 %% Switch from the indexes to the values themselves
-SimPanelValues_core=zeros(l_d+l_a+l_a+l_d, simoptions.simperiods, simoptions.numbersims);
+SimPanelValues_core=zeros(l_d+l_a+l_a+l_z, simoptions.simperiods, simoptions.numbersims);
 for d_c=1:l_d
     if d_c==1
         temp=d_grid(1:n_d(d_c));
@@ -254,9 +224,6 @@ if length(tminus1AggVarsNames)>0
 end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
-%%
-beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
-IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
 
 %%
 SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, simoptions.numbersims);
@@ -335,103 +302,6 @@ for tt=1:simoptions.simperiods
     
     SimPanelValues(:,tt,:)=SimPanelValues_tt;
 end
-
-
-% %% The following is precomputed for speed (otherwise it would end up inside the for-loop over simoptions.numbersims)
-% 
-% FnsToEvaluateParamsVecStruct=struct(); %struct(length(FnsToEvaluate),simoptions.simperiods);
-% for vv=1:length(FnsToEvaluate)
-%     
-%     FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names);
-%     for tt=1:simoptions.simperiods
-%         if ~isempty(FnsToEvaluateParamNames(vv).Names)  % If it isempty() then no need to do anything.
-% 
-%             IndexesForParamPathInFnsToEvaluateParamsVec=CreateParamVectorIndexes(FnsToEvaluateParamNames(vv).Names, ParamPathNames);
-%             IndexesForPricePathInFnsToEvaluateParamsVec=CreateParamVectorIndexes(FnsToEvaluateParamNames(vv).Names, PricePathNames);
-% 
-%             IndexesForFnsToEvaluateParamsInParamPath=CreateParamVectorIndexes(ParamPathNames, FnsToEvaluateParamNames(vv).Names);
-%             IndexesForFnsToEvaluateParamsInPricePath=CreateParamVectorIndexes(PricePathNames, FnsToEvaluateParamNames(vv).Names);
-% 
-%             if ~isnan(IndexesForPricePathInFnsToEvaluateParamsVec)
-%                 FnsToEvaluateParamsVec(IndexesForPricePathInFnsToEvaluateParamsVec)=PricePath(tt,IndexesForFnsToEvaluateParamsInPricePath);
-%             end
-%             if ~isnan(IndexesForParamPathInFnsToEvaluateParamsVec)
-%                 FnsToEvaluateParamsVec(IndexesForParamPathInFnsToEvaluateParamsVec)=ParamPath(tt,IndexesForFnsToEvaluateParamsInParamPath);
-%             end
-%             
-%         end
-%         FnsToEvaluateParamsVecStruct.(['vv',num2str(vv)]).(['tt',num2str(tt)])=FnsToEvaluateParamsVec;
-%     end
-% end
-% 
-% 
-% 
-% %%
-% SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods); % Want nan when agents 'die' (reach N_j) before end of panel
-% %% For sure the following could be made faster by parallelizing some stuff.
-% 
-% for ii=1:simoptions.numbersims
-%     SimPanel_ii=SimPanelIndexes(:,:,ii);
-%     for tt=1:simoptions.simperiods
-%         a_sub=SimPanel_ii(1:l_a,tt);
-%         a_ind=sub2ind_homemade(n_a,a_sub);
-%         a_val=a_gridvals(a_ind,:);
-%          
-%         z_sub=SimPanel_ii((l_a+1):(l_a+l_z),tt);
-%         z_ind=sub2ind_homemade(n_z,z_sub);
-%         z_val=z_gridvals(z_ind,:);
-%                 
-%         if l_d==0
-%             aprime_ind=PolicyIndexesKron(a_ind,z_ind,tt);  % Given dependence on t I suspect precomputing this as aprime_gridvals and d_gridvals would not be worthwhile
-%             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-%         else
-%             temp=PolicyIndexesKron(:,a_ind,z_ind,tt);
-%             d_ind=temp(1); aprime_ind=temp(2);
-%             d_sub=ind2sub_homemade(n_d,d_ind);
-%             aprime_sub=ind2sub_homemade(n_a,aprime_ind);
-%             for kk1=1:l_d
-%                 if kk1==1
-%                     d_val(kk1)=d_grid(d_sub(kk1));
-%                 else
-%                     d_val(kk1)=d_grid(d_sub(kk1)+sum(n_d(1:kk1-1)));
-%                 end
-%             end
-%         end
-%         for kk2=1:l_a
-%             if kk2==1
-%                 aprime_val(kk2)=a_grid(aprime_sub(kk2));
-%             else
-%                 aprime_val(kk2)=a_grid(aprime_sub(kk2)+sum(n_a(1:kk2-1)));
-%             end
-%         end
-%         
-%         if l_d==0
-%             for vv=1:length(FnsToEvaluate)
-%                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-%                    tempcell=num2cell([aprime_val,a_val,z_val]');
-%                 else
-% %                    FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-%                     FnsToEvaluateParamsVec=FnsToEvaluateParamsVecStruct.(['vv',num2str(vv)]).(['tt',num2str(tt)]);
-%                     tempcell=num2cell([aprime_val,a_val,z_val,FnsToEvaluateParamsVec]');
-%                 end
-%                 SimPanelValues_ii(vv,tt)=FnsToEvaluate{vv}(tempcell{:});
-%             end
-%         else
-%             for vv=1:length(FnsToEvaluate)
-%                 if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'SSvalueParamNames={}'
-%                     tempcell=num2cell([d_val,aprime_val,a_val,z_val]');
-%                 else
-% %                     FnsToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind);
-%                     FnsToEvaluateParamsVec=FnsToEvaluateParamsVecStruct.(['vv',num2str(vv)]).(['tt',num2str(tt)]);
-%                     tempcell=num2cell([d_val,aprime_val,a_val,z_val,FnsToEvaluateParamsVec]');
-%                 end
-%                 SimPanelValues_ii(vv,tt)=FnsToEvaluate{vv}(tempcell{:});
-%             end
-%         end
-%         
-%     end
-%     SimPanelValues(:,:,ii)=SimPanelValues_ii;
-% end
 
 
 %% Turn output into structure
