@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions)
+function [V,Policy]=ValueFnIter_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions)
 % Divide-and-conquer with two endogenous states
 
 N_d=prod(n_d);
