@@ -154,8 +154,8 @@ if ~isstruct(jequaloneDist)
             end
         else
             if prod(n_z)==0
-                if ndims(jequaloneDist)==length([n_a,1])
-                    if all(size(jequaloneDist)==[n_a,1])
+                if ndims(jequaloneDist)==length(n_a)
+                    if all(size(jequaloneDist)==n_a)
                         jequaloneDist=reshape(jequaloneDist,[prod(n_a),1]);
                         idiminj1dist=0;
                     end

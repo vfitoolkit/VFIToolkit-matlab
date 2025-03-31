@@ -91,17 +91,9 @@ end
 
 %%
 if N_a1==0
-    if simoptions.iterate==0
-        error('simulation of agent distribution is not yet supported with experienceassetu')
-    elseif simoptions.iterate==1
-        StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_u,N_j,Parameters);
-    end
+    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_u,N_j,Parameters);
 else
-    if simoptions.iterate==0
-        error('simulation of agent distribution is not yet supported with experienceassetu')
-    elseif simoptions.iterate==1
-        StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_u,N_j,Parameters);
-    end        
+    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_u,N_j,Parameters);
 end
 
 if simoptions.outputkron==0
