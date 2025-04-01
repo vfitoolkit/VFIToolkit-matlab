@@ -33,6 +33,7 @@ if ~exist('vfoptions','var')
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
+    vfoptions.experienceasset=0;
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
@@ -87,6 +88,9 @@ else
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
+    if ~isfield(vfoptions,'experienceasset')
+        vfoptions.experienceasset=0;
+    end
     if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
@@ -173,30 +177,14 @@ end
 
 
 %% Implement new way of handling ReturnFn inputs
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
+if isempty(ReturnFnParamNames)
+    ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 end
-l_a=length(n_a);
-l_a_temp=l_a;
-l_z=length(n_z);
-l_z_temp=l_z;
-if max(vfoptions.endotype)==1
-    l_a_temp=l_a-sum(vfoptions.endotype); % Some of the endogenous states is an endogenous type, so it won't appear at this 
-    l_z_temp=l_z+sum(vfoptions.endotype); % The variables after z is the endogenous types
-end
-% If no ReturnFnParamNames inputted, then figure it out from ReturnFn
-if isempty(ReturnFnParamNames) && vfoptions.returnmatrix~=1
-    temp=getAnonymousFnInputNames(ReturnFn);
-    if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
-        ReturnFnParamNames={temp{l_d+l_a_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        ReturnFnParamNames={};
-    end
-% else
-%     ReturnFnParamNames=ReturnFnParamNames;
-end
+% Basic setup: the first inputs of ReturnFn will be (d,aprime,a,z,..) and everything after this is a parameter, so we get the names of all these parameters.
+% But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
+% So figure out which setup we have, and get the relevant ReturnFnParamNames
+
+
 
 %%
 
@@ -362,6 +350,41 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
 end
 
+%% Experience asset
+if vfoptions.experienceasset==1
+    % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
+    
+    if length(n_a)==1
+        error('experienceasset in InfHorz is only coded alongside a standard endogenous state')
+    elseif length(n_a)==2
+        % Split decision variables into the standard ones and the one relevant to the experience asset
+        if length(n_d)==1
+            n_d1=0;
+        else
+            n_d1=n_d(1:end-1);
+        end
+        n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+        d1_grid=d_grid(1:sum(n_d1));
+        d2_grid=d_grid(sum(n_d1)+1:end);
+        % Split endogenous assets into the standard ones and the experience asset
+        if length(n_a)==1
+            n_a1=0;
+        else
+            n_a1=n_a(1:end-1);
+        end
+        n_a2=n_a(end); % n_a2 is the experience asset
+        a1_grid=a_grid(1:sum(n_a1));
+        a2_grid=a_grid(sum(n_a1)+1:end);
+
+        % Now just send all this to the right value fn iteration command
+        [V,Policy]=ValueFnIter_Case1_ExpAsset(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    else
+        error('experienceasset in InfHorz is only coded alongside a single standard endogenous state (you have length(n_a)>2)')
+    end
+    varargout={V,Policy};
+    return
+end
+
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
     % Note: have only implemented Relative VFI on the GPU
@@ -487,6 +510,11 @@ end
 
 
 %% Divide-and-conquer
+if vfoptions.divideandconquer==1 && length(n_a)==1
+    vfoptions.divideandconquer=0; % is implemented, but is too slow to be something you would ever want, especially becuase you cannot refine while doing divideandconquer
+end
+
+
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
         if length(n_a)==1
@@ -501,6 +529,7 @@ if vfoptions.divideandconquer==1
 
     if prod(n_d)==0
         if length(n_a)==1
+            % This is never actually used/reached as it is too slow to be useful
             [V,Policy]=ValueFnIter_DC1_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
         elseif length(n_a)==2
             if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
@@ -512,6 +541,7 @@ if vfoptions.divideandconquer==1
         end
     else % N_d
         if length(n_a)==1
+            % This is never actually used/reached as it is too slow to be useful
             [V,Policy]=ValueFnIter_DC1_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
         elseif length(n_a)==2
             if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
