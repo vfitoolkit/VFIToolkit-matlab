@@ -12,11 +12,6 @@ N_z=prod(n_z);
 if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.parallel=1+(gpuDeviceCount>0);
-    simoptions.ncores=1;
-    simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
-    simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
-    simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
     simoptions.iterate=1;
     simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
     simoptions.multiiter=50; % How many iteration steps before check tolerance
@@ -26,46 +21,39 @@ if exist('simoptions','var')==0
     simoptions.agententryandexit=0;
     % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
+    simoptions.experienceasset=0;
     simoptions.policyalreadykron=0; % Can specify that policy is already in kron form, used to speed up general eqm and transition path computations.
+    simoptions.outputkron=0;
+    % Options relating to things I tried as alternative ways to compute, but are probably not anything you want
+    simoptions.ncores=1;
+    simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
+    simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
+    simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
+    simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions, 'verbose')==0
+    if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if isfield(simoptions, 'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    if ~isfield(simoptions,'ncores')
-        simoptions.ncores=1;
-    end
-    if isfield(simoptions, 'eigenvector')==0
-        simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
-    end
-    if isfield(simoptions, 'seedpoint')==0
-        simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
-    end
-    if isfield(simoptions, 'simperiods')==0
-        simoptions.simperiods=10^6;  % I tried a few different things and this seems reasonable.
-    end
-    if isfield(simoptions, 'burnin')==0
-        simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
-    end
-    if isfield(simoptions, 'iterate')==0
+    if ~isfield(simoptions, 'iterate')
         simoptions.iterate=1;
     end
-    if isfield(simoptions, 'tanimprovement')==0
+    if ~isfield(simoptions, 'tanimprovement')
         simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
     end
-    if isfield(simoptions, 'multiiter')==0
+    if ~isfield(simoptions, 'multiiter')
         simoptions.multiiter=50; % How many iteration steps before check tolerance
     end
-    if isfield(simoptions, 'maxit')==0
+    if ~isfield(simoptions, 'maxit')
         simoptions.maxit=5*10^4;
     end
-    if isfield(simoptions, 'tolerance')==0
+    if ~isfield(simoptions, 'tolerance')
         simoptions.tolerance=10^(-6);
     end
-    if isfield(simoptions, 'agententryandexit')==0
+    if ~isfield(simoptions, 'agententryandexit')
         simoptions.agententryandexit=0;
     else
         if simoptions.agententryandexit==1
@@ -74,9 +62,31 @@ else
             end
         end
     end
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
+    end
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
-    if isfield(simoptions, 'policyalreadykron')==0
+    if ~isfield(simoptions, 'policyalreadykron')
         simoptions.policyalreadykron=0;
+    end
+    if ~isfield(simoptions, 'outputkron')
+        simoptions.outputkron=0;
+    end
+    % Options relating to things I tried as alternative ways to compute, but are probably not anything you want
+    if ~isfield(simoptions,'ncores')
+        simoptions.ncores=1;
+    end
+    if ~isfield(simoptions,'eigenvector')
+        simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
+    end
+    if ~isfield(simoptions, 'seedpoint')
+        simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
+    end
+    if ~isfield(simoptions, 'simperiods')
+        simoptions.simperiods=10^6;  % I tried a few different things and this seems reasonable.
+    end
+    if ~isfield(simoptions, 'burnin')
+        simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
     end
 end
 
@@ -90,7 +100,10 @@ else
 end
 
 if simoptions.policyalreadykron==0
-    PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    if simoptions.experienceasset==0
+        PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    end
+    % simoptions.experienceasset==1, use Policy directly
 end
 
 %% First deal with entry and exit if that is being used
@@ -140,9 +153,8 @@ if isfield(simoptions,'SemiEndogShockFn')
         pi_z_semiendog=simoptions.SemiEndogShockFn;
     else
         if ~isfield(simoptions,'SemiEndogShockFnParamNames')
-            fprintf('ERROR: simoptions.SemiEndogShockFnParamNames is missing (is needed for simoptions.SemiEndogShockFn) \n')
             dbstack
-            return
+            error('simoptions.SemiEndogShockFnParamNames is missing (is needed for simoptions.SemiEndogShockFn)')
         end
         pi_z_semiendog=zeros(N_a,N_z,N_z);
         a_gridvals=CreateGridvals(n_a,a_grid,2);
@@ -166,16 +178,44 @@ if isfield(simoptions,'SemiEndogShockFn')
         StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
         return
     else
-        fprintf('ERROR: Only simoptions.eigenvector=1 is implemented for StationaryDist when using SemiEndogShockFn \n')
         dbstack
-        return
+        error('Only simoptions.eigenvector=1 is implemented for StationaryDist when using SemiEndogShockFn')
     end    
+end
+
+%% If there is an initial dist use that, otherwise set up a (basic but poor) initial guess
+if isfield(simoptions, 'initialdist')
+    StationaryDistKron=reshape(simoptions.initialdist,[N_a*N_z,1]);
+else
+    % Just use a poor initial guesses
+    StationaryDistKron=zeros(N_a,N_z);
+    z_stat=ones(N_z,1)/N_z;
+    for jj=1:10
+        z_stat=pi_z'*z_stat;
+    end
+    StationaryDistKron(ceil(N_a/2),:)=z_stat';
+    StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
+end
+% Note: When not using the Tan improvement, it would be better to first do
+% a short simulation, and then use this as the initial guess for the
+% iteration. But there is no reason we would ever not want to use the Tan
+% improvment, so this is not actually implemented anymore.
+
+
+%% Experience asset
+if simoptions.experienceasset==1
+    if ~exist('Parameters','var')
+        error('When using simoptions.experienceasset=1 you must include Parameter structure as input to StationaryDist_Case1 (input just after simoptions)')
+    end
+    % Iterate using Tan improvement
+    StationaryDist=StationaryDist_InfHorz_ExpAsset(StationaryDistKron,Policy,n_d,n_a,n_z,pi_z,Parameters,simoptions);
+    return
 end
 
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
     StationaryDistKron=StationaryDist_Case1_LeftEigen_raw(PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
-    if prod(size(StationaryDistKron))==1
+    if numel(StationaryDistKron)==1
         % Has failed, so continue on below to simulation and iteration commands
         warning('Eigenvector method for simulating agent dist failed, going to use simulate/iterate instead')
     else
@@ -183,28 +223,13 @@ if simoptions.eigenvector==1
         return
     end
 end
-
 % Eigenvector method is terribly slow for sparse matrices, so if the Ptranspose matrix (transition matrix on AxZ) does not fit in memory as a
 % full matrix then better to just use simulation and iteration (or for really big state space possibly just simulation).
 
+
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
-% Except that Tan improvement makes iteration so fast that when using that
-% (which is the default) then I just start from a really mediocre initial guess.
-if isfield(simoptions, 'initialdist')
-    StationaryDistKron=reshape(simoptions.initialdist,[N_a*N_z,1]);
-else
-    if simoptions.tanimprovement==1 % Improvement of Tan (2020)
-        % Tan improvement is very fast, so decided to try using poor initial guesses
-        StationaryDistKron=zeros(N_a,N_z);
-        z_stat=ones(N_z,1)/N_z;
-        for jj=1:10
-            z_stat=pi_z'*z_stat;
-        end
-        StationaryDistKron(ceil(N_a/2),:)=z_stat';
-        StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
-    else
-        StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
-    end
+if simoptions.iterate==0
+    StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
 end
 
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
@@ -212,11 +237,16 @@ if simoptions.iterate==1
     if simoptions.tanimprovement==0
         StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
     elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
+        disp('HER')
         StationaryDistKron=StationaryDist_Case1_IterationTan_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+        disp('HER2')
     end
 end
 
+
 %% Get the solution out of Kron form to output it.
 StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
+
+
 
 end

@@ -8,64 +8,58 @@ function StationaryDistKron=StationaryDist_Case1_IterationTan_raw(StationaryDist
 %  simoptions.parallel
 %  simoptions.multiiter
 
+% First, get Gamma
+if N_d==0
+    Policy_aprimez=PolicyIndexesKron+N_a*(0:1:N_z-1);
+else
+    Policy_aprimez=shiftdim(PolicyIndexesKron(2,:,:),1)+N_a*(0:1:N_z-1);
+end
+Policy_aprimez=gather(reshape(Policy_aprimez,[1,N_a*N_z]));
+
+%% Use Tan improvement
 % Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]
 % Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
 % Hence, just force sparse cpu arrays.
 
-% First, get Gamma
-if N_d==0
-    optaprime=gather(reshape(PolicyIndexesKron,[1,N_a*N_z]));
-else
-    optaprime=gather(reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]));
-end
+StationaryDistKron=sparse(gather(StationaryDistKron));
 
-firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
-Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
-
+% Gamma for first step of Tan improvement
+Gammatranspose=sparse(Policy_aprimez,1:1:N_a*N_z,ones(1,N_a*N_z),N_a*N_z,N_a*N_z);
+% pi_z for second step of Tan improvement
 pi_z=sparse(gather(pi_z));
 
-%% The rest is essentially the same regardless of which simoption.parallel is being used
-StationaryDistKron=sparse(gather(StationaryDistKron));
-StationaryDistKronOld=sparse(N_a*N_z,1); % sparse() creates a matrix of zeros
-
 currdist=Inf;
-counter=0;
-while currdist>simoptions.tolerance && counter<simoptions.maxit  % Matlab objects to using currdist here if I don't 'full' it
+tempcounter=0;
+while currdist>simoptions.tolerance && tempcounter<simoptions.maxit
     
-    % Do multiple iterations before checking the tolerance (saves runtime versus always checking the tolerance)
-    for jj=1:simoptions.multiiter
-        % Two steps of the Tan improvement
-        StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
-        StationaryDistKron=reshape(StationaryDistKron*pi_z,[N_a*N_z,1]);
+    % First step of Tan improvement
+    StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+    % Second step of Tan improvement
+    StationaryDistKron=reshape(StationaryDistKron*pi_z,[N_a*N_z,1]);
+    
+    % Only check covergence every couple of iterations
+    if rem(tempcounter,simoptions.multiiter)==0
+        StationaryDistKronOld=StationaryDistKron;
+    elseif rem(tempcounter,simoptions.multiiter)==1
+        currdist=max(abs(StationaryDistKron-StationaryDistKronOld));
     end
 
-    StationaryDistKronOld=StationaryDistKron;
+    tempcounter=tempcounter+1;
 
-    % Base the tolerance on a single iteration.
-    StationaryDistKron=Gammatranspose*StationaryDistKron; %No point checking distance every single iteration. Do 100, then check.
-    StationaryDistKron=reshape(StationaryDistKron,[N_a,N_z])*pi_z;
-    StationaryDistKron=StationaryDistKron(:); % effectively reshape(StationaryDistKron,[N_a*N_z,1]), but faster
-
-    % currdist=full(sum(abs(StationaryDistKron-StationaryDistKronOld)));
-    currdist=full(max(abs(StationaryDistKron-StationaryDistKronOld)));
-    
-    counter=counter+1;
     if simoptions.verbose==1
-        if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)            
-            maxdist=full(max(gather(abs(StationaryDistKron-StationaryDistKronOld))));
-            fprintf('StationaryDist_Case1: after %i iterations the max distance %8.12f \n', counter, maxdist)
+        if rem(tempcounter,50)==0
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', tempcounter, currdist/simoptions.tolerance)            
         end
     end
 end
 
-%% Turn the resulting agent distribution into a full matrix
+%%
+% Convert back to full matrix for output
 StationaryDistKron=full(StationaryDistKron);
 
-if ~(counter<simoptions.maxit)
+if ~(tempcounter<simoptions.maxit)
     disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
 end 
 
-% rdk2=toc
 
 end
