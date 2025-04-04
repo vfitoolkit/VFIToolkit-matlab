@@ -290,7 +290,7 @@ if Parallel==2
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     % if N_z==0
     %     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
