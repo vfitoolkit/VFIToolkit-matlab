@@ -95,9 +95,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     % Need to keep Ftemp for Howards policy iteration improvement
     Ftemp(curraindex,:)=ReturnMatrixLvl1(shiftdim(maxindex2,1)+N_d1*N_d2*N_a1*(0:1:vfoptions.level1n*N_a2-1)'+N_d1*N_d2*N_a1*vfoptions.level1n*N_a2*(0:1:N_z-1));
-
-    DiscountedentireEV=repelem(DiscountedentireEV,1,1,N_a1,1,1); % (d,a1prime,a1,a2,z)
-
+    
     % Attempt for improved version
     maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -108,8 +106,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2], n_z, d_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_z]));
+            daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*(a1primeindexes-1)+N_d1*N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -125,8 +123,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2], n_z, d_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d1*N_d2*1,level1iidiff(ii)*N_a2,N_z]));
+            daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*(loweredge-1)+N_d1*N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d1*N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -147,10 +145,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     Vdist=V(:)-Vold(:);
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
-
-
-    % JUST TESTE
-    Vold=V;
     
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards % Use Howards Policy Fn Iteration Improvement
     % if isfinite(currdist) && tempcounter<vfoptions.maxhowards % Use Howards Policy Fn Iteration Improvement
@@ -184,21 +178,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             
             V=Ftemp+DiscountFactorParamsVec*EV;
         end
-
-        disp('why so many inf')
-        sum(~isfinite(Vold))
-        sum(~isfinite(Ftemp))
-        sum(~isfinite(EV))
-        sum(~isfinite(Vlower))
-        sum(~isfinite(Vupper))
-        sum(~isfinite(V))
-        
-        Vdist=V(:)-Vold(:);
-        Vdist(isnan(Vdist))=0;
-        currdist2=max(abs(Vdist));
-        disp('dist is')
-        [currdist,currdist2]
-
     end
 
     if vfoptions.verbose==1
@@ -208,13 +187,9 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     end
 
     tempcounter=tempcounter+1;
-
-
 end
 
-tempcounter
-% save temp.mat Ftemp V
-% PRETTY SURE Ftemp is fine
+
 
 
 %% For experience asset, just output Policy as is and then use Case2 to UnKron

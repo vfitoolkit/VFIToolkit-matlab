@@ -4,9 +4,6 @@ function [VKron, Policy]=ValueFnIter_Case1_NoD_Par2_raw(VKron, n_a, n_z, pi_z, D
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-% PolicyIndexes=zeros(N_a,N_z,'gpuArray');
-% Ftemp=zeros(N_a,N_z,'gpuArray');
-
 bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
 ccc=kron(ones(N_a,1,'gpuArray'),bbb);
 aaa=reshape(ccc,[N_a*N_z,N_z]);
@@ -27,13 +24,13 @@ while currdist>Tolerance && tempcounter<=maxiter
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %aprime by a by z
 
     %Calc the max and it's index
-    [VKron,PolicyIndexes]=max(entireRHS,[],1);
+    [VKron,Policy]=max(entireRHS,[],1);
 
-    tempmaxindex=shiftdim(PolicyIndexes,1)+addindexforaz; % aprime index, add the index for a and z
+    tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
 
     Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
 
-    PolicyIndexes=PolicyIndexes(:); % a by z (this shape is just convenient for Howards)
+    Policy=Policy(:); % a by z (this shape is just convenient for Howards)
     VKron=shiftdim(VKron,1); % a by z
 
     VKrondist=VKron(:)-VKronold(:); 
@@ -43,7 +40,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 
         for Howards_counter=1:Howards
-            EVKrontemp=VKron(PolicyIndexes,:);
+            EVKrontemp=VKron(Policy,:);
             EVKrontemp=EVKrontemp.*aaa;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
@@ -55,7 +52,7 @@ while currdist>Tolerance && tempcounter<=maxiter
 
 end
 
-Policy=reshape(PolicyIndexes,[N_a,N_z]);
+Policy=reshape(Policy,[N_a,N_z]);
 
 
 

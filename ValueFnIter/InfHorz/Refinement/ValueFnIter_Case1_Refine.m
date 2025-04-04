@@ -89,6 +89,7 @@ elseif vfoptions.parallel==2 % On GPU
     [VKron,Policy_a]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter); %  a_grid, z_grid,
 end
 
+
 %% For refinement, add d to Policy
 % Policy is currently
 if n_d(1)>0

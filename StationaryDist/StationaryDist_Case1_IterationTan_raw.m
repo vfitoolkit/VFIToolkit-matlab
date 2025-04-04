@@ -3,9 +3,8 @@ function StationaryDistKron=StationaryDist_Case1_IterationTan_raw(StationaryDist
 % Uses the improvement of: Tan (2020) - A fast and low computational memory algorithm for non-stochastic simulations in heterogeneous agent models
 
 % Options needed
-%  simoptions.maxit
 %  simoptions.tolerance
-%  simoptions.parallel
+%  simoptions.maxit
 %  simoptions.multiiter
 
 % First, get Gamma
@@ -29,8 +28,8 @@ Gammatranspose=sparse(Policy_aprimez,1:1:N_a*N_z,ones(1,N_a*N_z),N_a*N_z,N_a*N_z
 pi_z=sparse(gather(pi_z));
 
 currdist=Inf;
-tempcounter=0;
-while currdist>simoptions.tolerance && tempcounter<simoptions.maxit
+counter=0;
+while currdist>simoptions.tolerance && counter<simoptions.maxit
     
     % First step of Tan improvement
     StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
@@ -38,17 +37,17 @@ while currdist>simoptions.tolerance && tempcounter<simoptions.maxit
     StationaryDistKron=reshape(StationaryDistKron*pi_z,[N_a*N_z,1]);
     
     % Only check covergence every couple of iterations
-    if rem(tempcounter,simoptions.multiiter)==0
+    if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDistKron;
-    elseif rem(tempcounter,simoptions.multiiter)==1
+    elseif rem(counter,simoptions.multiiter)==10
         currdist=max(abs(StationaryDistKron-StationaryDistKronOld));
     end
 
-    tempcounter=tempcounter+1;
+    counter=counter+1;
 
     if simoptions.verbose==1
-        if rem(tempcounter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', tempcounter, currdist/simoptions.tolerance)            
+        if rem(counter,50)==0
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)            
         end
     end
 end
@@ -57,9 +56,8 @@ end
 % Convert back to full matrix for output
 StationaryDistKron=full(StationaryDistKron);
 
-if ~(tempcounter<simoptions.maxit)
-    disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
+if ~(counter<simoptions.maxit)
+    warning('SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
 end 
-
 
 end
