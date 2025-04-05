@@ -29,9 +29,7 @@ Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d an
 % for Howards, preallocate
 Ftemp=zeros(N_a,N_z,'gpuArray');
 % and we need 
-bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-ccc=kron(ones(N_a,1,'gpuArray'),bbb);
-aaa=reshape(ccc,[N_a*N_z,N_z]);
+aaa=ones(N_a,1,1,'gpuArray').*shiftdim(pi_z',-1); % (a,z',z)
 
 % precompute
 Epi_z=shiftdim(pi_z',-2); % pi_z in the form we need it to compute the expectations
@@ -89,8 +87,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     Policy(curraindex,:)=shiftdim(maxindex2,1);
 
     % Need to keep Ftemp for Howards policy iteration improvement
-    Ftemp(curraindex,:)=ReturnMarixLevel1(shiftdim(maxindex2,1)+N_d*N_a*N_a1*(0:1:vfoptions.level1n-1)'+N_d*N_a*N_a1*vfoptions.level1n*(0:1:N_z-1));
-
+    Ftemp(curraindex,:)=ReturnMatrixLvl1(shiftdim(maxindex2,1)+N_d2*N_a1*(0:1:vfoptions.level1n*N_a2-1)'+N_d2*N_a1*vfoptions.level1n*N_a2*(0:1:N_z-1));
+    
     % Attempt for improved version
     maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -101,8 +99,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d2, n_z, d2_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_z]));
+            daprime=(1:1:N_d2)'+N_d2*(a1primeindexes-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -113,13 +111,13 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             Policy(curraindex,:)=shiftdim(maxindex+N_d2*(loweredge(allind)-1),1);
 
             % Need to keep Ftemp for Howards policy iteration improvement
-            Ftemp(curraindex,:)=ReturnMatrix_ii(shiftdim(maxindex,1)+N_d*N_a1*(maxgap(ii)+1)*(0:1:level1iidiff(ii)-1)'+N_d*N_a1*N_a1*(maxgap(ii)+1)*level1iidiff(ii)*(0:1:N_z-1));
+            Ftemp(curraindex,:)=ReturnMatrix_ii(shiftdim(maxindex,1)+N_d2*(maxgap(ii)+1)*(0:1:level1iidiff(ii)*N_a2-1)'+N_d2*(maxgap(ii)+1)*level1iidiff(ii)*N_a2*(0:1:N_z-1));
         else
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d2, n_z, d2_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2,N_z]));
+            daprime=(1:1:N_d2)'+N_d2*(loweredge-1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
+            entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,:)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -130,10 +128,10 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             Policy(curraindex,:)=shiftdim(maxindex+N_d2*(loweredge(allind)-1),1);
 
             % Need to keep Ftemp for Howards policy iteration improvement
-            Ftemp(curraindex,:)=ReturnMatrix_ii(shiftdim(maxindex,1)+N_d*N_a1*(0:1:level1iidiff(ii)-1)'+N_d*N_a1*N_a1*level1iidiff(ii)*(0:1:N_z-1));
+            Ftemp(curraindex,:)=ReturnMatrix_ii(shiftdim(maxindex,1)+N_d2*1*(0:1:level1iidiff(ii)*N_a2-1)'+N_d2*1*level1iidiff(ii)*N_a2*(0:1:N_z-1));
         end
     end
-
+    
     %% Finish up
     % Update currdist
     Vdist=V(:)-Vold(:);
@@ -141,36 +139,36 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     currdist=max(abs(Vdist));
     
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards % Use Howards Policy Fn Iteration Improvement
-        Policy_d2ind=ceil(Policy(:)/N_d2);
-        Policy_a1primeind=rem(Policy(:)-1,N_d2)+1;
-        temp=Policy_d2ind+N_d2*repelem((0:1:N_a2-1),1,N_a1);
-        a2primeind=a2primeIndex(temp); % a2primeIndex is [N_d2,N_a2]
-        aprimeind=Policy_a1primeind+N_a1*(a2primeind-1);
-        aprimeplus1ind=Policy_a1primeind+N_a1*(a2primeind+1-1);
-        aprimeProbs_Howards=a2primeProbs(temp); %  aprimeProbs is [N_d2,N_a2]
+        Policy_d2ind=rem(Policy(:)-1,N_d2)+1;
+        Policy_a1primeind=ceil(Policy(:)/N_d2);
 
+        temp=Policy_d2ind+N_d2*repmat(repelem((0:1:N_a2-1)',N_a1,1),N_z,1); % (d2,a2) indexes in terms of (a1,a2,z)
+
+        a2primeind=a2primeIndex(temp); % a2primeIndex is [N_d2,N_a2]
+        azprimeind=Policy_a1primeind+N_a1*(a2primeind-1)+N_a1*N_a2*repelem((0:1:N_z-1)',N_a1*N_a2,1);
+        azprimeind=reshape(azprimeind,[N_a,N_z]);
+        azprimeplus1ind=azprimeind+N_a1; % add one to a2prime index, which means adding N_a1*1
+        aprimeProbs_Howards=reshape(a2primeProbs(temp),[N_a,N_z]); %  a2primeProbs is [N_d2,N_a2]
+        
         for Howards_counter=1:vfoptions.howards
-            Vlower=reshape(V(aprimeind,:),[N_a,N_z]);
-            Vupper=reshape(V(aprimeplus1ind,:),[N_a,N_z]);
+            Vlower=V(azprimeind); % Vlower in terms of policy (so size is a-by-z)
+            Vupper=V(azprimeplus1ind); % Vupper in terms of policy (so size is a-by-z)
             % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
             skipinterp=(Vlower==Vupper);
             aprimeProbs_Howards2=aprimeProbs_Howards;
             aprimeProbs_Howards2(skipinterp)=0; % effectively skips interpolation
 
             % Switch EV from being in terps of a2prime to being in terms of d2 and a2
-            EV=aprimeProbs_Howards2.*Vlower+(1-aprimeProbs_Howards2).*Vupper; % (d2,a1prime,a2,zprime)
+            EV=aprimeProbs_Howards2.*Vlower+(1-aprimeProbs_Howards2).*Vupper; % (a1prime-by-a2prime,zprime)
             % Already applied the probabilities from interpolating onto grid
-
-            %Calc the condl expectation term (except beta), which depends on z but not on control variables
+            
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV=EV.*aaa;
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
-
-            % EV is over (d2,a1prime,a2,z)
-            DiscountedentireEV=DiscountFactorParamsVec*reshape(EV,[N_a,N_z]); % (d2,a1prime,1,a2,zprime)
-
-            V=Ftemp+DiscountFactorParamsVec*DiscountedentireEV;
-        end        
+            EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
+            
+            V=Ftemp+DiscountFactorParamsVec*EV;
+        end
     end
 
     if vfoptions.verbose==1
@@ -181,60 +179,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     tempcounter=tempcounter+1;    
 end
-
-
-
-
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

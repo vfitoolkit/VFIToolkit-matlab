@@ -92,7 +92,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
     V(curraindex,:)=shiftdim(Vtempii,1);
     Policy(curraindex,:)=shiftdim(maxindex2,1);
-
+    
     % Need to keep Ftemp for Howards policy iteration improvement
     Ftemp(curraindex,:)=ReturnMatrixLvl1(shiftdim(maxindex2,1)+N_d1*N_d2*N_a1*(0:1:vfoptions.level1n*N_a2-1)'+N_d1*N_d2*N_a1*vfoptions.level1n*N_a2*(0:1:N_z-1));
     
@@ -147,7 +147,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     currdist=max(abs(Vdist));
     
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards % Use Howards Policy Fn Iteration Improvement
-    % if isfinite(currdist) && tempcounter<vfoptions.maxhowards % Use Howards Policy Fn Iteration Improvement
         Policy_d2ind=ceil((rem(Policy(:)-1,N_d1*N_d2)+1)/N_d1);
         Policy_a1primeind=ceil(Policy(:)/(N_d1*N_d2));
 

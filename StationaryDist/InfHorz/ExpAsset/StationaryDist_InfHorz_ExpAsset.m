@@ -40,7 +40,7 @@ end
 if n_z(1)==0
     error('Not yet implemented for ExpAsset and no z')
     % StationaryDist=StationaryDist_InfHorz_ExpAsset_noz(StationaryDistKron,Policy,n_d,n_a,d_grid,a2_grid,Parameters,simoptions);
-    return
+    % return
 end
 
 

@@ -23,20 +23,29 @@ Gammatranspose=sparse(Policy_aprimez(:,:),II2,PolicyProbs(:,:),N_a*N_z,N_a*N_z);
 % pi_z for second step of Tan improvement
 pi_z=sparse(gather(pi_z));
 
-tempcounter=0;
 currdist=Inf;
-while currdist>simoptions.tolerance && tempcounter<simoptions.maxit
+counter=0;
+while currdist>simoptions.tolerance && counter<simoptions.maxit
+
     % First step of Tan improvement
     StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
     % Second step of Tan improvement
     StationaryDistKron=reshape(StationaryDistKron*pi_z,[N_a*N_z,1]);
 
-    if rem(tempcounter,simoptions.multiiter)==0
+    if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDistKron;
-    elseif rem(tempcounter,simoptions.multiiter)==1
+    elseif rem(counter,simoptions.multiiter)==10
         currdist=max(abs(StationaryDistKron-StationaryDistKronOld));
     end
-    tempcounter=tempcounter+1;
+
+    counter=counter+1;
+
+    if simoptions.verbose==1
+        if rem(counter,50)==0
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)
+        end
+    end
+
 end
 
 % Convert back to full matrix for output

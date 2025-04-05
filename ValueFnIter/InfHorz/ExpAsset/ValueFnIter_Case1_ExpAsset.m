@@ -127,7 +127,6 @@ else % no e variable
                     error('Have not yet implemented: InfHorz, no d1, a1, no z, no e, divideandconquer=1')
                     % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_nod1_noz_raw(n_d2,n_a1,n_a2 , d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 else
-                    error('NOT YET TESTED')
                     [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_nod1_raw(V0,n_d2,n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
             else
