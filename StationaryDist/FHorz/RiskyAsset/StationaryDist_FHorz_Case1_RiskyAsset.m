@@ -20,7 +20,8 @@ end
 n_d23=n_d(simoptions.refine_d(1)+1:sum(simoptions.refine_d(1:3))); % decision variables for riskyasset
 
 % Split endogenous assets into the standard ones and the risky asset
-if length(n_a)==1
+l_a=length(n_a);
+if l_a==1
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
