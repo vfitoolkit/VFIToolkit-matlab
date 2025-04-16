@@ -17,7 +17,7 @@ if ~isfield(simoptions,'refine_d')
     % When not using refine_d, everything is implicitly a d3
     simoptions.refine_d=[0,0,length(n_d)];
 end
-n_d23=n_d(vfoptions.refine_d(1)+1:sum(vfoptions.refine_d(1:3))); % decision variables for riskyasset
+n_d23=n_d(simoptions.refine_d(1)+1:sum(simoptions.refine_d(1:3))); % decision variables for riskyasset
 
 % Split endogenous assets into the standard ones and the risky asset
 if length(n_a)==1
