@@ -20,10 +20,10 @@ end
 %%
 jequaloneDistKron=reshape(jequaloneDistKron,[N_a*N_semiz*N_z*N_e,1]);
 Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z],N_j,n_e);
-if simoptions.iterate==0
-    Policy=gather(Policy);
-    jequaloneDistKron=gather(jequaloneDistKron);    
-end
+
+Policy=gather(Policy);
+jequaloneDistKron=gather(jequaloneDistKron);
+
 pi_z_J=gather(pi_z_J);
 pi_e_J=gather(pi_e_J);
 
