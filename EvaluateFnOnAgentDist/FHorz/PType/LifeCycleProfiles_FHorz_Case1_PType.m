@@ -481,7 +481,7 @@ if simoptions.lowmemory==0
 
         a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
         % Turn (semiz,z,e) into z_gridvals_J_temp as FnsToEvalute do not distinguish them
-        [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp);
+        [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp,Parameters_temp);
         if N_z_temp==0
             N_z_temp=1; % Just makes things easier below
         end
