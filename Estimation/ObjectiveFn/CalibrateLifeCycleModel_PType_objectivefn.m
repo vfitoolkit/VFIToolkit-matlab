@@ -176,9 +176,9 @@ elseif caliboptions.vectoroutput==0 % scalar output
         % (otherwise getting silly current moments can seem attractive)
         Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
-        Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,[],'omitnan');
+        Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,'omitnan');
     elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-        Obj=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),[],'omitnan');
+        Obj=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),'omitnan');
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
     Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
