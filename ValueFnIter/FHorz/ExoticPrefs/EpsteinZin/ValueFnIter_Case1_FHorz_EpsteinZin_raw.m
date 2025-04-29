@@ -223,6 +223,7 @@ for reverse_j=1:N_j-1
     temp=VKronNext_j;
     temp(isfinite(VKronNext_j))=(ezc4*VKronNext_j(isfinite(VKronNext_j))).^ezc5(jj);
     temp(VKronNext_j==0)=0;
+    temp(~isfinite(VKronNext_j))=ezc4*VKronNext_j(~isfinite(VKronNext_j)); % ezc4 is 1 or -1, When it is -1 need to flip the sign of the -Inf, so that ezc3 below (which will also be -1) flips it back
     
     if vfoptions.lowmemory==0
         
@@ -242,6 +243,7 @@ for reverse_j=1:N_j-1
         
         entireEV=repelem(EV,N_d,1,1);
         temp4=entireEV;
+        
         if warmglow==1
             becareful=logical(isfinite(temp4).*isfinite(WGmatrix)); % both are finite
             temp4(becareful)=(sj(jj)*temp4(becareful).^ezc8(jj)+(1-sj(jj))*WGmatrix(becareful).^ezc8(jj)).^ezc6(jj);

@@ -72,7 +72,7 @@ if ~exist('heteroagentoptions','var')
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
     heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.verbose=0;
-    heteroagentoptions.maxiter=1000;
+    heteroagentoptions.maxiter=1000; % =0 just evaluate (rather than solves for) GE condns
     % heteroagentoptions.outputGEform=0; % For internal use only
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
@@ -380,6 +380,13 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     % Run once more to get the general eqm eqns in a nice form for output
     GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions); % update based on new heteragentoptions
     GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
+end
+if heteroagentoptions.outputGEstruct==1
+    % put GeneralEqmConditions structure on cpu for purely cosmetic reasons
+    GEeqnNames=fieldnames(GeneralEqmEqns);
+    for gg=1:length(GEeqnNames)
+        GeneralEqmConditions.(GEeqnNames{gg})=gather(GeneralEqmConditions.(GEeqnNames{gg})); 
+    end
 end
 
 

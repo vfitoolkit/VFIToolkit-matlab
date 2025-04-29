@@ -79,7 +79,7 @@ if simoptions.parallel==2
     StationaryDistVec=gpuArray(StationaryDistVec);
     PolicyIndexes=gpuArray(PolicyIndexes);
 
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];
     % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]

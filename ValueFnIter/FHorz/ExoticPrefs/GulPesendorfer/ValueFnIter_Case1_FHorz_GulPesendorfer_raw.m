@@ -219,8 +219,7 @@ for reverse_j=1:N_j-1
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
             
-            entireEV=kron(EV,ones(N_d,1));
-%             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
+            entireEV=repelem(EV,N_d,1,1);
 
             entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
             

@@ -79,7 +79,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
+    heteroagentoptions.maxiter=200*length(GEPriceParamNames); % =0 just evaluate (rather than solves for) GE condns
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     heteroagentoptions.fminalgo=1; % use fminsearch
@@ -96,7 +96,7 @@ else
         heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     end
     if ~isfield(heteroagentoptions,'maxiter')
-        heteroagentoptions.maxiter=200*length(GEPriceParamNames); % this is roughly the matlab default (for fminsearch(), or would be if all GEPriceParamNames are scalar)
+        heteroagentoptions.maxiter=200*length(GEPriceParamNames); % =0 just evaluate (rather than solves for) GE condns
     end
     if N_p~=0
         if ~isfield(heteroagentoptions,'p_grid')
@@ -190,6 +190,8 @@ if any(heteroagentoptions.GEptype==1)
     end
 elseif length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
+else
+    heteroagentoptions.GEptype_vectoroutput=0;
 end
 
 
@@ -711,7 +713,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             elseif heteroagentoptions.GEptype_vectoroutput==0
                 temp=p_eqm_vec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
                 for ii=1:N_i
-                    p_eqm.(GEPriceParamNames{pp}).(Names_i{ii})=temp(ii);
+                    p_eqm.(GEPriceParamNames{pp}).(PTypeStructure.Names_i{ii})=temp(ii);
                 end
             end
         end
@@ -748,6 +750,13 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
         GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames,AggVarNames,nGEprices,GEpriceindexes,GEprice_ptype,heteroagentoptions);
     end
     GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
+end
+if heteroagentoptions.outputGEstruct==1
+    % put GeneralEqmConditions structure on cpu for purely cosmetic reasons
+    GEeqnNames=fieldnames(GeneralEqmEqns);
+    for gg=1:length(GEeqnNames)
+        GeneralEqmConditions.(GEeqnNames{gg})=gather(GeneralEqmConditions.(GEeqnNames{gg})); 
+    end
 end
 
 
