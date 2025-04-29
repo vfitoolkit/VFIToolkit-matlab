@@ -1,4 +1,4 @@
-function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, parallel,npoints)
+function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, parallel,npoints)
 %Returns a Matrix 100-by-100 that contains the t-period transition probabilities for all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-npoints. (third dimension is the different FnsToEvaluate that this
@@ -116,7 +116,7 @@ end
 Transitions_StartAndFinish=nan(2,NSims,length(FnsToEvaluate),'gpuArray');
 Transitions_StartAndFinish_jj=nan(2,NSims,'gpuArray');
 
-PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
