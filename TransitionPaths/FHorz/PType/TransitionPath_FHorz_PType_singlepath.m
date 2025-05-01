@@ -550,7 +550,7 @@ elseif transpathoptions.fastOLG==1
                 end
                 % transpathoptions.zpathtrivial==1 % Does not depend on tt
 
-                AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,1,1);
+                AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,1,0);
 
                 AggVarsPath(:,tt)=AggVars;
 
@@ -676,7 +676,7 @@ elseif transpathoptions.fastOLG==1
                 end
                 % transpathoptions.epathtrivial==1 % Does not depend on tt
 
-                AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J,1,1);
+                AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLGe(AgentDist,Policy, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,l_d,n_a,n_z,n_e,N_j,daprime_gridvals,a_gridvals,z_gridvals_J,e_gridvals_J,1,0);
 
                 AggVarsPath(:,tt)=AggVars;
 
