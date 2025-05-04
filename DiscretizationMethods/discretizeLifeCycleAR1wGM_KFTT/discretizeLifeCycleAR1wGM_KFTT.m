@@ -1,5 +1,5 @@
 function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR1wGM_KFTT(mew,rho,mixprobs_i,mu_i,sigma_i,znum,J,kfttoptions)
-% Please cite: Kirkby (working paper)
+% Please cite: Kirkby (2025) - Discretizing Earnings Dynamics: Implications of Gaussian-Mixture Shocks for Life-Cycle Models
 %
 % KFTT discretization method for a 'life-cycle non-stationary AR(1) process with
 %    gaussian-mixture innovations'. 
@@ -38,7 +38,7 @@ function [z_grid_J, pi_z_J, jequaloneDistz,otheroutputs] = discretizeLifeCycleAR
 %
 % !========================================================================%
 % Original paper:
-% Kirkby (working paper)
+% Kirkby (2025) - Discretizing Earnings Dynamics: Implications of Gaussian-Mixture Shocks for Life-Cycle Models
 
 mewz=zeros(1,J); % period j mean of z
 sigmaz = zeros(1,J);
