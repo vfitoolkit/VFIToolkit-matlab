@@ -33,6 +33,8 @@ if exist('vfoptions','var')==0
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
+    % When calling as a subcommand, the following is used internally
+    vfoptions.alreadygridvals=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'parallel')
@@ -89,6 +91,10 @@ else
     end
     if ~isfield(vfoptions,'residualasset')
         vfoptions.residualasset=0;
+    end
+    if ~isfield(vfoptions,'alreadygridvals')
+        % When calling as a subcommand, the following is used internally
+        vfoptions.alreadygridvals=0;
     end
 end
 
@@ -215,16 +221,21 @@ if vfoptions.parallel<2
 end
 
 %% Exogenous shock gridvals and pi
-% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-[z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions);
-% output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
-% 
-% size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
-% size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
-% size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
-% size(pi_e_J)=[prod(n_e),N_j]
-% If no z, then z_gridvals_J=[] and pi_z_J=[]
-% If no e, then e_gridvals_J=[] and pi_e_J=[]
+if vfoptions.alreadygridvals==0
+    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions);
+    % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
+    %
+    % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
+    % size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+    % size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
+    % size(pi_e_J)=[prod(n_e),N_j]
+    % If no z, then z_gridvals_J=[] and pi_z_J=[]
+    % If no e, then e_gridvals_J=[] and pi_e_J=[]
+elseif vfoptions.alreadygridvals==1
+    z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
+end
 
 %% Semi-exogenous shock gridvals and pi 
 if isfield(vfoptions,'n_semiz')

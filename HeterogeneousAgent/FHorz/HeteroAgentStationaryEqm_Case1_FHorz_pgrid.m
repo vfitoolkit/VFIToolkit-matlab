@@ -1,20 +1,16 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions)
+% Solve for the stationary general eqm on p_grid (a grid on the GEPriceParams)
 
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
 N_p=prod(n_p);
-
 l_p=length(n_p);
-
 p_grid=heteroagentoptions.pgrid;
 
 %% 
 
 if vfoptions.parallel==2
-    GeneralEqmConditionsKron=ones(N_p,l_p,'gpuArray');
+    GeneralEqmConditionsVec=ones(N_p,l_p,'gpuArray');
 else
-    GeneralEqmConditionsKron=ones(N_p,l_p);
+    GeneralEqmConditionsVec=ones(N_p,l_p);
 end
 
 for p_c=1:N_p
@@ -35,41 +31,23 @@ for p_c=1:N_p
         Parameters.(GEPriceParamNames{ii})=p(ii);
     end
     
-    % If 'exogenous shock fn' is used and depends on GE parameters then
-    % precompute it here (otherwise it is already precomputed).
-    if isfield(vfoptions,'ExogShockFn')
-        if ~isfield(vfoptions,'pi_z_J') % This is implicitly checking that ExogShockFn does depend on GE params (if it doesn't then this field will already exist)
-            pi_z_J=zeros(N_z,N_z,N_j);
-            for jj=1:N_j
-                if isfield(vfoptions,'ExogShockFnParamNames')
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                else
-                    [z_grid,pi_z]=simoptions.ExogShockFn(jj);
-                end
-                pi_z_J(:,:,jj)=gather(pi_z);
-                z_grid_J(:,jj)=gather(z_grid);
-            end
-            % Now store them in vfoptions and simoptions
-            vfoptions.pi_z_J=pi_z_J;
-            vfoptions.z_grid_J=z_grid_J;
-            simoptions.pi_z_J=pi_z_J;
-            simoptions.z_grid_J=z_grid_J;
-        end
+    if heteroagentoptions.gridsinGE==1
+        % Some of the shock grids depend on parameters that are determined in general eqm
+        [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions);
+        % Convert z and e to age-dependent joint-grids and transtion matrix
+        % Note: Ignores which, just redoes both z and e
+        simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % if no e, this is just empty anyway
+        simoptions.pi_e_J=vfoptions.pi_e_J;
     end
     
-    [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-    StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist, AgeWeightParamNames, Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid, 2,simoptions); % The 2 is for Parallel (use GPU)
+    StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist, AgeWeightParamNames, Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, 2,simoptions); % The 2 is for Parallel (use GPU)
     
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    GeneralEqmConditionsKron(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
+    GeneralEqmConditionsVec(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));
 end
 
 multiGEweightsKron=ones(N_p,1)*heteroagentoptions.multiGEweights;
@@ -78,9 +56,9 @@ if simoptions.parallel==2 || simoptions.parallel==4
 end
 
 if heteroagentoptions.multiGEcriterion==0 % the measure of market clearance is to take the sum of absolute distance in each market 
-    [~,p_eqm_indexKron]=min(sum(abs(multiGEweightsKron.*GeneralEqmConditionsKron),2));
+    [~,p_eqm_indexKron]=min(sum(abs(multiGEweightsKron.*GeneralEqmConditionsVec),2));
 elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-    [~,p_eqm_indexKron]=min(sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2));                                                                                                         
+    [~,p_eqm_indexKron]=min(sum(multiGEweightsKron.*(GeneralEqmConditionsVec.^2),2));                                                                                                         
 end
 
 %p_eqm_index=zeros(num_p,1);
@@ -88,14 +66,14 @@ p_eqm_index=ind2sub_homemade_gpu(n_p,p_eqm_indexKron);
 if l_p>1
     GeneralEqmConditions=nan(N_p,1+l_p,'gpuArray');
     if heteroagentoptions.multiGEcriterion==0
-        GeneralEqmConditions(:,1)=sum(abs(multiGEweightsKron.*GeneralEqmConditionsKron),2);
+        GeneralEqmConditions(:,1)=sum(abs(multiGEweightsKron.*GeneralEqmConditionsVec),2);
     elseif heteroagentoptions.multiGEcriterion==1 %the measure of market clearance is to take the sum of squares of clearance in each market 
-        GeneralEqmConditions(:,1)=sum(multiGEweightsKron.*(GeneralEqmConditionsKron.^2),2);
+        GeneralEqmConditions(:,1)=sum(multiGEweightsKron.*(GeneralEqmConditionsVec.^2),2);
     end
-    GeneralEqmConditions(:,2:end)=multiGEweightsKron.*GeneralEqmConditionsKron;
+    GeneralEqmConditions(:,2:end)=multiGEweightsKron.*GeneralEqmConditionsVec;
     GeneralEqmConditions=reshape(GeneralEqmConditions,[n_p,1+l_p]);
 else
-    GeneralEqmConditions=reshape(multiGEweightsKron.*GeneralEqmConditionsKron,[n_p,1]);
+    GeneralEqmConditions=reshape(multiGEweightsKron.*GeneralEqmConditionsVec,[n_p,1]);
 end
 
 p_eqm_index=round(p_eqm_index); % Was having rounding errors of order of numerical accuracy.

@@ -19,9 +19,15 @@ end
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0;
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals')
+        % When calling as a subcommand, the following is used internally
+        simoptions.alreadygridvals=0;
     end
 end
 

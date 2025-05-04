@@ -4,16 +4,12 @@ function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1
 % nonzero it is assumed you want to use a grid on prices, which must then
 % be passed in using heteroagentoptions.p_grid
 
-% N_d=prod(n_d);
-% N_a=prod(n_a);
-% N_z=prod(n_z);
+l_p=length(GEPriceParamNames);
+
 N_p=prod(n_p);
 if isempty(n_p)
     N_p=0;
 end
-
-l_p=length(GEPriceParamNames); % Otherwise get problem when not using p_grid
-%l_p=length(n_p);
 
 p_eqm_vec=nan; p_eqm_index=nan; GeneralEqmConditions=nan;
 
@@ -133,11 +129,20 @@ end
 % parameter that is being determined in general eqm
 heteroagentoptions.gridsinGE=0;
 if isfield(vfoptions,'ExogShockFn')
-    
+    tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+    if any(strcmp(tempExogShockFnParamNames,GEPriceParamNames))
+        heteroagentoptions.gridsinGE=1;
+    end        
 end
 if isfield(vfoptions,'EiidShockFn')
-
+    tempEiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+    if any(strcmp(tempEiidShockFnParamNames,GEPriceParamNames))
+        heteroagentoptions.gridsinGE=1;
+    end        
 end
+% If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
 if heteroagentoptions.gridsinGE==0
     % Some of the shock grids depend on parameters that are determined in general eqm
     [z_grid, pi_z, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions);
@@ -145,6 +150,10 @@ if heteroagentoptions.gridsinGE==0
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % Note, will be [] if no e
     simoptions.pi_e_J=vfoptions.pi_e_J; % Note, will be [] if no e
 end
+% Regardless of whether they are done here of in _subfn, they will be
+% precomputed by the time we get to the value fn, staty dist, etc. So
+vfoptions.alreadygridvals=1;
+simoptions.alreadygridvals=1;
 
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
@@ -207,7 +216,7 @@ end
 
 %%
 if N_p~=0
-    [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
+    [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_pgrid(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, n_p, pi_z_J, d_grid, a_grid, z_gridvals_, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions);
     return
 end
 
@@ -423,7 +432,7 @@ if heteroagentoptions.outputGEstruct==1
 end
 
 
-
+vfoptions
 
 
 end

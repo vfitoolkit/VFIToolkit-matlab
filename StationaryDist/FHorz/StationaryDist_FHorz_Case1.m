@@ -18,6 +18,8 @@ if exist('simoptions','var')==0
     simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
@@ -52,6 +54,10 @@ else
     if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
     end
+    if ~isfield(simoptions,'alreadygridvals')
+        % When calling as a subcommand, the following is used internally
+        simoptions.alreadygridvals=0;
+    end
 end
 
 % Check for something that used to be an option, but no longer is
@@ -72,16 +78,21 @@ if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
 end
 
 %% Exogenous shock grids
-% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-[~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions);
-% note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
-% 
-% size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
-% size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
-% size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
-% size(pi_e_J)=[prod(n_e),N_j]
-% If no z, then z_gridvals_J=[] and pi_z_J=[]
-% If no e, then e_gridvals_J=[] and pi_e_J=[]
+if simoptions.alreadygridvals==0
+    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+    [~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions);
+    % note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
+    %
+    % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
+    % size(pi_z_J)=[prod(n_z),prod(n_z),N_j]
+    % size(e_gridvals_J)=[prod(n_e),length(n_e),N_j]
+    % size(pi_e_J)=[prod(n_e),N_j]
+    % If no z, then z_gridvals_J=[] and pi_z_J=[]
+    % If no e, then e_gridvals_J=[] and pi_e_J=[]
+elseif simoptions.alreadygridvals==1
+    % z_gridvals_J=z_grid;
+    pi_z_J=pi_z;
+end
 
 %% Semi-exogenous shock gridvals and pi 
 if isfield(simoptions,'n_semiz')
