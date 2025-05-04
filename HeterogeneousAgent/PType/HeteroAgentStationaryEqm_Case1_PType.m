@@ -568,16 +568,16 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,p0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
     elseif heteroagentoptions.fminalgo==5
         % Update based on rules in heteroagentoptions.fminalgo5.howtoupdate
-        GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
-        GeneralEqmConditions=Inf;
         % Get initial prices, p
         p=nan(1,length(GEPriceParamNames));
         for ii=1:length(GEPriceParamNames)
             p(ii)=Parameters.(GEPriceParamNames{ii});
         end
         % Given current prices solve the model to get the general equilibrium conditions as a structure
+        itercounter=0;
         p_change=Inf;
-        while any(p_change>heteroagentoptions.heteroagentoptions.toleranceGEprices) || GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
+        GeneralEqmConditions=Inf;
+        while (any(p_change>heteroagentoptions.toleranceGEprices) || GeneralEqmConditions>heteroagentoptions.toleranceGEcondns) && itercounter<heteroagentoptions.maxiter
 
             p_i=GeneralEqmConditionsFnOpt(p); % using heteroagentoptions.outputGEform=1, so this is a vector
 
@@ -606,6 +606,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             % p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
             % Update p for next iteration
             p=p_new;
+            itercounter=itercounter+1; % increment iteration counter
         end
         p_eqm_vec=p_new; % Need to put it in p_eqm_vec so that it can be used to create the final output
     elseif heteroagentoptions.fminalgo==6
