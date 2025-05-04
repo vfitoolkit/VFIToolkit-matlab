@@ -40,14 +40,14 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
     if rem(counter,simoptions.multiiter)==0
         StationaryDistKronOld=StationaryDistKron;
     elseif rem(counter,simoptions.multiiter)==10
-        currdist=full(max(abs(StationaryDistKron-StationaryDistKronOld)));
+        currdist=max(abs(StationaryDistKron-StationaryDistKronOld));
     end
 
     counter=counter+1;
 
     if simoptions.verbose==1
         if rem(counter,50)==0
-            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, currdist/simoptions.tolerance)            
+            fprintf('StationaryDist_Case1: after %i iterations the current distance ratio is %8.6f (currdist/tolerance, convergence when reaches 1) \n', counter, full(currdist)/simoptions.tolerance)            
         end
     end
 end
