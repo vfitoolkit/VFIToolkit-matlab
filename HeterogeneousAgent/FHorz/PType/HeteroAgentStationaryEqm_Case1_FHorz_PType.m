@@ -137,9 +137,6 @@ end
 if heteroagentoptions.fminalgo==0
     heteroagentoptions.outputGEform=1;
 elseif heteroagentoptions.fminalgo==5
-    if isfield(heteroagentoptions,'toleranceGEprices_percent')==0
-        heteroagentoptions.toleranceGEprices_percent=10^(-3); % one-tenth of one percent
-    end
     heteroagentoptions.outputGEform=1; % Need to output GE condns as a vector when using fminalgo=5
     heteroagentoptions.outputgather=0; % leave GE condns vector on GPU
 elseif heteroagentoptions.fminalgo==7
