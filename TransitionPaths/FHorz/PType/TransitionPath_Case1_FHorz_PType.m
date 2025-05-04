@@ -778,7 +778,7 @@ for ii=1:PTypeStructure.N_i
         % pi_e_J is [N_a*N_j,1,N_e]       if transpathoptions.fastOLG=1 (a-j,1,e)
         % pi_e_J and e_gridvals_J are both gpuArrays
     end
-
+    
     %% When using z (and e), we can precompute some things that the fastOLG needs for the agent dist
     if N_z>0 && N_e==0
         pi_z_J_sim=gather(reshape(transpathoptions.(iistr).pi_z_J_alt(1:end-1,:,:),[(N_j-1)*N_z,N_z]));
