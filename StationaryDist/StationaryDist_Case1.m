@@ -190,31 +190,21 @@ if simoptions.iterate==1
     if isfield(simoptions, 'initialdist')
         StationaryDistKron=reshape(simoptions.initialdist,[N_a*N_z,1]);
     else
-        if simoptions.experienceasset==1
-            % There is not simulation command yet, so just have to do the
-            % bare bones for the moment. I need to create a simulation command.
-
-            % Just use a poor initial guesses
-            StationaryDistKron=zeros(N_a,N_z);
-            z_stat=ones(N_z,1)/N_z;
-            for jj=1:10
-                z_stat=pi_z'*z_stat;
-            end
-            StationaryDistKron(ceil(N_a/2),:)=z_stat';
-            StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
-        else
-            %     % Just use a poor initial guesses
-            %     StationaryDistKron=zeros(N_a,N_z);
-            %     z_stat=ones(N_z,1)/N_z;
-            %     for jj=1:10
-            %         z_stat=pi_z'*z_stat;
-            %     end
-            %     StationaryDistKron(ceil(N_a/2),:)=z_stat';
-            %     StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
-
-            % Simulate an initial guess, as that makes it a bit faster
-            StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions); % create a better initial guess (this tends to give a better runtime-accuracy frontier than just iterating from poor initial guess)
+        % Just use a poor initial guesses
+        StationaryDistKron=zeros(N_a,N_z);
+        z_stat=ones(N_z,1)/N_z;
+        for jj=1:10
+            z_stat=pi_z'*z_stat;
         end
+        StationaryDistKron(ceil(N_a/2),:)=z_stat';
+        StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
+        % Note for self: Tan improvement divides into 2 steps, first is
+        % policy, second is pi_z. Can't you then go a step further and
+        % divide whole thing to just do 'only second step' until dist over z fully
+        % converges, and after than 'only do first step' until get full
+        % convergence?
+        % This initial guess is kind of trying to partially exploit this
+        % idea.
     end
 end
 
