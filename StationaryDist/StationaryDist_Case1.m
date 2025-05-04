@@ -183,6 +183,7 @@ if isfield(simoptions,'SemiEndogShockFn')
     end    
 end
 
+
 %% If there is an initial dist use that, otherwise set up a (basic but poor) initial guess
 if simoptions.iterate==1
     % Iteration must start from an initial guess

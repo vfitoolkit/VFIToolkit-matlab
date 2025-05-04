@@ -1,51 +1,34 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_subfn(GEprices, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
-
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_subfn(GEprices, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, l_p, pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions, simoptions, vfoptions)
 
 %% 
 for ii=1:l_p
     Parameters.(GEPriceParamNames{ii})=GEprices(ii);
 end
 
-%% 
-% If 'exogenous shock fn' is used and depends on GE parameters then
-% precompute it here (otherwise it is already precomputed).
-if isfield(vfoptions,'pi_z_J')
-    % Do nothing, this is just to avoid doing the next 'elseif' statement
-elseif isfield(vfoptions,'ExogShockFn')
-    if ~isfield(vfoptions,'pi_z_J') % This is implicitly checking that ExogShockFn does depend on GE params (if it doesn't then this field will already exist)
-        pi_z_J=zeros(N_z,N_z,N_j);
-        z_grid_J=zeros(sum(n_z),N_j);
-        for jj=1:N_j
-            if isfield(vfoptions,'ExogShockFnParamNames')
-                ExogShockFnParamsVec=CreateVectorFromParams(Parameters, simoptions.ExogShockFnParamNames,jj);
-                ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                for ii=1:length(ExogShockFnParamsVec)
-                    ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                end
-                [z_grid,pi_z]=simoptions.ExogShockFn(ExogShockFnParamsCell{:});
-            else
-                [z_grid,pi_z]=simoptions.ExogShockFn(jj);
-            end
-            pi_z_J(:,:,jj)=gather(pi_z);
-            z_grid_J(:,jj)=gather(z_grid);
-        end
-        % Now store them in vfoptions and simoptions
-        vfoptions.pi_z_J=pi_z_J;
-        vfoptions.z_grid_J=z_grid_J;
-        simoptions.pi_z_J=pi_z_J;
-        simoptions.z_grid_J=z_grid_J;
-    end
+if heteroagentoptions.gridsinGE==1
+    % Some of the shock grids depend on parameters that are determined in general eqm
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions);
+    % Convert z and e to age-dependent joint-grids and transtion matrix
+    % Note: Ignores which, just redoes both z and e
+    simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % if no e, this is just empty anyway
+    simoptions.pi_e_J=vfoptions.pi_e_J;
 end
 
 %%
-[V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+[V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_grid,[],simoptions);
+StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z,N_j, d_grid, a_grid, z_gridvals_J,[],simoptions);
+
+if heteroagentoptions.useCustomModelStats==1
+    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    end
+end
 
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 if isstruct(GeneralEqmEqns)
@@ -94,6 +77,11 @@ if heteroagentoptions.verbose==1
     else
         for ii=1:length(AggVarNames)
             fprintf('	%s: %8.4f \n',AggVarNames{ii},AggVars.(AggVarNames{ii}).Mean)
+        end
+        if heteroagentoptions.useCustomModelStats==1
+            for ii=1:length(customstatnames)
+                fprintf('	%s: %8.4f \n',customstatnames{ii},CustomStats.(customstatnames{ii}))
+            end
         end
     end
     fprintf('Current GeneralEqmEqns: \n')

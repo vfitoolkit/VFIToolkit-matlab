@@ -73,7 +73,7 @@ end
 
 %% Exogenous shock grids
 % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-[~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,simoptions);
+[~, pi_z_J, simoptions]=ExogShockSetup_FHorz(n_z,[],pi_z,N_j,Parameters,simoptions);
 % note: output z_gridvals_J, pi_z_J, and simoptions.e_gridvals_J, simoptions.pi_e_J
 % 
 % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]

@@ -68,7 +68,6 @@ if isfield(simoptions,'outputasstructure')
     end
 end
 
-
 %%
 if N_z==0
     if simoptions.lowmemory==0

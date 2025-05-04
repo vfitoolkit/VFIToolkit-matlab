@@ -309,8 +309,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             p(ii)=Parameters.(GEPriceParamNames{ii});
         end
         % Given current prices solve the model to get the general equilibrium conditions as a structure
-        p_percentchange=Inf;
-        while any(p_percentchange>heteroagentoptions.toleranceGEprices_percent) % GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
+        p_change=Inf;
+        while any(p_change>heteroagentoptions.heteroagentoptions.toleranceGEprices) || GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
 
             p_i=GeneralEqmConditionsFnOpt(p); % using heteroagentoptions.outputGEform=1, so this is a vector (note the transpose)
 
@@ -335,8 +335,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
                 Parameters.(GEPriceParamNames{ii})=p_new(ii);
             end
 
-            p_percentchange=max(abs(p_new-p)./abs(p));
-            p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
+            p_change=abs(p_new-p); % note, this is a vector
+            % p_percentchange=max(abs(p_new-p)./abs(p));
+            % p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
             % Update p for next iteration
             p=p_new;
         end

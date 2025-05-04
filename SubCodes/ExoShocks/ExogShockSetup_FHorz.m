@@ -1,4 +1,4 @@
-function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,options)
+function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,options)
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % options will either be vfoptions or simoptions
 % output: z_gridvals_J, pi_z_J, options.e_gridvals_J, options.pi_e_J

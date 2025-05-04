@@ -5,7 +5,7 @@ function [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHor
 %% Create z_gridvals_J (which will combine all three of semiz, z, and e)
 
 % First z
-[z_gridvals_J, ~, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,[],N_j,simoptions);
+[z_gridvals_J, ~, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,[],N_j,Parameters,simoptions);
 % n_z
 N_z=prod(n_z);
 

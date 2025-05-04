@@ -112,6 +112,11 @@ else
     end
 end
 
+heteroagentoptions.useCustomModelStats=0;
+if isfield(heteroagentoptions,'CustomModelStats')
+    heteroagentoptions.useCustomModelStats=1;
+end
+
 if heteroagentoptions.fminalgo==0
     heteroagentoptions.outputGEform=1;
 elseif heteroagentoptions.fminalgo==5
@@ -126,35 +131,69 @@ else
     heteroagentoptions.outputGEform=0;
 end
 
+%% Set up exogenous shock grids now (so they can then just be reused every time)
+% Check if using ExogShockFn or EiidShockFn, and if so, do these use a
+% parameter that is being determined in general eqm
+heteroagentoptions.gridsinGE=0;
+if isfield(vfoptions,'ExogShockFn')
+    
+end
+if isfield(vfoptions,'EiidShockFn')
+
+end
+if heteroagentoptions.gridsinGE==0
+    % Some of the shock grids depend on parameters that are determined in general eqm
+    [z_grid, pi_z, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions);
+    % Note: these are actually z_gridvals_J and pi_z_J
+    simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % Note, will be [] if no e
+    simoptions.pi_e_J=vfoptions.pi_e_J; % Note, will be [] if no e
+end
+
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 if isstruct(FnsToEvaluate)
+    l_d=length(n_d);
     if n_d(1)==0
         l_d=0;
-    else
-        l_d=length(n_d);
-    end
-    if n_z(1)==0
-        l_z=0;
-    else
-        l_z=length(n_z);
-    end
-    if isfield(simoptions,'n_e')
-        if simoptions.n_e(1)==0
-            l_e=0;
-        else
-            l_e=length(simoptions.n_e);
-        end
-    else
-        l_e=0;
     end
     l_a=length(n_a);
-    
+    l_aprime=l_a;
+    l_z=length(n_z);
+    if n_z(1)==0
+        l_z=0;
+    end
+    if isfield(simoptions,'SemiExoStateFn')
+        l_z=l_z+length(simoptions.n_semiz);
+    end
+    l_e=0;
+    if isfield(simoptions,'n_e')
+        l_e=length(simoptions.n_e);
+        if simoptions.n_e(1)==0
+            l_e=0;
+        end
+    end
+    if isfield(simoptions,'experienceasset')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.experienceasset;
+    end
+    if isfield(simoptions,'experienceassetu')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.experienceassetu;
+    end
+    if isfield(simoptions,'riskyasset')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.riskyasset;
+    end
+    if isfield(simoptions,'residualassset')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.residualassset;
+    end
+
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z+l_e)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a)
+        if length(temp)>(l_d+l_aprime+l_a+l_z+l_e)
+            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_aprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -167,6 +206,7 @@ if isstruct(FnsToEvaluate)
 else
     % Do nothing
 end
+
 
 %%
 if N_p~=0
@@ -297,8 +337,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             p(ii)=Parameters.(GEPriceParamNames{ii});
         end
         % Given current prices solve the model to get the general equilibrium conditions as a structure
-        p_percentchange=Inf;
-        while any(p_percentchange>heteroagentoptions.toleranceGEprices_percent) % GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
+        p_change=Inf;
+        while any(p_change>heteroagentoptions.heteroagentoptions.toleranceGEprices) || GeneralEqmConditions>heteroagentoptions.toleranceGEcondns
 
             p_i=GeneralEqmConditionsFnOpt(p); % using heteroagentoptions.outputGEform=1, so this is a vector (note the transpose)
 
@@ -323,14 +363,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
                 Parameters.(GEPriceParamNames{ii})=p_new(ii);
             end
 
-            % fprintf('Current iteration \n')
-            % p_percentchange
-            % p_new
-            % p
-            % p_i
-
-            p_percentchange=max(abs(p_new-p)./abs(p));
-            p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
+            p_change=abs(p_new-p); % note, this is a vector
+            % p_percentchange=max(abs(p_new-p)./abs(p));
+            % p_percentchange(p==0)=abs(p_new(p==0)); %-p(p==0)); but this is just zero anyway
             % Update p for next iteration
             p=p_new;
         end
