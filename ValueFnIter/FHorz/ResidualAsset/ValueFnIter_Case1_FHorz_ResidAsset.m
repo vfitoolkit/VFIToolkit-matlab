@@ -65,24 +65,29 @@ end
 %%
 if vfoptions.outputkron==0
     if n_d(1)==0
-        n_d=n_a1;
+        n_dmod=n_a1;
     else
-        n_d=[n_d,n_a1];
+        n_dmod=[n_d,n_a1];
     end
     n_a=[n_a1,n_r];
-    PolicyKron=reshape(PolicyKron,[prod(n_a),prod(n_z),N_j]);
+    if n_d==0
+        PolicyKron=reshape(PolicyKron,[prod(n_a),prod(n_z),N_j]);
+    else
+        PolicyKron=reshape(PolicyKron,[2,prod(n_a),prod(n_z),N_j]);
+        PolicyKron=shiftdim(PolicyKron(1,:,:,:)+prod(n_d)*(PolicyKron(2,:,:,:)-1),1);
+    end
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if isfield(vfoptions,'n_e')
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
         else
             V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dmod, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
     else
         V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, n_z, N_j, vfoptions);
     end
 else
     V=VKron;

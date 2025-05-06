@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_ResidAsset_raw(n_d,n_a,n_r,n_z,N_j, d_grid, a_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_Case1_FHorz_ResidAsset_raw(n_d,n_a,n_r,n_z,N_j, d_grid, a_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -70,8 +70,8 @@ else
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,N_j);
     [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, n_d, n_a, n_r, n_z, d_grid, a_grid, r_grid, z_gridvals_J(:,:,N_j), rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
     % Note: rprimeIndex is [N_d*N_a*N_a*N_z,1], and rprimeProbs is [N_d*N_a*N_a*N_z,1]
-    aprimeIndexes=kron(ones(N_a*N_z,1),(1:1:N_a)'); % aprime over (d,aprime,a,z)
-    zprimeIndexes=kron((1:1:N_z)',ones(N_a*N_a,1)); % zprime over (d,aprime,a,z)
+    aprimeIndexes=repelem(repmat((1:1:N_a)',N_a*N_z,1),N_d,1); % aprime over (d,aprime,a,z)
+    zprimeIndexes=repelem((1:1:N_z)',N_d*N_a*N_a,1); % zprime over (d,aprime,a,z)
 
     % lower r index (size is N_d*N_a*N_a*N_z)
     fullindex=aprimeIndexes+N_a*(rprimeIndexes-1)+N_a*N_r*(zprimeIndexes-1); % index for (a',r',z'), as function of (d,a',a,z)
@@ -98,8 +98,8 @@ else
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,3); % sum over z', leaving a singular second dimension
             
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]); %.*ones(1,1,N_r,1));
-            
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
             
@@ -117,8 +117,8 @@ else
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
                 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]); %.*ones(1,1,N_r));
-                
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
+
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V(:,:,z_c,N_j)=Vtemp;
@@ -135,8 +135,8 @@ else
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]); %.*ones(1,1,N_r));
-            
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,:,z_c,N_j)=Vtemp;
@@ -178,7 +178,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,jj+1);
+    VKronNext_j=V(:,:,:,jj+1);
 
     % Residual asset:
     % VKronNext_j is over (aprime,r,z)
@@ -186,8 +186,8 @@ for reverse_j=1:N_j-1
     rprimeFnParamsVec=CreateVectorFromParams(Parameters, rprimeFnParamNames,jj);
     [rprimeIndexes,rprimeProbs]=CreateResidualAssetFnMatrix_Case1(rprimeFn, n_d, n_a, n_r, n_z, d_grid, a_grid, r_grid, z_gridvals_J(:,:,jj), rprimeFnParamsVec);  % Note, is actually rprime_grid (but r_grid is anyway same for all ages)
     % Note: rprimeIndex is [N_d*N_a*N_a*N_z,1], and rprimeProbs is [N_d*N_a*N_a*N_z,1]
-    aprimeIndexes=kron(ones(N_a*N_z,1),(1:1:N_a)'); % aprime over (d,aprime,a,z)
-    zprimeIndexes=kron((1:1:N_z)',ones(N_a*N_a,1)); % zprime over (d,aprime,a,z)
+    aprimeIndexes=repelem(repmat((1:1:N_a)',N_a*N_z,1),N_d,1); % aprime over (d,aprime,a,z)
+    zprimeIndexes=repelem((1:1:N_z)',N_d*N_a*N_a,1); % zprime over (d,aprime,a,z)
 
     % lower r index (size is N_d*N_a*N_a*N_z)
     fullindex=aprimeIndexes+N_a*(rprimeIndexes-1)+N_a*N_r*(zprimeIndexes-1); % index for (a',r',z'), as function of (d,a',a,z)
@@ -211,8 +211,8 @@ for reverse_j=1:N_j-1
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,3); % sum over z', leaving a singular second dimension
             
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]); %.*ones(1,1,N_r,1));
-            
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
             
@@ -229,8 +229,8 @@ for reverse_j=1:N_j-1
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]); %.*ones(1,1,N_r));
-                
+                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
+
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V(:,:,z_c,jj)=Vtemp;
@@ -247,8 +247,8 @@ for reverse_j=1:N_j-1
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             
-            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]); %.*ones(1,1,N_r));
-            
+            entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
+
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,:,z_c,jj)=Vtemp;
