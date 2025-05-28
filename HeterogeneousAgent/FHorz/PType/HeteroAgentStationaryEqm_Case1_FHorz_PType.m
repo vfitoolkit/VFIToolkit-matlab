@@ -145,6 +145,11 @@ else
     heteroagentoptions.outputGEform=0;
 end
 
+temp=size(heteroagentoptions.multiGEweights);
+if temp(2)==1 % probably column vector
+    heteroagentoptions.multiGEweights=heteroagentoptions.multiGEweights'; % make row vector
+end
+
 AggVarNames=fieldnames(FnsToEvaluate);
 nGEprices=length(GEPriceParamNames);
 

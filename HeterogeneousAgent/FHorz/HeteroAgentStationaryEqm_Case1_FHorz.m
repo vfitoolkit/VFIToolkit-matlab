@@ -124,6 +124,11 @@ else
     heteroagentoptions.outputGEform=0;
 end
 
+temp=size(heteroagentoptions.multiGEweights);
+if temp(2)==1 % probably column vector
+    heteroagentoptions.multiGEweights=heteroagentoptions.multiGEweights'; % make row vector
+end
+
 %% Set up exogenous shock grids now (so they can then just be reused every time)
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
 % parameter that is being determined in general eqm
