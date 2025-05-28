@@ -1,8 +1,8 @@
 function Policy=UnKronPolicyIndexes_Case2_FHorz_e(Policy, n_d, n_a, n_z,n_e,N_j, vfoptions)
 
-%Input: Policy (N_a,N_z,N_j); 
-%PolicyIndexesIntermediate (l_d,N_a,N_z,N_j)
-%Output: Policy (l_d,n_a,n_z,N_j);
+% Input: Policy (N_a,N_z,N_e,N_j); 
+% PolicyIndexesIntermediate (l_d,N_a,N_z,N_e,N_j)
+% Output: Policy (l_d,n_a,n_z,n_e,N_j);
 
 N_a=prod(n_a);
 N_z=prod(n_z);

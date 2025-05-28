@@ -7,9 +7,9 @@ function [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHor
 % First z
 if ~isfield(simoptions,'alreadygridvals') % DONT WANT TO HAVE TO FIX ALL CODES THAT CALL THIS JUST NOW. 
     % NEED TO REMOVE AND CLEAN THE REST LATER
-    [z_gridvals_J, ~, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,[],N_j,Parameters,simoptions);
+    [z_gridvals_J, ~, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,[],N_j,Parameters,simoptions,1);
 elseif simoptions.alreadygridvals==0
-    [z_gridvals_J, ~, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,[],N_j,Parameters,simoptions);
+    [z_gridvals_J, ~, simoptions]=ExogShockSetup_FHorz(n_z,z_grid,[],N_j,Parameters,simoptions,1);
 elseif simoptions.alreadygridvals==1
     z_gridvals_J=z_grid;
 end

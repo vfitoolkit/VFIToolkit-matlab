@@ -3,6 +3,7 @@ function [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_g
 V=nan;
 Policy=nan;
 
+
 %% Check which vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
@@ -160,10 +161,10 @@ elseif ndims(pi_z)==3
 end
 
 
-if isfield(vfoptions,'n_e')
+if isfield(vfoptions,'n_e') && ~isfield(vfoptions,'EiidShockFn')
     if isfield(vfoptions,'e_grid_J')
         error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
-    elseif ~isfield(vfoptions,'e_grid')
+    elseif ~isfield(vfoptions,'e_grid') 
         error('When using vfoptions.n_e you must declare vfoptions.e_grid')
     elseif ~isfield(vfoptions,'pi_e')
         error('When using vfoptions.n_e you must declare vfoptions.pi_e')
@@ -223,7 +224,7 @@ end
 %% Exogenous shock gridvals and pi
 if vfoptions.alreadygridvals==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     %
     % size(z_gridvals_J)=[prod(n_z),length(n_z),N_j]
@@ -236,6 +237,8 @@ elseif vfoptions.alreadygridvals==1
     z_gridvals_J=z_grid;
     pi_z_J=pi_z;
 end
+
+
 
 %% Semi-exogenous shock gridvals and pi 
 if isfield(vfoptions,'n_semiz')

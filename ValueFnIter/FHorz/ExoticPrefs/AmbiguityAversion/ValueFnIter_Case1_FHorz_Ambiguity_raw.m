@@ -217,9 +217,8 @@ for reverse_j=1:N_j-1
             EV=min(ambEV,[],4);
             % From here, can just use EV as normal
 
-            entireEV=kron(EV,ones(N_d,1));
-%             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
+            entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
+            entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
