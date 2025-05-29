@@ -16,6 +16,9 @@ simoptions.parallel=Parallel;
 if ~exist('simoptions', 'var')
     simoptions=struct();
 end
+if ~isfield('simoptions', 'alreadygridvals')
+    simoptions.alreadygridvals=0;
+end
 
 if n_d(1)==0
     l_d=0;
@@ -32,11 +35,14 @@ N_z=prod(n_z);
 
 l_daprime=size(PolicyIndexes,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-if all(size(z_grid)==[sum(n_z),1]) % stacked-column
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid 
+% Switch to z_gridvals
+if simoptions.alreadygridvals==0
+    [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
+elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
+
+
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)

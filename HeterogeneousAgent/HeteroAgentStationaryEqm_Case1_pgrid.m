@@ -19,9 +19,16 @@ for p_c=1:N_p
     if heteroagentoptions.verbose==1
         fprintf('Stationary eqm: using price grid element %i out of %i \n', p_c, N_p)
     end
-    
-%     V0Kron(~isfinite(V0Kron))=0; %Since we loop through with V0Kron from previous p_c this is necessary to avoid contamination by -Inf's
-    
+
+    % If z (and e) are determined in GE
+    if heteroagentoptions.gridsinGE==1
+        % Some of the shock grids depend on parameters that are determined in general eqm
+        [z_grid, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+        % Note: these are actually z_gridvals and pi_z
+        simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
+        simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
+    end
+
     %Step 1: Solve the value fn iteration problem (given this price, indexed by p_c)
     %Calculate the price vector associated with p_c
     p_index=ind2sub_homemade(n_p,p_c);

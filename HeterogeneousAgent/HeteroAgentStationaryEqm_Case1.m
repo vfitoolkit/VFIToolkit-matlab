@@ -158,14 +158,36 @@ else
 end
 
 
-% if heteroagentoptions.oldGE==1
-% %     GeneralEqmEqnInputNames=GeneralEqmEqnParamNames;
-% elseif heteroagentoptions.oldGE==0
-%     clear GeneralEqmEqnParamNames
-%     for ii=1:length(GeneralEqmEqns)
-%         GeneralEqmEqnParamNames(ii).Names=getAnonymousFnInputNames(GeneralEqmEqns{ii});
-%     end
-% end
+%% Set up exogenous shock grids now (so they can then just be reused every time)
+% Check if using ExogShockFn or EiidShockFn, and if so, do these use a
+% parameter that is being determined in general eqm
+heteroagentoptions.gridsinGE=0;
+if isfield(vfoptions,'ExogShockFn')
+    tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+    if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
+        heteroagentoptions.gridsinGE=1;
+    end        
+end
+if isfield(vfoptions,'EiidShockFn')
+    tempEiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+    if ~isempty(intersect(tempEiidShockFnParamNames,GEPriceParamNames))
+        heteroagentoptions.gridsinGE=1;
+    end        
+end
+% If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
+if heteroagentoptions.gridsinGE==0
+    % Some of the shock grids depend on parameters that are determined in general eqm
+    [z_grid, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+    % Note: these are actually z_gridvals and pi_z
+    simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
+    simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
+end
+% Regardless of whether they are done here of in _subfn, they will be
+% precomputed by the time we get to the value fn, staty dist, etc. So
+vfoptions.alreadygridvals=1;
+simoptions.alreadygridvals=1;
 
 
 %% If using fminalgo=5, then need some further setup

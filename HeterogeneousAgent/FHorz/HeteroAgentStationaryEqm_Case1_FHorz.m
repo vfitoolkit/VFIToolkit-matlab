@@ -136,14 +136,14 @@ heteroagentoptions.gridsinGE=0;
 if isfield(vfoptions,'ExogShockFn')
     tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
     % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
-    if any(strcmp(tempExogShockFnParamNames,GEPriceParamNames))
+    if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
         heteroagentoptions.gridsinGE=1;
     end        
 end
 if isfield(vfoptions,'EiidShockFn')
     tempEiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
     % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
-    if any(strcmp(tempEiidShockFnParamNames,GEPriceParamNames))
+    if ~isempty(intersect(tempEiidShockFnParamNames,GEPriceParamNames))
         heteroagentoptions.gridsinGE=1;
     end        
 end

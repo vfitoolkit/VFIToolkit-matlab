@@ -34,9 +34,6 @@ else
         % Now just do z_gridvals_J
         z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
-            if ~isfield(options,'ExogShockFnParamNames')
-                options.ExogShockFnParamNames=getAnonymousFnInputNames(options.ExogShockFn);
-            end
             for jj=1:N_j
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -68,9 +65,6 @@ else
         % Now just do pi_z_J
         pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
-            if ~isfield(options,'ExogShockFnParamNames')
-                options.ExogShockFnParamNames=getAnonymousFnInputNames(options.ExogShockFn);
-            end
             for jj=1:N_j
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -89,9 +83,6 @@ else
         z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
         pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
-            if ~isfield(options,'ExogShockFnParamNames')
-                options.ExogShockFnParamNames=getAnonymousFnInputNames(options.ExogShockFn);
-            end
             for jj=1:N_j
                 ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames,jj);
                 ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -144,9 +135,6 @@ else
         % Now just do e_gridvals_J
         options.e_gridvals_J=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
         if isfield(options,'EiidShockFn')
-            if ~isfield(options,'EiidShockFnParamNames')
-                options.EiidShockFnParamNames=getAnonymousFnInputNames(options.EiidShockFn);
-            end
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
                 EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
@@ -178,9 +166,6 @@ else
         % Now just do pi_e_J
         options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
         if isfield(options,'EiidShockFn')
-            if ~isfield(options,'EiidShockFnParamNames')
-                options.EiidShockFnParamNames=getAnonymousFnInputNames(options.EiidShockFn);
-            end
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
                 EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
@@ -199,9 +184,6 @@ else
         options.pi_e_J=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
 
         if isfield(options,'EiidShockFn')
-            if ~isfield(options,'EiidShockFnParamNames')
-                options.EiidShockFnParamNames=getAnonymousFnInputNames(options.EiidShockFn);
-            end
             for jj=1:N_j
                 EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames,jj);
                 EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);

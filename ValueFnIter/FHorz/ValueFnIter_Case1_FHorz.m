@@ -239,7 +239,6 @@ elseif vfoptions.alreadygridvals==1
 end
 
 
-
 %% Semi-exogenous shock gridvals and pi 
 if isfield(vfoptions,'n_semiz')
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)

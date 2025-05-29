@@ -38,6 +38,8 @@ if ~exist('vfoptions','var')
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
     vfoptions.outputkron=0;
+    % When calling as a subcommand, the following is used internally
+    vfoptions.alreadygridvals=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'solnmethod')
@@ -102,6 +104,10 @@ else
     end
     if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0;
+    end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(vfoptions,'alreadygridvals')
+        vfoptions.alreadygridvals=0;
     end
 end
 
@@ -202,10 +208,9 @@ if vfoptions.verbose==1
 end
 
 %% Switch to z_gridvals
-l_z=length(n_z);
-if all(size(z_grid)==[sum(n_z),1])
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-elseif all(size(z_grid)==[prod(n_z),l_z])
+if vfoptions.alreadygridvals==0
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
 

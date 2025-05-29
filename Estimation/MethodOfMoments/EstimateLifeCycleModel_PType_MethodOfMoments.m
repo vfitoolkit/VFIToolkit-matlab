@@ -267,101 +267,24 @@ end
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
-
-% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-% Gradually rolling these out so that all the commands build off of these
-z_gridvals_J=zeros(prod(n_z),length(n_z),'gpuArray');
-pi_z_J=zeros(prod(n_z),prod(n_z),'gpuArray');
+estimoptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
 if isfield(vfoptions,'ExogShockFn')
-    if ~isfield(vfoptions,'ExogShockFnParamNames')
-        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    temp=getAnonymousFnInputNames(vfoptions.ExogShockFn);
+    if ~isempty(intersect(temp,CalibParamNames))
+        estimoptions.calibrateshocks=1;
     end
-    for jj=1:N_j
-        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-        for ii=1:length(ExogShockFnParamsVec)
-            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-        end
-        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-        pi_z_J(:,:,jj)=gpuArray(pi_z);
-        if all(size(z_grid)==[sum(n_z),1])
-            z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
-        else % already joint-grid
-            z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
-        end
+elseif isfield(vfoptions,'EiidShockFn')
+    estimoptions.calibrateshocks=1;
+    temp=getAnonymousFnInputNames(vfoptions.EiidShockFn);
+    if ~isempty(intersect(temp,CalibParamNames))
+        estimoptions.calibrateshocks=1;
     end
-elseif prod(n_z)==0 % no z
-    z_gridvals_J=[];
-elseif ndims(z_grid)==3 % already an age-dependent joint-grid
-    if all(size(z_grid)==[prod(n_z),length(n_z),N_j])
-        z_gridvals_J=z_grid;
-    end
-    pi_z_J=pi_z;
-elseif all(size(z_grid)==[sum(n_z),N_j]) % age-dependent grid
-    for jj=1:N_j
-        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid(:,jj),1);
-    end
-    pi_z_J=pi_z;
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
-    z_gridvals_J=z_grid.*ones(1,1,N_j,'gpuArray');
-    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
-elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
-    z_gridvals_J=CreateGridvals(n_z,z_grid,1).*ones(1,1,N_j,'gpuArray');
-    pi_z_J=pi_z.*ones(1,1,N_j,'gpuArray');
 end
-
-% If using e variable, do same for this
-if isfield(vfoptions,'n_e')
-    if prod(vfoptions.n_e)==0
-        vfoptions=rmfield(vfoptions,'n_e');
-    else
-        if isfield(vfoptions,'e_grid_J')
-            error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
-        end
-        if ~isfield(vfoptions,'e_grid') % && ~isfield(vfoptions,'e_grid_J')
-            error('You are using an e (iid) variable, and so need to declare vfoptions.e_grid')
-        elseif ~isfield(vfoptions,'pi_e')
-            error('You are using an e (iid) variable, and so need to declare vfoptions.pi_e')
-        end
-
-        vfoptions.e_gridvals_J=zeros(prod(vfoptions.n_e),length(vfoptions.n_e),'gpuArray');
-        vfoptions.pi_e_J=zeros(prod(vfoptions.n_e),prod(vfoptions.n_e),'gpuArray');
-        if isfield(vfoptions,'EiidShockFn')
-            if ~isfield(vfoptions,'EiidShockFnParamNames')
-                vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-            end
-            for jj=1:N_j
-                EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                for ii=1:length(EiidShockFnParamsVec)
-                    EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                end
-                [vfoptions.e_grid,vfoptions.pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                vfoptions.pi_e_J(:,jj)=gpuArray(vfoptions.pi_e);
-                if all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1])
-                    vfoptions.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1));
-                else % already joint-grid
-                    vfoptions.e_gridvals_J(:,:,jj)=gpuArray(vfoptions.e_grid,1);
-                end
-            end
-        elseif ndims(vfoptions.e_grid)==3 % already an age-dependent joint-grid
-            if all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e),N_j])
-                vfoptions.e_gridvals_J=vfoptions.e_grid;
-            end
-            vfoptions.pi_e_J=vfoptions.pi_e;
-        elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),N_j]) % age-dependent stacked-grid
-            for jj=1:N_j
-                vfoptions.e_gridvals_J(:,:,jj)=CreateGridvals(vfoptions.n_e,vfoptions.e_grid(:,jj),1);
-            end
-            vfoptions.pi_e_J=vfoptions.pi_e;
-        elseif all(size(vfoptions.e_grid)==[prod(vfoptions.n_e),length(vfoptions.n_e)]) % joint grid
-            vfoptions.e_gridvals_J=vfoptions.e_grid.*ones(1,1,N_j,'gpuArray');
-            vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-        elseif all(size(vfoptions.e_grid)==[sum(vfoptions.n_e),1]) % basic grid
-            vfoptions.e_gridvals_J=CreateGridvals(vfoptions.n_e,vfoptions.e_grid,1).*ones(1,1,N_j,'gpuArray');
-            vfoptions.pi_e_J=vfoptions.pi_e.*ones(1,N_j,'gpuArray');
-        end
-    end
+if estimoptions.calibrateshocks==0
+    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+    vfoptions.alreadygridvals=1;
+    % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
 end
