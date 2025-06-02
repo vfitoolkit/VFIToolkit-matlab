@@ -209,7 +209,12 @@ end
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+    if vfoptions.parallel<2
+        % only basics allowed with cpu
+        z_gridvals=z_grid;
+    else
+        [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+    end
 elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end

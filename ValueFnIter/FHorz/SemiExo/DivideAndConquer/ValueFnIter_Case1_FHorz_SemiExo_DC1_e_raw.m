@@ -29,11 +29,7 @@ if vfoptions.lowmemory>0
 else
     eind=shiftdim((0:1:N_e-1),-2); % already includes -1
 end
-if vfoptions.lowmemory>1
-    special_n_bothz=ones(1,length(n_z)+length(n_semiz));
-else
-    bothzind=shiftdim((0:1:N_bothz-1),-1);
-end
+bothzind=shiftdim((0:1:N_bothz-1),-1);
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
 % Preallocate
