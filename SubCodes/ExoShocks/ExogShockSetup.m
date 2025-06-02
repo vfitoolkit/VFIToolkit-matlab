@@ -48,7 +48,6 @@ else
     elseif gridpiboth==2 % For agent dist, we don't use grid
         z_gridvals=[];
         % Now just do pi_z_J
-        pi_z=zeros(prod(n_z),prod(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -60,7 +59,6 @@ else
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
         z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
-        pi_z=zeros(prod(n_z),prod(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -71,10 +69,8 @@ else
         end
         if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
             z_gridvals=z_grid;
-            pi_z=pi_z;
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals=CreateGridvals(n_z,z_grid,1);
-            pi_z=pi_z;
         end
     end
 end
@@ -112,7 +108,6 @@ else
     elseif gridpiboth==2 % For agent dist, we don't use grid
         options.e_gridvals=[];
         % Now just do pi_e_J
-        options.pi_e=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
         if isfield(options,'EiidShockFn')
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
             EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
@@ -124,8 +119,6 @@ else
     elseif gridpiboth==3
         % For value fn, both e_gridvals_J and pi_e_J
         options.e_gridvals=zeros(prod(options.n_e),length(options.n_e),'gpuArray');
-        options.pi_e=zeros(prod(options.n_e),prod(options.n_e),'gpuArray');
-
         if isfield(options,'EiidShockFn')
             EiidShockFnParamsVec=CreateVectorFromParams(Parameters, options.EiidShockFnParamNames);
             EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
@@ -156,7 +149,6 @@ end
 if isfield(options,'EiidShockFnParamNames')
     options=rmfield(options,'EiidShockFnParamNames');
 end
-
 
 
 end

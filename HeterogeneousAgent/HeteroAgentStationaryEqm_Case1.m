@@ -176,13 +176,18 @@ if isfield(vfoptions,'EiidShockFn')
         heteroagentoptions.gridsinGE=1;
     end        
 end
-% If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
+% If z (and e) are not determined in GE, then compute z_gridvals and pi_z now (and e_gridvals and pi_e)
 if heteroagentoptions.gridsinGE==0
-    % Some of the shock grids depend on parameters that are determined in general eqm
-    [z_grid, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
-    % Note: these are actually z_gridvals and pi_z
-    simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
-    simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
+    if vfoptions.parallel<2 % If on cpu, only allowed to use the very basics
+        % z_grid and pi_z are just simple, so leave as is.
+        % e is not supported for cpu
+    else
+        % Some of the shock grids depend on parameters that are determined in general eqm
+        [z_grid, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+        % Note: these are actually z_gridvals and pi_z
+        simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
+        simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
+    end
 end
 % Regardless of whether they are done here of in _subfn, they will be
 % precomputed by the time we get to the value fn, staty dist, etc. So

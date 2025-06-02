@@ -37,7 +37,11 @@ l_daprime=size(PolicyIndexes,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
-    [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
+    if simoptions.parallel<2
+        z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
+    else
+        [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
+    end
 elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
