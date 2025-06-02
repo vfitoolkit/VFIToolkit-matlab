@@ -113,10 +113,15 @@ if bruteforce==0
         z_gridspacing_down=CreateGridvals(znum,[z1_gridspacing_down;z2_gridspacing_down;z3_gridspacing_down;z4_gridspacing_down;z5_gridspacing_down],1);
     end
 
+    if ~all(isfinite(z_gridvals(:)))
+        error('MVNormal_ProbabilitiesOnGrid: all grid values must be finite (one of the grid points is not finite)')
+    end
+
     if l_z==1
         P = normcdf(z_gridvals+z_gridspacing_up,Mew,Sigma)-normcdf(z_gridvals-z_gridspacing_down,Mew,Sigma);
     else
         P=reshape(mvncdf(z_gridvals-z_gridspacing_down,z_gridvals+z_gridspacing_up,Mew,Sigma),znum);
+        % mvncdf() can put NaN when 
     end
 
 else 

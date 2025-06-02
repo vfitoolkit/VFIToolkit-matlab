@@ -1,11 +1,13 @@
-function Obj=CalibrateLifeCycleModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
 
+% Nested: General Eqm is the inner loop, calibration is the outer-loop.
+
 % Do any transformations of parameters before we say what they are
 penalty=zeros(length(calibparamsvec),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
-for pp=1:length(CalibParamNames)
+for pp=1:nCalibParams
     if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         temp=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
         penalty((calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))=abs(temp/50).*(temp<-51); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
@@ -39,28 +41,28 @@ end
 if caliboptions.verbose==1
     fprintf(' \n')
     fprintf('Current parameter values: \n')
-    for pp=1:length(CalibParamNames)
+    for pp=1:nCalibParams
         if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
-            fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+            fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
         else
-            fprintf(['    ',CalibParamNames{pp},'=  \n'])
+            fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'=  \n'])
             calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
         end
     end
 end
 
-
-for pp=1:length(CalibParamNames)
+for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        Parameters.(CalibParamNames{pp})=currparamraw;
+        Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(currparamraw,calibparamssizes(pp,:));
     else
-        Parameters.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
     end
 end
 
-%% ParametrizeParamsFn can be used to parametrize the parameters
+
+%% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
 if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
 end
@@ -74,36 +76,28 @@ if caliboptions.calibrateshocks==1
     simoptions.pi_e_J=vfoptions.pi_e_J;
 end
 
-
 %% Solve the model and calculate the stats
-[~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1_FHorz(jequaloneDist, AgeWeightParamNames,n_d, n_a, n_z, N_j, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, [], [], [], GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
+
+for pp=1:length(GEPriceParamNames)
+    Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
+end
+
+[~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
 
 StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
 
-if caliboptions.simulatemoments==0
-    if usingallstats==1
-        simoptions.whichstats=AllStats_whichstats;
-        AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
-    end
-    if usinglcp==1
-        simoptions.whichstats=ACStats_whichstats;
-        AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
-    end
-elseif caliboptions.simulatemoments==1
-    % Do a panel data simulation.
-    % Not used in calibration, but needed for estimation when bootstrapping standard errors
-    % Set random number generator seed to estimoptions.rngindex
-    rng(estimoptions.rngindex) % Often, each time the objectivefn is evaluated we want to be able to use same random number sequence
-    simPanelValues=SimPanelValues_FHorz_Case1(jequaloneDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid_J,pi_z_J,simoptions);
-    % Compute the moments (same as CalibrateLifeCycleModel_objectivefn(), except the panel data versions)
-    if usingallstats==1
-        simoptions.whichstats=AllStats_whichstats;
-        AllStats=PanelValues_AllStats_FHorz(simPanelValues,simoptions);
-    end
-    if usinglcp==1
-        simoptions.whichstats=ACStats_whichstats;
-        AgeConditionalStats=PanelValues_LifeCycleProfiles_FHorz(simPanelValues,N_j,simoptions);
-    end
+if usingallstats==1
+    simoptions.whichstats=AllStats_whichstats;
+    AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+end
+if usinglcp==1
+    simoptions.whichstats=ACStats_whichstats;
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+end
+
+if caliboptions.simulatemoments==1
+    error('simulatemoments=1 option is not supported for OLG models')
 end
 
 
@@ -138,6 +132,7 @@ if usinglcp==1
     end
 end
 
+
 %% Option to log moments (if targets are log, then this will have been already applied)
 if any(caliboptions.logmoments>0) % need to log some moments
     currentmomentvec=(1-caliboptions.logmoments).*currentmomentvec + caliboptions.logmoments.*log(currentmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
@@ -145,8 +140,10 @@ end
 
 
 %% Evaluate the objective function (which is being minimized)
+% Create Obj1 for calib targets, then Obj2 for general eqm conditions.
+% These are then combined for Obj
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
-if caliboptions.vectoroutput==1 % vector output
+if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
     % Main use it for computing derivatives of moments with respect to parameters
     Obj=currentmomentvec(actualtarget);
@@ -155,12 +152,12 @@ elseif caliboptions.vectoroutput==0 % scalar output
     % targetmomentvec is the target moment values
     % Both are column vectors
 
-    % Note: MethodOfMoments and sum_squared are doing essentially the same calculation (only different is size of weights, 
-    % which will be a matrix for MethodOfMoments but a vector for sum_squared), I just write them in ways that make it more 
-    % obvious that they do what they say.
+    % Note: MethodOfMoments and sum_squared are doing the same calculation, I
+    % just write them in ways that make it more obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
         % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
-        % For the purpose of doing log(moments) I switched to the following (otherwise getting silly current moments can seem attractive)
+        % For the purpose of doing log(moments) I switched to the following
+        % (otherwise getting silly current moments can seem attractive)
         Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
         Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,'omitnan');
@@ -177,6 +174,9 @@ elseif caliboptions.vectoroutput==0 % scalar output
             Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
         end
     end
+
+    Obj=Obj;
+
 elseif caliboptions.vectoroutput==2
     % Weighted vector (for use with least-squares residuals algorithms)
     % Note: the outer-layers of code already took 'square root' of the weights
@@ -189,9 +189,9 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
+    
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
-
 
 
 %% Verbose
@@ -218,8 +218,6 @@ elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
         end
     end
 end
-
-
 
 
 

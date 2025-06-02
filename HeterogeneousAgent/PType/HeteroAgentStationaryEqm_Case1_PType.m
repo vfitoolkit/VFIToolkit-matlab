@@ -309,49 +309,12 @@ for ii=1:PTypeStructure.N_i
     if isa(z_grid,'struct')
         PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
     end
-    
     PTypeStructure.(iistr).pi_z=pi_z;
-    % If using 'agedependentgrids' then pi_z will actually be the AgeDependentGridParamNames, which is a structure. 
-    % Following gets complicated as pi_z being a structure could be because
-    % it depends just on age, or on permanent type, or on both.
-    if exist('vfoptions','var')
-        if isfield(vfoptions,'agedependentgrids')
-            if isa(vfoptions.agedependentgrids, 'struct')
-                if isfield(vfoptions.agedependentgrids, Names_i{ii})
-                    PTypeStructure.(iistr).vfoptions.agedependentgrids=vfoptions.agedependentgrids.(Names_i{ii});
-                    PTypeStructure.(iistr).simoptions.agedependentgrids=simoptions.agedependentgrids.(Names_i{ii});
-                    % In this case AgeDependentGridParamNames must be set up as, e.g., AgeDependentGridParamNames.ptype1.d_grid
-                    PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
-                else
-                    % The current permanent type does not use age dependent grids.
-                    PTypeStructure.(iistr).vfoptions=rmfield(PTypeStructure.(iistr).vfoptions,'agedependentgrids');
-                    PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'agedependentgrids');
-                    % Different grids by permanent type (some of them must be using agedependentgrids even though not the current permanent type), but not depending on age.
-                    PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
-                end
-            else
-                temp=size(vfoptions.agedependentgrids);
-                if temp(1)>1 % So different permanent types use different settings for age dependent grids
-                    if prod(temp(ii,:))>0
-                        PTypeStructure.(iistr).vfoptions.agedependentgrids=vfoptions.agedependentgrids(ii,:);
-                        PTypeStructure.(iistr).simoptions.agedependentgrids=simoptions.agedependentgrids(ii,:);
-                    else
-                        PTypeStructure.(iistr).vfoptions=rmfield(PTypeStructure.(iistr).vfoptions,'agedependentgrids');
-                        PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'agedependentgrids');
-                    end
-                    % In this case AgeDependentGridParamNames must be set up as, e.g., AgeDependentGridParamNames.ptype1.d_grid
-                    PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
-                else % Grids depend on age, but not on permanent type (at least the function does not, you could set it up so that this is handled by the same function but a parameter whose value differs by permanent type
-                    PTypeStructure.(iistr).pi_z=pi_z;
-                end
-            end
-        elseif isa(pi_z,'struct')
-            PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age.
-        end
-    elseif isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
+    if isa(pi_z,'struct')
+        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
     end
-    
+
+    %%
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
@@ -388,6 +351,39 @@ for ii=1:PTypeStructure.N_i
     end
     % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
     
+        %% Set up exogenous shock grids now (so they can then just be reused every time)
+    % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
+    % parameter that is being determined in general eqm
+    heteroagentoptions.gridsinGE(ii)=0;
+    if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
+        tempExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.ExogShockFn);
+        % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+        if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
+            heteroagentoptions.gridsinGE(ii)=1;
+        end
+    end
+    if isfield(PTypeStructure.(iistr).vfoptions,'EiidShockFn')
+        tempEiidShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.EiidShockFn);
+        % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+        if ~isempty(intersect(tempEiidShockFnParamNames,GEPriceParamNames))
+            heteroagentoptions.gridsinGE(ii)=1;
+        end
+    end
+    % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
+    if heteroagentoptions.gridsinGE(ii)==0
+        % Some of the shock grids depend on parameters that are determined in general eqm
+        [PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+        % Note: these are actually z_gridvals and pi_z
+        PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
+        PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
+    end
+    % Regardless of whether they are done here of in _subfn, they will be
+    % precomputed by the time we get to the value fn, staty dist, etc. So
+    PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
+    PTypeStructure.(iistr).simoptions.alreadygridvals=1;
+       
+
+    %%
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')

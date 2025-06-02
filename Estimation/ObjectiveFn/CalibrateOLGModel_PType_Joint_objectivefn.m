@@ -1,4 +1,4 @@
-function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, PTypeDistParamNames, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateOLGModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -76,6 +76,7 @@ for pp=1:nCalibParams
     end
 end
 
+
 %% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
 if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
@@ -84,7 +85,7 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,vfoptions,3);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
@@ -95,6 +96,17 @@ end
 
 StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z_J,Parameters,simoptions);
 
+% Note: I could make it a bit faster by just doing these AggVars for the general eqm as part of the AllStats
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, simoptions);
+
+% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+AggVarNames=fieldnames(AggVars);
+for aa=1:length(AggVarNames)
+    Parameters.(AggVarNames{aa})=AggVars.(AggVarNames{aa}).Mean;
+end
+GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
+
+%% Model moments
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
     AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
@@ -107,7 +119,6 @@ end
 if caliboptions.simulatemoments==1
     error('simulatemoments=1 option is not supported for PType')
 end
-
 
 
 %% Get current values of the target moments as a vector
@@ -165,11 +176,15 @@ end
 
 
 %% Evaluate the objective function (which is being minimized)
+% Create Obj1 for calib targets, then Obj2 for general eqm conditions.
+% These are then combined for Obj
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
     % Main use it for computing derivatives of moments with respect to parameters
-    Obj=currentmomentvec(actualtarget);
+    Obj1=currentmomentvec(actualtarget);
+    Obj2=GeneralEqmConditionsVec;
+    Obj=[Obj1; Obj2'];
 elseif caliboptions.vectoroutput==0 % scalar output
     % currentmomentvec is the current moment values
     % targetmomentvec is the target moment values
@@ -181,34 +196,45 @@ elseif caliboptions.vectoroutput==0 % scalar output
         % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
         % For the purpose of doing log(moments) I switched to the following
         % (otherwise getting silly current moments can seem attractive)
-        Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+        Obj1=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
-        Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,'omitnan');
+        Obj1=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,'omitnan');
     elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-        Obj=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),'omitnan');
+        Obj1=sum(caliboptions.weights.*(log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget)).^2),'omitnan');
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    Obj=Obj/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
+    Obj1=Obj1/length(CalibParamNames); % This is done so that the tolerances for convergence are sensible
 
     if penalty>0
-        if Obj>0
-            Obj=1.2*penalty*Obj; % 20% penalty for being too far in violation of restrictions
+        if Obj1>0
+            Obj1=1.2*penalty*Obj1; % 20% penalty for being too far in violation of restrictions
         else % Obj is negative, so penalty is to reduce magnitude
-            Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
+            Obj1=0.8*(1/penalty)*Obj1; % 20% penalty for being too far in violation of restrictions
         end
     end
+
+    % General eqm conditions are always evaluated using sum-of-squares
+    Obj2=sum(heteroagentoptions.multiGEweights.*(GeneralEqmConditionsVec.^2));
+
+    Obj=Obj1+caliboptions.relativeGEweight*Obj2';
+
 elseif caliboptions.vectoroutput==2
     % Weighted vector (for use with least-squares residuals algorithms)
     % Note: the outer-layers of code already took 'square root' of the weights
     if strcmp(caliboptions.metric,'MethodOfMoments')
         % Is essentially the square-root of 'MethodOfMoments' [it is the form of input used by Matlab's lsqnonlin()]
-        Obj=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+        Obj1=caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
-        Obj=caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
+        Obj1=caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_logratiosquared')
-        Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
+        Obj1=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
+
+    Obj2=heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec;
+
+    Obj=[Obj1; caliboptions.relativeGEweight*Obj2'];
+
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
@@ -225,6 +251,22 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
         end
     end
+    fprintf('Current objective fn value breakdown: Obj1=%8.6f and Obj2=%8.6f (with caliboptions.relativeGEweight=%8.6f) \n', Obj1, Obj2)
+
+    fprintf(' \n')
+    fprintf('Current GE prices (this is just repeat of part of current calibration params): \n')
+    for ii=1:length(GEPriceParamNames)
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+    end
+    fprintf('Current aggregate variables: \n')
+    for ii=1:length(AggVarNames)
+        fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
+    end
+    fprintf('Current GeneralEqmEqns: \n')
+    for ii=1:length(GEeqnNames)
+        fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(ii))
+    end
+
 elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
     fprintf('Current and target moments (first row is current, second row is target) \n')
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
@@ -235,6 +277,20 @@ elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
         else  % Obj is negative, so penalty is to reduce magnitude
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
         end
+    end
+
+    fprintf(' \n')
+    fprintf('Current GE prices (this is just repeat of part of current calibration params): \n')
+    for ii=1:length(GEPriceParamNames)
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
+    end
+    fprintf('Current aggregate variables: \n')
+    for ii=1:length(AggVarNames)
+        fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
+    end
+    fprintf('Current GeneralEqmEqns: \n')
+    for ii=1:length(GEeqnNames)
+        fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(ii))
     end
 end
 
