@@ -85,6 +85,10 @@ else
             warning('Using semi-exo shocks, your transition matrix has some rows that dont sum to one for age %i',jj)
         end
     end
+    % Check that pi_semiz_J has no negative entries, if not, print a warning
+    if min(pi_semiz_J(:))<0
+        warning('Using semi-exo shocks, your transition matrix contains negative values')
+    end
 
 end
 

@@ -33,7 +33,7 @@ for p_c=1:N_p
     
     if heteroagentoptions.gridsinGE==1
         % Some of the shock grids depend on parameters that are determined in general eqm
-        [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions);
+        [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_gridvals_J,pi_z_J,N_j,Parameters,vfoptions,3);
         % Convert z and e to age-dependent joint-grids and transtion matrix
         % Note: Ignores which, just redoes both z and e
         simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % if no e, this is just empty anyway

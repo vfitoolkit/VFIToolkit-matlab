@@ -72,6 +72,15 @@ end
 if ~isfield(heteroagentoptions,'multiGEweights')
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % GE conditions as a vector
 end
+if ~isfield(heteroagentoptions,'constrainpositive')
+    heteroagentoptions.constrainpositive={}; % names of parameters to be constrainted to be positive (gets converted to a binary-valued vector below)
+end
+if ~isfield(heteroagentoptions,'constrain0to1')
+    heteroagentoptions.constrain0to1={}; % names of parameters to be constrainted between 0 and 1 (gets converted to a binary-valued vector below)
+end
+if ~isfield(heteroagentoptions,'constrainAtoB')
+    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrainted between A and B (gets converted to a binary-valued vector below)
+end
 % GE eqns, switch from structure to cell setup
 GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
