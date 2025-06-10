@@ -13,7 +13,6 @@ if ~exist('vfoptions','var')
     vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     if vfoptions.parallel==2
         vfoptions.returnmatrix=2; % On GPU, must use this option
-%         vfoptions.solnmethod='purediscretization_relativeVFI'; % Has only been implemented on the GPU
     end
     if isfield(vfoptions,'returnmatrix')==0
         if isa(ReturnFn,'function_handle')==1
@@ -37,6 +36,7 @@ if ~exist('vfoptions','var')
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
+    vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
     vfoptions.outputkron=0;
     % When calling as a subcommand, the following is used internally
     vfoptions.alreadygridvals=0;
@@ -102,6 +102,9 @@ else
     if ~isfield(vfoptions,'piz_strictonrowsaddingtoone')
         vfoptions.piz_strictonrowsaddingtoone=0;
     end
+    if ~isfield(vfoptions,'separableReturnFn')
+        vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
+    end
     if ~isfield(vfoptions,'outputkron')
         vfoptions.outputkron=0;
     end
@@ -110,6 +113,20 @@ else
         vfoptions.alreadygridvals=0;
     end
 end
+
+
+% If setting refinement without a d variable, then just shift to standard purediscretization (as refinement only makes sense if there is a d variable)
+if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
+    if n_d(1)==0
+        vfoptions.solnmethod='purediscretization';
+    end
+end
+% Divide-and-conquer with one endogenous state is implemented, but is too slow to be something you would ever want. 
+% Especially becuase you cannot refine while doing divideandconquer
+if vfoptions.divideandconquer==1 && isscalar(n_a)
+    vfoptions.divideandconquer=0; 
+end
+
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -180,7 +197,11 @@ if max(vfoptions.incrementaltype)==1
     end
 end
 
-
+%% Separable Return Fn
+if vfoptions.separableReturnFn==1
+    % Split it off here, as messes with ReturnFnParamNames and ReturnFnParamsVec
+    [V,Policy]=ValueFnIter_SeparableReturnFn(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+end
 
 %% Implement new way of handling ReturnFn inputs
 if isempty(ReturnFnParamNames)
@@ -412,163 +433,27 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(vfoptions,'SemiEndogShockFn')
-    if vfoptions.lowmemory~=0 || vfoptions.parallel<1 % GPU or parellel CPU are only things that I have created (email me if you want/need other options)
-        error('Only lowmemory=0 and parallel=1 or 2 are currently possible when using vfoptions.SemiEndogShockFn \n')
-    end
-    if vfoptions.verbose==1
-        fprintf('Creating return fn matrix \n')
-    end
-    if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-    elseif vfoptions.returnmatrix==1
-        ReturnMatrix=ReturnFn;
-    elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-    end
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create return fn matrix: %8.4f \n', time)
-        fprintf('Starting pi_z_endog \n')
-        tic;
-    end
-    
-    if isa(vfoptions.SemiEndogShockFn,'function_handle')==0
-        pi_z_semiendog=vfoptions.SemiEndogShockFn;
-    else
-        if ~isfield(vfoptions,'SemiEndogShockFnParamNames')
-            error('vfoptions.SemiEndogShockFnParamNames is missing (is needed for vfoptions.SemiEndogShockFn) \n')
-        end
-        pi_z_semiendog=zeros(N_a,N_z,N_z);
-        a_gridvals=CreateGridvals(n_a,a_grid,2);
-        SemiEndogParamsVec=CreateVectorFromParams(Parameters, vfoptions.SemiEndogShockFnParamNames);
-        SemiEndogParamsCell=cell(length(SemiEndogParamsVec),1);
-        for ii=1:length(SemiEndogParamsVec)
-            SemiEndogParamsCell(ii,1)={SemiEndogParamsVec(ii)};
-        end
-        parfor ii=1:N_a
-            a_ii=a_gridvals(ii,:)';
-            a_ii_SemiEndogParamsCell=[a_ii;SemiEndogParamsCell];
-            [~,temp_pi_z]=SemiEndogShockFn(a_ii_SemiEndogParamsCell{:});
-            pi_z_semiendog(ii,:,:)=temp_pi_z;
-            % Note that temp_z_grid is just the same things for all k, and same as
-            % z_grid created about 10 lines above, so I don't bother keeping it.
-            % I only create it so you can double-check it is same as z_grid
-        end
-    end
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create semi-endogenous shock transition matrix: %8.4f \n', time)
-        fprintf('Starting Value Function \n')
-        tic;
-    end
-    
-    if vfoptions.parallel==2
-        if n_d(1)==0
-            [VKron,Policy]=ValueFnIter_Case1_NoD_SemiEndog_Par2_raw(V0, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        else
-            [VKron, Policy]=ValueFnIter_Case1_SemiEndog_Par2_raw(V0, n_d, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        end
-    elseif vfoptions.parallel==1
-        if n_d(1)==0
-            [VKron,Policy]=ValueFnIter_Case1_NoD_SemiEndog_Par1_raw(V0, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        else
-            [VKron, Policy]=ValueFnIter_Case1_SemiEndog_Par1_raw(V0, n_d, n_a, n_z, pi_z_semiendog, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-        end        
-    end
-    if vfoptions.outputkron==0
-        V=reshape(VKron,[n_a,n_z]);
-        Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-        if vfoptions.verbose==1
-            time=toc;
-            fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-        end
-    else
-        varargout={VKron,Policy};
-        return
-    end
-    
-    if vfoptions.polindorval==2
-        Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid, a_grid,vfoptions.parallel);
-    end
-    
-    % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-    % that Policy is not integer valued. The following corrects this by converting to int64 and then
-    % makes the output back into double as Matlab otherwise cannot use it in
-    % any arithmetical expressions.
-    if vfoptions.policy_forceintegertype==1
-        Policy=uint64(Policy);
-        Policy=double(Policy);
-    end
-    
+    [V,Policy]=ValueFnIter_SemiEndo(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, DiscountFactorParamsVec, ReturnFn, vfoptions);
     varargout={V,Policy};
     return
 end
 
 %% Detect if using incremental endogenous states and solve this using purediscretization, prior to the main purediscretization routines
-if max(vfoptions.incrementaltype==1) && strcmp(vfoptions.solnmethod,'purediscretization')
+if any(vfoptions.incrementaltype==1) && strcmp(vfoptions.solnmethod,'purediscretization')
     % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
     [VKron,Policy]=ValueFnIter_Case1_Increment(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
-%% If setting refinement without a d variable, then just shift to standard purediscretization
-% (as refinement only makes sense if there is a d variable)
-if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
-    if n_d(1)==0
-        vfoptions.solnmethod='purediscretization';
-    end
-end
-
-
 %% Divide-and-conquer
-if vfoptions.divideandconquer==1 && length(n_a)==1
-    vfoptions.divideandconquer=0; % is implemented, but is too slow to be something you would ever want, especially becuase you cannot refine while doing divideandconquer
-end
-
-
 if vfoptions.divideandconquer==1
-    if ~isfield(vfoptions,'level1n')
-        if length(n_a)==1
-            vfoptions.level1n=51;
-        elseif length(n_a)==2
-            vfoptions.level1n=[21,21];
-        else
-            error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
-        end
-    end
-    vfoptions.level1n=min(vfoptions.level1n,n_a);
-
-    if prod(n_d)==0
-        if length(n_a)==1
-            % This is never actually used/reached as it is too slow to be useful
-            [V,Policy]=ValueFnIter_DC1_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-        elseif length(n_a)==2
-            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-                vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-                [V,Policy]=ValueFnIter_DC2B_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            else
-                [V,Policy]=ValueFnIter_DC2_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            end
-        end
-    else % N_d
-        if length(n_a)==1
-            % This is never actually used/reached as it is too slow to be useful
-            [V,Policy]=ValueFnIter_DC1_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-        elseif length(n_a)==2
-            if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state
-                vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-                [V,Policy]=ValueFnIter_DC2B_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            else
-                [V,Policy]=ValueFnIter_DC2_raw(V0, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            end
-        end
-    end
+    [V,Policy]=ValueFnIter_DivideConquer(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     varargout={V,Policy};
     return
 end
 
 
 %%
-if strcmp(vfoptions.solnmethod,'purediscretization') 
+if strcmp(vfoptions.solnmethod,'purediscretization')
     if vfoptions.parallel==1 && vfoptions.lowmemory==2
         fprintf('Use of vfoptions.lowmemory=2 in not supported for cpu, have switched to vfoptions.lowmemory=1 \n')
         vfoptions.lowmemory=1;
@@ -582,10 +467,6 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         
         if vfoptions.verbose==1
             disp('Creating return fn matrix')
-            tic;
-            if vfoptions.returnmatrix==0
-                fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-            end
         end
         
         if isfield(vfoptions,'statedependentparams')
@@ -612,10 +493,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
         
         if vfoptions.verbose==1
-            time=toc;
-            fprintf('Time to create return fn matrix: %8.4f \n', time)
             fprintf('Starting Value Function \n')
-            tic;
         end
                 
         if n_d(1)==0
@@ -640,7 +518,6 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
                 
         if vfoptions.verbose==1
             disp('Starting Value Function')
-            tic;
         end
         
         if n_d(1)==0
@@ -658,41 +535,6 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
                 [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.verbose);
             elseif vfoptions.parallel==2 % On GPU
                 [VKron, Policy]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-            end
-        end
-        
-    elseif vfoptions.lowmemory==2
-                
-        if vfoptions.verbose==1
-            disp('Starting Value Function')
-            tic;
-        end
-        
-        if n_d(1)==0
-            if vfoptions.parallel==2
-                [VKron,Policy]=ValueFnIter_Case1_LowMem2_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.tolerance, vfoptions.verbose);
-            end
-        else
-            if vfoptions.parallel==2 % On GPU
-                [VKron, Policy]=ValueFnIter_Case1_LowMem2_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec ,vfoptions.howards,vfoptions.tolerance,vfoptions.verbose);
-            end
-        end
-        
-    elseif vfoptions.lowmemory==3 % Specifically for the Hayek method where we include prices
-        V0=reshape(V0,[N_a,N_z]);
-        
-        if vfoptions.verbose==1
-            disp('Starting Value Function')
-            tic;
-        end
-        
-        if n_d(1)==0
-            if vfoptions.parallel==2
-                [VKron,Policy]=ValueFnIter_Case1_LowMem3_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.lowmemorydimensions);
-            end
-        else
-            if vfoptions.parallel==2 % On GPU
-                [VKron, Policy]=ValueFnIter_Case1_LowMem3_Par2_raw(V0,   n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec , vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.lowmemorydimensions);
             end
         end
     end
