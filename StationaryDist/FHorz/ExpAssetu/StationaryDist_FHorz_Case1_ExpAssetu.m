@@ -68,6 +68,8 @@ if n_z(1)==0
 end
 
 %%
+l_d=length(n_d);
+
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_u=prod(n_u);

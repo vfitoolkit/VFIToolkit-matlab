@@ -3,7 +3,7 @@ function StationaryDist=StationaryDist_FHorz_Case1_ExpAsset(jequaloneDist,AgeWei
 %% Setup related to experience asset
 n_d2=n_d(end);
 % Split endogenous assets into the standard ones and the experience asset
-if length(n_a)==1
+if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
