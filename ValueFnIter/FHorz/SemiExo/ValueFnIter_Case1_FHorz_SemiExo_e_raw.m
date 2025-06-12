@@ -249,6 +249,7 @@ for reverse_j=1:N_j-1
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
         end
+
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
