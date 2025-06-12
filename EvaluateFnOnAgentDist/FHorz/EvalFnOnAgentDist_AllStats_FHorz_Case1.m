@@ -6,6 +6,7 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    simoptions.gridinterplayer=0;
 else
     if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20; % by default gives ventiles
@@ -20,6 +21,9 @@ else
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
 end
 
 
@@ -31,10 +35,25 @@ N_a=prod(n_a);
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
+%% I want to do some things now, so that they can be used in setting up conditional restrictions
+AllStats=struct();
+
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+if N_z==0
+    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
+else
+    StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
+end
+
+% Figure out l_daprime from PolicyValues
+l_daprime=size(PolicyValues,1);
+
 
 %% Implement new way of handling FnsToEvaluate
-% Figure out l_daprime from Policy
-l_daprime=size(PolicyIndexes,1);
 
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)
@@ -61,21 +80,6 @@ if isfield(simoptions,'outputasstructure')
     elseif simoptions.outputasstructure==0
         FnsToEvaluateStruct=0;
     end
-end
-
-%% I want to do some things now, so that they can be used in setting up conditional restrictions
-AllStats=struct();
-
-l_daprime=size(PolicyIndexes,1);
-a_gridvals=CreateGridvals(n_a,a_grid,1);
-if N_z==0
-    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-    PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
-else
-    StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-    PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 end
 
 

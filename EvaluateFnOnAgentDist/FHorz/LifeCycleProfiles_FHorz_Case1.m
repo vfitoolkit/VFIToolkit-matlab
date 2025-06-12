@@ -38,6 +38,7 @@ if ~exist('simoptions','var')
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    simoptions.gridinterplayer=0;
 else
     %Check options for missing fields, if there are some fill them with the defaults
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
@@ -80,6 +81,9 @@ else
             simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
         end
     end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
 end
 
 % N_d=prod(n_d);
@@ -113,9 +117,25 @@ a_grid=gpuArray(a_grid);
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
 [n_z,z_gridvals_J,N_z,l_z,simoptions]=CreateGridvals_FnsToEvaluate_FHorz(n_z,z_grid,N_j,simoptions,Parameters);
 
+
+%% I want to do some things now, so that they can be used in setting up conditional restrictions
+
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+if N_z==0
+    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermuteJ=permute(PolicyValues,[2,1,3]); % (N_a,l_daprime,N_j)
+else
+    StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
+    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValuesPermuteJ=permute(PolicyValues,[2,3,1,4]); % (N_a,N_z,l_daprime,N_j)
+end
+
+% Figure out l_daprime from PolicyValues
+l_daprime=size(PolicyValues,1);
+
+
 %% Implement new way of handling FnsToEvaluate
-% Figure out l_daprime from Policy
-l_daprime=size(PolicyIndexes,1);
 
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)
@@ -185,23 +205,6 @@ for ff=1:numFnsToEvaluate
         AgeConditionalStats.(FnsToEvalNames{ff}).QuantileMeans=nan(simoptions.nquantiles,length(simoptions.agegroupings),'gpuArray');
     end
 end
-
-
-
-%% I want to do some things now, so that they can be used in setting up conditional restrictions
-
-l_daprime=size(PolicyIndexes,1);
-a_gridvals=CreateGridvals(n_a,a_grid,1);
-if N_z==0
-    StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
-    PolicyValuesPermuteJ=permute(PolicyValues,[2,1,3]); % (N_a,l_daprime,N_j)
-else
-    StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
-    PolicyValuesPermuteJ=permute(PolicyValues,[2,3,1,4]); % (N_a,N_z,l_daprime,N_j)
-end
-
 
 %% If there are any conditional restrictions, set up for these
 % Evaluate AllStats, but conditional on the restriction being non-zero.

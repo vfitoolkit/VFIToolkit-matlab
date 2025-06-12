@@ -25,38 +25,42 @@ if ~exist('simoptions','var')
     aprime_grid=a_grid;
     n_aprime=n_a;
 else
-    ordinary=1;
     % If using a specific asset type, then remove from aprime
     if isfield(simoptions,'experienceasset')
         if simoptions.experienceasset>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
-            ordinary=0;
         end
     elseif isfield(simoptions,'experienceassetu')
         if simoptions.experienceassetu>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
-            ordinary=0;
         end
     elseif isfield(simoptions,'riskyasset')
         if simoptions.riskyasset>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
-            ordinary=0;
         end
     elseif isfield(simoptions,'residualasset')
         if simoptions.residualasset>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
-            ordinary=0;
         end
-    end
-    if ordinary==1 % not using any specific asset type
+    elseif simoptions.gridinterplayer==1
+        l_aprime=l_a;
+        aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*simoptions.ngridinterp))';
+        n_aprime=n_a+(n_a-1)*simoptions.ngridinterp; % =length(aprime_grid)
+        % Put the last two parts of Policy together to get the aprime index
+        tempsize=size(PolicyIndexes);
+        PolicyIndexes=reshape(PolicyIndexes,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
+        PolicyIndexes(end-1,:)=((simoptions.ngridinterp+1)*(PolicyIndexes(end-1,:)-1)+1)+(PolicyIndexes(end,:)-1); % combine last two (lower grid point and 2nd layer point) to get aprime index
+        tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
+        PolicyIndexes=reshape(PolicyIndexes(1:end-1,:),tempsize); % get rid of last policy entry
+    else % not using any specific asset type
         l_aprime=l_a;
         aprime_grid=a_grid;
         n_aprime=n_a;
@@ -92,8 +96,6 @@ if isfield(simoptions,'n_semiz')
         N_z=prod(n_z);
     end
 end
-
-
 
 
 %%
