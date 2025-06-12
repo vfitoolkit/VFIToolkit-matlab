@@ -2,9 +2,13 @@ function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes, 
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    simoptions.gridinterplayer=0;
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
     end
 end
 

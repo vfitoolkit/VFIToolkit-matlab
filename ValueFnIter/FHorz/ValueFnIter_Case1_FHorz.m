@@ -22,7 +22,8 @@ if exist('vfoptions','var')==0
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
-    vfoptions.divideandconquer=0;
+    vfoptions.divideandconquer=0; % =1 Use divide-and-conquer to exploit monotonicity
+    vfoptions.gridinterplayer=0; % Interpolate between grid points (not yet implemented for most cases)
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.outputkron=0; % If 1 then leave output in Kron form
@@ -58,7 +59,14 @@ else
         vfoptions.paroverz=1;
     end
     if ~isfield(vfoptions,'divideandconquer')
-        vfoptions.divideandconquer=0;
+        vfoptions.divideandconquer=0; % =1 Use divide-and-conquer to exploit monotonicity
+    end
+    if ~isfield(vfoptions,'gridinterplayer')
+        vfoptions.gridinterplayer=0; % =1 Interpolate between grid points (not yet implemented for most cases)
+    elseif vfoptions.gridinterplayer==1
+        if ~isfield(vfoptions,'ngridinterp')
+            error('When using vfoptions.gridinterplayer=1 you must set vfoptoins.ngridinterp (number of points to interpolate for aprime between each consecutive pair of points in a_grid)')
+        end
     end
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;

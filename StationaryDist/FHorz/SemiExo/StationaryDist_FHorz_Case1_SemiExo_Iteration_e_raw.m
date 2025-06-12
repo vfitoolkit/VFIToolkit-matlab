@@ -10,6 +10,9 @@ else
 end
 optaprime=gather(reshape(PolicyIndexesKron(2,:,:,:),[N_a*N_bothz*N_e,N_j])); % Note: column vector (conditional on jj)
 
+% precompute
+semizindexcorrespondingtod2_c=repelem(repmat((1:1:N_semiz)',N_z*N_e,1),N_a,1);
+
 %% Tan improvement verion
 
 % To do Tan improvement with semiz shocks we treat the first step as
@@ -30,7 +33,7 @@ for jj=1:(N_j-1)
     pi_semiz_jj=pi_semiz_J(:,:,:,jj);
     % Get the right part of pi_semiz_J 
     % d2 depends on (a,z,semiz), and pi_semiz is going to be about (semiz,semiz'), so I need to put it all together as (a,z,semiz,semiz').
-    semizindexcorrespondingtod2_c=kron(ones(N_z*N_e,1),kron((1:1:N_semiz)',ones(N_a,1)));
+    % semizindexcorrespondingtod2_c=kron(ones(N_z*N_e,1),kron((1:1:N_semiz)',ones(N_a,1))); % precomputed
     fullindex=semizindexcorrespondingtod2_c+N_semiz*(0:1:N_semiz-1)+(N_semiz*N_semiz)*(optd2prime(:,jj)-1);
     semiztransitions=pi_semiz_jj(fullindex); % (a,z,semiz,semiz')
 
@@ -61,11 +64,6 @@ if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
     AgeWeights=AgeWeights';
 end
 
-if simoptions.parallel==5 || simoptions.parallel==6 
-    StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-1); %.*repmat(shiftdim(AgeWeights,-1),N_a*N_z,N_e,1);
-else
-    StationaryDistKron=StationaryDistKron.*AgeWeights;
-end
-
+StationaryDistKron=StationaryDistKron.*AgeWeights;
 
 end

@@ -112,8 +112,6 @@ elseif l_a>3
 end
 
 %%
-N_d1=prod(n_d1);
-N_d2=prod(n_d2);
 
 % d3 is the variable relevant for the semi-exogenous asset. 
 if l_d3==1
@@ -128,9 +126,9 @@ end
 
 % Note: N_z=0 is a different code
 if isfield(simoptions,'n_e')
-    error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ExpAssetSemiExo (contact me)')
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,pi_e_J,Parameters);
 else % no e
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_d1,N_d2,N_a,N_semiz,N_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_j,pi_semiz_J,pi_z_J,Parameters);
 end
 
 if simoptions.parallel==2

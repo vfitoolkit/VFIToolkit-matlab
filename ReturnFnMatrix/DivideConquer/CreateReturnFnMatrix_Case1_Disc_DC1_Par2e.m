@@ -31,6 +31,9 @@ if Level==1
 elseif Level==2
     N_aprime=size(aprime_grid,2); % Because l_a=1
     % aprime_grid unchanged
+elseif Level==3 % for when doing gridded interpolation layer
+    % Same as level 1, but without shiftdim() on aprime_grid
+    N_aprime=length(aprime_grid); % Because l_a=1
 end
 
 if l_e==1
