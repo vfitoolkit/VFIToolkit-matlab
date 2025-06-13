@@ -1,8 +1,9 @@
 function [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
-%ReturnFnParamNames.R1=ReturnFnParamNamesFn(ReturnFn.R1,n_d,n_a,n_z,0,vfoptions,Parameters);
-% TODO: this does not work since ReturnFn.R2 has "unusual" first inputs
-%ReturnFnParamNames.R2=ReturnFnParamNamesFn(ReturnFn.R2,n_d,n_a,n_z,0,vfoptions,Parameters);
+ReturnFnParamNames.R1=ReturnFnParamNamesFn(ReturnFn.R1,n_d+n_a,0,n_z,0,vfoptions,Parameters);
+% (d,a,z,..)
+ReturnFnParamNames.R2=ReturnFnParamNamesFn(ReturnFn.R2,n_a,0,0,0,vfoptions,Parameters);
+% (aprime,..)
 
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 V0=gpuArray(V0);
