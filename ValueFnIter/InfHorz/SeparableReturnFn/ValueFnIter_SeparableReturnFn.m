@@ -70,13 +70,16 @@ end
 
 aprime1vals = a_grid;              %(a',1,1)
 a1vals      = shiftdim(a_grid,-1); %(1,a,1)
-z1vals      = shiftdim(z_grid,-2); %(1,1,z)
 
 ReturnFn.R1
 ReturnFn.R2
 
 % Cash is (1,a,z)
-cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,ParamCell.R1{:});
+if l_z==1
+    cash_on_hand=arrayfun(ReturnFn.R1, a1vals,shiftdim(z_gridvals(:,1),-2),ParamCell.R1{:});
+elseif l_z==2
+    cash_on_hand=arrayfun(ReturnFn.R1, a1vals,shiftdim(z_gridvals(:,1),-2),shiftdim(z_gridvals(:,2),-2),ParamCell.R1{:});
+end
 % ReturnMatrix is (a',a,z)
 ReturnMatrix=arrayfun(ReturnFn.R2, aprime1vals,cash_on_hand,ParamCell.R2{:});
 
