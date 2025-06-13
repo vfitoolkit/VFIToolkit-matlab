@@ -9,7 +9,11 @@ if n_d(1)==0
 else
     l_d=length(n_d);
 end
-l_a=length(n_a);
+if n_a(1)==0
+    l_a=0;
+else
+    l_a=length(n_a);
+end
 l_aprime=l_a;
 l_z=length(n_z);
 if n_z(1)==0
