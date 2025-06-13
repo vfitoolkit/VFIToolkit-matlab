@@ -201,6 +201,8 @@ end
 if vfoptions.separableReturnFn==1
     % Split it off here, as messes with ReturnFnParamNames and ReturnFnParamsVec
     [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy};
+    return
 end
 
 %% Implement new way of handling ReturnFn inputs
