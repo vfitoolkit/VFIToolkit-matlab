@@ -5,6 +5,9 @@ ReturnFnParamNames.R1=ReturnFnParamNamesFn(ReturnFn.R1,n_d+n_a,0,n_z,0,vfoptions
 ReturnFnParamNames.R2=ReturnFnParamNamesFn(ReturnFn.R2,n_a,0,0,0,vfoptions,Parameters);
 % (aprime,..)
 
+ReturnFnParamNames.R1
+ReturnFnParamNames.R2
+
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
 V0=gpuArray(V0);
 pi_z=gpuArray(pi_z);
@@ -68,6 +71,9 @@ end
 aprime1vals = a_grid;              %(a',1,1)
 a1vals      = shiftdim(a_grid,-1); %(1,a,1)
 z1vals      = shiftdim(z_grid,-2); %(1,1,z)
+
+ReturnFn.R1
+ReturnFn.R2
 
 % Cash is (1,a,z)
 cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,ParamCell.R1{:});
