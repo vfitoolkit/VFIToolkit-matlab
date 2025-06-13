@@ -2,8 +2,8 @@ function [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z
 
 ReturnFnParamNames.R1=ReturnFnParamNamesFn(ReturnFn.R1,n_d+n_a,0,n_z,0,vfoptions,Parameters);
 % (d,a,z,..)
-ReturnFnParamNames.R2=ReturnFnParamNamesFn(ReturnFn.R2,n_a,0,0,0,vfoptions,Parameters);
-% (aprime,..)
+ReturnFnParamNames.R2=ReturnFnParamNamesFn(ReturnFn.R2,[n_a,1],0,0,0,vfoptions,Parameters);
+% (aprime,R1result,..)
 
 ReturnFnParamNames.R1
 ReturnFnParamNames.R2

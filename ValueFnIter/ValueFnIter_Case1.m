@@ -197,26 +197,8 @@ if max(vfoptions.incrementaltype)==1
     end
 end
 
-%% Separable Return Fn
-if vfoptions.separableReturnFn==1
-    % Split it off here, as messes with ReturnFnParamNames and ReturnFnParamsVec
-    [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    varargout={V,Policy};
-    return
-end
-
-%% Implement new way of handling ReturnFn inputs
-if isempty(ReturnFnParamNames)
-    ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
-end
-% Basic setup: the first inputs of ReturnFn will be (d,aprime,a,z,..) and everything after this is a parameter, so we get the names of all these parameters.
-% But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
-% So figure out which setup we have, and get the relevant ReturnFnParamNames
-
-
 
 %%
-
 if vfoptions.parallel==2 
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
    V0=gpuArray(V0);
@@ -241,6 +223,22 @@ if vfoptions.alreadygridvals==0
 elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
+
+%% Separable Return Fn
+if vfoptions.separableReturnFn==1
+    % Split it off here, as messes with ReturnFnParamNames and ReturnFnParamsVec
+    [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy};
+    return
+end
+
+%% Implement new way of handling ReturnFn inputs
+if isempty(ReturnFnParamNames)
+    ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
+end
+% Basic setup: the first inputs of ReturnFn will be (d,aprime,a,z,..) and everything after this is a parameter, so we get the names of all these parameters.
+% But this changes if you have e, semiz, or just multiple d, and if you use riskyasset, expasset, etc.
+% So figure out which setup we have, and get the relevant ReturnFnParamNames
 
 
 %% Entry and Exit
