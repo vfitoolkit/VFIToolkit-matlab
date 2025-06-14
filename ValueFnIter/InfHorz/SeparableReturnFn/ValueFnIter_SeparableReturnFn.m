@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions)
+function [V,Policy]=ValueFnIter_SeparableReturnFn(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,Parameters,DiscountFactorParamNames,ReturnFnParamNames,vfoptions)
 
 if isempty(ReturnFnParamNames)
     ReturnFnParamNames.R1=ReturnFnParamNamesFn(ReturnFn.R1,n_d+n_a,0,n_z,0,vfoptions,Parameters);
@@ -9,17 +9,6 @@ end
 
 ReturnFnParamNames.R1
 ReturnFnParamNames.R2
-
-% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-V0     = gpuArray(V0);
-pi_z   = gpuArray(pi_z);
-d_grid = gpuArray(d_grid);
-a_grid = gpuArray(a_grid);
-z_grid = gpuArray(z_grid);
-
-if vfoptions.verbose==1
-    vfoptions
-end
 
 %% Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec.R1=CreateVectorFromParams(Parameters, ReturnFnParamNames.R1);
@@ -61,19 +50,19 @@ ReturnFn.R2
 l_z = length(n_z);
 
 if l_z==1
-    z1vals = shiftdim(z_grid(:,1),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-2);
 elseif l_z==2
-    z1vals = shiftdim(z_grid(:,1),-2);
-    z2vals = shiftdim(z_grid(:,2),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-2);
+    z2vals = shiftdim(z_gridvals(:,2),-2);
 elseif l_z==3
-    z1vals = shiftdim(z_grid(:,1),-2);
-    z2vals = shiftdim(z_grid(:,2),-2);
-    z3vals = shiftdim(z_grid(:,3),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-2);
+    z2vals = shiftdim(z_gridvals(:,2),-2);
+    z3vals = shiftdim(z_gridvals(:,3),-2);
 elseif l_z==4
-    z1vals = shiftdim(z_grid(:,1),-2);
-    z2vals = shiftdim(z_grid(:,2),-2);
-    z3vals = shiftdim(z_grid(:,3),-2);
-    z4vals = shiftdim(z_grid(:,4),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-2);
+    z2vals = shiftdim(z_gridvals(:,2),-2);
+    z3vals = shiftdim(z_gridvals(:,3),-2);
+    z4vals = shiftdim(z_gridvals(:,4),-2);
 else
     error('ERROR: SeparableReturnFn does not allow for more than four of z variable (you have length(n_z)>4)')
 end
@@ -98,14 +87,11 @@ end
 if n_d(1)==0
     [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0,n_a,n_z,pi_z,DiscountFactorParamsVec,ReturnMatrix,vfoptions.howards,vfoptions.maxhowards,vfoptions.tolerance,vfoptions.maxiter); 
 else
-    [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
 V      = reshape(VKron,[n_a,n_z]);
 Policy = UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-% if vfoptions.verbose==1
-%     time=toc;
-%     fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-% end
+
 
 end %end function

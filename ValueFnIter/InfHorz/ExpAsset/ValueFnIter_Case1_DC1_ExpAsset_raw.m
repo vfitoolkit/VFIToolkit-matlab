@@ -36,7 +36,7 @@ Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d an
 % for Howards, preallocate
 Ftemp=zeros(N_a,N_z,'gpuArray');
 % and we need [because of experienceasset, this is very different to usual]
-aaa=repelem(pi_z,N_a,1); % pi_z in the form we need to compute expectations in Howards
+aaa=repelem(pi_z,N_a,1); % pi_z in the form we need to compute expectations in Howards (a1a2z,zprime)
 
 % precompute
 Epi_z=shiftdim(pi_z',-2); % pi_z in the form we need it to compute the expectations
@@ -146,11 +146,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     Vdist(isnan(Vdist))=0;
     currdist=max(abs(Vdist));
 
-    disp('before')
-    reshape(V(:,3),[N_a1,N_a2])  % size(V) % [N_a,N_z]
-
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && vfoptions.maxhowards>0 % Use Howards Policy Fn Iteration Improvement
-        Ftemp=reshape(Ftemp,[N_a*N_z,1]);
+        Ftemp2=reshape(Ftemp,[N_a*N_z,1]);
         % Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
         % Contains d1, d2, a1prime (no a2prime because expasset)
         Policy_a1primeind=ceil(Policy(:)/(N_d1*N_d2)); % size(Policy_a1primeind) is [N_a*N_z,1]
@@ -168,10 +165,12 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         aprimeProbs_Howards=reshape(a2primeProbs(temp),[N_a*N_z,1]); %  a2primeProbs is [N_d2,N_a2]
 
         for Howards_counter=1:vfoptions.howards
-            % DO I NEED TO MAKE SURE THAT THE z FOR azprimeind MATCHES THE z FOR EXPECTIONS FROM pi_z
+            % Note: Different from outside Howards, as optimal policy depends on z, and we also need to keep Vprime in terms of
+            % zprime. So get Vlower and Vupper that depend on (a,z,zprime).
+
             % Take expectation over a2lower and a2upper
-            Vlower=V(aprimeind(:),:); % EVlower in terms of policy (so size is a-by-z)
-            Vupper=V(aprimeplus1ind(:),:); % EVupper in terms of policy (so size is a-by-z)
+            Vlower=V(aprimeind(:),:); % EVlower in terms of policy (so size is a-by-z-by-zprime)
+            Vupper=V(aprimeplus1ind(:),:); % EVupper in terms of policy (so size is a-by-z-by-zprime)
             % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
             skipinterp=(Vlower==Vupper);
             aprimeProbs_Howards2=aprimeProbs_Howards.*ones(1,N_z);
@@ -186,25 +185,11 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
 
-            V=Ftemp+DiscountFactorParamsVec*EV;
+            V=Ftemp2+DiscountFactorParamsVec*EV;
+            V=reshape(V,[N_a,N_z]);
         end
-        V=reshape(V,[N_a,N_z]);
-
-        disp('after')
-        reshape(V(:,3),[N_a1,N_a2])
-        % reshape(EVtemp(:,3),[N_a1,N_a2]) % EV seems 'roughly okay', even given what Vlower and Vupper are
-
-        % reshape(Vlower(:,3),[N_a1,N_a2]) % Vlower & Vupper look wrong
-        % reshape(Vupper(:,3),[N_a1,N_a2])
-
-        % [min(Policy_a1primeind(:)),max(Policy_a1primeind(:))]
-        % [min(Policy_d2ind(:)),max(Policy_d2ind(:))]
-        % [min(a2primeind(:)),max(a2primeind(:))]
-        
     end
-
-
-
+    
     if vfoptions.verbose==1
         if rem(tempcounter,10)==0 % Every 10 iterations
             fprintf(distvstolstr, tempcounter,currdist) % use enough decimal points to be able to see countdown of currdist to 0

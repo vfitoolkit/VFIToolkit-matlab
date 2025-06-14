@@ -1,6 +1,6 @@
 function [V,Policy]=ValueFnIter_Case1_ExpAsset(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions)
 
-% vfoptions are already set by ValueFnIter_Case1_FHorz()
+% vfoptions are already set by ValueFnIter_Case1()
 if vfoptions.parallel~=2
     error('Can only use experience asset with parallel=2 (gpu)')
 end
