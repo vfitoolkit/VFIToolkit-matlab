@@ -27,13 +27,13 @@ end
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec); % Infinite horizon, so just do this once.
 
-%% Solve 
+%% Solve
 % % (I still don't know if I want to use refine, for now there is no d variable)
 % if strcmp(vfoptions.solnmethod,'purediscretization')
 %     % TO BE IMPLEMENTED
 % end
-% 
-% if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
+%
+% if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
 %     % TO BE IMPLEMENTED
 % end
 
@@ -41,42 +41,85 @@ if vfoptions.verbose==1
     disp('Creating return fn matrix')
 end
 
-aprime1vals = a_grid;              %(a',1,1)
-a1vals      = shiftdim(a_grid,-1); %(1,a,1)
-
 ReturnFn.R1
 ReturnFn.R2
 
-l_z = length(n_z);
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
+l_d=length(n_d);
+if N_d==0
+    l_d=0;
+end
+l_a=length(n_a);
+l_z=length(n_z);
+
+if l_d==1
+    d1vals=d_grid(1:n_d(1));
+end
+
+if l_d==0
+    aprime1vals = a_grid;              %(a',1,1)
+    a1vals      = shiftdim(a_grid,-1); %(1,a,1)
+elseif l_d==1
+    aprime1vals = shiftdim(a_grid,-1); %(1,a',1,1)
+    a1vals      = shiftdim(a_grid,-2); %(1,1, a,1)
+else
+    error('ERROR: SeparableReturnFn does not allow for more than one of d variable (you have length(n_d)>1)')
+end
+
+% Examples:
+% --- no d variable, 1 a variable
+% Then -l_d-l_a-l_a=-2
+% --- 1 d variable, 1 a variable
+% Then -l_d-l_a-l_a=-3
+% So that ReturnMatrix is (d,a',a,z)
+
 
 if l_z==1
-    z1vals = shiftdim(z_gridvals(:,1),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-l_d-l_a-l_a);
 elseif l_z==2
-    z1vals = shiftdim(z_gridvals(:,1),-2);
-    z2vals = shiftdim(z_gridvals(:,2),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-l_d-l_a-l_a);
+    z2vals = shiftdim(z_gridvals(:,2),-l_d-l_a-l_a);
 elseif l_z==3
-    z1vals = shiftdim(z_gridvals(:,1),-2);
-    z2vals = shiftdim(z_gridvals(:,2),-2);
-    z3vals = shiftdim(z_gridvals(:,3),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-l_d-l_a-l_a);
+    z2vals = shiftdim(z_gridvals(:,2),-l_d-l_a-l_a);
+    z3vals = shiftdim(z_gridvals(:,3),-l_d-l_a-l_a);
 elseif l_z==4
-    z1vals = shiftdim(z_gridvals(:,1),-2);
-    z2vals = shiftdim(z_gridvals(:,2),-2);
-    z3vals = shiftdim(z_gridvals(:,3),-2);
-    z4vals = shiftdim(z_gridvals(:,4),-2);
+    z1vals = shiftdim(z_gridvals(:,1),-l_d-l_a-l_a);
+    z2vals = shiftdim(z_gridvals(:,2),-l_d-l_a-l_a);
+    z3vals = shiftdim(z_gridvals(:,3),-l_d-l_a-l_a);
+    z4vals = shiftdim(z_gridvals(:,4),-l_d-l_a-l_a);
 else
     error('ERROR: SeparableReturnFn does not allow for more than four of z variable (you have length(n_z)>4)')
 end
 
-% Cash is (1,a,z)
-if l_z==1
-    cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,ParamCell.R1{:});
-elseif l_z==2
-    cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,ParamCell.R1{:});
-elseif l_z==3
-    cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,z3vals,ParamCell.R1{:});
-elseif l_z==4
-    cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,z3vals,z4vals,ParamCell.R1{:});
+
+% If there is no d varibale, Cash is (1,a,z)
+% If there is one d variable, Cash is (d,1,a,z) and in step 2 becomes ReturnMatrix(d,a',a,z)
+if l_d==0
+    if l_z==1
+        cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,ParamCell.R1{:});
+    elseif l_z==2
+        cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,ParamCell.R1{:});
+    elseif l_z==3
+        cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,z3vals,ParamCell.R1{:});
+    elseif l_z==4
+        cash_on_hand=arrayfun(ReturnFn.R1, a1vals,z1vals,z2vals,z3vals,z4vals,ParamCell.R1{:});
+    end
+elseif l_d==1
+    if l_z==1
+        cash_on_hand=arrayfun(ReturnFn.R1, d1vals,a1vals,z1vals,ParamCell.R1{:});
+    elseif l_z==2
+        cash_on_hand=arrayfun(ReturnFn.R1, d1vals,a1vals,z1vals,z2vals,ParamCell.R1{:});
+    elseif l_z==3
+        cash_on_hand=arrayfun(ReturnFn.R1, d1vals,a1vals,z1vals,z2vals,z3vals,ParamCell.R1{:});
+    elseif l_z==4
+        cash_on_hand=arrayfun(ReturnFn.R1, d1vals,a1vals,z1vals,z2vals,z3vals,z4vals,ParamCell.R1{:});
+    end
 end
+
 % ReturnMatrix is (a',a,z)
 ReturnMatrix=arrayfun(ReturnFn.R2, aprime1vals,cash_on_hand,ParamCell.R2{:});
 
@@ -85,7 +128,7 @@ if vfoptions.verbose==1
 end
 
 if n_d(1)==0
-    [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0,n_a,n_z,pi_z,DiscountFactorParamsVec,ReturnMatrix,vfoptions.howards,vfoptions.maxhowards,vfoptions.tolerance,vfoptions.maxiter); 
+    [VKron,Policy]=ValueFnIter_Case1_NoD_Par2_raw(V0,n_a,n_z,pi_z,DiscountFactorParamsVec,ReturnMatrix,vfoptions.howards,vfoptions.maxhowards,vfoptions.tolerance,vfoptions.maxiter);
 else
     [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
