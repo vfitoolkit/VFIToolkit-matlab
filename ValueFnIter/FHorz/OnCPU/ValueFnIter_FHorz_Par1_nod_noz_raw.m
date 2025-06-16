@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_nod_noz_Par1_raw(n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_FHorz_Par1_nod_noz_raw(n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);

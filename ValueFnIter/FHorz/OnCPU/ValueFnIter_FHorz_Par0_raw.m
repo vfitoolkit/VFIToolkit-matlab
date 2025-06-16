@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_Par1_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_Par0_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -69,9 +69,9 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         %if vfoptions.returnmatrix==2 % GPU
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, 0,ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, vfoptions.parallel,ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -83,9 +83,9 @@ if ~isfield(vfoptions,'V_Jplus1')
         %if vfoptions.returnmatrix==2 % GPU
         for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
-            parfor a_c=1:N_a
+            for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, 0,ReturnFnParamsVec);
+                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_az);
                 V(a_c,z_c,N_j)=Vtemp;
@@ -104,9 +104,10 @@ else
     
     if vfoptions.lowmemory==0
         
+        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-
-         parfor z_c=1:N_z
+        
+        for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
             
             %Calc the condl expectation term (except beta), which depends on z but
@@ -125,9 +126,9 @@ else
         end
         
     elseif vfoptions.lowmemory==1
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, 0,ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, vfoptions.parallel,ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -155,9 +156,9 @@ else
             entireEV_z=kron(EV_z,ones(N_d,1));
             
             z_val=z_gridvals(z_c,:);
-            parfor a_c=1:N_a
+            for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, 0,ReturnFnParamsVec);
+                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                 
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
                 %Calc the max and it's index
@@ -209,10 +210,12 @@ for reverse_j=1:N_j-1
         end
     end
     
+    
     VKronNext_j=V(:,:,jj+1);
     
     if vfoptions.lowmemory==0
         
+        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
         
 %         %Calc the condl expectation term (except beta), which depends on z but
@@ -229,7 +232,7 @@ for reverse_j=1:N_j-1
 %         V(:,:,j)=Vtemp;
 %         PolicyIndexes(:,:,j)=maxindex;
 
-         parfor z_c=1:N_z
+         for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
             
             %Calc the condl expectation term (except beta), which depends on z but
@@ -248,9 +251,9 @@ for reverse_j=1:N_j-1
         end
         
     elseif vfoptions.lowmemory==1
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, 0,ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, vfoptions.parallel,ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -278,9 +281,9 @@ for reverse_j=1:N_j-1
             entireEV_z=kron(EV_z,ones(N_d,1));
             
             z_val=z_gridvals(z_c,:);
-            parfor a_c=1:N_a
+            for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, 0,ReturnFnParamsVec);
+                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, vfoptions.parallel,ReturnFnParamsVec);
                 
                 entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
                 %Calc the max and it's index

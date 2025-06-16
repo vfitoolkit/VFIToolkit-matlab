@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_nod_Par1_raw(n_a,n_z,N_j, a_grid, z_grid,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_FHorz_Par0_nod_raw(n_a,n_z,N_j, a_grid, z_grid,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
@@ -55,44 +55,6 @@ if vfoptions.lowmemory>0
 end
 
 if ~isfield(vfoptions,'V_Jplus1')
-    if vfoptions.lowmemory==0
-
-        %if vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,:,N_j)=Vtemp;
-        Policy(:,:,N_j)=maxindex;
-
-    elseif vfoptions.lowmemory==1
-
-        %if vfoptions.returnmatrix==2 % GPU
-        parfor z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, vfoptions.parallel, ReturnFnParamsVec);
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
-            V(:,z_c,N_j)=Vtemp;
-            Policy(:,z_c,N_j)=maxindex;
-        end
-
-    elseif vfoptions.lowmemory==2
-
-        %if vfoptions.returnmatrix==2 % GPU
-        for z_c=1:N_z
-            z_val=z_gridvals(z_c,:);
-            parfor a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, special_n_a, special_n_z, 0, a_val, z_val, vfoptions.parallel, ReturnFnParamsVec);
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(ReturnMatrix_az);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-
-            end
-        end
-
-    end
 else
     % Using V_Jplus1
     V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
@@ -104,8 +66,8 @@ else
         
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        
-        parfor z_c=1:N_z
+
+        for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
             
             %Calc the condl expectation term (except beta), which depends on z but
@@ -123,7 +85,7 @@ else
         end
         
     elseif vfoptions.lowmemory==1
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val,vfoptions.parallel, ReturnFnParamsVec);
             
@@ -142,13 +104,13 @@ else
         end
         
     elseif vfoptions.lowmemory==2
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=V_Jplus1.*(ones(N_a,1)*pi_z(z_c,:));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
-
+                        
             z_val=z_gridvals(z_c,:);
             for a_c=1:N_a
                 a_val=a_gridvals(a_c,:);
@@ -212,7 +174,7 @@ for reverse_j=1:N_j-1
         %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, n_z, 0, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
 
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             ReturnMatrix_z=ReturnMatrix(:,:,z_c);
             
             %Calc the condl expectation term (except beta), which depends on z but
@@ -230,7 +192,7 @@ for reverse_j=1:N_j-1
         end
         
     elseif vfoptions.lowmemory==1
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             z_val=z_gridvals(z_c,:);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val,vfoptions.parallel, ReturnFnParamsVec);
             
@@ -249,7 +211,7 @@ for reverse_j=1:N_j-1
         end
         
     elseif vfoptions.lowmemory==2
-        parfor z_c=1:N_z
+        for z_c=1:N_z
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=VKronNext_j.*(ones(N_a,1)*pi_z(z_c,:));
