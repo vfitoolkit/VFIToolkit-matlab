@@ -547,7 +547,7 @@ if vfoptions.parallel==2
                 if vfoptions.gridinterplayer==1
                     [VKron,PolicyKron]=ValueFnIter_FHorz_GI_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
-                    [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 end
             end
         end
@@ -563,7 +563,7 @@ if vfoptions.parallel==2
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
                 if vfoptions.gridinterplayer==1
-                    [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
                     [VKron, PolicyKron]=ValueFnIter_FHorz_GI_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);                
                 end
@@ -573,22 +573,22 @@ if vfoptions.parallel==2
 elseif vfoptions.parallel==1 % parallel CPU
     if N_d==0
         if N_z==0
-            [VKron,PolicyKron]=ValueFnIter_Par1_FHorz_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_FHorz_Par1_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron,PolicyKron]=ValueFnIter_Par1_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_FHorz_Par1_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else % N_d
         if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_Par1_FHorz_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_Par1_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else 
-            [VKron, PolicyKron]=ValueFnIter_Par1_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_Par1_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 elseif vfoptions.parallel==0
     if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Par0_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_FHorz_Par0_nod_raw(n_a, n_z, N_j, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     else
-        [VKron, PolicyKron]=ValueFnIter_Par0_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron, PolicyKron]=ValueFnIter_FHorz_Par0_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
 end
 
