@@ -556,9 +556,14 @@ for reverse_j=1:N_j-1
     end
 end
 
-%%
-Policy2=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-Policy2(2,:,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
+% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
+% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
+% we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
+% counting 0:nshort+1 up from this.
+adjust=(Policy(3,:,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+Policy(2,:,:,:,:)=Policy(2,:,:,:,:)-adjust; % lower grid point
+Policy(3,:,:,:,:)=adjust.*Policy(3,:,:,:,:)+(1-adjust).*(Policy(3,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+
+Policy=squeeze(Policy(1,:,:,:,:)+N_d*(Policy(2,:,:,:,:)-1)+N_d*N_a*(Policy(3,:,:,:,:)-1));
 
 end

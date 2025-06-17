@@ -11,9 +11,9 @@ a_grid=gpuArray(a_grid);
 
 % Preallocate
 if vfoptions.lowmemory==0
-    midpoints_jj=zeros(N_a,N_z,'gpuArray');
+    midpoints_jj=zeros(1,N_a,N_z,'gpuArray');
 elseif vfoptions.lowmemory==1 % loops over z
-    midpoints_jj=zeros(N_a,1,'gpuArray');
+    midpoints_jj=zeros(1,N_a,'gpuArray');
     special_n_z=ones(1,length(n_z));
 end
 
@@ -48,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
-        midpoints_jj(level1ii,:)=maxindex1;
+        midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
         maxgap=max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3);
@@ -61,10 +61,10 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 [~,maxindex]=max(ReturnMatrix_ii,[],1);
-                midpoints_jj(curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(1,ii,:);
-                midpoints_jj(curraindex,:)=repelem(loweredge,length(curraindex),1);
+                midpoints_jj(1,curraindex,:)=repelem(loweredge,1,length(curraindex),1);
             end
         end
 
@@ -168,16 +168,16 @@ else
         end
 
         % Turn this into the 'midpoint'
-        midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is 1-by-n_a-by-n_z
-        aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+        aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
         aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_z-1),-1);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_z]);
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
-        Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
+        Policy(1,:,:,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
         Policy(2,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
@@ -223,16 +223,16 @@ else
             end
 
             % Turn this into the 'midpoint'
-            midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+            midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a
-            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+            aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
             ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             % aprime=aprimeindexes;
             entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_ii_z,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
-            Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
+            Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
             Policy(2,:,z_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
     end
@@ -272,7 +272,7 @@ for reverse_j=1:N_j-1
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
-        midpoints_jj(level1ii,:)=maxindex1;
+        midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
         maxgap=max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3);
@@ -287,24 +287,24 @@ for reverse_j=1:N_j-1
                 aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(aprimez);
                 [~,maxindex]=max(entireRHS_ii,[],1);
-                midpoints_jj(curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(1,ii,:);
-                midpoints_jj(curraindex,:)=repelem(loweredge,length(curraindex),1);
+                midpoints_jj(1,curraindex,:)=repelem(loweredge,1,length(curraindex),1);
             end
         end
 
         % Turn this into the 'midpoint'
-        midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+        midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is 1-by-n_a-by-n_z
-        aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+        aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
         aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_z-1),-1);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_z]);
         [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,:,jj)=shiftdim(Vtempii,1);
-        Policy(1,:,:,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
+        Policy(1,:,:,jj)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
@@ -350,16 +350,16 @@ for reverse_j=1:N_j-1
             end
 
             % Turn this into the 'midpoint'
-            midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
+            midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a
-            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+            aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
             ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             % aprime=aprimeindexes;
             entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_ii_z,[],1);
             V(:,z_c,jj)=shiftdim(Vtempii,1);
-            Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
+            Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoints_jj),-1); % midpoint
             Policy(2,:,z_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
     end
@@ -375,7 +375,7 @@ adjust=(Policy(2,:,:,:)<1+n2short+1); % if second layer is choosing below midpoi
 Policy(1,:,:,:)=Policy(1,:,:,:)-adjust; % lower grid point
 Policy(2,:,:,:)=adjust.*Policy(2,:,:,:)+(1-adjust).*(Policy(2,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=Policy(1,:,:,:)+N_a*(Policy(2,:,:,:)-1);
+Policy=squeeze(Policy(1,:,:,:)+N_a*(Policy(2,:,:,:)-1));
 
 
 end

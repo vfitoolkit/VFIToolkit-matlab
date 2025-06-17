@@ -120,6 +120,7 @@ else
     error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
 end
 
+size(PolicyKron)
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if vfoptions.outputkron==0
