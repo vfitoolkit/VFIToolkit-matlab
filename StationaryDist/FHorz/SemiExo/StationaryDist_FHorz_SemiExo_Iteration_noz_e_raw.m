@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_SemiExo_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_SemiExo_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d1,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters,simoptions)
 % Will treat the agents as being on a continuum of mass 1.
 
 if N_d1==0

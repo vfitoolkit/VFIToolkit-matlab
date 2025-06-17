@@ -182,29 +182,29 @@ if simoptions.gridinterplayer==0
     if isfield(simoptions,'n_semiz')
         if N_e==0
             if N_z==0
-                StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
             else
-                StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
             end
         else
             if N_z==0
-                StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_SemiExo_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
             else
-                StationaryDist=StationaryDist_FHorz_Case1_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_j,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_j,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
             end
         end
     else
         if N_e==0
             if N_z==0
-                StationaryDist=StationaryDist_FHorz_Case1_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
             else
-                StationaryDist=StationaryDist_FHorz_Case1_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
             end
         else
             if N_z==0
-                StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
             else
-                StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+                StationaryDist=StationaryDist_FHorz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
             end
         end
     end
@@ -213,13 +213,13 @@ elseif simoptions.gridinterplayer==1
     if isfield(simoptions,'n_semiz')
         if N_e==0
             if N_z==0
-                % StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
+                % StationaryDist=StationaryDist_FHorz_GI_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
             else
-                % StationaryDist=StationaryDist_FHorz_Case1_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+                % StationaryDist=StationaryDist_FHorz_GI_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
             end
         else
             if N_z==0
-                % StationaryDist=StationaryDist_FHorz_Case1_SemiExo_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
+                % StationaryDist=StationaryDist_FHorz_GI_SemiExo_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
             else
                 StationaryDist=StationaryDist_FHorz_SemiExo_GI_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_j,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
             end
@@ -227,15 +227,15 @@ elseif simoptions.gridinterplayer==1
     else
         if N_e==0
             if N_z==0
-                % StationaryDist=StationaryDist_FHorz_Case1_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
+                % StationaryDist=StationaryDist_FHorz_GI_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
             else
                 StationaryDist=StationaryDist_FHorz_GI_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
             end
         else
             if N_z==0
-                % StationaryDist=StationaryDist_FHorz_Case1_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
+                % StationaryDist=StationaryDist_FHorz_GI_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
             else
-                % StationaryDist=StationaryDist_FHorz_Case1_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
+                % StationaryDist=StationaryDist_FHorz_GI_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
             end
         end
     end

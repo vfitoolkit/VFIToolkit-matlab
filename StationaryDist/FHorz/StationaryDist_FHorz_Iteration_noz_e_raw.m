@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_e,N_j,pi_e_J,Parameters,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_e,N_j,pi_e_J,Parameters,simoptions)
 % Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
