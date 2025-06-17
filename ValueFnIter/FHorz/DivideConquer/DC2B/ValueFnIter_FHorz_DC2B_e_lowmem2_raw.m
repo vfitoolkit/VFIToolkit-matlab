@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_Case1_FHorz_DC2B_e_lowmem2_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J,e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_DC2B_e_lowmem2_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J,e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % lowmem2=loop over e and z
 special_n_z=ones(1,length(n_z),'gpuArray');
 special_n_e=ones(1,length(n_e),'gpuArray');
