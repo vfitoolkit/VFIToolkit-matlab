@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
 
 %% Setup related to experience asset
@@ -92,7 +92,7 @@ Policy_arprime(:,:,2,:)=Policy_aprime+N_a*(Policy_rprime+1-1);
 if isfield(simoptions,'n_e')
     error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ResidAsset (contact me)')
 else % no e
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_ze,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_ze,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2

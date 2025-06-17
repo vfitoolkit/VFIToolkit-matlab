@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_ExpAsset_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,d_grid,a2_grid,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_ExpAsset_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,d_grid,a2_grid,Parameters,simoptions)
 
 n_d2=n_d(end);
 % Split endogenous assets into the standard ones and the experience asset
@@ -64,7 +64,7 @@ if simoptions.iterate==0
     dbstack
     error('This combo only supports iteration')
 elseif simoptions.iterate==1
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2

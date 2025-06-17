@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_ExpAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_ExpAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions)
 
 %% Setup related to experience asset
 n_d2=n_d(end);
@@ -91,9 +91,9 @@ end
 
 %%
 if N_a1==0
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_u,N_j,Parameters);
+    StationaryDistKron=StationaryDist_FHorz_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_a2prime,PolicyProbs,N_a,N_u,N_j,Parameters);
 else
-    StationaryDistKron=StationaryDist_FHorz_Case1_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_u,N_j,Parameters);
+    StationaryDistKron=StationaryDist_FHorz_Iteration_uProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_u,N_j,Parameters);
 end
 
 if simoptions.outputkron==0

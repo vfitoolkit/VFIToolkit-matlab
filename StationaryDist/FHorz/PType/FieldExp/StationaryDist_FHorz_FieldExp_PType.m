@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_Case1_FHorz_FieldExp_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters, TreatmentAgeRange, TreatmentDuration,simoptions)
+function StationaryDist=StationaryDist_FHorz_FieldExp_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Parameters, TreatmentAgeRange, TreatmentDuration,simoptions)
 % Allows for different permanent (fixed) types of agent. 
 % See ValueFnIter_Case1_FHorz_PType for general idea.
 %
@@ -174,7 +174,7 @@ for ii=1:N_i
     end
     % Now, create the stationary dist of the treatment group
     if isfinite(N_j_temp)
-        StationaryDist_Treat_ii=StationaryDist_FHorz_Case1_FieldExp_Treatment(StationaryDist_Control_ii,AgeWeightParamNames_temp,Policy_control,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp, TreatmentAgeRange, TreatmentDuration,simoptions_temp);
+        StationaryDist_Treat_ii=StationaryDist_FHorz_FieldExp_Treatment(StationaryDist_Control_ii,AgeWeightParamNames_temp,Policy_control,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp,Parameters_temp, TreatmentAgeRange, TreatmentDuration,simoptions_temp);
     end
 
     check_ze=length(size(StationaryDist_Control_ii)); % Used to determine whether using z/e

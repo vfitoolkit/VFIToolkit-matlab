@@ -35,7 +35,7 @@ else
 end
 
 %%
-StationaryDist=StationaryDist_FHorz_Case1_Iteration_TwoProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_j,pi_z_J,Parameters);
+StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_j,pi_z_J,Parameters);
 
 if simoptions.parallel==2
     StationaryDist=gpuArray(StationaryDist); % move output to gpu

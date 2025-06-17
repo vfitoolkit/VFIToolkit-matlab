@@ -1,4 +1,4 @@
-function StationaryDist_treatment=StationaryDist_FHorz_Case1_FieldExp_Treatment(StationaryDist_Control, AgeWeightParamNames, Policy,n_d,n_a,n_z,N_j,pi_z,Parameters, TreatmentAgeRange, TreatmentDuration,simoptions)
+function StationaryDist_treatment=StationaryDist_FHorz_FieldExp_Treatment(StationaryDist_Control, AgeWeightParamNames, Policy,n_d,n_a,n_z,N_j,pi_z,Parameters, TreatmentAgeRange, TreatmentDuration,simoptions)
 % The agent distribution of the control-group is effectively the 'initial' distribution from which 
 % the treatment-group are drawn.
 % The treatment group agent distribution does not include the information about the 'age weights' 
@@ -187,7 +187,7 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
 
     % Create the agent dist for the current j_p
     if N_ze==0
-        StationaryDist_treatment(:,:,j_p-TreatmentAgeRange(1)+1)=StationaryDist_FHorz_Case1_Iteration_noz_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,TreatmentDuration,Parameters,simoptions);
+        StationaryDist_treatment(:,:,j_p-TreatmentAgeRange(1)+1)=StationaryDist_FHorz_Iteration_noz_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,TreatmentDuration,Parameters,simoptions);
     else
         if N_z>0
             simoptions.pi_z_J=pi_z_J(:,:,j_p:j_p+TreatmentDuration);
@@ -196,11 +196,11 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
             simoptions.pi_e_J=pi_e_J(:,j_p:j_p+TreatmentDuration);
         end
         if N_e==0
-            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,TreatmentDuration,pi_z_J,Parameters,simoptions),[N_a,N_z,TreatmentDuration]);
+            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,TreatmentDuration,pi_z_J,Parameters,simoptions),[N_a,N_z,TreatmentDuration]);
         elseif N_z==0
-            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_e,TreatmentDuration,pi_e_J,Parameters,simoptions),[N_a,N_e,TreatmentDuration]); % e but no z
+            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Iteration_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_e,TreatmentDuration,pi_e_J,Parameters,simoptions),[N_a,N_e,TreatmentDuration]); % e but no z
         else
-            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Case1_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,N_e,TreatmentDuration,pi_z_J,pi_e_J,Parameters,simoptions),[N_a,N_z*N_e,TreatmentDuration]);
+            StationaryDist_treatment(:,:,:,j_p)=reshape(StationaryDist_FHorz_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron_treat,N_d,N_a,N_z,N_e,TreatmentDuration,pi_z_J,pi_e_J,Parameters,simoptions),[N_a,N_z*N_e,TreatmentDuration]);
         end
     end
     

@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Case1_RiskyAsset_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_u,N_j,d_grid,a_grid,u_grid,pi_z_J,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions)
+function StationaryDistKron=StationaryDist_FHorz_RiskyAsset_Iteration_raw(jequaloneDistKron,AgeWeightParamNames,PolicyKron,n_d,n_a,n_z,n_u,N_j,d_grid,a_grid,u_grid,pi_z_J,pi_u,aprimeFn,Parameters,aprimeFnParamNames,simoptions)
 % Case3: aprime(d,u)
 % Will treat the agents as being on a continuum of mass 1.
 

@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_semiz,n_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_semiz,n_z,N_j,pi_semiz_J,pi_z_J,Parameters,simoptions)
 
 
 %% Setup related to risky asset
@@ -148,7 +148,7 @@ end
 if isfield(simoptions,'n_e')
     error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_RiskyAssetSemiExo (contact me)')
 else
-    StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_u,N_j,pi_semiz_J,pi_z_J,Parameters);
+    StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_u,N_j,pi_semiz_J,pi_z_J,Parameters);
 end
 
 

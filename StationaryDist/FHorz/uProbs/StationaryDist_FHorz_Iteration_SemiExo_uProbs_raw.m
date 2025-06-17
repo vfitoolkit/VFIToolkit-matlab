@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Case1_Iteration_SemiExo_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_u,N_j,pi_semiz_J,pi_z_J,Parameters)
+function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_u,N_j,pi_semiz_J,pi_z_J,Parameters)
 % 'uProbs' refers to n_u probabilities.
 % Policy_aprime has an additional final dimensions of length n_u and 2 which is
 % the n_u points and the lower/upper grid point (and contains only the aprime indexes, no d indexes as would usually be the case). 
