@@ -7,7 +7,7 @@ for ii=1:length(ReturnFnParams)
 end
 
 % l_d=0;
-l_a=1; % (or else won't get here)
+% l_a=1; % (or else won't get here)
 
 % N_a=prod(n_a);
 

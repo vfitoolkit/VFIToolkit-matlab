@@ -2,6 +2,10 @@ function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, 
 % If there is no d variable, just input n_d=0
 % Same as CreateReturnFnMatrix_Case1_Disc_Par2, except with e variable
 
+if ~exist('Refine','var')
+    Refine=0;
+end
+
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
     ParamCell(ii,1)={ReturnFnParams(ii)};
@@ -1201,7 +1205,11 @@ end
 if l_d==0
     Fmatrix=reshape(Fmatrix,[N_a,N_a,N_z,N_e]);
 else
-    Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_z,N_e]);
+    if Refine==1
+        Fmatrix=reshape(Fmatrix,[N_d,N_a,N_a,N_z,N_e]);
+    else
+        Fmatrix=reshape(Fmatrix,[N_d*N_a,N_a,N_z,N_e]);
+    end
 end
 
 
