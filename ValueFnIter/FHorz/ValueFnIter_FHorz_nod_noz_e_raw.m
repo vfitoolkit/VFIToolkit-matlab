@@ -1,4 +1,4 @@
-function  [V,Policy]=ValueFnIter_Case1_FHorz_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function  [V,Policy]=ValueFnIter_FHorz_nod_noz_e_raw(n_a, n_e, N_j, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Note: have no z variable, do have e variables
 
 N_a=prod(n_a);
@@ -37,17 +37,17 @@ if all(vfoptions.parallel_e==0)
         end
     else
         % Using V_Jplus1
-        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
 
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e_J,2);
+        EV=sum(EV.*pi_e_J(:,:,N_j),2);
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -70,15 +70,15 @@ if all(vfoptions.parallel_e==0)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        VKronNext_j=V(:,:,jj+1);
+        EV=V(:,:,jj+1);
 
-        VKronNext_j=sum(VKronNext_j.*pi_e_J(:,:,N_j),2);
+        EV=sum(EV.*pi_e_J(:,:,jj),2);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a,1);
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
 
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -105,16 +105,16 @@ elseif all(vfoptions.parallel_e==1)
         Policy(:,:,N_j)=maxindex;
     else
         % Using V_Jplus1
-        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
 
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
+        EV=sum(EV.*pi_e_J(1,:,N_j),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*V_Jplus1; %.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -137,13 +137,13 @@ elseif all(vfoptions.parallel_e==1)
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        VKronNext_j=V(:,:,jj+1);
+        EV=V(:,:,jj+1);
 
-        VKronNext_j=sum(VKronNext_j.*pi_e_J(1,:,jj),2);
+        EV=sum(EV.*pi_e_J(1,:,jj),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*VKronNext_j; %.*ones(1,N_a,N_e);
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,N_e);
         
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -193,18 +193,18 @@ else
         end
     else
         % Using V_Jplus1
-        V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
 
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        V_Jplus1=sum(V_Jplus1.*pi_e2_J,3);
+        EV=sum(EV.*pi_e2_J,3);
 
         for e2_c=1:N_e2
             e2_val=e2_gridvals_J(e2_c,:,N_j);
             ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,N_j), e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
 
-            EV_e2=V_Jplus1.*pi_e1_J(1,:,N_j);
+            EV_e2=EV.*pi_e1_J(1,:,N_j);
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
@@ -233,15 +233,15 @@ else
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-        VKronNext_j=V(:,:,:,jj+1);
+        EV=V(:,:,:,jj+1);
 
-        VKronNext_j=sum(VKronNext_j.*pi_e2_J(1,1,:,jj),3);
+        EV=sum(EV.*pi_e2_J(1,1,:,jj),3);
 
         for e2_c=1:N_e2
             e2_val=e2_gridvals_J(e2_c,:,jj);
             ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,jj), e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
 
-            EV_e2=VKronNext_j.*pi_e1_J(1,:,jj);
+            EV_e2=EV.*pi_e1_J(1,:,jj);
             EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
