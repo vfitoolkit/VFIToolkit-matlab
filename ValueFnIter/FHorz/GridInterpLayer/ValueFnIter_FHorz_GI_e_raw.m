@@ -7,17 +7,18 @@ N_e=prod(n_e);
 
 
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
-Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 
-if vfoptions.lowmemory>0
+% Preallocate
+if vfoptions.lowmemory>0 % loops over e
     special_n_e=ones(1,length(n_e));
 end
-if vfoptions.lowmemory>1
+if vfoptions.lowmemory>1 % loops over z,e
     special_n_z=ones(1,length(n_z));
 end
 
@@ -29,9 +30,6 @@ eind=shiftdim((0:1:N_e-1),-2); % already includes -1
 % vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
 n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
-if length(n_a)>1
-    error('can only do gridinterplayer with one endo state (you have length(n_a)>1)')
-end
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 n2aprime=length(aprime_grid);
 

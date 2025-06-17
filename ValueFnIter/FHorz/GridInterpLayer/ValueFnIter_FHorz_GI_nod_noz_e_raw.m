@@ -14,18 +14,19 @@ if vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
 end
 
-% aind=0:1:N_a-1; % already includes -1
-% eind=shiftdim((0:1:N_e-1),-1); % already includes -1
+% Preallocate
+if vfoptions.lowmemory==0
+    midpoints_jj=zeros(N_a,N_e,'gpuArray');
+elseif vfoptions.lowmemory==1 % loops over z
+    midpoints_jj=zeros(N_a,1,'gpuArray');
+end
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
 n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
-if length(n_a)>1
-    error('can only do gridinterplayer with one endo state (you have length(n_a)>1)')
-end
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
-n2aprime=length(aprime_grid);
+% n2aprime=length(aprime_grid);
 
 % For debugging, uncomment next two lines, with this 'aprime_grid' you
 % should get exact same value fn as without interpolation (as it doesn't

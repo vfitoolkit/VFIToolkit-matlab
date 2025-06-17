@@ -12,6 +12,9 @@ if Level==1
     N_aprime=length(aprime_grid);
 elseif Level==2
     N_aprime=size(aprime_grid,2); % Because l_a=1
+elseif Level==3
+    % Level 3 has inputs of level 2 with output of level 1
+    N_aprime=size(aprime_grid,2); % Because l_a=1
 end
 
 l_d=length(n_d); % won't get here if l_d=0
@@ -47,6 +50,8 @@ if Level==1 % For level 1
     Fmatrix=reshape(Fmatrix,[N_d,N_aprime,N_a]);
 elseif Level==2 % For level 2
     Fmatrix=reshape(Fmatrix,[N_d*N_aprime,N_a]);
+elseif Level==3 % For level 3
+    Fmatrix=reshape(Fmatrix,[N_d,N_aprime,N_a]);
 end
 
 end
