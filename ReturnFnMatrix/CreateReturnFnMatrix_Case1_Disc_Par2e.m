@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid, e_grid, ReturnFnParams)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid, e_grid, ReturnFnParams, Refine)
 % If there is no d variable, just input n_d=0
 % Same as CreateReturnFnMatrix_Case1_Disc_Par2, except with e variable
 

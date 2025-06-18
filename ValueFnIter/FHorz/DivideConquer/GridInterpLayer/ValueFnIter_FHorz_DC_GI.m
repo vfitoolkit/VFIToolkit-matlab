@@ -120,25 +120,30 @@ else
     error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
 end
 
-size(PolicyKron)
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+if N_d==0
+    Case2policies=[n_a,vfoptions.ngridinterp];
+else
+    Case2policies=[n_d,n_a,vfoptions.ngridinterp];
+end
+
 if vfoptions.outputkron==0
     if isfield(vfoptions,'n_e')
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
         else
             V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, Case2policies, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
     else
         if N_z==0
             V=reshape(VKron,[n_a,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, Case2policies, n_a, n_z, N_j, vfoptions);
         else
             V=reshape(VKron,[n_a,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, Case2policies, n_a, n_z, N_j, vfoptions);
         end
     end
 else

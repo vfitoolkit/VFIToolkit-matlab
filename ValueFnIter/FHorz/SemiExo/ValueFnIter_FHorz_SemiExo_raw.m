@@ -81,41 +81,18 @@ else
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, [d1_grid; d2_gridvals(d2_c,:)'], a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
-            if vfoptions.paroverz==1
+            EV=V_Jplus1.*shiftdim(pi_bothz',-1);
+            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-                EV=V_Jplus1.*shiftdim(pi_bothz',-1);
-                EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            entireEV=kron(EV,ones(N_d1,1));
+            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
 
-                entireEV=kron(EV,ones(N_d1,1));
-                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS,[],1);
 
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS,[],1);
-
-                V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
-                Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
-
-
-            elseif vfoptions.paroverz==0
-
-                for z_c=1:N_bothz
-                    ReturnMatrix_d2z=ReturnMatrix_d2(:,:,z_c);
-
-                    %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                    EV_z=V_Jplus1.*shiftdim(pi_bothz(z_c,:)',-1);
-                    EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                    EV_z=sum(EV_z,2);
-
-                    entireEV_z=kron(EV_z,ones(N_d1,1));
-                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
-
-                    %Calc the max and it's index
-                    [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                    V_ford2_jj(:,z_c,d2_c)=Vtemp;
-                    Policy_ford2_jj(:,z_c,d2_c)=maxindex;
-                end
-            end
+            V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
+            Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
@@ -185,38 +162,18 @@ for reverse_j=1:N_j-1
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, [d1_grid; d2_gridvals(d2_c,:)'], a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
-            if vfoptions.paroverz==1
+            EV=VKronNext_j.*shiftdim(pi_bothz',-1);
+            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-                EV=VKronNext_j.*shiftdim(pi_bothz',-1);
-                EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repelem(EV,N_d1,1,1); %repelem(EV,N_d1,N_a,1); but the N_a autofills
 
-                entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*repelem(EV,N_d1,1,1); %repelem(EV,N_d1,N_a,1); but the N_a autofills
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS,[],1);
 
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS,[],1);
+            V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
+            Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
-                V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
-                Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
-
-            elseif vfoptions.paroverz==0
-
-                for z_c=1:N_bothz
-                    ReturnMatrix_d2z=ReturnMatrix_d2(:,:,z_c);
-
-                    %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                    EV_z=VKronNext_j.*shiftdim(pi_bothz(z_c,:)',-1);
-                    EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                    EV_z=sum(EV_z,2);
-
-                    entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*repelem(EV_z,N_d1,1); 
-
-                    %Calc the max and it's index
-                    [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                    V_ford2_jj(:,z_c,d2_c)=Vtemp;
-                    Policy_ford2_jj(:,z_c,d2_c)=maxindex;
-                end
-            end
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
