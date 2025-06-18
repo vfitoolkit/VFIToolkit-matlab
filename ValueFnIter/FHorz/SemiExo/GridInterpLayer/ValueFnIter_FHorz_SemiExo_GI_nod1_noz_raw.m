@@ -48,7 +48,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d2, n_a, n_semiz, d2_grid, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d2, n_a, n_semiz, d2_gridvals, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % Treat standard problem as just being the first layer
         [~,maxindex]=max(ReturnMatrix,[],2);
 
@@ -64,14 +64,14 @@ if ~isfield(vfoptions,'V_Jplus1')
         allind=d_ind+N_d2*aind+N_d2*N_a*semizind; % midpoint is n_d-by-1-by-n_a-by-n_z
         Policy(1,:,:,N_j)=d_ind; % d2
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-        Policy(3,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
 
         for z_c=1:N_semiz
             z_val=semiz_gridvals_J(z_c,:,N_j);
 
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d2, n_a, special_n_semiz, d2_grid, a_grid, z_val, ReturnFnParamsVec,1);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d2, n_a, special_n_semiz, d2_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(ReturnMatrix_z,[],2);
 
@@ -87,7 +87,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a
             Policy(1,:,z_c,N_j)=d_ind; % d2
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-            Policy(3,:,z_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % aprimeL2ind
         end
 
     end
@@ -115,11 +115,12 @@ else
             entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],1); % no d1, loop over d2
+            maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a-by-n_bothz
-            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n2long-by-n_a-by-n_bothz
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
@@ -139,8 +140,8 @@ else
         Policy(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
-        Policy(2,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
-        Policy(3,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(2,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(3,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
         
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -164,11 +165,12 @@ else
                 entireRHS_d2z=ReturnMatrix_d2z+DiscountFactorParamsVec*EV_z;
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_d2z,[],1); % no d1, loop over d2
+                maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
                 % Turn maxindex into the 'midpoint'
                 midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
                 % midpoint is 1-by-n_a
-                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n2long-by-n_a
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, special_n_semiz, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
                 % aprimez=aprimeindexes; % the current aprime
@@ -189,8 +191,8 @@ else
         Policy(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
-        Policy(2,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
-        Policy(3,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(2,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(3,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
 
     end
 end
@@ -227,11 +229,12 @@ for reverse_j=1:N_j-1
             entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],1); % no d1, loop over d2
+            maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a-by-n_bothz
-            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n2long-by-n_a-by-n_bothz
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
             aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
@@ -251,8 +254,8 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
-        Policy(2,:,:,jj)=aprimeL2_ind; % aprimeL2ind
-        Policy(3,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(2,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(3,:,:,jj)=aprimeL2_ind; % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -276,11 +279,12 @@ for reverse_j=1:N_j-1
                 entireRHS_d2z=ReturnMatrix_d2z+DiscountFactorParamsVec*EV_z;
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_d2z,[],1); % no d1, loop over d2
+                maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
                 % Turn maxindex into the 'midpoint'
                 midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
                 % midpoint is 1-by-n_a
-                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n2long-by-n_a
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, special_n_semiz, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
                 % aprimez=aprimeindexes; % the current aprime
@@ -301,11 +305,23 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
-        Policy(2,:,:,jj)=aprimeL2_ind; % aprimeL2ind
-        Policy(3,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(2,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]); % midpoint
+        Policy(3,:,:,jj)=aprimeL2_ind; % aprimeL2ind
         
     end
 end
+
+
+
+%% Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer
+% (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
+% we switch Policy(2,:) to 'lower grid point' and then have Policy(3,:)
+% counting 0:nshort+1 up from this.
+adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoint
+Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
+Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
+
+Policy=squeeze(Policy(1,:,:,:)+N_d2*(Policy(2,:,:,:)-1)+N_d2*N_a*(Policy(3,:,:,:)-1));
 
 
 end

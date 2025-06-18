@@ -28,8 +28,6 @@ Policy=reshape(Policy,[size(Policy,1),N_a,N_bothz,1,N_j]);
 
 pi_z_J=gather(pi_z_J);
 
-
-
 %% Switch Policy to being on the grid (rather than gridded interpolation)
 % and throw out the decion variable policies while we are at it
 Policy_aprime=zeros(N_a,N_bothz,2,N_j,'gpuArray'); % the lower grid point

@@ -1,5 +1,7 @@
 function [V,Policy3]=ValueFnIter_FHorz_SemiExo_GI_noz_e_raw(n_d1,n_d2,n_a,n_semiz,n_e, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, e_gridvals_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+n_d=[n_d1,n_d2];
+
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_d=prod([n_d1,n_d2]); % Needed for N_j when converting to form of Policy3
@@ -17,8 +19,11 @@ d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
 special_n_d2=ones(1,length(n_d2));
-d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
-    
+
+d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
+
+d12_gridvals=permute(reshape(d_gridvals,[N_d1,N_d2,length(n_d1)+length(n_d2)]),[1,3,2]); % version to use when looping over d2
+
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
@@ -59,7 +64,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, n_semiz, n_e, [d1_grid; d2_grid], a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_semiz, n_e, d_gridvals, a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % Treat standard problem as just being the first layer
         [~,maxindex]=max(ReturnMatrix,[],2);
 
@@ -68,7 +73,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % midpoint is n_d-by-1-by-n_a-by-n_bothz-by-n_e
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-n_bothz-by-n_e
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,n_d2], n_semiz, n_e, d_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_semiz, n_e, d_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
         V(:,:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d)+1;
@@ -82,7 +87,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, n_semiz, special_n_e, [d1_grid; d2_grid], a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_semiz, special_n_e, d_gridvals, a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(ReturnMatrix_e,[],2);
 
@@ -91,7 +96,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % midpoint is n_d-by-1-by-n_a-by-n_semiz
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a-by-n_semiz
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,n_d2], n_semiz, special_n_e, d_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_semiz, special_n_e, d_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V(:,:,e_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d)+1;
@@ -107,7 +112,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,n_d2], n_a, special_n_semiz, special_n_e, [d1_grid; d2_grid], a_grid, z_val, e_val, ReturnFnParamsVec,1);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_semiz, special_n_e, d_gridvals, a_grid, z_val, e_val, ReturnFnParamsVec,1);
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(ReturnMatrix_ze,[],2);
 
@@ -116,7 +121,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % midpoint is n_d-by-1-by-n_a
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,n_d2], special_n_semiz, special_n_e, d_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, special_n_semiz, special_n_e, d_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
                 [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
                 V(:,z_c,e_c,N_j)=shiftdim(Vtempii,1);
                 d_ind=rem(maxindexL2-1,N_d)+1;
@@ -130,27 +135,26 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(1,1,:,N_j),3);    % First, switch V_Jplus1 into Kron form
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(1,1,:,N_j),3);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
 
-            EV=V_Jplus1.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp=interp1(a_grid,EV_d2,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d1,1,1); % Note, this is only for later as it is the interpolated version
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
-            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*repelem(EV,N_d1,1);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,n_e, d12c_gridvals, a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],2); % second dimension, so this is the optimal aprime (on first layer, so on a_grid)
 
@@ -159,7 +163,7 @@ else
             % midpoint is n_d-by-1-by-n_a-by-n_semiz-by-n_e
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a-by-n_semiz-by-n_e
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, n_e, d12_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, n_e, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_semiz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -182,25 +186,22 @@ else
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
 
-            EV=V_Jplus1.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
-
-            entireEV=kron(EV,ones(N_d1,1));
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp=interp1(a_grid,EV_d2,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d1,1,1); % Note, this is only for later as it is the interpolated version
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
-                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,special_n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
-                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV;
+                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,special_n_e, d12c_gridvals, a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
+                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_d2e,[],2); % second dimension, so this is the optimal aprime (on first layer, so on a_grid)
 
@@ -211,7 +212,7 @@ else
                 % midpoint is n_d-by-1-by-n_a-by-n_semiz
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a-by-n_semiz
-                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, special_n_e, d12_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, special_n_e, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
                 daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
                 entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_semiz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -235,28 +236,26 @@ else
 
     elseif vfoptions.lowmemory==2
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-                entireEV_z=repelem(EV_z,N_d1,1);
+                EV_d2z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
+                EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z=sum(EV_d2z,2);
 
                 % Interpolate EV over aprime_grid
-                EVinterp_z=interp1(a_grid,EV_z,aprime_grid);
+                EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid);
                 entireEVinterp_z=repelem(EVinterp_z,N_d1,1,1); % Note, this is only for later as it is the interpolated version
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(e_c,:,N_j);
 
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_semiz, special_n_e, [d1_grid,d2_val], a_grid, z_val,e_val, ReturnFnParamsVec,1);
-                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z;
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_semiz, special_n_e, d12c_gridvals, a_grid, z_val,e_val, ReturnFnParamsVec,1);
+                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*shiftdim(EV_d2z,-1);
                     % Treat standard problem as just being the first layer
                     [~,maxindex]=max(entireRHS_d2ze,[],2); % second dimension, so this is the optimal aprime (on first layer, so on a_grid)
 
@@ -267,7 +266,7 @@ else
                     % midpoint is n_d-by-1-by-n_a
                     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                     % aprime possibilities are n_d-by-n2long-by-n_a
-                    ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], special_n_semiz, special_n_e, d12_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], special_n_semiz, special_n_e, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
                     daprime=(1:1:N_d1)'+N_d1*(aprimeindexes-1); % the current aprime
                     entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d1*n2long,N_a]);
                     [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -309,20 +308,19 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
 
-            EV=EV.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp=interp1(a_grid,EV_d2,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d1,1,1); % Note, this is only for later as it is the interpolated version
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,n_e, [d1_grid; d2_val], a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
-            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*repelem(EV,N_d1,1,1);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz,n_e, d12c_gridvals, a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],2); % second dimension, so this is the optimal aprime (on first layer, so on a_grid)
 
@@ -331,7 +329,7 @@ for reverse_j=1:N_j-1
             % midpoint is n_d-by-1-by-n_a-by-n_semiz-by-n_e
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a-by-n_semiz-by-n_e
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, n_e, d12_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, n_e, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
             daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_semiz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -355,25 +353,23 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
 
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV=EV.*pi_semiz(z_c,:);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2);
-            entireEV=repelem(EV,N_d1,1);
+            EV_d2=EV.*pi_semiz(z_c,:);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2);
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp=interp1(a_grid,EV_d2,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d1,1,1); % Note, this is only for later as it is the interpolated version
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
 
-                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz, special_n_e, [d1_grid;d2_val], a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1);
-                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*entireEV;
+                ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, n_semiz, special_n_e, d12c_gridvals, a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1);
+                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_d2e,[],2); % second dimension, so this is the optimal aprime (on first layer, so on a_grid)
 
@@ -384,7 +380,7 @@ for reverse_j=1:N_j-1
                 % midpoint is n_d-by-1-by-n_a-by-n_semiz
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a-by-n_semiz
-                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, special_n_e, d12_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], n_semiz, special_n_e, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
                 daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
                 entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_semiz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -408,28 +404,26 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==2
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,jj);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-                entireEV_z=repelem(EV_z,N_d1,1);
+                EV_d2z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
+                EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z=sum(EV_d2z,2);
 
                 % Interpolate EV over aprime_grid
-                EVinterp_z=interp1(a_grid,EV_z,aprime_grid);
+                EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid);
                 entireEVinterp_z=repelem(EVinterp_z,N_d1,1,1); % Note, this is only for later as it is the interpolated version
 
                 for e_c=1:N_e
                     e_val=e_gridvals_J(:,:,jj);
 
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_semiz, special_n_e, [d1_grid;d2_val], a_grid, z_val,e_val, ReturnFnParamsVec,1);
-                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*entireEV_z;
+                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, [n_d1,special_n_d2], n_a, special_n_semiz, special_n_e, d12c_gridvals, a_grid, z_val,e_val, ReturnFnParamsVec,1);
+                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*shiftdim(EV_d2z,-1);
                     % Treat standard problem as just being the first layer
                     [~,maxindex]=max(entireRHS_d2ze,[],2); % second dimension, so this is the optimal aprime (on first layer, so on a_grid)
 
@@ -440,7 +434,7 @@ for reverse_j=1:N_j-1
                     % midpoint is n_d-by-1-by-n_a
                     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                     % aprime possibilities are n_d-by-n2long-by-n_a
-                    ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], special_n_semiz, special_n_e, d12_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, [n_d1,special_n_d2], special_n_semiz, special_n_e, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
                     daprime=(1:1:N_d1)'+N_d1*(aprimeindexes-1); % the current aprime
                     entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d1*n2long,N_a]);
                     [Vtemp,maxindex]=max(entireRHS_ii,[],1);

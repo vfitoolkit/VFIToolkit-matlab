@@ -8,31 +8,6 @@ else
     N_e=0;
 end
 
-if isfield(vfoptions,'pard2')
-    % Parallel over d2 seems slower, so don't actually ever want to do it.
-    % Leaving it here so I know I tried it.
-    if vfoptions.pard2==1
-        [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        return
-    end
-end
-
-
-if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_SemiExo_DC_GI(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-elseif vfoptions.divideandconquer==1
-    % Solve using Divide-and-Conquer algorithm
-    [V,Policy]=ValueFnIter_FHorz_SemiExo_DC(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-elseif vfoptions.gridinterplayer==1
-    % Solve using grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_SemiExo_GI(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-end
-
-
 if N_d1==0
     if N_e==0
         if N_z==0
