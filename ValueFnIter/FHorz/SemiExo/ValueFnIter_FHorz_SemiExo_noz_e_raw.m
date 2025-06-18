@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_Case1_FHorz_SemiExo_noz_e_raw(n_d1,n_d2,n_a,n_semiz,n_e, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, e_gridvals_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy3]=ValueFnIter_FHorz_SemiExo_noz_e_raw(n_d1,n_d2,n_a,n_semiz,n_e, N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, e_gridvals_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
