@@ -485,23 +485,6 @@ if vfoptions.dynasty==1
     return
 end
 
-%% Semi-exogenous state
-% The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
-if isfield(vfoptions,'SemiExoStateFn')
-    if length(n_d)>vfoptions.l_dsemiz
-        n_d1=n_d(1:end-vfoptions.l_dsemiz);
-        d1_grid=d_grid(1:sum(n_d1));
-    else
-        n_d1=0; d1_grid=[];
-    end
-    n_d2=n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-    d2_grid=d_grid(sum(n_d1)+1:end);
-    
-    % Now that we have pi_semiz_J we are ready to compute the value function.
-    [V,Policy]=ValueFnIter_Case1_FHorz_SemiExo(n_d1,n_d2,n_a,vfoptions.n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    return
-end
-
 %% Detect if using incremental endogenous states and solve this using purediscretization, prior to the main purediscretization routines
 if any(vfoptions.incrementaltype)
     % Incremental Endogenous States: aprime either equals a, or one grid point higher (unchanged on incremental increase)
@@ -524,6 +507,23 @@ if any(vfoptions.incrementaltype)
     return
 end
 
+
+%% Semi-exogenous state
+% The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
+if isfield(vfoptions,'SemiExoStateFn')
+    if length(n_d)>vfoptions.l_dsemiz
+        n_d1=n_d(1:end-vfoptions.l_dsemiz);
+        d1_grid=d_grid(1:sum(n_d1));
+    else
+        n_d1=0; d1_grid=[];
+    end
+    n_d2=n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
+    d2_grid=d_grid(sum(n_d1)+1:end);
+    
+    % Now that we have pi_semiz_J we are ready to compute the value function.
+    [V,Policy]=ValueFnIter_FHorz_SemiExo(n_d1,n_d2,n_a,vfoptions.n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    return
+end
 
 %% Just do the standard case
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
