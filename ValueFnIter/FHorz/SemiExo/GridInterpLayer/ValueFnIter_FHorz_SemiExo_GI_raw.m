@@ -20,7 +20,7 @@ d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
 
-special_n_d2=ones(1,length(n_d2));
+special_n_d=[n_d1,ones(1,length(n_d2))];
 
 d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
 
@@ -128,7 +128,7 @@ else
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d1,1,1);
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS,[],2);
@@ -138,7 +138,7 @@ else
             % midpoint is n_d-by-1-by-n_a-by-n_bothz
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a-by-n_bothz
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_bothz-1),-2); % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -179,7 +179,7 @@ else
                 EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid);
                 entireEVinterp_z=repelem(EVinterp_z,N_d1,1,1);
 
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*shiftdim(EV_d2z,-1);
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_z,[],2);
@@ -189,7 +189,7 @@ else
                 % midpoint is n_d-by-1-by-n_a
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
-                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], special_n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, special_n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
                 daprime=(1:1:N_d1)'+N_d1*(aprimeindexes-1); % the current aprime
                 entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d1*n2long,N_a]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -244,7 +244,7 @@ for reverse_j=1:N_j-1
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d1,1,1);
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS,[],2);
@@ -254,7 +254,7 @@ for reverse_j=1:N_j-1
             % midpoint is n_d1-by-1-by-n_a-by-n_bothz
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d1-by-n2long-by-n_a-by-n_bothz
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
             daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_bothz-1),-2); % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
@@ -295,7 +295,7 @@ for reverse_j=1:N_j-1
                 EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid);
                 entireEVinterp_z=repelem(EVinterp_z,N_d1,1,1);
 
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*shiftdim(EV_d2z,-1);
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_z,[],2);
@@ -305,7 +305,7 @@ for reverse_j=1:N_j-1
                 % midpoint is n_d-by-1-by-n_a
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
-                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, [n_d1,special_n_d2], special_n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, special_n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
                 daprime=(1:1:N_d1)'+N_d1*(aprimeindexes-1); % the current aprime
                 entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d1*n2long,N_a]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);

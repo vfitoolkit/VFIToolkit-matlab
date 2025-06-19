@@ -1,9 +1,5 @@
 function [V,Policy3]=ValueFnIter_FHorz_SemiExo_DC1_nod1_raw(n_d2,n_a,n_z,n_semiz,N_j, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
-n_bothz=[n_semiz,n_z]; % These are the return function arguments
-
-N_d1=1; % This seems to work (I am too lazy to write proper version for nod1)
-
 N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);

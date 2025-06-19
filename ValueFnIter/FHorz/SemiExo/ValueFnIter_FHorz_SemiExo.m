@@ -10,7 +10,7 @@ end
 
 if isfield(vfoptions,'pard2')
     % Parallel over d2 seems slower, so don't actually ever want to do it.
-    % Leaving it here so I know I tried it.
+    % Leaving it here so I know I tried it. Presumably there is a way to get it to be faster.
     if vfoptions.pard2==1
         [V,Policy]=ValueFnIter_FHorz_SemiExo_pard2(n_d1,n_d2,n_a,n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         return

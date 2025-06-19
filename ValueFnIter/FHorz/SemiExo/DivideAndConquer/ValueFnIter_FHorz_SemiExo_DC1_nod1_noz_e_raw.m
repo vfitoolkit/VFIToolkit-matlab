@@ -1,7 +1,5 @@
 function [V,Policy3]=ValueFnIter_FHorz_SemiExo_DC1_nod1_noz_e_raw(n_d2,n_a,n_semiz,n_e, N_j, d2_grid, a_grid, semiz_gridvals_J, e_gridvals_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
-error('This has not yet been tested')
-
 N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
@@ -169,7 +167,7 @@ else
             Policy_ford2_jj(level1ii,:,:,d2_c)=shiftdim(maxindex,1); % d,aprime
 
             % Second level based on montonicity
-            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],4),[],3);
+            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],4),[],3));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                 if maxgap(ii)>0
@@ -231,7 +229,7 @@ else
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex,1); % d,aprime
 
                 % Second level based on montonicity
-                maxgap=squeeze(max(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4));
+                maxgap=squeeze(max(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4)));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0
@@ -308,7 +306,7 @@ for reverse_j=1:N_j-1
             Policy_ford2_jj(level1ii,:,:,d2_c)=shiftdim(maxindex,1); % d,aprime
 
             % Second level based on montonicity
-            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],5),[],4);
+            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],5),[],4));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                 if maxgap(ii)>0
@@ -370,7 +368,7 @@ for reverse_j=1:N_j-1
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex,1); % d,aprime
 
                 % Second level based on montonicity
-                maxgap=squeeze(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4);
+                maxgap=squeeze(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0

@@ -1,8 +1,4 @@
-function [V,Policy3]=ValueFnIter_FHorz_SemiExo_DC1_nod1_e_raw(n_d2,n_a,n_z,n_semiz, n_e,N_j, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J,pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-
-error('This needs to be tested')
-
-n_bothz=[n_semiz,n_z]; % These are the return function arguments
+function [V,Policy]=ValueFnIter_FHorz_SemiExo_DC1_nod1_e_raw(n_d2,n_a,n_z,n_semiz, n_e,N_j, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J,pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a=prod(n_a);
@@ -13,7 +9,7 @@ N_e=prod(n_e);
 
 V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
-Policy3=zeros(2,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
+Policy=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for d2, aprime and aprime2 (in GI layer)
 
 %%
 d2_grid=gpuArray(d2_grid);
@@ -24,23 +20,25 @@ d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
-else
-    eind=shiftdim((0:1:N_e-1),-2); % already includes -1
 end
 if vfoptions.lowmemory>1
     special_n_bothz=ones(1,length(n_z)+length(n_semiz));
-else
-    bothzind=shiftdim((0:1:N_bothz-1),-1);
 end
+
+bothzind=shiftdim((0:1:N_bothz-1),-1);
+eind=shiftdim((0:1:N_e-1),-2); % already includes -1
+
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
 % Preallocate
 if vfoptions.lowmemory==0
     V_ford2_jj=zeros(N_a,N_semiz*N_z,N_e,N_d2,'gpuArray');
     Policy_ford2_jj=zeros(N_a,N_semiz*N_z,N_e,N_d2,'gpuArray');
+    midpoint_ford2_jj=zeros(N_a,N_semiz*N_z,N_e,N_d2,'gpuArray');
 elseif vfoptions.lowmemory==1 % loops over e
     V_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
     Policy_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
+    midpoint_ford2_jj=zeros(N_a,N_semiz*N_z,N_d2,'gpuArray');
 end
 
 pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
@@ -100,8 +98,8 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
 
         % Deal with policy for semi-exo
-        Policy3(1,:,:,:,N_j)=shiftdim(rem(Policytemp-1,N_d2)+1,-1);
-        Policy3(2,:,:,:,N_j)=shiftdim(ceil(Policytemp/N_d2),-1);
+        Policy(1,:,:,:,N_j)=shiftdim(rem(Policytemp-1,N_d2)+1,-1);
+        Policy(2,:,:,:,N_j)=shiftdim(ceil(Policytemp/N_d2),-1);
 
     elseif vfoptions.lowmemory==1
 
@@ -148,8 +146,8 @@ if ~isfield(vfoptions,'V_Jplus1')
             end
 
             % Deal with policy for semi-exo
-            Policy3(1,:,:,e_c,N_j)=shiftdim(rem(Policytemp-1,N_d2)+1,-1);
-            Policy3(2,:,:,e_c,N_j)=shiftdim(ceil(Policytemp/N_d2),-1);
+            Policy(1,:,:,e_c,N_j)=shiftdim(rem(Policytemp-1,N_d2)+1,-1);
+            Policy(2,:,:,e_c,N_j)=shiftdim(ceil(Policytemp/N_d2),-1);
         end
     end
 else
@@ -215,10 +213,10 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,N_j)=V_jj;
-        Policy3(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]);
-        Policy3(2,:,:,:,N_j)=shiftdim(aprime_ind,-1);
+        Policy(2,:,:,:,N_j)=shiftdim(aprime_ind,-1);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -228,9 +226,7 @@ else
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
-
-            entireEV=repelem(EV,N_d1,1,1);
-
+            
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
@@ -247,7 +243,7 @@ else
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex,1); % d,aprime
 
                 % Second level based on montonicity
-                maxgap=squeeze(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4);
+                maxgap=squeeze(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0
@@ -279,10 +275,10 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
-        Policy3(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]);
-        Policy3(2,:,:,:,N_j)=shiftdim(aprime_ind,-1);
+        Policy(2,:,:,:,N_j)=shiftdim(aprime_ind,-1);
 
     end
 end
@@ -326,7 +322,7 @@ for reverse_j=1:N_j-1
             Policy_ford2_jj(level1ii,:,:,d2_c)=shiftdim(maxindex,1); % d,aprime
 
             % Second level based on montonicity
-            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],5),[],4);
+            maxgap=squeeze(max(max(maxindex(1,2:end,:,:)-maxindex(1,1:end-1,:,:),[],5),[],4));
             for ii=1:(vfoptions.level1n-1)
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                 if maxgap(ii)>0
@@ -358,10 +354,10 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
-        Policy3(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]);
-        Policy3(1,:,:,:,jj)=shiftdim(aprime_ind,-1);
+        Policy(1,:,:,:,jj)=shiftdim(aprime_ind,-1);
 
     elseif vfoptions.lowmemory==1 
         for d2_c=1:N_d2
@@ -388,7 +384,7 @@ for reverse_j=1:N_j-1
                 Policy_ford2_jj(level1ii,:,e_c,d2_c)=shiftdim(maxindex,1); % d,aprime
 
                 % Second level based on montonicity
-                maxgap=squeeze(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4);
+                maxgap=squeeze(max(maxindex(1,2:end,:)-maxindex(1,1:end-1,:),[],4));
                 for ii=1:(vfoptions.level1n-1)
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0
@@ -420,10 +416,10 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
-        Policy3(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
         aprime_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_z*N_e)'+(N_a*N_semiz*N_z*N_e)*(maxindex-1)),[1,N_a,N_semiz*N_z,N_e]);
-        Policy3(2,:,:,:,jj)=shiftdim(aprime_ind,-1);
+        Policy(2,:,:,:,jj)=shiftdim(aprime_ind,-1);
 
     end
 end

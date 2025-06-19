@@ -92,7 +92,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % loweredge is n_d-by-1-by-n_bothz-by-n_e
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_bothz-by-n_e
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1); % ,1) as GI
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_bothz, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
                 [~,maxindex]=max(ReturnMatrix_ii,[],2); % ,2) as GI
                 midpoints_jj(:,1,curraindex,:,:)=maxindex+(loweredge-1);
             else
@@ -191,9 +191,7 @@ else
 
             % n-Monotonicity
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz,n_e, d12_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
-
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*entireEV;
-
             % First, we want aprime conditional on (d,1,a,z,e)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
@@ -359,10 +357,8 @@ for reverse_j=1:N_j-1
             EVinterpfull(d2_c,:,1,:)=shiftdim(EVinterp,-1); % note, missing d1
 
             % n-Monotonicity
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz,n_e, d12_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
-
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz,n_e, d12_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,3);
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*entireEV;
-
             % First, we want aprime conditional on (d,1,a,z,e)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
@@ -488,7 +484,7 @@ for reverse_j=1:N_j-1
     end
 end
 
-% Currently Policy(3,:) is the midpoint, and Policy(4,:) the second layer
+%% Currently Policy(3,:) is the midpoint, and Policy(4,:) the second layer
 % (which ranges -n2short-1:1:1+n2short). It is much easier to use later if
 % we switch Policy(3,:) to 'lower grid point' and then have Policy(4,:)
 % counting 0:nshort+1 up from this.

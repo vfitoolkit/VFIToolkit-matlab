@@ -1,14 +1,12 @@
 function [V,Policy3]=ValueFnIter_FHorz_SemiExo_DC1_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
-N_d1=1; % This seems to work
-
 N_d2=prod(n_d2);
 N_a=prod(n_a);
 N_semiz=prod(n_semiz);
 
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
-Policy3=zeros(2,N_a,N_semiz,N_j,'gpuArray');
+Policy3=zeros(2,N_a,N_semiz*N_z,N_j,'gpuArray');
 
 %%
 d2_grid=gpuArray(d2_grid);
