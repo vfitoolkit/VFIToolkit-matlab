@@ -51,11 +51,11 @@ end
 if l_d2==1
     Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:),1);
 elseif l_d2==2
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:),1);
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*(Policy(l_d1+2,:,:,:)-1),1);
 elseif l_d2==3
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*Policy(l_d1+3,:,:,:),1); 
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*(Policy(l_d1+2,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*(Policy(l_d1+3,:,:,:)-1),1); 
 elseif l_d2==4
-    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*Policy(l_d1+2,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*Policy(l_d1+3,:,:,:)+n_d(l_d1+1)*n_d(l_d1+2)*n_d(l_d1+3)*Policy(l_d1+4,:,:,:),1);
+    Policy_dsemiexo=shiftdim(Policy(l_d1+1,:,:,:)+n_d(l_d1+1)*(Policy(l_d1+2,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*(Policy(l_d1+3,:,:,:)-1)+n_d(l_d1+1)*n_d(l_d1+2)*n_d(l_d1+3)*(Policy(l_d1+4,:,:,:)-1),1);
 end
 
 %%
