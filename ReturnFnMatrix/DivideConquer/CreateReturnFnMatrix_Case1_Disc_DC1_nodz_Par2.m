@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, aprime_grid, a_grid, ReturnFnParams)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, aprime_grid, a_grid, ReturnFnParams)
 % For divide and conquer, with l_a=1 and no d var and no z var
 
 ParamCell=cell(length(ReturnFnParams),1);

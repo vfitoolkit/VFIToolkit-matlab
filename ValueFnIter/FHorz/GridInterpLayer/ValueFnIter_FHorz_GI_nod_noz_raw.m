@@ -36,11 +36,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     % midpoint is 1-by-n_a-by-n_bothz-by-n_e
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,n_a,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
-    V(:,:,N_j)=shiftdim(Vtempii,1);
-    Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
-    Policy(2,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+    V(:,N_j)=shiftdim(Vtempii,1);
+    Policy(1,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
+    Policy(2,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
 
 else
     % Using V_Jplus1
@@ -63,7 +63,7 @@ else
     % midpoint is 1-by-n_a-by-n_z
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,n_a,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     aprime=aprimeindexes;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprime(:)),[n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
@@ -103,7 +103,7 @@ for reverse_j=1:N_j-1
     % midpoint is 1-by-n_a-by-n_z
     aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,n_a,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec);
     aprime=aprimeindexes;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprime(:)),[n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);

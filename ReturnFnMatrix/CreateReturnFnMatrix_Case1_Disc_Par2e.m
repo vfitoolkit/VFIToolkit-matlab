@@ -138,7 +138,6 @@ if l_e==1
         end
     elseif l_d==1
         if l_a==1 && l_z==1
-            d_gridvals(:,1)(1,1,1,1)=d_grid(1); % Requires special treatment
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals, e1vals, ParamCell{:});
         elseif l_a==1 && l_z==2
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals,z2vals, e1vals, ParamCell{:});
@@ -351,7 +350,6 @@ elseif l_e==2
         end
     elseif l_d==1
         if l_a==1 && l_z==1
-            d_gridvals(:,1)(1,1,1,1)=d_grid(1); % Requires special treatment
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals, e1vals,e2vals, ParamCell{:});
         elseif l_a==1 && l_z==2
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals,z2vals, e1vals,e2vals, ParamCell{:});
@@ -564,7 +562,6 @@ elseif l_e==3
         end
     elseif l_d==1
         if l_a==1 && l_z==1
-            d_gridvals(:,1)(1,1,1,1)=d_grid(1); % Requires special treatment
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals, e1vals,e2vals,e3vals, ParamCell{:});
         elseif l_a==1 && l_z==2
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals,z2vals, e1vals,e2vals,e3vals, ParamCell{:});
@@ -777,7 +774,6 @@ elseif l_e==4
         end
     elseif l_d==1
         if l_a==1 && l_z==1
-            d_gridvals(:,1)(1,1,1,1)=d_grid(1); % Requires special treatment
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals, e1vals,e2vals,e3vals,e4vals, ParamCell{:});
         elseif l_a==1 && l_z==2
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals,z2vals, e1vals,e2vals,e3vals,e4vals, ParamCell{:});
@@ -990,7 +986,6 @@ elseif l_e==5
         end
     elseif l_d==1
         if l_a==1 && l_z==1
-            d_gridvals(:,1)(1,1,1,1)=d_grid(1); % Requires special treatment
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals, e1vals,e2vals,e3vals,e4vals,e5vals, ParamCell{:});
         elseif l_a==1 && l_z==2
             Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime1vals, a1vals, z1vals,z2vals, e1vals,e2vals,e3vals,e4vals,e5vals, ParamCell{:});

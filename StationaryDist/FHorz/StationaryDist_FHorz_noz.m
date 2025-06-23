@@ -5,7 +5,6 @@ if isempty(n_d)
 end
 N_d=prod(n_d);
 N_a=prod(n_a);
-
 jequaloneDist=reshape(jequaloneDist,[N_a,1]);
 Policy=KronPolicyIndexes_FHorz_Case1_noz(Policy, n_d, n_a,N_j);
 

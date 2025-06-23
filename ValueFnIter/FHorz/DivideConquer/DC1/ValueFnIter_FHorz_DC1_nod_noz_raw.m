@@ -21,7 +21,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
 if ~isfield(vfoptions,'V_Jplus1')
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii), a_grid, ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
 
     %Calc the max and it's index
     [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
@@ -31,7 +31,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
         [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
         Policy(curraindex,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii),N_j)-1;
@@ -45,7 +45,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii), a_grid, ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*V_Jplus1;
     %Calc the max and it's index
     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -55,7 +55,7 @@ else
 
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*V_Jplus1(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j));
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
@@ -82,7 +82,7 @@ for reverse_j=1:N_j-1
     VKronNext_j=V(:,jj+1);
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(level1ii), a_grid, ReturnFnParamsVec);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j;
     %Calc the max and it's index
     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -92,7 +92,7 @@ for reverse_j=1:N_j-1
     
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, n_a, a_grid(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj));
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(curraindex,jj)=shiftdim(Vtempii,1);

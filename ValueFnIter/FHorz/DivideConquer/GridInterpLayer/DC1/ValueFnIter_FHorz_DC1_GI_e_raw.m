@@ -25,6 +25,10 @@ elseif vfoptions.lowmemory==2 % loops over z,e
     special_n_e=ones(1,length(n_e));
 end
 
+aind=0:1:N_a-1;
+zind=shiftdim(0:1:N_z-1,-1);
+eind=shiftdim(0:1:N_e-1,-2);
+
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
@@ -91,7 +95,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind; % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
         Policy(1,:,:,:,N_j)=d_ind; % d
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-        Policy(3,:,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -135,7 +139,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
             Policy(1,:,:,e_c,N_j)=d_ind; % d
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-            Policy(3,:,:,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -181,7 +185,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
                 Policy(1,:,z_c,e_c,N_j)=d_ind; % d
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+                Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
             end
 
@@ -231,7 +235,7 @@ else
                 daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_z,N_e]));
                 [~,maxindex]=max(entireRHS_ii,[],2);
-                midpoints_jj(:,1,curraindex,:,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(:,1,curraindex,:,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -252,7 +256,7 @@ else
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind; % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
         Policy(1,:,:,:,N_j)=d_ind; % d
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-        Policy(3,:,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -281,7 +285,7 @@ else
                     daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_z]));
                     [~,maxindex]=max(entireRHS_ii,[],2);
-                    midpoints_jj(:,1,curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                    midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -302,7 +306,7 @@ else
             allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
             Policy(1,:,:,e_c,N_j)=d_ind; % d
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-            Policy(3,:,:,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
@@ -335,7 +339,7 @@ else
                         daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV_z(reshape(daprimez,[N_d,(maxgap(ii)+1),level1iidiff(ii)]));
                         [~,maxindex]=max(entireRHS_ii,[],2);
-                        midpoints_jj(:,1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
+                        midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                     else
                         loweredge=maxindex1(:,1,ii);
                         midpoints_jj(:,1,curraindex)=repelem(loweredge,1,1,length(curraindex),1);
@@ -356,7 +360,7 @@ else
                 allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
                 Policy(1,:,z_c,e_c,N_j)=d_ind; % d
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+                Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
             end
         end
     end
@@ -398,12 +402,8 @@ for reverse_j=1:N_j-1
         % First, we want aprime conditional on (d,1,a,z,e)
         [~,maxindex1]=max(entireRHS_ii,[],2);
 
-        % Now, get and store the full (d,aprime)
-        [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_z,N_e]),[],1);
-
-        % Store
-        V(level1ii,:,:,jj)=shiftdim(Vtempii,1);
-        Policy(level1ii,:,:,jj)=shiftdim(maxindex2,1); % d,aprime
+        % Just keep the 'midpoint' version of maxindex1 [as GI]
+        midpoints_jj(:,1,level1ii,:,:)=maxindex1;
 
         % Attempt for improved version
         maxgap=squeeze(max(max(max(maxindex1(:,1,2:end,:,:)-maxindex1(:,1,1:end-1,:,:),[],5),[],4),[],1)); % max over d,z,e
@@ -417,7 +417,7 @@ for reverse_j=1:N_j-1
                 daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_z,N_e]));
                 [~,maxindex]=max(entireRHS_ii,[],2);
-                midpoints_jj(:,1,curraindex,:,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(:,1,curraindex,:,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -438,7 +438,7 @@ for reverse_j=1:N_j-1
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind; % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
         Policy(1,:,:,:,jj)=d_ind; % d
         Policy(2,:,:,:,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-        Policy(3,:,:,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
@@ -451,12 +451,8 @@ for reverse_j=1:N_j-1
             % First, we want aprime conditional on (d,1,a,z,e)
             [~,maxindex1]=max(entireRHS_ii,[],2);
 
-            % Now, get and store the full (d,aprime)
-            [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n,N_z]),[],1);
-
-            % Store
-            V(level1ii,:,e_c,jj)=shiftdim(Vtempii,1);
-            Policy(level1ii,:,e_c,jj)=shiftdim(maxindex2,1); % d,aprime
+            % Just keep the 'midpoint' version of maxindex1 [as GI]
+            midpoints_jj(:,1,level1ii,:)=maxindex1;
 
             % Attempt for improved version
             maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1)); % max over d,z,e
@@ -470,7 +466,7 @@ for reverse_j=1:N_j-1
                     daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a*shiftdim((0:1:N_z-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprimez,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_z]));
                     [~,maxindex]=max(entireRHS_ii,[],2);
-                    midpoints_jj(:,1,curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                    midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -491,7 +487,7 @@ for reverse_j=1:N_j-1
             allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
             Policy(1,:,:,e_c,jj)=d_ind; % d
             Policy(2,:,:,e_c,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-            Policy(3,:,:,e_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,:,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
         end
     elseif vfoptions.lowmemory==2
@@ -509,12 +505,8 @@ for reverse_j=1:N_j-1
                 % First, we want aprime conditional on (d,1,a,z,e)
                 [~,maxindex1]=max(entireRHS_ii,[],2);
 
-                % Now, get and store the full (d,aprime)
-                [Vtempii,maxindex2]=max(reshape(entireRHS_ii,[N_d*N_a,vfoptions.level1n]),[],1);
-
-                % Store
-                V(level1ii,z_c,e_c,jj)=shiftdim(Vtempii,1);
-                Policy(level1ii,z_c,e_c,jj)=shiftdim(maxindex2,1); % d,aprime
+                % Just keep the 'midpoint' version of maxindex1 [as GI]
+                midpoints_jj(:,1,level1ii)=maxindex1;
 
                 % Attempt for improved version
                 maxgap=squeeze(max(maxindex1(:,1,2:end)-maxindex1(:,1,1:end-1),[],1)); % max over d,z,e
@@ -528,7 +520,7 @@ for reverse_j=1:N_j-1
                         daprimez=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV_z(reshape(daprimez,[N_d,(maxgap(ii)+1),level1iidiff(ii)]));
                         [~,maxindex]=max(entireRHS_ii,[],2);
-                        midpoints_jj(:,1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
+                        midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                     else
                         loweredge=maxindex1(:,1,ii);
                         midpoints_jj(:,1,curraindex)=repelem(loweredge,1,1,length(curraindex),1);
@@ -549,7 +541,7 @@ for reverse_j=1:N_j-1
                 allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
                 Policy(1,:,z_c,e_c,jj)=d_ind; % d
                 Policy(2,:,z_c,e_c,jj)=shiftdim(squeeze(midpoints_jj(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+                Policy(3,:,z_c,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
             end
         end

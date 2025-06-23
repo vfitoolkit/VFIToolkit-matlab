@@ -103,14 +103,14 @@ if ~isfield(vfoptions,'V_Jplus1')
                     allind=dind; % loweredge is n_d-by-1-by-1
                     Policy(curraindex,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
                 else
-                    loweredge=maxindex1(:,1,ii,:);
+                    loweredge=maxindex1(:,1,ii);
                     % Just use aprime(ii) for everything
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_e, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), e_val, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                     V(curraindex,e_c,N_j)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d)+1);
-                    allind=dind; % loweredge is n_d-by-1-by-1
-                    Policy(curraindex,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    % allind=dind; % loweredge is n_d-by-1-by-1
+                    Policy(curraindex,e_c,N_j)=maxindex'+N_d*(loweredge(dind)-1);
                 end
             end
         end
@@ -174,7 +174,7 @@ else
         end
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            e_val=e_gridvals_J(:,:,N_j);
+            e_val=e_gridvals_J(e_c,:,N_j);
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_e, d_grid, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
 
@@ -205,8 +205,8 @@ else
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(curraindex,e_c,N_j)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d)+1);
-                    allind=dind; % loweredge is n_d-by-1-by-1
-                    Policy(curraindex,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    % allind=dind; % loweredge is n_d-by-1-by-1
+                    Policy(curraindex,e_c,N_j)=maxindex'+N_d*(loweredge(dind)-1);
                 else
                     loweredge=maxindex1(:,1,ii);
                     % Just use aprime(ii) for everything
@@ -216,8 +216,8 @@ else
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(curraindex,e_c,N_j)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d)+1);
-                    allind=dind; % loweredge is n_d-by-1-by-1
-                    Policy(curraindex,e_c,N_j)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    % allind=dind; % loweredge is n_d-by-1-by-1
+                    Policy(curraindex,e_c,N_j)=maxindex'+N_d*(loweredge(dind)-1);
                 end
             end
         end
@@ -289,7 +289,7 @@ for reverse_j=1:N_j-1
         end
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            e_val=e_gridvals_J(:,:,jj);
+            e_val=e_gridvals_J(e_c,:,jj);
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_e, d_grid, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
 
@@ -320,8 +320,8 @@ for reverse_j=1:N_j-1
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(curraindex,e_c,jj)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d)+1);
-                    allind=dind; % loweredge is n_d-by-1-by-1
-                    Policy(curraindex,e_c,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    % allind=dind; % loweredge is n_d-by-1-by-1
+                    Policy(curraindex,e_c,jj)=maxindex'+N_d*(loweredge(dind)-1);
                 else
                     loweredge=maxindex1(:,1,ii);
                     % Just use aprime(ii) for everything
@@ -331,8 +331,8 @@ for reverse_j=1:N_j-1
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(curraindex,e_c,jj)=shiftdim(Vtempii,1);
                     dind=(rem(maxindex-1,N_d)+1);
-                    allind=dind; % loweredge is n_d-by-1-by-1
-                    Policy(curraindex,e_c,jj)=shiftdim(maxindex+N_d*(loweredge(allind)-1),1);
+                    % allind=dind; % loweredge is n_d-by-1-by-1
+                    Policy(curraindex,e_c,jj)=maxindex'+N_d*(loweredge(dind)-1);
                 end
             end
         end

@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_GI_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_GI_e_raw(n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J,pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -49,7 +49,7 @@ pi_e_J=shiftdim(pi_e_J,-2); % Move to third dimension
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % Calc the max and it's index
         [~,maxindex]=max(ReturnMatrix,[],2);
 
@@ -65,13 +65,13 @@ if ~isfield(vfoptions,'V_Jplus1')
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind; % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
         Policy(1,:,:,:,N_j)=d_ind; % d
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-        Policy(3,:,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
             % Calc the max and it's index
             [~,maxindex]=max(ReturnMatrix_e,[],2);
 
@@ -87,7 +87,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
             Policy(1,:,:,e_c,N_j)=d_ind; % d
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-            Policy(3,:,:,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
 
     elseif vfoptions.lowmemory==2
@@ -96,7 +96,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_z
                 z_val=z_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec,1);
                 % Calc the max and it's index
                 [~,maxindex]=max(ReturnMatrix_ze,[],2);
 
@@ -112,7 +112,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
                 Policy(1,:,z_c,e_c,N_j)=d_ind; % d
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+                Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
             end
         end
 
@@ -127,20 +127,20 @@ else
     EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
         % (d,aprime,a,z,e)
         
         EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
-        entireEV=repelem(EV,N_d,1,1);
+        % entireEV=repelem(EV,N_d,1,1);
 
         % Interpolate EV over aprime_grid
         EVinterp=interp1(a_grid,EV,aprime_grid);
         entireEVinterp=repelem(EVinterp,N_d,1,1);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],2);
@@ -159,14 +159,14 @@ else
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind; % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
         Policy(1,:,:,:,N_j)=d_ind; % d
         Policy(2,:,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-        Policy(3,:,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
         EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
-        entireEV=repelem(EV,N_d,1,1);
+        % entireEV=repelem(EV,N_d,1,1);
         
         % Interpolate EV over aprime_grid
         EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -174,10 +174,10 @@ else
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
             % (d,aprime,a,z)
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*shiftdim(EV,-1);
 
             %Calc the max and it's index
             [~,maxindex]=max(entireRHS_e,[],2);
@@ -196,7 +196,7 @@ else
             allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
             Policy(1,:,:,e_c,N_j)=d_ind; % d
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-            Policy(3,:,:,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
         
     elseif vfoptions.lowmemory==2
@@ -207,7 +207,7 @@ else
             EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
-            entireEV_z=kron(EV_z,ones(N_d,1));
+            % entireEV_z=kron(EV_z,ones(N_d,1));
             % Interpolate EV over aprime_grid
             EVinterp_z=interp1(a_grid,EV_z,aprime_grid);
             entireEVinterp_z=repelem(EVinterp_z,N_d,1,1);
@@ -215,9 +215,9 @@ else
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
                 
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec,1);
                 
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z;
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*shiftdim(EV_z,-1);
 
                 %Calc the max and it's index
                 [~,maxindex]=max(entireRHS_ze,[],2);
@@ -236,7 +236,7 @@ else
                 allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
                 Policy(1,:,z_c,e_c,N_j)=d_ind; % d
                 Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+                Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
             end
         end
     end
@@ -261,20 +261,20 @@ for reverse_j=1:N_j-1
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
         % (d,aprime,a,z,e)
         
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
-        entireEV=repelem(EV,N_d,1,1);
+        % entireEV=repelem(EV,N_d,1,1);
 
         % Interpolate EV over aprime_grid
         EVinterp=interp1(a_grid,EV,aprime_grid);
         entireEVinterp=repelem(EVinterp,N_d,1,1);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
         %Calc the max and it's index
         [~,maxindex]=max(entireRHS,[],2);
@@ -293,14 +293,14 @@ for reverse_j=1:N_j-1
         allind=d_ind+N_d*aind+N_d*N_a*zind+N_d*N_a*N_z*eind; % midpoint is n_d-by-1-by-n_a-by-n_z-by-n_e
         Policy(1,:,:,:,jj)=d_ind; % d
         Policy(2,:,:,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-        Policy(3,:,:,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+        Policy(3,:,:,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 
     elseif vfoptions.lowmemory==1
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
-        entireEV=repelem(EV,N_d,1,1);
+        % entireEV=repelem(EV,N_d,1,1);
         
         % Interpolate EV over aprime_grid
         EVinterp=interp1(a_grid,EV,aprime_grid);
@@ -308,10 +308,10 @@ for reverse_j=1:N_j-1
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,1);
             % (d,aprime,a,z)
 
-            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*entireEV;
+            entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*shiftdim(EV,-1);
 
             %Calc the max and it's index
             [~,maxindex]=max(entireRHS_e,[],2);
@@ -330,7 +330,7 @@ for reverse_j=1:N_j-1
             allind=d_ind+N_d*aind+N_d*N_a*zind; % midpoint is n_d-by-1-by-n_a-by-n_z
             Policy(1,:,:,e_c,jj)=d_ind; % d
             Policy(2,:,:,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-            Policy(3,:,:,e_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            Policy(3,:,:,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
         end
         
     elseif vfoptions.lowmemory==2
@@ -341,7 +341,7 @@ for reverse_j=1:N_j-1
             EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
-            entireEV_z=kron(EV_z,ones(N_d,1));
+            % entireEV_z=kron(EV_z,ones(N_d,1));
             % Interpolate EV over aprime_grid
             EVinterp_z=interp1(a_grid,EV_z,aprime_grid);
             entireEVinterp_z=repelem(EVinterp_z,N_d,1,1);
@@ -349,9 +349,9 @@ for reverse_j=1:N_j-1
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
                 
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec,1);
                 
-                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z;
+                entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*shiftdim(EV_z,-1);
 
                 %Calc the max and it's index
                 [~,maxindex]=max(entireRHS_ze,[],2);
@@ -370,7 +370,7 @@ for reverse_j=1:N_j-1
                 allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
                 Policy(1,:,z_c,e_c,jj)=d_ind; % d
                 Policy(2,:,z_c,e_c,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+                Policy(3,:,z_c,e_c,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
             end
         end
     end

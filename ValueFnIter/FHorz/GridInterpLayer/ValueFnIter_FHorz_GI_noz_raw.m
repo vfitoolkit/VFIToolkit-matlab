@@ -11,6 +11,8 @@ d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 
+aind=0:1:N_a-1;
+
 % Grid interpolation
 % vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
@@ -30,7 +32,7 @@ aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,1);
     %Calc the max and it's index
     [~,maxindex]=max(ReturnMatrix,[],2);
 
@@ -46,7 +48,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
     Policy(1,:,N_j)=d_ind; % d
     Policy(2,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-    Policy(3,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+    Policy(3,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 else
     % Using V_Jplus1
     EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
@@ -54,7 +56,7 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,1);
     
     entireEV=repelem(EV,N_d,1,1);
 
@@ -81,7 +83,7 @@ else
     allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
     Policy(1,:,N_j)=d_ind; % d
     Policy(2,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-    Policy(3,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+    Policy(3,:,N_j)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 end
 
 %% Iterate backwards through j.
@@ -98,17 +100,16 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     EV=V(:,jj+1);
-
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
-    % (d,aprime,a)
-
-    entireEV=repelem(EV,N_d,1,1);
+    % entireEV=repmat(EV',N_d,1); % [d,aprime]
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
     entireEVinterp=repelem(EVinterp,N_d,1,1);
 
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV;
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,1);
+    % (d,aprime,a)
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1);
 
     %Calc the max and it's index
     [~,maxindex]=max(entireRHS,[],2);
@@ -127,7 +128,7 @@ for reverse_j=1:N_j-1
     allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
     Policy(1,:,jj)=d_ind; % d
     Policy(2,:,jj)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-    Policy(3,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
+    Policy(3,:,jj)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
 end
 
 % Currently Policy(2,:) is the midpoint, and Policy(3,:) the second layer

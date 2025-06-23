@@ -52,7 +52,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);
             %Calc the max and it's index
             [~,maxindex]=max(ReturnMatrix,[],1);
 
@@ -61,7 +61,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % midpoint is 1-by-n_a
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -124,11 +124,11 @@ else
 
             % Turn this into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-            % midpoint is 1-by-n_a-by-n_z
+            % midpoint is 1-by-n_a
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
-            % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
+            % aprime possibilities are n2long-by-n_a
             ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
-            entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a,N_z]);
+            entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_ii_z,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
@@ -184,9 +184,9 @@ for reverse_j=1:N_j-1
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:);
+            z_val=z_gridvals_J(z_c,:,jj);
             
-            %Calc the condl expectation term (except beta), which depends on z but not on control variables
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV_z=VKronNext_j.*pi_z_J(z_c,:,jj);
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
@@ -197,20 +197,20 @@ for reverse_j=1:N_j-1
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z;
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [~,maxindex]=max(entireRHS_z,[],1);
 
             % Turn this into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-            % midpoint is 1-by-n_a-by-n_z
+            % midpoint is 1-by-n_a
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
-            % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
-            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,n_z,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,N_j),ReturnFnParamsVec,2);
-            entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a,N_z]);
+            % aprime possibilities are n2long-by-n_a
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
+            entireRHS_ii_z=ReturnMatrix_ii_z+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
             [Vtempii,maxindexL2]=max(entireRHS_ii_z,[],1);
-            V(:,z_c,N_j)=shiftdim(Vtempii,1);
-            Policy(1,:,z_c,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
-            Policy(2,:,z_c,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
+            V(:,z_c,jj)=shiftdim(Vtempii,1);
+            Policy(1,:,z_c,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
+            Policy(2,:,z_c,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
         end
     end
 end

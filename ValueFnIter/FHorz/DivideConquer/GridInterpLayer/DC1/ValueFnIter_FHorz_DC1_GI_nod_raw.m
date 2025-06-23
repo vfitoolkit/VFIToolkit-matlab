@@ -89,7 +89,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             [~,maxindex1]=max(ReturnMatrix_ii_z,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]
-            midpoints_jj(level1ii,z_c)=maxindex1;
+            midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
             maxgap=maxindex1(1,2:end)-maxindex1(1,1:end-1);
@@ -102,10 +102,10 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % aprime possibilities are maxgap(ii)+1-by-1
                     ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_z, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, ReturnFnParamsVec,2);
                     [~,maxindex]=max(ReturnMatrix_ii_z,[],1);
-                    midpoints_jj(curraindex,z_c)=shiftdim(maxindex+(loweredge-1),1);
+                    midpoints_jj(1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
                 else
                     loweredge=maxindex1(1,ii);
-                    midpoints_jj(curraindex,z_c)=repelem(loweredge,length(curraindex),1);
+                    midpoints_jj(1,curraindex)=repelem(loweredge,length(curraindex),1);
                 end
             end
 
@@ -113,7 +113,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a
             aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
-            % aprime possibilities are n_d-by-n2long-by-n_a
+            % aprime possibilities are n2long-by-n_a
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn,special_n_z,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
@@ -145,7 +145,7 @@ else
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
-        midpoints_jj(level1ii,:)=maxindex1;
+        midpoints_jj(1,level1ii,:)=maxindex1;
 
         % Attempt for improved version
         maxgap=max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3);
@@ -160,10 +160,10 @@ else
                 aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(aprimez);
                 [~,maxindex]=max(entireRHS_ii,[],1);
-                midpoints_jj(curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(1,ii,:);
-                midpoints_jj(curraindex,:)=repelem(loweredge,length(curraindex),1);
+                midpoints_jj(1,curraindex,:)=repelem(loweredge,1,length(curraindex),1);
             end
         end
 
@@ -200,7 +200,7 @@ else
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]
-            midpoints_jj(level1ii,z_c)=maxindex1;
+            midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
             maxgap=maxindex1(1,2:end)-maxindex1(1,1:end-1);
@@ -215,10 +215,10 @@ else
                     aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(aprimez);
                     [~,maxindex]=max(entireRHS_ii,[],1);
-                    midpoints_jj(curraindex,z_c)=shiftdim(maxindex+(loweredge-1),1);
+                    midpoints_jj(1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
                 else
                     loweredge=maxindex1(1,ii);
-                    midpoints_jj(curraindex,z_c)=repelem(loweredge,length(curraindex),1);
+                    midpoints_jj(1,curraindex)=repelem(loweredge,length(curraindex),1);
                 end
             end
 
@@ -252,11 +252,11 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,jj+1);
+    EV=V(:,:,jj+1);
                 
     if vfoptions.lowmemory==0
         % Use sparse for a few lines until sum over zprime
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -327,7 +327,7 @@ for reverse_j=1:N_j-1
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]
-            midpoints_jj(level1ii,z_c)=maxindex1;
+            midpoints_jj(1,level1ii)=maxindex1;
 
             % Attempt for improved version
             maxgap=maxindex1(1,2:end)-maxindex1(1,1:end-1);
@@ -342,10 +342,10 @@ for reverse_j=1:N_j-1
                     aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(aprimez);
                     [~,maxindex]=max(entireRHS_ii,[],1);
-                    midpoints_jj(curraindex,z_c)=shiftdim(maxindex+(loweredge-1),1);
+                    midpoints_jj(1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
                 else
                     loweredge=maxindex1(1,ii);
-                    midpoints_jj(curraindex,z_c)=repelem(loweredge,length(curraindex),1);
+                    midpoints_jj(1,curraindex)=repelem(loweredge,length(curraindex),1);
                 end
             end
 
