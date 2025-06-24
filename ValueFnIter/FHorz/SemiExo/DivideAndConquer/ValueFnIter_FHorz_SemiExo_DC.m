@@ -55,25 +55,21 @@ else
     error('vfoptions.divideandconquer=1 for semi-exo only supports one endogenous state (currently)')
 end
 
-
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+% First dimension of Policy3 is (d1,d2,aprime), or if no d1, then (d2,aprime)
+if N_z==0
+    n_bothz=vfoptions.n_semiz;
+else
+    n_bothz=[vfoptions.n_semiz,n_z];
+end
+
 if vfoptions.outputkron==0
     if isfield(vfoptions,'n_e')
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_semiz, vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, vfoptions.n_semiz, vfoptions.n_e, N_j, vfoptions);
-        else
-            V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, [vfoptions.n_semiz,n_z], vfoptions.n_e, N_j, vfoptions);
-        end
+        V=reshape(VKron,[n_a,n_bothz, vfoptions.n_e,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz_semiz_e(Policy3, n_d1,n_d2, n_a, n_bothz, vfoptions.n_e, N_j, vfoptions);
     else
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_semiz,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, vfoptions.n_semiz, N_j, vfoptions);
-        else
-            V=reshape(VKron,[n_a,vfoptions.n_semiz,n_z,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, [vfoptions.n_semiz,n_z], N_j, vfoptions);
-        end
+        V=reshape(VKron,[n_a,n_bothz,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1, n_d2, n_a, n_bothz, N_j, vfoptions);
     end
 else
     V=VKron;

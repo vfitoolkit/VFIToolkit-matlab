@@ -10,9 +10,6 @@ N_semiz=prod(n_semiz);
 N_z=prod(n_z);
 N_bothz=prod(n_bothz);
 
-special_n_d2=ones(1,length(n_d2));
-d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
-
 V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
 Policy3=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray');
@@ -21,6 +18,11 @@ Policy3=zeros(3,N_a,N_semiz*N_z,N_j,'gpuArray');
 d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a_grid=gpuArray(a_grid);
+
+d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
+
+special_n_d=[n_d1,ones(1,length(n_d2))];
+d12_gridvals=permute(reshape(d_gridvals,[N_d1,N_d2,length(n_d1)+length(n_d2)]),[1,3,2]); % version to use when looping over d2
 
 if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
@@ -41,7 +43,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, n_bothz, [d1_grid; d2_grid], a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_bothz, d_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -54,7 +56,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a, special_n_bothz, [d1_grid; d2_grid], a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, m_d, n_a, special_n_bothz, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -75,9 +77,10 @@ else
     
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, [d1_grid; d2_gridvals(d2_c,:)'], a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -103,12 +106,12 @@ else
         
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, special_n_bothz, [d1_grid,d2_gridvals(d2_c,:)'], a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec);
 
                 % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);
@@ -154,9 +157,10 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, n_bothz, [d1_grid; d2_gridvals(d2_c,:)'], a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
             EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -182,13 +186,12 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
+            d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj)); % reverse order
-
-            d2val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, [n_d1,special_n_d2], n_a, special_n_bothz, [d1_grid; d2val], a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec);
 
                 % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);

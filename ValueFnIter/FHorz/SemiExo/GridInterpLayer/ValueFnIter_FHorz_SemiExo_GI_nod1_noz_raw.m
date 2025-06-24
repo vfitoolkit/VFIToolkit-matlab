@@ -19,7 +19,8 @@ if vfoptions.lowmemory>0
     special_n_semiz=ones(1,length(n_semiz));
 end
 
-aind=0:1:N_a-1; % already includes -1
+aind_Nj=0:1:N_a-1; % already includes -1
+aind=1:1:N_a; % already includes -1
 semizind=shiftdim((0:1:N_semiz-1),-1); % already includes -1
 
 % Preallocate
@@ -61,7 +62,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
         V(:,:,N_j)=shiftdim(Vtempii,1);
         d_ind=rem(maxindexL2-1,N_d2)+1;
-        allind=d_ind+N_d2*aind+N_d2*N_a*semizind; % midpoint is n_d-by-1-by-n_a-by-n_z
+        allind=d_ind+N_d2*aind_Nj+N_d2*N_a*semizind; % midpoint is n_d-by-1-by-n_a-by-n_z
         Policy(1,:,:,N_j)=d_ind; % d2
         Policy(2,:,:,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
         Policy(3,:,:,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % aprimeL2ind
@@ -84,7 +85,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
             V(:,z_c,N_j)=shiftdim(Vtempii,1);
             d_ind=rem(maxindexL2-1,N_d2)+1;
-            allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a
+            allind=d_ind+N_d2*aind_Nj; % midpoint is n_d-by-1-by-n_a
             Policy(1,:,z_c,N_j)=d_ind; % d2
             Policy(2,:,z_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
             Policy(3,:,z_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % aprimeL2ind
@@ -119,9 +120,9 @@ else
 
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-            % midpoint is 1-by-n_a-by-n_bothz
+            % midpoint is 1-by-n_a-by-n_semiz
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
-            % aprime possibilities are n2long-by-n_a-by-n_bothz
+            % aprime possibilities are n2long-by-n_a-by-n_semiz
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
             aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_semiz]);
@@ -130,8 +131,7 @@ else
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
-            d1_ind=rem(maxindex-1,N_d1)+1;
-            allind=d1_ind+N_d1*aind+N_d1*N_a*semizind; % loweredge is n_d-by-1-by-n_a-by-n_semiz
+            allind=aind+N_a*semizind; % loweredge is 1-by-n_a-by-n_semiz
             midpoint_ford2_jj(:,:,d2_c)=squeeze(midpoint(allind));
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
@@ -180,9 +180,8 @@ else
                 V_ford2_jj(:,z_c,d2_c)=shiftdim(Vtemp,1);
                 Policy_ford2_jj(:,z_c,d2_c)=shiftdim(maxindex,1);
 
-                d1_ind=rem(maxindex-1,N_d1)+1;
-                allind=d1_ind+N_d1*aind; % loweredge is n_d-by-1-by-n_a
-                midpoint_ford2_jj(:,z_c,d2_c)=squeeze(midpoint(allind));
+                % allind=aind; % loweredge is 1-by-n_a
+                midpoint_ford2_jj(:,z_c,d2_c)=squeeze(midpoint(aind));
             end
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
@@ -233,9 +232,9 @@ for reverse_j=1:N_j-1
 
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-            % midpoint is 1-by-n_a-by-n_bothz
+            % midpoint is 1-by-n_a-by-n_semiz
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
-            % aprime possibilities are n2long-by-n_a-by-n_bothz
+            % aprime possibilities are n2long-by-n_a-by-n_semiz
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
             aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
             entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_semiz]);
@@ -244,8 +243,7 @@ for reverse_j=1:N_j-1
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,d2_c)=shiftdim(maxindex,1);
 
-            d1_ind=rem(maxindex-1,N_d1)+1;
-            allind=d1_ind+N_d1*aind+N_d1*N_a*semizind; % loweredge is n_d-by-1-by-n_a-by-n_semiz
+            allind=aind+N_a*semizind; % loweredge is 1-by-n_a-by-n_semiz
             midpoint_ford2_jj(:,:,d2_c)=squeeze(midpoint(allind));
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
@@ -294,9 +292,8 @@ for reverse_j=1:N_j-1
                 V_ford2_jj(:,z_c,d2_c)=shiftdim(Vtemp,1);
                 Policy_ford2_jj(:,z_c,d2_c)=shiftdim(maxindex,1);
 
-                d1_ind=rem(maxindex-1,N_d1)+1;
-                allind=d1_ind+N_d1*aind; % loweredge is n_d-by-1-by-n_a
-                midpoint_ford2_jj(:,z_c,d2_c)=squeeze(midpoint(allind));
+                % allind=aind; % loweredge is 1-by-n_a
+                midpoint_ford2_jj(:,z_c,d2_c)=squeeze(midpoint(aind));
             end
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)

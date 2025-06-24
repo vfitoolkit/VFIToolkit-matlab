@@ -34,8 +34,10 @@ end
 % Also semiz if that is used
 if isfield(simoptions,'n_semiz') % If using semi-exogenous shocks
     simoptions=SemiExogShockSetup_FHorz([],N_j,simoptions.d_grid,Parameters,simoptions,2);
+    % user may input simoptions.semiz_grid or simoptions.semiz_gridvals_J
+
     if N_z==0
-        z_gridvals_J=simoptons.semiz_gridvals_J;
+        z_gridvals_J=simoptions.semiz_gridvals_J;
         n_z=simoptions.n_semiz;
         N_z=prod(n_z);
     else

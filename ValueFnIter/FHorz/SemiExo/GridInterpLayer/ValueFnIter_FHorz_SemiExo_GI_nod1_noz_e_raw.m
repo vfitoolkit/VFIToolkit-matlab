@@ -16,11 +16,10 @@ a_grid=gpuArray(a_grid);
 special_n_d2=ones(1,length(n_d2));
 d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
-if vfoptions.lowmemory>0
+if vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
-end
-if vfoptions.lowmemory>1
-    special_n_semiz=ones(1,length(n_semiz));
+elseif vfoptions.lowmemory==2
+    error('vfoptions.lowmemory=2 not supported with semi-exogenous states');
 end
 
 aind=0:1:N_a-1; % already includes -1
@@ -95,76 +94,48 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(2,:,:,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
             Policy(3,:,:,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % aprimeL2ind
         end
-    elseif vfoptions.lowmemory==2
-
-        for e_c=1:N_e
-            e_val=e_gridvals_J(e_c,:,N_j);
-            for z_c=1:N_semiz
-                z_val=semiz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d2, n_a, special_n_semiz, special_n_e, d2_gridvals, a_grid, z_val, e_val, ReturnFnParamsVec,1);
-                % Treat standard problem as just being the first layer
-                [~,maxindex]=max(ReturnMatrix_ze,[],2);
-
-                % Turn this into the 'midpoint'
-                midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-                % midpoint is n_d-1-by-n_a
-                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
-                % aprime possibilities are n_d-by-n2long-by-n_a
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn,n_d2,special_n_semiz,special_n_e,d2_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,e_val,ReturnFnParamsVec,2);
-                [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
-                V(:,z_c,e_c,N_j)=shiftdim(Vtempii,1);
-                d_ind=rem(maxindexL2-1,N_d2)+1;
-                allind=d_ind+N_d2*aind; % midpoint is n_d-by-1-by-n_a
-                Policy(1,:,z_c,e_c,N_j)=d_ind; % d2
-                Policy(2,:,z_c,e_c,N_j)=shiftdim(squeeze(midpoint(allind)),-1); % midpoint
-                Policy(3,:,z_c,e_c,N_j)=shiftdim(ceil(maxindexL2/N_d2),-1); % aprimeL2ind
-            end
-        end
     end
 else
     % Using V_Jplus1
-    V_Jplus1=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J,3);    % First, switch V_Jplus1 into Kron form
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_e]).*pi_e_J(1,1,:,N_j),3);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d (only aprime)
+            d2_val=d2_gridvals(d2_c,:)';
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
-            EV=V_Jplus1.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
-            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_gridvals(d2_c,:)', a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV; %repmat(entireEV,1,N_a,1);
+            ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2; %repmat(entireEV,1,N_a,1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],1); % no d1, loop over d2
-            maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a-by-n_bothz-by-n_e
-            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
+            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
             % aprime possibilities are n2long-by-n_a-by-n_bothz-by-n_e
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, n_e, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-            aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
-            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_semiz,N_e]);
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
+            aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
+            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez(:)),[n2long,N_a,N_semiz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
             
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
-            d1_ind=rem(maxindex-1,N_d1)+1;
-            allind=d1_ind+N_d1*aind+N_d1*N_a*semizind+N_d1*N_a*N_semiz*eind; % loweredge is n_d-by-1-by-n_a-by-n_bothz-by-n_e
-            midpoint_ford2_jj(:,:,:,d2_c)=squeeze(midpoint(allind));
+            midpoint_ford2_jj(:,:,:,d2_c)=squeeze(midpoint); % no d1
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
+        [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
         Policy(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
@@ -174,101 +145,42 @@ else
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d (only aprime)
-            pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
             d2_val=d2_gridvals(d2_c,:)';
+            pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
-            EV=V_Jplus1.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
 
                 ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,special_n_e, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
-                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*EV;
+                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*EV_d2;
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_d2e,[],1); % no d1, loop over d2
-                maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
                 % Turn maxindex into the 'midpoint'
                 midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
                 % midpoint is 1-by-n_a-by-n_bothz
-                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
+                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
                 % aprime possibilities are n2long-by-n_a-by-n_bothz
-                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, special_n_e, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
-                aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
-                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_semiz]);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, special_n_e, d2_val, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,5);
+                aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
+                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez(:)),[n2long,N_a,N_semiz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1);
                 Policy_ford2_jj(:,:,e_c,d2_c)=shiftdim(maxindex,1);
 
-                d1_ind=rem(maxindex-1,N_d1)+1;
-                allind=d1_ind+N_d1*aind+N_d1*N_a*semizind; % loweredge is n_d-by-1-by-n_a-by-n_semiz
-                midpoint_ford2_jj(:,:,e_c,d2_c)=squeeze(midpoint(allind));
+                midpoint_ford2_jj(:,:,e_c,d2_c)=squeeze(midpoint);  % no d1
             end
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
-        V(:,:,:,N_j)=V_jj;
-        Policy(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
-        maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
-        Policy(2,:,:,:,N_j)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]); % midpoint
-        Policy(3,:,:,:,N_j)=aprimeL2_ind; % aprimeL2ind
-
-    elseif vfoptions.lowmemory==2
-        for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
-
-            for z_c=1:N_semiz
-                z_val=semiz_gridvals_J(z_c,:,N_j);
-
-                %Calc the condl expectation term (except beta), which depends on z but
-                %not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-
-                % Interpolate EV over aprime_grid
-                EVinterp_z=interp1(a_grid,EV_z,aprime_grid);
-
-                for e_c=1:N_e
-                    e_val=e_gridvals_J(e_c,:,N_j);
-
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, special_n_semiz, special_n_e, d2_val, a_grid, z_val,e_val, ReturnFnParamsVec);
-                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*EV_z;
-                    % Treat standard problem as just being the first layer
-                    [~,maxindex]=max(entireRHS_d2ze,[],1); % no d1, loop over d2
-                    maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
-
-                    % Turn maxindex into the 'midpoint'
-                    midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-                    % midpoint is 1-by-n_a
-                    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
-                    % aprime possibilities are n2long-by-n_a
-                    ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, special_n_semiz, special_n_e, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
-                    % aprimez=aprimeindexes; % the current aprime
-                    entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
-                    [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-
-                    V_ford2_jj(:,z_c,e_c,d2_c)=shiftdim(Vtemp,1);
-                    Policy_ford2_jj(:,z_c,e_c,d2_c)=shiftdim(maxindex,1);
-
-                    d1_ind=rem(maxindex-1,N_d1)+1;
-                    allind=d1_ind+N_d1*aind; % loweredge is n_d-by-1-by-n_a
-                    midpoint_ford2_jj(:,z_c,e_c,d2_c)=squeeze(midpoint(allind));
-                end
-            end
-        end
-        % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
+        [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,N_j)=V_jj;
         Policy(1,:,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
@@ -292,44 +204,42 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=sum(V(:,:,jj+1).*pi_e_J,3);
+    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semiz=pi_semiz_J(:,:,d2_c,jj);
             d2_val=d2_gridvals(d2_c,:)';
+            pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
-            EV=VKronNext_j.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
+
+            % Interpolate EV over aprime_grid
+            EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
-            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV; %repmat(EV,1,N_a,1);
+            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],1); % no d1, loop over d2
-            maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
             % Turn maxindex into the 'midpoint'
             midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
             % midpoint is 1-by-n_a-by-n_bothz-by-n_e
-            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
-            % aprime possibilities are
-            % n2long-by-n_a-by-n_bothz-by-n_e
-            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, n_e, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
-            aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
-            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_semiz,N_e]);
+            aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
+            % aprime possibilities are n2long-by-n_a-by-n_bothz-by-n_e
+            ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, n_e, d2_val, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,5);
+            aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
+            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez(:)),[n2long,N_a,N_semiz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
             
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
             Policy_ford2_jj(:,:,:,d2_c)=shiftdim(maxindex,1);
 
-            d1_ind=rem(maxindex-1,N_d1)+1;
-            allind=d1_ind+N_d1*aind+N_d1*N_a*semizind+N_d1*N_a*N_semiz*eind; % loweredge is n_d-by-1-by-n_a-by-n_bothz-by-n_e
-            midpoint_ford2_jj(:,:,:,d2_c)=squeeze(midpoint(allind));
+            midpoint_ford2_jj(:,:,:,d2_c)=squeeze(midpoint);  % no d1
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
+        [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
         Policy(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
@@ -340,45 +250,44 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
 
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semiz=pi_semiz_J(:,:,d2_c,jj);
             d2_val=d2_gridvals(d2_c,:)';
+            pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
-            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2);
+
+            % Interpolate EV over aprime_grid
+            EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid); % (aprime,1,semiz)
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
 
                 ReturnMatrix_d2e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz, special_n_e, d2_val, a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
-                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*EV_z;
+                entireRHS_d2e=ReturnMatrix_d2e+DiscountFactorParamsVec*EV_d2;
                 % Treat standard problem as just being the first layer
                 [~,maxindex]=max(entireRHS_d2e,[],1); % no d1, loop over d2
-                maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
 
                 % Turn maxindex into the 'midpoint'
                 midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
                 % midpoint is 1-by-n_a-by-n_bothz
-                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
+                aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
                 % aprime possibilities are n2long-by-n_a-by-n_bothz
-                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, special_n_e, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
-                aprimez=aprimeindexes+n2aprime*shiftdim((0:1:N_semiz-1),-2); % the current aprime
-                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_semiz]);
+                ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_semiz, special_n_e, d2_val, aprime_grid(aprimeindexes), a_grid, semiz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,5);
+                aprimez=aprimeindexes+n2aprime*semizind; % the current aprime
+                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_d2(aprimez(:)),[n2long,N_a,N_semiz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1);
                 Policy_ford2_jj(:,:,e_c,d2_c)=shiftdim(maxindex,1);
 
-                d1_ind=rem(maxindex-1,N_d1)+1;
-                allind=d1_ind+N_d1*aind+N_d1*N_a*semizind; % loweredge is n_d-by-1-by-n_a-by-n_semiz
-                midpoint_ford2_jj(:,:,e_c,d2_c)=squeeze(midpoint(allind));
+                midpoint_ford2_jj(:,:,e_c,d2_c)=squeeze(midpoint); % no d1
             end
         end
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
+        [V_jj,maxindex]=max(V_ford2_jj,[],4); % max over d2
         V(:,:,:,jj)=V_jj;
         Policy(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
@@ -386,58 +295,6 @@ for reverse_j=1:N_j-1
         Policy(2,:,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]); % midpoint
         Policy(3,:,:,:,jj)=aprimeL2_ind; % aprimeL2ind
 
-    elseif vfoptions.lowmemory==2
-        for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
-            pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
-
-            for z_c=1:N_semiz
-                z_val=semiz_gridvals_J(z_c,:,jj);
-
-                %Calc the condl expectation term (except beta), which depends on z but
-                %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-
-                for e_c=1:N_e
-                    e_val=e_gridvals_J(:,:,jj);
-
-                    ReturnMatrix_d2ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, special_n_semiz, special_n_e, d2_val, a_grid, z_val,e_val, ReturnFnParamsVec);
-                    entireRHS_d2ze=ReturnMatrix_d2ze+DiscountFactorParamsVec*EV_z;
-                    % Treat standard problem as just being the first layer
-                    [~,maxindex]=max(entireRHS_d2ze,[],1); % no d1, loop over d2
-                    maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
-
-                    % Turn maxindex into the 'midpoint'
-                    midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
-                    % midpoint is 1-by-n_a
-                    aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
-                    % aprime possibilities are n2long-by-n_a
-                    ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, special_n_semiz, special_n_e, d2_gridvals(d2_c,:), aprime_grid(aprimeindexes), a_grid, z_val, e_val, ReturnFnParamsVec,2);
-                    % aprimez=aprimeindexes; % the current aprime
-                    entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
-                    [Vtemp,maxindex]=max(entireRHS_ii,[],1);
-
-                    V_ford2_jj(:,z_c,e_c,d2_c)=shiftdim(Vtemp,1);
-                    Policy_ford2_jj(:,z_c,e_c,d2_c)=shiftdim(maxindex,1);
-
-                    d1_ind=rem(maxindex-1,N_d1)+1;
-                    allind=d1_ind+N_d1*aind; % loweredge is n_d-by-1-by-n_a
-                    midpoint_ford2_jj(:,z_c,e_c,d2_c)=squeeze(midpoint(allind));
-                end
-            end
-        end
-        % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
-        [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
-        V(:,:,:,jj)=V_jj;
-        Policy(1,:,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
-        maxindex=reshape(maxindex,[N_a*N_semiz*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        aprimeL2_ind=reshape(Policy_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]);
-        Policy(2,:,:,:,jj)=reshape(midpoint_ford2_jj((1:1:N_a*N_semiz*N_e)'+(N_a*N_semiz*N_e)*(maxindex-1)),[1,N_a,N_semiz,N_e]); % midpoint
-        Policy(3,:,:,:,jj)=aprimeL2_ind; % aprimeL2ind
-        
     end
 end
 

@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_grid, e_grid, ReturnFnParams, Refine)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals, e_gridvals, ReturnFnParams, Refine)
 % If there is no d variable, just input n_d=0
 % Same as CreateReturnFnMatrix_Case1_Disc_Par2, except with e variable
 
@@ -61,15 +61,15 @@ end
 
 % joint z_grid
 if l_z>=1
-    z1vals=shiftdim(z_grid(:,1),-1-l_a-l_a);
+    z1vals=shiftdim(z_gridvals(:,1),-1-l_a-l_a);
     if l_z>=2
-        z2vals=shiftdim(z_grid(:,2),-1-l_a-l_a);
+        z2vals=shiftdim(z_gridvals(:,2),-1-l_a-l_a);
         if l_z>=3
-            z3vals=shiftdim(z_grid(:,3),-1-l_a-l_a);
+            z3vals=shiftdim(z_gridvals(:,3),-1-l_a-l_a);
             if l_z>=4
-                z4vals=shiftdim(z_grid(:,4),-1-l_a-l_a);
+                z4vals=shiftdim(z_gridvals(:,4),-1-l_a-l_a);
                 if l_z>=5
-                    z5vals=shiftdim(z_grid(:,5),-1-l_a-l_a);
+                    z5vals=shiftdim(z_gridvals(:,5),-1-l_a-l_a);
                 end
             end
         end
@@ -78,15 +78,15 @@ end
 
 % joint e_grid
 if l_e>=1
-    e1vals=shiftdim(e_grid(:,1),-1-l_a-l_a-1);
+    e1vals=shiftdim(e_gridvals(:,1),-1-l_a-l_a-1);
     if l_e>=2
-        e2vals=shiftdim(e_grid(:,2),-1-l_a-l_a-1);
+        e2vals=shiftdim(e_gridvals(:,2),-1-l_a-l_a-1);
         if l_e>=3
-            e3vals=shiftdim(e_grid(:,3),-1-l_a-l_a-1);
+            e3vals=shiftdim(e_gridvals(:,3),-1-l_a-l_a-1);
             if l_e>=4
-                e4vals=shiftdim(e_grid(:,4),-1-l_a-l_a-1);
+                e4vals=shiftdim(e_gridvals(:,4),-1-l_a-l_a-1);
                 if l_e>=5
-                    e5vals=shiftdim(e_grid(:,5),-1-l_a-l_a-1);
+                    e5vals=shiftdim(e_gridvals(:,5),-1-l_a-l_a-1);
                 end
             end
         end

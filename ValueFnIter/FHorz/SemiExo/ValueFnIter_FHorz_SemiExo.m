@@ -31,6 +31,7 @@ elseif vfoptions.gridinterplayer==1
     return
 end
 
+
 %%
 if N_d1==0
     if N_e==0
@@ -64,6 +65,7 @@ end
 
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+% First dimension of Policy3 is (d1,d2,aprime), or if no d1, then (d2,aprime)
 if vfoptions.outputkron==0
     if isfield(vfoptions,'n_e')
         if N_z==0

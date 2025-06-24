@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_SemiExo_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a=prod(n_a);
@@ -6,7 +6,7 @@ N_semiz=prod(n_semiz);
 
 V=zeros(N_a,N_semiz,N_j,'gpuArray');
 % For semiz it turns out to be easier to go straight to constructing policy that stores d,d2,aprime seperately
-Policy3=zeros(2,N_a,N_semiz,N_j,'gpuArray'); % just d2 and aprime
+Policy=zeros(2,N_a,N_semiz,N_j,'gpuArray'); % just d2 and aprime
 
 %%
 d2_grid=gpuArray(d2_grid);
@@ -36,8 +36,8 @@ if ~isfield(vfoptions,'V_Jplus1')
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
-        Policy3(1,:,:,N_j)=shiftdim(rem(maxindex-1,N_d2)+1,-1);
-        Policy3(2,:,:,N_j)=shiftdim(ceil(maxindex/N_d2),-1);
+        Policy(1,:,:,N_j)=shiftdim(rem(maxindex-1,N_d2)+1,-1);
+        Policy(2,:,:,N_j)=shiftdim(ceil(maxindex/N_d2),-1);
 
     elseif vfoptions.lowmemory==1
 
@@ -47,8 +47,8 @@ if ~isfield(vfoptions,'V_Jplus1')
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
-            Policy3(1,:,z_c,N_j)=shiftdim(rem(maxindex-1,N_d2)+1,-1);
-            Policy3(2,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d2),-1);
+            Policy(1,:,z_c,N_j)=shiftdim(rem(maxindex-1,N_d2)+1,-1);
+            Policy(2,:,z_c,N_j)=shiftdim(ceil(maxindex/N_d2),-1);
         end
 
     end
@@ -83,9 +83,9 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
         V(:,:,N_j)=V_jj;
-        Policy3(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        Policy3(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+        Policy(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
         
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -114,9 +114,9 @@ else
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
         V(:,:,N_j)=V_jj;
-        Policy3(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,N_j)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        Policy3(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+        Policy(2,:,:,N_j)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
     end
 end
@@ -161,9 +161,9 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
         V(:,:,jj)=V_jj;
-        Policy3(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        Policy3(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+        Policy(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
@@ -192,9 +192,9 @@ for reverse_j=1:N_j-1
         % Now we just max over d2, and keep the policy that corresponded to that (including modify the policy to include the d2 decision)
         [V_jj,maxindex]=max(V_ford2_jj,[],3); % max over d2
         V(:,:,jj)=V_jj;
-        Policy3(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
+        Policy(1,:,:,jj)=shiftdim(maxindex,-1); % d2 is just maxindex
         maxindex=reshape(maxindex,[N_a*N_semiz,1]); % This is the value of d that corresponds, make it this shape for addition just below
-        Policy3(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
+        Policy(2,:,:,jj)=reshape(Policy_ford2_jj((1:1:N_a*N_semiz)'+(N_a*N_semiz)*(maxindex-1)),[1,N_a,N_semiz]);
         
     end
 end

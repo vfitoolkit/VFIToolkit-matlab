@@ -26,101 +26,68 @@ if vfoptions.policy_forceintegertype==1
     Policy3=round(Policy3);
 end
 
-if vfoptions.parallel~=2
-    if N_d1==0
-        Policy=zeros(l_d2+l_a,N_a,N_z,N_j);
-        for a_c=1:N_a
-            for z_c=1:N_z
-                for jj=1:N_j
-                    optd2indexKron=Policy3(1,a_c,z_c,jj);
-                    optaindexKron=Policy3(2,a_c,z_c,jj);
-                    optD2=ind2sub_homemade(n_d2',optd2indexKron);
-                    optA=ind2sub_homemade(n_a',optaindexKron);
-                    Policy(:,a_c,z_c,jj)=[optD2'; optA'];
+% Only for GPU
+if N_d1==0
+    Policy=zeros(l_d2+l_a,N_a,N_z,N_j,'gpuArray');
+
+    for jj=1:N_j
+        Policy(1,:,:,jj)=rem(Policy3(1,:,:,jj)-1,n_d2(1))+1;
+        if l_d2>1
+            if l_d2>2
+                for ii=1:l_d2-1
+                    Policy(ii,:,:,jj)=rem(ceil(Policy3(1,:,:,jj)/prod(n_d2(1:ii-1)))-1,n_d2(ii))+1;
                 end
             end
+            Policy(l_d2,:,:,jj)=ceil(Policy3(1,:,:,jj)/prod(n_d2(1:l_d2-1)));
         end
-        Policy=reshape(Policy,[l_d2+l_a,n_a,n_z,N_j]);
-    else
-        Policy=zeros(l_d1+l_d2+l_a,N_a,N_z,N_j);
-        for a_c=1:N_a
-            for z_c=1:N_z
-                for jj=1:N_j
-                    optd1indexKron=Policy3(1,a_c,z_c,jj);
-                    optd2indexKron=Policy3(2,a_c,z_c,jj);
-                    optaindexKron=Policy3(3,a_c,z_c,jj);
-                    optD1=ind2sub_homemade(n_d1',optd1indexKron);
-                    optD2=ind2sub_homemade(n_d2',optd2indexKron);
-                    optA=ind2sub_homemade(n_a',optaindexKron);
-                    Policy(:,a_c,z_c,jj)=[optD1'; optD2'; optA'];
+
+        Policy(l_d2+1,:,:,jj)=rem(Policy3(2,:,:,jj)-1,n_a(1))+1;
+        if l_a>1
+            if l_a>2
+                for ii=1:l_a-1
+                    Policy(l_d2+ii,:,:,jj)=rem(ceil(Policy3(2,:,:,jj)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
                 end
             end
+            Policy(l_d2+l_a,:,:,jj)=ceil(Policy3(2,:,:,jj)/prod(n_a(1:l_a-1)));
         end
-        Policy=reshape(Policy,[l_d1+l_d2+l_a,n_a,n_z,N_j]);
     end
+    Policy=reshape(Policy,[l_d2+l_a,n_a,n_z,N_j]);
+
 else
-    if N_d1==0
-        Policy=zeros(l_d2+l_a,N_a,N_z,N_j,'gpuArray');
+    Policy=zeros(l_d1+l_d2+l_a,N_a,N_z,N_j,'gpuArray');
 
-        for jj=1:N_j
-            Policy(1,:,:,jj)=rem(Policy3(1,:,:,jj)-1,n_d2(1))+1;
-            if l_d2>1
-                if l_d2>2
-                    for ii=1:l_d2-1
-                        Policy(ii,:,:,jj)=rem(ceil(Policy3(1,:,:,jj)/prod(n_d2(1:ii-1)))-1,n_d2(ii))+1;
-                    end
+    for jj=1:N_j
+        Policy(1,:,:,jj)=rem(Policy3(1,:,:,jj)-1,n_d1(1))+1;
+        if l_d1>1
+            if l_d1>2
+                for ii=1:l_d1-1
+                    Policy(ii,:,:,jj)=rem(ceil(Policy3(1,:,:,jj)/prod(n_d1(1:ii-1)))-1,n_d1(ii))+1;
                 end
-                Policy(l_d2,:,:,jj)=ceil(Policy3(1,:,:,jj)/prod(n_d2(1:l_d2-1)));
             end
-
-            Policy(l_d2+1,:,:,jj)=rem(Policy3(2,:,:,jj)-1,n_a(1))+1;
-            if l_a>1
-                if l_a>2
-                    for ii=1:l_a-1
-                        Policy(l_d2+ii,:,:,jj)=rem(ceil(Policy3(2,:,:,jj)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                    end
-                end
-                Policy(l_d2+l_a,:,:,jj)=ceil(Policy3(2,:,:,jj)/prod(n_a(1:l_a-1)));
-            end
+            Policy(l_d1,:,:,jj)=ceil(Policy3(1,:,:,jj)/prod(n_d1(1:l_d1-1)));
         end
-        Policy=reshape(Policy,[l_d2+l_a,n_a,n_z,N_j]);
 
-    else
-        Policy=zeros(l_d1+l_d2+l_a,N_a,N_z,N_j,'gpuArray');
-
-        for jj=1:N_j
-            Policy(1,:,:,jj)=rem(Policy3(1,:,:,jj)-1,n_d1(1))+1;
-            if l_d1>1
-                if l_d1>2
-                    for ii=1:l_d1-1
-                        Policy(ii,:,:,jj)=rem(ceil(Policy3(1,:,:,jj)/prod(n_d1(1:ii-1)))-1,n_d1(ii))+1;
-                    end
+        Policy(l_d1+1,:,:,jj)=rem(Policy3(2,:,:,jj)-1,n_d2(1))+1;
+        if l_d2>1
+            if l_d2>2
+                for ii=1:l_d2-1
+                    Policy(l_d1+ii,:,:,jj)=rem(ceil(Policy3(2,:,:,jj)/prod(n_d2(1:ii-1)))-1,n_d2(ii))+1;
                 end
-                Policy(l_d1,:,:,jj)=ceil(Policy3(1,:,:,jj)/prod(n_d1(1:l_d1-1)));
             end
-
-            Policy(l_d1+1,:,:,jj)=rem(Policy3(2,:,:,jj)-1,n_d2(1))+1;
-            if l_d2>1
-                if l_d2>2
-                    for ii=1:l_d2-1
-                        Policy(l_d1+ii,:,:,jj)=rem(ceil(Policy3(2,:,:,jj)/prod(n_d2(1:ii-1)))-1,n_d2(ii))+1;
-                    end
-                end
-                Policy(l_d1+l_d2,:,:,jj)=ceil(Policy3(2,:,:,jj)/prod(n_d2(1:l_d2-1)));
-            end
-
-            Policy(l_d1+l_d2+1,:,:,jj)=rem(Policy3(3,:,:,jj)-1,n_a(1))+1;
-            if l_a>1
-                if l_a>2
-                    for ii=1:l_a-1
-                        Policy(l_d1+l_d2+ii,:,:,jj)=rem(ceil(Policy3(3,:,:,jj)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                    end
-                end
-                Policy(l_d1+l_d2+l_a,:,:,jj)=ceil(Policy3(3,:,:,jj)/prod(n_a(1:l_a-1)));
-            end
+            Policy(l_d1+l_d2,:,:,jj)=ceil(Policy3(2,:,:,jj)/prod(n_d2(1:l_d2-1)));
         end
-        Policy=reshape(Policy,[l_d1+l_d2+l_a,n_a,n_z,N_j]);
+
+        Policy(l_d1+l_d2+1,:,:,jj)=rem(Policy3(3,:,:,jj)-1,n_a(1))+1;
+        if l_a>1
+            if l_a>2
+                for ii=1:l_a-1
+                    Policy(l_d1+l_d2+ii,:,:,jj)=rem(ceil(Policy3(3,:,:,jj)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+                end
+            end
+            Policy(l_d1+l_d2+l_a,:,:,jj)=ceil(Policy3(3,:,:,jj)/prod(n_a(1:l_a-1)));
+        end
     end
+    Policy=reshape(Policy,[l_d1+l_d2+l_a,n_a,n_z,N_j]);
 end
 
 
