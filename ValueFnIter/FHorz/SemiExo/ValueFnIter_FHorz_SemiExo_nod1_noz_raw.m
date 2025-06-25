@@ -61,9 +61,8 @@ else
     
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d (only aprime)
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
@@ -89,9 +88,8 @@ else
         
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
@@ -138,9 +136,8 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
@@ -166,9 +163,8 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,jj);

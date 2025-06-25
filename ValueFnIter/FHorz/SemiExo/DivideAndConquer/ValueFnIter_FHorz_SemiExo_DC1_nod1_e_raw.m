@@ -163,7 +163,7 @@ else
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -220,7 +220,7 @@ else
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d2_c,N_j));
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -300,7 +300,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d2_c,jj)); % reverse order
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -356,7 +356,7 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1 
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d2_c,jj));
 
             EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -396,12 +396,11 @@ for reverse_j=1:N_j-1
                     else
                         loweredge=maxindex1(1,ii,:);
                         % Just use aprime(ii) for everything
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,5);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, reshape(a_grid(loweredge),[1,1,N_bothz]), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,5);
                         aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[1,level1iidiff(ii),N_bothz]);
-                        [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                        V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+(loweredge-1)); % no d1
+                        V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(entireRHS_ii,1);
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1);
                     end
                 end
             end

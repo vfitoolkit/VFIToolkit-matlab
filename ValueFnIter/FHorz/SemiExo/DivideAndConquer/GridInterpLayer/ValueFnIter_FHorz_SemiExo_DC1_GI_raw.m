@@ -117,7 +117,6 @@ else
     
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
-        % Note: By definition V_Jplus1 does not depend on d (only aprime)
         pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz_J(:,:,d2_c,N_j)); % reverse order
 
         EV_d2=EV.*shiftdim(pi_bothz',-1);
@@ -125,9 +124,6 @@ else
         EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
         entireEV_d2=repmat(shiftdim(EV_d2,-1),N_d1,1,1,1); % [d1,aprime,1,z]
-
-        EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
-        entireEVinterp_d2=repmat(EVinterp_d2,N_d1,1,1,1);
 
         % n-Monotonicity
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12c_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
@@ -157,6 +153,12 @@ else
                 midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1,1); % unfortunately doesn't autofill
             end
         end
+
+        % Now for the interpolation layer
+
+        % Interpolate the expectations
+        EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
+        entireEVinterp_d2=repmat(shiftdim(EVinterp_d2,-1),N_d1,1,1,1); % [d1,aprime,1,bothz]
 
         % Turn maxindex into the 'midpoint'
         midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
@@ -214,9 +216,6 @@ for reverse_j=1:N_j-1
 
         entireEV_d2=repmat(shiftdim(EV_d2,-1),N_d1,1,1,1); % [d1,aprime,1,z]
 
-        EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
-        entireEVinterp_d2=repmat(EVinterp_d2,N_d1,1,1,1); % [d1,
-
         % n-Monotonicity
         ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12c_gridvals, a_grid, a_grid(level1ii), bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
         entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*entireEV_d2;
@@ -246,6 +245,12 @@ for reverse_j=1:N_j-1
             end
         end
         
+        % Now for the interpolation layer
+
+        % Interpolate the expectations
+        EVinterp_d2=interp1(a_grid,EV_d2,aprime_grid);
+        entireEVinterp_d2=repmat(shiftdim(EVinterp_d2,-1),N_d1,1,1,1); % [d1,aprime,1,bothz]
+
         % Turn maxindex into the 'midpoint'
         midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and avoid the bottom end (outer)
         % midpoint is n_d-by-1-by-n_a-by-n_bothz

@@ -103,7 +103,7 @@ else
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
 
             EV=V_Jplus1.*shiftdim(pi_semiz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -147,7 +147,7 @@ else
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
@@ -215,7 +215,7 @@ for reverse_j=1:N_j-1
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
 
             EV=VKronNext_j.*shiftdim(pi_semiz',-1);
             EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -259,7 +259,7 @@ for reverse_j=1:N_j-1
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
 
             for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,jj);

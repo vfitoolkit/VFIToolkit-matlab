@@ -162,7 +162,7 @@ else
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
@@ -227,7 +227,7 @@ else
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
@@ -314,7 +314,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
@@ -379,7 +379,7 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);

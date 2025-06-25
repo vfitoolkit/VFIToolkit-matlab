@@ -73,7 +73,7 @@ else
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
@@ -101,7 +101,7 @@ else
 
     elseif vfoptions.lowmemory==1
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
@@ -148,7 +148,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, special_n_d2, n_a, n_semiz,n_e, d2_val, a_grid, semiz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
@@ -177,7 +177,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
 
         for d2_c=1:N_d2
-            d2_val=d2_gridvals(d2_c,:)';
+            d2_val=d2_gridvals(d2_c,:);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
             %Calc the condl expectation term (except beta), which depends on z but not on control variables
