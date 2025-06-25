@@ -507,7 +507,6 @@ if any(vfoptions.incrementaltype)
     return
 end
 
-
 %% Semi-exogenous state
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
 if isfield(vfoptions,'SemiExoStateFn')

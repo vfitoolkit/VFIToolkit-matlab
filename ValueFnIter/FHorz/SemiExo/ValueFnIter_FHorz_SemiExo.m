@@ -31,7 +31,6 @@ elseif vfoptions.gridinterplayer==1
     return
 end
 
-
 %%
 if N_d1==0
     if N_e==0

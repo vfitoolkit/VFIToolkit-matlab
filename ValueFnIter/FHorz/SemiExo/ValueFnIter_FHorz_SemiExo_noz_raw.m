@@ -1,5 +1,7 @@
 function [V,Policy3]=ValueFnIter_FHorz_SemiExo_noz_raw(n_d1,n_d2,n_a,n_semiz,N_j, d1_grid, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
+n_d=[n_d1,n_d2];
+
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_d=prod([n_d1,n_d2]); % Needed for N_j when converting to form of Policy3
