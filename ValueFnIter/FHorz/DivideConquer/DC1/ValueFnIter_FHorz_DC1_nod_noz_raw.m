@@ -12,6 +12,7 @@ a_grid=gpuArray(a_grid);
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
+% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 %% j=N_j
 
@@ -79,21 +80,23 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     
-    VKronNext_j=V(:,jj+1);
+    EV=V(:,jj+1);
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
-    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j;
+    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
     %Calc the max and it's index
-    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
+    [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
 
     V(level1ii,jj)=shiftdim(Vtempii,1);
-    Policy(level1ii,jj)=shiftdim(maxindex,1);
-    
+    Policy(level1ii,jj)=shiftdim(maxindex1,1);
+
+    % Note: Did a runtime test, this simple version is faster than actually
+    % checking if maxgap(ii)=0 like in all the other DC1 codes.
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*VKronNext_j(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj));
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj));
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(curraindex,jj)=shiftdim(Vtempii,1);
         Policy(curraindex,jj)=shiftdim(maxindex,1)+Policy(level1ii(ii),jj)-1;

@@ -20,8 +20,11 @@ a_grid=gpuArray(a_grid);
 special_n_d2=ones(1,length(n_d2));
 d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
-if vfoptions.lowmemory==1
+if vfoptions.lowmemory==0
+    loweredgesize=[1,1,N_semiz*N_z,N_e];
+elseif vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
+    loweredgesize=[1,1,N_semiz*N_z];
 elseif vfoptions.lowmemory==2
     error('vfoptions.lowmemory=2 not available with semi-exogenous states')
 end
@@ -200,12 +203,11 @@ else
                 else
                     loweredge=maxindex1(1,ii,:,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
                     aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[1,level1iidiff(ii),N_bothz,N_e]);
-                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                    V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+(loweredge-1)); % no d1
+                    V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(entireRHS_ii,1);
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1,1); % no d1
                 end
             end
 
@@ -260,12 +262,11 @@ else
                     else
                         loweredge=maxindex1(1,ii,:);
                         % Just use aprime(ii) for everything
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,5);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,5);
                         aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[1,level1iidiff(ii),N_bothz]);
-                        [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                        V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(Vtempii,1);
-                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(maxindex+(loweredge-1)); % no d1
+                        V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(entireRHS_ii,1);
+                        Policy_ford2_jj(curraindex,:,e_c,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1); % no d1
                     end
                 end
             end
@@ -336,12 +337,11 @@ for reverse_j=1:N_j-1
                 else
                     loweredge=maxindex1(1,ii,:,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, n_e, d2_val, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,5);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, n_e, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,5);
                     aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[1,level1iidiff(ii),N_bothz,N_e]);
-                    [Vtempii,maxindex]=max(entireRHS_ii,[],1);
-                    V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(Vtempii,1);
-                    Policy_ford2_jj(curraindex,:,:,d2_c)=shiftdim(maxindex+(loweredge-1)); % no d1
+                    V_ford2_jj(curraindex,:,:,d2_c)=shiftdim(entireRHS_ii,1);
+                    Policy_ford2_jj(curraindex,:,:,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1); % no d1
                 end
             end
 
@@ -396,7 +396,7 @@ for reverse_j=1:N_j-1
                     else
                         loweredge=maxindex1(1,ii,:);
                         % Just use aprime(ii) for everything
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, reshape(a_grid(loweredge),[1,1,N_bothz]), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,5);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,5);
                         aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*bothzind; % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[1,level1iidiff(ii),N_bothz]);
                         V_ford2_jj(curraindex,:,e_c,d2_c)=shiftdim(entireRHS_ii,1);

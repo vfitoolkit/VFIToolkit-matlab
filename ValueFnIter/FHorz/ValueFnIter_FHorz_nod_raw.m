@@ -123,7 +123,7 @@ for reverse_j=1:N_j-1
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_z, 0, a_grid, z_val, ReturnFnParamsVec,0);
             
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=EVpre.*pi_z_J(z_c,:,jj);
+            EV_z=EV.*pi_z_J(z_c,:,jj);
             EV_z(isnan(EV_z))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
