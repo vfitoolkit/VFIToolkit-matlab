@@ -210,7 +210,7 @@ else
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                 if maxgap(ii)>0
                     loweredge=min(maxindex1(:,1,ii,:,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
-                    % loweredge is n_d1-by-1-by-n_bothz-by-n_e
+                    % loweredge is n_d1-by-1-by-1-by-n_bothz-by-n_e
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_bothz-by-n_e
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,6);
@@ -220,7 +220,7 @@ else
                     midpoints_jj(:,1,curraindex,:,:)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
-                    midpoints_jj(:,1,curraindex,:,:)=loweredge;
+                    midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,level1iidiff(ii));
                 end
             end
 
@@ -291,7 +291,7 @@ else
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0
                         loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
-                        % loweredge is n_d1-by-1-by-n_bothz
+                        % loweredge is n_d1-by-1-by-1-by-n_bothz
                         aprimeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_bothz
                         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,6);
@@ -301,7 +301,7 @@ else
                         midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
                     else
                         loweredge=maxindex1(:,1,ii,:);
-                        midpoints_jj(:,1,curraindex,:)=loweredge;
+                        midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,level1iidiff(ii));
                     end
                 end
 
@@ -381,7 +381,7 @@ for reverse_j=1:N_j-1
                 curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                 if maxgap(ii)>0
                     loweredge=min(maxindex1(:,1,ii,:,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
-                    % loweredge is n_d1-by-1-by-n_bothz-by-n_e
+                    % loweredge is n_d1-by-1-by-1-by-n_bothz-by-n_e
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_bothz-by-n_e
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz, n_e, d12c_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,6);
@@ -391,7 +391,7 @@ for reverse_j=1:N_j-1
                     midpoints_jj(:,1,curraindex,:,:)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
-                    midpoints_jj(:,1,curraindex,:,:)=loweredge;
+                    midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,level1iidiff(ii));
                 end
             end
 
@@ -462,7 +462,7 @@ elseif vfoptions.lowmemory==1
                     curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
                     if maxgap(ii)>0
                         loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
-                        % loweredge is n_d1-by-1-by-n_bothz
+                        % loweredge is n_d1-by-1-by-1-by-n_bothz
                         aprimeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_bothz
                         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d, n_bothz, special_n_e, d12c_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,6);
@@ -472,7 +472,7 @@ elseif vfoptions.lowmemory==1
                         midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
                     else
                         loweredge=maxindex1(:,1,ii,:);
-                        midpoints_jj(:,1,curraindex,:)=loweredge;
+                        midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,level1iidiff(ii));
                     end
                 end
 
