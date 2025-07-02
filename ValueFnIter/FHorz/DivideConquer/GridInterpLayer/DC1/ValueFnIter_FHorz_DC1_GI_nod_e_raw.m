@@ -183,15 +183,14 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    V_Jplus1=sum(V_Jplus1.*pi_e_J(1,1,:,N_j),3);
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
+    EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
     
-    EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
+    EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -203,7 +202,7 @@ else
 
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
-        %Calc the max and it's index
+        % Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
@@ -251,7 +250,7 @@ else
 
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]
@@ -363,7 +362,6 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     EV=V(:,:,:,jj+1);
-    
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
     
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);

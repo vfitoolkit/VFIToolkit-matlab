@@ -24,16 +24,15 @@ if ~isfield(vfoptions,'V_Jplus1')
     Policy(:,N_j)=maxindex;
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
+    EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
+
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
-    entireEV=kron(V_Jplus1,ones(N_d,1));
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -54,13 +53,12 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,jj+1);
+    EV=V(:,jj+1);
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,0);
     % (d,aprime,a)
 
-    entireEV=kron(VKronNext_j,ones(N_d,1));
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %*ones(1,N_a,1); % aprime-by-a
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);

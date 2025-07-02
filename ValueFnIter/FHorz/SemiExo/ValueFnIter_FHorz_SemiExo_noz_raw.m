@@ -65,11 +65,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
+   
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
             d12c_gridvals=d12_gridvals(:,:,d2_c);
@@ -78,11 +78,11 @@ else
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_semiz, d12c_gridvals, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
-            EV=EV.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1,1);
+            entireEV=repelem(EV_d2,N_d1,1,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1);
 
             %Calc the max and it's index
@@ -111,11 +111,11 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
+                EV_d2z=EV.*pi_semiz(z_c,:);
+                EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z=sum(EV_d2z,2);
 
-                entireEV_z=repelem(EV_z,N_d1,1,1);
+                entireEV_z=repelem(EV_d2z,N_d1,1,1);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z; %entireEV_z*ones(1,N_a,1);
 
                 %Calc the max and it's index
@@ -159,11 +159,11 @@ for reverse_j=1:N_j-1
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_semiz, d12c_gridvals, a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
-            EV=EV.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
-            entireEV=repelem(EV,N_d1,1,1);
+            entireEV=repelem(EV_d2,N_d1,1,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*entireEV;
 
             %Calc the max and it's index
@@ -193,11 +193,11 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
+                EV_d2z=EV.*pi_semiz(z_c,:);
+                EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_d2z=sum(EV_d2z,2);
 
-                entireEV_z=repelem(EV_z,N_d1,1,1);
+                entireEV_z=repelem(EV_d2z,N_d1,1,1);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_z;
 
                 %Calc the max and it's index

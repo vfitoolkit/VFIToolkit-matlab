@@ -193,10 +193,9 @@ for reverse_j=1:N_j-1
             d12c_gridvals=d12_gridvals(:,:,d2_c);
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
 
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_d2=sum(EV_d2,2);
 
             entireEV_d2=repelem(EV_d2,N_d1,1,1);
@@ -207,7 +206,7 @@ for reverse_j=1:N_j-1
 
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*entireEV_d2;
 
-                %Calc the max and it's index
+                % Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_z,[],1);
                 V_ford2_jj(:,:,e_c,d2_c)=Vtemp;
                 Policy_ford2_jj(:,:,e_c,d2_c)=maxindex;

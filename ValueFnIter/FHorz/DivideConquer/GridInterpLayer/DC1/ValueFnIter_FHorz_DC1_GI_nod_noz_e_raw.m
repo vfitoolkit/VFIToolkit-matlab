@@ -47,7 +47,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         % n-Monotonicity
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_e, a_grid, a_grid(level1ii), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
-        %Calc the max and it's index
+        % Calc the max and it's index
         [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
@@ -88,7 +88,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, special_n_e, a_grid, a_grid(level1ii), e_val, ReturnFnParamsVec,1);
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]
@@ -127,11 +127,10 @@ if ~isfield(vfoptions,'V_Jplus1')
 
 else
     % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,:,N_j),3);
     
     % Interpolate EV over aprime_grid
@@ -250,7 +249,6 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     EV=V(:,:,jj+1);
-    
     EV=sum(EV.*pi_e_J(1,:,jj),2);
 
     % Interpolate EV over aprime_grid
@@ -262,7 +260,7 @@ for reverse_j=1:N_j-1
 
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
-        %Calc the max and it's index
+        % Calc the max and it's index
         [~,maxindex1]=max(entireRHS_ii,[],1);
 
         % Just keep the 'midpoint' vesion of maxindex1 [as GI]
@@ -309,7 +307,7 @@ for reverse_j=1:N_j-1
 
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]

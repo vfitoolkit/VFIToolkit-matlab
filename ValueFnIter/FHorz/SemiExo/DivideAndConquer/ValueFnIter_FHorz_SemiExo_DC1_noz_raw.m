@@ -90,11 +90,11 @@ if ~isfield(vfoptions,'V_Jplus1')
 
 else
     % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz,N_z]);    % First, switch V_Jplus1 into Kron form
+
     for d2_c=1:N_d2
         d12c_gridvals=d12_gridvals(:,:,d2_c);
         % Note: By definition V_Jplus1 does not depend on d (only aprime)

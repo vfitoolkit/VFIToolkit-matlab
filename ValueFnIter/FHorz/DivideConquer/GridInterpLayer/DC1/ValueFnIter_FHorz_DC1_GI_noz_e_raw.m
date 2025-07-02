@@ -140,12 +140,11 @@ if ~isfield(vfoptions,'V_Jplus1')
 
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    EV=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]); % First, switch V_Jplus1 into Kron form
+    EV=sum(EV.*pi_e_J(1,:,N_j),2);
     entireEV=repmat(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1]
 
     % Interpolate EV over aprime_grid

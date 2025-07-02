@@ -123,11 +123,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
+
     if vfoptions.lowmemory==0
         EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -253,9 +253,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     EV=V(:,:,jj+1);
-                
+
     if vfoptions.lowmemory==0
-        % Use sparse for a few lines until sum over zprime
         EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
@@ -312,7 +311,7 @@ for reverse_j=1:N_j-1
             z_val=z_gridvals_J(z_c,:,jj);
 
             EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-1);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
@@ -323,7 +322,7 @@ for reverse_j=1:N_j-1
 
             entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z;
 
-            %Calc the max and it's index
+            % Calc the max and it's index
             [~,maxindex1]=max(entireRHS_ii,[],1);
 
             % Just keep the 'midpoint' vesion of maxindex1 [as GI]

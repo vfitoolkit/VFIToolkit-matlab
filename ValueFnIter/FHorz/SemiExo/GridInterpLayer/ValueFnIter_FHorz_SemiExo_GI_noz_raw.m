@@ -102,11 +102,11 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
+
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
@@ -161,7 +161,7 @@ else
                 z_val=semiz_gridvals_J(z_c,:,N_j);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_d2z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
+                EV_d2z=EV.*pi_semiz(z_c,:);
                 EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_d2z=sum(EV_d2z,2);
 
@@ -274,7 +274,7 @@ for reverse_j=1:N_j-1
                 z_val=semiz_gridvals_J(z_c,:,jj);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_d2z=EV.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
+                EV_d2z=EV.*pi_semiz(z_c,:);
                 EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_d2z=sum(EV_d2z,2);
 

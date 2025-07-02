@@ -40,14 +40,14 @@ if ~isfield(vfoptions,'V_Jplus1')
   
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+    EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
+
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
-    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*V_Jplus1;
+    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV;
     %Calc the max and it's index
     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
 
@@ -57,7 +57,7 @@ else
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*V_Jplus1(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j));
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(Policy(level1ii(ii),N_j):Policy(level1ii(ii+1),N_j));
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(curraindex,N_j)=shiftdim(Vtempii,1);
         Policy(curraindex,N_j)=shiftdim(maxindex,1)+Policy(level1ii(ii),N_j)-1;
@@ -78,7 +78,6 @@ for reverse_j=1:N_j-1
     ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,jj);
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-
     
     EV=V(:,jj+1);
 

@@ -94,26 +94,26 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_semiz]);    % First, switch V_Jplus1 into Kron form
+
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
             d2_val=d2_gridvals(d2_c,:);
 
-            EV=V_Jplus1.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp=interp1(a_grid,EV_d2,aprime_grid);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV;
+            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],1); % no d1, loop over d2
             maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
@@ -154,7 +154,7 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
+                EV_z=EV.*pi_semiz(z_c,:);
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
@@ -209,7 +209,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,jj+1);
+    EV=V(:,:,jj+1);
 
     if vfoptions.lowmemory==0
         for d2_c=1:N_d2
@@ -217,15 +217,15 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj);
             d2_val=d2_gridvals(d2_c,:);
 
-            EV=VKronNext_j.*shiftdim(pi_semiz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
+            EV_d2=EV.*shiftdim(pi_semiz',-1);
+            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % Interpolate EV over aprime_grid
-            EVinterp=interp1(a_grid,EV,aprime_grid);
+            EVinterp=interp1(a_grid,EV_d2,aprime_grid);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, n_semiz, d2_val, a_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec);
-            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV;
+            entireRHS_d2=ReturnMatrix_d2+DiscountFactorParamsVec*EV_d2;
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(entireRHS_d2,[],1); % no d1, loop over d2
             maxindex=shiftdim(maxindex,-1); % no d1, loop over d2
@@ -266,7 +266,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_semiz(z_c,:));
+                EV_z=EV.*pi_semiz(z_c,:);
                 EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 

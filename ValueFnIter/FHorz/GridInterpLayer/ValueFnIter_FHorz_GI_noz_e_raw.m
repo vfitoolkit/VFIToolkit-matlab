@@ -85,19 +85,16 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    EV=sum(V_Jplus1.*pi_e_J(1,:,N_j),2);
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+    EV=sum(EV.*pi_e_J(1,:,N_j),2);
 
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);  % Because no z, can treat e like z and call Par2 rather than Par2e
         % (d,aprime,a,e)
         
-        % entireEV=repelem(EV,N_d,1,1);
-
         % Interpolate EV over aprime_grid
         EVinterp=interp1(a_grid,EV,aprime_grid);
         entireEVinterp=repelem(EVinterp,N_d,1,1);
@@ -130,8 +127,6 @@ else
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec,1);
             % (d,aprime,a)
             
-            % entireEV=repelem(EV,N_d,1,1);
-
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV,aprime_grid);
             entireEVinterp=repelem(EVinterp,N_d,1,1);
@@ -179,8 +174,6 @@ for reverse_j=1:N_j-1
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
-        % entireEV=repelem(EV,N_d,1,1);
-
         % Interpolate EV over aprime_grid
         EVinterp=interp1(a_grid,EV,aprime_grid);
         entireEVinterp=repelem(EVinterp,N_d,1,1);
@@ -211,8 +204,6 @@ for reverse_j=1:N_j-1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec,1);
-
-            % entireEV=repelem(EV,N_d,1,1);
 
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV,aprime_grid);

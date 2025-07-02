@@ -98,12 +98,11 @@ if ~isfield(vfoptions,'V_Jplus1')
 
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V_Jplus1.*pi_e_J(1,:,N_j),3);
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+    EV=sum(EV.*pi_e_J(1,:,N_j),3);
     
     if vfoptions.lowmemory==0
         % n-Monotonicity
@@ -201,9 +200,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,jj+1);
-    
-    EV=sum(VKronNext_j.*pi_e_J(1,:,jj),2);
+    EV=V(:,:,jj+1);
+    EV=sum(EV.*pi_e_J(1,:,jj),2);
 
     if vfoptions.lowmemory==0
         % n-Monotonicity

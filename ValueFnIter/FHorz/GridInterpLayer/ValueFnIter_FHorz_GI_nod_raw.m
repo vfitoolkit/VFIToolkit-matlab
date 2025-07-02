@@ -70,15 +70,15 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
-    
+
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]);    % First, switch V_Jplus1 into Kron form
+
     if vfoptions.lowmemory==0
 
         % Use sparse for a few lines until sum over zprime
-        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -109,7 +109,7 @@ else
             z_val=z_gridvals_J(z_c,:,N_j);
 
             %Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=V_Jplus1.*pi_z_J(z_c,:,N_j);
+            EV_z=EV.*pi_z_J(z_c,:,N_j);
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
 
@@ -152,11 +152,11 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=V(:,:,jj+1);
+    EV=V(:,:,jj+1);
     
     if vfoptions.lowmemory==0
 
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
@@ -187,7 +187,7 @@ for reverse_j=1:N_j-1
             z_val=z_gridvals_J(z_c,:,jj);
             
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=VKronNext_j.*pi_z_J(z_c,:,jj);
+            EV_z=EV.*pi_z_J(z_c,:,jj);
             EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
 

@@ -14,13 +14,6 @@ if vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
 end
 
-% Preallocate
-if vfoptions.lowmemory==0
-    midpoints_jj=zeros(N_a,N_e,'gpuArray');
-elseif vfoptions.lowmemory==1 % loops over z
-    midpoints_jj=zeros(N_a,1,'gpuArray');
-end
-
 % Grid interpolation
 % vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
@@ -78,12 +71,12 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
 else
     % Using V_Jplus1
-    V_Jplus1=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
+    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
 
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(V_Jplus1.*pi_e_J(:,:,N_j),2);
+    EV=sum(EV.*pi_e_J(:,:,N_j),2);
 
     if vfoptions.lowmemory==0
         % Interpolate EV over aprime_grid

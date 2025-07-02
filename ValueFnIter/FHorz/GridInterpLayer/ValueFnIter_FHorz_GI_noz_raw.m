@@ -100,7 +100,6 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     EV=V(:,jj+1);
-    % entireEV=repmat(EV',N_d,1); % [d,aprime]
 
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
