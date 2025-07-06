@@ -44,7 +44,7 @@ for p_c=1:N_p
 
     %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
     StationaryDistKron=StationaryDist_FHorz_Case1(jequaloneDist, AgeWeightParamNames, Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, 2,simoptions); % The 2 is for Parallel (use GPU)
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, simoptions);
     
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     GeneralEqmConditionsVec(p_c,:)=real(GeneralEqmConditions_Case1(AggVars,p, GeneralEqmEqns, Parameters,GeneralEqmEqnParamNames));

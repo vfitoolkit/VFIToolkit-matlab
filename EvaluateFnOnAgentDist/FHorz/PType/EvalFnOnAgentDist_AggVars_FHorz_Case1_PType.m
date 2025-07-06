@@ -98,11 +98,6 @@ for ii=1:N_i
         PolicyIndexes_temp=Policy.(Names_i{ii});
         StationaryDist_temp=StationaryDist.(Names_i{ii});
     end
-    if isa(StationaryDist_temp, 'gpuArray')
-        Parallel_temp=2;
-    else
-        Parallel_temp=1;
-    end
 
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
@@ -191,9 +186,9 @@ for ii=1:N_i
 
     simoptions_temp.outputasstructure=0;
     if isfinite(N_j_temp)
-        AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp);
+        AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
     else % PType actually allows for infinite horizon as well
-        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, Parallel_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
+        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, 2, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
     end
 
     AggVarsFull(logical(FnsAndPTypeIndicator_ii),ii)=AggVars_ii;

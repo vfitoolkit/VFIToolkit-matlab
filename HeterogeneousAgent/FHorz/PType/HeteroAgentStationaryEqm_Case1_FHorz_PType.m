@@ -578,22 +578,27 @@ for pp=1:nGEprices
 end
 GEpriceindexes=[[1; 1+cumsum(GEpriceindexes(1:end-1))],cumsum(GEpriceindexes)];
 
+% % Set up reverse indexes (that gives the GEPriceParamNames, based on the GEparamsvec0)
+% reverseGEpriceindexes=zeros(length(GEparamsvec0),1);
+% nGEprices_full=length(GEparamsvec0); % same as nGEprices if none of GEPriceParamNames depend on ptype
+% for pp=1:nGEprices_full
+%     [~,reverseGEpriceindexes(pp)]=max((GEpriceindexes(:,2)>=pp),[],1);
+% end
 
-%% Set up GEparamsvec0 and parameter constraints
-nGEParams=length(GEPriceParamNames);
+%% Set up GEparamsvec0 and parameter constraints (permit that some GEPriceParamNames might depend on PType)
 % Backup the parameter constraint names, so I can replace them with vectors
 heteroagentoptions.constrainpositivenames=heteroagentoptions.constrainpositive;
-heteroagentoptions.constrainpositive=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be positive
+heteroagentoptions.constrainpositive=zeros(nGEprices,1); % if equal 1, then that parameter is constrained to be positive
 heteroagentoptions.constrain0to1names=heteroagentoptions.constrain0to1;
-heteroagentoptions.constrain0to1=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
+heteroagentoptions.constrain0to1=zeros(nGEprices,1); % if equal 1, then that parameter is constrained to be 0 to 1
 heteroagentoptions.constrainAtoBnames=heteroagentoptions.constrainAtoB;
-heteroagentoptions.constrainAtoB=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
+heteroagentoptions.constrainAtoB=zeros(nGEprices,1); % if equal 1, then that parameter is constrained to be 0 to 1
 if ~isempty(heteroagentoptions.constrainAtoBnames)
     heteroagentoptions.constrainAtoBlimitsnames=heteroagentoptions.constrainAtoBlimits;
-    heteroagentoptions.constrainAtoBlimits=zeros(nGEParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+    heteroagentoptions.constrainAtoBlimits=zeros(nGEprices_full,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
 end
 % GEparamsvec0=zeros(nGEParams,1); % column vector
-for pp=1:nGEParams
+for pp=1:nGEprices
     % GEparamsvec0(GEpriceindexes(pp,1):GEpriceindexes(pp,2))=Parameters.(GEPriceParamNames{pp});
 
     % First, check the name, and convert it if relevant
@@ -626,7 +631,7 @@ for pp=1:nGEParams
         % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
     end
     if heteroagentoptions.constrainpositive(pp)==1 && heteroagentoptions.constrain0to1(pp)==1 % Double check of inputs
-        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(GEPriceParamNames))])
+        fprinf(['Following error message is about the Parameter: ', GEPriceParamNames{pp}])
         error('You cannot constrain parameter twice (you are constraining one of the parameters using both heteroagentoptions.constrainpositive and in one of heteroagentoptions.constrain0to1 and heteroagentoptions.constrainAtoB')
     end
 end
