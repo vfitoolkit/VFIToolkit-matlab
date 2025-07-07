@@ -177,15 +177,15 @@ elseif vfoptions.lowmemory==1 % Loop over z
     
     if n_d(1)==0 % Nothing to do
         % vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=zeros(N_a,N_a,N_z);
+        ReturnMatrix=zeros(N_a,N_a,N_z,'gpuArray');
         for z_c=1:N_z
             z_val=z_gridvals_trans(:,z_c);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z_temp, d_grid, a_grid, z_val, ReturnFnParamsVec,1);
             ReturnMatrix(:,:,z_c)=ReturnMatrix_z;
         end
     else % n_d(1)>0
-        ReturnMatrix=zeros(N_a,N_a,N_z);
-        dstar=zeros(N_a,N_a,N_z);
+        ReturnMatrix=zeros(N_a,N_a,N_z,'gpuArray');
+        dstar=zeros(N_a,N_a,N_z,'gpuArray');
 
         d_grid_layer_index=zeros(1,ptsperlayer*l_d);
         d_grid_layer=zeros(ptsperlayer*l_d,1);

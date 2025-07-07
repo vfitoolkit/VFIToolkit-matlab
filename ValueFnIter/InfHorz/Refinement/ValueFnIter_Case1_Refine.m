@@ -29,8 +29,8 @@ if vfoptions.lowmemory==0
     end
 elseif vfoptions.lowmemory==1 % loop over z
     %% Refinement: calculate ReturnMatrix and 'remove' the d dimension
-    ReturnMatrix=zeros(N_a,N_a,N_z); % 'refined' return matrix
-    dstar=zeros(N_a,N_a,N_z);
+    ReturnMatrix=zeros(N_a,N_a,N_z,'gpuArray'); % 'refined' return matrix
+    dstar=zeros(N_a,N_a,N_z,'gpuArray');
     l_z=length(n_z);
     if all(size(z_grid)==[sum(n_z),1])
         z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
@@ -46,8 +46,8 @@ elseif vfoptions.lowmemory==1 % loop over z
         dstar(:,:,z_c)=shiftdim(dstar_z,1);
     end
 elseif vfoptions.lowmemory==2 % loop over z and a
-    ReturnMatrix=zeros(N_a,N_a,N_z); % 'refined' return matrix
-    dstar=zeros(N_a,N_a,N_z);
+    ReturnMatrix=zeros(N_a,N_a,N_z,'gpuArray'); % 'refined' return matrix
+    dstar=zeros(N_a,N_a,N_z,'gpuArray');
     a_gridvals=CreateGridvals(n_a,a_grid,1);
     l_z=length(n_z);
     if all(size(z_grid)==[sum(n_z),1])
