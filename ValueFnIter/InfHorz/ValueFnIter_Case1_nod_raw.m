@@ -4,9 +4,7 @@ function [VKron, Policy]=ValueFnIter_Case1_nod_raw(VKron, n_a, n_z, pi_z, Discou
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-ccc=kron(ones(N_a,1,'gpuArray'),bbb);
-aaa=reshape(ccc,[N_a*N_z,N_z]);
+aaa=repelem(pi_z,N_a,1);
 
 addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
 

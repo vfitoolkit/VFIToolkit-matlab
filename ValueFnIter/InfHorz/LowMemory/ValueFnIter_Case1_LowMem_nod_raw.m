@@ -1,6 +1,5 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames, 
-%Does pretty much exactly the same as ValueFnIter_Case1, only without any
-%decision variable (n_d=0)
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames, 
+% Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 l_z=length(n_z);
 
@@ -11,10 +10,9 @@ PolicyIndexes=zeros(N_a,N_z,'gpuArray');
 
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
-bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-ccc=kron(ones(N_a,1,'gpuArray'),bbb);
-aaa=reshape(ccc,[N_a*N_z,N_z]);
+aaa=repelem(pi_z,N_a,1);
 
+special_n_z=ones(l_z,1);
 
 %%
 tempcounter=1;
@@ -24,12 +22,11 @@ while currdist>Tolerance
     
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,0, n_a, ones(l_z,1),0, a_grid, zvals,ReturnFnParams);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,0, n_a, special_n_z,0, a_grid, zvals,ReturnFnParams);
         
-        %Calc the condl expectation term (except beta), which depends on z but
-        %not on control variables
-        EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        %Calc the condl expectation term (except beta), which depends on z but not on control variables
+        EV_z=VKronold.*pi_z(z_c,:);
+        EV_z(isnan(EV_z))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
                 
         entireRHS=ReturnMatrix_z+beta*EV_z; %aprime by 1
@@ -45,7 +42,7 @@ while currdist>Tolerance
     
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
+    if isfinite(currdist) && tempcounter<Howards2 % Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             
