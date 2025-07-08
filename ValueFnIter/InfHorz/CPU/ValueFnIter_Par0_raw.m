@@ -1,15 +1,5 @@
 function [VKron, Policy]=ValueFnIter_Par0_raw(VKron, N_d,N_a,N_z,pi_z, beta, ReturnMatrix,Howards,Howards2,Tolerance) %Verbose,
 
-% N_d=prod(n_d);
-% N_a=prod(n_a);
-% N_z=prod(n_z);
-
-% if Verbose==1
-%     disp('Starting Value Fn Iteration')
-%     tempcounter=1;
-%     tic;
-% end
-
 PolicyIndexes1=zeros(N_a,N_z);
 PolicyIndexes2=zeros(N_a,N_z);
 
@@ -22,11 +12,9 @@ while currdist>Tolerance
     
     for z_c=1:N_z
 
-        %Calc the condl expectation term (except beta), which depends on z but
-        %not on control variables
-%         EV_z=zeros(N_a,1); %aprime
+        %Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*kron(pi_z(z_c,:),ones(N_a,1));
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
         entireEV_z=kron(EV_z,ones(N_d,1));
@@ -64,21 +52,9 @@ while currdist>Tolerance
         end
     end
     
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
     
 end
-
-% if Verbose==1
-%     time=toc;
-%     fprintf('Value fn iteration took %8.4f seconds', time)
-% end
 
 Policy=zeros(2,N_a,N_z);
 Policy(1,:,:)=permute(PolicyIndexes1,[3,1,2]);

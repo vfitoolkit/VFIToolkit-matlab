@@ -1,10 +1,11 @@
-function [VKron, Policy]=ValueFnIter_Case1_nod_raw(VKron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance,maxiter) % Verbose, a_grid, z_grid,
+function [VKron, Policy]=ValueFnIter_nod_raw(VKron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance,maxiter) % Verbose, a_grid, z_grid,
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-aaa=repelem(pi_z,N_a,1);
+pi_z_alt=shiftdim(pi_z',-1);
+pi_z_howards=repelem(pi_z,N_a,1);
 
 addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
 
@@ -14,9 +15,9 @@ currdist=Inf;
 while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
     
-    %Calc the condl expectation term (except beta), which depends on z but not on control variables
-    EV=VKronold.*shiftdim(pi_z',-1); %kron(ones(N_a,1),pi_z(z_c,:));
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    % Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=VKronold.*pi_z_alt;
+    EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %aprime by a by z
@@ -39,7 +40,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 
         for Howards_counter=1:Howards
             EVKrontemp=VKron(Policy,:);
-            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;

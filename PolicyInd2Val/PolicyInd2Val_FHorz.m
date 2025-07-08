@@ -1,4 +1,4 @@
-function PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,outputkron)
+function PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,outputkron)
 
 if ~exist('outputkron','var')
     outputkron=0; % outputkron=1 is just for internal use
@@ -27,44 +27,44 @@ if ~exist('simoptions','var')
 else
     ordinary=1;
     % If using a specific asset type, then remove from aprime
-    if isfield(simoptions,'experienceasset')
-        if simoptions.experienceasset>0
+    if isfield(vfoptions,'experienceasset')
+        if vfoptions.experienceasset>0
             ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
-    elseif isfield(simoptions,'experienceassetu')
-        if simoptions.experienceassetu>0
+    elseif isfield(vfoptions,'experienceassetu')
+        if vfoptions.experienceassetu>0
             ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
-    elseif isfield(simoptions,'riskyasset')
-        if simoptions.riskyasset>0
+    elseif isfield(vfoptions,'riskyasset')
+        if vfoptions.riskyasset>0
             ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
-    elseif isfield(simoptions,'residualasset')
-        if simoptions.residualasset>0
+    elseif isfield(vfoptions,'residualasset')
+        if vfoptions.residualasset>0
             ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
-    elseif isfield(simoptions,'gridinterplayer')
-        if simoptions.gridinterplayer==1
+    elseif isfield(vfoptions,'gridinterplayer')
+        if vfoptions.gridinterplayer==1
             ordinary=0;
             l_aprime=l_a;
-            aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*simoptions.ngridinterp))';
-            n_aprime=n_a+(n_a-1)*simoptions.ngridinterp; % =length(aprime_grid)
+            aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp))';
+            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp; % =length(aprime_grid)
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(PolicyIndexes);
             PolicyIndexes=reshape(PolicyIndexes,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
-            PolicyIndexes(end-1,:)=((simoptions.ngridinterp+1)*(PolicyIndexes(end-1,:)-1)+1)+(PolicyIndexes(end,:)-1); % combine last two (lower grid point and 2nd layer point) to get aprime index
+            PolicyIndexes(end-1,:)=((vfoptions.ngridinterp+1)*(PolicyIndexes(end-1,:)-1)+1)+(PolicyIndexes(end,:)-1); % combine last two (lower grid point and 2nd layer point) to get aprime index
             tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
             PolicyIndexes=reshape(PolicyIndexes(1:end-1,:),tempsize); % get rid of last policy entry
         end
@@ -82,26 +82,26 @@ cumsum_n_d=cumsum(n_d);
 
 % When there is an e or semiz variable, can just pretend it is a z for
 % current purposes
-if isfield(simoptions,'n_e')
-    if prod(simoptions.n_e)==0
+if isfield(vfoptions,'n_e')
+    if prod(vfoptions.n_e)==0
         % do nothing
     else
         if N_z==0
-            n_z=simoptions.n_e;
+            n_z=vfoptions.n_e;
         else
-            n_z=[n_z,simoptions.n_e];
+            n_z=[n_z,vfoptions.n_e];
         end
         N_z=prod(n_z);
     end
 end
-if isfield(simoptions,'n_semiz')
-    if prod(simoptions.n_semiz)==0
+if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)==0
         % do nothing
     else
         if N_z==0
-            n_z=simoptions.n_semiz;
+            n_z=vfoptions.n_semiz;
         else
-            n_z=[simoptions.n_semiz,n_z];
+            n_z=[vfoptions.n_semiz,n_z];
         end
         N_z=prod(n_z);
     end

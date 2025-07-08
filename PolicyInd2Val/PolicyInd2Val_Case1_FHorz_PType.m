@@ -1,4 +1,4 @@
-function PolicyValues=PolicyInd2Val_Case1_FHorz_PType(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions)
+function PolicyValues=PolicyInd2Val_Case1_FHorz_PType(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions)
 
 Names_i=fieldnames(PolicyIndexes);
 N_i=length(Names_i);
@@ -38,7 +38,7 @@ for ii=1:N_i
         a_grid_temp=a_grid.(names{ii});        
     end
     
-    PolicyValues.(Names_i{ii})=PolicyInd2Val_Case1_FHorz(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions);
+    PolicyValues.(Names_i{ii})=PolicyInd2Val_Case1_FHorz(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,vfoptions);
 end
 
 
