@@ -192,11 +192,11 @@ if vfoptions.lowmemory==0
     V0Kron=reshape(V0,[N_a,N_z]);
     
     if vfoptions.parallel==0 % On CPU
-        [VKron, Policy]=ValueFnIter_Case2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,Phi_aprimeMatrix,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance); 
+        [VKron, Policy]=ValueFnIter_Case2_Par0_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,Phi_aprimeMatrix,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance);
     elseif vfoptions.parallel==1 % On Parallel CPU
         [VKron, Policy]=ValueFnIter_Case2_Par1_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,Phi_aprimeMatrix,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance);
     elseif vfoptions.parallel==2 % On GPU
-        [VKron, Policy]=ValueFnIter_Case2_Par2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,Phi_aprimeMatrix,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance);
+        [VKron, Policy]=ValueFnIter_Case2_raw(V0Kron, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,Phi_aprimeMatrix,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance);
     end
     
     %% Sort out Policy
@@ -209,9 +209,9 @@ elseif vfoptions.lowmemory==1
     V0Kron=reshape(V0,[N_a,N_z]);
     if vfoptions.parallel==2 % On GPU
         if vfoptions.phiaprimematrix~=1
-            [VKron, Policy]=ValueFnIter_Case2_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance, vfoptions.phiaprimematrix, ReturnFnParamsVec,PhiaprimeParamsVec);
+            [VKron, Policy]=ValueFnIter_Case2_LowMem_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance, vfoptions.phiaprimematrix, ReturnFnParamsVec,PhiaprimeParamsVec);
         else
-            [VKron, Policy]=ValueFnIter_Case2_LowMem_Par2_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance, vfoptions.phiaprimematrix, ReturnFnParamsVec);
+            [VKron, Policy]=ValueFnIter_Case2_LowMem_raw(V0Kron, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn,Phi_aprime,Case2_Type,vfoptions.howards,vfoptions.maxhowards,vfoptions.verbose,vfoptions.tolerance, vfoptions.phiaprimematrix, ReturnFnParamsVec);
         end
     else
         fprintf('ERROR: ValueFnIter_Case2 only allows lowmemory==1 with parallel==2 \n')
