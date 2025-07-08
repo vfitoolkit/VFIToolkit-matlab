@@ -1,4 +1,4 @@
-function [VKron,Policy]=ValueFnIter_Case2_LowMem_Par2_raw(VKron, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, Phi_aprime, Case2_Type, Howards,Howards2, Verbose, Tolerance,phiaprimematrix, ReturnFnParamsVec,PhiaprimeParamsVec)
+function [VKron,Policy]=ValueFnIter_Case2_LowMem_raw(VKron, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, beta, ReturnFn, Phi_aprime, Case2_Type, Howards,Howards2, Verbose, Tolerance,phiaprimematrix, ReturnFnParamsVec,PhiaprimeParamsVec)
 
 N_d=prod(n_d);
 N_a=prod(n_a);

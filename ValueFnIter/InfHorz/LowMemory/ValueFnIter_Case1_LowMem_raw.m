@@ -1,58 +1,59 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(VKron, N_d,N_a,N_z,d_grid, a_grid, z_grid, pi_z, beta, ReturnFn,Howards,Howards2,Tolerance) %Verbose
+function [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
 
-disp('WARNING: ValueFnIter_Case1_LowMem_raw is out of date')
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
 
-PolicyIndexes1=zeros(N_a,N_z);
-PolicyIndexes2=zeros(N_a,N_z);
+PolicyIndexes=zeros(N_a,N_z,'gpuArray');
 
+Ftemp=zeros(N_a,N_z,'gpuArray');
+
+bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
+ccc=kron(ones(N_a,1,'gpuArray'),bbb);
+aaa=reshape(ccc,[N_a*N_z,N_z]);
+
+%%
 tempcounter=1;
 currdist=Inf;
-
 while currdist>Tolerance
-    
     VKronold=VKron;
     
+    
     for z_c=1:N_z
-
+        
+        zvals=z_gridvals(z_c,:);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, ones(l_z,1),d_grid, a_grid, zvals,ReturnFnParams);
+        
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
-        EV_z=VKronold.*kron(pi_z(z_c,:),ones(N_a,1));
+        EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
-                
-        entireEV_z=kron(EV_z,ones(N_d,1));
         
-        for a_c=1:N_a
-            %Calc the RHS
-            entireRHS=ReturnMatrix(:,a_c,z_c)+beta*entireEV_z; %d by aprime by 1
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS);
-            VKron(a_c,z_c)=Vtemp;
-            PolInd_temp=ind2sub_homemade([N_d,N_a],maxindex); %[d;aprime]
-            PolicyIndexes1(a_c,z_c)=PolInd_temp(1);
-            PolicyIndexes2(a_c,z_c)=PolInd_temp(2);
-            Return_UsedForHowards(a_c,z_c)=ReturnMatrix(maxindex,a_c,z_c);
-        end
+        entireEV_z=kron(EV_z,ones(N_d,1));
+        entireRHS=ReturnMatrix_z+beta*entireEV_z;
+
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+        VKron(:,z_c)=Vtemp;
+        PolicyIndexes(:,z_c)=maxindex;
+             
+        tempmaxindex=maxindex+(0:1:N_a-1)*(N_d*N_a);
+        Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
     end
-    
+
     VKrondist=reshape(VKron-VKronold,[N_a*N_z,1]); VKrondist(isnan(VKrondist))=0;
-    currdist=max(abs(VKrondist));
-    
+    currdist=max(abs(VKrondist)); %IS THIS reshape() & max() FASTER THAN max(max()) WOULD BE?
+
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
-        Ftemp=zeros(N_a,N_z);
-        for z_c=1:N_z
-            for a_c=1:N_a
-                Ftemp(a_c,z_c)=ReturnMatrix(PolicyIndexes1(a_c,z_c)+(PolicyIndexes2(a_c,z_c)-1)*N_d,a_c,z_c);%FmatrixKron(PolicyIndexes1(a_c,z_c),PolicyIndexes2(a_c,z_c),a_c,z_c);
-            end
-        end
         for Howards_counter=1:Howards
             VKrontemp=VKron;
-            for z_c=1:N_z
-                EVKrontemp_z=VKrontemp(PolicyIndexes2(:,z_c),:).*kron(pi_z(z_c,:),ones(N_a,1)); %kron(pi_z(z_c,:),ones(nquad,1))
-                EVKrontemp_z(isnan(EVKrontemp_z))=0; %Multiplying zero (transition prob) by -Inf (value fn) gives NaN
-                VKron(:,z_c)=Ftemp(:,z_c)+beta*sum(EVKrontemp_z,2);
-            end
+            
+            EVKrontemp=VKrontemp(ceil(PolicyIndexes/N_d),:);
+            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp(isnan(EVKrontemp))=0;
+            EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
+            VKron=Ftemp+beta*EVKrontemp;
         end
     end
     
@@ -64,11 +65,10 @@ while currdist>Tolerance
 %         tempcounter=tempcounter+1;
 %     end
     tempcounter=tempcounter+1;
-
 end
 
-Policy=zeros(2,N_a,N_z);
-Policy(1,:,:)=permute(PolicyIndexes1,[3,1,2]);
-Policy(2,:,:)=permute(PolicyIndexes2,[3,1,2]);
+Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
+Policy(1,:,:)=shiftdim(rem(PolicyIndexes-1,N_d)+1,-1);
+Policy(2,:,:)=shiftdim(ceil(PolicyIndexes/N_d),-1);
 
 end

@@ -523,7 +523,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             if vfoptions.parallel==0 % On CPU
                 [VKron, Policy]=ValueFnIter_Case1_Par0_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             elseif vfoptions.parallel==1 % On Parallel CPU
-                [VKron, Policy]=ValueFnIter_Case1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+                [VKron, Policy]=ValueFnIter_Case1_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             elseif vfoptions.parallel==2 % On GPU
                 [VKron, Policy]=ValueFnIter_Case1_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             end
@@ -535,22 +535,14 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             disp('Starting Value Function')
         end
         
-        if n_d(1)==0
-            if vfoptions.parallel==0
-                [VKron,Policy]=ValueFnIter_Case1_LowMem_nod_Par0_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            elseif vfoptions.parallel==1
-                [VKron,Policy]=ValueFnIter_Case1_LowMem_nod_Par1_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.verbose);
-            elseif vfoptions.parallel==2 % On GPU
+        if vfoptions.parallel==2 % On GPU
+            if n_d(1)==0
                 [VKron,Policy]=ValueFnIter_Case1_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-            end
-        else
-            if vfoptions.parallel==0
-                [VKron, Policy]=ValueFnIter_Case1_LowMem_Par0_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
-            elseif vfoptions.parallel==1
-                [VKron, Policy]=ValueFnIter_Case1_LowMem_Par1_raw(V0, n_d,n_a,n_z, d_grid,a_grid,z_grid,pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.verbose);
-            elseif vfoptions.parallel==2 % On GPU
+            else
                 [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             end
+        else
+            error('can only use lowmemory on gpu')
         end
     end
 end
