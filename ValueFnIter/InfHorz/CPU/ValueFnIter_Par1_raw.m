@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_Par1_raw(VKron, N_d,N_a,N_z, pi_z, beta, ReturnMatrix, Howards, Howards2, Tolerance) %,Verbose
+function [VKron, Policy]=ValueFnIter_Par1_raw(VKron, N_d,N_a,N_z, pi_z, beta, ReturnMatrix, Howards, Howards2, Tolerance) %,Verbose
 
 tempcounter=1;
 currdist=Inf;

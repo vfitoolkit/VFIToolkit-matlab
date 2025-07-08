@@ -1,5 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames, 
-% Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
+function [VKron, Policy]=ValueFnIter_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames,
 
 l_z=length(n_z);
 
@@ -10,7 +9,7 @@ PolicyIndexes=zeros(N_a,N_z,'gpuArray');
 
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
-aaa=repelem(pi_z,N_a,1);
+pi_z_howards=repelem(pi_z,N_a,1);
 
 special_n_z=ones(l_z,1);
 
@@ -47,20 +46,13 @@ while currdist>Tolerance
             VKrontemp=VKron;
             
             EVKrontemp=VKrontemp(PolicyIndexes,:);
-            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+beta*EVKrontemp;
         end
     end
 
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
 end
 

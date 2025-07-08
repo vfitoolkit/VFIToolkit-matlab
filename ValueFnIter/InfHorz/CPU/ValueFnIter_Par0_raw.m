@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_raw(VKron, N_d,N_a,N_z,pi_z, beta, ReturnMatrix,Howards,Howards2,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_Par0_raw(VKron, N_d,N_a,N_z,pi_z, beta, ReturnMatrix,Howards,Howards2,Tolerance) %Verbose,
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);

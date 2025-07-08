@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -8,7 +8,7 @@ PolicyIndexes=zeros(N_a,N_z,'gpuArray');
 
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
-aaa=repelem(pi_z,N_a,1);
+pi_z_howards=repelem(pi_z,N_a,1);
 
 special_n_z=ones(l_z,1);
 
@@ -50,20 +50,13 @@ while currdist>Tolerance
             VKrontemp=VKron;
             
             EVKrontemp=VKrontemp(ceil(PolicyIndexes/N_d),:);
-            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+beta*EVKrontemp;
         end
     end
     
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
 end
 

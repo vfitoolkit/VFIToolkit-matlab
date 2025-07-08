@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_NoD_raw(VKron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose
+function [VKron, Policy]=ValueFnIter_nod_Par0_raw(VKron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 
