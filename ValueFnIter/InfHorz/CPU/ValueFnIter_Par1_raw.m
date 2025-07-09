@@ -6,11 +6,7 @@ currdist=Inf;
 PolicyIndexes=zeros(N_a,N_z);
 Ftemp=zeros(N_a,N_z);
 
-bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-ccc=kron(ones(N_a,1),bbb);
-aaa=reshape(ccc,[N_a*N_z,N_z]);
-% I suspect but have not yet double-checked that could instead just use
-% aaa=kron(ones(N_a,1,'gpuArray'),pi_z);
+pi_z_howards=repelem(pi_z,N_a,1);
 
 while currdist>Tolerance
     
@@ -20,7 +16,7 @@ while currdist>Tolerance
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         pi_z_z=pi_z(z_c,:);
 
-        EV_z=VKronold.*kron(pi_z_z(1,:),ones(N_a,1));
+        EV_z=VKronold.*pi_z_z;
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         entireEV_z=kron(EV_z,ones(N_d,1));
@@ -44,7 +40,7 @@ while currdist>Tolerance
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
             EVKrontemp=VKron(ceil(PolicyIndexes/N_d),:);
-            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+beta*EVKrontemp;

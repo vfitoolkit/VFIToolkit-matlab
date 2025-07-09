@@ -4,9 +4,7 @@ PolicyIndexes=zeros(N_a,N_z);
 
 Ftemp=zeros(N_a,N_z);
 
-bbb=reshape(shiftdim(pi_z,-1),[1,N_z*N_z]);
-ccc=kron(ones(N_a,1),bbb);
-aaa=reshape(ccc,[N_a*N_z,N_z]);
+pi_z_howards=repelem(pi_z,N_a,1);
 
 tempcounter=1;
 currdist=Inf;
@@ -19,11 +17,11 @@ while currdist>Tolerance
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
         pi_z_z=pi_z(z_c,:);
 
-        EV_z=VKronold.*kron(ones(N_a,1),pi_z_z(1,:));
+        EV_z=VKronold.*pi_z_z(1,:);
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
 
-        entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
+        entireRHS=ReturnMatrix_z+beta*EV_z; %aprime by a
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS);
@@ -41,7 +39,7 @@ while currdist>Tolerance
         for Howards_counter=1:Howards
             EVKrontemp=VKron(PolicyIndexes,:);
             
-            EVKrontemp=EVKrontemp.*aaa;
+            EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+beta*EVKrontemp;

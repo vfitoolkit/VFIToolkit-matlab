@@ -1,5 +1,9 @@
 function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParams,Refine) % Refine is an optional input
-% If there is no d variable, just input n_d=0 and d_grid=0
+% would be good to make this version assume d (and d_gridvals) and use
+% alternative version when no d variable but problem is that so many codes
+% depend on this one would take ages to modify them all (all value fn
+% commands without d would break, and all those with d would need to be
+% switched to d_gridvals)
 
 if size(d_grid,2)==1 % stacked-column % IN FUTURE, CHANGE INPUT TO BE d_gridvals
     d_gridvals=CreateGridvals(n_d,d_grid,1);

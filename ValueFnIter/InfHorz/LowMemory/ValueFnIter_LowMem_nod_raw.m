@@ -21,16 +21,16 @@ while currdist>Tolerance
     
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,0, n_a, special_n_z,0, a_grid, zvals,ReturnFnParams);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, special_n_z, a_grid, zvals,ReturnFnParams);
         
-        %Calc the condl expectation term (except beta), which depends on z but not on control variables
+        % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*pi_z(z_c,:);
         EV_z(isnan(EV_z))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
                 
         entireRHS=ReturnMatrix_z+beta*EV_z; %aprime by 1
         
-        %Calc the max and it's index
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         VKron(:,z_c)=Vtemp;
         PolicyIndexes(:,z_c)=maxindex;

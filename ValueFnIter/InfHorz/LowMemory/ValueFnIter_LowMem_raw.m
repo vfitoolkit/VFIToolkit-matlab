@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_LowMem_raw(VKron, n_d,n_a,n_z, d_gridvals,a_grid,z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -22,7 +22,7 @@ while currdist>Tolerance
     for z_c=1:N_z
         
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, special_n_z,d_grid, a_grid, zvals,ReturnFnParams);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, special_n_z,d_gridvals, a_grid, zvals,ReturnFnParams);
         
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*pi_z(z_c,:);
