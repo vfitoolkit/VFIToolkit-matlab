@@ -1,0 +1,47 @@
+function [V,Policy]=ValueFnIter_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions)
+
+N_d=prod(n_d);
+
+if ~isfield(vfoptions,'preinterp')
+    vfoptions.preinterp=1; 
+    % =2 is way to slow to be useful
+end
+if ~isfield(vfoptions,'preinterp')
+    vfoptions.multigridswitch=100;
+    % setting as high as 1000 is bad for runtimes, as low as 10 seems as good as the current default
+end
+
+if isscalar(n_a)
+    if N_d==0
+        if vfoptions.preinterp==0
+            % Multi-grid: only considers a_grid, then when nearing convergence switches to considering aprime_grid.
+            % Computes only the parts of ReturnFn for aprime_grid as and when needed.
+            [V,Policy]=ValueFnIter_GI_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        elseif vfoptions.preinterp==1
+            % Multi-grid: only considers a_grid, then when nearing convergence switches to considering aprime_grid. 
+            % Precomputes the entirety of aprime_grid.
+            [V,Policy]=ValueFnIter_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        elseif vfoptions.preinterp==2
+            % Precomputes the entirety of aprime_grid and just works with this the entire time. 
+            % [Multi-grid is better. This was just built for testing/understanding runtimes]
+            warning('vfoptions.preinterp=2 is not a setting you likely want to use (it is for internal purposes to see runtimes of a coding alternative, not for end users)')
+            [V,Policy]=ValueFnIter_pre2GI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        end
+    else % N_d
+        % Nowadays, I know that only Refine is worth doing, so just skip to that.
+        % ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
+        % [V,Policy]=ValueFnIter_GI_raw(ReturnMatrix, V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    end
+else
+    error('vfoptions.gridinterplayer in Infinite horizion does not yet support two endogenous states')
+end
+
+% Note: GI and preGI give slightly different Policy because they deal
+% differently with the 'lower grid point' vs 'L2' indexes. But if you
+% compare (for model with no d variable)
+% tempA=Policy2a(1,:,:)+((Policy2a(1,:,:)-1)*20)+Policy2a(2,:,:);
+% tempC=Policy2c(1,:,:)+((Policy2c(1,:,:)-1)*20)+Policy2c(2,:,:);
+% max(abs(tempA(:)-tempC(:)))
+% You can see they are exactly the same policy
+
+end
