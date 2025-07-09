@@ -108,6 +108,9 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfopti
     if n_d(1)==0
         vfoptions.solnmethod='purediscretization';
     end
+    if vfoptions.parallel~=2 % CPU just does the most basic thing
+        vfoptions.solnmethod='purediscretization';
+    end
 end
 % Divide-and-conquer with one endogenous state is implemented, but is too slow to be something you would ever want. 
 % Especially becuase you cannot refine while doing divideandconquer
@@ -279,82 +282,6 @@ if isfield(vfoptions,'exoticpreferences')
     end
 end
 
-%% State Dependent Parameters
-n_SDP=0;
-SDP1=[]; SDP2=[]; SDP3=[];
-if isfield(vfoptions,'statedependentparams')
-    % Remove the statedependentparams from ReturnFnParamNames
-    ReturnFnParamNames=setdiff(ReturnFnParamNames,vfoptions.statedependentparams.names);
-    % Note that the codes assume that the statedependentparams are the first elements in ReturnFnParamNames
-    % Codes currently allow up to three state dependent parameters
-    n_SDP=length(vfoptions.statedependentparams.names);
-    if N_d>1
-        l_d=length(n_d);
-        n_full=[n_d,n_a,n_a,n_z];
-    else
-        l_d=0;
-        n_full=[n_a,n_a,n_z];
-    end
-    l_a=length(n_a);
-    l_z=length(n_z);
-    
-    % First state dependent parameter, get into form needed for the valuefn
-    SDP1=Params.(vfoptions.statedependentparams.names{1});
-    SDP1_dims=vfoptions.statedependentparams.dimensions.(vfoptions.statedependentparams.names{1});
-%     vfoptions.statedependentparams.dimensions.kmax=[3,4,5,6,7]; % The d,a & z variables (in VFI toolkit notation)
-    temp=ones(1,l_d+l_a+l_a+l_z);
-    for jj=1:max(SDP1_dims)
-        [v,ind]=max(SDP1_dims==jj);
-        if v==1
-            temp(jj)=n_full(ind);
-        end
-    end
-    if isscalar(SDP1)
-        SDP1=SDP1*ones(temp);
-    else
-        SDP1=reshape(SDP1,temp);
-    end
-    if n_SDP>=2
-        % Second state dependent parameter, get into form needed for the valuefn
-        SDP2=Params.(vfoptions.statedependentparams.names{2});
-        SDP2_dims=vfoptions.statedependentparams.dimensions.(vfoptions.statedependentparams.names{2});
-        temp=ones(1,l_d+l_a+l_a+l_z);
-        for jj=1:max(SDP2_dims)
-            [v,ind]=max(SDP2_dims==jj);
-            if v==1
-                temp(jj)=n_full(ind);
-            end
-        end
-        if isscalar(SDP2)
-            SDP2=SDP2*ones(temp);
-        else
-            SDP2=reshape(SDP2,temp);
-        end
-    end
-    if n_SDP>=3
-        % Third state dependent parameter, get into form needed for the valuefn
-        SDP3=Params.(vfoptions.statedependentparams.names{3});
-        SDP3_dims=vfoptions.statedependentparams.dimensions.(vfoptions.statedependentparams.names{3});
-        temp=ones(1,l_d+l_a+l_a+l_z);
-        for jj=1:max(SDP3_dims)
-            [v,ind]=max(SDP3_dims==jj);
-            if v==1
-                temp(jj)=n_full(ind);
-            end
-        end
-        if isscalar(SDP3)
-            SDP3=SDP3*ones(temp);
-        else
-            SDP3=reshape(SDP3,temp);
-        end
-    end
-    if n_SDP>3
-        fprintf('WARNING: currently only three state dependent parameters are allowed. If you have a need for more please email robertdkirkby@gmail.com and let me know (I can easily implement more if needed) \n')
-        dbstack
-        return
-    end
-end
-
 %% Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 if isfield(vfoptions,'exoticpreferences')
@@ -419,6 +346,25 @@ if any(vfoptions.incrementaltype==1) && strcmp(vfoptions.solnmethod,'purediscret
 end
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+%% Rest is all just different ways of solving the standard problem
+
+
 %%
 if strcmp(vfoptions.solnmethod,'purediscretization_relativeVFI') 
     % Note: have only implemented Relative VFI on the GPU
@@ -433,15 +379,23 @@ if strcmp(vfoptions.solnmethod,'purediscretization_endogenousVFI')
 %     [VKron,Policy]=ValueFnIter_Case1_EndoVFI(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
 end
 
+
+%%
+if length(n_d)>1
+    d_gridvals=CreateGridvals(n_d,d_grid,1);
+else
+    d_gridvals=d_grid;
+end
+
 %% Divide-and-conquer
 if vfoptions.divideandconquer==1
-    [V,Policy]=ValueFnIter_DivideConquer(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    [V,Policy]=ValueFnIter_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     varargout={V,Policy};
     return
 end
 %% Grid interpolation layer
 if vfoptions.gridinterplayer==1
-    [V,Policy]=ValueFnIter_GridInterpLayer(V0, n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    [V,Policy]=ValueFnIter_GridInterpLayer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     varargout={V,Policy};
     return
 end
@@ -451,11 +405,6 @@ end
 if strcmp(vfoptions.solnmethod,'purediscretization')
 
     N_d=prod(n_d);
-    if length(n_d)>1
-        d_gridvals=CreateGridvals(n_d,d_grid,1);
-    else
-        d_gridvals=d_grid;
-    end
 
     if vfoptions.lowmemory==0
         
@@ -466,25 +415,15 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         if vfoptions.verbose==1
             disp('Creating return fn matrix')
         end
-        
-        if isfield(vfoptions,'statedependentparams')                
-            if n_SDP==3
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-            elseif n_SDP==2
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,SDP1,SDP2);
-            elseif n_SDP==1
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,SDP1);
+
+        if vfoptions.parallel==2 % GPU
+            if N_d==0
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
+            else
+                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
             end
-        else % Following is the normal/standard behavior
-            if vfoptions.parallel==2 % GPU
-                if N_d==0
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
-                else
-                    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
-                end
-            elseif vfoptions.parallel<2
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, vfoptions.parallel, ReturnFnParamsVec);
-            end
+        elseif vfoptions.parallel<2
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, vfoptions.parallel, ReturnFnParamsVec);
         end
         
         if vfoptions.verbose==1
@@ -527,11 +466,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
     end
 end
 
-%%
-% If we get to refinement and refinement2 then there is no d variable
+%% VFI with Refine
+% If we get to refinement and refinement2 then there must be d variable
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
     % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
-    [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 

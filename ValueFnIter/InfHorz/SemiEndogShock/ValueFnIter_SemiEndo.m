@@ -4,13 +4,7 @@ if vfoptions.lowmemory~=0 || vfoptions.parallel<1 % GPU or parellel CPU are only
     error('Only lowmemory=0 and parallel=1 or 2 are currently possible when using vfoptions.SemiEndogShockFn \n')
 end
 
-if vfoptions.returnmatrix==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, vfoptions.parallel, ReturnFnParamsVec);
-elseif vfoptions.returnmatrix==1
-    ReturnMatrix=ReturnFn;
-elseif vfoptions.returnmatrix==2 % GPU
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
-end
+ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
 
 if isa(vfoptions.SemiEndogShockFn,'function_handle')==0
     pi_z_semiendog=vfoptions.SemiEndogShockFn;

@@ -10,33 +10,9 @@ if vfoptions.lowmemory==0
     if vfoptions.verbose==1
         disp('Creating return fn matrix')
         tic;
-        if vfoptions.returnmatrix==0
-            fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-        end
     end
     
-    if isfield(vfoptions,'statedependentparams')
-        if vfoptions.returnmatrix==2 % GPU
-            if n_SDP==3
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2,SDP3);
-            elseif n_SDP==2
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1,SDP2);
-            elseif n_SDP==1
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_SDP(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,SDP1);
-            end
-        else
-            fprintf('ERROR: statedependentparams only works with GPU (parallel=2) \n')
-            dbstack
-        end
-    else % Following is the normal/standard behavior
-        if vfoptions.returnmatrix==0
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        elseif vfoptions.returnmatrix==1
-            ReturnMatrix=ReturnFn;
-        elseif vfoptions.returnmatrix==2 % GPU
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-        end
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
     
     if vfoptions.verbose==1
         time=toc;

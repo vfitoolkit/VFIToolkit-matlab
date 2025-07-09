@@ -25,16 +25,6 @@ cum_n_d=cumsum(n_d);
 if vfoptions.verbose==1
     disp('Creating return fn matrix')
     tic;
-    if vfoptions.returnmatrix==0
-        fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-    end
-end
-if vfoptions.returnmatrix~=2
-    error('vfoptions.solnmethod=purediscretization_refinement2 only works on gpu')
-end
-if isfield(vfoptions,'statedependentparams')
-    error('statedependentparams does not work with solnmethod purediscretization_refinement \n')
-    dbstack
 end
 if l_d>4
     error('max number of decision variables is 4 (n_d can have length up to 4)')
@@ -55,7 +45,6 @@ end
 if vfoptions.lowmemory==0
 
     if n_d(1)==0 % Nothing to do
-        % vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,1);
     else % n_d(1)>0
                 
@@ -318,13 +307,7 @@ end
 % V0=reshape(V0,[N_a,N_z]);
 
 % Refinement essentially just ends up using the NoD case
-if vfoptions.parallel==0     % On CPU
-    [VKron,Policy_a]=ValueFnIter_Case1_NoD_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-elseif vfoptions.parallel==1 % On Parallel CPU
-    [VKron,Policy_a]=ValueFnIter_Case1_NoD_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
-elseif vfoptions.parallel==2 % On GPU
-    [VKron,Policy_a]=ValueFnIter_Case1_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
-end
+[VKron,Policy_a]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance); %  a_grid, z_grid,
 
 % For refinement, add d to Policy
 % Policy is currently
