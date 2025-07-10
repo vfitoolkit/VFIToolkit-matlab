@@ -470,7 +470,7 @@ end
 % If we get to refinement and refinement2 then there must be d variable
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement') 
     % Refinement: Presolve for dstar(aprime,a,z). Then solve value function for just aprime,a,z. 
-    [VKron,Policy]=ValueFnIter_Case1_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+    [VKron,Policy]=ValueFnIter_Refine(V0,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
 end
 
 if strcmp(vfoptions.solnmethod,'purediscretization_refinement2') 
@@ -500,7 +500,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement2')
     end
     
     if max(vfoptions.endotype)==0 % If they are all zeros, no endo types are used
-        [VKron,Policy]=ValueFnIter_Case1_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+        [VKron,Policy]=ValueFnIter_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
     else
         % Need to seperate endogenous states from endogenous types to take advantage of them
         n_endostate=n_a(logical(1-vfoptions.endotype));
@@ -534,7 +534,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement2')
             end
         end
         
-        [VKron,Policy]=ValueFnIter_Case1_EndoType_Refine2(V0,l_d,prod(n_endostate),N_z,n_d,n_endostate,n_z,n_endotype,d_grid,endostate_grid,z_grid,endotype_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
+        [VKron,Policy]=ValueFnIter_EndoType_Refine2(V0,l_d,prod(n_endostate),N_z,n_d,n_endostate,n_z,n_endotype,d_grid,endostate_grid,z_gridvals,endotype_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions);
     end
     % To be able to resize the output we need to treat endotype is just
     % another endogenous state. This will happen because of how we have n_a setup.

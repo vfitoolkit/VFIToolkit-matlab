@@ -1,4 +1,4 @@
-function [VKron,Policy]=ValueFnIter_Case1_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions)
+function [VKron,Policy]=ValueFnIter_Refine2(V0,l_d,N_a,N_z,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions)
 % Refinement is to 'pre-solve' for the decision variables as dstar.
 % Refinement2 uses multi-grid for the decision variables in the 'pre-solve' step.
 
@@ -45,7 +45,7 @@ end
 if vfoptions.lowmemory==0
 
     if n_d(1)==0 % Nothing to do
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec,1);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,1);
     else % n_d(1)>0
                 
         d_grid_layer_index=zeros(1,ptsperlayer*l_d);
@@ -60,7 +60,7 @@ if vfoptions.lowmemory==0
             d_grid_layer_index(1+(ii-1)*ptsperlayer:ii*ptsperlayer)=temp;
             d_grid_layer(1+(ii-1)*ptsperlayer:ii*ptsperlayer)=d_grid(temp);
         end
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d_layer, n_a, n_z, d_grid_layer, a_grid, z_grid, ReturnFnParamsVec,1);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d_layer, n_a, n_z, d_grid_layer, a_grid, z_gridvals, ReturnFnParamsVec,1);
         % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
         [~,dstar]=max(ReturnMatrix,[],1); % We only want to keep ReturnMatrix values for the last layer
         %                 ReturnMatrix=shiftdim(ReturnMatrix,1);
@@ -74,7 +74,7 @@ if vfoptions.lowmemory==0
             d_grid_layer_center=dstar+(dstar-1)*((ptsbetween)^(nlayers-1)); % The center points
             d_grid_layer=d_grid_layer_center+(0:1:ptsperlayer-1)'*((ptsbetween+1)^(nlayers-2)); % Note: first dimension of d_grid_layer was just 1
             d1_grid_layer=reshape(d_grid(d_grid_layer),[ptsperlayer,n_a,n_a,n_z]);
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld1(ReturnFn, d1_grid_layer, n_a, n_z, a_grid, z_grid, ReturnFnParamsVec,1);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld1(ReturnFn, d1_grid_layer, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec,1);
         elseif l_d==2
             temp=rem(dstar-1,ptsperlayer)+1; % dstar in the first dimension
             temp(temp==1)=2; % If at the end, put it one point inside
@@ -91,7 +91,7 @@ if vfoptions.lowmemory==0
             d1_grid_layer=reshape(d_grid1(d_grid_layer_index1),[ptsperlayer,1,n_a,n_a,n_z]); % note: before reshape is [ptsperlayer,1,N_a,N_a,N_z]
             d2_grid_layer=reshape(d_grid2(d_grid_layer_index2),[1,ptsperlayer,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
             
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld2(ReturnFn, d1_grid_layer,d2_grid_layer, n_d_layer, n_a, n_z, a_grid, z_grid, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld2(ReturnFn, d1_grid_layer,d2_grid_layer, n_d_layer, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
         elseif l_d==3
             temp=rem(dstar-1,ptsperlayer)+1; % dstar in the first dimension
             temp(temp==1)=2; % If at the end, put it one point inside
@@ -115,7 +115,7 @@ if vfoptions.lowmemory==0
             d2_grid_layer=reshape(d_grid2(d_grid_layer_index2),[1,ptsperlayer,1,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
             d3_grid_layer=reshape(d_grid3(d_grid_layer_index3),[1,1,ptsperlayer,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
             
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld3(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, n_d_layer, n_a, n_z, a_grid, z_grid, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld3(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, n_d_layer, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
         elseif l_d==4
             temp=rem(dstar-1,ptsperlayer)+1; % dstar in the first dimension
             temp(temp==1)=2; % If at the end, put it one point inside
@@ -146,7 +146,7 @@ if vfoptions.lowmemory==0
             d3_grid_layer=reshape(d_grid3(d_grid_layer_index3),[1,1,ptsperlayer,1,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
             d4_grid_layer=reshape(d_grid4(d_grid_layer_index4),[1,1,1,ptsperlayer,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
             
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld4(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer,d4_grid_layer, n_d_layer, n_a, n_z, a_grid, z_grid, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_refineld4(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer,d4_grid_layer, n_d_layer, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
         end
         
         [ReturnMatrix,dstar]=max(ReturnMatrix,[],1); % We only want to keep ReturnMatrix values for the last layer
@@ -155,21 +155,15 @@ if vfoptions.lowmemory==0
     end
 elseif vfoptions.lowmemory==1 % Loop over z
     
-    if all(size(z_grid)==[sum(n_z),1])
-        z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
-    elseif all(size(z_grid)==[prod(n_z),l_z])
-        z_gridvals=z_grid;
-    end
     z_gridvals_trans=z_gridvals';
-
-    n_z_temp=ones(1,length(n_z));
+    special_n_z=ones(1,length(n_z));
     
     if n_d(1)==0 % Nothing to do
         % vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=zeros(N_a,N_a,N_z,'gpuArray');
         for z_c=1:N_z
             z_val=z_gridvals_trans(:,z_c);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z_temp, d_grid, a_grid, z_val, ReturnFnParamsVec,1);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec,1);
             ReturnMatrix(:,:,z_c)=ReturnMatrix_z;
         end
     else % n_d(1)>0
@@ -191,7 +185,7 @@ elseif vfoptions.lowmemory==1 % Loop over z
         
         for z_c=1:N_z
             z_val=z_gridvals_trans(:,z_c);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d_layer, n_a, n_z_temp, d_grid_layer, a_grid, z_val, ReturnFnParamsVec,1);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d_layer, n_a, special_n_z, d_grid_layer, a_grid, z_val, ReturnFnParamsVec,1);
             % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
             [~,dstar_z]=max(ReturnMatrix_z,[],1); % We only want to keep ReturnMatrix values for the last layer
             %                 ReturnMatrix=shiftdim(ReturnMatrix,1);
@@ -205,7 +199,7 @@ elseif vfoptions.lowmemory==1 % Loop over z
                 d_grid_layer_center=dstar_z+(dstar_z-1)*((ptsbetween)^(nlayers-1)); % The center points
                 d_grid_layer=d_grid_layer_center+(0:1:ptsperlayer-1)'*((ptsbetween+1)^(nlayers-2)); % Note: first dimension of d_grid_layer was just 1
                 d1_grid_layer=reshape(d_grid(d_grid_layer),[ptsperlayer,n_a,n_a,n_z]);
-                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld1(ReturnFn, d1_grid_layer, n_a, n_z_temp, a_grid, z_val, ReturnFnParamsVec,1);
+                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld1(ReturnFn, d1_grid_layer, n_a, special_n_z, a_grid, z_val, ReturnFnParamsVec,1);
             elseif l_d==2
                 temp=rem(dstar_z-1,ptsperlayer)+1; % dstar in the first dimension
                 temp(temp==1)=2; % If at the end, put it one point inside
@@ -222,7 +216,7 @@ elseif vfoptions.lowmemory==1 % Loop over z
                 d1_grid_layer=reshape(d_grid1(d_grid_layer_index1),[ptsperlayer,1,n_a,n_a,n_z]); % note: before reshape is [ptsperlayer,1,N_a,N_a,N_z]
                 d2_grid_layer=reshape(d_grid2(d_grid_layer_index2),[1,ptsperlayer,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
                 
-                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld2(ReturnFn, d1_grid_layer,d2_grid_layer, n_d_layer, n_a, n_z_temp, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld2(ReturnFn, d1_grid_layer,d2_grid_layer, n_d_layer, n_a, special_n_z, a_grid, z_val, ReturnFnParamsVec);
             elseif l_d==3
                 temp=rem(dstar_z-1,ptsperlayer)+1; % dstar in the first dimension
                 temp(temp==1)=2; % If at the end, put it one point inside
@@ -246,7 +240,7 @@ elseif vfoptions.lowmemory==1 % Loop over z
                 d2_grid_layer=reshape(d_grid2(d_grid_layer_index2),[1,ptsperlayer,1,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
                 d3_grid_layer=reshape(d_grid3(d_grid_layer_index3),[1,1,ptsperlayer,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
                 
-                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld3(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, n_d_layer, n_a, n_z_temp, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld3(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer, n_d_layer, n_a, special_n_z, a_grid, z_val, ReturnFnParamsVec);
             elseif l_d==4
                 temp=rem(dstar_z-1,ptsperlayer)+1; % dstar in the first dimension
                 temp(temp==1)=2; % If at the end, put it one point inside
@@ -277,7 +271,7 @@ elseif vfoptions.lowmemory==1 % Loop over z
                 d3_grid_layer=reshape(d_grid3(d_grid_layer_index3),[1,1,ptsperlayer,1,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
                 d4_grid_layer=reshape(d_grid4(d_grid_layer_index4),[1,1,1,ptsperlayer,n_a,n_a,n_z]); % note: before reshape is [1,ptsperlayer,N_a,N_a,N_z]
                 
-                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld4(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer,d4_grid_layer, n_d_layer, n_a, n_z_temp, a_grid, z_val, ReturnFnParamsVec);
+                ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2_refineld4(ReturnFn, d1_grid_layer,d2_grid_layer,d3_grid_layer,d4_grid_layer, n_d_layer, n_a, special_n_z, a_grid, z_val, ReturnFnParamsVec);
             end
             [ReturnMatrix_z,dstar_z]=max(ReturnMatrix_z,[],1); % We only want to keep ReturnMatrix values for the last layer
             ReturnMatrix_z=shiftdim(ReturnMatrix_z,1);
