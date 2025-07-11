@@ -124,7 +124,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 if isfield(vfoptions,'V0')
-    V0=reshape(vfoptions.V0,[N_a,N_z]);
+    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
     vfoptions.actualV0=1;
 else
     if vfoptions.parallel==2

@@ -18,32 +18,32 @@ if l_z>5
 end
 
 if l_a>=1
-    aprime1vals=shiftdim(a_grid(1:n_a(1)),-1);
-    a1vals=shiftdim(a_grid(1:n_a(1)),-l_a-1);
+    aprime1vals=a_grid(1:n_a(1));
+    a1vals=shiftdim(a_grid(1:n_a(1)),-l_a);
     if l_a>=2
-        aprime2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1-1);
-        a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-l_a-1-1);
+        aprime2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1);
+        a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-l_a-1);
         if l_a>=3
-            aprime3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-1-2);
-            a3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-l_a-1-2);
+            aprime3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-2);
+            a3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-l_a-2);
             if l_a>=4
-                aprime4vals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-1-3);
-                a4vals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-l_a-1-3);
+                aprime4vals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-3);
+                a4vals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-l_a-3);
             end
         end
     end
 end
 % joint z_grid
 if l_z>=1
-    z1vals=shiftdim(z_gridvals(:,1),-1-l_a-l_a);
+    z1vals=shiftdim(z_gridvals(:,1),-l_a-l_a);
     if l_z>=2
-        z2vals=shiftdim(z_gridvals(:,2),-1-l_a-l_a);
+        z2vals=shiftdim(z_gridvals(:,2),-l_a-l_a);
         if l_z>=3
-            z3vals=shiftdim(z_gridvals(:,3),-1-l_a-l_a);
+            z3vals=shiftdim(z_gridvals(:,3),-l_a-l_a);
             if l_z>=4
-                z4vals=shiftdim(z_gridvals(:,4),-1-l_a-l_a);
+                z4vals=shiftdim(z_gridvals(:,4),-l_a-l_a);
                 if l_z>=5
-                    z5vals=shiftdim(z_gridvals(:,5),-1-l_a-l_a);
+                    z5vals=shiftdim(z_gridvals(:,5),-l_a-l_a);
                 end
             end
         end
