@@ -85,6 +85,7 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.saveprogresseachiter=0;
     heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
+    % heteroagentoptions.GEusenames=0; % =1, can use '_name' for Params and AggVars in the general eqm eqns
     % Constrain parameters
     heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
@@ -129,6 +130,9 @@ else
     if ~isfield(heteroagentoptions,'GEptype')
         heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     end
+    % if ~isfield(heteroagentoptions,'GEusenames')
+    %     heteroagentoptions.GEusenames=0; % =1, can use '_name' for Params and AggVars in the general eqm eqns
+    % end
     % Constrain parameters
     if ~isfield(heteroagentoptions,'constrainpositive')
         heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
@@ -179,6 +183,26 @@ nGEprices=length(GEPriceParamNames);
 
 PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate)); % Total number of functions to evaluate
 
+if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
+    error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
+end
+
+%%
+if iscell(Names_i)
+    N_i=length(Names_i);
+else
+    N_i=Names_i;
+    Names_i={'ptype001'};
+    for ii=2:N_i
+        if ii<10
+            Names_i{ii}=['ptype00',num2str(ii)];
+        elseif ii<100
+            Names_i{ii}=['ptype0',num2str(ii)];
+        elseif ii<1000
+            Names_i{ii}=['ptype',num2str(ii)];
+        end
+    end
+end
 
 %% Reformat heteroagentoptions.GEptype from cell of names into vector of 1s and 0s
 if isempty(heteroagentoptions.GEptype)
@@ -196,6 +220,7 @@ else
     end
 end
 if any(heteroagentoptions.GEptype==1)
+    % heteroagentoptions.GEusenames=1; % Use the '_name' as part of handling this (keeps internal code simpler)
     % Adjust the size of weights for the dependence on ptype
     temp=heteroagentoptions.multiGEweights;
     heteroagentoptions.multiGEweights=zeros(1,sum(heteroagentoptions.GEptype==0)+N_i*sum(heteroagentoptions.GEptype==1));
@@ -214,10 +239,32 @@ if any(heteroagentoptions.GEptype==1)
     if ~isfield(heteroagentoptions,'GEptype_vectoroutput')
         heteroagentoptions.GEptype_vectoroutput=0;
     end
-elseif length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
-    error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 else
     heteroagentoptions.GEptype_vectoroutput=0;
+end
+
+%% If using _names, set up the parameters for this
+% Note: I do this before PTypeStructure, which is maybe not the cleanest, but works fine.
+paramnames=fieldnames(Parameters);
+paramnamesptype={};
+paramthatdependsonptype=zeros(1,length(paramnames));
+N_i=length(Names_i);
+for pp=1:length(paramnames)
+    if isstruct(Parameters.(paramnames{pp})) % parameter depends on ptype as a structure
+        for ii=1:N_i
+            Parameters.([paramnames{pp},'_',Names_i{ii}])=Parameters.(paramnames{pp}).(Names_i{ii});
+        end
+        paramthatdependsonptype(pp)=1;
+        paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
+    elseif any(size(Parameters.(paramnames{pp}))==N_i) % parameter depends on ptype as a vector
+        temp=Parameters.(paramnames{pp});
+        for ii=1:N_i
+            Parameters.([paramnames{pp},'_',Names_i{ii}])=temp(ii);
+        end
+        paramthatdependsonptype(pp)=1;
+        paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
+    end
+    % if not dependent on ptype, nothing to do
 end
 
 
@@ -234,22 +281,8 @@ end
 % PTypeStructure.Names_i never really gets used. Just makes things easier
 % to read when you are looking at PTypeStructure (which only ever exists
 % internally to the VFI Toolkit)
-if iscell(Names_i)
-    PTypeStructure.Names_i=Names_i;
-    PTypeStructure.N_i=length(Names_i);
-else
-    PTypeStructure.N_i=Names_i;
-    PTypeStructure.Names_i={'ptype001'};
-    for ii=2:PTypeStructure.N_i
-        if ii<10
-            PTypeStructure.Names_i{ii}=['ptype00',num2str(ii)];
-        elseif ii<100
-            PTypeStructure.Names_i{ii}=['ptype0',num2str(ii)];
-        elseif ii<1000
-            PTypeStructure.Names_i{ii}=['ptype',num2str(ii)];
-        end
-    end
-end
+PTypeStructure.Names_i=Names_i;
+PTypeStructure.N_i=N_i;
 
 % If jequaloneDist is not a structure, then we deal with it here (as it may be dependent on PType, and we will turn it into a structure if it is)
 if ~isstruct(jequaloneDist)
@@ -478,34 +511,140 @@ end
 
 
 
+%% If using intermediateEqns, switch from structure to cell setup
+AggVarNames_mod=AggVarNames; % AggVarNames_mod is used to check which inputs need to depend on ptype for things that are done by ptype
+
+if isfield(heteroagentoptions,'intermediateEqns')
+    intEqnNames=fieldnames(heteroagentoptions.intermediateEqns);
+    nIntEqns=length(intEqnNames);
+
+    if isfield(heteroagentoptions,'intermediateEqnsptype')
+        temp=heteroagentoptions.intermediateEqnsptype;
+        heteroagentoptions.intermediateEqnsptype=zeros(1,nIntEqns); % 1 indicates that this intermediate eqn is 'conditional on permanent type'
+        for gg1=1:length(temp)
+            for gg2=1:length(intEqnNames)
+                if strcmp(temp{gg1},intEqnNames{gg2})
+                    heteroagentoptions.intermediateEqnsptype(gg2)=1;
+                end
+            end
+        end
+    else
+        heteroagentoptions.intermediateEqnsptype=zeros(1,nIntEqns); % 1 indicates that this intermediate eqn is 'conditional on permanent type'
+    end
+    
+    heteroagentoptions.intermediateEqnsCell=cell(1,nIntEqns);
+    gg_c=0;
+    for gg=1:nIntEqns
+        intEqnnames_gg=intEqnNames{gg};
+        temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(intEqnNames{gg}));
+        if heteroagentoptions.intermediateEqnsptype(gg)==1
+            AggVarNames_mod{length(AggVarNames_mod)+1}=intEqnNames{gg}; % add to AggVarNames_mod in case used as input later
+
+            for ii=1:N_i
+                temp_ii=temp;
+                gg_c=gg_c+1;
+                for tt=1:length(temp_ii)
+                    % Need to check if it is in AggVarNames_mod, in which case use '_name'
+                    if any(strcmp(AggVarNames_mod,temp_ii{tt}))
+                        for aa=1:length(AggVarNames_mod)
+                            if strcmp(AggVarNames_mod{aa},temp_ii{tt})
+                                temp_ii{tt}=[temp_ii{tt},'_',Names_i{ii}]; % use the '_name' for the AggVar inputs
+                            end
+                        end
+                    end
+                    % Need to check if it a parameter that depends on ptype, in which case use '_name'
+                    if any(strcmp(paramnamesptype,temp_ii{tt}))
+                        for pp=1:length(paramnamesptype)
+                            if strcmp(paramnamesptype{pp},temp_ii{tt})
+                                temp_ii{tt}=[temp_ii{tt},'_',Names_i{ii}]; % use the '_name' for the AggVar inputs
+                            end
+                        end
+                    end
+                end
+                heteroagentoptions.intermediateEqnParamNames(gg_c).Names=temp_ii;
+            end
+        else
+            gg_c=gg_c+1;
+            heteroagentoptions.intermediateEqnParamNames(gg_c).Names=temp;
+
+            % check if it is an _name, in which case need to put it into AggVarNames_mod so that it gets handled correctly if it is used as an input later
+            checkunderscorename=0;
+            for ii=1:N_i
+                lname=length(Names_i{ii});
+                if length(intEqnnames_gg)>lname+1 % only check if intEqnnames_gg is long enough to be possible
+                    if strcmp(intEqnnames_gg(end-lname:end),['_',Names_i{ii}])
+                        % E.g., creates Parameters.r.ptype001 from Parameters.r_ptype001
+                        checkunderscorename=checkunderscorename+1;
+                        intEqnNames_ggmod=intEqnnames_gg(1:end-lname-1);
+                    end
+                end
+            end
+            if checkunderscorename==1
+                if ~any(strcmp(AggVarNames_mod,intEqnNames_ggmod))
+                    AggVarNames_mod{length(AggVarNames_mod)+1}=intEqnNames_ggmod; % add to AggVarNames_mod in case used as input later
+                end
+            end
+        end
+        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(intEqnNames{gg});        
+    end
+    % Now:
+    %  heteroagentoptions.intermediateEqns is still the structure
+    %  heteroagentoptions.intermediateEqnsCell is cell
+    %  heteroagentoptions.intermediateEqnParamNames(gg_c).Names contains the names
+    % Note: 
+    % intermediateEqnParamNames is based on gg_c, so that they can differ when using by-ptype in which case they use '_name'
+
+end
+
+
+
 %% GE eqns, switch from structure to cell setup
 GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
 
 GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
+gg_c=0;
 for gg=1:nGeneralEqmEqns
     temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
-    GeneralEqmEqnParamNames(gg).Names=temp;
+    if heteroagentoptions.GEptype(gg)==1
+        for ii=1:N_i
+            temp_ii=temp;
+            gg_c=gg_c+1;
+            for tt=1:length(temp_ii)
+                % Need to check if it is in AggVarNames_mod, in which case use '_name'
+                if any(strcmp(AggVarNames_mod,temp_ii{tt}))
+                    for aa=1:length(AggVarNames_mod)
+                        if strcmp(AggVarNames_mod{aa},temp_ii{tt})
+                            temp_ii{tt}=[temp_ii{tt},'_',Names_i{ii}]; % use the '_name' for the AggVar inputs
+                        end
+                    end
+                end
+                % Need to check if it a parameter that depends on ptype, in which case use '_name'
+                if any(strcmp(paramnamesptype,temp_ii{tt}))
+                    for pp=1:length(paramnamesptype)
+                        if strcmp(paramnamesptype{pp},temp_ii{tt})
+                            temp_ii{tt}=[temp_ii{tt},'_',Names_i{ii}]; % use the '_name' for the AggVar inputs
+                        end
+                    end
+                end
+            end
+            GeneralEqmEqnParamNames(gg_c).Names=temp_ii;
+        end
+    else
+        gg_c=gg_c+1;
+        GeneralEqmEqnParamNames(gg_c).Names=temp;
+    end
     GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
 end
 % Now: 
 %  GeneralEqmEqns is still the structure
 %  GeneralEqmEqnsCell is cell
-%  GeneralEqmEqnParamNames(ff).Names contains the names
+%  GeneralEqmEqnParamNames(gg_c).Names contains the names
+% Note: 
+% GeneralEqmEqnParamNames is based on gg_c, so that they can differ when using by-ptype in which case they use '_name'
 
 
 %% Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
-
-%%
-if N_p~=0
-    error('NOTE: HeteroAgentStationaryEqm_Case1_FHorz_PType with p_grid does not yet exist so will throw an error. Contact robertdkirkby@gmail.com if you actually want to use it and I will set it up. \n')
-%     [p_eqm_vec,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_FHorz_PType_pgrid(n_p, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnParamNames, GEPriceParamNames, heteroagentoptions);
-%     for ii=1:length(GEPriceParamNames)
-%         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec;
-%     end
-%     return
-end
-
 
 %% If using fminalgo=5, then need some further setup
 
@@ -584,6 +723,7 @@ GEpriceindexes=[[1; 1+cumsum(GEpriceindexes(1:end-1))],cumsum(GEpriceindexes)];
 % for pp=1:nGEprices_full
 %     [~,reverseGEpriceindexes(pp)]=max((GEpriceindexes(:,2)>=pp),[],1);
 % end
+
 
 %% Set up GEparamsvec0 and parameter constraints (permit that some GEPriceParamNames might depend on PType)
 % Backup the parameter constraint names, so I can replace them with vectors
@@ -669,6 +809,16 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         end
     end
 
+    if N_p~=0
+        error('NOTE: HeteroAgentStationaryEqm_Case1_FHorz_PType with p_grid does not yet exist so will throw an error. Contact robertdkirkby@gmail.com if you actually want to use it and I will set it up. \n')
+        % for p_c=1:N_p
+        %     pvec=heteroagentoptions.p_grid(p_c,:);
+        %     p_eqm(p_c)=GeneralEqmConditionsFnOpt(pvec);
+        % end
+        % return
+    end
+
+    
 
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s

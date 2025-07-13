@@ -519,7 +519,7 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
     % Standard Deviation
     if simoptions.whichstats(3)==1
         if N_i==1
-            AllStats.(FnsToEvalNames{ff}).StdDev=StdDevVec(ff,:);
+            AllStats.(FnsToEvalNames{ff}).StdDeviation=StdDevVec(ff,:);
         else
             temp2=zeros(N_i,1);
             for ii=2:N_i
@@ -531,9 +531,9 @@ for ff=1:numFnsToEvaluate % Each of the functions to be evaluated on the grid
                     temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                 end
             end
-            AllStats.(FnsToEvalNames{ff}).StdDev=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+            AllStats.(FnsToEvalNames{ff}).StdDeviation=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
         end
-        AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDev)^2;
+        AllStats.(FnsToEvalNames{ff}).Variance=(AllStats.(FnsToEvalNames{ff}).StdDeviation)^2;
     end
 
     % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)

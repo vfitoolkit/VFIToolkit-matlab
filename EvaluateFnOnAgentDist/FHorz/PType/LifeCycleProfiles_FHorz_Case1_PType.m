@@ -1013,7 +1013,7 @@ if simoptions.lowmemory==0
                 % Standard Deviation
                 if simoptions.whichstats(3)==1
                     if N_i==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj)=StdDevVec(ff,:,jj);
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=StdDevVec(ff,:,jj);
                     else
                         temp2=zeros(N_i,1);
                         for ii=2:N_i
@@ -1025,9 +1025,9 @@ if simoptions.lowmemory==0
                                 temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                             end
                         end
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
                     end
-                    AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj))^2;
+                    AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj))^2;
                 end
 
                 % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)
@@ -1569,7 +1569,7 @@ elseif simoptions.lowmemory==1
                 % Standard Deviation
                 if simoptions.whichstats(3)==1
                     if N_i==1
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj)=StdDevVec(ff,:,jj);
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=StdDevVec(ff,:,jj);
                     else
                         temp2=zeros(N_i,1);
                         for ii=2:N_i
@@ -1581,9 +1581,9 @@ elseif simoptions.lowmemory==1
                                 temp2(ii)=StationaryDist.ptweights(ii)*sum(FnsAndPTypeIndicator(ff,1:(ii-1)).*(StationaryDist.ptweights(1:(ii-1))').*(temp.^2));
                             end
                         end
-                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
+                        AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj)=sqrt(sum(FnsAndPTypeIndicator(ff,:).*(StationaryDist.ptweights').*StdDevVec(ff,:,jj))/SigmaNxi + sum(temp2)/(SigmaNxi^2));
                     end
-                    AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDev(jj))^2;
+                    AgeConditionalStats.(FnsToEvalNames{ff}).Variance(jj)=(AgeConditionalStats.(FnsToEvalNames{ff}).StdDeviation(jj))^2;
                 end
 
                 % Similarly, directly calculate the minimum and maximum as this is cleaner (and overwrite these)

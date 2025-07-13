@@ -1,6 +1,6 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqns,  GeneralEqmEqnsCell, GeneralEqmEqnParamNames,GEPriceParamNames, AggVarNames, nGEprices, GEpriceindexes, GEprice_ptype, heteroagentoptions)
 
-nGEprices=length(GEPriceParamNames);
+% nGEprices=length(GEPriceParamNames);
 
 %% Do any transformations of parameters before we say what they are
 penalty=zeros(length(GEprices),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
@@ -36,7 +36,6 @@ else
 end
 % NOTE: penalty has not been used here
 
-
 %%
 for pp=1:nGEprices % Not sure this is needed, have it just in case they are used when calling 'GeneralEqmConditionsFn', but I am pretty sure they never would be.
     Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
@@ -52,6 +51,7 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1));
         else
             PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1)+ii-1);
+            % I also create an '_name' version that can be used for GE eqns that are cross-ptype
         end
     end
 
@@ -81,6 +81,75 @@ end
 AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
 % Note: AggVars is a vector
 
+
+
+%% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+% already did the basic GE params
+% for pp=1:nGEprices
+%     Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
+% end
+for aa=1:length(AggVarNames)
+    Parameters.(AggVarNames{aa})=AggVars(aa);
+end
+
+% Do the general eqm parameters that depend on ptype
+for pp=1:length(GEPriceParamNames)
+    if GEprice_ptype(pp)==1
+        for ii=1:PTypeStructure.N_i
+            Parameters.([GEPriceParamNames{pp},'_',PTypeStructure.Names_i{ii}])=GEprices(GEpriceindexes(pp,1)+ii-1);
+        end
+    end
+end
+% And do all the AggVars as well
+for aa=1:length(AggVarNames)
+    for ii=1:PTypeStructure.N_i
+        Parameters.([AggVarNames{aa},'_',PTypeStructure.Names_i{ii}])=AggVars_ConditionalOnPType(aa,ii); % Note: this will create AggVar values of zero, even where they 'dont exist', but I don't think the user will get that wrong
+    end
+end
+
+
+%% Intermediate Eqns
+if isfield(heteroagentoptions,'intermediateEqns')
+    % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
+    
+    intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
+    intermediateEqnsVec=zeros(1,sum(heteroagentoptions.intermediateEqnsptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.intermediateEqnsptype==1));
+
+    % Do the intermediateEqns, in order
+    gg_c=0;
+    for gg=1:length(intEqnnames)
+        if heteroagentoptions.intermediateEqnsptype(gg)==0 % standard intermediateEqn
+            gg_c=gg_c+1;
+            intermediateEqnsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg_c).Names, Parameters));
+            Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg_c);
+
+            % if the intermediateEqn is using '_name', then put it into Params as a structure with name
+            intEqnnames_gg=intEqnnames{gg};
+            if contains(intEqnnames_gg,'_') % potential uses '_name'
+                for ii=1:PTypeStructure.N_i
+                    lname=length(PTypeStructure.Names_i{ii});
+                    if length(intEqnnames_gg)>lname+1 % only check if intEqnnames_gg is long enough to be possible
+                        if strcmp(intEqnnames_gg(end-lname:end),['_',PTypeStructure.Names_i{ii}])
+                            Parameters.(intEqnnames_gg(1:end-lname-1)).(PTypeStructure.Names_i{ii})=Parameters.(intEqnnames{gg});
+                            % E.g., creates Parameters.r.ptype001 from Parameters.r_ptype001
+                        end
+                    end
+                end
+            end
+        elseif heteroagentoptions.intermediateEqnsptype(gg)==1 % Do this intermediateEqn condition conditional on ptype
+            for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
+                gg_c=gg_c+1;
+                intermediateEqnsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g_ptype(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg_c).Names, Parameters));
+                Parameters.(intEqnnames{gg}).(PTypeStructure.Names_i{ii})=intermediateEqnsVec(gg_c);
+                % also, just in case they need to be used again, add the _name version
+                Parameters.([intEqnnames{gg},'_',PTypeStructure.Names_i{ii}])=intermediateEqnsVec(gg_c);
+            end
+        end
+    end
+end
+
+
+%% Evaluate the General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GEeqnnames=fieldnames(GeneralEqmEqns);
 GeneralEqmConditionsVec=zeros(1,sum(heteroagentoptions.GEptype==0)+PTypeStructure.N_i*sum(heteroagentoptions.GEptype==1));
@@ -88,33 +157,18 @@ GeneralEqmConditionsVec=zeros(1,sum(heteroagentoptions.GEptype==0)+PTypeStructur
 gg_c=0;
 for gg=1:length(GEeqnnames)
     if heteroagentoptions.GEptype(gg)==0 % Standard general eqm condition
-        for pp=1:nGEprices
-            Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
-        end
-        for aa=1:length(AggVarNames)
-            Parameters.(AggVarNames{aa})=AggVars(aa);
-        end
         gg_c=gg_c+1;
-        GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+        GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters));
     elseif heteroagentoptions.GEptype(gg)==1 % Do this general eqm condition conditional on ptype
         for ii=1:PTypeStructure.N_i % This General eqm condition has to hold conditional on each ptype
-            for pp=1:length(GEPriceParamNames)
-                if GEprice_ptype(pp)==0
-                    Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1));
-                else
-                    Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1)+ii-1); % value specific to ptype
-                end
-            end
-            for aa=1:length(AggVarNames)
-                Parameters.(AggVarNames{aa})=AggVars_ConditionalOnPType(aa,ii);
-            end
             gg_c=gg_c+1;
-            GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+            GeneralEqmConditionsVec(gg_c)=real(GeneralEqmConditions_Case1_v3g_ptype(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg_c).Names, Parameters));
         end
     end
 end
 
-% We might want to output GE conditions as a vector or structure
+
+%% We might want to output GE conditions as a vector or structure
 if heteroagentoptions.outputGEform==0 % scalar
     if heteroagentoptions.multiGEcriterion==0
         GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
@@ -144,6 +198,8 @@ elseif heteroagentoptions.outputGEform==2 % structure
 end
 
 
+
+%% Give feedback on current iteration
 if heteroagentoptions.verbose==1
     if all(heteroagentoptions.GEptype==0)
         fprintf(' \n')
@@ -180,9 +236,21 @@ if heteroagentoptions.verbose==1
         for aa=1:length(AggVarNames)
             fprintf(['	%s:',numberstr,' \n'],AggVarNames{aa},AggVars_ConditionalOnPType(aa,:)) % Note, this is done differently here because AggVars itself has been set as a matrix
         end
+        if isfield(heteroagentoptions,'intermediateEqns')
+            fprintf('Current intermediateEqns: \n')
+            ggindex=ones(length(intEqnnames),1)+heteroagentoptions.intermediateEqnsptype'*(PTypeStructure.N_i-1);
+            ggindex=[[1; cumsum(ggindex(1:end-1))+1],cumsum(ggindex)];
+            for gg=1:length(intEqnnames)
+                if heteroagentoptions.intermediateEqnsptype(gg)==1
+                    fprintf(['	%s:',numberstr,' \n'],intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
+                else
+                    fprintf('	%s: %8.4f \n',intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
+                end
+            end
+        end
         fprintf('Current GeneralEqmEqns: \n')
         GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
-        ggindex=[ones(length(GeneralEqmEqnsNames),1)+heteroagentoptions.GEptype'*(PTypeStructure.N_i-1)];
+        ggindex=ones(length(GeneralEqmEqnsNames),1)+heteroagentoptions.GEptype'*(PTypeStructure.N_i-1);
         ggindex=[[1; cumsum(ggindex(1:end-1))+1],cumsum(ggindex)];
         for gg=1:length(GeneralEqmEqnsNames)
             if heteroagentoptions.GEptype(gg)==1
