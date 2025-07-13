@@ -94,6 +94,10 @@ else
 end
 
 %%
+if isfield(simoptions,'ExogShockFn')
+    [~, pi_z, simoptions]=ExogShockSetup(n_z,[],pi_z,Parameters,simoptions,2);
+end
+
 if simoptions.parallel==1 || simoptions.parallel==3 || simoptions.eigenvector==1 % Eigenvector only works for cpu
     Policy=gather(Policy);
     pi_z=gather(pi_z);

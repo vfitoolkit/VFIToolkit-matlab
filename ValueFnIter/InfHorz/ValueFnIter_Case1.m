@@ -144,7 +144,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
         error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
         
         % Check z_grid inputs
-    elseif isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
+    elseif isfield(vfoptions,'ExogShockFn')
             % okay
     elseif N_z>0
         if ~all(size(z_grid)==[sum(n_z), 1])
