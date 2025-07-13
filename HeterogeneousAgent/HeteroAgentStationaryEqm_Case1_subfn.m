@@ -53,7 +53,7 @@ end
 [~,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
-StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions);
+StationaryDistKron=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
 AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDistKron, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions);
 
 % The following line is often a useful double-check if something is going wrong.
@@ -89,7 +89,7 @@ elseif heteroagentoptions.outputGEform==2 % structure
     clear GeneralEqmConditions
     GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
     for ii=1:length(GeneralEqmEqnsNames)
-        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
+        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=gather(GeneralEqmConditionsVec(ii));
     end
 end
 
