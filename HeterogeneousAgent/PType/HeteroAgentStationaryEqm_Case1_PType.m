@@ -701,7 +701,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     end
     
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
-    p_eqm_vec_untranformed=p_eqm_index;
+    p_eqm_vec_untranformed=p_eqm_vec; % Use to get GE eqn values as structure/vector
 
     % Do any transformations of parameters before we say what they are
     for pp=1:nGEprices
@@ -752,9 +752,10 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params
+    p_eqm_vec_untranformed=zeros(length(GEparamsvec0),1);
     p_eqm=nan; % So user cannot misuse
     for ii=1:length(GEPriceParamNames)
-        p_eqm_vec(ii)=Parameters.(GEPriceParamNames{ii});
+        p_eqm_vec_untranformed(ii)=Parameters.(GEPriceParamNames{ii});
     end
 end
 

@@ -11,6 +11,7 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    simoptions.alreadygridvals=0;
 else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
@@ -28,6 +29,9 @@ else
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    if ~isfield(simoptions, 'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
 end
 
 
@@ -44,9 +48,14 @@ N_z=prod(n_z);
 
 l_daprime=size(PolicyIndexes,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-if all(size(z_grid)==[sum(n_z),1]) % stacked-column
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid 
+% Switch to z_gridvals
+if simoptions.alreadygridvals==0
+    if simoptions.parallel<2
+        z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
+    else
+        [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
+    end
+elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
 

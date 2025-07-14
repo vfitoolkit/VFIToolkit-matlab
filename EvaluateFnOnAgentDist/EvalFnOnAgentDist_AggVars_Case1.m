@@ -14,9 +14,8 @@ end
 simoptions.parallel=Parallel;
 
 if ~exist('simoptions', 'var')
-    simoptions=struct();
-end
-if ~isfield('simoptions', 'alreadygridvals')
+    simoptions.alreadygridvals=0;
+elseif ~isfield(simoptions, 'alreadygridvals')
     simoptions.alreadygridvals=0;
 end
 

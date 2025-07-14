@@ -33,11 +33,14 @@ for ii=1:N_i
         a_grid_temp=a_grid.(names{ii});        
     end
     vfoptions_temp=vfoptions;
-    if isa(vfoptions,'struct')
-        names=fieldnames(vfoptions);
-        vfoptions_temp=vfoptions.(names{ii});        
+    vfoptionsfieldnames=fieldnames(vfoptions);
+    for ff=1:length(vfoptionsfieldnames)
+        if isa(vfoptions.(vfoptionsfieldnames{ff}),'struct')
+            names=fieldnames(vfoptions.(vfoptionsfieldnames{ff}));
+            vfoptions_temp=vfoptions.(vfoptionsfieldnames{ff}).(names{ii});
+        end
     end
-    
+
     PolicyValues.(Names_i{ii})=PolicyInd2Val_Case1(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,vfoptions_temp);
 end
 

@@ -31,6 +31,8 @@ if exist('simoptions','var')==0
     % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
     simoptions.experienceasset=0;
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
@@ -91,11 +93,17 @@ else
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
 end
 
 %%
-if isfield(simoptions,'ExogShockFn')
-    [~, pi_z, simoptions]=ExogShockSetup(n_z,[],pi_z,Parameters,simoptions,2);
+if simoptions.alreadygridvals==0
+    if isfield(simoptions,'ExogShockFn')
+        [~, pi_z, simoptions]=ExogShockSetup(n_z,[],pi_z,Parameters,simoptions,2);
+    end
 end
 
 if simoptions.parallel==1 || simoptions.parallel==3 || simoptions.eigenvector==1 % Eigenvector only works for cpu
