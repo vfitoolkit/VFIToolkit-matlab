@@ -313,12 +313,12 @@ for ii=1:N_i
 
     l_daprime_temp=size(PolicyIndexes_temp,1);
     % Switch to PolicyVals
-    PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp);
+    PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,simoptions_temp);
     permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1];
     PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_s,l_d+l_a]
     
     a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
-    z_gridvals_temp=CreateGridvals(n_z_temp,z_grid_temp,1);
+    [z_gridvals_temp, ~, simoptions_temp]=ExogShockSetup(n_z_temp,z_grid_temp,[],Parameters_temp,simoptions_temp,1);
     
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;

@@ -1,4 +1,4 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(GEprices, n_d, n_a, n_z, l_p, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(GEprices, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions)
 
 %% Do any transformations of parameters before we say what they are
 penalty=zeros(nGEprices,1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
@@ -35,8 +35,8 @@ end
 % NOTE: penalty has not been used here
 
 %% 
-for ii=1:l_p
-    Parameters.(GEPriceParamNames{ii})=GEprices(ii);
+for pp=1:nGEprices
+    Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 end
 
 % If z (and e) are determined in GE
@@ -53,7 +53,7 @@ end
 
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
 StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
-AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, simoptions.parallel, simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, simoptions.parallel, simoptions);
 
 
 %% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
@@ -86,6 +86,7 @@ if heteroagentoptions.useCustomModelStats==1
         Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
     end
 end
+
 
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
@@ -122,7 +123,7 @@ end
 if heteroagentoptions.verbose==1
     fprintf(' \n')
     fprintf('Current GE prices: \n')
-    for pp=1:l_p
+    for pp=1:nGEprices
         fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEprices(pp))
     end
     fprintf('Current aggregate variables: \n')

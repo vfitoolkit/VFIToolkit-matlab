@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1_withV(V,StationaryDist, PolicyIndexes, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_Case1_withV(V,StationaryDist, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
 % Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
@@ -26,7 +26,7 @@ FnsToEvaluateStruct=1;
 if Parallel==2 || Parallel==4
     Parallel=2;
     StationaryDist=gpuArray(StationaryDist);
-    PolicyIndexes=gpuArray(PolicyIndexes);
+    Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
@@ -38,7 +38,7 @@ if Parallel==2 || Parallel==4
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
@@ -60,7 +60,7 @@ if Parallel==2 || Parallel==4
     
 else
     
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
     
@@ -201,7 +201,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{kk},' has a restricted sample that is of zero mass \n'])
                 AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
-                AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_Case1_withV(V,RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+                AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_Case1_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
                 
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above
@@ -258,7 +258,7 @@ if isfield(simoptions,'conditionalrestrictions')
                 fprintf(['Specifically, the restriction called ',CondlRestnFnNames{kk},' has a restricted sample that is of zero mass \n'])
                 AggVars.(CondlRestnFnNames{kk}).RestrictedSampleMass=restrictedsamplemass; % Just return this and hopefully it is clear to the user
             else
-                AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_Case1_withV(V,RestrictedStationaryDistVec, PolicyIndexes, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, simoptions);
+                AggVars.(CondlRestnFnNames{kk})=EvalFnOnAgentDist_AggVars_Case1_withV(V,RestrictedStationaryDistVec, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,Parallel, simoptions);
                 
                 % Create some renormalizations where relevant (just the mean)
                 for ii=1:length(FnsToEvaluate) %Note FnsToEvaluate alread created above

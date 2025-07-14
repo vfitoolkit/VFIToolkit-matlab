@@ -1,8 +1,7 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqns, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, AggVarNames, nGEprices, heteroagentoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions)
 
 %% Do any transformations of parameters before we say what they are
 penalty=zeros(length(GEprices),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
-nGEprices=length(GEprices);
 for pp=1:nGEprices
     if heteroagentoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
         temp=GEprices(pp);
@@ -35,12 +34,21 @@ else
 end
 % NOTE: penalty has not been used here
 
-
-%%
-for pp=1:nGEprices % Not sure this is needed, have it just in case they are used when calling 'GeneralEqmConditionsFn', but I am pretty sure they never would be.
+%% 
+for pp=1:nGEprices
     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 end
 
+% If z (and e) are determined in GE
+if heteroagentoptions.gridsinGE==1
+    % Some of the shock grids depend on parameters that are determined in general eqm
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_gridvals_J,pi_z,N_j,Names_i,Parameters,vfoptions,3);
+    % Note: these are actually z_gridvals and pi_z
+    simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
+    simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
+end
+
+%%
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
@@ -77,14 +85,50 @@ end
 AggVars=gather(sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2));
 % Note: AggVars is a vector
 
-% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+
+
+%% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+% already did the basic GE params
+% for pp=1:nGEprices
+%     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
+% end
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
+
+%% Intermediate Eqns
+if heteroagentoptions.useintermediateEqns==1
+    % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
+    intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
+    intermediateEqnsVec=zeros(1,length(intEqnnames));
+    % Do the intermediateEqns, in order
+    for gg=1:length(intEqnnames)
+        intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg).Names, Parameters));
+        Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
+    end
+end
+
+%% Custom Model Stats
+if heteroagentoptions.useCustomModelStats==1
+    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    end
+end
 
 
-% We might want to output GE conditions as a vector or structure
+
+%% Evaluate General Eqm Eqns
+% use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
+for gg=1:length(GEeqnNames)
+    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+end
+
+
+%% We might want to output GE conditions as a vector or structure
 if heteroagentoptions.outputGEform==0 % scalar
     if heteroagentoptions.multiGEcriterion==0
         GeneralEqmConditions=sum(abs(heteroagentoptions.multiGEweights.*GeneralEqmConditionsVec));
@@ -101,33 +145,39 @@ elseif heteroagentoptions.outputGEform==1 % vector
     end
 elseif heteroagentoptions.outputGEform==2 % structure
     clear GeneralEqmConditions
-    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
-    for ii=1:length(GeneralEqmEqnsNames)
-        GeneralEqmConditions.(GeneralEqmEqnsNames{ii})=GeneralEqmConditionsVec(ii);
+    for gg=1:length(GEeqnNames)
+        GeneralEqmConditions.(GEeqnNames{gg})=GEeqnNames(gg);
     end
 end
 
+%% Feedback on progress
 if heteroagentoptions.verbose==1
     fprintf(' \n')
     fprintf('Current GE prices: \n')
-    for ii=1:nGEprices
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},GEprices(ii))
+    for pp=1:nGEprices
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEprices(pp))
     end
     fprintf('Current aggregate variables: \n')
-    for ii=1:length(AggVarNames)
-        fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
+    for aa=1:length(AggVarNames)
+        fprintf('	%s: %8.4f \n',AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+    end
+    if heteroagentoptions.useintermediateEqns==1
+        fprintf('Current intermediateEqn variables: \n')
+        for aa=1:length(intEqnnames)
+            fprintf('	%s: %8.4f \n',intEqnnames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+        end
+    end
+    if heteroagentoptions.useCustomModelStats==1
+        fprintf('Current CustomModelStats variables: \n')
+        for ii=1:length(customstatnames)
+            fprintf('	%s: %8.4f \n',customstatnames{ii},CustomStats.(customstatnames{ii}))
+        end
     end
     fprintf('Current GeneralEqmEqns: \n')
-    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
-    for ii=1:length(GeneralEqmEqnsNames)
-        fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
+    for gg=1:length(GEeqnNames)
+        fprintf('	%s: %8.4f \n',GEeqnNames{gg},GeneralEqmConditionsVec(gg))
     end
 end
 
-
-
-if heteroagentoptions.saveprogresseachiter==1
-    save HeterAgentEqm_internal.mat GEprices Parameters GeneralEqmConditionsVec
-end
 
 end

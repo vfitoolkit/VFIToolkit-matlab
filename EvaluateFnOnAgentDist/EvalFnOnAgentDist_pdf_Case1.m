@@ -1,4 +1,4 @@
-function ProbDensityFns=EvalFnOnAgentDist_pdf_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,EntryExitParamNames)
+function ProbDensityFns=EvalFnOnAgentDist_pdf_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,EntryExitParamNames)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
 % Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
@@ -24,7 +24,7 @@ N_z=prod(n_z);
 %%
 if isstruct(StationaryDist)
     % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
-    ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+    ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
     return
 end
 
@@ -50,7 +50,7 @@ end
 %%
 if Parallel==2 || Parallel==4
     StationaryDist=gpuArray(StationaryDist);
-    PolicyIndexes=gpuArray(PolicyIndexes);
+    Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
@@ -63,7 +63,7 @@ if Parallel==2 || Parallel==4
     ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
     
     l_daprime=size(Policy,1);
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     
@@ -75,7 +75,7 @@ if Parallel==2 || Parallel==4
     end
     
 else
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
     

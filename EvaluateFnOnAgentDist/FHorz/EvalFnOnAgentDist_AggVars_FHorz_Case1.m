@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
@@ -23,7 +23,7 @@ else
 end
 
 if simoptions.parallel==1
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 end
 
 %%
@@ -36,7 +36,7 @@ N_a=prod(n_a);
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
-l_daprime=size(PolicyIndexes,1)-simoptions.gridinterplayer; % Note: simoptions.gridinterplayer=1 means that PolicyIndexes has an extra 'second layer index'
+l_daprime=size(Policy,1)-simoptions.gridinterplayer; % Note: simoptions.gridinterplayer=1 means that PolicyIndexes has an extra 'second layer index'
 
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)
@@ -75,7 +75,7 @@ if N_z==0
         AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
 
 
@@ -104,7 +104,7 @@ if N_z==0
         AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
 
         for ii=1:length(FnsToEvaluate)
             Values=nan(N_a,N_j,'gpuArray');
@@ -128,7 +128,7 @@ else % N_z
         AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a,N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
         PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 
         for ff=1:length(FnsToEvaluate)
@@ -156,7 +156,7 @@ else % N_z
         AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
         StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-        PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+        PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
 
         for ii=1:length(FnsToEvaluate)
             Values=nan(N_a*N_z,N_j,'gpuArray');
@@ -178,17 +178,17 @@ else % N_z
         StationaryDist=permute(reshape(StationaryDist,[N_a,N_z,N_j]),[1,3,2]); % permute moves z to last dimension
 
         if n_d(1)>0
-            PolicyIndexes=reshape(PolicyIndexes,[size(PolicyIndexes,1),N_a,N_z,N_j]);
+            Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
         else
-            PolicyIndexes=reshape(PolicyIndexes,[N_a,N_z,N_j]);
+            Policy=reshape(Policy,[N_a,N_z,N_j]);
         end
         
         for z_c=1:N_z
             StationaryDistVec_z=StationaryDist(:,:,z_c); % This is why I did the permute (to avoid a reshape here). Not actually sure whether all the reshapes would be faster than the permute or not?
             if n_d(1)>0
-                PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes(:,:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+                PolicyValues=PolicyInd2Val_FHorz(Policy(:,:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
             else
-                PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes(:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
+                PolicyValues=PolicyInd2Val_FHorz(Policy(:,z_c,:),n_d,n_a,1,N_j,d_grid,a_grid,simoptions,1); % Note PolicyIndexes input is the wrong shape, but because this is parellel=2 the first thing PolicyInd2Val does is anyway to reshape() it.
             end
 
             for ii=1:length(FnsToEvaluate)

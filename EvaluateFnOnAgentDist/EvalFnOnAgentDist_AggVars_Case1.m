@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames, PolicyWhenExiting)
+function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames, PolicyWhenExiting)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
 % Parallel, simoptions, EntryExitParamNames and PolicyWhenExiting are
@@ -32,7 +32,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 
-l_daprime=size(PolicyIndexes,1);
+l_daprime=size(Policy,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
@@ -88,7 +88,7 @@ if isfield(simoptions,'eval_valuefn')
                 if length(FnsToEvaluateParamNames(ff).Names)>1
                     tempFnsToEvaluateParamNames(ff).Names=FnsToEvaluateParamNames(ff).Names{2:end};
                 end
-                AggVarsExtra=EvalFnOnAgentDist_AggVars_Case1_withV(simoptions.eval_valuefn,StationaryDist, PolicyIndexes, {FnsToEvaluate{ff}}, {FnsToEvalNames{ff}}, Parameters, tempFnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
+                AggVarsExtra=EvalFnOnAgentDist_AggVars_Case1_withV(simoptions.eval_valuefn,StationaryDist, Policy, {FnsToEvaluate{ff}}, {FnsToEvalNames{ff}}, Parameters, tempFnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
                 FnsToEvaluate2=FnsToEvaluate; FnsToEvaluateParamNames2=FnsToEvaluateParamNames;
                 clear FnsToEvaluateParamNames
                 FnsToEvaluate={}; % Note: there may be no other FnsToEvaluate
@@ -189,7 +189,7 @@ if isfield(simoptions,'statedependentparams')
     % for EvalFnOnAgentDist_Grid_Case1_SDP if this is reduced to just
     % (n_a,n_z) using the Policy function.
     if l_d==0
-        PolicyIndexes_sdp=reshape(PolicyIndexes(l_a,N_a,N_z));
+        PolicyIndexes_sdp=reshape(Policy(l_a,N_a,N_z));
         PolicyIndexes_sdp=permute(PolicyIndexes_sdp,[2,3,1]);
         if l_a==1
             aprime_ind=PolicyIndexes_sdp(:,:,1);
@@ -212,7 +212,7 @@ if isfield(simoptions,'statedependentparams')
             SDP3=SDP3(aprimeaz_ind);
         end
     else
-        PolicyIndexes_sdp=reshape(PolicyIndexes(l_d+l_a,N_a,N_z));
+        PolicyIndexes_sdp=reshape(Policy(l_d+l_a,N_a,N_z));
         PolicyIndexes_sdp=permute(PolicyIndexes_sdp,[2,3,1]);
         if l_d==1
             d_ind=PolicyIndexes_sdp(:,:,1);
@@ -263,11 +263,11 @@ if isstruct(StationaryDist)
         simoptions.endogenousexit=0;
     end
     if simoptions.endogenousexit~=2
-        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
     elseif simoptions.endogenousexit==2
         exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
         exitprobs=[1-sum(exitprobabilities),exitprobabilities];
-        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, PolicyIndexes, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, exitprobs);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, Policy, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, exitprobs);
     end
     
     if FnsToEvaluateStruct==1
@@ -288,7 +288,7 @@ end
 %%
 if Parallel==2
     StationaryDist=gpuArray(StationaryDist);
-    PolicyIndexes=gpuArray(PolicyIndexes);
+    Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
@@ -299,7 +299,7 @@ if Parallel==2
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     % if N_z==0
     %     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
@@ -317,7 +317,7 @@ if Parallel==2
     
 else % CPU
     
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=num2cell(a_gridvals);
     z_gridvals=num2cell(z_gridvals);
 

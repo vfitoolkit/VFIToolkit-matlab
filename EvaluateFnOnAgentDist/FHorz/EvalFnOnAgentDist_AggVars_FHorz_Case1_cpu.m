@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 % cpu version only does the basics
 
 %%
@@ -52,9 +52,9 @@ z_gridvals=CreateGridvals(n_z,z_grid,2);
 
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z*N_j,1]);
 
-sizePolicyIndexes=size(PolicyIndexes);
-if length(PolicyIndexes)>4 % If not in vectorized form
-    PolicyIndexes=reshape(PolicyIndexes,[sizePolicyIndexes(1),N_a,N_z,N_j]);
+sizePolicyIndexes=size(Policy);
+if length(Policy)>4 % If not in vectorized form
+    Policy=reshape(Policy,[sizePolicyIndexes(1),N_a,N_z,N_j]);
 end
 
 for ii=1:length(FnsToEvaluate)
@@ -62,7 +62,7 @@ for ii=1:length(FnsToEvaluate)
     if l_d==0
         for jj=1:N_j
 
-            [~, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+            [~, aprime_gridvals]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
             if ~isempty(FnsToEvaluateParamNames(ii).Names)
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end
@@ -80,7 +80,7 @@ for ii=1:length(FnsToEvaluate)
     else
         for jj=1:N_j
 
-            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
             if ~isempty(FnsToEvaluateParamNames(ii).Names)
                 FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
             end

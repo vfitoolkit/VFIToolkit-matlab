@@ -1,4 +1,4 @@
-function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,PolicyIndexes,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 % Similar to SimLifeCycleProfiles but works from StationaryDist rather than
 % simulating panel data. Where applicable it is faster and more accurate.
 % options.agegroupings can be used to do conditional on 'age bins' rather than age
@@ -104,12 +104,12 @@ end
 
 %%
 if simoptions.parallel==1
-    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_cpu(StationaryDist,PolicyIndexes,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_cpu(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
     return
 end
 % just make sure things are on gpu as they should be
 StationaryDist=gpuArray(StationaryDist);
-PolicyIndexes=gpuArray(PolicyIndexes);
+Policy=gpuArray(Policy);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 
@@ -123,11 +123,11 @@ a_grid=gpuArray(a_grid);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 if N_z==0
     StationaryDist=reshape(StationaryDist,[N_a,N_j]);
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
     PolicyValuesPermuteJ=permute(PolicyValues,[2,1,3]); % (N_a,l_daprime,N_j)
 else
     StationaryDist=reshape(StationaryDist,[N_a*N_z,N_j]);
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
     PolicyValuesPermuteJ=permute(PolicyValues,[2,3,1,4]); % (N_a,N_z,l_daprime,N_j)
 end
 

@@ -1,4 +1,4 @@
-function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, parallel,npoints)
+function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, parallel,npoints)
 %Returns a Matrix 100-by-100 that contains the t-period transition probabilities for all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-npoints. (third dimension is the different FnsToEvaluate that this
@@ -44,7 +44,7 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_daprime=size(PolicyIndexes,1);
+l_daprime=size(Policy,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 
@@ -76,7 +76,7 @@ if parallel==2
     % So instead, switch to CPU, and then switch
     % back. For anything but ridiculously short simulations it is more than
     % worth the overhead.
-    PolicyIndexes=gather(PolicyIndexes);
+    Policy=gather(Policy);
     StationaryDist=gather(StationaryDist);
     MoveOutputToGPU=1;
 end
@@ -109,14 +109,14 @@ end
 %% Done simulating, switch back to GPU
 if MoveOutputToGPU==1
     Transitions_StartAndFinishIndexes=gpuArray(Transitions_StartAndFinishIndexes);
-    PolicyIndexes=gpuArray(PolicyIndexes);
+    Policy=gpuArray(Policy);
 end
 
 %% We have the indexes. Now convert into values. Will give us NSims transitions (values).
 Transitions_StartAndFinish=nan(2,NSims,length(FnsToEvaluate),'gpuArray');
 Transitions_StartAndFinish_jj=nan(2,NSims,'gpuArray');
 
-PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 

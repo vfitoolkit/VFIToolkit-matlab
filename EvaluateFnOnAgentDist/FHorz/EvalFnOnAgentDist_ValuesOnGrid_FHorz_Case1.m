@@ -1,4 +1,4 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
@@ -26,7 +26,7 @@ a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
-l_daprime=size(PolicyIndexes,1);
+l_daprime=size(Policy,1);
 
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)
@@ -57,7 +57,7 @@ end
 
 %%
 if N_z==0
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,0,N_j,d_grid,a_grid,simoptions,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1]); % (N_a,N_j,l_daprime)
 
     for ff=1:length(FnsToEvaluate)
@@ -65,7 +65,7 @@ if N_z==0
         ValuesOnGrid.(AggVarNames{ff})=EvalFnOnAgentDist_Grid_J(FnsToEvaluate{ff},CellOverAgeOfParamValues,PolicyValuesPermute,l_daprime,n_a,0,a_gridvals,[]);
     end
 else % N_z
-    PolicyValues=PolicyInd2Val_FHorz(PolicyIndexes,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
+    PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions,1);
     PolicyValuesPermute=permute(PolicyValues,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
 
     for ff=1:length(FnsToEvaluate)

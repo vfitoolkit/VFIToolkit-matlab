@@ -1,4 +1,4 @@
-function AllStats=EvalFnOnAgentDist_AllStats_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions)
+function AllStats=EvalFnOnAgentDist_AllStats_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions)
 % Returns a wide variety of statistics
 %
 % simoptions optional inputs
@@ -46,7 +46,7 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_daprime=size(PolicyIndexes,1);
+l_daprime=size(Policy,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
@@ -86,9 +86,9 @@ StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 if simoptions.parallel==2
 
     StationaryDistVec=gpuArray(StationaryDistVec);
-    PolicyIndexes=gpuArray(PolicyIndexes);
+    Policy=gpuArray(Policy);
 
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];
     % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
@@ -173,9 +173,9 @@ if simoptions.parallel==2
 else 
     %% On CPU (simoptions.parallel~=2)
     StationaryDistVec=gather(StationaryDistVec);
-    PolicyIndexes=gather(PolicyIndexes);
+    Policy=gather(Policy);
 
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=num2cell(a_gridvals);
     z_gridvals=num2cell(z_gridvals);
     

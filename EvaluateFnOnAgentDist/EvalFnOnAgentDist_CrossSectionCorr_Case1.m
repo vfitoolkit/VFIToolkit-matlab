@@ -1,4 +1,4 @@
-function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCorr_Case1(StationaryDist, PolicyIndexes, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,simoptions)
+function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCorr_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,simoptions)
 % Evaluates the cross-sectional correlation between every possible pair from FnsToEvaluate
 % eg. if you give a FnsToEvaluate with three functions you will get three
 % cross-sectional correlations; with two function you get one; with four
@@ -28,7 +28,7 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-l_daprime=size(PolicyIndexes,1);
+l_daprime=size(Policy,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 
@@ -57,7 +57,7 @@ StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 CrossSectionCorr=struct();
 
-PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
