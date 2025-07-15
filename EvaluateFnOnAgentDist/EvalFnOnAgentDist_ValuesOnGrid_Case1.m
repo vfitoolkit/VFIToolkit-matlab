@@ -1,13 +1,12 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1(Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames,StationaryDist)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1(Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, EntryExitParamNames,StationaryDist)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
 % StationaryDist, Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
 
 %%
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0);
+Parallel=1+(gpuDeviceCount>0);
+if ~exist('simoptions','var')
+    simoptions=struct();
 end
 
 if n_d(1)==0
@@ -23,12 +22,7 @@ N_z=prod(n_z);
 
 l_daprime=size(Policy,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-if all(size(z_grid)==[sum(n_z),1]) % stacked-column
-    z_gridvals=CreateGridvals(n_z,z_grid,1);
-elseif all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid 
-    z_gridvals=z_grid;
-end
-
+[z_gridvals,~,simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -37,8 +31,8 @@ if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -52,7 +46,7 @@ end
 %%
 if exist('StationaryDist','var')
     if isstruct(StationaryDist)
-        % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
+        % Even though Mass is unimportant, still need to deal with 'exit' in Policy
         ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
         return
     end
@@ -62,18 +56,14 @@ ValuesOnGrid=struct();
 
 if Parallel==2
     Policy=gpuArray(Policy);
-    n_d=gpuArray(n_d);
-    n_a=gpuArray(n_a);
-    n_z=gpuArray(n_z);
-    d_grid=gpuArray(d_grid);
+    % n_d=gpuArray(n_d);
+    % n_a=gpuArray(n_a);
+    % n_z=gpuArray(n_z);
     l_daprime=size(Policy,1);
-    %a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
-    %z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
-    a_grid=gpuArray(a_grid);
 
-    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,gpuArray(d_grid),gpuArray(a_grid),simoptions,1);
     if l_z==0
-        PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,N_z,l_d+l_a]
+        PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
     else
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
     end
@@ -86,8 +76,6 @@ if Parallel==2
     end
 else
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-    a_gridvals=CreateGridvals(n_a,a_grid,2);
-    z_gridvals=CreateGridvals(n_z,z_grid,2);    
         
     if l_d>0
         
