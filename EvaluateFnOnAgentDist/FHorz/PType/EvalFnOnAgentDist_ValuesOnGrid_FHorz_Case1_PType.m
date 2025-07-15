@@ -1,4 +1,4 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1_PType(Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -50,11 +50,7 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 if ~isstruct(FnsToEvaluate)
-    if isa(StationaryDist.(Names_i{1}), 'gpuArray')
-        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
-    else
-        ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j);
-    end
+    ValuesOnDist_Kron=nan(numFnsToEvaluate,N_a,N_z,N_j,'gpuArray');
 end
 ValuesOnGrid=struct();
 
@@ -85,22 +81,12 @@ for ii=1:N_i % First set up simoptions
     
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
     else
         PolicyIndexes_temp=Policy.(Names_i{ii});
-        StationaryDist_temp=StationaryDist.(Names_i{ii});
-    end
-    % Parallel is determined by StationaryDist, unless it is specified
-    if isa(StationaryDist_temp, 'gpuArray')
-        Parallel_temp=2;
-    else
-        Parallel_temp=1;
     end
     if isfield(simoptions_temp,'parallel')
-        Parallel_temp=simoptions.parallel;
-        if Parallel_temp~=2
+        if simoptions.parallel~=2
             PolicyIndexes_temp=gather(PolicyIndexes_temp);
-            StationaryDist_temp=gather(StationaryDist_temp);
         end
     end
     
