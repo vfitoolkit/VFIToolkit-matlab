@@ -1,4 +1,4 @@
-function [VKron,Policy]=ValueFnIter_Case2_Par2_raw(VKron, n_d, n_a, n_z, pi_z, beta, ReturnMatrix, Phi_aprime, Case2_Type, Howards,Howards2, Verbose, Tolerance)
+function [VKron,Policy]=ValueFnIter_Case2_raw(VKron, n_d, n_a, n_z, pi_z, beta, ReturnMatrix, Phi_aprime, Case2_Type, Howards,Howards2, Verbose, Tolerance)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -116,7 +116,7 @@ elseif Case2_Type==2 %a'(d,z,z')
         EV=reshape(sum(EV,2),[N_d,1,N_z]);
         
         for z_c=1:N_z % Can probably eliminate this loop and replace with a matrix multiplication operation thereby making it faster
-            entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c)*ones(1,N_a,1,'gpuArray');
+            entireRHS=ReturnMatrix(:,:,z_c)+beta*EV(:,z_c);
             
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
