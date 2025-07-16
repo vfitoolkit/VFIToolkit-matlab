@@ -996,7 +996,9 @@ if heteroagentoptions.outputGEstruct==1
 end
 
 
-if nargout==2
+if nargout==1
+    varargout={p_eqm};
+elseif nargout==2
     varargout={p_eqm,GeneralEqmConditions};
 elseif nargout==3
     varargout={p_eqm,p_eqm_index,GeneralEqmConditions};
