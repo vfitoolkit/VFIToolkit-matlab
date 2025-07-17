@@ -1,8 +1,5 @@
-function [VKron, Policy]=ValueFnIter_nod_raw(VKron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance,maxiter) % Verbose, a_grid, z_grid,
-%Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
-
-N_a=prod(n_a);
-N_z=prod(n_z);
+function [VKron, Policy]=ValueFnIter_nod_raw(VKron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards, MaxHowards, Tolerance, maxiter)
+% Value fn iteration, with Howards improvement iterations (a.k.a. modified Policy function iteration)
 
 pi_z_alt=shiftdim(pi_z',-1);
 pi_z_howards=repelem(pi_z,N_a,1);
@@ -24,12 +21,6 @@ while currdist>Tolerance && tempcounter<=maxiter
 
     %Calc the max and it's index
     [VKron,Policy]=max(entireRHS,[],1);
-
-    tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
-
-    Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-
-    Policy=Policy(:); % a by z (this shape is just convenient for Howards)
     VKron=shiftdim(VKron,1); % a by z
 
     VKrondist=VKron(:)-VKronold(:); 
@@ -37,7 +28,11 @@ while currdist>Tolerance && tempcounter<=maxiter
     currdist=max(abs(VKrondist));
     
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
-    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 
+    if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<MaxHowards 
+        tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
+        Policy=Policy(:); % a by z (this shape is just convenient for Howards)
+
         for Howards_counter=1:Howards
             EVKrontemp=VKron(Policy,:);
             EVKrontemp=EVKrontemp.*pi_z_howards;

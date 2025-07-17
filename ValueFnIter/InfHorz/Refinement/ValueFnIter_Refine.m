@@ -32,21 +32,17 @@ elseif vfoptions.lowmemory==1 % loop over z
     end
 end
 
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to create return fn matrix: %8.4f \n', time)
-    fprintf('Starting Value Function \n')
-    tic;
-end
-
 %%
 % V0=reshape(V0,[N_a,N_z]);
 
-% Refinement essentially just ends up using the NoD case to solve the value function once we have the return matrix
-[VKron,Policy_a]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
+if N_a<400 || N_z<20
+    [VKron,Policy_a]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+else
+    [VKron,Policy_a]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
+end
 
-
-%% For refinement, add d to Policy
+%% For refinement, add d into Policy
 % Policy is currently
 if n_d(1)>0
     Policy=zeros(2,N_a,N_z);

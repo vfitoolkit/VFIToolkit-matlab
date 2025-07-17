@@ -15,7 +15,7 @@ if ~exist('vfoptions','var')
     vfoptions.lowmemory=0;
     vfoptions.verbose=0;
     vfoptions.tolerance=10^(-9);
-    vfoptions.howards=80;
+    vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
     vfoptions.maxhowards=500;
     vfoptions.maxiter=Inf;
     vfoptions.endogenousexit=0;
@@ -59,7 +59,7 @@ else
         vfoptions.tolerance=10^(-9);
     end
     if ~isfield(vfoptions,'howards')
-        vfoptions.howards=80;
+        vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
     end  
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500;
@@ -191,7 +191,6 @@ if max(vfoptions.incrementaltype)==1
         error('Using vfoptions.incrementaltype only works with vfoptions.solnmethod as purediscretization')
     end
 end
-
 
 %%
 if vfoptions.parallel==2 
@@ -440,7 +439,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron,Policy]=ValueFnIter_nod_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             elseif vfoptions.parallel==2 % On GPU
-                [VKron,Policy]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
+                if N_a<400 || N_z<20
+                    [VKron,Policy]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
+                else
+                    [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
+                end
             end
         else
             if vfoptions.parallel==0     % On CPU
@@ -448,6 +451,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron, Policy]=ValueFnIter_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             elseif vfoptions.parallel==2 % On GPU
+                % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
                 [VKron, Policy]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             end
         end
@@ -544,15 +548,8 @@ if strcmp(vfoptions.solnmethod,'purediscretization_refinement2')
     % another endogenous state. This will happen because of how we have n_a setup.
 end
 
-%%
-if strcmp(vfoptions.solnmethod,'purediscretization_PFI') 
-    % Note: have only implemented PFI on the GPU
-    [VKron,Policy]=ValueFnIter_Case1_PolicyFnIter(V0,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z,ReturnFn,ReturnFnParamsVec,DiscountFactorParamsVec,vfoptions,n_SDP,SDP1,SDP2,SDP3);
-end
 
 if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to solve for Value Fn and Policy: %8.4f \n', time)
     disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
     tic;
 end
@@ -561,10 +558,6 @@ end
 if vfoptions.outputkron==0
     V=reshape(VKron,[n_a,n_z]);
     Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-    end
 else
     varargout={VKron,Policy};
     return
