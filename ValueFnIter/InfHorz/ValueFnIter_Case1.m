@@ -4,26 +4,39 @@ function varargout=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, Ret
 
 V=nan; % Matlab was complaining that V was not assigned
 
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
 %% Check which vfoptions have been used, set all others to defaults 
 if ~exist('vfoptions','var')
     disp('No vfoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
+    % If vfoptions is not given, just use all the defaults
+    vfoptions.verbose=0;
+    vfoptions.tolerance=10^(-9); % Convergence tolerance (for ||V_n - V_{n-1}|| )
+    vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    vfoptions.maxiter=Inf; % Can be used to stop the VFI after a finite number of iterations
+    % Options relating to how the model is solved (which algorithm)
     vfoptions.solnmethod='purediscretization_refinement'; % if no d variable, will be set to 'purediscretization' below
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
-    vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     vfoptions.lowmemory=0;
-    vfoptions.verbose=0;
-    vfoptions.tolerance=10^(-9);
+    % Howards improvement
     vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
-    vfoptions.maxhowards=500;
-    vfoptions.maxiter=Inf;
+    vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
+    if N_a<400 || N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration) 
+        vfoptions.howardsgreedy=1;      
+    else
+        vfoptions.howardsgreedy=0;
+    end
+    % Different asset types
     vfoptions.endogenousexit=0;
     vfoptions.endotype=0; % (vector indicating endogenous state is a type)
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
+    vfoptions.experienceasset=0;
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
-    vfoptions.experienceasset=0;
+    % Other option
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
@@ -33,6 +46,18 @@ if ~exist('vfoptions','var')
     vfoptions.alreadygridvals=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(vfoptions,'verbose')
+        vfoptions.verbose=0;
+    end
+    if ~isfield(vfoptions,'tolerance')
+        vfoptions.tolerance=10^(-9);
+    end
+    if ~isfield(vfoptions,'parallel')
+        vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    end
+    if ~isfield(vfoptions,'maxiter')
+        vfoptions.maxiter=Inf;
+    end
     if ~isfield(vfoptions,'solnmethod')
         vfoptions.solnmethod='purediscretization_refinement'; % if no d variable, will be set to 'purediscretization' below
     end
@@ -46,17 +71,8 @@ else
             error('When using vfoptions.gridinterplayer=1 you must set vfoptions.gridinterplayer')
         end
     end
-    if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    end
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
-    end
-    if ~isfield(vfoptions,'verbose')
-        vfoptions.verbose=0;
-    end
-    if ~isfield(vfoptions,'tolerance')
-        vfoptions.tolerance=10^(-9);
     end
     if ~isfield(vfoptions,'howards')
         vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
@@ -64,8 +80,12 @@ else
     if ~isfield(vfoptions,'maxhowards')
         vfoptions.maxhowards=500;
     end  
-    if ~isfield(vfoptions,'maxiter')
-        vfoptions.maxiter=Inf;
+    if ~isfield(vfoptions,'howardsgreedy')
+        if N_a<400 || N_z<20
+            vfoptions.howardsgreedy=1;
+        else
+            vfoptions.howardsgreedy=0;
+        end
     end
     if ~isfield(vfoptions,'endogenousexit')
         vfoptions.endogenousexit=0;
@@ -118,10 +138,6 @@ if vfoptions.divideandconquer==1 && isscalar(n_a)
     vfoptions.divideandconquer=0; 
 end
 
-
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
 
 if isfield(vfoptions,'V0')
     V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
@@ -439,9 +455,9 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron,Policy]=ValueFnIter_nod_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             elseif vfoptions.parallel==2 % On GPU
-                if N_a<400 || N_z<20
+                if vfoptions.howardsgreedy==1
                     [VKron,Policy]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
-                else
+                elseif vfoptions.howardsgreedy==0
                     [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
                 end
             end
@@ -564,9 +580,9 @@ else
 end
 
 if vfoptions.polindorval==2
-    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid, a_grid);
+    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid, a_grid, vfoptions);
 end
-    
+
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then
 % makes the output back into double as Matlab otherwise cannot use it in

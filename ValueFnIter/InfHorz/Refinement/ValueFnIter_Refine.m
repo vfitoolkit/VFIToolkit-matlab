@@ -32,13 +32,12 @@ elseif vfoptions.lowmemory==1 % loop over z
     end
 end
 
-%%
-% V0=reshape(V0,[N_a,N_z]);
 
-% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
-if N_a<400 || N_z<20
+
+%% Refinement essentially just ends up using the 'no decision variable (nod)' case to solve the value function once we have the return matrix and refine out d
+if vfoptions.howardsgreedy==1
     [VKron,Policy_a]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
-else
+elseif vfoptions.howardsgreedy==0
     [VKron,Policy_a]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance,vfoptions.maxiter);
 end
 
