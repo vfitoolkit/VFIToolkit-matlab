@@ -133,7 +133,7 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
     
     StationaryDistKron.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
     StationaryDistKron.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
-    [StationaryDist]=StationaryDist_Case1_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+    [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
 elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
@@ -153,7 +153,7 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
         fprintf('Note: simoptions.iterate=1 is imposed/required when using simoptions.agententryandexit=2 \n')
     end
     ExitProb=Parameters.(EntryExitParamNames.ProbOfDeath{1});
-    StationaryDist=StationaryDist_Case1_Iteration_EntryExit2_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
+    StationaryDist=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end
@@ -186,7 +186,7 @@ if isfield(simoptions,'SemiEndogShockFn')
         end
     end
     if simoptions.eigenvector==1
-        StationaryDistKron=StationaryDist_Case1_LeftEigen_SemiEndog_raw(PolicyKron,N_d,N_a,N_z,pi_z_semiendog,simoptions);
+        StationaryDistKron=StationaryDist_InfHorz_LeftEigen_SemiEndog_raw(PolicyKron,N_d,N_a,N_z,pi_z_semiendog,simoptions);
         StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
         return
     else
@@ -235,7 +235,7 @@ end
 
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
-    StationaryDistKron=StationaryDist_Case1_LeftEigen_raw(PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+    StationaryDistKron=StationaryDist_InfHorz_LeftEigen_raw(PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
     if numel(StationaryDistKron)==1
         % Has failed, so continue on below to simulation and iteration commands
         warning('Eigenvector method for simulating agent dist failed, going to use simulate/iterate instead')
@@ -251,7 +251,7 @@ end
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
 if simoptions.iterate==0
     % Not something you want to do, just a demo of alternative way to compute
-    StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+    StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
     StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
     return
 end
@@ -259,9 +259,13 @@ end
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
 if simoptions.iterate==1
     if simoptions.tanimprovement==0
-        StationaryDistKron=StationaryDist_Case1_Iteration_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+        StationaryDistKron=StationaryDist_InfHorz_Iteration_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
     elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
-        StationaryDistKron=StationaryDist_Case1_IterationTan_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+        if simoptions.gridinterplayer==0
+            StationaryDistKron=StationaryDist_InfHorz_IterationTan_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+        elseif simoptions.gridinterplayer==1
+        
+        end
     end
 end
 StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);

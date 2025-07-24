@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_Case1_QRdecomp_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_QRdecomp_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed

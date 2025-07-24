@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z, simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z, simoptions)
 %Simulates path based on PolicyIndexes of length 'periods' after a burn
 %in of length 'burnin' (burn-in are the initial run of points that are then
 %dropped)

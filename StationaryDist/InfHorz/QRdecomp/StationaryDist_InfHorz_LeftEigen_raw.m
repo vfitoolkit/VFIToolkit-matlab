@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_Case1_LeftEigen_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z_semiendog,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_LeftEigen_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -6,28 +6,16 @@ function StationaryDistKron=StationaryDist_Case1_LeftEigen_SemiEndog_raw(PolicyI
 %  simoptions.tolerance
 %  simoptions.parallel
 
-pi_z_semiendog=reshape(pi_z_semiendog,[N_a*N_z,N_z]);
-
 % eigs() only works well for full cpu matrices
 if N_d==0 %length(n_d)==1 && n_d(1)==0
     optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
 else
     optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
 end
-PtransposeA=sparse(N_a,N_a*N_z);
-PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
-pi_z_semiendog=sparse(pi_z_semiendog);
-try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
-    Ptranspose=kron(pi_z_semiendog',ones(N_a,1)).*kron(ones(N_z,1),PtransposeA);
-catch % Otherwise do something slower but which is sparse regardless of whether pi_z is sparse
-    pi_z_semiendog=gather(pi_z_semiendog); % The indexing used can only be donoe on cpu
-    Ptranspose=kron(ones(N_z,1),PtransposeA);
-    for ii=1:N_z
-        iia=(1:1:N_a)+(ii-1)*N_a;
-%         Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z_semiendog(iia,:)',ones(N_a,1));
-        Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z_semiendog(iia,:)',ones(N_a,1));
-    end
-end
+Ptranspose=zeros(N_a,N_a*N_z);
+Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+Ptranspose=(kron(pi_z',ones(N_a,N_a))).*(kron(ones(N_z,1),Ptranspose));
+
 
 %% Calculate the stationary distribution as left eigenvector of the transition matrix
 % Eigenvector approach doesn't work very well. Partly because the matrices
@@ -53,14 +41,18 @@ end
 % but when I then implemented it here it was slower)
 % Following commented out line is what I had
 % [V,~] = eigs(Ptranspose,1); % We are only interested in the largest eigenvector
-% Following lines are alternative I found in MNS2016. It includes a bunch
-% of checks of input and output
+% Following lines are alternative I found in MNS2016. It includes a bunch of checks of input and output
 assert(all(abs(sum(Ptranspose)-1)<1e-10));
 opts.disp=0;
 [x,eval] = eigs(Ptranspose,[],1,1+1e-10,opts);
 assert(abs(eval-1)<1e-10);
 V = x/sum(x);
-assert(min(V)>-1e-12);
+% assert(min(V)>-1e-12); % Replaced with if statement
+if min(V)>-1e-11
+    StationaryDistKron=1;
+    return
+    % Failed, just return 1 and the code that calls this knows to try another method
+end
 V = max(V,0);
 
 StationaryDistKron=V/sum(V);

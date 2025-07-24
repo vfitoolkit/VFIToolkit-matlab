@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_Case1_IterationTan_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_IterationTan_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
 % Will treat the agents as being on a continuum of mass 1.
 % Uses the improvement of: Tan (2020) - A fast and low computational memory algorithm for non-stochastic simulations in heterogeneous agent models
 
