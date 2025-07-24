@@ -1,4 +1,7 @@
 function PolicyValues=PolicyInd2Val_Case1_PType(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,vfoptions)
+% Can use simoptions or vfoptions. If user is calling it, will probably be
+% vfoptions. But internally it gets used with simoptions. The options that
+% it checks are all things that will be common to both.
 
 Names_i=fieldnames(PolicyIndexes);
 N_i=length(Names_i);

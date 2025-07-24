@@ -6,16 +6,12 @@ function StationaryDistKron=StationaryDist_InfHorz_Iteration_raw(StationaryDistK
 %  simoptions.tolerance
 %  simoptions.parallel
 
-%kstep tells the code to use the k-step transition matrix P^k, instead of
-%P, when calculating the steady state distn
-%kstep=100;
-%THIS does not seem to be a good idea as it uses way to much memory and
-%appears to in fact slow the code down. NOTE: this is no longer used
-%anywhere in code, I leave it here as a reminder that I tried this and it
-%did not work well. This is particularly true now that I use sparse
-%matrices.
+% kstep tells the code to use the k-step transition matrix P^k, instead of P, when calculating the steady state distn
+% kstep=100;
+% THIS does not seem to be a good idea as it uses way to much memory and appears to in fact slow the code down. NOTE: this is no longer used
+% anywhere in code, I leave it here as a reminder that I tried this and it did not work well. This is particularly true now that I use sparse matrices.
 
-if N_d==0 %length(n_d)==1 && n_d(1)==0
+if N_d==0
     optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
 else
     optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);

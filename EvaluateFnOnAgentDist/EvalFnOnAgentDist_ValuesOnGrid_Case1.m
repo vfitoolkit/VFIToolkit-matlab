@@ -6,7 +6,9 @@ function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1(Policy, FnsToEvaluate
 %%
 Parallel=1+(gpuDeviceCount>0);
 if ~exist('simoptions','var')
-    simoptions=struct();
+    simoptions.gridinterplayer=0;
+elseif ~isfield(simoptions,'gridinterplayer')
+    simoptions.gridinterplayer=0;    
 end
 
 if n_d(1)==0
@@ -21,6 +23,9 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 [z_gridvals,~,simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
 
@@ -47,7 +52,7 @@ end
 if exist('StationaryDist','var')
     if isstruct(StationaryDist)
         % Even though Mass is unimportant, still need to deal with 'exit' in Policy
-        ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+        ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_InfHorz_Mass(StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
         return
     end
 end
@@ -56,9 +61,6 @@ ValuesOnGrid=struct();
 
 if Parallel==2
     Policy=gpuArray(Policy);
-    % n_d=gpuArray(n_d);
-    % n_a=gpuArray(n_a);
-    % n_z=gpuArray(n_z);
     l_daprime=size(Policy,1);
 
     PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,gpuArray(d_grid),gpuArray(a_grid),simoptions,1);

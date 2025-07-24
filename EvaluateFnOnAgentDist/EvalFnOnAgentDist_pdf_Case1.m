@@ -1,13 +1,12 @@
-function ProbDensityFns=EvalFnOnAgentDist_pdf_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,EntryExitParamNames)
+function ProbDensityFns=EvalFnOnAgentDist_pdf_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,simoptions,EntryExitParamNames)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
 % Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
 
 %%
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0);
+Parallel=1+(gpuDeviceCount>0);
+if ~isfield(simoptions,'gridinterplayer')
+    simoptions.gridinterplayer=0;
 end
 
 if n_d(1)==0
@@ -21,10 +20,15 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
+
 %%
 if isstruct(StationaryDist)
     % Even though Mass is unimportant, still need to deal with 'exit' in PolicyIndexes.
-    ProbDensityFns=EvalFnOnAgentDist_pdf_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
+    ProbDensityFns=EvalFnOnAgentDist_pdf_InfHorz_Mass(StationaryDist.pdf,StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions);
     return
 end
 
@@ -35,8 +39,8 @@ if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -48,7 +52,7 @@ else
 end
 
 %%
-if Parallel==2 || Parallel==4
+if Parallel==2
     StationaryDist=gpuArray(StationaryDist);
     Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);

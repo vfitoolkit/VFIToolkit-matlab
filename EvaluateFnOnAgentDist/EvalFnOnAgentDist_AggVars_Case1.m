@@ -1,38 +1,37 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions, EntryExitParamNames, PolicyWhenExiting)
+function AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, EntryExitParamNames, PolicyWhenExiting)
+% vfoptions or simoptions can be used as the input
+%
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
-% Parallel, simoptions, EntryExitParamNames and PolicyWhenExiting are
-% optional inputs, later two only needed when using endogenous entry and
-% endogenous exit.
+% EntryExitParamNames and PolicyWhenExiting are optional inputs, only needed when using endogenous entry and endogenous exit.
 
 %%
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0);
+if ~isfield(simoptions,'parallel')
+    simoptions.parallel=1+(gpuDeviceCount>0);
 end
-simoptions.parallel=Parallel;
-
-if ~exist('simoptions', 'var')
+if ~isfield(simoptions, 'alreadygridvals')
     simoptions.alreadygridvals=0;
-elseif ~isfield(simoptions, 'alreadygridvals')
-    simoptions.alreadygridvals=0;
+end
+if ~isfield(simoptions, 'gridinterplayer')
+    simoptions.gridinterplayer=0;
 end
 
 if n_d(1)==0
     l_d=0;
-    N_d=0;
 else
     l_d=length(n_d);
-    N_d=prod(n_d);
 end
 l_a=length(n_a);
 l_z=length(n_z);
+
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 
 l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
@@ -55,8 +54,8 @@ if isstruct(FnsToEvaluate)
     FnsToEvalNames=fieldnames(FnsToEvaluate);
     for ff=1:length(FnsToEvalNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -88,7 +87,7 @@ if isfield(simoptions,'eval_valuefn')
                 if length(FnsToEvaluateParamNames(ff).Names)>1
                     tempFnsToEvaluateParamNames(ff).Names=FnsToEvaluateParamNames(ff).Names{2:end};
                 end
-                AggVarsExtra=EvalFnOnAgentDist_AggVars_Case1_withV(simoptions.eval_valuefn,StationaryDist, Policy, {FnsToEvaluate{ff}}, {FnsToEvalNames{ff}}, Parameters, tempFnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
+                AggVarsExtra=EvalFnOnAgentDist_AggVars_Case1_withV(simoptions.eval_valuefn,StationaryDist, Policy, {FnsToEvaluate{ff}}, {FnsToEvalNames{ff}}, Parameters, tempFnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions);
                 FnsToEvaluate2=FnsToEvaluate; FnsToEvaluateParamNames2=FnsToEvaluateParamNames;
                 clear FnsToEvaluateParamNames
                 FnsToEvaluate={}; % Note: there may be no other FnsToEvaluate
@@ -112,150 +111,6 @@ end
 
 
 
-%%
-if isfield(simoptions,'statedependentparams')
-    n_SDP=length(simoptions.statedependentparams.names);
-    sdp=zeros(length(FnsToEvaluate),length(simoptions.statedependentparams.names));
-    for ii=1:length(FnsToEvaluate)
-        for jj=1:n_SDP
-            for kk=1:length(FnsToEvaluateParamNames(ii).Names)
-                if strcmp(simoptions.statedependentparams.names{jj},FnsToEvaluateParamNames(ii).Names{kk})
-                    sdp(ii,jj)=1;
-                    % Remove the statedependentparams from FnsToEvaluateParamNames
-                    FnsToEvaluateParamNames(ii).Names=setdiff(FnsToEvaluateParamNames(ii).Names,simoptions.statedependentparams.names{jj});
-                    % Set up the SDP variables
-                end
-            end
-        end
-    end
-    if N_d>1
-        n_full=[n_d,n_a,n_a,n_z];
-    else
-        n_full=[n_a,n_a,n_z];
-    end
-    
-    % First state dependent parameter, get into form needed for the valuefn
-    SDP1=Params.(simoptions.statedependentparams.names{1});
-    SDP1_dims=simoptions.statedependentparams.dimensions.(simoptions.statedependentparams.names{1});
-    %     simoptions.statedependentparams.dimensions.kmax=[3,4,5,6,7]; % The d,a & z variables (in VFI toolkit notation)
-    temp=ones(1,l_d+l_a+l_a+l_z);
-    for jj=1:max(SDP1_dims)
-        [v,ind]=max(SDP1_dims==jj);
-        if v==1
-            temp(jj)=n_full(ind);
-        end
-    end
-    if isscalar(SDP1)
-        SDP1=SDP1*ones(temp);
-    else
-        SDP1=reshape(SDP1,temp);
-    end
-    if n_SDP>=2
-        % Second state dependent parameter, get into form needed for the valuefn
-        SDP2=Params.(simoptions.statedependentparams.names{2});
-        SDP2_dims=simoptions.statedependentparams.dimensions.(simoptions.statedependentparams.names{2});
-        temp=ones(1,l_d+l_a+l_a+l_z);
-        for jj=1:max(SDP2_dims)
-            [v,ind]=max(SDP2_dims==jj);
-            if v==1
-                temp(jj)=n_full(ind);
-            end
-        end
-        if isscalar(SDP2)
-            SDP2=SDP2*ones(temp);
-        else
-            SDP2=reshape(SDP2,temp);
-        end
-    end
-    if n_SDP>=3
-        % Third state dependent parameter, get into form needed for the valuefn
-        SDP3=Params.(simoptions.statedependentparams.names{3});
-        SDP3_dims=simoptions.statedependentparams.dimensions.(simoptions.statedependentparams.names{3});
-        temp=ones(1,l_d+l_a+l_a+l_z);
-        for jj=1:max(SDP3_dims)
-            [v,ind]=max(SDP3_dims==jj);
-            if v==1
-                temp(jj)=n_full(ind);
-            end
-        end
-        if isscalar(SDP3)
-            SDP3=SDP3*ones(temp);
-        else
-            SDP3=reshape(SDP3,temp);
-        end
-    end
-    
-    % Currently SDP1 is on (n_d,n_aprime,n_a,n_z). It will be better
-    % for EvalFnOnAgentDist_Grid_Case1_SDP if this is reduced to just
-    % (n_a,n_z) using the Policy function.
-    if l_d==0
-        PolicyIndexes_sdp=reshape(Policy(l_a,N_a,N_z));
-        PolicyIndexes_sdp=permute(PolicyIndexes_sdp,[2,3,1]);
-        if l_a==1
-            aprime_ind=PolicyIndexes_sdp(:,:,1);
-        elseif l_a==2
-            aprime_ind=PolicyIndexes_sdp(:,:,1)+n_a(1)*(PolicyIndexes_sdp(:,:,2)-1);
-        elseif l_a==3
-            aprime_ind=PolicyIndexes_sdp(:,:,1)+n_a(1)*(PolicyIndexes_sdp(:,:,2)-1)+prod(n_a(1:2))*(PolicyIndexes_sdp(:,:,3)-1);
-        elseif l_a==4
-            aprime_ind=PolicyIndexes_sdp(:,:,1)+n_a(1)*(PolicyIndexes_sdp(:,:,2)-1)+prod(n_a(1:2))*(PolicyIndexes_sdp(:,:,3)-1)+prod(n_a(1:3))*(PolicyIndexes_sdp(:,:,4)-1);
-        end
-        aprime_ind=reshape(aprime_ind,[N_a*N_z,1]);
-        a_ind=reshape((1:1:N_a)'*ones(1,N_z),[N_a*N_z,1]);
-        z_ind=reshape(ones(N_a,1)*1:1:N_z,[N_a*N_z,1]);
-        aprimeaz_ind=aprime_ind+N_a*(a_ind-1)+N_a*N_a*(z_ind-1);
-        SDP1=SDP1(aprimeaz_ind);
-        if n_SDP>=2
-            SDP2=SDP2(aprimeaz_ind);
-        end
-        if n_SDP>=3
-            SDP3=SDP3(aprimeaz_ind);
-        end
-    else
-        PolicyIndexes_sdp=reshape(Policy(l_d+l_a,N_a,N_z));
-        PolicyIndexes_sdp=permute(PolicyIndexes_sdp,[2,3,1]);
-        if l_d==1
-            d_ind=PolicyIndexes_sdp(:,:,1);
-        elseif l_d==2
-            d_ind=PolicyIndexes_sdp(:,:,1)+n_d(1)*(PolicyIndexes_sdp(:,:,2)-1);
-        elseif l_d==3
-            d_ind=PolicyIndexes_sdp(:,:,1)+n_d(1)*(PolicyIndexes_sdp(:,:,2)-1)+prod(n_d(1:2))*(PolicyIndexes_sdp(:,:,3)-1);
-        elseif l_d==4
-            d_ind=PolicyIndexes_sdp(:,:,1)+n_d(1)*(PolicyIndexes_sdp(:,:,2)-1)+prod(n_d(1:2))*(PolicyIndexes_sdp(:,:,3)-1)+prod(n_d(1:3))*(PolicyIndexes_sdp(:,:,4)-1);
-        end
-        if l_a==1
-            aprime_ind=PolicyIndexes_sdp(:,:,l_d+1);
-        elseif l_a==2
-            aprime_ind=PolicyIndexes_sdp(:,:,l_d+1)+n_a(1)*(PolicyIndexes_sdp(:,:,l_d+2)-1);
-        elseif l_a==3
-            aprime_ind=PolicyIndexes_sdp(:,:,l_d+1)+n_a(1)*(PolicyIndexes_sdp(:,:,l_d+2)-1)+prod(n_a(1:2))*(PolicyIndexes_sdp(:,:,l_d+3)-1);
-        elseif l_a==4
-            aprime_ind=PolicyIndexes_sdp(:,:,l_d+1)+n_a(1)*(PolicyIndexes_sdp(:,:,l_d+2)-1)+prod(n_a(1:2))*(PolicyIndexes_sdp(:,:,l_d+3)-1)+prod(n_a(1:3))*(PolicyIndexes_sdp(:,:,l_d+4)-1);
-        end
-        d_ind=reshape(d_ind,[N_a*N_z,1]);
-        aprime_ind=reshape(aprime_ind,[N_a*N_z,1]);
-        a_ind=reshape((1:1:N_a)'*ones(1,N_z),[N_a*N_z,1]);
-        z_ind=reshape(ones(N_a,1)*1:1:N_z,[N_a*N_z,1]);
-        daprimeaz_ind=d_ind+N_d*aprime_ind+N_d*N_a*(a_ind-1)+N_d*N_a*N_a*(z_ind-1);
-        SDP1=SDP1(daprimeaz_ind);
-        if n_SDP>=2
-            SDP2=SDP2(daprimeaz_ind);
-        end
-        if n_SDP>=3
-            SDP3=SDP3(daprimeaz_ind);
-        end
-    end
-    
-    
-    if n_SDP>3
-        fprintf('WARNING: currently only three state dependent parameters are allowed. If you have a need for more please email robertdkirkby@gmail.com and let me know (I can easily implement more if needed) \n')
-        dbstack
-        return
-    end
-end
-
-
-
 %% Deal with Entry and/or Exit if approprate
 if isstruct(StationaryDist)
     % Note: if you want the agent mass of the stationary distribution you have to call it 'agentmass'
@@ -263,11 +118,11 @@ if isstruct(StationaryDist)
         simoptions.endogenousexit=0;
     end
     if simoptions.endogenousexit~=2
-        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDist.pdf,StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_InfHorz_Mass(StationaryDist.pdf,StationaryDist.mass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions);
     elseif simoptions.endogenousexit==2
         exitprobabilities=CreateVectorFromParams(Parameters, simoptions.exitprobabilities);
         exitprobs=[1-sum(exitprobabilities),exitprobabilities];
-        AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, Policy, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, exitprobs);
+        AggVars=EvalFnOnAgentDist_AggVars_InfHorz_Mass_MixExit(StationaryDist.pdf,StationaryDist.mass, Policy, PolicyWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, exitprobs);
     end
     
     if FnsToEvaluateStruct==1
@@ -286,24 +141,19 @@ end
 
 
 %%
-if Parallel==2
+if simoptions.parallel==2
     StationaryDist=gpuArray(StationaryDist);
     Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
-    a_grid=gpuArray(a_grid);
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
     PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-    % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
-    % if N_z==0
-    %     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
-    % else
     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
     
     for ff=1:length(FnsToEvaluate)

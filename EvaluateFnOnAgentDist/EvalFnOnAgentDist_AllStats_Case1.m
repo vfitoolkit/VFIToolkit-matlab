@@ -5,30 +5,34 @@ function AllStats=EvalFnOnAgentDist_AllStats_Case1(StationaryDist, Policy, FnsTo
 
 %%
 if ~exist('simoptions','var')
-    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.npoints=100;
     simoptions.nquantiles=20;
-    simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    simoptions.parallel=1+(gpuDeviceCount>0);
+    simoptions.gridinterplayer=0;
     simoptions.alreadygridvals=0;
 else
-    if ~isfield(simoptions,'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0);
-    end
     if ~isfield(simoptions,'npoints')
         simoptions.npoints=100;
     end
     if ~isfield(simoptions,'nquantiles')
         simoptions.nquantiles=20;
     end
-    if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    end
     if ~isfield(simoptions,'whichstats')
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    if ~isfield(simoptions,'tolerance')
+        simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    end
+    if ~isfield(simoptions,'parallel')
+        simoptions.parallel=1+(gpuDeviceCount>0);
+    end
+    if ~isfield(simoptions, 'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
     if ~isfield(simoptions, 'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
@@ -47,6 +51,9 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
@@ -69,8 +76,8 @@ if isstruct(FnsToEvaluate)
     FnsToEvalNames=fieldnames(FnsToEvaluate);
     for ff=1:length(FnsToEvalNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end

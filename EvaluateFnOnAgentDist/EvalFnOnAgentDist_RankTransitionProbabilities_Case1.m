@@ -1,10 +1,10 @@
-function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, parallel,npoints)
+function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions,npoints)
 %Returns a Matrix 100-by-100 that contains the t-period transition probabilities for all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-npoints. (third dimension is the different FnsToEvaluate that this
 %matrix is calculated for)
 %
-% Parallel and npoints are optional inputs
+% simoptions.parallel and npoints are optional inputs
 
 %%
 % In principle this could likely be done better based on cupola (rank
@@ -23,10 +23,11 @@ function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities
 % ranks at the end.
 
 %%
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0);
+if ~isfield(simoptions,'parallel')
+    simoptions.parallel=1+(gpuDeviceCount>0);
+end
+if ~isfield(simoptions,'gridinterplayer')
+    simoptions.gridinterplayer=0;
 end
 
 if exist('npoints','var')==0
@@ -45,6 +46,9 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 
@@ -71,7 +75,7 @@ end
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 MoveOutputToGPU=0;
-if parallel==2  
+if simoptions.parallel==2  
     % Simulation on GPU is really slow.
     % So instead, switch to CPU, and then switch
     % back. For anything but ridiculously short simulations it is more than
@@ -80,7 +84,7 @@ if parallel==2
     StationaryDist=gather(StationaryDist);
     MoveOutputToGPU=1;
 end
-parallel=1; % Want to do the simulations on parallel CPU, so switch to this
+simoptions.parallel=1; % Want to do the simulations on simoptions.parallel CPU, so switch to this
 
 
 %% Start with generating starting indexes and using simulations to get finish/final indexes. Will give us NSims transitions (indexes).
@@ -100,7 +104,7 @@ parfor ii=1:NSims
     Transitions_StartAndFinishIndexes_ii(1)=seedpoint;
     seedpoint=ind2sub_homemade([N_a,N_z],seedpoint); % put in form needed for SimTimeSeriesIndexes_Case1_raw
     % Simulate time series
-    SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,burnin,seedpoint,simperiods,parallel);
+    SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,burnin,seedpoint,simperiods,simoptions.parallel);
     % Store last
     Transitions_StartAndFinishIndexes_ii(2)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
     Transitions_StartAndFinishIndexes(:,ii)=Transitions_StartAndFinishIndexes_ii;

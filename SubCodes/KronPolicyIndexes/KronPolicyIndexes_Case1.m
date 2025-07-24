@@ -14,8 +14,8 @@ Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
 
 if n_d(1)==0
     
-    if isa(Policy,'gpuArray') %options.parallel==2
-        if l_a==1        
+    if isa(Policy,'gpuArray') % options.parallel==2
+        if l_a==1
             PolicyKron=shiftdim(Policy,1);
         else %l_a>1
             temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');

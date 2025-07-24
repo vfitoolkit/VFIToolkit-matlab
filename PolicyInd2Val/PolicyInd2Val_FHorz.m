@@ -62,7 +62,7 @@ else
         if vfoptions.gridinterplayer==1
             ordinary=0;
             l_aprime=l_a;
-            aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp))';
+            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp))';
             n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp; % =length(aprime_grid)
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(Policy);

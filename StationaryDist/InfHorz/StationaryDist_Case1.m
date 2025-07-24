@@ -27,6 +27,7 @@ if exist('simoptions','var')==0
     % Options relating to eigenvector method
     simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     % Alternative setups
+    simoptions.gridinterplayer=0;
     simoptions.agententryandexit=0;
     % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
@@ -80,6 +81,12 @@ else
         simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     end
     % Alternative setups
+    if ~isfield(simoptions, 'gridinterplayer')
+        simoptions.gridinterplayer=0;
+        if ~isfield(simoptions, 'ngridinterp')
+            error('When using simoptions.gridinterplayer=1, you must set simoptions.ngridinterp')
+        end
+    end
     if ~isfield(simoptions, 'agententryandexit')
         simoptions.agententryandexit=0;
     else
@@ -106,7 +113,7 @@ if simoptions.alreadygridvals==0
     end
 end
 
-if simoptions.parallel==1 || simoptions.parallel==3 || simoptions.eigenvector==1 % Eigenvector only works for cpu
+if simoptions.parallel==1 || simoptions.eigenvector==1 % Eigenvector only works for cpu
     Policy=gather(Policy);
     pi_z=gather(pi_z);
 else
@@ -114,15 +121,10 @@ else
     pi_z=gpuArray(pi_z);
 end
 
-if simoptions.policyalreadykron==0
-    if simoptions.experienceasset==0
-        PolicyKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
-    end
-    % simoptions.experienceasset==1, use Policy directly
-end
 
 %% Deal with entry and exit if that is being used
 if simoptions.agententryandexit==1 % If there is entry and exit use the command for that, otherwise just continue as usual.
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
     % It is assumed that the 'entry' distribution is suitable initial guess
     % for stationary distribution (rather than usual approach of simulating a few agents)
     if isfield(EntryExitParamNames,'CondlEntryDecisions')==1
@@ -131,12 +133,13 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
         % Can then just do the rest of the computing the agents distribution exactly as normal.
     end
     
-    StationaryDistKron.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
-    StationaryDistKron.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
-    [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+    StationaryDist.pdf=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
+    StationaryDist.mass=Parameters.(EntryExitParamNames.MassOfNewAgents{1});
+    [StationaryDist]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDist,Parameters,EntryExitParamNames,Policy,N_d,N_a,N_z,pi_z,simoptions);
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
 elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
     % (This is used in some infinite horizon models to control the distribution; avoid, e.g., some people/firms saving 'too much')
     % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
     EntryDist=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
@@ -145,15 +148,15 @@ elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, b
     simoptions.simperiods=10^3;
     simoptions.burnin=0;
     if simoptions.parallel<=2
-        StationaryDistKron=StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
+        StationaryDist=StationaryDist_Case1_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions);
     elseif simoptions.parallel>2
-        StationaryDistKron=sparse(StationaryDist_Case1_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions));
+        StationaryDist=sparse(StationaryDist_Case1_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions));
     end
     if simoptions.verbose==1
         fprintf('Note: simoptions.iterate=1 is imposed/required when using simoptions.agententryandexit=2 \n')
     end
     ExitProb=Parameters.(EntryExitParamNames.ProbOfDeath{1});
-    StationaryDist=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
+    StationaryDist=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,ExitProb,EntryDist,simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end
@@ -161,6 +164,7 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(simoptions,'SemiEndogShockFn')
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
     if isa(simoptions.SemiEndogShockFn,'function_handle')==0
         pi_z_semiendog=simoptions.SemiEndogShockFn;
     else
@@ -186,8 +190,8 @@ if isfield(simoptions,'SemiEndogShockFn')
         end
     end
     if simoptions.eigenvector==1
-        StationaryDistKron=StationaryDist_InfHorz_LeftEigen_SemiEndog_raw(PolicyKron,N_d,N_a,N_z,pi_z_semiendog,simoptions);
-        StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
+        StationaryDist=StationaryDist_InfHorz_LeftEigen_SemiEndog_raw(Policy,N_d,N_a,N_z,pi_z_semiendog,simoptions);
+        StationaryDist=reshape(StationaryDist,[n_a,n_z]);
         return
     else
         dbstack
@@ -200,16 +204,16 @@ end
 if simoptions.iterate==1
     % Iteration must start from an initial guess
     if isfield(simoptions, 'initialdist')
-        StationaryDistKron=reshape(simoptions.initialdist,[N_a*N_z,1]);
+        StationaryDist=reshape(simoptions.initialdist,[N_a*N_z,1]);
     else
         % Just use a poor initial guesses
-        StationaryDistKron=zeros(N_a,N_z);
+        StationaryDist=zeros(N_a,N_z);
         z_stat=ones(N_z,1)/N_z;
         for jj=1:10
             z_stat=pi_z'*z_stat;
         end
-        StationaryDistKron(ceil(N_a/2),:)=z_stat';
-        StationaryDistKron=reshape(StationaryDistKron,[N_a*N_z,1]);
+        StationaryDist(ceil(N_a/2),:)=z_stat';
+        StationaryDist=reshape(StationaryDist,[N_a*N_z,1]);
         % Note for self: Tan improvement divides into 2 steps, first is
         % policy, second is pi_z. Can't you then go a step further and
         % divide whole thing to just do 'only second step' until dist over z fully
@@ -226,7 +230,7 @@ if simoptions.experienceasset==1
         error('When using simoptions.experienceasset=1 you must include Parameter structure as input to StationaryDist_Case1 (input just after simoptions)')
     end
     % Iterate using Tan improvement
-    StationaryDist=StationaryDist_InfHorz_ExpAsset(StationaryDistKron,Policy,n_d,n_a,n_z,pi_z,Parameters,simoptions);
+    StationaryDist=StationaryDist_InfHorz_ExpAsset(StationaryDist,Policy,n_d,n_a,n_z,pi_z,Parameters,simoptions);
     return
 end
 
@@ -235,12 +239,13 @@ end
 
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
-    StationaryDistKron=StationaryDist_InfHorz_LeftEigen_raw(PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
-    if numel(StationaryDistKron)==1
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    StationaryDist=StationaryDist_InfHorz_LeftEigen_raw(Policy,N_d,N_a,N_z,pi_z,simoptions);
+    if numel(StationaryDist)==1
         % Has failed, so continue on below to simulation and iteration commands
         warning('Eigenvector method for simulating agent dist failed, going to use simulate/iterate instead')
     else
-        StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
+        StationaryDist=reshape(StationaryDist,[n_a,n_z]);
         return
     end
 end
@@ -251,24 +256,39 @@ end
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
 if simoptions.iterate==0
     % Not something you want to do, just a demo of alternative way to compute
-    StationaryDistKron=StationaryDist_InfHorz_Simulation_raw(PolicyKron,N_d,N_a,N_z,pi_z, simoptions);
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    StationaryDist=StationaryDist_InfHorz_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions);
+    StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end
 
+%%
+if simoptions.gridinterplayer==1
+    if N_d==0
+        l_d=0;
+    else
+        l_d=length(n_d);
+    end
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
+    StationaryDist=StationaryDist_InfHorz_GI_raw(StationaryDist,Policy,l_d,N_a,N_z,pi_z,simoptions);
+    StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+    return
+end
+
+
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
 if simoptions.iterate==1
+    size(Policy)
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    size(Policy)
     if simoptions.tanimprovement==0
-        StationaryDistKron=StationaryDist_InfHorz_Iteration_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
+        StationaryDist=StationaryDist_InfHorz_Iteration_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,simoptions);
     elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
-        if simoptions.gridinterplayer==0
-            StationaryDistKron=StationaryDist_InfHorz_IterationTan_raw(StationaryDistKron,PolicyKron,N_d,N_a,N_z,pi_z,simoptions);
-        elseif simoptions.gridinterplayer==1
-        
-        end
+        StationaryDist=StationaryDist_InfHorz_IterationTan_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,simoptions);
     end
+    StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+    return
 end
-StationaryDist=reshape(StationaryDistKron,[n_a,n_z]);
 
 
 

@@ -1,20 +1,25 @@
 function AggVars=EvalFnOnAgentDist_AggVars_Case1_withV(V,StationaryDist, Policy, FnsToEvaluate, FnsToEvalNames, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 %
-% Parallel, simoptions and EntryExitParamNames are optional inputs, only needed when using endogenous entry
+% EntryExitParamNames is optional input, only needed when using endogenous entry
+% Internal fn only
 
 if n_d(1)==0
     l_d=0;
-    N_d=0;
 else
     l_d=length(n_d);
-    N_d=prod(n_d);
 end
 l_a=length(n_a);
 l_z=length(n_z);
 
+% N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+
+% l_daprime=size(Policy,1);
+% if simoptions.gridinterplayer==1
+%     l_daprime=l_daprime-1;
+% end
 
 
 %% Output as structure
@@ -23,8 +28,7 @@ FnsToEvaluateStruct=1;
 % Note: No SDP nor entry/exit is considered
 
 %%
-if Parallel==2 || Parallel==4
-    Parallel=2;
+if Parallel==2
     StationaryDist=gpuArray(StationaryDist);
     Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);

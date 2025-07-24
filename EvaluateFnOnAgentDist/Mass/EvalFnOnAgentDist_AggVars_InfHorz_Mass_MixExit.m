@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass_MixExit(StationaryDistpdf,StationaryDistmass, PolicyIndexes, PolicyIndexesWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,exitprobs)
+function AggVars=EvalFnOnAgentDist_AggVars_InfHorz_Mass_MixExit(StationaryDistpdf,StationaryDistmass, PolicyIndexes, PolicyIndexesWhenExiting, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,exitprobs)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
 % exitprobs=simoptions.exitprobabilities;
@@ -7,7 +7,7 @@ if ~isfield(FnsToEvaluateParamNames,'ExitStatus')
     FnsToEvaluateParamNames(1).ExitStatus=[1,1,1,1];
 end
 
-if Parallel==2 || Parallel==4
+if Parallel==2
     StationaryDistpdf=gpuArray(StationaryDistpdf);
     StationaryDistmass=gpuArray(StationaryDistmass);
     PolicyIndexes=gpuArray(PolicyIndexes);
@@ -97,7 +97,6 @@ else
     else
         l_d=length(n_d);
     end
-    l_a=length(n_a);
     
     N_a=prod(n_a);
     N_z=prod(n_z);

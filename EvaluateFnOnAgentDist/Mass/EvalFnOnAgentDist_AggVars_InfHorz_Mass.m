@@ -1,19 +1,23 @@
-function AggVars=EvalFnOnAgentDist_AggVars_Case1_Mass(StationaryDistpdf,StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_InfHorz_Mass(StationaryDistpdf,StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
-eval('fieldexists=1;simoptions.endogenousexit;','fieldexists=0;')
-if fieldexists==0
+if ~isfield(simoptions,'endogenousexit')
     simoptions.endogenousexit=0;
 else
     if simoptions.endogenousexit==1
-        eval('fieldexists=1;simoptions.keeppolicyonexit;','fieldexists=0;')
-        if fieldexists==0
+        if ~isfield(simoptions,'keeppolicyonexit')
             simoptions.keeppolicyonexit=0;
         end
     end
 end
 
-if Parallel==2 || Parallel==4
+% l_daprime=size(Policy,1);
+% if simoptions.gridinterplayer==1
+%     l_daprime=l_daprime-1;
+% end
+
+
+if Parallel==2
     StationaryDistpdf=gpuArray(StationaryDistpdf);
     StationaryDistmass=gpuArray(StationaryDistmass);
     PolicyIndexes=gpuArray(PolicyIndexes);

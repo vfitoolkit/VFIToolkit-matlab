@@ -1,22 +1,14 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_Case1_Mass(StationaryDistmass, PolicyIndexes, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions)
+function ProbDensityFns=EvalFnOnAgentDist_pdf_InfHorz_Mass(StationaryDistpdf,StationaryDistmass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,FnsToEvaluateStruct)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
-eval('fieldexists=1;simoptions.endogenousexit;','fieldexists=0;')
-if fieldexists==0
+if ~isfield(simoptions,'endogenousexit')
     simoptions.endogenousexit=0;
 else
     if simoptions.endogenousexit==1
-        eval('fieldexists=1;simoptions.keeppolicyonexit;','fieldexists=0;')
-        if fieldexists==0
+        if ~isfield(simoptions,'keeppolicyonexit')
             simoptions.keeppolicyonexit=0;
         end
     end
-end
-
-if exist('Parallel','var')==0
-    Parallel=1+(gpuDeviceCount>0);
-elseif isempty(Parallel)
-    Parallel=1+(gpuDeviceCount>0);
 end
 
 if n_d(1)==0
@@ -27,6 +19,11 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
+l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
@@ -34,8 +31,8 @@ if isstruct(FnsToEvaluate)
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
@@ -47,25 +44,27 @@ else
 end
 
 %%
-if Parallel==2 || Parallel==4
+if Parallel==2
+    StationaryDistpdf=gpuArray(StationaryDistpdf);
     StationaryDistmass=gpuArray(StationaryDistmass);
-    PolicyIndexes=gpuArray(PolicyIndexes);
+    Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
     a_grid=gpuArray(a_grid);
-    l_daprime=size(PolicyIndexes,1);
+    l_daprime=size(Policy,1);
     a_gridvals=CreateGridvals(n_a,gpuArray(a_grid),1);
     z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
-        
+    
+    StationaryDistpdfVec=reshape(StationaryDistpdf,[N_a*N_z,1]);
+
     % When there is endogenous exit, add exit to the policy (to avoid what
     % would otherwise be zeros) and instead multiply the exiting by the
     % stationary dist to eliminate the 'decisions' there.
-    ExitPolicy=zeros(N_a*N_z,1,'gpuArray');
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
             if n_d(1)==0
@@ -74,17 +73,17 @@ if Parallel==2 || Parallel==4
                 l_d=length(n_d);
             end
             % Add one to PolicyIndexes
-            PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And use ExitPolicy to later replace these with nan
+            Policy=Policy+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
+            % And make the corresponding StationaryDistpdfVec entries zero,
+            % so the values are anyway ignored.
             ExitPolicy=logical(1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]));
+            StationaryDistpdfVec(ExitPolicy)=0;
         end
     end
-    RemoveExits=nan(N_a*N_z,1);
-    RemoveExits(logical(~ExitPolicy))=1;
     
-    ValuesOnGrid=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
+    ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid);
     PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
@@ -106,35 +105,40 @@ if Parallel==2 || Parallel==4
                 FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
             end
         end
-        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);        Values=reshape(Values,[N_a*N_z,1]);
-        Values=Values.*RemoveExits;
-        ValuesOnGrid(:,ff)=Values;
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+        Values=reshape(Values,[N_a*N_z,1]);
+        ProbDensityFns(:,ff)=Values.*StationaryDistpdfVec;
     end
+    
 else
     
     N_a=prod(n_a);
     N_z=prod(n_z);
     
+    StationaryDistpdfVec=reshape(StationaryDistpdf,[N_a*N_z,1]);
+    
+    StationaryDistpdfVec=gather(StationaryDistpdfVec);
+    StationaryDistmass=gather(StationaryDistmass);
+
     % When there is endogenous exit, add exit to the policy (to avoid what
     % would otherwise be zeros) and instead multiply the exiting by the
     % stationary dist to eliminate the 'decisions' there.
-    ExitPolicy=zeros(N_a*N_z,1);
     if simoptions.endogenousexit==1
         if simoptions.keeppolicyonexit==0
             % Add one to PolicyIndexes
-            PolicyIndexes=PolicyIndexes+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
-            % And use ExitPolicy to later replace these with nan
+            Policy=Policy+ones(l_d+l_a,1).*(1-shiftdim(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),-1));
+            % And make the corresponding StationaryDistpdfVec entries zero,
+            % so the values are anyway ignored.
             ExitPolicy=1-reshape(Parameters.(EntryExitParamNames.CondlProbOfSurvival{:}),[N_a*N_z,1]);
+            StationaryDistpdfVec(logical(ExitPolicy))=0;
         end
     end
-    RemoveExits=nan(N_a*N_z,1);
-    RemoveExits(logical(~ExitPolicy))=1;
 
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
     a_gridvals=CreateGridvals(n_a,a_grid,2);
     z_gridvals=CreateGridvals(n_z,z_grid,2);
     
-    ValuesOnGrid=zeros(N_a*N_z,length(FnsToEvaluate));
+    ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate));
     
     if l_d>0
         
@@ -143,11 +147,12 @@ else
             if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ValuesOnGrid(:,ff)=Values; 
+                ProbDensityFns(:,ff)=Values.*StationaryDistpdfVec;
             else
                 if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
                     if length(FnsToEvaluateParamNames(ff).Names)==1
@@ -158,15 +163,14 @@ else
                 else
                     FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
                 end
-                FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);               
-                Values=zeros(N_a*N_z,1);
+                FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);                    Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                Values=Values.*RemoveExits;
-                ValuesOnGrid(:,ff)=Values;
+                ProbDensityFns(:,ff)=Values.*StationaryDistpdfVec;
             end
         end
     
@@ -177,11 +181,12 @@ else
             if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'SSvalueParamNames={}'
                 Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
                 end
-                ValuesOnGrid(:,ff)=Values;
+                ProbDensityFns(:,ff)=Values.*StationaryDistpdfVec;
             else
                 if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
                     if length(FnsToEvaluateParamNames(ff).Names)==1
@@ -192,40 +197,53 @@ else
                 else
                     FnToEvaluateParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
                 end
-                FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);
-                Values=zeros(N_a*N_z,1);
+                FnToEvaluateParamsCell=num2cell(FnToEvaluateParamsVec);                    Values=zeros(N_a*N_z,1);
                 for ii=1:N_a*N_z
+                    %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                     j1=rem(ii-1,N_a)+1;
                     j2=ceil(ii/N_a);
                     Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
                 end
-                Values=Values.*RemoveExits;
-                ValuesOnGrid(:,ff)=Values;
+                ProbDensityFns(:,ff)=Values.*StationaryDistpdfVec;
             end
         end
     end
 end
 
+% % DO I WANT TO REMOVE THE FOLLOWING LINE???
+% % No, keep it. will be more obvious to user that it is there when they don't want it
+% % (and so they can correct it), than will be to user that it should be
+% % there when they don't remember it (and so they would forget to correct
+% % it).
+% ProbDensityFns=ProbDensityFns*StationaryDistmass;
+
+% Normalize to 1 (to make it a pdf)
+for ff=1:length(FnsToEvaluate)
+    ProbDensityFns(:,ff)=ProbDensityFns(:,ff)/sum(ProbDensityFns(:,ff));
+end
 
 
-
-
+% When evaluating value function (which may sometimes give -Inf
+% values) on StationaryDistVec (which at those points will be
+% 0) we get 'NaN'. Just eliminate those.
+ProbDensityFns(isnan(ProbDensityFns))=0;
 
 %%
 if FnsToEvaluateStruct==1
     % Change the output into a structure
-    ValuesOnGrid2=ValuesOnGrid'; % Note the transpose
+    ProbDensityFns2=ProbDensityFns'; % Note the transpose
     clear ProbDensityFns
-    ValuesOnGrid=struct();
+    ProbDensityFns=struct();
 %     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)
-        ValuesOnGrid.(AggVarNames{ff})=reshape(ValuesOnGrid2(ff,:),[n_a,n_z]);
+        ProbDensityFns.(AggVarNames{ff})=reshape(ProbDensityFns2(ff,:),[n_a,n_z]);
     end
 else
-    % Change the ordering and size so that ValuesOnGrid has same kind of
+    % Change the ordering and size so that ProbDensityFns has same kind of
     % shape as StationaryDist, except first dimension indexes the 'FnsToEvaluate'.
-    ValuesOnGrid=ValuesOnGrid';
-    ValuesOnGrid=reshape(ValuesOnGrid,[length(FnsToEvaluate),n_a,n_z]);
+    ProbDensityFns=ProbDensityFns';
+    ProbDensityFns=reshape(ProbDensityFns,[length(FnsToEvaluate),n_a,n_z]);
 end
+
 
 end
