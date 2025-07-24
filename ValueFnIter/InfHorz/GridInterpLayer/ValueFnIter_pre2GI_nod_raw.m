@@ -36,11 +36,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %Calc the max and it's index
     [VKron,Policy]=max(entireRHS,[],1);
-
-    tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
-
-    Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-
     VKron=shiftdim(VKron,1); % a by z
 
     VKrondist=VKron(:)-VKronold(:); 
@@ -49,6 +44,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards 
+        tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
+        Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
         Policy=Policy(:); % a by z (this shape is just convenient for Howards)
         for Howards_counter=1:vfoptions.howards
             EVKrontemp=interp1(a_grid,VKron,aprime_grid); % interpolate V as Policy points to the interpolated indexes

@@ -81,10 +81,14 @@ else
         vfoptions.maxhowards=500;
     end  
     if ~isfield(vfoptions,'howardsgreedy')
-        if N_a<400 || N_z<20
-            vfoptions.howardsgreedy=1;
+        if vfoptions.divideandconquer==0
+            if N_a<400 || N_z<20
+                vfoptions.howardsgreedy=1;
+            else
+                vfoptions.howardsgreedy=0;
+            end
         else
-            vfoptions.howardsgreedy=0;
+            vfoptions.howardsgreedy=1;
         end
     end
     if ~isfield(vfoptions,'endogenousexit')
