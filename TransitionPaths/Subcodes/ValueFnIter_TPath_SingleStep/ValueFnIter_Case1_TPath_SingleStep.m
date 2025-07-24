@@ -55,7 +55,7 @@ elseif vfoptions.divideandconquer==1
             end
         end
     else
-            error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
+        error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
     end
 end
 
