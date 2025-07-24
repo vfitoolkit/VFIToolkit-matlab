@@ -182,10 +182,8 @@ for ii=1:N_i
 
     if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
         PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-        StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
     else
         PolicyIndexes_temp=Policy.(Names_i{ii});
-        StationaryDist_temp=StationaryDist.(Names_i{ii});
     end
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -326,7 +324,11 @@ for ii=1:N_i
     
 
     %% Some things that don't need to go in the loop over FnsToEvalaute
-    StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
+    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
+        StationaryDist_ii=gpuArray(reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,1])); % Note: does not impose *StationaryDist.ptweights(ii)
+    else
+        StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_ze_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
+    end
     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
     % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)    
     temp=logical(StationaryDist_ii~=0);

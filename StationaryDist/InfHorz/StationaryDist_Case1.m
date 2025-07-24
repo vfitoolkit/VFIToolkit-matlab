@@ -83,7 +83,7 @@ else
     % Alternative setups
     if ~isfield(simoptions, 'gridinterplayer')
         simoptions.gridinterplayer=0;
-        if ~isfield(simoptions, 'ngridinterp')
+        if simoptions.gridinterplayer==1
             error('When using simoptions.gridinterplayer=1, you must set simoptions.ngridinterp')
         end
     end
@@ -278,9 +278,7 @@ end
 
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
 if simoptions.iterate==1
-    size(Policy)
     Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
-    size(Policy)
     if simoptions.tanimprovement==0
         StationaryDist=StationaryDist_InfHorz_Iteration_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,simoptions);
     elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
