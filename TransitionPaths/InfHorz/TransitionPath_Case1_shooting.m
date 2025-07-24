@@ -267,7 +267,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Current approach is likely way suboptimal speedwise.
         
         Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, 2,simoptions);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, simoptions);
         
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
