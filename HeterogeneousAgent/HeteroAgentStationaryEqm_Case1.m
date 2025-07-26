@@ -43,14 +43,14 @@ if isempty(n_p)
     N_p=0;
 end
 
-if exist('vfoptions','var')==0
+if ~exist('vfoptions','var')
     %If vfoptions is not given, just use all the defaults
     vfoptions.parallel=1+(gpuDeviceCount>0);
     %Note that the defaults will be set when we call 'ValueFnIter...'
     %commands and the like, so no need to set them here except for a few.
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
+    if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
     end
 end
@@ -62,8 +62,13 @@ if exist('simoptions','var')==0
     %commands and the like, so no need to set them here except for a few.
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
+    end
+    if isfield(vfoptions,'gridinterplayer')
+        if ~isfield(simoptions,'gridinterplayer')
+            error('When setting vfoptions.gridinterplayer you must also set simoptions.gridinterplayer')
+        end
     end
 end
 

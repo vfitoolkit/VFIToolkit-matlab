@@ -68,7 +68,7 @@ else
         vfoptions.gridinterplayer=0; % grid interpolation layer
     elseif vfoptions.gridinterplayer==1
         if ~isfield(vfoptions,'ngridinterp')
-            error('When using vfoptions.gridinterplayer=1 you must set vfoptions.gridinterplayer')
+            error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp')
         end
     end
     if ~isfield(vfoptions,'lowmemory')

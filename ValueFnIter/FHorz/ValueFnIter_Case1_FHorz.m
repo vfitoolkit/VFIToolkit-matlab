@@ -1,4 +1,6 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function varargout=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% Typically, varargout=[V, Policy]
+
 
 V=nan;
 Policy=nan;
@@ -299,16 +301,20 @@ end
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
 elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    [V, Policy]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy,Valt]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy,Valt};
     return
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
     [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 elseif strcmp(vfoptions.exoticpreferences,'GulPesendorfer')
     [V, Policy]=ValueFnIter_Case1_FHorz_GulPesendorfer(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 elseif strcmp(vfoptions.exoticpreferences,'AmbiguityAversion')
     [V, Policy]=ValueFnIter_Case1_FHorz_Ambiguity(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 end
 
@@ -379,6 +385,8 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     elseif vfoptions.experienceassetze==1
         % I want to implement this too :)
     end
+
+    varargout={V, Policy};
     return
 end
 
@@ -426,6 +434,8 @@ if vfoptions.riskyasset==1
             [V,Policy]=ValueFnIter_Case1_FHorz_RiskyAsset(n_d,n_a1,n_a2,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.u_grid, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
+
+    varargout={V, Policy};
     return
 end
 
@@ -443,6 +453,7 @@ if vfoptions.residualasset==1
     
     % Now just send all this to the right value fn iteration command
     [V,Policy]=ValueFnIter_Case1_FHorz_ResidAsset(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 end
 
@@ -461,6 +472,8 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+
+    varargout={V, Policy};
     return
 end
 
@@ -482,6 +495,8 @@ if vfoptions.dynasty==1
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     V=reshape(VKron,[n_a,n_z,N_j]);
     Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j,vfoptions);
+
+    varargout={V, Policy};
     return
 end
 
@@ -504,6 +519,7 @@ if any(vfoptions.incrementaltype)
         Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
     end
     
+    varargout={V, Policy};
     return
 end
 
@@ -521,6 +537,7 @@ if isfield(vfoptions,'SemiExoStateFn')
     
     % Now that we have pi_semiz_J we are ready to compute the value function.
     [V,Policy]=ValueFnIter_FHorz_SemiExo(n_d1,n_d2,n_a,vfoptions.n_semiz,n_z,N_j,d1_grid,d2_grid, a_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 end
 
@@ -528,14 +545,17 @@ end
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
     % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
     [V,Policy]=ValueFnIter_FHorz_DC_GI(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 elseif vfoptions.divideandconquer==1
     % Solve using Divide-and-Conquer algorithm
     [V,Policy]=ValueFnIter_FHorz_DC(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 elseif vfoptions.gridinterplayer==1
     % Solve using grid interpolation layer
     [V,Policy]=ValueFnIter_FHorz_GI(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V, Policy};
     return
 end
 
@@ -640,5 +660,7 @@ elseif vfoptions.policy_forceintegertype==2
     % Do the actual rounding to integers
     Policy=round(Policy);
 end
+
+varargout={V, Policy};
 
 end
