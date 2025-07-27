@@ -596,7 +596,7 @@ if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
         if transpathoptions.usestockvars==0
             if ~isfield(vfoptions,'n_e')
-                PricePathOld=TransitionPath_Case1_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+                PricePathOld=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
             else
                 error('Cannot use e variables with infinite horizon (contact me if you need this)')
                 % PricePathOld=TransitionPath_Case1_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);

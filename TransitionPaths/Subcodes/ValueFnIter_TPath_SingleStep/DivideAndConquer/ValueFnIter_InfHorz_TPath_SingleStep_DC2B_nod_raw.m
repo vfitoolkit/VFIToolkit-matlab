@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_TPath_SingleStep_DC2B_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_nod_raw(Vnext,n_a,n_z, a_grid, z_gridvals,pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % DC2B: two endogenous states, divide-and-conquer on the first endo state, but not on the second endo state
 
 N_a=prod(n_a);

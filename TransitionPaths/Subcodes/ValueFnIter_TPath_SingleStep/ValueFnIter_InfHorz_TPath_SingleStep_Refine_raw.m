@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_TPath_SingleStep_Refine_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_Refine_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 %% Refinement: calculate ReturnMatrix and 'remove' the d dimension
 
 N_d=prod(n_d);

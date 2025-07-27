@@ -313,33 +313,15 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Paramet
 
 %% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
-    error('ERROR: have not yet implemented transition path for models with entry/exit \n')
-%     if ~exist('EntryExitParamNames','var')
-%         fprintf('ERROR: need to input EntryExitParamNames to TransitionPath_Case1() \n')
-%         PricePath=[];
-%         return
-%     end
-%     if simoptions.agententryandexit==1% transpathoptions.agententryandexit==1
-%         PricePath=TransitionPath_Case1_EntryExit(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-%         return
-% %     elseif transpathoptions.agententryandexit==2
-% %         PricePath=TransitionPath_Case1_EntryExit2(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, EntryExitParamNames, transpathoptions, vfoptions, simoptions);
-% %         return
-%     end
+    error('Have not yet implemented transition path for models with entry/exit \n')
 end
-
-%% I have eliminated EndoType
-% if max(vfoptions.endotype)==1
-%     % Use endogenous type
-%     PricePath=TransitionPath_Case1_EndoType(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-% end
 
 %%
 if transpathoptions.GEnewprice~=2
     if N_d==0
-        PricePath=TransitionPath_Case1_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+        PricePath=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
     else
-        PricePath=TransitionPath_Case1_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+        PricePath=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
     end
 end
 

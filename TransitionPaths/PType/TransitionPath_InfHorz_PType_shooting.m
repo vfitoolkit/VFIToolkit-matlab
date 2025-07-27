@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_Case1_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure)
+function PricePathOld=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
