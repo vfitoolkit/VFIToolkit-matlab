@@ -42,12 +42,12 @@ elseif vfoptions.lowmemory==1 % loop over z
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
         ReturnMatrixfine_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_daprime, n_a, special_n_z, daprime_gridvals, a_grid, zvals, ReturnFnParams);
-        % ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn,n_d, n_a, special_n_z,d_gridvals, a_grid, zvals,ReturnFnParamsVec,1); % the 1 at the end is to output for refine
+        ReturnMatrixfine_z=reshape(ReturnMatrixfine_z,[N_d,N_aprime,N_a]);
         [ReturnMatrixfine_z,dstar_z]=max(ReturnMatrixfine_z,[],1); % solve for dstar
         ReturnMatrixfine(:,:,z_c)=shiftdim(ReturnMatrixfine_z,1);
         dstar(:,:,z_c)=shiftdim(dstar_z,1);
     end
-    ReturnMatrix=ReturnMatrixfine(:,1:vfoptions.ngridinterp+1:n_aprime,:,:);
+    ReturnMatrix=ReturnMatrixfine(1:vfoptions.ngridinterp+1:n_aprime,:,:);
 end
 
 %% The rest, except putting d back into Policy at the end, is all just copy-paste from ValueFnIter_preGI_nod_raw()
@@ -72,7 +72,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % aprime by a by z
 
-    %Calc the max and it's index
+    % Calc the max and it's index
     [VKron,Policy_a]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
@@ -113,7 +113,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp; % aprime by a by z
 
-    %Calc the max and it's index
+    % Calc the max and it's index
     [VKron,Policy_a]=max(entireRHS,[],1);
     VKron=shiftdim(VKron,1); % a by z
 
@@ -140,8 +140,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
 end
 
-%%
-% Switch policy to lower grid index and L2 index (is currently index on fine grid)
+%% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 fineindex=reshape(Policy_a,[N_a*N_z,1]);
 Policy_a=zeros(2,N_a,N_z,'gpuArray');
 L1a=ceil((fineindex-1)/(n2short+1))-1;
