@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_Case1_TPath_SingleStep(AgentDist,Policy,N_d,N_a,N_z,pi_z_sparse)
+function AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy,N_d,N_a,N_z,pi_z_sparse)
 
 % Setup for Tan improvement
 if N_d==0

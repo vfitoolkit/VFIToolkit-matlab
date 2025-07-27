@@ -42,18 +42,22 @@ AgentDistPath=zeros(N_a*N_z,T,'gpuArray');
 % Call AgentDist the current periods distn
 AgentDist=reshape(AgentDist_initial,[N_a*N_z,1]);
 AgentDistPath(:,1)=AgentDist;
-if N_d==0
+if N_d==0 && simoptions.gridinterplayer==0
     for tt=1:T-1
         Policy=PolicyPath(:,:,tt);
-        AgentDist=StationaryDist_Case1_TPath_SingleStep(AgentDist,Policy,N_d,N_a,N_z,sparse(pi_z));
+        AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy,N_d,N_a,N_z,sparse(pi_z));
         AgentDistPath(:,tt+1)=AgentDist;
     end
-else
+elseif N_d==0 && simoptions.gridinterplayer==1
+
+elseif N_d>0 && simoptions.gridinterplayer==0
     for tt=1:T-1
         Policy=PolicyPath(:,:,:,tt);
-        AgentDist=StationaryDist_Case1_TPath_SingleStep(AgentDist,Policy,N_d,N_a,N_z,sparse(pi_z));
+        AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy,N_d,N_a,N_z,sparse(pi_z));
         AgentDistPath(:,tt+1)=AgentDist;
     end
+elseif N_d>0 && simoptions.gridinterplayer==1
+
 end
 
 

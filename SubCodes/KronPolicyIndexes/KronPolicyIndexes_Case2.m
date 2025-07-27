@@ -1,15 +1,14 @@
-function PolicyKron=KronPolicyIndexes_Case2(Policy, n_d, n_a, n_z)%,options)
+function PolicyKron=KronPolicyIndexes_Case2(Policy, n_d, n_a, n_z)
 
-%Input: Policy (l_d,n_a,n_z);
-
-%Output: Policy=zeros(N_a,N_z); %indexes the optimal choice for d as function of a,z 
+% Input: Policy (l_d,n_a,n_z);
+% Output: Policy=zeros(N_a,N_z); %indexes the optimal choice for d as function of a,z 
+% This can all be a bit different based on vfoptions
 
 % N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 l_d=length(n_d);
 
-%if options.parallel~=2
 if isa(Policy, 'gpuArray')
    if l_d==1 % no need to do anything
        PolicyKron=Policy;

@@ -28,6 +28,7 @@ if exist('vfoptions','var')==0
     vfoptions.policy_forceintegertype=0;
     vfoptions.solnmethod='purediscretization'; % Currently this does nothing
     vfoptions.divideandconquer=0;
+    vfoptions.gridinterplayer=0;
 else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'lowmemory')
@@ -60,12 +61,33 @@ else
     if ~isfield(vfoptions,'divideandconquer')
         vfoptions.divideandconquer=0;
     end
+    if ~isfield(vfoptions,'gridinterplayer')
+        vfoptions.gridinterplayer=0;
+    elseif vfoptions.gridinterplayer==1
+        if ~isfield(vfoptions,'ngridinterp')
+            error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp')
+        end
+    end
 end
 
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')
-        vfoptions.level1n=5*length(n_a);
+        if isscalar(n_a)
+            vfoptions.level1n=max(ceil(n_a(1)/50),5); % minimum of 5
+            if n_a(1)<5
+                error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
+            end
+        elseif length(n_a)==2
+            vfoptions.level1n=[max(ceil(n_a(1)/50),5),n_a(2)]; % default is DC2B, min of 5 points in level1 for a1
+            if n_a(1)<5
+                error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
+            end
+        end
+        if vfoptions.verbose==1
+            fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
+        end
     end
+    vfoptions.level1n=min(vfoptions.level1n,n_a); % Otherwise causes errors
 end
 
 
@@ -121,38 +143,27 @@ end
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %%
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
+pi_z=gpuArray(pi_z);
+PricePath=gpuArray(PricePath);
 
-if transpathoptions.parallel~=2
-    error('A GPU is required for any codes that relate to transition paths')
-else
-    d_grid=gpuArray(d_grid); a_grid=gpuArray(a_grid); z_grid=gpuArray(z_grid); pi_z=gpuArray(pi_z);
-    PricePath=gpuArray(PricePath);
-end
 
-if transpathoptions.verbose==1
+if transpathoptions.verbose>=1
     transpathoptions
 end
 if vfoptions.verbose==1
     vfoptions
 end
 
-
 N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
-l_p=size(PricePath,2);
-
-PricePathDist=Inf;
-pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
-V=zeros(size(V_final),'gpuArray');
-if N_d>0
-    Policy=zeros(2,N_a,N_z,'gpuArray');
-else
-    Policy=zeros(N_a,N_z,'gpuArray');
-end
-if transpathoptions.verbose==1
+
+if transpathoptions.verbose==2
     DiscountFactorParamNames
     ReturnFnParamNames
     ParamPathNames
@@ -166,8 +177,8 @@ VKronPath(:,:,T)=V_final;
 
 
 %%
-if N_d==0
-    PolicyIndexesPath=zeros(N_a,N_z,T,'gpuArray'); %Periods 1 to T-1
+if N_d==0 &&  vfoptions.gridinterplayer==0
+    PolicyIndexesPath=zeros(N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
     PolicyIndexesPath(:,:,T)=KronPolicyIndexes_Case1(Policy_final, n_d, n_a, n_z);
 
     % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
@@ -184,17 +195,19 @@ if N_d==0
         [V, Policy]=ValueFnIter_Case1_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
-        if N_d>0
-            PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        else
-            PolicyIndexesPath(:,:,T-ttr)=Policy;
-        end
+        PolicyIndexesPath(:,:,T-ttr)=Policy;
+
         VKronPath(:,:,T-ttr)=V;
         Vnext=V;
     end
-elseif N_d>0
-    PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); %Periods 1 to T-1
-    PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_Case1(Policy_final, n_d, n_a, n_z);
+else
+    if N_d>0 && vfoptions.gridinterplayer==1
+        PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
+        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
+    else
+        PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1    
+        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
+    end
 
     % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     Vnext=V_final;
@@ -210,22 +223,17 @@ elseif N_d>0
         [V, Policy]=ValueFnIter_Case1_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
-        if N_d>0
-            PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        else
-            PolicyIndexesPath(:,:,T-ttr)=Policy;
-        end
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
+        
         VKronPath(:,:,T-ttr)=V;
         Vnext=V;
     end
 end
 
 
-
-
 %% Unkron to get into the shape for output
 VPath=reshape(VKronPath,[n_a,n_z,T]);
-PolicyPath=UnKronPolicyIndexes_Case1_TransPath(PolicyIndexesPath, n_d, n_a, n_z,T,vfoptions);
+PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath, n_d, n_a, n_z,T,vfoptions);
 
 
 end
