@@ -131,7 +131,7 @@ if transpathoptions.GEnewprice==3
     if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
         % do nothing, this is how things should be
     else
-        fprintf('ERROR: transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
     end
     transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
     for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
@@ -214,7 +214,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % Get the current optimal policy, and iterate the agent dist
         Policy=PolicyIndexesPath(:,:,:,tt);
         if simoptions.gridinterplayer==0
-            Policy_aprime=reshape(Policy,[N_a*N_z,1]);
+            Policy_aprime=reshape(Policy(2,:,:),[N_a*N_z,1]); % aprime index
             Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
             AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez),N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1

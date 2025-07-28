@@ -33,9 +33,9 @@ if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
     l_daprime=1;
 else
     l_daprime=size(Policy,1);
-end
-if simoptions.gridinterplayer==1
-    l_daprime=l_daprime-1;
+    if simoptions.gridinterplayer==1
+        l_daprime=l_daprime-1;
+    end
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals

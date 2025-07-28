@@ -159,7 +159,7 @@ Policy_a(2,:,:)=reshape(L2,[1,N_a,N_z]);
 %% For refinement, add d back into Policy
 Policy=zeros(3,N_a,N_z,'gpuArray');
 Policy(2:3,:,:)=shiftdim(Policy_a,-1);
-temppolicyindex=fineindex'+(0:1:N_a*N_z-1)*N_a;
+temppolicyindex=fineindex'+N_aprime*(0:1:N_a*N_z-1);
 Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is defined on the fine grid
 
 
