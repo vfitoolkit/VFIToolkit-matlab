@@ -22,7 +22,7 @@ altzind=shiftdim((0:1:N_z-1),-2); % already includes -1
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
-% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 
 % Grid interpolation
@@ -94,7 +94,7 @@ if vfoptions.lowmemory==0
     % midpoint is n_d-by-1-by-n_a-by-n_z
     aprimeindexes=(midpoints+(midpoints-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-n_z
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals_J(:,:,jj),ReturnFnParamsVec,2);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn,n_d,n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_gridvals,ReturnFnParamsVec,2);
     daprimez=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*n2aprime*altzind;
     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d*n2long,N_a,N_z]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);

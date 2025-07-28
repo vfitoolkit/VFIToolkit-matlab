@@ -200,12 +200,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     % Free up space on GPU by deleting things no longer needed
     clear V Vnext    
     
-    %Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to 
+    % Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to 
     % update the agents distribution generating a new price path.
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
-        %Get the current optimal policy
+        % Get the current optimal policy, and iterate the agent dist
         if simoptions.gridinterplayer==0
             Policy=PolicyIndexesPath(:,:,tt);
             Policy_aprime=reshape(Policy,[N_a*N_z,1]);

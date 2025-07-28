@@ -43,18 +43,19 @@ elseif N_d==0 && vfoptions.gridinterplayer==1
 elseif N_d>0 && vfoptions.gridinterplayer==0
     PolicyKron=zeros(2,N_a,N_z,'gpuArray');
     % First, do d
-    if length(n_d)==1
-        PolicyKron(1,:,:)=Policy;
-    elseif length(n_d)==2
+    l_d=length(n_d);
+    if l_d==1
+        PolicyKron(1,:,:)=Policy(1,:,:);
+    elseif l_d==2
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1);
-    elseif length(n_d)==3
+    elseif l_d==3
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1)+n_d(1)*n_d(2)*(Policy(3,:,:)-1);
-    elseif length(n_d)==4
+    elseif l_d==4
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1)+n_d(1)*n_d(2)*(Policy(3,:,:)-1)+n_d(1)*n_d(2)*n_d(3)*(Policy(4,:,:)-1);
     end
     % Then do aprime
     if length(n_a)==1
-        PolicyKron(2,:,:)=Policy;
+        PolicyKron(2,:,:)=Policy(l_d+1,:,:);
     elseif length(n_a)==2
         PolicyKron(2,:,:)=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1);
     elseif length(n_a)==3
@@ -65,18 +66,19 @@ elseif N_d>0 && vfoptions.gridinterplayer==0
 elseif N_d>0 && vfoptions.gridinterplayer==1
     PolicyKron=zeros(3,N_a,N_z,'gpuArray');
     % First, do d
-    if length(n_d)==1
-        PolicyKron(1,:,:)=Policy;
-    elseif length(n_d)==2
+    l_d=length(n_d);
+    if l_d==1
+        PolicyKron(1,:,:)=Policy(1,:,:);
+    elseif l_d==2
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1);
-    elseif length(n_d)==3
+    elseif l_d==3
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1)+n_d(1)*n_d(2)*(Policy(3,:,:)-1);
-    elseif length(n_d)==4
+    elseif l_d==4
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1)+n_d(1)*n_d(2)*(Policy(3,:,:)-1)+n_d(1)*n_d(2)*n_d(3)*(Policy(4,:,:)-1);
     end
     % Then do aprime
     if length(n_a)==1
-        PolicyKron(2,:,:)=Policy;
+        PolicyKron(2,:,:)=Policy(l_d+1,:,:);
     elseif length(n_a)==2
         PolicyKron(2,:,:)=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1);
     elseif length(n_a)==3

@@ -177,7 +177,7 @@ VKronPath(:,:,T)=V_final;
 
 
 %%
-if N_d==0 &&  vfoptions.gridinterplayer==0
+if N_d==0 && vfoptions.gridinterplayer==0
     PolicyIndexesPath=zeros(N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
     PolicyIndexesPath(:,:,T)=KronPolicyIndexes_Case1(Policy_final, n_d, n_a, n_z);
 
@@ -205,7 +205,7 @@ else
         PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
         PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
     else
-        PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1    
+        PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1 
         PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
     end
 
@@ -234,12 +234,6 @@ end
 %% Unkron to get into the shape for output
 VPath=reshape(VKronPath,[n_a,n_z,T]);
 PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath, n_d, n_a, n_z,T,vfoptions);
-
-
-size(PolicyIndexesPath)
-size(PolicyPath)
-
-max(abs(PolicyPath(:)-PolicyIndexesPath(:)))
 
 
 end

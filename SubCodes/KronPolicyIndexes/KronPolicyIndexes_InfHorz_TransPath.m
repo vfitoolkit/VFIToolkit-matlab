@@ -16,6 +16,7 @@ function PolicyPathKron=KronPolicyIndexes_InfHorz_TransPath(PolicyPath, n_d, n_a
 
 N_d=prod(n_d);
 N_a=prod(n_a);
+
 l_a=length(n_a);
 
 if ~isfield(simoptions,'n_e')
@@ -33,7 +34,7 @@ PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_ze,T]);
 
 %%
 if N_d==0
-    % PolicyPathKron=zeros(N_a,N_z,T,'gpuArray');
+    % PolicyPathKron=zeros(N_a,N_ze,T,'gpuArray');
     if l_a==1
         PolicyPathKron=PolicyPath(1,:,:,:);
     else
@@ -46,9 +47,9 @@ if N_d==0
 elseif N_d>0
     l_d=length(n_d);
 
-    PolicyPathKron=zeros(2,N_a,N_z,T,'gpuArray');
+    PolicyPathKron=zeros(2,N_a,N_ze,T,'gpuArray');
     if l_d==1
-        PolicyPathKron(1,:,:)=PolicyPath(1,:,:);
+        PolicyPathKron(1,:,:,:)=PolicyPath(1,:,:,:);
     else
         temp=ones(l_d,1,'gpuArray')-eye(l_d,1,'gpuArray');
         temp2=gpuArray(cumprod(n_d')); % column vector
@@ -57,7 +58,7 @@ elseif N_d>0
     end
     % Then, a
     if l_a==1
-        PolicyPathKron(2,:,:,:)=PolicyPath(l_d+1,:,:);
+        PolicyPathKron(2,:,:,:)=PolicyPath(l_d+1,:,:,:);
     else
         temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
         temp2=gpuArray(cumprod(n_a')); % column vector

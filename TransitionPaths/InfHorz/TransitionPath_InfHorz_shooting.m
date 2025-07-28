@@ -160,6 +160,18 @@ PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOl
 AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 GEcondnsPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
+
+if vfoptions.gridinterplayer==0
+    PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+elseif vfoptions.gridinterplayer==1    
+    PolicyIndexesPath=zeros(3,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+end
+if simoptions.gridinterplayer==1
+    Policy_aprime=zeros(N_a*N_z,2,'gpuArray'); % preallocate
+    PolicyProbs=zeros(N_a*N_z,2,'gpuArray'); % preallocate
+    II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+end
+
 % The following five lines are essentially how I used to do things, but now
 % are redundant (I just do things by name, which takes a bit more run time
 % but much easier to code/read/debug)
@@ -171,13 +183,9 @@ GEcondnsPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
-    
-    PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-    
-    %First, go from T-1 to 1 calculating the Value function and Optimal
-    %policy function at each step. Since we won't need to keep the value
-    %functions for anything later we just store the next period one in
-    %Vnext, and the current period one to be calculated in V
+        
+    % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
+    % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
         
@@ -196,34 +204,28 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         Vnext=V;
     end
     % Free up space on GPU by deleting things no longer needed
-    clear ReturnMatrix ReturnMatrix_z entireRHS entireEV_z EV_z Vtemp maxindex V Vnext
+    clear V Vnext
     
-    
-    %Now we have the full PolicyIndexesPath, we go forward in time from 1
-    %to T using the policies to update the agents distribution generating a
-    %new price path
-    %Call AgentDist the current periods distn and AgentDistnext
-    %the next periods distn which we must calculate
+    % Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to 
+    % update the agents distribution generating a new price path.
+    % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
-                
-        %Get the current optimal policy
+        % Get the current optimal policy, and iterate the agent dist
         Policy=PolicyIndexesPath(:,:,:,tt);
-        
-        optaprime=gather(reshape(shiftdim(Policy(2,:,:),-1),[1,N_a*N_z])); % This shifting of dimensions is probably not necessary
-    
-        % Commented out lines are without Tan improvement
-        %     Ptemp=zeros(N_a,N_a*N_z,'gpuArray');
-        %     Ptemp(optaprime+N_a*(gpuArray(0:1:N_a*N_z-1)))=1;
-        %     Ptran=(kron(pi_z',ones(N_a,N_a,'gpuArray'))).*(kron(ones(N_z,1,'gpuArray'),Ptemp));
-        %     AgentDistnext=Ptran*AgentDist;
-
-        firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
-        Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
-
-        % Two steps of the Tan improvement
-        AgentDistnext=reshape(Gammatranspose*AgentDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
-        AgentDistnext=reshape(AgentDistnext*pi_z_sparse,[N_a*N_z,1]);
+        if simoptions.gridinterplayer==0
+            Policy_aprime=reshape(Policy,[N_a*N_z,1]);
+            Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez),N_a,N_z,pi_z_sparse);
+        elseif simoptions.gridinterplayer==1
+            Policy_aprime(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % lower grid point
+            Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
+            Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
+            PolicyProbs(:,1)=reshape(Policy(3,:,:),[N_a*N_z,1]); % L2 index
+            PolicyProbs(:,1)=1-(PolicyProbs(:,1)-1)/(1+simoptions.ngridinterp); % probability of lower grid point
+            PolicyProbs(:,2)=1-PolicyProbs(:,1); % probability of upper grid point
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,gather(Policy_aprimez),gather(II2),gather(PolicyProbs),N_a,N_z,pi_z_sparse);
+        end
         
         GEprices=PricePathOld(tt,:);
         
@@ -266,7 +268,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % UnKronPolicyIndexes_Case1.
         % Current approach is likely way suboptimal speedwise.
         
-        Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
         AggVars=EvalFnOnAgentDist_AggVars_Case1(gpuArray(full(AgentDist)), Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, simoptions);
         
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
@@ -308,7 +309,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         AgentDist=AgentDistnext;
     end
     % Free up space on GPU by deleting things no longer needed
-    clear Ptemp Ptran AgentDistnext AgentDist PolicyTemp
+    clear AgentDistnext AgentDist
     
     % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
