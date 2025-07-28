@@ -236,4 +236,10 @@ VPath=reshape(VKronPath,[n_a,n_z,T]);
 PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath, n_d, n_a, n_z,T,vfoptions);
 
 
+size(PolicyIndexesPath)
+size(PolicyPath)
+
+max(abs(PolicyPath(:)-PolicyIndexesPath(:)))
+
+
 end

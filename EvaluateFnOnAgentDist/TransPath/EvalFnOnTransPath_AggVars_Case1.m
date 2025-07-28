@@ -129,192 +129,57 @@ end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 %%
-PolicyPath=KronPolicyIndexes_TransPath_Case1(PolicyPath, n_d, n_a, n_z,T);
+if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
+    PolicyPath=reshape(PolicyPath,[N_a,N_z,T]);
+else
+    PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
+end
 AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
 
-if simoptions.parallel==2
-    unkronoptions.parallel=2;
-    AggVarsPath=zeros(T,length(AggVarNames),'gpuArray');
-    
-    for tt=1:T
-        for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-        end
-        for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-        end
-        if use_tminus1price==1
-            for pp=1:length(tminus1priceNames)
-                if tt>1
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
-                else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
-                end
-            end
-        end
-        if use_tplus1price==1
-            for pp=1:length(tplus1priceNames)
-                kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
-            end
-        end
-%         if use_tminus1AggVars==1
-%             for pp=1:length(use_tminus1AggVars)
-%                 if tt>1
-%                     % The AggVars have not yet been updated, so they still contain previous period values
-%                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-%                 else
-%                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
-%                 end
-%             end
-%         end
+AggVarsPath=zeros(T,length(AggVarNames),'gpuArray');
 
-        if N_d>0
-            Policy=PolicyPath(:,:,:,tt);
-        else
-            Policy=PolicyPath(:,:,tt);            
-        end
-        Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        AgentDist=AgentDistPath(:,:,tt);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
-        
-        AggVarsPath(tt,:)=AggVars;
+for tt=1:T
+    for kk=1:length(PricePathNames)
+        Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
     end
-elseif simoptions.parallel==1
-    AggVarsPath=zeros(T,length(AggVarsNames));
-    
-    if N_d>0 % Has to be outside so that parfor can slice PolicyPath properly
-        parfor tt=1:T
-            Parameters_tt=Parameters; % This is just to help matlab figure out how to slice the parfor
-            Policy=PolicyPath(:,:,:,tt);
-            for kk=1:length(PricePathNames)
-                Parameters_tt.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+    for kk=1:length(ParamPathNames)
+        Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+    end
+    if use_tminus1price==1
+        for pp=1:length(tminus1priceNames)
+            if tt>1
+                Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+            else
+                Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
             end
-            for kk=1:length(ParamPathNames)
-                Parameters_tt.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            if use_tminus1price==1
-                for pp=1:length(tminus1priceNames)
-                    if tt>1
-                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=Parameters_tt.(tminus1priceNames{pp});
-                    else
-                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
-                    end
-                end
-            end
-            if use_tplus1price==1
-                for pp=1:length(tplus1priceNames)
-                    ll=tplus1pricePathkk(pp);
-                    Parameters_tt.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,ll):PricePathSizeVec(2,ll)); % Make is so that the time t+1 variables can be used
-                end
-            end
-            %         if use_tminus1AggVars==1
-            %             for pp=1:length(use_tminus1AggVars)
-            %                 if tt>1
-            %                     % The AggVars have not yet been updated, so they still contain previous period values
-            %                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-            %                 else
-            %                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
-            %                 end
-            %             end
-            %         end
-            
-            Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-            AgentDist=AgentDistPath(:,:,tt);
-            AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters_tt, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
-            
-            AggVarsPath(tt,:)=AggVars;
-        end
-    else % N_d==0
-        parfor tt=1:T
-            Parameters_tt=Parameters; % This is just to help matlab figure out how to slice the parfor
-            Policy=PolicyPath(:,:,tt);
-            for kk=1:length(PricePathNames)
-                Parameters_tt.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters_tt.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-            end
-            if use_tminus1price==1
-                for pp=1:length(tminus1priceNames)
-                    if tt>1
-                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=Parameters_tt.(tminus1priceNames{pp});
-                    else
-                        Parameters_tt.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
-                    end
-                end
-            end
-            if use_tplus1price==1
-                for pp=1:length(tplus1priceNames)
-                    ll=tplus1pricePathkk(pp);
-                    Parameters_tt.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,ll):PricePathSizeVec(2,ll)); % Make is so that the time t+1 variables can be used
-                end
-            end
-            %         if use_tminus1AggVars==1
-            %             for pp=1:length(use_tminus1AggVars)
-            %                 if tt>1
-            %                     % The AggVars have not yet been updated, so they still contain previous period values
-            %                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-            %                 else
-            %                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
-            %                 end
-            %             end
-            %         end
-            
-            Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-            AgentDist=AgentDistPath(:,:,tt);
-            AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters_tt, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
-            
-            AggVarsPath(tt,:)=AggVars;
         end
     end
-elseif simoptions.parallel==o
-    AggVarsPath=zeros(T,length(AggVarsNames));
-    
-    for tt=1:T
-        for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePath(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+    if use_tplus1price==1
+        for pp=1:length(tplus1priceNames)
+            kk=tplus1pricePathkk(pp);
+            Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
         end
-        for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-        end
-        if use_tminus1price==1
-            for pp=1:length(tminus1priceNames)
-                if tt>1
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
-                else
-                    Parameters.([tminus1priceNames{pp},'_tminus1'])=simoptions.initialvalues.(tminus1priceNames{pp});
-                end
-            end
-        end
-        if use_tplus1price==1
-            for pp=1:length(tplus1priceNames)
-                kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePath(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
-            end
-        end
-%         if use_tminus1AggVars==1
-%             for pp=1:length(use_tminus1AggVars)
-%                 if tt>1
-%                     % The AggVars have not yet been updated, so they still contain previous period values
-%                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
-%                 else
-%                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
-%                 end
-%             end
-%         end
+    end
+    %         if use_tminus1AggVars==1
+    %             for pp=1:length(use_tminus1AggVars)
+    %                 if tt>1
+    %                     % The AggVars have not yet been updated, so they still contain previous period values
+    %                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
+    %                 else
+    %                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+    %                 end
+    %             end
+    %         end
 
-        if N_d>0
-            Policy=PolicyPath(:,:,:,tt);
-        else
-            Policy=PolicyPath(:,:,tt);            
-        end
-        Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,unkronoptions);
-        AgentDist=AgentDistPath(:,:,tt);
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, 2,simoptions);
-        
-        AggVarsPath(tt,:)=AggVars;
+    if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
+        Policy=PolicyPath(:,:,tt);
+    else
+        Policy=PolicyPath(:,:,:,tt);
     end
+    AgentDist=AgentDistPath(:,:,tt);
+    AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
+
+    AggVarsPath(tt,:)=AggVars;
 end
 
 

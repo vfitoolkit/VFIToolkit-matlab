@@ -16,7 +16,11 @@ if ~isfield(simoptions, 'gridinterplayer')
     simoptions.gridinterplayer=0;
 end
 
-if n_d(1)==0
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
+if N_d==0
     l_d=0;
 else
     l_d=length(n_d);
@@ -24,11 +28,12 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-N_a=prod(n_a);
-N_z=prod(n_z);
 
-
-l_daprime=size(Policy,1);
+if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
+    l_daprime=1;
+else
+    l_daprime=size(Policy,1);
+end
 if simoptions.gridinterplayer==1
     l_daprime=l_daprime-1;
 end
