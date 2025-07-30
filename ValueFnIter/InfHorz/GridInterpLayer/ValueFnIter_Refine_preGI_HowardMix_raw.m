@@ -93,12 +93,12 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     
     % Use Howards Policy Fn Iteration Improvement (except for first few and last few iterations, as it is not a good idea there)
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
-        tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
+        tempmaxindex=shiftdim(Policy_a,1)+addindexforaz; % aprime index, add the index for a and z
         Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]); % keep return function of optimal policy for using in Howards
-        Policy=Policy(:); % a by z (this shape is just convenient for Howards)
+        Policy_a=Policy_a(:); % a by z (this shape is just convenient for Howards)
 
         for Howards_counter=1:vfoptions.howards
-            EVKrontemp=VKron(Policy,:);
+            EVKrontemp=VKron(Policy_a,:);
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);

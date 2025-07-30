@@ -151,9 +151,6 @@ PricePathDist=Inf;
 pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z]);
-% if transpathoptions.tanimprovement==0
-%     AgentDist_initial=reshape(AgentDist_initial,[N_a*N_z,1]);
-% elseif transpathoptions.tanimprovement==1
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
 pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
