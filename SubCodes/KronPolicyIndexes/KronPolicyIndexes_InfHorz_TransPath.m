@@ -68,7 +68,11 @@ elseif N_d>0
 end
 
 if simoptions.gridinterplayer==1
-    PolicyPathKron=[PolicyPathKron;PolicyPath(l_a+1,:,:,:)]; % L2 indexes
+    if N_d==0
+        PolicyPathKron=[PolicyPathKron; PolicyPath(l_a+1,:,:,:)]; % L2 indexes
+    else
+        PolicyPathKron=[PolicyPathKron; PolicyPath(l_d+l_a+1,:,:,:)]; % L2 indexes
+    end
 end
 
 if N_e>0

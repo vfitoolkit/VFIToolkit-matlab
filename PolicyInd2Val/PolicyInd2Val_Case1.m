@@ -67,7 +67,7 @@ else
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(Policy);
             Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
-            Policy(end-1,:)=((vfoptions.ngridinterp+1)*(Policy(end-1,:)-1)+1)+(Policy(end,:)-1); % combine last two (lower grid point and 2nd layer point) to get aprime index
+            Policy(end-1,:)=(vfoptions.ngridinterp+1)*(Policy(end-1,:)-1)+Policy(end,:); % combine last two (lower grid point and 2nd layer point) to get aprime index
             tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
             Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
         end

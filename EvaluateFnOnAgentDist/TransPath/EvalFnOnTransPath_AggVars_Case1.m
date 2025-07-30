@@ -82,17 +82,16 @@ for ff=1:length(AggVarNames)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end
-    FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+    FnsToEvaluateCell{ff}=FnsToEvaluate.(AggVarNames{ff});
 end
-FnsToEvaluate=FnsToEvaluate2;
 % For the subfunctions we want the following
 simoptions.outputasstructure=0;
 simoptions.AggVarNames=AggVarNames;
 
 %% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
-    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+if isstruct(FnsToEvaluate)
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,struct(),PricePathNames);
+    % tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
@@ -109,9 +108,8 @@ if length(tminus1priceNames)>0
     use_tminus1price=1;
     for tt=1:length(tminus1priceNames)
         if ~isfield(simoptions.initialvalues,tminus1priceNames{tt})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
             dbstack
-            break
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
         end
     end
 end
@@ -120,23 +118,40 @@ if length(tminus1AggVarsNames)>0
     use_tminus1AggVars=1;
     for tt=1:length(tminus1AggVarsNames)
         if ~isfield(simoptions.initialvalues,tminus1AggVarsNames{tt})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
             dbstack
-            break
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
         end
     end
 end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
 %%
-if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
-    PolicyPath=reshape(PolicyPath,[N_a,N_z,T]);
+d_gridvals=CreateGridvals(n_d,d_grid,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+if simoptions.gridinterplayer==1
+    if length(n_a)==1
+        N_aprime=N_a+(N_a-1)*simoptions.ngridinterp;
+        temp=interp1(linspace(1,N_a,N_a)',a_grid(1:n_a(1)),linspace(1,N_a,N_aprime)');
+        aprime_grid=temp;
+        n_aprime=n_a;
+    else
+        N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;
+        temp=interp1(linspace(1,n_a(1),n_a(1))',a_grid(1:n_a(1)),linspace(1,n_a(1),N_a1prime)');
+        aprime_grid=[temp; a_grid(n_a(1)+1:end)];
+        n_aprime=[N_a1prime,n_a(2:end)];
+    end
+    aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
 else
-    PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
+    aprime_gridvals=a_gridvals;
 end
+z_gridvals=CreateGridvals(n_z,z_grid,1);
+
+PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_gridvals,aprime_gridvals,simoptions,1);
+
+%%
 AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
 
-AggVarsPath=zeros(T,length(AggVarNames),'gpuArray');
+AggVarsPath=zeros(length(AggVarNames),T,'gpuArray');
 
 for tt=1:T
     for kk=1:length(PricePathNames)
@@ -171,15 +186,12 @@ for tt=1:T
     %             end
     %         end
 
-    if N_d==0 && isscalar(n_a) && simoptions.gridinterplayer==0
-        Policy=PolicyPath(:,:,tt);
-    else
-        Policy=PolicyPath(:,:,:,tt);
-    end
+    PolicyValues=PolicyValuesPath(:,:,:,tt);
     AgentDist=AgentDistPath(:,:,tt);
-    AggVars=EvalFnOnAgentDist_AggVars_Case1(AgentDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions);
 
-    AggVarsPath(tt,:)=AggVars;
+    AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(AgentDist(:), PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, n_a, n_z, a_gridvals, z_gridvals);
+
+    AggVarsPath(:,tt)=AggVars;
 end
 
 
@@ -190,7 +202,7 @@ clear AggVarsPath
 AggVarsPath=struct();
 %     AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
-    AggVarsPath.(AggVarNames{ff}).Mean=AggVarsPath2(:,ff);
+    AggVarsPath.(AggVarNames{ff}).Mean=AggVarsPath2(ff,:);
 end
 
 
