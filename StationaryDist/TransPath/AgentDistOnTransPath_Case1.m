@@ -5,31 +5,15 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 
+
 %% Check which simoptions have been used, set all others to defaults 
 if exist('simoptions','var')==0
-    simoptions.nsims=10^4;
-    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.verbose=0;
-    simoptions.iterate=1;
-    simoptions.tolerance=10^(-9);
     simoptions.gridinterplayer=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-9);
-    end
-    if ~isfield(simoptions,'nsims')
-        simoptions.nsims=10^4;
-    end
-    if ~isfield(simoptions,'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0);
-    end
+    % Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
-    end
-    if ~isfield(simoptions,'iterate')
-        simoptions.iterate=1;
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
@@ -74,7 +58,7 @@ elseif simoptions.gridinterplayer==1
     PolicyProbs(:,2,:)=1-PolicyProbs(:,1,:); % probability of upper grid point
 
     for tt=1:T-1
-        AgentDist=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,gather(Policy_aprimez(:,:,tt)),gather(II2),gather(PolicyProbs(:,:,tt)),N_a,N_z,pi_z_sparse);
+        AgentDist=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez(:,:,tt),II2,PolicyProbs(:,:,tt),N_a,N_z,pi_z_sparse);
         AgentDistPath(:,tt+1)=AgentDist;
     end
 end

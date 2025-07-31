@@ -166,20 +166,15 @@ if vfoptions.gridinterplayer==0
 elseif vfoptions.gridinterplayer==1    
     PolicyIndexesPath=zeros(3,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 end
-if simoptions.gridinterplayer==1
+if simoptions.gridinterplayer==0
+    II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
+    IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
+elseif simoptions.gridinterplayer==1
     Policy_aprime=zeros(N_a*N_z,2,'gpuArray'); % preallocate
     PolicyProbs=zeros(N_a*N_z,2,'gpuArray'); % preallocate
     II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
 end
 
-% The following five lines are essentially how I used to do things, but now
-% are redundant (I just do things by name, which takes a bit more run time
-% but much easier to code/read/debug)
-% beta=prod(CreateVectorFromParams(Parameters, DiscountFactorParamNames)); % It is possible but unusual with infinite horizon that there is more than one discount factor and that these should be multiplied together
-% IndexesForPathParamsInDiscountFactor=CreateParamVectorIndexes(DiscountFactorParamNames, ParamPathNames);
-% ReturnFnParamsVec=gpuArray(CreateVectorFromParams(Parameters, ReturnFnParamNames));
-% [IndexesForPricePathInReturnFnParams, IndexesPricePathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, PricePathNames);
-% [IndexesForPathParamsInReturnFnParams, IndexesParamPathUsedInReturnFn]=CreateParamVectorIndexes(ReturnFnParamNames, ParamPathNames);
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
@@ -216,7 +211,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         if simoptions.gridinterplayer==0
             Policy_aprime=reshape(Policy(2,:,:),[N_a*N_z,1]); % aprime index
             Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez),N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1,IIones,N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
             Policy_aprime(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % lower grid point
             Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
@@ -224,7 +219,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             PolicyProbs(:,1)=reshape(Policy(3,:,:),[N_a*N_z,1]); % L2 index
             PolicyProbs(:,1)=1-(PolicyProbs(:,1)-1)/(1+simoptions.ngridinterp); % probability of lower grid point
             PolicyProbs(:,2)=1-PolicyProbs(:,1); % probability of upper grid point
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,gather(Policy_aprimez),gather(II2),gather(PolicyProbs),N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
         end
         
         GEprices=PricePathOld(tt,:);

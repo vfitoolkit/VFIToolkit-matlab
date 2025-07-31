@@ -163,7 +163,10 @@ if vfoptions.gridinterplayer==0
 elseif vfoptions.gridinterplayer==1
     PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 end
-if simoptions.gridinterplayer==1
+if simoptions.gridinterplayer==0
+    II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
+    IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
+elseif simoptions.gridinterplayer==1
     Policy_aprime=zeros(N_a*N_z,2,'gpuArray'); % preallocate
     PolicyProbs=zeros(N_a*N_z,2,'gpuArray'); % preallocate
     II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
@@ -207,7 +210,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Policy=PolicyIndexesPath(:,:,tt);
             Policy_aprime=reshape(Policy,[N_a*N_z,1]);
             Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez),N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1,IIones,N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
             Policy=PolicyIndexesPath(:,:,:,tt);
             Policy_aprime(:,1)=reshape(Policy(1,:,:),[N_a*N_z,1]); % lower grid point
@@ -216,7 +219,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             PolicyProbs(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % L2 index
             PolicyProbs(:,1)=1-(PolicyProbs(:,1)-1)/(1+simoptions.ngridinterp); % probability of lower grid point
             PolicyProbs(:,2)=1-PolicyProbs(:,1); % probability of upper grid point
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,gather(Policy_aprimez),gather(II2),gather(PolicyProbs),N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
         end
         
         GEprices=PricePathOld(tt,:);

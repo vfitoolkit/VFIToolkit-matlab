@@ -48,6 +48,7 @@ else
     error('length(n_a)>1 not yet supported here, let me know if you want it')
 end
 
+
 %% Policy for semi-exogenous shocks
 % d2 is the variable relevant for the semi-exogenous asset. 
 if l_d2==1
