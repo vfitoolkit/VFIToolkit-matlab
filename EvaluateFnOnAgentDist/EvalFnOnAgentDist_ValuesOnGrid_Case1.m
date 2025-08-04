@@ -61,14 +61,13 @@ ValuesOnGrid=struct();
 
 if Parallel==2
     Policy=gpuArray(Policy);
-    l_daprime=size(Policy,1);
-
     PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,gpuArray(d_grid),gpuArray(a_grid),simoptions,1);
     if l_z==0
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a]),[2,1]); %[N_a,l_d+l_a]
     else
         PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
     end
+    l_daprime=size(PolicyValues,1);
 
     for ff=1:length(FnsToEvaluate)
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
