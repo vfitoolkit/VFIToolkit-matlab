@@ -80,7 +80,7 @@ end
 StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
 
 % Note: I could make it a bit faster by just doing these AggVars for the general eqm as part of the AllStats
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J,[], simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters,[],n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J,simoptions);
 
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 AggVarNames=fieldnames(AggVars);
