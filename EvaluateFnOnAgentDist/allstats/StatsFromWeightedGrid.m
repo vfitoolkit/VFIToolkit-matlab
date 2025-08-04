@@ -211,7 +211,6 @@ else
         AllStats.Maximum=maxvalue;
         AllStats.Minimum=minvalue;
     end
-
     if whichstats(6)>=1
         if nquantiles==1
             error('Not allowed to set simoptions.nquantiles=1 (you anyway have this as the median, set higher or set equal zero to disable')

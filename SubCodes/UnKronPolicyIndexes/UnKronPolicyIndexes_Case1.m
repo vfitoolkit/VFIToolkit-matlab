@@ -1,94 +1,137 @@
-function Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions)
+function Policy=UnKronPolicyIndexes_Case1(PolicyKron, n_d, n_a, n_z,vfoptions)
 
-%Input: Policy=zeros(2,N_a,N_z); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Input: PolicyKron=zeros(2,N_a,N_z); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
 %                       (N_a,N_z) if there is no d
-%Output: Policy (l_d+l_a,n_a,n_z);
+% Output: Policy (l_d+l_a,n_a,n_z);
+% Note: simoptions.gridinterplayer=1 means there will be an additional index for the second layer in both the input and output versions
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 l_a=length(n_a);
 
-if n_d(1)==0
-    
-    if vfoptions.parallel~=2
-        PolicyTemp=zeros(l_a,N_a,N_z);
-        for i=1:N_a
-            for j=1:N_z
-                optaindexKron=Policy(i,j);
-                optA=ind2sub_homemade([n_a'],optaindexKron);
-                PolicyTemp(:,i,j)=[optA'];
+if vfoptions.gridinterplayer==0
+
+    if vfoptions.parallel==2
+        if n_d(1)==0
+            Policy=zeros(l_a,N_a,N_z,'gpuArray');
+
+            Policy(1,:,:)=shiftdim(rem(PolicyKron-1,n_a(1))+1,-1);
+            if l_a>1
+                if l_a>2
+                    for ii=2:l_a-1
+                        Policy(ii,:,:)=shiftdim(rem(ceil(PolicyKron/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
+                    end
+                end
+                Policy(l_a,:,:)=shiftdim(ceil(PolicyKron/prod(n_a(1:l_a-1))),-1);
             end
+
+            Policy=reshape(Policy,[l_a,n_a,n_z]);
+        else
+            l_d=length(n_d);
+            l_da=length(n_d)+length(n_a);
+            n_da=[n_d,n_a];
+            Policy=zeros(l_da,N_a,N_z,'gpuArray');
+
+            Policy(1,:,:)=rem(PolicyKron(1,:,:)-1,n_da(1))+1;
+            if l_d>1
+                if l_d>2
+                    for ii=2:l_d-1
+                        Policy(ii,:,:)=rem(ceil(PolicyKron(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+                    end
+                end
+                Policy(l_d,:,:)=ceil(PolicyKron(1,:,:)/prod(n_d(1:l_d-1)));
+            end
+
+            Policy(l_d+1,:,:)=rem(PolicyKron(2,:,:)-1,n_a(1))+1;
+            if l_a>1
+                if l_a>2
+                    for ii=2:l_a-1
+                        Policy(l_d+ii,:,:)=rem(ceil(PolicyKron(2,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+                    end
+                end
+                Policy(l_da,:,:)=ceil(PolicyKron(2,:,:)/prod(n_a(1:l_a-1)));
+            end
+
+            Policy=reshape(Policy,[l_da,n_a,n_z]);
         end
-        Policy=reshape(PolicyTemp,[l_a,n_a,n_z]);
-    else
-        PolicyTemp=zeros(l_a,N_a,N_z,'gpuArray');
-        
-        PolicyTemp(1,:,:)=shiftdim(rem(Policy-1,n_a(1))+1,-1);
+
+    else 
+        % On CPU
+        if n_d(1)==0
+            Policy=zeros(l_a,N_a,N_z);
+            for i=1:N_a
+                for j=1:N_z
+                    optaindexKron=PolicyKron(i,j);
+                    optA=ind2sub_homemade(n_a',optaindexKron);
+                    Policy(:,i,j)=optA';
+                end
+            end
+            Policy=reshape(Policy,[l_a,n_a,n_z]);
+        else
+            l_d=length(n_d);
+            Policy=zeros(l_d+l_a,N_a,N_z);
+            for i=1:N_a
+                for j=1:N_z
+                    optdindexKron=PolicyKron(1,i,j);
+                    optaindexKron=PolicyKron(2,i,j);
+                    optD=ind2sub_homemade(n_d',optdindexKron);
+                    optA=ind2sub_homemade(n_a',optaindexKron);
+                    Policy(:,i,j)=[optD';optA'];
+                end
+            end
+            Policy=reshape(Policy,[l_d+l_a,n_a,n_z]);
+        end
+    end
+
+elseif vfoptions.gridinterplayer==1
+
+    if n_d(1)==0
+        Policy=zeros(l_a+1,N_a,N_z,'gpuArray');
+
+        Policy(1,:,:)=shiftdim(rem(PolicyKron(1,:,:)-1,n_a(1))+1,-1);
         if l_a>1
             if l_a>2
                 for ii=2:l_a-1
-                    PolicyTemp(ii,:,:)=shiftdim(rem(ceil(Policy/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
-                end                
+                    Policy(ii,:,:)=shiftdim(rem(ceil(PolicyKron(1,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
+                end
             end
-            PolicyTemp(l_a,:,:)=shiftdim(ceil(Policy/prod(n_a(1:l_a-1))),-1);
-        end            
-        
-        Policy=reshape(PolicyTemp,[l_a,n_a,n_z]);
-    end
-    
-else
-    l_d=length(n_d);
-    
-    if vfoptions.parallel~=2
-        PolicyTemp=zeros(l_d+l_a,N_a,N_z);
-        for i=1:N_a
-            for j=1:N_z
-                optdindexKron=Policy(1,i,j);
-                optaindexKron=Policy(2,i,j);
-                optD=ind2sub_homemade(n_d',optdindexKron);
-                optA=ind2sub_homemade(n_a',optaindexKron);
-                PolicyTemp(:,i,j)=[optD';optA'];
-            end
+            Policy(l_a,:,:)=shiftdim(ceil(PolicyKron(1,:,:)/prod(n_a(1:l_a-1))),-1);
         end
-        Policy=reshape(PolicyTemp,[l_d+l_a,n_a,n_z]);
+        Policy(l_a+1,:,:)=PolicyKron(2,:,:); % L2 index
+
+        Policy=reshape(Policy,[l_a+1,n_a,n_z]);
     else
+        l_d=length(n_d);
         l_da=length(n_d)+length(n_a);
         n_da=[n_d,n_a];
-        PolicyTemp=zeros(l_da,N_a,N_z,'gpuArray');
+        Policy=zeros(l_da+1,N_a,N_z,'gpuArray');
 
-        PolicyTemp(1,:,:)=rem(Policy(1,:,:)-1,n_da(1))+1;
+        Policy(1,:,:)=rem(PolicyKron(1,:,:)-1,n_da(1))+1;
         if l_d>1
             if l_d>2
                 for ii=2:l_d-1
-                    PolicyTemp(ii,:,:)=rem(ceil(Policy(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
-                end                
+                    Policy(ii,:,:)=rem(ceil(PolicyKron(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+                end
             end
-            PolicyTemp(l_d,:,:)=ceil(Policy(1,:,:)/prod(n_d(1:l_d-1)));
+            Policy(l_d,:,:)=ceil(PolicyKron(1,:,:)/prod(n_d(1:l_d-1)));
         end
-        
-        PolicyTemp(l_d+1,:,:)=rem(Policy(2,:,:)-1,n_a(1))+1;
+
+        Policy(l_d+1,:,:)=rem(PolicyKron(2,:,:)-1,n_a(1))+1;
         if l_a>1
             if l_a>2
                 for ii=2:l_a-1
-                    PolicyTemp(l_d+ii,:,:)=rem(ceil(Policy(2,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
-                end                
+                    Policy(l_d+ii,:,:)=rem(ceil(PolicyKron(2,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+                end
             end
-            PolicyTemp(l_da,:,:)=ceil(Policy(2,:,:)/prod(n_a(1:l_a-1)));
+            Policy(l_da,:,:)=ceil(PolicyKron(2,:,:)/prod(n_a(1:l_a-1)));
         end
-        
-        Policy=reshape(PolicyTemp,[l_da,n_a,n_z]);
+        Policy(l_da+1,:,:)=PolicyKron(3,:,:); % L2 index
+
+        Policy=reshape(Policy,[l_da+1,n_a,n_z]);
     end
-    
+
 end
 
-% % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-% % that Policy is not integer valued. The following corrects this by converting to int64 and then
-% % makes the output back into double as Matlab otherwise cannot use it in
-% % any arithmetical expressions.
-% if vfoptions.policy_forceintegertype==1
-%     Policy=uint64(Policy);
-%     Policy=double(Policy);
-% end
 
 end

@@ -27,18 +27,17 @@ AgentDistPath=zeros(N_a*N_z,T,'gpuArray');
 AgentDist=reshape(AgentDist_initial,[N_a*N_z,1]);
 pi_z_sparse=sparse(pi_z);
 AgentDistPath(:,1)=AgentDist;
-if N_d==0 && simoptions.gridinterplayer==0
-    Policy_aprime=reshape(PolicyPath(:,:,:),[N_a*N_z,T]);
-    Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-    for tt=1:T-1
-        AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez(:,tt)),N_a,N_z,pi_z_sparse);
-        AgentDistPath(:,tt+1)=AgentDist;
+if simoptions.gridinterplayer==0
+    II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
+    IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
+    if N_d==0
+        Policy_aprime=reshape(PolicyPath(:,:,:),[N_a*N_z,T]);
+    else
+        Policy_aprime=reshape(PolicyPath(2,:,:,:),[N_a*N_z,T]);
     end
-elseif N_d>0 && simoptions.gridinterplayer==0
-    Policy_aprime=reshape(PolicyPath(2,:,:,:),[N_a*N_z,T]);
     Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1)',N_a,1);
     for tt=1:T-1
-        AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez(:,tt)),N_a,N_z,pi_z_sparse);
+        AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez(:,tt)),II1,IIones,N_a,N_z,pi_z_sparse);
         AgentDistPath(:,tt+1)=AgentDist;
     end
 elseif simoptions.gridinterplayer==1

@@ -152,21 +152,18 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
 end
 
-%%
-% Switch policy to lower grid index and L2 index (is currently index on fine grid)
-fineindex=reshape(Policy_a,[N_a*N_z,1]);
-Policy_a=zeros(2,N_a,N_z,'gpuArray');
-L1a=ceil((fineindex-1)/(n2short+1))-1;
-L1=max(L1a,0)+1; % lower grid point index
-L2=fineindex-(L1-1)*(n2short+1); % L2 index
-Policy_a(1,:,:)=reshape(L1,[1,N_a,N_z]);
-Policy_a(2,:,:)=reshape(L2,[1,N_a,N_z]);
 
+%% Switch policy to lower grid index and L2 index (is currently index on fine grid)
+Policy_a=reshape(Policy_a,[N_a*N_z,1]);
+Policy=zeros(3,N_a,N_z,'gpuArray');
+L1a=ceil((Policy_a-1)/(n2short+1))-1;
+L1=max(L1a,0)+1; % lower grid point index
+L2=Policy_a-(L1-1)*(n2short+1); % L2 index
+Policy(2,:,:)=reshape(L1,[1,N_a,N_z]);
+Policy(3,:,:)=reshape(L2,[1,N_a,N_z]);
 
 %% For refinement, add d back into Policy
-Policy=zeros(3,N_a,N_z,'gpuArray');
-Policy(2:3,:,:)=shiftdim(Policy_a,-1);
-temppolicyindex=fineindex'+N_aprime*(0:1:N_a*N_z-1);
+temppolicyindex=Policy_a'+N_aprime*(0:1:N_a*N_z-1);
 Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is defined on the fine grid
 
 

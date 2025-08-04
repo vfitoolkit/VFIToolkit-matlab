@@ -63,7 +63,24 @@ if isscalar(n_a)
         end
     end
 else
-    error('vfoptions.gridinterplayer in Infinite horizion does not yet support two endogenous states')
+    if N_d==0
+        if vfoptions.howardsgreedy==0
+            [V,Policy]=ValueFnIter_preGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        elseif vfoptions.howardsgreedy==1
+            [V,Policy]=ValueFnIter_preGI2B_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        elseif vfoptions.howardsgreedy==2 % howards iter for a_grid, then howards greedy for aprime_grid
+            [V,Policy]=ValueFnIter_preGI2B_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+        end
+    else % N_d
+        % Nowadays, I know that only Refine is worth doing, so just skip to that.
+        if vfoptions.howardsgreedy==0
+            [V,Policy]=ValueFnIter_Refine_preGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+        elseif vfoptions.howardsgreedy==1
+            [V,Policy]=ValueFnIter_Refine_preGI2B_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+        elseif vfoptions.howardsgreedy==2
+            [V,Policy]=ValueFnIter_Refine_preGI2B_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+        end
+    end
 end
 
 % Note: GI and preGI give slightly different Policy because they deal
@@ -73,5 +90,10 @@ end
 % tempC=Policy2c(1,:,:)+((Policy2c(1,:,:)-1)*20)+Policy2c(2,:,:);
 % max(abs(tempA(:)-tempC(:)))
 % You can see they are exactly the same policy
+
+%% Reshape
+V=reshape(V,[n_a,n_z]);
+Policy=UnKronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,vfoptions);
+
 
 end

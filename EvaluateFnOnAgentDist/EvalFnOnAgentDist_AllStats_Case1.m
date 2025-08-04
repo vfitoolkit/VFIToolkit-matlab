@@ -91,15 +91,12 @@ end
 %% I want to do some things now, so that they can be used in setting up conditional restrictions
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 if simoptions.parallel==2
-
+    % Make sure things are on the gpu (they should already be)
     StationaryDistVec=gpuArray(StationaryDistVec);
     Policy=gpuArray(Policy);
-
+    % Switch to PolicyValues, and permute
     PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-    % permuteindexes=[1+(1:1:(l_a+l_z)),1];
-    % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
-
 end
 
 %% If there are any conditional restrictions, set up for these

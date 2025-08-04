@@ -117,8 +117,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
 end
 
-%%
-% Switch policy to lower grid index and L2 index (is currently index on fine grid)
+
+%% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 fineindex=reshape(Policy,[N_a*N_z,1]);
 Policy=zeros(2,N_a,N_z,'gpuArray');
 L1a=ceil((fineindex-1)/(n2short+1))-1;

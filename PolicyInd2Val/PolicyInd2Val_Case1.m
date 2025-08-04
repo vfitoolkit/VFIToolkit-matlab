@@ -62,13 +62,20 @@ else
         if vfoptions.gridinterplayer==1
             ordinary=0;
             l_aprime=l_a;
-            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp)');
-            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp; % =length(aprime_grid)
+            if l_a==1
+                aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp)');
+                n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp; % =length(aprime_grid)
+            else
+                a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a_grid(1:n_a(1)),linspace(1,n_a(1),n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp)');
+                aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
+                n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp; % =length(aprime_grid)
+                n_aprime=[n_a1prime,n_a(2:end)];
+            end
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(Policy);
             Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
-            Policy(end-1,:)=(vfoptions.ngridinterp+1)*(Policy(end-1,:)-1)+Policy(end,:); % combine last two (lower grid point and 2nd layer point) to get aprime index
-            tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
+            Policy(l_d+1,:)=(vfoptions.ngridinterp+1)*(Policy(l_d+1,:)-1)+Policy(end,:); % combine first asset index with the last index (lower grid point and 2nd layer point) to get aprime index
+            tempsize(1)=tempsize(1)-1; % we put two policies together, so this is how many are left
             Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
         end
     end

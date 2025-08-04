@@ -124,7 +124,7 @@ end
 
 %% Deal with entry and exit if that is being used
 if simoptions.agententryandexit==1 % If there is entry and exit use the command for that, otherwise just continue as usual.
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     % It is assumed that the 'entry' distribution is suitable initial guess
     % for stationary distribution (rather than usual approach of simulating a few agents)
     if isfield(EntryExitParamNames,'CondlEntryDecisions')==1
@@ -139,7 +139,7 @@ if simoptions.agententryandexit==1 % If there is entry and exit use the command 
     StationaryDist.pdf=reshape(StationaryDist.pdf,[n_a,n_z]);
     return
 elseif simoptions.agententryandexit==2 % If there is exogenous entry and exit, but of trival nature so mass of agent distribution is unaffected.
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     % (This is used in some infinite horizon models to control the distribution; avoid, e.g., some people/firms saving 'too much')
     % To create initial guess use ('middle' of) the newborns distribution for seed point and do no burnin and short simulations (ignoring exit).
     EntryDist=reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[N_a*N_z,1]);
@@ -164,7 +164,7 @@ end
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
 if isfield(simoptions,'SemiEndogShockFn')
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     if isa(simoptions.SemiEndogShockFn,'function_handle')==0
         pi_z_semiendog=simoptions.SemiEndogShockFn;
     else
@@ -239,7 +239,7 @@ end
 
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     StationaryDist=StationaryDist_InfHorz_LeftEigen_raw(Policy,N_d,N_a,N_z,pi_z,simoptions);
     if numel(StationaryDist)==1
         % Has failed, so continue on below to simulation and iteration commands
@@ -256,7 +256,7 @@ end
 %% Simulate agent distribution, unless there is an initaldist guess for the agent distribution in which case use that
 if simoptions.iterate==0
     % Not something you want to do, just a demo of alternative way to compute
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     StationaryDist=StationaryDist_InfHorz_Simulation_raw(Policy,N_d,N_a,N_z,pi_z, simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
@@ -270,6 +270,7 @@ if simoptions.gridinterplayer==1
         l_d=length(n_d);
     end
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     StationaryDist=StationaryDist_InfHorz_GI_raw(StationaryDist,Policy,l_d,N_a,N_z,pi_z,simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
@@ -278,7 +279,7 @@ end
 
 %% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
 if simoptions.iterate==1
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);
+    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
     if simoptions.tanimprovement==0
         StationaryDist=StationaryDist_InfHorz_Iteration_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,simoptions);
     elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)

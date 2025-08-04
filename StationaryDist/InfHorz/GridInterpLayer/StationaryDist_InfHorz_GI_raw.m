@@ -17,9 +17,6 @@ Policy_aprime(:,:,2)=Policy_aprime(:,:,1)+1;
 PolicyProbs(:,:,1)=shiftdim((simoptions.ngridinterp+1-Policy(l_d+2,:,:)+1)/(simoptions.ngridinterp+1),1); % probability of lower grid point
 PolicyProbs(:,:,2)=1-PolicyProbs(:,:,1);
 
-% R2025a, I can probably do this on gpu now??
-Policy_aprime=gather(Policy_aprime);
-
 StationaryDistKron=StationaryDist_InfHorz_Iteration_TwoProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,N_a,N_z,pi_z,simoptions);
 
 end

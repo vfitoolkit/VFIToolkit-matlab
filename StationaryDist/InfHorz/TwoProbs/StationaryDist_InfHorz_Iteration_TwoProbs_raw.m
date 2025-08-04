@@ -9,17 +9,15 @@ Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,2])); % (a,z,2)
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,2])); % (a,z,2)
 
 %% Use Tan improvement
-% Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]
-% Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
-% Hence, just force sparse cpu arrays.
+% Cannot do max on sparse gpu matrix in Matlab yet, so this is on cpu
 
-StationaryDistKron=sparse(gather(StationaryDistKron)); % use sparse cpu matrix
+StationaryDistKron=sparse(gather(StationaryDistKron)); % use sparse matrix
 
 % Precompute
 II2=[1:1:N_a*N_z; 1:1:N_a*N_z]'; % Index for this period (a,z), note the 2 copies
 
 % Gamma for first step of Tan improvement
-Gammatranspose=sparse(Policy_aprimez(:,:),II2,PolicyProbs(:,:),N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
+Gammatranspose=sparse(Policy_aprimez,II2,PolicyProbs,N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 % pi_z for second step of Tan improvement
 pi_z=sparse(gather(pi_z));
 
