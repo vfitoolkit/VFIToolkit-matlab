@@ -168,7 +168,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 end
 
 
-
 %% Cleaning up the output
 if vfoptions.outputkron==0
     V=reshape(V,[n_a,n_z]);

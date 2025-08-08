@@ -32,7 +32,7 @@ if vfoptions.divideandconquer==0
     end
 elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==0
 
-    if length(n_a)==1
+    if isscalar(n_a)
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
@@ -59,7 +59,7 @@ elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==0
 elseif vfoptions.divideandconquer==0 && vfoptions.gridinterplayer==1
     error('Have not yet implemented combo of vfoptions.gridinterplayer=1 with vfoptions.divideandconquer=0')
 elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
-    if length(n_a)==1
+    if isscalar(n_a)
         if N_d==0
             [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
@@ -68,7 +68,11 @@ elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
     elseif length(n_a)==2
         if vfoptions.level1n(2)==n_a(2) % Don't bother with divide-and-conquer on the second endogenous state        
             vfoptions.level1n=vfoptions.level1n(1); % Only first one is relevant for DC2B
-            error('Have not yet implemented combo of vfoptions.gridinterplayer=1 with vfoptions.divideandconquer=1 for divide-and-conquer on the first endogenous state (with two endo states)')
+            if N_d==0
+                [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_GI_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_GI_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
         else
             error('With two endogenous states, can only do divide-and-conquer in the first endogenous state (not in both)')
         end

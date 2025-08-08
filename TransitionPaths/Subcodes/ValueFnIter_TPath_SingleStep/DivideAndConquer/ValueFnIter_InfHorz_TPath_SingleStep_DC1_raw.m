@@ -25,7 +25,7 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 EV=Vnext.*shiftdim(pi_z',-1);
 EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
-entireEV=repmat(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
+entireEV=repelem(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid, a_grid(level1ii), z_gridvals, ReturnFnParamsVec,1);

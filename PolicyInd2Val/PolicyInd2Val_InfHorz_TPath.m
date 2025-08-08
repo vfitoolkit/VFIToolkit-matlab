@@ -61,33 +61,33 @@ if inputkron==0 % usual setup
 elseif inputkron==1 % for internal use
     % d_gridvals
     % a_gridvals
-    if simoptions.gridinterplayer==1 % switch Policy to use fine grid index
-        if n_d(1)==0
-            if length(n_a)==1
-                PolicyPath(1,:,:,:)=(simoptions.ngridinterp+1)*(PolicyPath(1,:,:,:)-1)+PolicyPath(2,:,:,:); % switch aprime to the fine grid
-            elseif length(n_a)==2
-                % WHAT IS THE CALC FOR THIS??
-                error('this doesnt work yet')
-            end
-        else
-            if length(n_a)==1
-                PolicyPath(2,:,:,:)=(simoptions.ngridinterp+1)*(PolicyPath(2,:,:,:)-1)+PolicyPath(3,:,:,:); % switch aprime to the fine grid
-            elseif length(n_a)==2
-                % WHAT IS THE CALC FOR THIS??
-                error('this doesnt work yet')
-            end
-        end
-    end
-    
     l_aprime=length(n_a);
     if n_d(1)==0
         PolicyValuesPath=zeros(l_aprime,N_a,N_z,T,'gpuArray');
-        PolicyValuesPath(1:l_aprime,:,:,:)=reshape(a_grid(PolicyPath(1,:,:,:),:)',[l_aprime,N_a,N_z,T]);
+        if simoptions.gridinterplayer==0
+            PolicyValuesPath(1:l_aprime,:,:,:)=reshape(a_grid(PolicyPath(1,:,:,:),:)',[l_aprime,N_a,N_z,T]);
+        elseif simoptions.gridinterplayer==1
+            PolicyPath(1,:,:,:)=(simoptions.ngridinterp+1)*(PolicyPath(1,:,:,:)-1)+PolicyPath(end,:,:,:); % switch aprime to the fine grid
+            if ~isscalar(n_a)
+                N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;
+                PolicyPath(1,:,:,:)=PolicyPath(1,:,:,:)+N_a1prime*(PolicyPath(2,:,:,:)-1);
+            end
+            PolicyValuesPath(1:l_aprime,:,:,:)=reshape(a_grid(PolicyPath(1,:,:,:),:)',[l_aprime,N_a,N_z,T]);
+        end
     else
         l_d=length(n_d);
         PolicyValuesPath=zeros(l_d+l_aprime,N_a,N_z,T,'gpuArray');
         PolicyValuesPath(1:l_d,:,:,:)=reshape(d_grid(PolicyPath(1,:,:,:),:)',[l_d,N_a,N_z,T]);
-        PolicyValuesPath(l_d+1:l_d+l_aprime,:,:,:)=reshape(a_grid(PolicyPath(2,:,:,:),:)',[l_aprime,N_a,N_z,T]);
+        if simoptions.gridinterplayer==0
+            PolicyValuesPath(l_d+1:l_d+l_aprime,:,:,:)=reshape(a_grid(PolicyPath(2,:,:,:),:)',[l_aprime,N_a,N_z,T]);
+        elseif simoptions.gridinterplayer==1
+            PolicyPath(2,:,:,:)=(simoptions.ngridinterp+1)*(PolicyPath(2,:,:,:)-1)+PolicyPath(end,:,:,:); % switch a1prime to the fine grid
+            if ~isscalar(n_a)
+                N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;
+                PolicyPath(2,:,:,:)=PolicyPath(2,:,:,:)+N_a1prime*(PolicyPath(3,:,:,:)-1);
+            end
+            PolicyValuesPath(l_d+1:l_d+l_aprime,:,:,:)=reshape(a_grid(PolicyPath(2,:,:,:),:)',[l_aprime,N_a,N_z,T]);     
+        end
     end
 
 end

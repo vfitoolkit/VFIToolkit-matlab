@@ -1,12 +1,8 @@
-function StationaryDistKron=StationaryDist_InfHorz_Iteration_TwoProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_Iteration_TwoProbs_raw(StationaryDistKron,Policy_aprimez,PolicyProbs,N_a,N_z,pi_z,simoptions)
 % 'TwoProbs' refers to two probabilities.
 % Policy_aprime has an additional final dimension of length 2 which is
 % the two points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these two.
-
-Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1); % Note: add z index following the z dimension
-Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,2])); % (a,z,2)
-PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,2])); % (a,z,2)
 
 %% Use Tan improvement
 % Cannot do max on sparse gpu matrix in Matlab yet, so this is on cpu

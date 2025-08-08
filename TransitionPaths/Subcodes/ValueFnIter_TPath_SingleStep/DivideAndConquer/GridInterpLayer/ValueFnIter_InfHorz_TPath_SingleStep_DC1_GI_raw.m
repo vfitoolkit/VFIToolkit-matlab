@@ -150,13 +150,13 @@ elseif vfoptions.lowmemory==1
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn,n_d,special_n_z,d_gridvals,aprime_grid(aprimeindexes),a_grid,z_val,ReturnFnParamsVec,2);
         daprime=(1:1:N_d)'+N_d*(aprimeindexes-1);
         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d*n2long,N_a]);
-        [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
+        [Vtempii,maxindex2]=max(entireRHS_ii,[],1);
         V(:,z_c)=shiftdim(Vtempii,1);
-        d_ind=rem(maxindexL2-1,N_d)+1;
+        d_ind=rem(maxindex2-1,N_d)+1;
         allind=d_ind+N_d*aind; % midpoint is n_d-by-1-by-n_a
         Policy(1,:,z_c)=d_ind; % d
         Policy(2,:,z_c)=shiftdim(squeeze(midpoints(allind)),-1); % midpoint
-        Policy(3,:,z_c)=shiftdim(ceil(maxindexL2/N_d),-1); % aprimeL2ind
+        Policy(3,:,z_c)=shiftdim(ceil(maxindex2/N_d),-1); % aprimeL2ind
     end
 end
 

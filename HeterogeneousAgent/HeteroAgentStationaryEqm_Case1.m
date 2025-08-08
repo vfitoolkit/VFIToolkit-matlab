@@ -178,6 +178,14 @@ AggVarNames=fieldnames(FnsToEvaluate);
 
 simoptions.outputasstructure=0;
 
+if isfield(vfoptions,'divideandconquer') && isfield(vfoptions,'gridinterplayer')
+    if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+        vfoptions.divideandconquer=0;
+        warning('Cannot yet use divide-and-conquer with grid interpolation layer for InfHorz, so just ignoring the divide-and-conquer (and doing the gird interpolation layer)')
+    end
+end
+
+
 
 %%
 N_a=prod(n_a);
@@ -230,7 +238,6 @@ end
 % precomputed by the time we get to the value fn, staty dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
-
 
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time

@@ -264,14 +264,8 @@ end
 
 %%
 if simoptions.gridinterplayer==1
-    if N_d==0
-        l_d=0;
-    else
-        l_d=length(n_d);
-    end
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
     Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
-    StationaryDist=StationaryDist_InfHorz_GI_raw(StationaryDist,Policy,l_d,N_a,N_z,pi_z,simoptions);
+    StationaryDist=StationaryDist_InfHorz_GI_raw(StationaryDist,Policy,n_d,n_a,N_a,N_z,pi_z,simoptions);
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end

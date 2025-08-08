@@ -89,16 +89,24 @@ elseif vfoptions.gridinterplayer==1
     if n_d(1)==0
         Policy=zeros(l_a+1,N_a,N_z,'gpuArray');
 
-        Policy(1,:,:)=shiftdim(rem(PolicyKron(1,:,:)-1,n_a(1))+1,-1);
-        if l_a>1
-            if l_a>2
-                for ii=2:l_a-1
-                    Policy(ii,:,:)=shiftdim(rem(ceil(PolicyKron(1,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
+        Policy(1,:,:)=PolicyKron(1,:,:);
+        if l_a==2
+            Policy(2,:,:)=PolicyKron(2,:,:);
+        elseif l_a>2
+            Policy(2,:,:)=shiftdim(rem(PolicyKron(2,:,:)-1,n_a(1))+1,-1);
+            if l_a>3
+                for ii=3:l_a-1
+                    Policy(ii,:,:)=shiftdim(rem(ceil(PolicyKron(2,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
                 end
             end
-            Policy(l_a,:,:)=shiftdim(ceil(PolicyKron(1,:,:)/prod(n_a(1:l_a-1))),-1);
+            Policy(l_a,:,:)=shiftdim(ceil(PolicyKron(2,:,:)/prod(n_a(1:l_a-1))),-1);
         end
-        Policy(l_a+1,:,:)=PolicyKron(2,:,:); % L2 index
+
+        if l_a==1
+            Policy(l_a+1,:,:)=PolicyKron(2,:,:); % L2 index
+        else
+            Policy(l_a+1,:,:)=PolicyKron(3,:,:); % L2 index
+        end
 
         Policy=reshape(Policy,[l_a+1,n_a,n_z]);
     else
@@ -117,16 +125,24 @@ elseif vfoptions.gridinterplayer==1
             Policy(l_d,:,:)=ceil(PolicyKron(1,:,:)/prod(n_d(1:l_d-1)));
         end
 
-        Policy(l_d+1,:,:)=rem(PolicyKron(2,:,:)-1,n_a(1))+1;
-        if l_a>1
-            if l_a>2
-                for ii=2:l_a-1
-                    Policy(l_d+ii,:,:)=rem(ceil(PolicyKron(2,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1;
+        Policy(l_d+1,:,:)=PolicyKron(2,:,:);
+        if l_a==2
+            Policy(l_d+2,:,:)=PolicyKron(3,:,:);
+        elseif l_a>2
+            Policy(l_d+2,:,:)=shiftdim(rem(PolicyKron(3,:,:)-1,n_a(1))+1,-1);
+            if l_a>3
+                for ii=3:l_a-1
+                    Policy(l_d+ii,:,:)=shiftdim(rem(ceil(PolicyKron(3,:,:)/prod(n_a(1:ii-1)))-1,n_a(ii))+1,-1);
                 end
             end
-            Policy(l_da,:,:)=ceil(PolicyKron(2,:,:)/prod(n_a(1:l_a-1)));
+            Policy(l_d+l_a,:,:)=shiftdim(ceil(PolicyKron(3,:,:)/prod(n_a(1:l_a-1))),-1);
         end
-        Policy(l_da+1,:,:)=PolicyKron(3,:,:); % L2 index
+
+        if l_a==1
+            Policy(l_da+1,:,:)=PolicyKron(3,:,:); % L2 index
+        else
+            Policy(l_da+1,:,:)=PolicyKron(4,:,:); % L2 index
+        end
 
         Policy=reshape(Policy,[l_da+1,n_a,n_z]);
     end

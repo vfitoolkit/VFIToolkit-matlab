@@ -179,7 +179,7 @@ VKronPath(:,:,T)=V_final;
 %%
 if N_d==0 && vfoptions.gridinterplayer==0
     PolicyIndexesPath=zeros(N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-    PolicyIndexesPath(:,:,T)=KronPolicyIndexes_Case1(Policy_final, n_d, n_a, n_z);
+    PolicyIndexesPath(:,:,T)=KronPolicyIndexes_Case1(Policy_final, n_d, n_a, n_z, vfoptions);
 
     % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     Vnext=V_final;
@@ -201,14 +201,23 @@ if N_d==0 && vfoptions.gridinterplayer==0
         Vnext=V;
     end
 else
-    if N_d>0 && vfoptions.gridinterplayer==1
-        PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
-    else
-        PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1 
-        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
+    if N_d>0 && vfoptions.gridinterplayer==0
+        PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: d,a
+    elseif N_d==0 && vfoptions.gridinterplayer==1
+        if isscalar(n_a)
+            PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: a1,L2
+        else
+            PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: a1,a2,L2
+        end
+    elseif N_d>0 && vfoptions.gridinterplayer==1
+        if isscalar(n_a)
+            PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: d,a1,L2
+        else
+            PolicyIndexesPath=zeros(4,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: d1,a1,a2,L2      
+        end
     end
-
+    PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
+    
     % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     Vnext=V_final;
     for ttr=1:T-1 %so t=T-i

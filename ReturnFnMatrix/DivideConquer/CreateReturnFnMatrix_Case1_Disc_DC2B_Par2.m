@@ -21,10 +21,14 @@ if l_z>4
 end
 
 if Level==1
-    N_a1prime=length(a1prime_grid); % Because l_a=1
+    N_a1prime=length(a1prime_grid);
     a1prime_grid=shiftdim(a1prime_grid,-1);
 elseif Level==2
-    N_a1prime=size(a1prime_grid,2); % Because l_a=1
+    N_a1prime=size(a1prime_grid,2);
+elseif Level==3
+    N_a1prime=size(a1prime_grid,2);
+    % a1prime_grid unchanged
+    % Level 3 has level 2 inputs but level 1 outputs, used for GI
 end
 N_a2prime=N_a2;
 
@@ -75,6 +79,8 @@ if Level==1
     Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2,N_z]);
 elseif Level==2 % For level 2
     Fmatrix=reshape(Fmatrix,[N_d*N_a1prime*N_a2prime,N_a1*N_a2,N_z]);
+elseif Level==3 % For GI
+    Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2,N_z]);
 end
 
 

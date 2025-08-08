@@ -414,6 +414,12 @@ else
     d_gridvals=d_grid;
 end
 
+%% Divide-and-conquer together with grid interpolation layer is not yet done in InfHorz. It is assumed you just want the grid interpolation layer
+if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
+    vfoptions.divideandconquer=0;
+    warning('Cannot yet use divide-and-conquer with grid interpolation layer for InfHorz, so just ignoring the divide-and-conquer (and doing the gird interpolation layer)')
+end
+
 %% Divide-and-conquer
 if vfoptions.divideandconquer==1
     [V,Policy]=ValueFnIter_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);

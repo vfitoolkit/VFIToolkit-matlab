@@ -29,6 +29,7 @@ end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 [z_gridvals,~,simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
 
+
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;

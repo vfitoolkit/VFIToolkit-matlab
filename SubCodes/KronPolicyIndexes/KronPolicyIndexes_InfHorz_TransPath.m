@@ -32,16 +32,27 @@ end
 N_ze=prod(n_ze);
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_ze,T]);
 
+
 %%
 if N_d==0
-    % PolicyPathKron=zeros(N_a,N_ze,T,'gpuArray');
     if l_a==1
         PolicyPathKron=PolicyPath(1,:,:,:);
-    else
-        temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
+    elseif simoptions.gridinterplayer==0
+        temp=[0; ones(l_a-1,1,'gpuArray')];
         temp2=gpuArray(cumprod(n_a')); % column vector
-        PolicyTemp=(reshape(PolicyPath(1:l_a,:,:,:),[l_a,N_a*N_ze,T])-temp*ones(1,N_a*N_ze,T,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_ze,T,'gpuArray'));
+        PolicyTemp=(reshape(PolicyPath(1:l_a,:,:,:),[l_a,N_a*N_ze,T])-temp).*[1; temp2(1:end-1)]; % note, lots of autofilling
         PolicyPathKron=reshape(sum(PolicyTemp,1),[N_a,N_ze,T]);
+    elseif simoptions.gridinterplayer==1
+        PolicyPathKron=zeros(2,N_a,N_ze,T,'gpuArray');
+        PolicyPathKron(1,:,:,:)=PolicyPath(1,:,:,:);
+        if l_a==2
+            PolicyPathKron(2,:,:,:)=PolicyPath(2,:,:,:);
+        else
+            temp=[0; ones(l_a-2,1,'gpuArray')];
+            temp2=gpuArray(cumprod(n_a(2:end)')); % column vector
+            PolicyTemp=(reshape(PolicyPath(2:l_a,:,:,:),[l_a-1,N_a*N_ze,T])-temp).*[1; temp2(1:end-1)]; % note, lots of autofilling
+            PolicyPathKron(2,:,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_ze,T]);
+        end
     end
 
 elseif N_d>0
@@ -51,19 +62,30 @@ elseif N_d>0
     if l_d==1
         PolicyPathKron(1,:,:,:)=PolicyPath(1,:,:,:);
     else
-        temp=ones(l_d,1,'gpuArray')-eye(l_d,1,'gpuArray');
+        temp=[0; ones(l_d-1,1,'gpuArray')];
         temp2=gpuArray(cumprod(n_d')); % column vector
-        PolicyTemp=(reshape(PolicyPath(1:l_d,:,:,:),[l_d,N_a*N_ze,T])-temp*ones(1,N_a*N_ze,T,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_ze,T,'gpuArray'));
+        PolicyTemp=(reshape(PolicyPath(1:l_d,:,:,:),[l_d,N_a*N_ze,T])-temp).*[1;temp2(1:end-1)]; % note, lots of autofilling
         PolicyPathKron(1,:,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_ze,T]);
     end
     % Then, a
     if l_a==1
         PolicyPathKron(2,:,:,:)=PolicyPath(l_d+1,:,:,:);
-    else
-        temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
+    elseif simoptions.gridinterplayer==0
+        temp=[0; ones(l_a-1,1,'gpuArray')];
         temp2=gpuArray(cumprod(n_a')); % column vector
-        PolicyTemp=(reshape(PolicyPath(l_d+1:l_d+l_a,:,:,:),[l_a,N_a*N_ze,T])-temp*ones(1,N_a*N_ze,T,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_ze,T,'gpuArray'));
-        PolicyPathKron(2,:,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_z]);
+        PolicyTemp=(reshape(PolicyPath(l_d+1:l_d+l_a,:,:,:),[l_a,N_a*N_ze,T])-temp).*[1; temp2(1:end-1)]; % note, lots of autofilling
+        PolicyPathKron(2,:,:,:)=reshape(sum(PolicyTemp,1),[N_a,N_ze,T]);
+    elseif simoptions.gridinterplayer==1
+        PolicyPathKron=zeros(2,N_a,N_ze,T,'gpuArray');
+        PolicyPathKron(2,:,:,:)=PolicyPath(l_d+1,:,:,:);
+        if l_a==2
+            PolicyPathKron(3,:,:,:)=PolicyPath(l_d+2,:,:,:);
+        else
+            temp=[0; ones(l_a-2,1,'gpuArray')];
+            temp2=gpuArray(cumprod(n_a(2:end)')); % column vector
+            PolicyTemp=(reshape(PolicyPath(l_d+2:l_d+l_a,:,:,:),[l_a-1,N_a*N_ze,T])-temp).*[1; temp2(1:end-1)]; % note, lots of autofilling
+            PolicyPathKron(3,:,:,:)=reshape(sum(PolicyTemp,1),[1,N_a,N_ze,T]);
+        end
     end
 end
 

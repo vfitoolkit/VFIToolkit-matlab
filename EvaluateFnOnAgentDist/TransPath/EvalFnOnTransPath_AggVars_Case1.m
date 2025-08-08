@@ -189,7 +189,7 @@ for tt=1:T
     PolicyValues=PolicyValuesPath(:,:,:,tt);
     AgentDist=AgentDistPath(:,:,tt);
 
-    AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(AgentDist(:), PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, n_a, n_z, a_gridvals, z_gridvals);
+    AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(AgentDist(:), PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,[], n_a, n_z, a_gridvals, z_gridvals,0);
 
     AggVarsPath(:,tt)=AggVars;
 end
