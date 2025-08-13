@@ -17,6 +17,8 @@ Gammatranspose=sparse(Policy_aprimez,II2,PolicyProbs,N_a*N_z,N_a*N_z); % Note: s
 % pi_z for second step of Tan improvement
 pi_z=sparse(gather(pi_z));
 
+Gammatranspose=gather(Gammatranspose);
+
 currdist=Inf;
 counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit

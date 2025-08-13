@@ -1,11 +1,20 @@
-function PricePath=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid,a1_grid, a2_grid, z_gridvals, ReturnFn, aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
 
-
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
+N_a=N_a1*N_a2;
 N_z=prod(n_z);
-N_a=prod(n_a);
 
-l_d=0; % This is the no_d code
-l_a=length(n_a);
+if n_d1(1)==0
+    l_d1=0;
+else
+    l_d1=length(n_d1);
+end
+l_d2=length(n_d2); % expasset, so cannot have l_d2=0
+l_d=l_d1+l_d2;
+l_a1=length(n_a1);
+l_a2=length(n_a2);
+l_a=l_a1+l_a2;
 l_z=length(n_z);
 
 if transpathoptions.verbose==1
@@ -26,12 +35,13 @@ end
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
-    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
+    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
     tminus1AggVarsNames=[];
+    tminus1paramNames=[];
     tplus1pricePathkk=[];
 end
 
@@ -65,13 +75,14 @@ end
 
 use_tminus1price
 use_tminus1AggVars
+use_tplus1price
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_a1+l_a+l_z) % expasset
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a1+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end
@@ -83,55 +94,90 @@ simoptions.AggVarNames=AggVarNames;
 
 
 %%
-l_p=size(PricePathOld,2);
 
 PricePathDist=Inf;
-pathcounter=1;
+pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
 pi_z_sparse=sparse(pi_z); % Need full pi_z for value fn, and sparse for agent dist
 
-AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
-GEcondnsPath=zeros(T-1,length(GEeqnNames),'gpuArray');
-
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
-a_gridvals=CreateGridvals(n_a,a_grid,1);
-if vfoptions.gridinterplayer==0
-    aprime_gridvals=CreateGridvals(n_a,a_grid,1);
-    PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-elseif vfoptions.gridinterplayer==1
-    if isscalar(n_a)
-        aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,gpuArray(linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp))');
-        aprime_gridvals=CreateGridvals(n_a,aprime_grid,1);
+AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+GEcondnsPath=zeros(T-1,length(GEeqnNames),'gpuArray');
+
+if l_d1==0
+    n_d=n_d2;
+    d_gridvals=CreateGridvals(n_d2,d2_grid,1);
+else
+    n_d=[n_d1,n_d2];
+    d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
+end
+a_gridvals=CreateGridvals([n_a1,n_a2],[a1_grid; a2_grid],1);
+if l_d1==0
+    if vfoptions.gridinterplayer==0
+        a1prime_gridvals=CreateGridvals(n_a1,a1_grid,1);
         PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-    else
-        a1_grid=a_grid(1:n_a(1));
-        n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp;
-        a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a1_grid,gpuArray(linspace(1,n_a(1),n_a1prime))');
-        aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
-        n_aprime=[n_a1prime,n_a(2:end)];
-        aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+    elseif vfoptions.gridinterplayer==1
+        if isscalar(n_a)
+            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp;
+            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,gpuArray(linspace(1,N_a,n_aprime))');
+            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            PolicyIndexesPath=zeros(3,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+        else
+            a1_grid=a_grid(1:n_a(1));
+            n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp;
+            n_aprime=[n_a1prime,n_a(2:end)];
+            a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a1_grid,gpuArray(linspace(1,n_a(1),n_a1prime))');
+            aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
+            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            PolicyIndexesPath=zeros(4,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+        end
+    end
+else % l_d1
+    if vfoptions.gridinterplayer==0
+        a1prime_gridvals=CreateGridvals(n_a1,a1_grid,1);
         PolicyIndexesPath=zeros(3,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+    elseif vfoptions.gridinterplayer==1
+        if isscalar(n_a)
+            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp;
+            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,gpuArray(linspace(1,N_a,n_aprime))');
+            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            PolicyIndexesPath=zeros(4,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+        else
+            a1_grid=a_grid(1:n_a(1));
+            n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp;
+            n_aprime=[n_a1prime,n_a(2:end)];
+            a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a1_grid,gpuArray(linspace(1,n_a(1),n_a1prime))');
+            aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
+            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            PolicyIndexesPath=zeros(5,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+        end
     end
 end
-if simoptions.gridinterplayer==0
-    II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
-    IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
-elseif simoptions.gridinterplayer==1
-    Policy_aprime=zeros(N_a*N_z,2,'gpuArray'); % preallocate
-    PolicyProbs=zeros(N_a*N_z,2,'gpuArray'); % preallocate
-    II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
-end
 
+% Precompute for AgentDist
+if l_d1==0
+    ndvars=1;
+else
+    ndvars=2;
+end
+d_grid=[d1_grid; d2_grid];
+Policy_a2prime=zeros(N_a,N_z,2,'gpuArray'); % the lower grid point
+PolicyProbs=zeros(N_a,N_z,2,'gpuArray'); % preallocate
+Policy_aprime=zeros(N_a,N_z,2,'gpuArray'); % preallocate
+II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+
+
+%%
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
-    
+        
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
     % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
-
+        
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
@@ -139,49 +185,25 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,0,n_a,n_z,[], a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset(Vnext,n_d1,n_d2,n_a1,n_a2,n_z,d1_grid,d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
-        
-        if vfoptions.gridinterplayer==0
-            PolicyIndexesPath(:,:,T-ttr)=Policy;
-        elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        end
+              
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
         Vnext=V;
     end
     % Free up space on GPU by deleting things no longer needed
-    clear V Vnext    
-    
+    clear V Vnext
+
     % Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path.
-    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath,0,n_a,n_z,T-1,vfoptions),0,n_a,n_z,T-1,[],aprime_gridvals,vfoptions,1);
+    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(UnKronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyIndexesPath,n_d,n_a1,[n_a1,n_a2],n_z,T-1,vfoptions),n_d,[n_a1,n_a2],n_z,T-1,d_gridvals,a1prime_gridvals,simoptions,1);
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
         % Get the current optimal policy, and iterate the agent dist
-        if simoptions.gridinterplayer==0
-            Policy=PolicyIndexesPath(:,:,tt);
-            Policy_aprime=reshape(Policy,[N_a*N_z,1]);
-            Policy_aprimez=Policy_aprime+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1,IIones,N_a,N_z,pi_z_sparse);
-        elseif simoptions.gridinterplayer==1
-            Policy=PolicyIndexesPath(:,:,:,tt);
-            if isscalar(n_a)
-                Policy_aprime(:,1)=reshape(Policy(1,:,:),[N_a*N_z,1]); % lower grid point
-                Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
-                PolicyProbs(:,2)=reshape(Policy(2,:,:),[N_a*N_z,1]); % L2 index
-            else % length(n_a)>1
-                Policy_aprime(:,1)=reshape(Policy(1,:,:),[N_a*N_z,1]); % lower grid point
-                Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
-                Policy_aprime=Policy_aprime+n_a(1)*(reshape(Policy(2,:,:),[N_a*N_z,1])-1); % a2
-                PolicyProbs(:,2)=reshape(Policy(3,:,:),[N_a*N_z,1]); % L2 index
-            end
-            Policy_aprimez=Policy_aprime+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-            PolicyProbs(:,2)=(PolicyProbs(:,2)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-            PolicyProbs(:,1)=1-PolicyProbs(:,2); % probability of lower grid point
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
-        end
-        
+        Policy=PolicyIndexesPath(:,:,:,tt);
+
+        %% Update the parameters
         GEprices=PricePathOld(tt,:);
         
         for kk=1:length(PricePathNames)
@@ -216,8 +238,51 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
 
-        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
+        %% Iterate Agent Dist
+        if simoptions.gridinterplayer==0
+
+            whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+            aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParamsVec);
+            % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z]
+            % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+            Policy_a2prime(:,:,1)=a2primeIndexes; % lower grid point
+            Policy_a2prime(:,:,2)=a2primeIndexes+1; % upper grid point
+            PolicyProbs(:,:,1)=a2primeProbs; % probability of lower grid point
+            PolicyProbs(:,:,2)=1-a2primeProbs; % probability of upper grid point
+
+            if l_a1==0 % just experienceasset
+                Policy_aprime=Policy_a2prime;
+            elseif l_a1==1 % one other asset, then experience asset
+                Policy_aprime(:,:,1)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*(Policy_a2prime(:,:,1)-1);
+                Policy_aprime(:,:,2)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
+            end
+            Policy_aprimez=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+        elseif simoptions.gridinterplayer==1
+            error('not done yet')
+            % if isscalar(n_a)
+            %     Policy_aprime(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % lower grid point
+            %     Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
+            %     PolicyProbs(:,2)=reshape(Policy(3,:,:),[N_a*N_z,1]); % L2 index
+            % else % length(n_a)>1
+            %     Policy_aprime(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % lower grid point
+            %     Policy_aprime=Policy_aprime+n_a(1)*(reshape(Policy(3,:,:),[N_a*N_z,1])-1); % a2
+            %     Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
+            %     PolicyProbs(:,2)=reshape(Policy(4,:,:),[N_a*N_z,1]); % L2 index
+            % end
+            % PolicyProbs(:,2)=(PolicyProbs(:,2)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+            % PolicyProbs(:,1)=1-PolicyProbs(:,2); % probability of lower grid point
+            Policy_aprimez=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,1]);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+        end
         
+        %% AggVars and General Eqm
+        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, [n_a1,n_a2], n_z, a_gridvals, z_gridvals,1);
+        
+        % [AggVars.L.Mean, AggVars.K.Mean,tt,full(sum(AgentDist))]
+        % sum(a_grid.*sum(reshape(AgentDist,[N_a,N_z]),2))
+
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
@@ -246,27 +311,28 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             p_i=I_makescutoff.*p_i;
             PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
-
+        
         % Sometimes, want to keep the AggVars to plot them
         if transpathoptions.graphaggvarspath==1
             for ii=1:length(AggVarNames)
                 AggVarsPath(tt,ii)=AggVars.(AggVarNames{ii}).Mean;
             end
         end
-
+        
         AgentDist=AgentDistnext;
     end
     % Free up space on GPU by deleting things no longer needed
     clear AgentDistnext AgentDist
-        
+    
+    %% Check convergence, and give feedback on progress
+
     % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
-    % Notice that the distance is always calculated ignoring the time t=1 & t=T periods, as these needn't ever converges
+    % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1
         fprintf('Number of iteration on the path: %i \n',pathcounter)
         
-        % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
     end
@@ -319,18 +385,17 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             title(GEeqnNames{pp})
         end
     end
-
-    
     
     %Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0
         PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
     elseif transpathoptions.weightscheme==1 % Just a constant weighting
-        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
+        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
         % I should precalculate these weighting vectors
+%         PricePathOld(1:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-1)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(1:T-1,:)+((exp(linspace(0,log(0.2),T-1)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(1:T-1,:);
         Ttheta=transpathoptions.Ttheta;
-        PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
+        PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
         PricePathOld(Ttheta:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-Ttheta)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(Ttheta:T-1,:)+((exp(linspace(0,log(0.2),T-Ttheta)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(Ttheta:T-1,:);
     elseif transpathoptions.weightscheme==3 % A gradually opening window.
         if (pathcounter*3)<T-1
@@ -363,10 +428,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     end
     
     pathcounter=pathcounter+1;
+    
+
 end
+
 
 for tt=1:length(PricePathNames)
     PricePath.(PricePathNames{tt})=PricePathOld(:,tt);
 end
+
 
 end

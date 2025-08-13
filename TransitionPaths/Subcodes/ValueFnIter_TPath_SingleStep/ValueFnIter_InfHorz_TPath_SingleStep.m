@@ -8,12 +8,6 @@ N_d=prod(n_d);
 % N_z=prod(n_z);
 
 %% 
-% If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-pi_z=gpuArray(pi_z);
-d_grid=gpuArray(d_grid);
-a_grid=gpuArray(a_grid);
-z_gridvals=gpuArray(z_gridvals);
-
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
     dbstack
     error('QuasiHyperbolic Preferences Not yet supported')
@@ -87,10 +81,6 @@ end
 % end
 
 %%
-% %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-% V=reshape(VKron,[n_a,n_z]);
-% Policy=UnKronPolicyIndexes_Case1(PolicyKron, n_d, n_a, n_z,vfoptions);
-
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then
 % makes the output back into double as Matlab otherwise cannot use it in

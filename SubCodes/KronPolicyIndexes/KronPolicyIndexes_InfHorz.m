@@ -15,28 +15,34 @@ else
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
 end
 
+l_aprime=length(n_a);
+if vfoptions.experienceasset==1
+    l_aprime=l_aprime-1;
+    n_a=n_a(1:end-1); % is only used a n_aprime for here one
+end
+
 if N_d==0 && vfoptions.gridinterplayer==0
-    if isscalar(n_a)
+    if l_aprime==1
         PolicyKron=Policy;
-    elseif length(n_a)==2
+    elseif l_aprime==2
         PolicyKron=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1);
         PolicyKron=shiftdim(PolicyKron,1);
-    elseif length(n_a)==3
+    elseif l_aprime==3
         PolicyKron=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1)+n_a(1)*n_a(2)*(Policy(3,:,:)-1);
         PolicyKron=shiftdim(PolicyKron,1);
-    elseif length(n_a)==4
+    elseif l_aprime==4
         PolicyKron=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1)+n_a(1)*n_a(2)*(Policy(3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(4,:,:)-1);
         PolicyKron=shiftdim(PolicyKron,1);
     end
 elseif N_d==0 && vfoptions.gridinterplayer==1
-    if length(n_a)<=2
+    if l_aprime<=2
         PolicyKron=Policy;
     else
         PolicyKron=zeros(3,N_a,N_z,'gpuArray');
         PolicyKron(1,:,:)=Policy(1,:,:);
-        if length(n_a)==3
+        if l_aprime==3
             PolicyKron(2,:,:)=Policy(2,:,:)+n_a(2)*(Policy(3,:,:)-1);
-        elseif length(n_a)==4
+        elseif l_aprime==4
             PolicyKron(2,:,:)=Policy(2,:,:)+n_a(2)*(Policy(3,:,:)-1)+n_a(2)*n_a(3)*(Policy(4,:,:)-1);
         end
         PolicyKron(3,:,:)=Policy(end,:,:); % L2 index
@@ -56,17 +62,17 @@ elseif N_d>0 && vfoptions.gridinterplayer==0
         PolicyKron(1,:,:)=Policy(1,:,:)+n_d(1)*(Policy(2,:,:)-1)+n_d(1)*n_d(2)*(Policy(3,:,:)-1)+n_d(1)*n_d(2)*n_d(3)*(Policy(4,:,:)-1);
     end
     % Then do aprime
-    if isscalar(n_a)
+    if l_aprime==1
         PolicyKron(2,:,:)=Policy(l_d+1,:,:);
-    elseif length(n_a)==2
+    elseif l_aprime==2
         PolicyKron(2,:,:)=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1);
-    elseif length(n_a)==3
+    elseif l_aprime==3
         PolicyKron(2,:,:)=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1);
-    elseif length(n_a)==4
+    elseif l_aprime==4
         PolicyKron(2,:,:)=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1);
     end
 elseif N_d>0 && vfoptions.gridinterplayer==1
-    if isscalar(n_a)
+    if l_aprime==1
         PolicyKron=zeros(3,N_a,N_z,'gpuArray');
     else
         PolicyKron=zeros(4,N_a,N_z,'gpuArray');
@@ -84,16 +90,16 @@ elseif N_d>0 && vfoptions.gridinterplayer==1
     end
     % Then do aprime
     PolicyKron(2,:,:)=Policy(l_d+1,:,:);
-    if ~isscalar(n_a)
-        if length(n_a)==2
+    if ~l_aprime==1
+        if l_aprime==2
             PolicyKron(3,:,:)=Policy(l_d+2,:,:);
-        elseif length(n_a)==3
+        elseif l_aprime==3
             PolicyKron(3,:,:)=Policy(l_d+2,:,:)+n_a(2)*(Policy(l_d+3,:,:)-1);
-        elseif length(n_a)==4
+        elseif l_aprime==4
             PolicyKron(3,:,:)=Policy(l_d+2,:,:)+n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1);
         end
     end
-    if isscalar(n_a)
+    if l_aprime==1
         PolicyKron(3,:,:)=Policy(end,:,:); % L2 index
     else
         PolicyKron(4,:,:)=Policy(end,:,:); % L2 index

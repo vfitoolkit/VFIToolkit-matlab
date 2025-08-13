@@ -247,8 +247,11 @@ N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 
 % Note: cannot have N_d=0 with experience asset
-if Refine==1
+if Refine==1    
     Fmatrix=reshape(Fmatrix,[N_d,N_a1,N_a1*N_a2,N_z]); % This is the difference when using Refine
+    % NOT ACTUALLY USABLE AS NEEDS ME TO CHANGE INPUTS SO n_d1 AND n_d2 ARE SEPARATE INPUTS (INSTEAD OF JUST n_d)
+    % [Easy, but will break stuff and don't feel like fixing it all just now]
+    % Fmatrix=reshape(Fmatrix,[N_d1,N_d2,N_a1,N_a1*N_a2,N_z]); % This is the difference when using Refine
 else
     Fmatrix=reshape(Fmatrix,[N_d*N_a1,N_a1*N_a2,N_z]);
 end

@@ -105,7 +105,6 @@ elseif N_d>0
         end
         PolicyPath=reshape(PolicyPath,[l_d+l_aprime+1,n_a,n_z,T]);
     end
-
 end
 
 

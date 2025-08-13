@@ -125,6 +125,7 @@ if l_a2==1
         % Switch to lower grid point index
         a2primeIndexes=a2primeIndexes-1;
         a2primeIndexes(a2primeIndexes==0)=1;
+        a2primeIndexes=reshape(a2primeIndexes,[N_d*N_a2,1]);
 
         % Now, find the probabilities
         aprime_residual=a2primeVals'-a2_grid(a2primeIndexes);

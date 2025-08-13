@@ -75,18 +75,18 @@ if isfield(vfoptions,'n_e')
             if N_d1==0
                 if N_z==0
                     error('Have not yet implemented: InfHorz, no d1, a1, no z, e, divideandconquer=1')
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e , d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    % [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e , d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 else
                     error('Have not yet implemented: InfHorz, no d1, a1, z, e, divideandconquer=1')
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, d2_grid, a1_grid, a2_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    % [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, d2_grid, a1_grid, a2_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
             else % d1 variable
                 if N_z==0
                     error('Have not yet implemented: InfHorz, d1, a1, no z, e, divideandconquer=1')
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e , d1_grid, d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    % [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e , d1_grid, d2_grid, a1_grid, a2_grid, vfoptions.e_gridvals, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 else
                     error('Have not yet implemented: InfHorz, d1, a1, z, e, divideandconquer=1')
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    % [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, vfoptions.e_gridvals, pi_z, vfoptions.pi_e, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
             end
         end
@@ -112,29 +112,30 @@ else % no e variable
                 if N_z==0
                     error('Have not yet implemented: InfHorz, no d1, a1, no z, no e, divideandconquer=0')
                 else
-                    error('Have not yet implemented: InfHorz, no d1, a1, z, no e, divideandconquer=0')
+                    % error('Have not yet implemented: InfHorz, no d1, a1, z, no e, divideandconquer=0')
+                    [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_nod1_raw(V0,n_d2,n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
-            else
+            else % Use Refine for d1
                 if N_z==0
                     error('Have not yet implemented: InfHorz, d1, a1, no z, no e, divideandconquer=0')
                 else
-                    error('Have not yet implemented: InfHorz, d1, a1, z, no e, divideandconquer=0')
+                    [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_Refine_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
             end
         elseif vfoptions.divideandconquer==1
             if N_d1==0
                 if N_z==0
                     error('Have not yet implemented: InfHorz, no d1, a1, no z, no e, divideandconquer=1')
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_nod1_noz_raw(n_d2,n_a1,n_a2 , d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    % [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_nod1_noz_raw(n_d2,n_a1,n_a2 , d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 else
-                    [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_nod1_raw(V0,n_d2,n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_nod1_raw(V0,n_d2,n_a1,n_a2,n_z, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
-            else
+            else % Use Refine for d1
                 if N_z==0
                     error('Have not yet implemented: InfHorz, d1, a1, no z, no e, divideandconquer=1')
-                    % [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_noz_raw(n_d1,n_d2,n_a1,n_a2 , d1_grid, d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    % [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_noz_raw(n_d1,n_d2,n_a1,n_a2 , d1_grid, d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 else
-                    [VKron, PolicyKron]=ValueFnIter_Case1_DC1_ExpAsset_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
+                    [VKron, PolicyKron]=ValueFnIter_Case1_ExpAsset_DC1_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions);
                 end
             end
         end

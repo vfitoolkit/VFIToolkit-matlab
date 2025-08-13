@@ -3,7 +3,7 @@ function  StationaryDist=StationaryDist_InfHorz_ExpAsset(StationaryDistKron,Poli
 %% Setup related to experience asset
 n_d2=n_d(end);
 % Split endogenous assets into the standard ones and the experience asset
-if length(n_a)==1
+if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
@@ -81,8 +81,8 @@ aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
 % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 Policy_a2prime(:,:,1)=a2primeIndexes; % lower grid point
 Policy_a2prime(:,:,2)=a2primeIndexes+1; % upper grid point
-PolicyProbs(:,:,1)=a2primeProbs;
-PolicyProbs(:,:,2)=1-a2primeProbs;
+PolicyProbs(:,:,1)=a2primeProbs; % probability of lower grid point
+PolicyProbs(:,:,2)=1-a2primeProbs; % probability of upper grid point
 
 if l_a==1 % just experienceasset
     Policy_aprime=Policy_a2prime;
@@ -93,15 +93,17 @@ elseif l_a==3 % two other assets, then experience asset
     Policy_aprime(:,:,1)=reshape(Policy(l_d+1,:,:),[N_a,N_ze,1])+n_a(1)*reshape(Policy(l_d+2,:,:),[N_a,N_ze,1])+n_a(1)*n_a(2)*(Policy_a2prime(:,:,1)-1);
     Policy_aprime(:,:,2)=reshape(Policy(l_d+1,:,:),[N_a,N_ze,1])+n_a(1)*reshape(Policy(l_d+2,:,:),[N_a,N_ze,1])+n_a(1)*n_a(2)*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
 elseif l_a>3
-    error('Not yet implemented experienceassetu with length(n_a)>3')
+    error('Not yet implemented experienceasset with length(n_a)>3')
 end
+
 
 %%
 % Note: N_z=0 is a different code
 if isfield(simoptions,'n_e')
     error('Have not yet impelmented N_e in StationaryDist_InfHorz_ExpAsset (contact me)')
 else % no e
-    StationaryDist=StationaryDist_InfHorz_Iteration_TwoProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    Policy_aprimez=Policy_aprime+N_a*(0:1:N_z-1);
+    StationaryDist=StationaryDist_InfHorz_Iteration_TwoProbs_raw(StationaryDistKron,Policy_aprimez,PolicyProbs,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2

@@ -131,6 +131,11 @@ a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
 % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
 offTopOfGrid=(a2primeVals>=a2_grid(end));
 a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
+if N_z==0
+    a2primeIndexes=reshape(a2primeIndexes,[N_a,1]);
+else
+    a2primeIndexes=reshape(a2primeIndexes,[N_a*N_z,1]);
+end
 
 % Now, find the probabilities
 aprime_residual=a2primeVals'-a2_grid(a2primeIndexes);

@@ -331,7 +331,7 @@ if vfoptions.experienceasset==1
         error('experienceasset in InfHorz is only coded alongside a standard endogenous state')
     elseif length(n_a)==2
         % Split decision variables into the standard ones and the one relevant to the experience asset
-        if length(n_d)==1
+        if isscalar(n_d)
             n_d1=0;
         else
             n_d1=n_d(1:end-1);
@@ -340,7 +340,7 @@ if vfoptions.experienceasset==1
         d1_grid=d_grid(1:sum(n_d1));
         d2_grid=d_grid(sum(n_d1)+1:end);
         % Split endogenous assets into the standard ones and the experience asset
-        if length(n_a)==1
+        if isscalar(n_a)
             n_a1=0;
         else
             n_a1=n_a(1:end-1);

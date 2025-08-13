@@ -4,10 +4,18 @@ function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath
 if ~exist('simoptions','var')
     %If simoptions is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    simoptions.experienceasset=0;
+    simoptions.gridinterplayer=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
+    if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
+    end
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
     end
 end
 
@@ -128,25 +136,44 @@ end
 %%
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-if simoptions.gridinterplayer==1
-    if length(n_a)==1
-        N_aprime=N_a+(N_a-1)*simoptions.ngridinterp;
-        temp=interp1(linspace(1,N_a,N_a)',a_grid(1:n_a(1)),linspace(1,N_a,N_aprime)');
-        aprime_grid=temp;
-        n_aprime=n_a;
+if simoptions.experienceasset==0
+    if simoptions.gridinterplayer==1
+        if isscalar(n_a)
+            N_aprime=N_a+(N_a-1)*simoptions.ngridinterp;
+            temp=interp1(linspace(1,N_a,N_a)',a_grid(1:n_a(1)),linspace(1,N_a,N_aprime)');
+            aprime_grid=temp;
+            n_aprime=n_a;
+        else
+            N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;
+            temp=interp1(linspace(1,n_a(1),n_a(1))',a_grid(1:n_a(1)),linspace(1,n_a(1),N_a1prime)');
+            aprime_grid=[temp; a_grid(n_a(1)+1:end)];
+            n_aprime=[N_a1prime,n_a(2:end)];
+        end
+        aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
     else
+        aprime_gridvals=a_gridvals;
+    end
+elseif simoptions.experienceasset==1
+    % omit a2 from aprime_gridvals
+    if simoptions.gridinterplayer==1
         N_a1prime=n_a(1)+(n_a(1)-1)*simoptions.ngridinterp;
         temp=interp1(linspace(1,n_a(1),n_a(1))',a_grid(1:n_a(1)),linspace(1,n_a(1),N_a1prime)');
-        aprime_grid=[temp; a_grid(n_a(1)+1:end)];
-        n_aprime=[N_a1prime,n_a(2:end)];
+        if length(n_a)==2
+            aprime_grid=temp; % omit a2
+            n_aprime=N_a1prime; % omit a2
+        elseif length(n_a)>2 % more than one a1
+            aprime_grid=[temp; a_grid(n_a(1)+1:end-1)];
+            n_aprime=[N_a1prime,n_a(2:end-1)];
+        end
+        aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+    else
+        aprime_gridvals=CreateGridvals(n_a(1:end-1),a_grid(1:sum(n_a(1:end-1))),1); % omit a2
     end
-    aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-else
-    aprime_gridvals=a_gridvals;
+
 end
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 
-PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_gridvals,aprime_gridvals,simoptions,1);
+PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_gridvals,aprime_gridvals,simoptions,0);
 
 %%
 AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);

@@ -1,0 +1,132 @@
+function [V, Policy]=ValueFnIter_Case1_ExpAsset_nod1_raw(V0,n_d2,n_a1,n_a2,n_z , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
+
+N_d2=prod(n_d2);
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
+N_a=N_a1*N_a2;
+N_z=prod(n_z);
+
+%%
+d2_grid=gpuArray(d2_grid);
+a1_grid=gpuArray(a1_grid);
+a2_grid=gpuArray(a2_grid);
+
+
+%% Start by setting up ReturnFn for the first-level
+ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, n_z, d2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec);
+
+V=reshape(V0,[N_a,N_z]);
+Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
+
+% for Howards, preallocate
+Ftemp=zeros(N_a,N_z,'gpuArray');
+% and we need [because of experienceasset, this is very different to usual]
+aaa=repelem(pi_z,N_a,1); % pi_z in the form we need to compute expectations in Howards (a1a2z,zprime)
+
+% precompute
+Epi_z=shiftdim(pi_z',-2); % pi_z in the form we need it to compute the expectations
+
+% I want the print that tells you distance to have number of decimal points corresponding to vfoptions.tolerance
+distvstolstr=['ValueFnIter: after %i iterations the dist is %4.',num2str(-round(log10(vfoptions.tolerance))),'f \n'];
+
+%% Precompute some aspects of experienceasset
+aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
+[a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+% Note: aprimeIndex is [N_d2,N_a2], whereas aprimeProbs is [N_d2,N_a2]
+
+aprimeIndex=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat((a2primeIndex-1),N_a1,1); % [N_d2*N_a1,N_a2]
+aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
+aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d2*N_a1,N_a2,N_z]
+
+%%
+currdist=Inf;
+tempcounter=1;
+while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
+
+    Vold=V;
+    
+    Vlower=reshape(Vold(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
+    Vupper=reshape(Vold(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(Vlower==Vupper);
+    aprimeProbs2=aprimeProbs; % version that I can modify with skipinterp
+    aprimeProbs2(skipinterp)=0; % effectively skips interpolation
+    
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs2.*Vlower+(1-aprimeProbs2).*Vupper; % (d2,a1prime,a2,zprime)
+    % Already applied the probabilities from interpolating onto grid
+    
+    %Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=EV.*Epi_z;
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
+    % EV is over (d2,a1prime,a2,z)
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+    
+    %Calc the max and it's index
+    [Vtemp,maxindex]=max(entireRHS,[],1);
+
+    V=shiftdim(Vtemp,1);
+    Policy=shiftdim(maxindex,1);
+    
+    %% Finish up
+    % Update currdist
+    Vdist=V(:)-Vold(:);
+    Vdist(isnan(Vdist))=0;
+    currdist=max(abs(Vdist));
+    
+    if isfinite(currdist) && currdist/vfoptions.tolerance>10 && vfoptions.maxhowards>0 % Use Howards Policy Fn Iteration Improvement
+
+        Ftemp=reshape(ReturnMatrix(Policy+N_d2*N_a1*(0:1:N_a-1)'+N_d2*N_a1*N_a*(0:1:N_z-1)),[N_a*N_z,1]);
+        Policy_d2ind=rem(Policy(:)-1,N_d2)+1;
+        Policy_a1primeind=ceil(Policy(:)/N_d2); % size(Policy_a1primeind) is [N_a*N_z,1]
+
+        % a2primeIndex is [N_d2,N_a2]
+        temp=Policy_d2ind+N_d2*repmat(repelem((0:1:N_a2-1)',N_a1,1),N_z,1); % (d2,a2) indexes in terms of (a1,a2,z)
+        a2primeind=a2primeIndex(temp); % this is the lower grid point index for a2prime in terms of (a1,a2,z)
+        % combine a1prime, a2prime, and z
+        aprimeind=Policy_a1primeind+N_a1*(a2primeind-1); %+N_a1*N_a2*repelem((0:1:N_z-1)',N_a1*N_a2,1);
+        aprimeind=reshape(aprimeind,[N_a*N_z,1]);
+        aprimeplus1ind=aprimeind+N_a1; % add one to a2prime index, which means adding N_a1*1
+        aprimeProbs_Howards=reshape(a2primeProbs(temp),[N_a*N_z,1]); %  a2primeProbs is [N_d2,N_a2]
+        
+        for Howards_counter=1:vfoptions.howards
+            % Note: Different from outside Howards, as optimal policy depends on z, and we also need to keep Vprime in terms of
+            % zprime. So get Vlower and Vupper that depend on (a,z,zprime).
+
+            % Take expectation over a2lower and a2upper
+            Vlower=V(aprimeind(:),:); % EVlower in terms of policy (so size is a-by-z-by-zprime)
+            Vupper=V(aprimeplus1ind(:),:); % EVupper in terms of policy (so size is a-by-z-by-zprime)
+            % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+            skipinterp=(Vlower==Vupper);
+            aprimeProbs_Howards2=aprimeProbs_Howards.*ones(1,N_z);
+            aprimeProbs_Howards2(skipinterp)=0; % effectively skips interpolation
+
+            % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+            EV=aprimeProbs_Howards2.*Vlower+(1-aprimeProbs_Howards2).*Vupper; % (a1prime-by-a2prime,zprime)
+            % Already applied the probabilities from interpolating onto grid
+
+            % Calc the condl expectation term (except beta), which depends on z but not on control variables
+            EV=aaa.*EV;
+            EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
+
+            V=Ftemp+DiscountFactorParamsVec*EV;
+            V=reshape(V,[N_a,N_z]);
+        end
+    end
+
+    if vfoptions.verbose==1
+        if rem(tempcounter,10)==0 % Every 10 iterations
+            fprintf(distvstolstr, tempcounter,currdist) % use enough decimal points to be able to see countdown of currdist to 0
+        end
+    end
+
+    tempcounter=tempcounter+1;    
+end
+
+
+
+
+end

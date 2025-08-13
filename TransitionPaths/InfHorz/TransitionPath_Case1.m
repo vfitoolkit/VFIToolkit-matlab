@@ -168,9 +168,12 @@ if exist('vfoptions','var')==0
     %If vfoptions is not given, just use all the defaults
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.exoticpreferences='None';
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
+    % Model setup:
+    vfoptions.exoticpreferences='None';
+    vfoptions.experienceasset=0;
+    % Algorithm to use:
     vfoptions.solnmethod='purediscretization'; % Currently this does nothing
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0;
@@ -182,6 +185,13 @@ else
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
+    if ~isfield(vfoptions,'polindorval')
+        vfoptions.polindorval=1;
+    end
+    if ~isfield(vfoptions,'policy_forceintegertype')
+        vfoptions.policy_forceintegertype=0;
+    end
+    % Model setup:
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
     end
@@ -194,12 +204,10 @@ else
             return
         end
     end
-    if ~isfield(vfoptions,'polindorval')
-        vfoptions.polindorval=1;
+    if ~isfield(vfoptions,'experienceasset')
+            vfoptions.experienceasset=0;
     end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
-    end
+    % Algorithm to use:
     if ~isfield(vfoptions,'solnmethod')
         vfoptions.solnmethod='purediscretization'; % Currently this does nothing
     end
@@ -310,6 +318,63 @@ end
 %% Implement new way of handling ReturnFn inputs
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
+GEeqnNames=fieldnames(GeneralEqmEqns);
+
+%% If using a shooting algorithm, set that up
+% Set up GEnewprice==3 (if relevant)
+if transpathoptions.GEnewprice==3
+    transpathoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
+    
+    if isstruct(GeneralEqmEqns) 
+        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
+        % Is same as order of fields in GeneralEqmEqns
+        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
+        temp=transpathoptions.GEnewprice3.howtoupdate;
+        GEeqnNames=fieldnames(GeneralEqmEqns);
+        for tt=1:length(GEeqnNames)
+            for jj=1:size(temp,1)
+                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
+                    transpathoptions.GEnewprice3.howtoupdate{tt,1}=temp{jj,1};
+                    transpathoptions.GEnewprice3.howtoupdate{tt,2}=temp{jj,2};
+                    transpathoptions.GEnewprice3.howtoupdate{tt,3}=temp{jj,3};
+                    transpathoptions.GEnewprice3.howtoupdate{tt,4}=temp{jj,4};
+                end
+            end
+        end
+        nGeneralEqmEqns=length(GEeqnNames);
+    else
+        nGeneralEqmEqns=length(GeneralEqmEqns);
+    end
+    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
+    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
+    tempweight=transpathoptions.oldpathweight;
+    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
+    for tt=1:length(transpathoptions.GEnewprice3.factor)
+        if transpathoptions.GEnewprice3.factor(tt)==Inf
+            transpathoptions.GEnewprice3.factor(tt)=1;
+            transpathoptions.GEnewprice3.keepold(tt)=0;
+            transpathoptions.oldpathweight(tt)=tempweight;
+        end
+    end
+    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
+        % do nothing, this is how things should be
+    else
+        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+    end
+    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
+    for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
+        for jj=1:length(PricePathNames)
+            if strcmp(transpathoptions.GEnewprice3.howtoupdate{tt,2},PricePathNames{jj})
+                transpathoptions.GEnewprice3.permute(tt)=jj;
+            end
+        end
+    end
+    if isfield(transpathoptions,'updateaccuracycutoff')==0
+        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
+    end
+end
 
 %% If there is entry and exit, then send to relevant command
 if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agententryandexit')==1
@@ -318,10 +383,54 @@ end
 
 %%
 if transpathoptions.GEnewprice~=2
-    if N_d==0
-        PricePath=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
-    else
-        PricePath=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions);
+    if vfoptions.experienceasset==0
+        if N_d==0
+            PricePath=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
+        else
+            PricePath=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
+        end
+    elseif vfoptions.experienceasset==1
+        % Split decision variables into the standard ones and the one relevant to the experience asset
+        if isscalar(n_d)
+            n_d1=0;
+        else
+            n_d1=n_d(1:end-1);
+        end
+        n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+        d1_grid=d_grid(1:sum(n_d1));
+        d2_grid=d_grid(sum(n_d1)+1:end);
+        % Split endogenous assets into the standard ones and the experience asset
+        if isscalar(n_a)
+            n_a1=0;
+        else
+            n_a1=n_a(1:end-1);
+        end
+        n_a2=n_a(end); % n_a2 is the experience asset
+        a1_grid=a_grid(1:sum(n_a1));
+        a2_grid=a_grid(sum(n_a1)+1:end);
+
+        if isfield(vfoptions,'aprimeFn')
+            aprimeFn=vfoptions.aprimeFn;
+        else
+            error('To use an experience asset you must define vfoptions.aprimeFn')
+        end
+
+        % aprimeFnParamNames in same fashion
+        l_d2=length(n_d2);
+        l_a2=length(n_a2);
+        temp=getAnonymousFnInputNames(aprimeFn);
+        if length(temp)>(l_d2+l_a2)
+            aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+        else
+            aprimeFnParamNames={};
+        end
+
+        N_a1=prod(n_a1);
+        if N_a1==0
+            error('Have not yet implemented TPath for InfHorz with experienceasset and no other (standard) asset, contact me if you want/need this')
+        else
+            PricePath=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid, a1_grid, a2_grid,z_gridvals, ReturnFn, vfoptions.aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
+        end
     end
 end
 

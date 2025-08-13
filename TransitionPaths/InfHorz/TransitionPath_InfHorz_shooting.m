@@ -1,11 +1,5 @@
-function PricePath=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, simoptions,transpathoptions)
+function PricePath=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
 
-
-if transpathoptions.verbose==1
-    transpathoptions
-end
-
-unkronoptions.parallel=2;
 
 N_z=prod(n_z);
 N_a=prod(n_a);
@@ -15,8 +9,7 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 if transpathoptions.verbose==1
-    DiscountFactorParamNames
-    ReturnFnParamNames
+    transpathoptions
     ParamPathNames
     PricePathNames
 end
@@ -90,60 +83,6 @@ end
 simoptions.outputasstructure=1;
 simoptions.AggVarNames=AggVarNames;
 
-%% Set up GEnewprice==3 (if relevant)
-if transpathoptions.GEnewprice==3
-    transpathoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
-    
-    if isstruct(GeneralEqmEqns) 
-        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-        % Is same as order of fields in GeneralEqmEqns
-        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-        temp=transpathoptions.GEnewprice3.howtoupdate;
-        GEeqnNames=fieldnames(GeneralEqmEqns);
-        for tt=1:length(GEeqnNames)
-            for jj=1:size(temp,1)
-                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
-                    transpathoptions.GEnewprice3.howtoupdate{tt,1}=temp{jj,1};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,2}=temp{jj,2};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,3}=temp{jj,3};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,4}=temp{jj,4};
-                end
-            end
-        end
-        nGeneralEqmEqns=length(GEeqnNames);
-    else
-        nGeneralEqmEqns=length(GeneralEqmEqns);
-    end
-    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
-    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    tempweight=transpathoptions.oldpathweight;
-    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
-    for tt=1:length(transpathoptions.GEnewprice3.factor)
-        if transpathoptions.GEnewprice3.factor(tt)==Inf
-            transpathoptions.GEnewprice3.factor(tt)=1;
-            transpathoptions.GEnewprice3.keepold(tt)=0;
-            transpathoptions.oldpathweight(tt)=tempweight;
-        end
-    end
-    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
-        % do nothing, this is how things should be
-    else
-        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
-    end
-    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
-    for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(PricePathNames)
-            if strcmp(transpathoptions.GEnewprice3.howtoupdate{tt,2},PricePathNames{jj})
-                transpathoptions.GEnewprice3.permute(tt)=jj;
-            end
-        end
-    end
-    if isfield(transpathoptions,'updateaccuracycutoff')==0
-        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
-end
 
 %%
 
@@ -152,7 +91,7 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
-pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
+pi_z_sparse=sparse(pi_z); % Need full pi_z for value fn, and sparse for agent dist
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
@@ -237,7 +176,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
     
     % Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path.
-    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath,n_d,n_a,n_z,T-1,vfoptions),n_d,n_a,n_z,T-1,d_gridvals,aprime_gridvals,simoptions,1);
+    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath,n_d,n_a,n_z,T-1,vfoptions),n_d,n_a,n_z,T-1,d_gridvals,aprime_gridvals,vfoptions,1);
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
