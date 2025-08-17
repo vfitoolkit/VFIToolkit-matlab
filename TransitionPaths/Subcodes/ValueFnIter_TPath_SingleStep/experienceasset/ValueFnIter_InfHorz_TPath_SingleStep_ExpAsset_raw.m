@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_raw(Vnext,n_d1,n_d2,n_a1, n_a2,n_z, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_raw(Vnext,n_d1,n_d2,n_a1, n_a2,n_z, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -12,6 +12,10 @@ PolicyTemp=zeros(1,N_a,N_z,'gpuArray');
 Policy=zeros(3,N_a,N_z,'gpuArray'); % d1, d2, a1prime
 
 %%
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
+% n_a1prime=n_a1;
+% a1prime_gridvals=a1_gridvals;
+
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
 end
@@ -46,7 +50,7 @@ if vfoptions.lowmemory==0
     EV=squeeze(sum(EV,3));
     % EV is over (d2,a1prime,a2,z)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,n_z, [d1_grid; d2_grid], a1_grid, a2_grid,z_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
     % (d,aprime,a,z)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1);
@@ -60,7 +64,7 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
 
     for z_c=1:N_z
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2, special_n_z, [d1_grid; d2_grid], a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
 
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*shiftdim(pi_z(z_c,:)',-2);

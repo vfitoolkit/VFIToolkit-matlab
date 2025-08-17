@@ -1,5 +1,6 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noz_e_raw(n_d2,n_a1,n_a2,n_e, N_j, d2_grid, a1_grid, a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAsset_noz_e_raw(n_d1, n_d2,n_a1,n_a2,n_e,N_j, d1_grid, d2_grid, a1_grid, a2_grid,e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
+N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
@@ -10,11 +11,12 @@ V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
+d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
 
-if vfoptions.lowmemory==1
+if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
 
@@ -23,16 +25,19 @@ end
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
+ % Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d, n_a1,n_a2, n_z, d_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParams,Refine) % Refine is an optional input
+% Note: d is both d1 and d2 
+
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_e, d2_grid, a1_grid, a2_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,n_e,[d1_grid; d2_grid], a1_grid, a2_grid,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,special_n_e, d2_grid, a1_grid, a2_grid, e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,special_n_e,[d1_grid; d2_grid], a1_grid, a2_grid,e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix,[],1);
             V(:,e_c,N_j)=Vtemp;
@@ -64,9 +69,9 @@ else
     % Already applied the probabilities from interpolating onto grid
     
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_e, d2_grid, a1_grid, a2_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,n_e, [d1_grid; d2_grid], a1_grid, a2_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1,1); % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -75,9 +80,9 @@ else
         Policy(:,:,N_j)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,special_n_e, d2_grid, a1_grid, a2_grid, e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,special_n_e, [d1_grid; d2_grid], a1_grid, a2_grid, e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1,1); % should autofill e dimension
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -86,6 +91,7 @@ else
             Policy(:,e_c,N_j)=shiftdim(maxindex,1);
         end
     end
+
 end
 
 %% Iterate backwards through j.
@@ -110,7 +116,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2]
     
-    Vnext=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2); % Expectations over e
+    Vnext=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2);    % Expectations over e
 
     Vlower=reshape(Vnext(aprimeIndex(:)),[N_d2*N_a1,N_a2]);
     Vupper=reshape(Vnext(aprimeplus1Index(:)),[N_d2*N_a1,N_a2]);
@@ -123,9 +129,9 @@ for reverse_j=1:N_j-1
     % Already applied the probabilities from interpolating onto grid
     
     if vfoptions.lowmemory==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,n_e, d2_grid, a1_grid, a2_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,n_e, [d1_grid; d2_grid], a1_grid, a2_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1,1); % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -134,9 +140,9 @@ for reverse_j=1:N_j-1
         Policy(:,:,jj)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2,special_n_e, d2_grid, a1_grid, a2_grid, e_gridvals_J(e_c,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,special_n_e, [d1_grid; d2_grid], a1_grid, a2_grid, e_gridvals_J(e_c,:,jj), ReturnFnParamsVec);
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1,1); % should autofill e dimension
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -145,6 +151,7 @@ for reverse_j=1:N_j-1
             Policy(:,e_c,jj)=shiftdim(maxindex,1);
         end
     end
+
 
 end
 

@@ -1,109 +1,147 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d, n_a1,n_a2, d_grid, a1_grid, a2_grid, ReturnFnParams,Refine) % Refine is an optional input
-% Note: d is both d1 and d2 
+function Fmatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, n_a1prime, n_a1,n_a2, d_gridvals, a1prime_gridvals, a1_gridvals, a2_gridvals, ReturnFnParams,Level,Refine) % Refine is an optional input
+% Note: d_gridvals is both d1 and d2 (unless n_d1=1 so there is no d1, in which case is just d2)
+% Level and Refine are about different shapes of inputs/output
+% Set Level=0, unless using Divide-and-Conquer
+% When Level=1 or 2, Refine is ignored
 
-if ~exist('Refine','var')
-    Refine=0;
-end
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
     ParamCell(ii,1)={ReturnFnParams(ii)};
 end
 
+if n_d1(1)==0
+    n_d=n_d2;
+else
+    n_d=[n_d1,n_d2]; % Almost everything is done without distinguishing d1 and d2, just for some reshapes at the end
+end
 N_d=prod(n_d);
+N_a1prime=prod(n_a1prime);
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
 
 l_d=length(n_d);
-if N_d==0
-    error('With an experience asset there must be a decision variable')
-end
 l_a1=length(n_a1); 
 l_a2=length(n_a2); 
 if l_d>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
+    error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
 end
 if l_a1>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
+    error('Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
 end
 if l_a2>1
-    error('ERROR: Using GPU for the return fn does not allow for more than one experience asset variable')
+    error('Using GPU for the return fn does not allow for more than one experience asset variable')
 end
-
 
 
 if l_d>=1
-    d1vals=d_grid(1:n_d(1)); 
+    d1vals=d_gridvals(:,1); 
     if l_d>=2
-        d2vals=shiftdim(d_grid(n_d(1)+1:sum(n_d(1:2))),-1);
+        d2vals=d_gridvals(:,2);
         if l_d>=3
-            d3vals=shiftdim(d_grid(sum(n_d(1:2))+1:sum(n_d(1:3))),-2);
+            d3vals=d_gridvals(:,3);
             if l_d>=4
-                d4vals=shiftdim(d_grid(sum(n_d(1:3))+1:sum(n_d(1:4))),-3);
+                d4vals=d_gridvals(:,4);
             end
+        end
+    end
+end
+if Level==0 || Level==1
+    if l_a1>=1
+        a1prime1vals=shiftdim(a1prime_gridvals(:,1),-1);
+        if l_a1>=2
+            a1prime2vals=shiftdim(a1prime_gridvals(:,2),-1);
+            if l_a1>=3
+                a1prime3vals=shiftdim(a1prime_gridvals(:,3),-1);
+                if l_a1>=4
+                    a1prime4vals=shiftdim(a1prime_gridvals(:,4),-1);
+                end
+            end
+        end
+    end
+elseif Level==2
+    if l_a1>=1
+        a1prime1vals=a1prime_gridvals;
+        if l_a1>=2
+            error('Cannot yet do divide-and-conquer with experienceasset when there is more than one standard asset')
         end
     end
 end
 if l_a1>=1
-    aprime1vals=shiftdim(a1_grid(1:n_a1(1)),-l_d);
-    a1vals=shiftdim(a1_grid(1:n_a1(1)),-l_a1-l_d);
+    a1vals=shiftdim(a1_gridvals(:,1),-2);
     if l_a1>=2
-        aprime2vals=shiftdim(a1_grid(n_a1(1)+1:sum(n_a1(1:2))),-l_d-1);
-        a2vals=shiftdim(a1_grid(n_a1(1)+1:sum(n_a1(1:2))),-l_a1-l_d-1);
+        a2vals=shiftdim(a1_gridvals(:,2),-2);
         if l_a1>=3
-            aprime3vals=shiftdim(a1_grid(sum(n_a1(1:2))+1:sum(n_a1(1:3))),-l_d-2);
-            a3vals=shiftdim(a1_grid(sum(n_a1(1:2))+1:sum(n_a1(1:3))),-l_a1-l_d-2);
+            a3vals=shiftdim(a1_gridvals(:,3),-2);
             if l_a1>=4
-                aprime4vals=shiftdim(a1_grid(sum(n_a1(1:3))+1:sum(n_a1(1:4))),-l_d-3);
-                a4vals=shiftdim(a1_grid(sum(n_a1(1:3))+1:sum(n_a1(1:4))),-l_a1-l_d-3);
+                a4vals=shiftdim(a1_gridvals(:,4),-2);
             end
         end
     end
 end
-expassetvals=shiftdim(a2_grid,-l_d-l_a1-l_a1);
+expassetvals=shiftdim(a2_gridvals,-3);
 
-if l_d==1 && l_a1==1
-    d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
-    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals, a1vals, expassetvals, ParamCell{:});
-elseif l_d==1 && l_a1==2
-    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
-elseif l_d==1 && l_a1==3
-    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
-elseif l_d==1 && l_a1==4
-    Fmatrix=arrayfun(ReturnFn, d1vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
-elseif l_d==2 && l_a1==1
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals, a1vals, expassetvals, ParamCell{:});
-elseif l_d==2 && l_a1==2
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
-elseif l_d==2 && l_a1==3
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
-elseif l_d==2 && l_a1==4
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
-elseif l_d==3 && l_a1==1
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals, a1vals, expassetvals, ParamCell{:});
-elseif l_d==3 && l_a1==2
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
-elseif l_d==3 && l_a1==3
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
-elseif l_d==3 && l_a1==4
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
-elseif l_d==4 && l_a1==1
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals, a1vals, expassetvals, ParamCell{:});
-elseif l_d==4 && l_a1==2
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
-elseif l_d==4 && l_a1==3
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
-elseif l_d==4 && l_a1==4
-    Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, aprime1vals,aprime2vals,aprime3vals,aprime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
+
+
+if l_d==1
+    if l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d1vals, a1prime1vals, a1vals, expassetvals, ParamCell{:});
+    elseif l_a1==2
+        Fmatrix=arrayfun(ReturnFn, d1vals, a1prime1vals,a1prime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
+    elseif l_a1==3
+        Fmatrix=arrayfun(ReturnFn, d1vals, a1prime1vals,a1prime2vals,a1prime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
+    elseif l_a1==4
+        Fmatrix=arrayfun(ReturnFn, d1vals, a1prime1vals,a1prime2vals,a1prime3vals,a1prime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
+    end
+elseif l_d==2
+    if l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1prime1vals, a1vals, expassetvals, ParamCell{:});
+    elseif l_a1==2
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1prime1vals,a1prime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
+    elseif l_a1==3
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1prime1vals,a1prime2vals,a1prime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
+    elseif l_a1==4
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals, a1prime1vals,a1prime2vals,a1prime3vals,a1prime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
+    end
+elseif l_d==3
+    if l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1prime1vals, a1vals, expassetvals, ParamCell{:});
+    elseif l_a1==2
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1prime1vals,a1prime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
+    elseif l_a1==3
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1prime1vals,a1prime2vals,a1prime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
+    elseif l_a1==4
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals, a1prime1vals,a1prime2vals,a1prime3vals,a1prime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
+    end
+elseif l_d==4
+    if l_a1==1
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, a1prime1vals, a1vals, expassetvals, ParamCell{:});
+    elseif l_a1==2
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, a1prime1vals,a1prime2vals, a1vals,a2vals, expassetvals, ParamCell{:});
+    elseif l_a1==3
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, a1prime1vals,a1prime2vals,a1prime3vals, a1vals,a2vals,a3vals, expassetvals, ParamCell{:});
+    elseif l_a1==4
+        Fmatrix=arrayfun(ReturnFn, d1vals,d2vals,d3vals,d4vals, a1prime1vals,a1prime2vals,a1prime3vals,a1prime4vals, a1vals,a2vals,a3vals,a4vals, expassetvals, ParamCell{:});
+    end
 end
 
-N_a1=prod(n_a1);
-N_a2=prod(n_a2);
 
 % Note: cannot have N_d=0 with experience asset
-if Refine==1
-    Fmatrix=reshape(Fmatrix,[N_d,N_a1,N_a1*N_a2]); % This is the difference when using Refine
-else
-    Fmatrix=reshape(Fmatrix,[N_d*N_a1,N_a1*N_a2]);
+if Level==0
+    N_d1=prod(n_d1);
+    if Refine==0 || N_d1==0
+        Fmatrix=reshape(Fmatrix,[N_d*N_a1prime,N_a1*N_a2]);
+    elseif Refine==1
+        N_d2=prod(n_d2);
+        Fmatrix=reshape(Fmatrix,[N_d1,N_d2*N_a1prime,N_a1*N_a2]);  % want to refine away d1
+    end
+elseif Level==1
+    Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a1,N_a2]);
+elseif Level==2 % For level 2
+    Fmatrix=reshape(Fmatrix,[N_d*N_a1prime,N_a1*N_a2]);
 end
+
+
 
 
 end

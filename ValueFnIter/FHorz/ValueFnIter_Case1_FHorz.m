@@ -231,6 +231,24 @@ if vfoptions.parallel<2
     end
 end
 
+
+%% 
+if vfoptions.parallel==2 
+   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+   d_grid=gpuArray(d_grid);
+   a_grid=gpuArray(a_grid);
+   z_grid=gpuArray(z_grid);
+   pi_z=gpuArray(pi_z);
+else
+   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
+   % This may be completely unnecessary, no-one with a GPU would be using CPU.
+   d_grid=gather(d_grid);
+   a_grid=gather(a_grid);
+   z_grid=gather(z_grid);
+   pi_z=gather(pi_z);
+end
+
+
 %% Exogenous shock gridvals and pi
 if vfoptions.alreadygridvals==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
@@ -276,21 +294,6 @@ if isfield(vfoptions,'WarmGlowBequestsFn')
 end
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 
-%% 
-if vfoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   pi_z=gpuArray(pi_z);
-   d_grid=gpuArray(d_grid);
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
-else
-   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-   % This may be completely unnecessary.
-   pi_z=gather(pi_z);
-   d_grid=gather(d_grid);
-   a_grid=gather(a_grid);
-   z_grid=gather(z_grid);
-end
 
 %% Print out vfoptions (if vfoptions.verbose=1)
 if vfoptions.verbose==1
@@ -376,7 +379,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         if isfield(vfoptions,'n_semiz')
             [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [V,Policy]=ValueFnIter_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.experienceassetu==1
         [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);

@@ -1,5 +1,6 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_ExpAsset_nod1_noz_raw(n_d2,n_a1,n_a2,N_j, d2_grid, a1_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAsset_noz_raw(n_d1, n_d2,n_a1,n_a2,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
+N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
@@ -9,9 +10,9 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
-d2_grid=gpuArray(d2_grid);
-a1_grid=gpuArray(a1_grid);
-a2_grid=gpuArray(a2_grid);
+% n_a1prime=n_a1;
+% a1prime_gridvals=a1_gridvals;
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 %% j=N_j
 
@@ -20,7 +21,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d2, n_a1,n_a2, d2_grid, a1_grid, a2_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,0,0);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
@@ -49,16 +50,17 @@ else
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d2, n_a1,n_a2, d2_grid, a1_grid, a2_grid, ReturnFnParamsVec);
 
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
-    
+    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,0,0);
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1);
+
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
 
     V(:,N_j)=shiftdim(Vtemp,1);
     Policy(:,N_j)=shiftdim(maxindex,1);
+
 end
 
 %% Iterate backwards through j.
@@ -92,14 +94,14 @@ for reverse_j=1:N_j-1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
-    
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d2, n_a1,n_a2, d2_grid, a1_grid, a2_grid, ReturnFnParamsVec);
 
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,0,0);
+
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,N_a1);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);
-
+    
     V(:,jj)=shiftdim(Vtemp,1);
     Policy(:,jj)=shiftdim(maxindex,1);
 

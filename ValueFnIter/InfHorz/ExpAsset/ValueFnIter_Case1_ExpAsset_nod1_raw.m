@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_ExpAsset_nod1_raw(V0,n_d2,n_a1,n_a2,n_z , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_ExpAsset_nod1_raw(V0,n_d2,n_a1,n_a2,n_z , d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a1=prod(n_a1);
@@ -6,14 +6,13 @@ N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
-%%
-d2_grid=gpuArray(d2_grid);
-a1_grid=gpuArray(a1_grid);
-a2_grid=gpuArray(a2_grid);
-
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
+n_a1prime=n_a1;
+% a1prime_gridvals=a1_gridvals;
 
 %% Start by setting up ReturnFn for the first-level
-ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d2, n_a1,n_a2, n_z, d2_grid, a1_grid, a2_grid, z_gridvals, ReturnFnParamsVec);
+ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1prime, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
 
 V=reshape(V0,[N_a,N_z]);
 Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z

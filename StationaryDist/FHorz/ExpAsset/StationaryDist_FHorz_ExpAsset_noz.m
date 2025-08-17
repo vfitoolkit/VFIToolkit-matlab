@@ -2,7 +2,7 @@ function StationaryDist=StationaryDist_FHorz_ExpAsset_noz(jequaloneDist,AgeWeigh
 
 n_d2=n_d(end);
 % Split endogenous assets into the standard ones and the experience asset
-if length(n_a)==1
+if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
@@ -60,16 +60,9 @@ for jj=1:N_j
     end
 end
 
-if simoptions.iterate==0
-    dbstack
-    error('This combo only supports iteration')
-elseif simoptions.iterate==1
-    StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
-end
+StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+StationaryDist=gpuArray(StationaryDist); % NEED TO MOVE TAN IMPROVEMENT TO GPU
 
-if simoptions.parallel==2
-    StationaryDist=gpuArray(StationaryDist);
-end
 if simoptions.outputkron==0
     StationaryDist=reshape(StationaryDist,[n_a,N_j]);
 else

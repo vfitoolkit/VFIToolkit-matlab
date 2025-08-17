@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_ExpAsset_Refine_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_Case1_ExpAsset_Refine_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -7,16 +7,11 @@ N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
-%%
-d1_grid=gpuArray(d1_grid);
-d2_grid=gpuArray(d2_grid);
-a1_grid=gpuArray(a1_grid);
-a2_grid=gpuArray(a2_grid);
-
-% For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
-% n_d=[n_d1,n_d2];
-% d_grid=[d1_grid;d2_grid];
-
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+d_gridvals=[repmat(d1_gridvals,N_d2,1),repelem(d2_gridvals,N_d1,1)];
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
+n_a1prime=n_a1;
+% a1prime_gridvals=a1_gridvals;
 
 %% Refine the ReturnMatrix (removing the d1 dimension)
 % Since the return function is independent of time creating it once and
@@ -24,8 +19,7 @@ a2_grid=gpuArray(a2_grid);
 % lot of memory.
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,n_z, [d1_grid; d2_grid], a1_grid, a2_grid,z_gridvals, ReturnFnParamsVec);
-    ReturnMatrix=reshape(ReturnMatrix,[N_d1,N_d2*N_a1,N_a,N_z]);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1prime, n_a1,n_a2,n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals,z_gridvals, ReturnFnParamsVec,0,1);
     
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
     [ReturnMatrix,dstar]=max(ReturnMatrix,[],1);
@@ -38,8 +32,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     special_n_z=ones(1,l_z,'gpuArray');
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, [n_d1,n_d2], n_a1,n_a2,special_n_z, [d1_grid; d2_grid], a1_grid, a2_grid,zvals, ReturnFnParamsVec);
-        ReturnMatrix_z=reshape(ReturnMatrix_z,[N_d1,N_d2*N_a1,N_a]);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1prime, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals,zvals, ReturnFnParamsVec,0,1);
         [ReturnMatrix_z,dstar_z]=max(ReturnMatrix_z,[],1); % solve for dstar
         ReturnMatrix(:,:,z_c)=shiftdim(ReturnMatrix_z,1);
         dstar(:,:,z_c)=shiftdim(dstar_z,1);
@@ -94,9 +87,9 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     EV=EV.*Epi_z;
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
-    % EV is over (d2,a1prime,a2,z)
+    % EV is over (d2 & a1prime,a2,1,z)
 
-    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1,1);
     
     %Calc the max and it's index
     [Vtemp,maxindex]=max(entireRHS,[],1);

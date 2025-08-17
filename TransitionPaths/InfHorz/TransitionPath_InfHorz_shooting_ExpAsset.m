@@ -157,6 +157,13 @@ else % l_d1
     end
 end
 
+if n_d1(1)==0
+    d_gridvals=CreateGridvals(n_d2,d2_grid,1);
+else
+    d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
+end
+a1_gridvals=CreateGridvals(n_a1,a1_grid,1);
+
 % Precompute for AgentDist
 if l_d1==0
     ndvars=1;
@@ -185,7 +192,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset(Vnext,n_d1,n_d2,n_a1,n_a2,n_z,d1_grid,d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset(Vnext,n_d1,n_d2,n_a1,n_a2,n_z,d_gridvals,d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
               

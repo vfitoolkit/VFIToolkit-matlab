@@ -147,16 +147,9 @@ if vfoptions.divideandconquer==1 && isscalar(n_a)
 end
 
 
-if isfield(vfoptions,'V0')
-    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
-    vfoptions.actualV0=1;
-else
-    if vfoptions.parallel==2
-        V0=zeros([N_a,N_z], 'gpuArray');
-    else
-        V0=zeros([N_a,N_z]);
-    end
-    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
+%% Report on Setup
+if vfoptions.verbose==1
+    vfoptions
 end
 
 
@@ -177,15 +170,15 @@ if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmet
             else
                 error('z_grid is not the correct shape (should be of size sum(n_z)-by-1)')
             end
-        elseif size(pi_z)~=[N_z, N_z]
+        elseif ~all(size(pi_z)==[N_z, N_z])
             error('pi is not of size N_z-by-N_z')
         end
     elseif n_z(end)>1 % Ignores this final check if last dimension of n_z is singleton as will cause an error
         if ndims(V0)>2
-            if size(V0)~=[n_a,n_z] % Allow for input to be already transformed into Kronecker form
+            if ~all(size(V0)==[n_a,n_z]) % Allow for input to be already transformed into Kronecker form
                 error('Starting choice for ValueFn is not of size [n_a,n_z]')
             end
-        elseif size(V0)~=[N_a,N_z] % Allows for possiblity that V0 is already in kronecker form
+        elseif ~all(size(V0)==[N_a,N_z]) % Allows for possiblity that V0 is already in kronecker form
             error('Starting choice for ValueFn is not of size [n_a,n_z]')
         end
     end
@@ -216,19 +209,33 @@ if max(vfoptions.incrementaltype)==1
     end
 end
 
-%%
-if vfoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   V0=gpuArray(V0);
-   pi_z=gpuArray(pi_z);
-   d_grid=gpuArray(d_grid);
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
+%% Anything but the basics is only for GPU
+if vfoptions.parallel~=2
+    if vfoptions.experienceasset==1
+        error('Cannot use vfoptions.experienceasset=1 without a GPU')
+    end
+else
+    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+    pi_z=gpuArray(pi_z);
+    d_grid=gpuArray(d_grid);
+    a_grid=gpuArray(a_grid);
+    z_grid=gpuArray(z_grid);
 end
 
-if vfoptions.verbose==1
-    vfoptions
+
+%% V0 (initial guess)
+if isfield(vfoptions,'V0')
+    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
+    vfoptions.actualV0=1;
+else
+    if vfoptions.parallel==2
+        V0=zeros([N_a,N_z], 'gpuArray');
+    else
+        V0=zeros([N_a,N_z]);
+    end
+    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
 end
+
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
@@ -298,7 +305,7 @@ if isfield(vfoptions,'exoticpreferences')
                 DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*(Parameters.(DiscountFactorParamNames{ii}));
             end
         end
-        DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*ones(N_z,N_z); % Make it of size z-by-zprime, so that I can later just assume that it takes this shape
+        DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*ones(N_z,N_z,'gpuArray'); % Make it of size z-by-zprime, so that I can later just assume that it takes this shape
         if vfoptions.parallel==2
             DiscountFactorParamsMatrix=gpuArray(DiscountFactorParamsMatrix);
         end
@@ -327,8 +334,8 @@ end
 if vfoptions.experienceasset==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     
-    if length(n_a)==1
-        error('experienceasset in InfHorz is only coded alongside a standard endogenous state')
+    if isscalar(n_a)
+        error('experienceasset in InfHorz is only coded alongside a standard endogenous state (you have length(n_a)==1)')
     elseif length(n_a)==2
         % Split decision variables into the standard ones and the one relevant to the experience asset
         if isscalar(n_d)
