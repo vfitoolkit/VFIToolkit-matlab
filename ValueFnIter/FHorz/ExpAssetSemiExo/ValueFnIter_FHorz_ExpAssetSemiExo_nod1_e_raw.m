@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,n_e,N_j, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J, pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy3]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,n_e,N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J, pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % d2 determines experience asset, d3 determines semi-exog state
 % a is endogenous state, a2 is experience asset
 % z is exogenous state, semiz is semi-exog state
@@ -20,17 +20,13 @@ V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 Policy3=zeros(3,N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 
 %%
-d2_grid=gpuArray(d2_grid);
-d3_grid=gpuArray(d3_grid);
-a1_grid=gpuArray(a1_grid);
-a2_grid=gpuArray(a2_grid);
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
-% For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
-n_d=[n_d2,n_d3];
-N_d=prod(n_d);
-d_grid=[d2_grid;d3_grid];
+n_d23=[n_d2,n_d3];
+N_d23=prod(n_d23);
+d23_gridvals=CreateGridvals(n_d23,[d2_grid;d3_grid],1);
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -52,26 +48,26 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d, n_a1,n_a2, n_bothz,n_e, d_grid, a1_grid, a2_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec); % [N_d*N_a1,N_a1*N_a2,N_z]
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,n_bothz,n_e, d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0); % [N_d*N_a1,N_a1*N_a2,N_z]
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
-        d_ind=rem(maxindex-1,N_d)+1; % Do I need this shiftdim(), can probably delete all these
+        d_ind=rem(maxindex-1,N_d23)+1; % Do I need this shiftdim(), can probably delete all these
         Policy3(1,:,:,:,N_j)=rem(d_ind-1,N_d2)+1;
         Policy3(2,:,:,:,N_j)=ceil(d_ind/N_d2);
-        Policy3(3,:,:,:,N_j)=ceil(maxindex/N_d);
+        Policy3(3,:,:,:,N_j)=ceil(maxindex/N_d23);
 
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d, n_a1,n_a2, n_bothz,special_n_e, d_grid, a1_grid, a2_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec); % [N_d*N_a1,N_a1*N_a2,N_z]
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,n_bothz,special_n_e, d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0,0); % [N_d*N_a1,N_a1*N_a2,N_z]
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
-            d_ind=rem(maxindex-1,N_d)+1; % Do I need this shiftdim(), can probably delete all these
+            d_ind=rem(maxindex-1,N_d23)+1; % Do I need this shiftdim(), can probably delete all these
             Policy3(1,:,:,e_c,N_j)=rem(d_ind-1,N_d2)+1;
             Policy3(2,:,:,e_c,N_j)=ceil(d_ind/N_d2);
-            Policy3(3,:,:,e_c,N_j)=ceil(maxindex/N_d);
+            Policy3(3,:,:,e_c,N_j)=ceil(maxindex/N_d23);
         end
 
     elseif vfoptions.lowmemory==2
@@ -80,14 +76,14 @@ if ~isfield(vfoptions,'V_Jplus1')
             e_val=e_gridvals_J(e_c,:,N_j);
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d, n_a1,n_a2, special_n_bothz,special_n_e, d_grid, a1_grid, a2_grid, z_val,e_val, ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d23,n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d23_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val,e_val, ReturnFnParamsVec,0,0);
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
                 V(:,z_c,e_c,N_j)=Vtemp;
-                d_ind=rem(maxindex-1,N_d)+1;
+                d_ind=rem(maxindex-1,N_d23)+1;
                 Policy3(1,:,z_c,e_c,N_j)=rem(d_ind-1,N_d2)+1;
                 Policy3(2,:,z_c,e_c,N_j)=ceil(d_ind/N_d2);
-                Policy3(3,:,z_c,e_c,N_j)=ceil(maxindex/N_d);
+                Policy3(3,:,z_c,e_c,N_j)=ceil(maxindex/N_d23);
             end
         end
     end
@@ -112,11 +108,12 @@ else
     
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
-            d3_val=d3_grid(d3_c);
+            % d3_val=d3_grid(d3_c);
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, [n_d2,1], n_a1,n_a2, n_bothz,n_e, [d2_grid;d3_val], a1_grid, a2_grid, bothz_gridvals_J(:,:,N_j),e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,n_bothz,n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j),e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -146,13 +143,14 @@ else
 
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
-            d3_val=d3_grid(d3_c);
+            % d3_val=d3_grid(d3_c);
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
-                ReturnMatrix_d3e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, [n_d2,1], n_a1,n_a2, n_bothz,special_n_e, [d2_grid;d3_val], a1_grid, a2_grid, bothz_gridvals_J(:,:,N_j),e_val, ReturnFnParamsVec);
+                ReturnMatrix_d3e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,n_bothz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,N_j),e_val, ReturnFnParamsVec,0,0);
                 % (d,aprime,a,z)
 
                 EV=V_Jplus1.*shiftdim(pi_bothz',-1);
@@ -183,7 +181,8 @@ else
         
     elseif vfoptions.lowmemory==2
         for d3_c=1:N_d3
-            d3_val=d3_grid(d3_c);
+            % d3_val=d3_grid(d3_c);
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz_J(:,:,d3_c,N_j));
 
@@ -191,7 +190,7 @@ else
                 e_val=e_gridvals_J(e_c,:,N_j);
                 for z_c=1:N_bothz
                     z_val=bothz_gridvals_J(z_c,:,N_j);
-                    ReturnMatrix_d3z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, [n_d2,1], n_a1,n_a2, special_n_bothz, special_n_e, [d2_grid;d3_val], a1_grid, a2_grid, z_val,e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d3z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz, special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val,e_val, ReturnFnParamsVec,0,0);
 
                     %Calc the condl expectation term (except beta), which depends on z but not on control variables
                     EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
@@ -222,7 +221,7 @@ else
     end
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
-    [V_jj,maxindex]=max(V_ford3_jj,[],3); % max over d2
+    [V_jj,maxindex]=max(V_ford3_jj,[],4); % max over d2
     V(:,:,:,N_j)=V_jj;
     Policy3(2,:,:,:,N_j)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below
@@ -263,12 +262,12 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
-
-            d3_val=d3_grid(d3_c);
+            % d3_val=d3_grid(d3_c);
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
-            ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, [n_d2,1], n_a1,n_a2, n_bothz,n_e, [d2_grid;d3_val], a1_grid, a2_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,n_bothz,n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0);
             % (d,aprime,a,z)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
@@ -298,14 +297,15 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
-            d3_val=d3_grid(d3_c);
+            % d3_val=d3_grid(d3_c);
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz_J(:,:,d3_c,jj));
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
 
-                ReturnMatrix_d3e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, [n_d2,1], n_a1,n_a2, n_bothz,special_n_e, [d2_grid;d3_val], a1_grid, a2_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
+                ReturnMatrix_d3e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,n_bothz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0,0);
                 % (d,aprime,a,z)
 
                 EV=VKronNext_j.*shiftdim(pi_bothz',-1);
@@ -335,7 +335,8 @@ for reverse_j=1:N_j-1
         end
     elseif vfoptions.lowmemory==2
         for d3_c=1:N_d3
-            d3_val=d3_grid(d3_c);
+            % d3_val=d3_grid(d3_c);
+            d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz_J(:,:,d3_c,jj));
 
@@ -344,7 +345,7 @@ for reverse_j=1:N_j-1
 
                 for z_c=1:N_bothz
                     z_val=bothz_gridvals_J(z_c,:,jj);
-                    ReturnMatrix_d3ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, [n_d2,1], n_a1,n_a2, special_n_bothz,special_n_e, [d2_grid;d3_val], a1_grid, a2_grid, z_val, e_val, ReturnFnParamsVec);
+                    ReturnMatrix_d3ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,[n_d2,1],n_a1,n_a1,n_a2,special_n_bothz,special_n_e, d23_gridvals_val, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
                     %Calc the condl expectation term (except beta), which depends on z but not on control variables
                     EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_bothz(z_c,:));
@@ -377,7 +378,7 @@ for reverse_j=1:N_j-1
     end
 
     % Now we just max over d3, and keep the policy that corresponded to that (including modify the policy to include the d3 decision)
-    [V_jj,maxindex]=max(V_ford3_jj,[],3); % max over d3
+    [V_jj,maxindex]=max(V_ford3_jj,[],4); % max over d3
     V(:,:,:,jj)=V_jj;
     Policy3(2,:,:,:,jj)=shiftdim(maxindex,-1); % d3 is just maxindex
     maxindex=reshape(maxindex,[N_a*N_semiz*N_z*N_e,1]); % This is the value of d that corresponds, make it this shape for addition just below

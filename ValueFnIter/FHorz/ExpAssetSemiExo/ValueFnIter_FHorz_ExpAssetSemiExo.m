@@ -25,12 +25,10 @@ else
 end
 
 N_d1=prod(n_d1);
-N_z=prod(n_z);
-
+N_d2=prod(n_d2);
+N_d3=prod(n_d3);
 N_a1=prod(n_a1);
-if N_a1==0
-    error('Have not implemented experience assets with semi-exogenous shocks, without also having a standard asset')
-end
+N_z=prod(n_z);
 
 % Note: divide-and-conquer is only possible with a1
 if N_a1>0 % set up for divide-and-conquer
@@ -48,37 +46,54 @@ if N_a1>0 % set up for divide-and-conquer
     end
 end
 
-if vfoptions.lowmemory>0
-    error('vfoptions.lowmemory is temporarily disabled for models with experienceasset and semi-exogenous shocks (needs to be fixed/cleaned)')
+if N_a1>0
+    a1_gridvals=CreateGridvals(n_a1,a1_grid,1);
+end
+
+if vfoptions.gridinterplayer==1
+    [V,Policy]=ValueFnIter_FHorz_ExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    return
+end
+
+if N_d1==0
+    d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+else
+    d12_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
+end
+
+
+%%
+if N_a1==0
+    error('Have not implemented experience assets with semi-exogenous shocks, without also having a standard asset')
 end
 
 if isfield(vfoptions,'n_e')
     if vfoptions.divideandconquer==0
         if N_d1==0
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_noz_e_raw(n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_noz_e_raw(n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_noz_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_noz_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     elseif vfoptions.divideandconquer==1
         if N_d1==0
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_noz_e_raw(n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_noz_e_raw(n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_e_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_noz_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_noz_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz,vfoptions.n_e, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_e_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz,vfoptions.n_e, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, pi_semiz_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     end
@@ -86,29 +101,29 @@ else
     if vfoptions.divideandconquer==0
         if N_d1==0
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_noz_raw(n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_noz_raw(n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     elseif vfoptions.divideandconquer==1
         if N_d1==0
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_noz_raw(n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_noz_raw(n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_raw(n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d2_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,n_semiz, N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, z_gridvals_J, semiz_gridvals_J, pi_z_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     end
@@ -117,7 +132,25 @@ end
 
 %%
 if vfoptions.outputkron==0
-    n_bothz=[vfoptions.n_semiz,n_z];
+    if isfield(vfoptions,'n_e')
+        if N_d1==0 % Policy3
+            PolicyKron=shiftdim(PolicyKron(1,:,:,:,:)+N_d2*(PolicyKron(2,:,:,:,:)-1)+N_d2*N_d3*(PolicyKron(3,:,:,:,:)-1),1);
+        else % Policy4
+            PolicyKron=shiftdim(PolicyKron(1,:,:,:,:)+N_d1*(PolicyKron(2,:,:,:,:)-1)+N_d1*N_d2*(PolicyKron(3,:,:,:,:)-1)+N_d1*N_d2*N_d3*(PolicyKron(4,:,:,:,:)-1),1);
+        end
+    else
+        if N_d1==0 % Policy3
+            PolicyKron=shiftdim(PolicyKron(1,:,:,:)+N_d2*(PolicyKron(2,:,:,:)-1)+N_d2*N_d3*(PolicyKron(3,:,:,:)-1),1);
+        else % Policy4
+            PolicyKron=shiftdim(PolicyKron(1,:,:,:)+N_d1*(PolicyKron(2,:,:,:)-1)+N_d1*N_d2*(PolicyKron(3,:,:,:)-1)+N_d1*N_d2*N_d3*(PolicyKron(4,:,:,:)-1),1);
+        end
+    end
+
+    if N_z==0
+        n_bothz=vfoptions.n_semiz;
+    else
+        n_bothz=[vfoptions.n_semiz,n_z];
+    end
     if N_d1>0
         n_d=[n_d1,n_d2,n_d3];
     else 
@@ -129,34 +162,14 @@ if vfoptions.outputkron==0
     else
         n_a=n_a2;
     end
-
+    
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
     if isfield(vfoptions,'n_e')
         V=reshape(VKron,[n_a,n_bothz,vfoptions.n_e,N_j]);
-        if n_d1==0
-            if length(n_a1)==1 && n_a1(1)>0
-                Policy=reshape(PolicyKron,[3,n_a,n_bothz,vfoptions.n_e,N_j]);
-            else
-                error('Not yet implemented')
-            end
-        else
-            error('Not yet implemented')
-        end
+        Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_bothz, vfoptions.n_e, N_j, vfoptions);
     else
         V=reshape(VKron,[n_a,n_bothz,N_j]);
-        if n_d1==0
-            if length(n_a1)==1 && n_a1(1)>0
-                Policy=reshape(PolicyKron,[3,n_a,n_bothz,N_j]); % I can replace 3 with length(n_d)
-            else
-                error('Not yet implemented')
-            end
-        else
-            if length(n_a1)==1 && n_a1(1)>0
-                Policy=reshape(PolicyKron,[length(n_d),n_a,n_bothz,N_j]);
-            else
-                error('Not yet implemented')
-            end
-        end
+        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_bothz, N_j, vfoptions);
     end
 else
     V=VKron;

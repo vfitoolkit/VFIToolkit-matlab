@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz,N_j, d1_grid, d2_grid, d3_grid, a1_grid, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy3]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_noz_raw(n_d1,n_d2,n_d3,n_a1,n_a2,n_semiz,N_j, d12_gridvals, d2_grid, d3_grid, a1_gridvals, a2_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % d2 determines experience asset, d3 determines semi-exog state
 % a is endogenous state, a2 is experience asset
 % semiz is semi-exog state
@@ -17,21 +17,15 @@ V=zeros(N_a,N_semiz,N_j,'gpuArray');
 Policy3=zeros(4,N_a,N_semiz,N_j,'gpuArray');
 
 %%
-d1_grid=gpuArray(d1_grid);
-d2_grid=gpuArray(d2_grid);
-d3_grid=gpuArray(d3_grid);
-a1_grid=gpuArray(a1_grid);
-a2_grid=gpuArray(a2_grid);
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 % For the return function we just want (I'm just guessing that as I need them N_j times it will be fractionally faster to put them together now)
 n_d=[n_d1,n_d2,n_d3];
 N_d=prod(n_d);
-d_grid=[d1_grid; d2_grid; d3_grid];
-d_gridvals=CreateGridvals(n_d,d_grid,1);
+d_gridvals=[repmat(d12_gridvals,N_d3,1),repelem(CreateGridvals(n_d3,d3_grid,1),N_d12,1)];
 
 if vfoptions.lowmemory>0
     special_n_semiz=ones(1,length(n_semiz));
-    d12_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid;d2_grid],1);
 else
     % precompute
     semizind=shiftdim((0:1:N_semiz-1),-1); % already includes -1
@@ -40,6 +34,11 @@ end
 % Preallocate
 V_ford3_jj=zeros(N_a,N_semiz,N_d3,'gpuArray');
 Policy_ford3_jj=zeros(N_a,N_semiz,N_d3,'gpuArray');
+
+% n-Monotonicity
+% vfoptions.level1n=21;
+level1ii=round(linspace(1,n_a1,vfoptions.level1n));
+level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 
 %% j=N_j
@@ -51,7 +50,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d, n_semiz, d_gridvals, a1_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,n_d3],n_a1,vfoptions.level1n,n_a2,n_semiz, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
         % First, we want a1prime conditional on (d,1,a)
         [~,maxindex1]=max(ReturnMatrix_ii,[],2);
@@ -78,7 +77,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_z
                 a1primeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d, n_semiz, d_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,n_d3],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex does not need reworking, as with expasset there is no a2prime
@@ -94,7 +93,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d, n_semiz, d_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,n_d3],1,level1iidiff(ii),n_a2,n_semiz, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V(curraindex,:,N_j)=shiftdim(Vtempii,1);
                 % maxindex does not need reworking, as with expasset there is no a2prime
@@ -117,7 +116,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             z_val=semiz_gridvals_J(z_c,:,N_j);
             
             % n-Monotonicity
-            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d, special_n_semiz, d_gridvals, a1_grid, a1_grid(level1ii), a2_grid, z_val, ReturnFnParamsVec,1);
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,n_d3],n_a1,vfoptions.level1n,n_a2,special_n_semiz, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1);
 
             % First, we want a1prime conditional on (d,1,a)
             [~,maxindex1]=max(ReturnMatrix_ii_z,[],2);
@@ -144,7 +143,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d, special_n_semiz, d_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,n_d3],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
@@ -160,7 +159,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, n_d, special_n_semiz, d_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,n_d3],1,level1iidiff(ii),n_a2,special_n_semiz, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
@@ -198,7 +197,7 @@ else
     
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
-            d123_gridvals=[d12_gridvals,d3_grid(d3_c).*ones(N_d12,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
@@ -218,10 +217,10 @@ else
             entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
             % entireEV is (d2,a1prime, a2,z)
 
-            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_semiz]),[N_d1,1,1]); % (d2,a1prime,1,a2,zprime)
+            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_semiz]),N_d1,1,1); % (d2,a1prime,1,a2,zprime)
 
             % n-Monotonicity
-            ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_semiz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+            ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
 
             entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedentireEV;
 
@@ -247,7 +246,7 @@ else
                     % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_z
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
-                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_semiz, d123_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                     daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii_d3+DiscountedentireEV(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz]));
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -256,12 +255,12 @@ else
                     %  the a1prime is relative to loweredge(allind), need to 'add' the loweredge
                     dind=(rem(maxindex-1,N_d1*N_d2)+1);
                     a2ind=repelem((0:1:N_a2-1),1,level1iidiff(ii)); % already includes -1
-                    allind=dind+N_d1*N_d2*a2ind+N_d2*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2
+                    allind=dind+N_d1*N_d2*a2ind+N_d1*N_d2*N_a2*semizind; % loweredge is n_d-by-1-by-1-by-n_a2-by-n_a2
                     Policy_ford3_jj(curraindex,:,d3_c)=shiftdim(maxindex+N_d1*N_d2*(loweredge(allind)-1),1);
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_semiz, d123_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],1,level1iidiff(ii),n_a2,n_semiz, d123_gridvals_val, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
                     daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii_d3+DiscountedentireEV(reshape(daprime,[N_d1*N_d2*1,level1iidiff(ii)*N_a2,N_semiz]));
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -278,7 +277,7 @@ else
         
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
-            d123_gridvals=[d12_gridvals,d3_grid(d3_c)*ones(N_d12,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
@@ -302,10 +301,10 @@ else
                 entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
-                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),[N_d1,1,1]); % (d,a1prime,1,a2)
+                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),N_d1,1,1); % (d,a1prime,1,a2)
 
                 % n-Monotonicity
-                ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_semiz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, z_val, ReturnFnParamsVec,1);
+                ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1);
 
                 entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z;
 
@@ -330,7 +329,7 @@ else
                         % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2
                         a1primeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
-                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_semiz, d123_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,2);
+                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                         daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
                         [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
@@ -344,7 +343,7 @@ else
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
-                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_semiz, d123_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,2);
+                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                         daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
                         [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
@@ -403,7 +402,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
         for d3_c=1:N_d3
-            d123_gridvals=[d12_gridvals,d3_grid(d3_c)*ones(N_d12,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
 
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
@@ -424,10 +423,10 @@ for reverse_j=1:N_j-1
             entireEV=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
             % entireEV is (d,a1prime, a2,z)
 
-            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_semiz]),[N_d1,1,1]); % (d2,a1prime,1,a2,zprime)
+            DiscountedentireEV=DiscountFactorParamsVec*repelem(reshape(entireEV,[N_d2,N_a1,1,N_a2,N_semiz]),N_d1,1,1); % (d2,a1prime,1,a2,zprime)
 
             % n-Monotonicity
-            ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_semiz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
+            ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
 
             entireRHS_ii_d3=ReturnMatrix_ii_d3+DiscountedentireEV;
 
@@ -453,7 +452,7 @@ for reverse_j=1:N_j-1
                     % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_z
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
-                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_semiz, d123_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,n_semiz, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
                     daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1,1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii_d3+DiscountedentireEV(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,N_semiz]));
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -467,7 +466,7 @@ for reverse_j=1:N_j-1
                 else
                     loweredge=maxindex1(:,1,ii,:,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], n_semiz, d123_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_d3=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],1,level1iidiff(ii),n_a2,n_semiz, d123_gridvals_val, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
                     daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1,1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a1*N_a2*shiftdim((0:1:N_semiz-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
                     entireRHS_ii=ReturnMatrix_ii_d3+DiscountedentireEV(reshape(daprime,[N_d1*N_d2*1,level1iidiff(ii)*N_a2,N_semiz]));
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -484,7 +483,7 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         for d3_c=1:N_d3
-            d123_gridvals=[d12_gridvals,d3_grid(d3_c)*ones(N_d12,1)];
+            d123_gridvals_val=[d12_gridvals,repelem(d3_grid(d3_c),N_d12,1)];
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
@@ -508,10 +507,10 @@ for reverse_j=1:N_j-1
                 entireEV_z=EV1.*aprimeProbs+EV2.*(1-aprimeProbs); % probability of lower grid point+ probability of upper grid point
                 % entireEV_z is (d,a1prime, a2)
 
-                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),[N_d1,1,1]); % (d,a1prime,1,a2)
+                DiscountedentireEV_z=DiscountFactorParamsVec*repelem(reshape(entireEV_z,[N_d2,N_a1,1,N_a2]),N_d1,1,1); % (d,a1prime,1,a2)
 
                 % n-Monotonicity
-                ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_semiz, d123_gridvals, a1_grid, a1_grid(level1ii), a2_grid, z_val, ReturnFnParamsVec,1);
+                ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],n_a1,vfoptions.level1n,n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1);
 
                 entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z;
 
@@ -536,7 +535,7 @@ for reverse_j=1:N_j-1
                         % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2
                         a1primeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
-                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_semiz, d123_gridvals, a1_grid(a1primeindexes), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,2);
+                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                         daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
                         [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
@@ -550,7 +549,7 @@ for reverse_j=1:N_j-1
                     else
                         loweredge=maxindex1(:,1,ii,:);
                         % Just use aprime(ii) for everything
-                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_DC1_Par2(ReturnFn, [n_d1,n_d2,1], special_n_semiz, d123_gridvals, a1_grid(loweredge), a1_grid(level1ii(ii)+1:level1ii(ii+1)-1), a2_grid, z_val, ReturnFnParamsVec,2);
+                        ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,[n_d2,1],1,level1iidiff(ii),n_a2,special_n_semiz, d123_gridvals_val, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                         daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d1*N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
                         entireRHS_ii_z=ReturnMatrix_ii_z+DiscountedentireEV_z(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
                         [Vtempii,maxindex]=max(entireRHS_ii_z,[],1);
