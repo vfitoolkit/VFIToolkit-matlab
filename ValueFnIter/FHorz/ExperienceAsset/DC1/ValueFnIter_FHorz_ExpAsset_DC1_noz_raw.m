@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_DC1_ExpAsset_noz_raw(n_d1, n_d2,n_a1,n_a2,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAsset_DC1_noz_raw(n_d1, n_d2,n_a1,n_a2,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);

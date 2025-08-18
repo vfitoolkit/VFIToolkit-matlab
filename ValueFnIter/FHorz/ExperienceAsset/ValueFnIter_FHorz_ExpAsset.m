@@ -1,7 +1,5 @@
 function [V,Policy]=ValueFnIter_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% vfoptions are already set by ValueFnIter_Case1_FHorz()
-
-error('ExpAsset is momentarily broken, will be fixed later this week')
+% vfoptions are already set by ValueFnIter_FHorz()
 
 if isfield(vfoptions,'aprimeFn')
     aprimeFn=vfoptions.aprimeFn;

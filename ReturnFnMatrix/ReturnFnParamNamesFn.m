@@ -61,7 +61,7 @@ if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the Retu
 else
     ReturnFnParamNames={};
 end
-% [l_d,l_aprime,l_a,l_z,l_e]
+[l_d,l_aprime,l_a,l_z,l_e]
 % ReturnFnParamNames
 % clear l_d l_a l_z l_e % These are all messed up so make sure they are not reused later
 

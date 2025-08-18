@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z,n_e,N_j, d2_grid, a1_grid, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z,n_e,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a1=prod(n_a1);
@@ -11,9 +11,7 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
-d2_grid=gpuArray(d2_grid);
-a1_grid=gpuArray(a1_grid);
-a2_grid=gpuArray(a2_grid);
+a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
 if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
@@ -30,8 +28,8 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-        %Calc the max and it's index
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,:,N_j)=Vtemp;
         Policy(:,:,:,N_j)=maxindex;
@@ -39,8 +37,8 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2, n_z, special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j),e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
-            %Calc the max and it's index
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j),e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec,0,0);
+            % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
             Policy(:,:,e_c,N_j)=maxindex;
@@ -50,8 +48,8 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             for z_c=1:N_z
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, special_n_a1,n_a2, special_n_z, special_n_e, d2_grid, a1_val, a2_grid, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec);
-                %Calc the max and it's index
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0, n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec,0,0);
+                % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze);
                 V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(:,z_c,e_c,N_j)=maxindex;
@@ -90,7 +88,7 @@ else
         EV=squeeze(sum(EV,3));
         % EV is over (d2,a1prime,a2,z)
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
 
@@ -107,7 +105,7 @@ else
         % EV is over (d2,a1prime,a2,z)
 
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec,0,0);
 
             entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
@@ -125,7 +123,7 @@ else
             EV_z=sum(EV_z,3);
 
             for e_c=1:N_e
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,special_n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec,0,0);
 
                 entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
 
@@ -160,7 +158,7 @@ for reverse_j=1:N_j-1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z); % [N_d2*N_a1,N_a2,N_z]
 
-    Vnext=sum(V(:,:,:,jj+1).*shfitdim(pi_e_J(:,jj),-2),3);
+    Vnext=sum(V(:,:,:,jj+1).*shiftdim(pi_e_J(:,jj),-2),3);
 
     Vlower=reshape(Vnext(aprimeIndex(:),:),[N_d2*N_a1,N_a2,N_z]);
     Vupper=reshape(Vnext(aprimeplus1Index(:),:),[N_d2*N_a1,N_a2,N_z]);
@@ -178,7 +176,7 @@ for reverse_j=1:N_j-1
         EV=squeeze(sum(EV,3));
         % EV is over (d2,a1prime,a2,z)
 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0);
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
 
@@ -195,7 +193,7 @@ for reverse_j=1:N_j-1
         % EV is over (d2,a1prime,a2,z)
 
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec,0,0);
 
             entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
@@ -213,7 +211,7 @@ for reverse_j=1:N_j-1
             EV_z=sum(EV_z,3);
 
             for e_c=1:N_e
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d2, n_a1,n_a2,special_n_z,special_n_e, d2_grid, a1_grid, a2_grid, z_gridvals_J(z_c,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(z_c,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec,0,0);
 
                 entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
 
