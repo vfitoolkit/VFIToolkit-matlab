@@ -13,7 +13,7 @@ PolicyProbs=gather(reshape(PolicyProbs,[N_a,2,N_j])); % (a,z,2,j)
 % Hence, just force sparse cpu arrays.
 
 StationaryDist=zeros(N_a,N_j);
-StationaryDist(:,1)=jequaloneDistKron;
+StationaryDist(:,1)=gather(jequaloneDistKron);
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
 
 % Precompute

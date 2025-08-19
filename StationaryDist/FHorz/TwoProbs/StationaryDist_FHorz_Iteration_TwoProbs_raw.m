@@ -14,7 +14,7 @@ PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,2,N_j])); % (a,z,2,j)
 % Hence, just force sparse cpu arrays.
 
 StationaryDist=zeros(N_a*N_z,N_j,'gpuArray');
-StationaryDist(:,1)=jequaloneDistKron;
+StationaryDist(:,1)=gather(jequaloneDistKron);
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse cpu matrix
 
 % Precompute

@@ -112,8 +112,6 @@ else
     V(curraindex,N_j)=shiftdim(Vtempii,1);
     Policy(curraindex,N_j)=shiftdim(maxindex2,1);
 
-    DiscountedentireEV=repelem(DiscountedentireEV,1,1,N_a1,1); % (d,a1prime,a1,a2)
-
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
     for ii=1:(vfoptions.level1n-1)
@@ -124,7 +122,7 @@ else
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,N_j)=shiftdim(Vtempii,1);
@@ -138,7 +136,7 @@ else
             loweredge=maxindex1(:,1,ii,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+            daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,N_j)=shiftdim(Vtempii,1);
@@ -201,8 +199,6 @@ for reverse_j=1:N_j-1
     curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
     V(curraindex,jj)=shiftdim(Vtempii,1);
     Policy(curraindex,jj)=shiftdim(maxindex2,1);
-
-    DiscountedentireEV=repelem(DiscountedentireEV,1,1,N_a1,1); % (d,a1prime,a1,a2)
         
     % Attempt for improved version
     maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
@@ -214,7 +210,7 @@ for reverse_j=1:N_j-1
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+            daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,jj)=shiftdim(Vtempii,1);
@@ -228,7 +224,7 @@ for reverse_j=1:N_j-1
             loweredge=maxindex1(:,1,ii,:);
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
-            daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
+            daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,jj)=shiftdim(Vtempii,1);

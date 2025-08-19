@@ -47,7 +47,7 @@ else
 end
 
 if vfoptions.gridinterplayer==1
-    [V,Policy]=ValueFnIter_FHorz_ExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_FHorz_ExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     return
 end
 

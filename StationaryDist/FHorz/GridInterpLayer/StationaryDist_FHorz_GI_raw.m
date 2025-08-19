@@ -24,12 +24,9 @@ PolicyProbs=zeros(N_a,N_z,2,N_j,'gpuArray'); % The fourth dimension is lower/upp
 if isscalar(n_a)
     Policy_aprime(:,:,1,:)=shiftdim(Policy(l_d+1,:,:,1,:),1); % lower grid point
     Policy_aprime(:,:,2,:)=shiftdim(Policy(l_d+1,:,:,1,:),1)+1; % upper grid point
-    aprimeProbs=shiftdim((simoptions.ngridinterp+1-Policy(l_d+2,:,:,1,:)+1)/(simoptions.ngridinterp+1),1); % probability of lower grid point
-    PolicyProbs(:,:,1,:)=aprimeProbs;
-    PolicyProbs(:,:,2,:)=1-aprimeProbs;
-    % aprimeProbs_upper=shiftdim((Policy(l_d+2,:,:,1,:)-1)/(simoptions.ngridinterp+1),1); % probability of upper grid point
-    % PolicyProbs(:,:,1,:)=1-aprimeProbs_upper;
-    % PolicyProbs(:,:,2,:)=aprimeProbs_upper;
+    aprimeProbs_upper=shiftdim((Policy(l_d+2,:,:,1,:)-1)/(simoptions.ngridinterp+1),1); % probability of upper grid point
+    PolicyProbs(:,:,1,:)=1-aprimeProbs_upper;
+    PolicyProbs(:,:,2,:)=aprimeProbs_upper;
 else
     error('length(n_a)>1 not yet supported here, let me know if you want it')
 end

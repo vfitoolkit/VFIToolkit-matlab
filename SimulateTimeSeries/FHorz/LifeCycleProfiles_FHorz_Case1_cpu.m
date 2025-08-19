@@ -48,7 +48,7 @@ end
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
-l_daprime=size(PolicyIndexes,1);
+l_daprime=size(Policy,1);
 
 % Note: l_z includes e and semiz (when appropriate)
 if isstruct(FnsToEvaluate)

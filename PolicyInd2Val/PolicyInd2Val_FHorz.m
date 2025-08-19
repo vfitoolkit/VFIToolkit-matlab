@@ -28,42 +28,45 @@ if ~exist('vfoptions','var')
     aprime_grid=a_grid;
     n_aprime=n_a;
 else
-    ordinary=1;
-    % If using a specific asset type, then remove from aprime
+    l_aprime=l_a;
+    aprime_grid=a_grid;
+    n_aprime=n_a;
+     % If using a specific asset type, then remove from aprime
     if isfield(vfoptions,'experienceasset')
         if vfoptions.experienceasset>0
-            ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
     elseif isfield(vfoptions,'experienceassetu')
         if vfoptions.experienceassetu>0
-            ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
     elseif isfield(vfoptions,'riskyasset')
         if vfoptions.riskyasset>0
-            ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
     elseif isfield(vfoptions,'residualasset')
         if vfoptions.residualasset>0
-            ordinary=0;
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
         end
-    elseif isfield(vfoptions,'gridinterplayer')
+    end
+
+    if isfield(vfoptions,'gridinterplayer')
         if vfoptions.gridinterplayer==1
-            ordinary=0;
-            l_aprime=l_a;
-            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,linspace(1,N_a,N_a+(N_a-1)*vfoptions.ngridinterp))';
-            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp; % =length(aprime_grid)
+            a1prime_grid=interp1(gpuArray(1:1:n_aprime(1))',aprime_grid(1:n_aprime(1)),linspace(1,n_aprime(1),n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp))';
+            if isscalar(n_aprime)
+                aprime_grid=a1prime_grid;
+            else
+                aprime_grid=[a1prime_grid; aprime_grid(n_aprime(1)+1:end)];
+            end
+            n_aprime(1)=n_aprime(1)+(n_aprime(1)-1)*vfoptions.ngridinterp; % =length(a1prime_grid)
             % Put the last two parts of Policy together to get the aprime index
             tempsize=size(Policy);
             Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(tempsize)
@@ -71,12 +74,6 @@ else
             tempsize(1)=tempsize(1)-1; % put last two policies together (lower grid point, and the second layer grid index; get aprime grid index)
             Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
         end
-    end
-
-    if ordinary==1 % not using any specific asset type
-        l_aprime=l_a;
-        aprime_grid=a_grid;
-        n_aprime=n_a;
     end
 end
 
