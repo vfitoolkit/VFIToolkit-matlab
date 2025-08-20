@@ -15,7 +15,7 @@ N_semiz=prod(n_semiz);
 %%
 jequaloneDist=reshape(jequaloneDist,[N_a*N_semiz*N_z,1]);
 
-Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z],N_j);
+Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_z],N_j,simoptions);
 
 pi_z_J=gather(pi_z_J);
 

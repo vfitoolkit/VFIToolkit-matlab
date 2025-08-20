@@ -9,7 +9,7 @@ if ~isfield(simoptions,'loopovere')
 end
 %%
 jequaloneDist=reshape(jequaloneDist,[N_a*N_e,1]);
-Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_e,N_j);
+Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_e,N_j,simoptions);
 
 StationaryDist=StationaryDist_FHorz_Iteration_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d,N_a,N_e,N_j,pi_e_J,Parameters,simoptions);
 

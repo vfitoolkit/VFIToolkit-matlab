@@ -15,7 +15,7 @@ N_e=prod(n_e);
 %%
 jequaloneDist=reshape(jequaloneDist,[N_a*N_semiz*N_e,1]);
 
-Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_e],N_j);
+Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, [simoptions.n_semiz,n_e],N_j,simoptions);
 
 %%
 StationaryDist=StationaryDist_FHorz_SemiExo_Iteration_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy,N_d1,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters,simoptions);
