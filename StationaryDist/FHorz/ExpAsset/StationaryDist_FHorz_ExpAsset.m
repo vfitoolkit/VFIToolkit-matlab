@@ -55,21 +55,24 @@ l_a=length(n_a);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-
 %%
-if isfield(simoptions,'n_e')
-    jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z*N_e,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z*N_e,N_j]);
-    n_ze=[n_z,simoptions.n_e];
-    N_ze=N_z*N_e;
+if N_z==0
+    % Note: n_z(1)==0 && N_e==0 already got sent elsewhere
+    n_ze=simoptions.n_e;
+    N_ze=N_e;
 else
-    jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
-    n_ze=n_z;
-    N_ze=N_z;
+    if isfield(simoptions,'n_e')
+        n_ze=[n_z,simoptions.n_e];
+        N_ze=N_z*N_e;
+    else
+        n_ze=n_z;
+        N_ze=N_z;
+    end
 end
-% NOTE: have rolled e into z
-jequaloneDistKron=gpuArray(jequaloneDistKron); % make sure it is on gpu
+
+jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
+jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
+Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
 %%
 
@@ -105,12 +108,14 @@ end
 if simoptions.gridinterplayer==0
     % Note: N_z=0 && N_e=0 is a different code
     if N_e==0 % just z
-        StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+        StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
         StationaryDist=gpuArray(StationaryDist); % NEED TO MOVE TAN IMPROVEMENT TO GPU
     elseif N_z==0 % just e
-        error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ExpAsset (contact me)')
+        StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_e,N_j,simoptions.pi_e_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+        StationaryDist=gpuArray(StationaryDist); % NEED TO MOVE TAN IMPROVEMENT TO GPU
     else % both z and e
-        error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ExpAsset (contact me)')
+        StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+        StationaryDist=gpuArray(StationaryDist); % NEED TO MOVE TAN IMPROVEMENT TO GPU
     end
 elseif simoptions.gridinterplayer==1
     % (a,z,2,j)
@@ -126,12 +131,12 @@ elseif simoptions.gridinterplayer==1
     % Note: N_z=0 && N_e=0 is a different code
     if N_e==0 % just z
         Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1);
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprimez,PolicyProbs,4,N_a,N_z,N_j,pi_z_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprimez,PolicyProbs,4,N_a,N_z,N_j,pi_z_J,Parameters);
     elseif N_z==0 % just e
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,N_a,N_e,N_j,pi_e_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
     else % both z and e
         Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1),1,N_e);
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprimez,PolicyProbs,4,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprimez,PolicyProbs,4,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
     end
 end
 

@@ -37,7 +37,8 @@ if ~isfield(vfoptions,'V_Jplus1')
     elseif vfoptions.lowmemory==1
 
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j),e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec,0,0);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j),e_val, ReturnFnParamsVec,0,0);
             % Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,:,e_c,N_j)=Vtemp;
@@ -46,9 +47,11 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     elseif vfoptions.lowmemory==2
 
-        for e_c=1:N_e
-            for z_c=1:N_z
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0, n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec,0,0);
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0, n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze);
                 V(:,z_c,e_c,N_j)=Vtemp;
@@ -82,15 +85,18 @@ else
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
 
+    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
+    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+    EV=squeeze(sum(EV,3));
+    % EV is over (d2,a1prime,a2,z)
+
+    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+
     if vfoptions.lowmemory==0
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0,0);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+        entireRHS=ReturnMatrix+DiscountedEV; % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -99,36 +105,31 @@ else
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec,0,0);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,0,0);
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+            entireRHS_e=ReturnMatrix_e+DiscountedEV;
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
+            [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
             V(:,:,e_c,N_j)=shiftdim(Vtemp,1);
             Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            % Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-2);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,3);
-
+            z_val=z_gridvals_J(z_c,:,N_j);
+            DiscountedEV_z=DiscountedEV(:,:,z_c);
             for e_c=1:N_e
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e,:,N_j), ReturnFnParamsVec,0,0);
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
-                entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z;
 
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS,[],1);
+                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
 
                 V(:,z_c,e_c,N_j)=shiftdim(Vtemp,1);
                 Policy(:,z_c,e_c,N_j)=shiftdim(maxindex,1);
@@ -170,15 +171,17 @@ for reverse_j=1:N_j-1
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
 
-    if vfoptions.lowmemory==0
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
+    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
+    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+    EV=squeeze(sum(EV,3));
+    % EV is over (d2,a1prime,a2,z)
 
+    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+
+    if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,0,0);
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1); % should autofill e dimension
+        entireRHS=ReturnMatrix+DiscountedEV; % should autofill e dimension
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -187,36 +190,31 @@ for reverse_j=1:N_j-1
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec,0,0);
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,0,0);
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
+            entireRHS_e=ReturnMatrix_e+DiscountedEV;
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
+            [Vtemp,maxindex]=max(entireRHS_e,[],1);
 
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            % Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,3);
-
+            z_val=z_gridvals_J(z_c,:,N_j);
+            DiscountedEV_z=DiscountedEV(:,:,z_c);
             for e_c=1:N_e
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(z_c,:,jj), e_gridvals_J(e,:,jj), ReturnFnParamsVec,0,0);
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, 0,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
 
-                entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*repelem(EV_z,1,N_a1,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z;
 
                 %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS,[],1);
+                [Vtemp,maxindex]=max(entireRHS_ze,[],1);
 
                 V(:,z_c,e_c,jj)=shiftdim(Vtemp,1);
                 Policy(:,z_c,e_c,jj)=shiftdim(maxindex,1);

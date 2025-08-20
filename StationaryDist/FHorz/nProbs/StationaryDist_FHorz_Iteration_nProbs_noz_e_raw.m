@@ -13,7 +13,7 @@ StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(jequaloneDistKron); % sparse() creates a matrix of zeros
 
 % Precompute
-II2=repmat(gpuArray((1:1:N_a*N_z)'),1,N_probs); %  Index for this period (a,e), note the N_probs-copies
+II2=repmat(gpuArray((1:1:N_a*N_e)'),1,N_probs); %  Index for this period (a,e), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
@@ -22,7 +22,7 @@ for jj=1:(N_j-1)
 
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
 
-    pi_e=sparse(pi_e_J(:,jj);
+    pi_e=sparse(pi_e_J(:,jj));
 
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 

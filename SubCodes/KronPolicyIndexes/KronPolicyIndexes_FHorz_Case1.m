@@ -25,24 +25,24 @@ if ~exist('n_e','var')
         if isa(Policy,'gpuArray')
             PolicyKron=zeros(N_a,N_z,N_j,'gpuArray');
             for jj=1:N_j
-                PolicyKron(:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z);%,options);
+                PolicyKron(:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z, simoptions);
             end
         else
             PolicyKron=zeros(N_a,N_z,N_j);
             for jj=1:N_j
-                PolicyKron(:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z);%,options);
+                PolicyKron(:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z, simoptions);
             end
         end
     else
         if isa(Policy,'gpuArray')
             PolicyKron=zeros(2,N_a,N_z,N_j,'gpuArray');
             for jj=1:N_j
-                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z);%,options);
+                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z, simoptions);
             end
         else
             PolicyKron=zeros(2,N_a,N_z,N_j);
             for jj=1:N_j
-                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z);%,options);
+                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1(Policy(:,:,:,jj), n_d, n_a, n_z, simoptions);
             end
         end
     end
@@ -56,24 +56,24 @@ else % exist('n_e','var')
         if isa(Policy,'gpuArray')
             PolicyKron=zeros(N_a,N_z,N_e,N_j,'gpuArray');
             for jj=1:N_j
-                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e);%,options);
+                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e, simoptions);
             end
         else
             PolicyKron=zeros(N_a,N_z,N_e,N_j);
             for jj=1:N_j
-                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e);%,options);
+                PolicyKron(:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e, simoptions);
             end
         end
     else
         if isa(Policy,'gpuArray')
             PolicyKron=zeros(2,N_a,N_z,N_e,N_j,'gpuArray');
             for jj=1:N_j
-                PolicyKron(:,:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e);%,options);
+                PolicyKron(:,:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e, simoptions);
             end
         else
             PolicyKron=zeros(2,N_a,N_z,N_e,N_j);
             for jj=1:N_j
-                PolicyKron(:,:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e);%,options);
+                PolicyKron(:,:,:,:,jj)=KronPolicyIndexes_Case1_e(Policy(:,:,:,:,jj), n_d, n_a, n_z, n_e, simoptions);
             end
         end
     end

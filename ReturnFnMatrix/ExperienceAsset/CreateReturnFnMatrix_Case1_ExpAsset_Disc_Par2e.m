@@ -69,7 +69,7 @@ if Level==0 || Level==1
             end
         end
     end
-elseif Level==2
+elseif Level==2 || Level==3
     if l_a1>=1
         a1prime1vals=a1prime_gridvals;
         if l_a1>=2
@@ -1832,7 +1832,7 @@ if Level==0
         N_d2=prod(n_d2);
         Fmatrix=reshape(Fmatrix,[N_d1,N_d2*N_a1,N_a1*N_a2,N_z,N_e]);  % want to refine away d1
     end
-elseif Level==1
+elseif Level==1  || Level==3
     Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a1,N_a2,N_z,N_e]);
 elseif Level==2 % For level 2
     Fmatrix=reshape(Fmatrix,[N_d*N_a1prime,N_a1*N_a2,N_z,N_e]);

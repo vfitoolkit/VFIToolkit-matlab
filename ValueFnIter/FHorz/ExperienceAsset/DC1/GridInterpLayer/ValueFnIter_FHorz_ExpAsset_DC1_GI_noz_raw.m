@@ -18,7 +18,6 @@ a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 % Preallocate
 midpoint=zeros(N_d,1,N_a1,N_a2,'gpuArray');
 
-
 % n-Monotonicity
 % vfoptions.level1n=21;
 level1ii=round(linspace(1,n_a1,vfoptions.level1n));
@@ -134,7 +133,7 @@ else
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1,n_d2,maxgap(ii)+1,level1iidiff(ii),n_a2, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,3);  % Level 3 as DC1+GI
             daprime=(1:1:N_d)'+N_d*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a1*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_a2,]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_a2]));
             [~,maxindex]=max(entireRHS_ii,[],2); % just a1prime
             midpoint(:,1,curraindex,:)=maxindex+(loweredge-1);
         else
@@ -223,7 +222,7 @@ for reverse_j=1:N_j-1
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1,n_d2,maxgap(ii)+1,level1iidiff(ii),n_a2, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,3);  % Level 3 as DC1+GI
             daprime=(1:1:N_d)'+N_d*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d*N_a1*a2ind; % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_a2,]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d,(maxgap(ii)+1),level1iidiff(ii),N_a2]));
             [~,maxindex]=max(entireRHS_ii,[],2); % just a1prime
             midpoint(:,1,curraindex,:)=maxindex+(loweredge-1);
         else

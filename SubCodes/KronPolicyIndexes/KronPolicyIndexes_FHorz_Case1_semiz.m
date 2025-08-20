@@ -1,4 +1,5 @@
 function PolicyKron=KronPolicyIndexes_FHorz_Case1_semiz(Policy, n_d1, n_d2, n_a, n_z, n_semiz, N_j, n_e)
+error('semiz does not need its own thing, just pretend it is z while KronPolicyIndexes')
 % n_e is an optional input
 %
 % Input: Policy (l_d+l_a,n_a,n_z,n_semiz,N_j);

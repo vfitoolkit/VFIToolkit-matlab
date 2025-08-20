@@ -33,7 +33,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,1);
-    %Calc the max and it's index
+    % Calc the max and it's index
     [~,maxindex]=max(ReturnMatrix,[],2);
 
     % Turn this into the 'midpoint'
@@ -76,7 +76,7 @@ else
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]);
     % Interpolate EV over aprime_grid
     DiscountedEVinterp=permute(interp1(a1_gridvals,permute(DiscountedEV,[2,1,3,4]),a1prime_grid),[2,1,3,4]); % [N_d2,N_a1prime,1,N_a2]
-    DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1);
+    DiscountedEVinterp=repelem(DiscountedEVinterp,N_d1,1); % [N_d1*N_d2,N_a1prime,1,N_a2,N_z]
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, ReturnFnParamsVec,1); % [N_d,N_a1prime,N_a1,N_a2]
 
