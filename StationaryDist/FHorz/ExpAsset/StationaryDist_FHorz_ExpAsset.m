@@ -61,12 +61,12 @@ if N_z==0
     n_ze=simoptions.n_e;
     N_ze=N_e;
 else
-    if isfield(simoptions,'n_e')
-        n_ze=[n_z,simoptions.n_e];
-        N_ze=N_z*N_e;
-    else
+    if N_e==0
         n_ze=n_z;
         N_ze=N_z;
+    else
+        n_ze=[n_z,simoptions.n_e];
+        N_ze=N_z*N_e;
     end
 end
 
@@ -74,8 +74,7 @@ jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
 jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
-%%
-
+%% expasset transitions
 % Policy is currently about d and a1prime. Convert it to being about aprime
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
 Policy_aprime=zeros(N_a,N_ze,2,N_j,'gpuArray'); % the lower grid point
@@ -102,7 +101,7 @@ for jj=1:N_j
     PolicyProbs(:,:,1,jj)=aprimeProbs;
     PolicyProbs(:,:,2,jj)=1-aprimeProbs;
 end
-    
+
 
 %%
 if simoptions.gridinterplayer==0
