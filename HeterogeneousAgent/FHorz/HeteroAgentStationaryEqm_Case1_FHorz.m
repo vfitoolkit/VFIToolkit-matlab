@@ -281,56 +281,13 @@ end
 %% Set up GEparamsvec0 and parameter constraints
 nGEParams=length(GEPriceParamNames);
 GEparamsvec0=zeros(nGEParams,1); % column vector
-% Backup the parameter constraint names, so I can replace them with vectors
-heteroagentoptions.constrainpositivenames=heteroagentoptions.constrainpositive;
-heteroagentoptions.constrainpositive=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be positive
-heteroagentoptions.constrain0to1names=heteroagentoptions.constrain0to1;
-heteroagentoptions.constrain0to1=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
-heteroagentoptions.constrainAtoBnames=heteroagentoptions.constrainAtoB;
-heteroagentoptions.constrainAtoB=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
-if ~isempty(heteroagentoptions.constrainAtoBnames)
-    heteroagentoptions.constrainAtoBlimitsnames=heteroagentoptions.constrainAtoBlimits;
-    heteroagentoptions.constrainAtoBlimits=zeros(nGEParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
+for pp=1:nGEParams
+    GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
 end
-if heteroagentoptions.maxiter>0
-    for pp=1:nGEParams
-        GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
 
-        % First, check the name, and convert it if relevant
-        if any(strcmp(heteroagentoptions.constrainpositivenames,GEPriceParamNames{pp}))
-            heteroagentoptions.constrainpositive(pp)=1;
-        end
-        if any(strcmp(heteroagentoptions.constrain0to1names,GEPriceParamNames{pp}))
-            heteroagentoptions.constrain0to1(pp)=1;
-        end
-        if any(strcmp(heteroagentoptions.constrainAtoBnames,GEPriceParamNames{pp}))
-            % For parameters A to B, I convert via 0 to 1
-            heteroagentoptions.constrain0to1(pp)=1;
-            heteroagentoptions.constrainAtoB(pp)=1;
-            heteroagentoptions.constrainAtoBlimits(pp,:)=heteroagentoptions.constrainAtoBlimitsnames.(GEPriceParamNames{pp});
-        end
-        if heteroagentoptions.constrainpositive(pp)==1
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            GEparamsvec0(pp)=max(log(GEparamsvec0(pp)),-49.99);
-            % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-        end
-        if heteroagentoptions.constrainAtoB(pp)==1
-            % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
-            GEparamsvec0(pp)=(GEparamsvec0(pp)-caliboptions.constrainAtoBlimits(pp,1))/(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1));
-            % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
-            % And then the next if-statement converts this 0-to-1 into unconstrained
-        end
-        if heteroagentoptions.constrain0to1(pp)==1
-            % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-            GEparamsvec0(pp)=min(49.99,max(-49.99,  log(GEparamsvec0(pp)/(1-GEparamsvec0(pp))) ));
-            % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-        end
-        if heteroagentoptions.constrainpositive(pp)==1 && heteroagentoptions.constrain0to1(pp)==1 % Double check of inputs
-            fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(GEPriceParamNames))])
-            error('You cannot constrain parameter twice (you are constraining one of the parameters using both heteroagentoptions.constrainpositive and in one of heteroagentoptions.constrain0to1 and heteroagentoptions.constrainAtoB')
-        end
-    end
-end
+% If the parameter is constrained in some way then we need to transform it
+[GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,0:1:nGEParams,GEPriceParamNames,heteroagentoptions,1);
+% Also converts the constraints info in estimoptions to be a vector rather than by name.
 
 %% Enough setup, Time to do the actual finding the HeteroAgentStationaryEqm:
 
@@ -509,32 +466,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         [p_eqm_vec,GeneralEqmConditions]=lsqnonlin(GeneralEqmConditionsFnOpt,GEparamsvec0,[],[],[],[],[],[],[],minoptions);
     end
 
-    p_eqm_vec_untranformed=p_eqm_vec; % Use to get GE eqn values as structure/vector
-
-    % Do any transformations of parameters before we say what they are
-    nGEprices=length(p_eqm_vec);
-    for pp=1:nGEprices
-        if heteroagentoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            p_eqm_vec(pp)=exp(p_eqm_vec(pp));
-        elseif heteroagentoptions.constrain0to1(pp)==1
-            temp=p_eqm_vec(pp);
-            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-            p_eqm_vec(pp)=1/(1+exp(-p_eqm_vec(pp)));
-            % Note: This does not include the endpoints of 0 and 1 as 1/(1+exp(-x)) maps from the Real line into the open interval (0,1)
-            %       R is not compact, and [0,1] is compact, so cannot have a continuous bijection (one-to-one and onto) function from R into [0,1].
-            %       So I settle for a function from R to (0,1) and then trim ends of R to give 0 and 1, like I do for constrainpositive I use +-50 as the cutoffs
-            p_eqm_vec(pp)=p_eqm_vec(pp).*(temp>-50); % set values less than -50 to zero
-            p_eqm_vec(pp)=p_eqm_vec(pp).*(1-(temp>50))+(temp>50); % set values greater than 50 to one
-        end
-        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-        if heteroagentoptions.constrainAtoB(pp)==1
-            % Constrain parameter to be A to B
-            p_eqm_vec(pp)=heteroagentoptions.constrainAtoBlimits(pp,1)+(heteroagentoptions.constrainAtoBlimits(pp,2)-heteroagentoptions.constrainAtoBlimits(pp,1))*GEprices(pp);
-            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
-        end
-    end
+    % p_eqm_vec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.
+    [p_eqm_vec,~]=ParameterConstraints_TransformParamsToOriginal(p_eqm_vec,0:1:nGEParams,GEPriceParamNames,heteroagentoptions);
+    % p_eqm_vec is now the original (constrained) parameter values.
 
     for ii=1:length(GEPriceParamNames)
         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
@@ -543,11 +477,11 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params
-    p_eqm_vec_untranformed=zeros(length(GEparamsvec0),1);
+    p_eqm_vec=zeros(length(GEparamsvec0),1);
     p_eqm=nan; % So user cannot misuse
     p_eqm_index=nan; % In case user asks for it
     for ii=1:length(GEPriceParamNames)
-        p_eqm_vec_untranformed(ii)=Parameters.(GEPriceParamNames{ii});
+        p_eqm_vec(ii)=Parameters.(GEPriceParamNames{ii});
     end
 end
 
@@ -560,8 +494,18 @@ end
 
 if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     % Run once more to get the general eqm eqns in a nice form for output
+    % Using the original (constrained) parameters, so just ignore the  constraints (otherwise it would assume they are the transformed parameters)
+    if isfield(heteroagentoptions,'constrainpositive')
+        heteroagentoptions.constrainpositive=zeros(length(p_eqm_vec),1);
+    end
+    if isfield(heteroagentoptions,'constrain0to1')
+        heteroagentoptions.constrain0to1=zeros(length(p_eqm_vec),1);
+    end
+    if isfield(heteroagentoptions,'constrainAtoB')
+        heteroagentoptions.constrainAtoB=zeros(length(p_eqm_vec),1);
+    end
     GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_FHorz_subfn(p, jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions);
-    GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec_untranformed);
+    GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
 end
 if heteroagentoptions.outputGEstruct==1
     % put GeneralEqmConditions structure on cpu for purely cosmetic reasons

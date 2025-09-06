@@ -119,19 +119,7 @@ end
 
 
 
-%% Setup for which parameters are being estimated
-
-% Backup the parameter constraint names, so I can replace them with vectors
-estimoptions.constrainpositivenames=estimoptions.constrainpositive;
-estimoptions.constrainpositive=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be positive
-estimoptions.constrain0to1names=estimoptions.constrain0to1;
-estimoptions.constrain0to1=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
-estimoptions.constrainAtoBnames=estimoptions.constrainAtoB;
-estimoptions.constrainAtoB=zeros(length(EstimParamNames),1); % if equal 1, then that parameter is constrained to be 0 to 1
-if ~isempty(estimoptions.constrainAtoBnames)
-    estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
-    estimoptions.constrainAtoBlimits=zeros(length(EstimParamNames),2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
-end
+%% Setup for which parameters are being estimated. Create the parameters as a vector: estimparamsvec0.
 
 % Sometimes we want to omit parameters
 if isfield(estimoptions,'omitestimparam')
@@ -179,44 +167,11 @@ for pp=1:length(EstimParamNames)
         end
         estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(Parameters.(EstimParamNames{pp}));
     end
-
-    % If the parameter is constrained in some way then we need to transform it
-
-    % First, check the name, and convert it if relevant
-    if any(strcmp(estimoptions.constrainpositivenames,EstimParamNames{pp}))
-        estimoptions.constrainpositive(pp)=1;
-    end
-    if any(strcmp(estimoptions.constrain0to1names,EstimParamNames{pp}))
-        estimoptions.constrain0to1(pp)=1;
-    end
-    if any(strcmp(estimoptions.constrainAtoBnames,EstimParamNames{pp}))
-        % For parameters A to B, I convert via 0 to 1
-        estimoptions.constrain0to1(pp)=1;
-        estimoptions.constrainAtoB(pp)=1;
-        estimoptions.constrainAtoBlimits(pp,:)=estimoptions.constrainAtoBlimitsnames.(EstimParamNames{pp});
-    end
-
-    if estimoptions.constrainpositive(pp)==1
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-49.99);
-        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-    end
-    if estimoptions.constrainAtoB(pp)==1
-        % Constrain parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
-        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
-        % And then the next if-statement converts this 0-to-1 into unconstrained
-    end
-    if estimoptions.constrain0to1(pp)==1
-        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(49.99,max(-49.99,  log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
-        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-    end
-    if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
-        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
-        error('You cannot constrain parameter twice (you are constraining one of the parameters using both estimoptions.constrainpositive and estimoptions.constrain0to1')
-    end
 end
+
+% If the parameter is constrained in some way then we need to transform it
+[estimparamsvec0,estimoptions]=ParameterConstraints_TransformParamsToUnconstrained(estimparamsvec0,estimparamsvecindex,EstimParamNames,estimoptions,1);
+% Also converts the constraints info in estimoptions to be a vector rather than by name.
 
 
 %% Setup for which moments are being targeted
@@ -329,6 +284,7 @@ elseif estimoptions.fminalgo==8
 end
 
 % estimparamsvec0 is our initial guess for estimparamsvec
+% estimparamsvec0 is in 'unconstrained' parameters form
 
 
 %% Choosing algorithm for the optimization problem
@@ -399,12 +355,24 @@ else % estimoptions.skipestimation==1
     estimparamsvec=estimparamsvec0;
 end
 
+%% estimparamsvec contains the (transformed) unconstrained parameters, not the original (constrained) parameter values.
+[estimparamsvec,~]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
+% estimparamsvec is now the original (constrained) parameter values.
 
 
 %% Two-iteration efficient GMM (actually, n-iteration, but just uses this recursively)
 if estimoptions.iterateGMM>1 && estimoptions.skipestimation==0
     error('HAVE NOT YET IMPLEMENTED ITERATED GMM (you have estimoptions.iterateGMM>1)')
 end
+
+
+%% Bootstrap standard errors
+if estimoptions.bootstrapStdErrors==1
+    error('HAVE NOT YET IMPLEMENTED BOOTSTRAP STANDARD ERRORS (you have estimoptions.bootstrapStdErrors=1)')
+end
+
+
+
 
 
 %% Compute the standard deviation of the estimated parameters
@@ -509,6 +477,7 @@ if estimoptions.bootstrapStdErrors==0
         epsilonparamdown(:,ee)=modelestimparamsvecdown;
     end
     
+    
     %% Can now calculate derivatives to the epsilon change in parameters as the finite-difference
     for ee=1:length(epsilonmodvec)
         % ObjValue is used to compute f(x+h), f(x), and f(x-h), and then then can be used to evaluate the finite-differences
@@ -520,10 +489,14 @@ if estimoptions.bootstrapStdErrors==0
         ObjValue=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
         for pp=1:length(estimparamsvec)
             epsilonparamvec=modelestimparamsvec;
-            epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
-            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
-            epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
-            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+            if violateconstrainttop(pp)==0 % if ==1, we will just use down
+                epsilonparamvec(pp)=epsilonparamup(pp,ee); % add epsilon*x to the pp-th parameter
+                ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+            end
+            if violateconstraintbottom(pp)==0 % if ==1, we will just use up
+                epsilonparamvec(pp)=epsilonparamdown(pp,ee); % subtract epsilon*x from the pp-th parameter
+                ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
+            end
         end
         epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
         
@@ -532,7 +505,7 @@ if estimoptions.bootstrapStdErrors==0
         J_down=(ObjValue-ObjValue_downwind)./((epsilonparamvec-epsilonparamdown(:,ee))');
         J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
-
+        
         % J is nmonents-by-nparams
         J_full=J_centered;
         % If epsilon changes pushed us outside the parameter constraints, then we just use the one-sided finite-differences
@@ -603,12 +576,6 @@ end
 
 
 
-%% Bootstrap standard errors
-if estimoptions.bootstrapStdErrors==1
-    error('HAVE NOT YET IMPLEMENTED BOOTSTRAP STANDARD ERRORS (you have estimoptions.bootstrapStdErrors=1)')
-end
-
-
 %% Local identification
 if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do when bootstapping the standard errors
     % The estimate is locally identified if the matrix J is full rank
@@ -616,6 +583,7 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
     estsummary.localidentification.yesidentified=logical(rank(J)>=length(estimparamsvec));
     estsummary.notes.localidentification='If the Jacobian matrix (derivatives of model moments with respect to parameter vector) is full rank then the model is locally identified [so rank(J) should be greater than or equal to number of parameters being estimated]';
 end
+
 
 %% Some additional outputs
 % Mainly, the Sensitivity matrix
@@ -651,7 +619,9 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
             else % is the modelestimparamsvec itself is small, use alternative values of epsilon
                 Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilonalt(eedefault))*CalibParams.(estimoptions.CalibParamsNames{pp});  % add epsilonalt*x to the pp-th parameter
             end
-            ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions); % use estimoptionsJacobian
+            if violateconstrainttop(pp)==0 % if ==1, we will just use down
+                ObjValue_upwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions); % use estimoptionsJacobian
+            end
             % 'Subtract' epsilon
             if floor(log(abs(modelestimparamsvec(pp)))/log(10))>-2 % order of magnitude is greater than 10^(-2)
                 Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilon)*CalibParams.(estimoptions.CalibParamsNames{pp}); % subtract epsilon*x from the pp-th parameter
@@ -660,10 +630,14 @@ if estimoptions.bootstrapStdErrors==0 % Depends on derivatives, so cannot do whe
             else % is the modelestimparamsvec itself is small, use alternative values of epsilon
                 Parameters.(estimoptions.CalibParamsNames{pp})=(1+epsilonalt(eedefault))*CalibParams.(estimoptions.CalibParamsNames{pp});  % subtract epsilonalt*x from the pp-th parameter
             end
-            ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions); % use estimoptionsJacobian
+            if violateconstraintbottom(pp)==0 % if ==1, we will just use up
+                ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(estimparamsvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions); % use estimoptionsJacobian
+            end
             % restore calib param
             Parameters.(estimoptions.CalibParamsNames{pp})=CalibParams.(estimoptions.CalibParamsNames{pp});
         end
+
+        % Use finite-difference to compute the derivatives
         Jcalib_up=(ObjValue_upwind-ObjValue)./(epsilon*calibparamvec');
         Jcalib_down=(ObjValue-ObjValue_downwind)./(epsilon*calibparamvec');
         Jcalib_centered=(ObjValue_upwind-ObjValue_downwind)./(2*epsilon*calibparamvec');
