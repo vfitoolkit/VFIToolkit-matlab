@@ -22,22 +22,17 @@ if vfoptions.lowmemory==0
     %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, 0, a_grid, z_gridvals, ReturnFnParamsVec);
 
-    for z_c=1:N_z
-        ReturnMatrix_z=ReturnMatrix(:,:,z_c);
+    %Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=Vnext.*shiftdim(pi_z',-1);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=sum(EV,2);
 
-        %Calc the condl expectation term (except beta), which depends on z but
-        %not on control variables
-        EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV_z=sum(EV_z,2);
+    entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
-        entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z*ones(1,N_a,1);
-
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS_z,[],1);
-        V(:,z_c)=Vtemp;
-        Policy(:,z_c)=maxindex;
-    end
+    %Calc the max and it's index
+    [V,Policy]=max(entireRHS,[],1);
+    V=reshape(V,[N_a,N_z]); % otherwise it was outputing as [1,N_a,N_z]
+    Policy=reshape(Policy,[N_a,N_z]); % otherwise it was outputing as [1,N_a,N_z]
     
 elseif vfoptions.lowmemory==1
     for z_c=1:N_z
@@ -46,7 +41,7 @@ elseif vfoptions.lowmemory==1
         
         %Calc the condl expectation term (except beta), which depends on z but
         %not on control variables
-        EV_z=Vnext.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:));
+        EV_z=Vnext.*pi_z(z_c,:);
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
