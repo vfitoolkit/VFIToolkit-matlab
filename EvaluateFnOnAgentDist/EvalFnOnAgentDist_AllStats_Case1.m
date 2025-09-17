@@ -99,6 +99,7 @@ if simoptions.parallel==2
     PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 end
 
+
 %% If there are any conditional restrictions, set up for these
 % Evaluate AllStats, but conditional on the restriction being non-zero.
 

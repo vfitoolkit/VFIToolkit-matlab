@@ -498,11 +498,10 @@ if estimoptions.bootstrapStdErrors==0
                 ObjValue_downwind(:,pp)=CalibrateLifeCycleModel_objectivefn(epsilonparamvec,EstimParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, ParametrizeParamsFn, FnsToEvaluate, FnsToEvaluateParamNames,usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, estimparamsvecindex, estimomitparams_counter, estimomitparamsmatrix, estimoptionsJacobian, vfoptions,simoptions);
             end
         end
-        epsilonparamvec=modelestimparamsvec; % and using estimoptionsJacobian, so using the actual parameters, rather than the transformed parameters
         
         % Use finite-difference to compute the derivatives
-        J_up=(ObjValue_upwind-ObjValue)./((epsilonparamup(:,ee)-epsilonparamvec)');
-        J_down=(ObjValue-ObjValue_downwind)./((epsilonparamvec-epsilonparamdown(:,ee))');
+        J_up=(ObjValue_upwind-ObjValue)./((epsilonparamup(:,ee)-modelestimparamsvec)');
+        J_down=(ObjValue-ObjValue_downwind)./((modelestimparamsvec-epsilonparamdown(:,ee))');
         J_centered=(ObjValue_upwind-ObjValue_downwind)./((epsilonparamup(:,ee)-epsilonparamdown(:,ee))');
         % Jacobian matix of derivatives of model moments with respect to parameters, evaluated at the parameter point estimates
         
@@ -539,13 +538,28 @@ if estimoptions.bootstrapStdErrors==0
         for pp=1:length(EstimParamNames)
             estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).EstimParamsStdDev.(EstimParamNames{pp})=sqrt(tempestimparamscovarmatrix_diag(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
         end
-        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvec=epsilonparamvec; % Is actually independent of ee anyway
+        estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvec=modelestimparamsvec; % Is actually independent of ee anyway
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvecup=epsilonparamup(:,ee);
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).estimparamsvecdown=epsilonparamdown(:,ee);
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).violateconstraintbottom=violateconstraintbottom;
         estsummary.doublechecks.(['epsilon',num2str(epsilonmodvec(ee))]).violateconstrainttop=violateconstrainttop;
         if ee==eedefault
             J=J_full; % This is the one used to report Sigma (parameter std deviations) [corresponds to epsilon=sqrt(2.2)*10^(-4)]
+
+            disp('temp print')
+            dbstack
+            ee
+            J_up
+            J_down
+            J_centered
+
+            modelestimparamsvec
+            epsilonparamup(:,ee)
+            epsilonparamdown(:,ee)
+
+            ObjValue
+            ObjValue_upwind
+            ObjValue_downwind
         end
     end
     

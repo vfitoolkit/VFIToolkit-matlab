@@ -76,7 +76,6 @@ else
             Policy=reshape(Policy,[tempsize(1),prod(tempsize)/tempsize(1)]); % note: prod(tempsize) is just a presumably faster way to numel(Policy)
             Policy(l_d+1,:)=(vfoptions.ngridinterp+1)*(Policy(l_d+1,:)-1)+Policy(end,:); % combine first asset index with the last index (lower grid point and 2nd layer point) to get aprime index
             tempsize(1)=tempsize(1)-1; % we put two policies together, so this is how many are left
-            size(Policy)
             Policy=reshape(Policy(1:end-1,:),tempsize); % get rid of last policy entry
         end
     end
