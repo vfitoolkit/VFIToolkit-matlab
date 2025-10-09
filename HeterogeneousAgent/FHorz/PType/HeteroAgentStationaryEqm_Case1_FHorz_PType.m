@@ -70,11 +70,11 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.maxiter=200*length(GEPriceParamNames); % =0 just evaluate (rather than solves for) GE condns
+    heteroagentoptions.fminalgo=1; % use fminsearch
     heteroagentoptions.verbose=0;
     heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
-    heteroagentoptions.fminalgo=1; % use fminsearch
-    heteroagentoptions.saveprogresseachiter=0;
+    heteroagentoptions.maxiter=200*length(GEPriceParamNames); % =0 just evaluate (rather than solves for) GE condns
+    heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
     heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
     % heteroagentoptions.GEusenames=0; % =1, can use '_name' for Params and AggVars in the general eqm eqns
     % Constrain parameters
@@ -106,17 +106,17 @@ else
     if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
-    if ~isfield(heteroagentoptions,'verbose')
-        heteroagentoptions.verbose=0;
-    end
     if ~isfield(heteroagentoptions,'fminalgo')
         heteroagentoptions.fminalgo=1; % use fminsearch
+    end
+    if ~isfield(heteroagentoptions,'verbose')
+        heteroagentoptions.verbose=0;
     end
     if ~isfield(heteroagentoptions,'parallel')
         heteroagentoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     end
-    if ~isfield(heteroagentoptions,'saveprogresseachiter')
-        heteroagentoptions.saveprogresseachiter=0;
+    if ~isfield(heteroagentoptions,'pricehistory')
+        heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
     end
     if ~isfield(heteroagentoptions,'GEptype')
         heteroagentoptions.GEptype={}; % zeros(1,length(fieldnames(GeneralEqmEqns))); % 1 indicates that this general eqm condition is 'conditional on permanent type' [input should be a cell of names; it gets reformatted internally to be this form]
@@ -666,13 +666,21 @@ for pp=1:nGEprices
         end
     end
 end
-GEpriceindexesB=[0,cumsum(GEpriceindexes)]; % unfortunately I have indexes set up different for GE and Calib, and transforming params follows calib
+GEpriceindexesB=[0; cumsum(GEpriceindexes)]; % unfortunately I have indexes set up different for GE and Calib, and transforming params follows calib
 GEpriceindexes=[[1; 1+cumsum(GEpriceindexes(1:end-1))],cumsum(GEpriceindexes)];
 
 % If the parameter is constrained in some way then we need to transform it
 [GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,GEpriceindexesB,GEPriceParamNames,heteroagentoptions,1);
 % Also converts the constraints info in estimoptions to be a vector rather than by name.
 
+
+% If you are saving the price history, preallocate for this
+if heteroagentoptions.pricehistory==1
+    GEpricepath=zeros(length(GEparamsvec0),heteroagentoptions.maxiter);
+    GEcondnpath=zeros(length(fieldnames(GeneralEqmEqns)),heteroagentoptions.maxiter);  % Note: this cannot yet handle ptype dependence
+    itercount=0;
+    save pricehistory.mat GEpricepath GEcondnpath itercount
+end
 
 %% Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
 
@@ -891,8 +899,8 @@ elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to j
     p_eqm_vec=zeros(length(GEparamsvec0),1);
     p_eqm=nan; % So user cannot misuse
     p_eqm_index=nan; % In case user asks for it
-    for ii=1:length(GEPriceParamNames)
-        p_eqm_vec(ii)=Parameters.(GEPriceParamNames{ii});
+    for pp=1:length(GEPriceParamNames)
+        p_eqm_vec(pp)=Parameters.(GEPriceParamNames{pp});
     end
 end
 
@@ -933,12 +941,58 @@ if heteroagentoptions.outputGEstruct==1
 end
 
 
-if nargout==1
-    varargout={p_eqm};
-elseif nargout==2
-    varargout={p_eqm,GeneralEqmConditions};
-elseif nargout==3
-    varargout={p_eqm,p_eqm_index,GeneralEqmConditions};
+
+
+
+
+%% If using pricehistory, create a clean version for output to user
+if heteroagentoptions.pricehistory==1
+    load pricehistory.mat GEpricepath GEcondnpath itercount
+    delete('pricehistory.mat')
+    GEpricepath=GEpricepath(:,1:itercount); % drop the NaN at end
+    GEcondnpath=GEcondnpath(:,1:itercount); % drop the NaN at end
+    PriceHistory.itercount=itercount;
+    
+    for pp=1:nGEprices
+        if GEprice_ptype(pp)==0
+            PriceHistory.(GEPriceParamNames{pp})=GEpricepath(GEpriceindexes(pp,1):GEpriceindexes(pp,2),:);
+        else
+            if heteroagentoptions.GEptype_vectoroutput==1
+                PriceHistory.(GEPriceParamNames{pp})=GEpricepath(GEpriceindexes(pp,1):GEpriceindexes(pp,2),:);
+            elseif heteroagentoptions.GEptype_vectoroutput==0
+                temp=GEpricepath(GEpriceindexes(pp,1):GEpriceindexes(pp,2),:);
+                for ii=1:N_i
+                    PriceHistory.(GEPriceParamNames{pp}).(Names_i{ii})=temp(ii,:);
+                end
+            end
+        end
+    end
+    GENames=fieldnames(GeneralEqmEqns);
+    for gg=1:length(GENames)
+        PriceHistory.(GENames{gg})=GEcondnpath(gg,:);
+    end
+end
+
+
+%%
+if heteroagentoptions.pricehistory==0
+    if nargout==1
+        varargout={p_eqm};
+    elseif nargout==2
+        varargout={p_eqm,GeneralEqmConditions};
+    elseif nargout==3
+        varargout={p_eqm,p_eqm_index,GeneralEqmConditions};
+    end
+elseif heteroagentoptions.pricehistory==1
+    if nargout==1
+        varargout={p_eqm};
+    elseif nargout==2
+        varargout={p_eqm,GeneralEqmConditions};
+    elseif nargout==3
+        varargout={p_eqm,GeneralEqmConditions,PriceHistory};
+    elseif nargout==4
+        varargout={p_eqm,p_eqm_index,GeneralEqmConditions,PriceHistory};
+    end
 end
 
 

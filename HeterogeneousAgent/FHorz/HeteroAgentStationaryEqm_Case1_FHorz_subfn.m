@@ -147,4 +147,14 @@ if heteroagentoptions.verbose==1
 end
 
 
+% If recording the price history, do that
+if heteroagentoptions.pricehistory==1
+    load pricehistory.mat GEpricepath GEcondnpath itercount
+    itercount=itercount+1;
+    GEpricepath(:,itercount)=GEprices;
+    GEcondnpath(:,itercount)=GeneralEqmConditionsVec;
+    save pricehistory.mat GEpricepath GEcondnpath itercount
+end
+
+
 end
