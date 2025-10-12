@@ -53,19 +53,12 @@ end
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
-    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.ptypestorecpu=0; %=0, off by default; GPU memory is limited, so switch solutions to the cpu
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
-    end
-    if ~isfield(simoptions,'ptypestorecpu')
-        if simoptions.groupptypesforstats==1
-            simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-        elseif simoptions.groupptypesforstats==0
-            simoptions.ptypestorecpu=0;
-        end
     end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=100;
@@ -73,7 +66,11 @@ else
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
     end
+    if ~isfield(simoptions,'ptypestorecpu')
+        simoptions.ptypestorecpu=0; %=0, off by default; GPU memory is limited, so switch solutions to the cpu
+    end
 end
+% Note: pass to subcommand EvalFnOnAgentDist_AggVars_FHorz_Case1(), so no need to handle alreadygridvals and the like as those can be done there.
 
 if isa(StationaryDist.(Names_i{1}), 'gpuArray')
     AggVarsFull=zeros(numFnsToEvaluate,N_i,'gpuArray');

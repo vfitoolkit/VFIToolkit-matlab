@@ -57,6 +57,9 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0;
+    simoptions.gridinterplayer=0;
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -88,6 +91,13 @@ else
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
 end
 
 if isstruct(FnsToEvaluate)

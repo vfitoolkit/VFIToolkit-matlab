@@ -18,7 +18,9 @@ if ~exist('simoptions','var')
     simoptions.numbersims=10^3;
     simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
     simoptions.keepoutputasmatrix=0;
+    % When calling as a subcommand, the following is used internally
     simoptions.gridinterplayer=0;
+    simoptions.alreadygridvals=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'parallel')
@@ -42,8 +44,12 @@ else
     if ~isfield(simoptions,'keepoutputasmatrix')
         simoptions.keepoutputasmatrix=0;
     end
+    % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions, 'alreadygridvals')
+        simoptions.alreadygridvals=0;
     end
 end
 

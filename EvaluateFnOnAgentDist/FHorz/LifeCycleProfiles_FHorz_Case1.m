@@ -38,7 +38,9 @@ if ~exist('simoptions','var')
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
+    % When calling as a subcommand, the following is used internally
     simoptions.gridinterplayer=0;
+    simoptions.alreadygridvals=0;
 else
     %Check options for missing fields, if there are some fill them with the defaults
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
@@ -61,12 +63,6 @@ else
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-    if isfield(simoptions,'EiidShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.EiidShockFnParamNames=getAnonymousFnInputNames(simoptions.EiidShockFn);
-    end
     if isfield(simoptions,'SampleRestrictionFn') % If using SampleRestrictionFn then need to set some things
         if ~isfield(simoptions,'SampleRestrictionFn_include')
             simoptions.SampleRestrictionFn_include=1; % By default, include observations that meet the sample restriction (if zero, then exclude observations meeting this criterion)
@@ -80,6 +76,10 @@ else
         else
             simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
         end
+    end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;

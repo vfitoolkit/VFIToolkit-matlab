@@ -63,13 +63,15 @@ else
     if ~isfield(simoptions,'ptypestorecpu')
         simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
-    if ~isfield(simoptions,'verboseparams')
-        simoptions.verboseparams=100;
-    end
     if ~isfield(simoptions,'verbose')
-        simoptions.verbose=100;
+        simoptions.verbose=1;
+    end
+    if ~isfield(simoptions,'verboseparams')
+        simoptions.verboseparams=1;
     end
 end
+% Note: pass to subcommand EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(), so no need to handle alreadygridvals and the like as those can be done there.
+
 
 %%
 for ii=1:N_i % First set up simoptions

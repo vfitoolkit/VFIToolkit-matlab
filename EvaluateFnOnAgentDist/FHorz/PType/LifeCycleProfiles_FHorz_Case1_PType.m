@@ -49,8 +49,6 @@ computeForThesei=ones(N_i,1); % Used to omit the infinite horizon PTypes from co
 % Set default of grouping all the PTypes together when reporting statistics
 if ~exist('simoptions','var')
     simoptions.groupptypesforstats=1;
-    simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
-    simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     simoptions.lowmemory=0; % =1 is slow, but less memory demanding (only use if groupusingtdigest is still not enough to run codes)
         % lowmemory=0 has outerloop over ptype and inner loop of fnstoeval; lowmemory=1 has outerloop over fnstoeval, inner loop over ptype
     simoptions.verbose=0;
@@ -75,15 +73,14 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.agejshifter=0; % Use when different PTypes have different initial ages (will be a structure when actually used)
     simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
+    simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
+    simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0;
+    simoptions.gridinterplayer=0;
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
-    end
-    if ~isfield(simoptions,'ptypestorecpu')
-        simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
-    end
-    if ~isfield(simoptions,'groupusingtdigest')
-        simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     end
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0; % =1 is slow, but less memory demanding (only use if groupusingtdigest=1 is still not enough to run codes)
@@ -152,6 +149,19 @@ else
                 end
             end
         end
+    end
+    if ~isfield(simoptions,'ptypestorecpu')
+        simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
+    end
+    if ~isfield(simoptions,'groupusingtdigest')
+        simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
+    end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
     end
 end
 

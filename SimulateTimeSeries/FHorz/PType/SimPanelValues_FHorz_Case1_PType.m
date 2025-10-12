@@ -58,9 +58,12 @@ FnNames=fieldnames(FnsToEvaluate);
 if ~exist('simoptions','var')
     simoptions.numbersims=10^5;
     simoptions.simperiods=N_j;
-    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+    % When calling as a subcommand, the following is used internally
+    simoptions.gridinterplayer=0;
+    simoptions.alreadygridvals=0;
 else
     if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^5;
@@ -68,14 +71,21 @@ else
     if ~isfield(simoptions,'simperiods')
         simoptions.simperiods=N_j;
     end
-    if ~isfield(simoptions,'ptypestorecpu')
-        simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    end
     if ~isfield(simoptions,'verboseparams')
         simoptions.verboseparams=100;
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
+    end
+    if ~isfield(simoptions,'ptypestorecpu')
+        simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+    end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions, 'alreadygridvals')
+        simoptions.alreadygridvals=0;
     end
 end
 simoptions.outputasstructure=0; % SimPanelValues as matrix

@@ -2,10 +2,16 @@ function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(Policy, FnsToEv
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    % When calling as a subcommand, the following is used internally
+    simoptions.alreadygridvals=0;
     simoptions.gridinterplayer=0;
 else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
+    end
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
+        simoptions.alreadygridvals=0;
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;

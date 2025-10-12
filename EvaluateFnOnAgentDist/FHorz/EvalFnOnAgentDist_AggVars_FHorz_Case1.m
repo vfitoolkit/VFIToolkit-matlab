@@ -13,8 +13,8 @@ else
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
+    % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
-        % When calling as a subcommand, the following is used internally
         simoptions.alreadygridvals=0;
     end
     if ~isfield(simoptions,'gridinterplayer')
