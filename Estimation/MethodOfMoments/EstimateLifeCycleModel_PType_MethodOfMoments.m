@@ -147,18 +147,6 @@ for pp=1:length(EstimParamNames)
     end
 end
 
-% Backup the parameter constraint names, so I can replace them with vectors
-estimoptions.constrainpositivenames=estimoptions.constrainpositive;
-estimoptions.constrainpositive=zeros(nEstimParams,1); % if equal 1, then that parameter is constrained to be positive
-estimoptions.constrain0to1names=estimoptions.constrain0to1;
-estimoptions.constrain0to1=zeros(nEstimParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
-estimoptions.constrainAtoBnames=estimoptions.constrainAtoB;
-estimoptions.constrainAtoB=zeros(nEstimParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
-if ~isempty(estimoptions.constrainAtoBnames)
-    estimoptions.constrainAtoBlimitsnames=estimoptions.constrainAtoBlimits;
-    estimoptions.constrainAtoBlimits=zeros(nEstimParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
-end
-
 
 % Sometimes we want to omit parameters
 if isfield(estimoptions,'omitestimparam')
@@ -215,45 +203,12 @@ for pp=1:nEstimParams
         end
         estimparamsvecindex(pp+1)=estimparamsvecindex(pp)+length(currentparameter);
     end
-    
-    % If the parameter is constrained in some way then we need to transform it
-
-    % Contraints cannot differ across ptypes
-    
-    % First, check the name, and convert it if relevant
-    if any(strcmp(estimoptions.constrainpositivenames,EstimParamNames{nEstimParamsFinder(pp,1)}))
-        estimoptions.constrainpositive(pp)=1;
-    end
-    if any(strcmp(estimoptions.constrain0to1names,EstimParamNames{nEstimParamsFinder(pp,1)}))
-        estimoptions.constrain0to1(pp)=1;
-    end
-    if any(strcmp(estimoptions.constrainAtoBnames,EstimParamNames{nEstimParamsFinder(pp,1)}))
-        % For parameters A to B, I convert via 0 to 1
-        estimoptions.constrain0to1(pp)=1;
-        estimoptions.constrainAtoB(pp)=1;
-        estimoptions.constrainAtoBlimits(pp,:)=estimoptions.constrainAtoBlimitsnames.(EstimParamNames{nEstimParamsFinder(pp,1)});
-    end
-    if estimoptions.constrainpositive(pp)==1
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=max(log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))),-49.99);
-        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-    end
-    if estimoptions.constrainAtoB(pp)==1
-        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))-estimoptions.constrainAtoBlimits(pp,1))/(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1));
-        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
-        % And then the next if-statement converts this 0-to-1 into unconstrained
-    end
-    if estimoptions.constrain0to1(pp)==1
-        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=min(49.99,max(-49.99,  log(estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))/(1-estimparamsvec0(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)))) ));
-        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-    end
-    if estimoptions.constrainpositive(pp)==1 && estimoptions.constrain0to1(pp)==1 % Double check of inputs
-        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(EstimParamNames))])
-        error('You cannot constrain parameter twice (you are constraining one of the parameters using both estimoptions.constrainpositive and in one of estimoptions.constrain0to1 and estimoptions.constrainAtoB')
-    end
 end
+
+% If the parameter is constrained in some way then we need to transform it
+[estimparamsvec0,estimoptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(estimparamsvec0,estimparamsvecindex,EstimParamNames,nEstimParamsFinder,estimoptions,1);
+% Also converts the constraints info in estimoptions to be a vector rather than by name.
+
 
 
 %% Setup for which moments are being targeted

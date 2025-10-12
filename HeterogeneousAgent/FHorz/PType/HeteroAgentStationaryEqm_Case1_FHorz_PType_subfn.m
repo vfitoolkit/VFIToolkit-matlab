@@ -1,42 +1,11 @@
-function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(GEprices, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions)
+function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(GEpricesvec, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions)
 
-%% Do any transformations of parameters before we say what they are
-penalty=zeros(length(GEprices),1); % Used to apply penalty to objective function when parameters try to leave restricted ranges
-for pp=1:nGEprices
-    if heteroagentoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-        temp=GEprices(pp);
-        penalty(pp)=abs(temp/50).*(temp<-51); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        GEprices(pp)=exp(GEprices(pp));
-    elseif heteroagentoptions.constrain0to1(pp)==1
-        temp=GEprices(pp);
-        penalty(pp)=abs(temp/50).*((temp>51)+(temp<-51)); % 1 if out of range [Note: 51, rather than 50, so penalty only hits once genuinely out of range]
-        % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-        GEprices(pp)=1/(1+exp(-GEprices(pp)));
-        % Note: This does not include the endpoints of 0 and 1 as 1/(1+exp(-x)) maps from the Real line into the open interval (0,1)
-        %       R is not compact, and [0,1] is compact, so cannot have a continuous bijection (one-to-one and onto) function from R into [0,1].
-        %       So I settle for a function from R to (0,1) and then trim ends of R to give 0 and 1, like I do for constrainpositive I use +-50 as the cutoffs
-        GEprices(pp)=GEprices(pp).*(temp>-50); % set values less than -50 to zero
-        GEprices(pp)=GEprices(pp).*(1-(temp>50))+(temp>50); % set values greater than 50 to one
-    end
-    % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-    if heteroagentoptions.constrainAtoB(pp)==1
-        % Constrain parameter to be A to B
-        GEprices(pp)=heteroagentoptions.constrainAtoBlimits(pp,1)+(heteroagentoptions.constrainAtoBlimits(pp,2)-heteroagentoptions.constrainAtoBlimits(pp,1))*GEprices(pp);
-        % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-        % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
-    end
-end
-if sum(penalty)>0
-    penalty=1/prod(1./penalty(penalty>0)); % Turn into a scalar penalty [I try to do opposite of geometric mean, and penalize more when one gets extreme]
-else
-    penalty=0;
-end
-% NOTE: penalty has not been used here
+heteroagentparamsvecindex=0:1:length(GEpricesvec);
+[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,CalibParamNames,heteroagentoptions);
 
 %% 
 for pp=1:nGEprices
-    Parameters.(GEPriceParamNames{pp})=GEprices(pp);
+    Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
 end
 
 % If z (and e) are determined in GE
@@ -61,7 +30,7 @@ for ii=1:PTypeStructure.N_i
     
     iistr=PTypeStructure.iistr{ii};
     for pp=1:length(GEPriceParamNames)
-        PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEprices(pp);
+        PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
     end
 
     if heteroagentoptions.gridsinGE(ii)==1
@@ -161,7 +130,7 @@ if heteroagentoptions.verbose==1
     fprintf(' \n')
     fprintf('Current GE prices: \n')
     for pp=1:nGEprices
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEprices(pp))
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEpricesvec(pp))
     end
     fprintf('Current aggregate variables: \n')
     for aa=1:length(AggVarNames)
@@ -191,7 +160,7 @@ end
 if heteroagentoptions.pricehistory==1
     load pricehistory.mat GEpricepath GEcondnpath itercount
     itercount=itercount+1;
-    GEpricepath(:,itercount)=GEprices;
+    GEpricepath(:,itercount)=GEpricesvec;
     GEcondnpath(:,itercount)=GeneralEqmConditionsVec;
     save pricehistory.mat GEpricepath GEcondnpath itercount
 end
