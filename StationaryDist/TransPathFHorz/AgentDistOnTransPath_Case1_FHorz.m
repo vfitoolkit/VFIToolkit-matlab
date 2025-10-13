@@ -35,7 +35,8 @@ if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
-    simoptions.fastOLG=1;
+    simoptions.fastOLG=1; % parallel over j, faster but uses more memory
+    simoptions.gridinterplayer=0;
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -52,7 +53,14 @@ else
         if isfield(transpathoptions,'fastOLG')
             simoptions.fastOLG=transpathoptions.fastOLG;
         else
-            simoptions.fastOLG=1;
+            simoptions.fastOLG=1; % parallel over j, faster but uses more memory
+        end
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    elseif simoptions.gridinterplayer==1
+        if ~isfield(simoptions,'ngridinterp')
+            error('You have simoptions.gridinterplayer, so must also set simoptions.ngridinterp')
         end
     end
 end
@@ -292,13 +300,13 @@ if N_z==0
     if N_e==0
         PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T);
     else
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_e, N_j, T);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_e, N_j, T, simoptions);
     end
 else
     if N_e==0
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, simoptions);
     else
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j, T, n_e);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_e(PolicyPath, n_d, n_a, n_z, n_e, N_j, T, simoptions);
     end
 end
 % We only need aprime for the AgentDistPath, so throw away and d variables

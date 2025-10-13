@@ -1,4 +1,4 @@
-function PolicyPathKron=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T)
+function PolicyPathKron=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j, T, simoptions)
 %
 % Input: Policy (l_d+l_a,n_a,N_j,T);
 %
@@ -14,14 +14,14 @@ if n_d(1)==0
         PolicyPathKron=zeros(N_a,N_j,T,'gpuArray');
         for tt=1:T
             for jj=1:N_j
-                PolicyPathKron(:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a);%,options);
+                PolicyPathKron(:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a, simoptions);
             end
         end
     else
         PolicyPathKron=zeros(N_a,N_j,T);
         for tt=1:T
             for jj=1:N_j
-                PolicyPathKron(:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a);%,options);
+                PolicyPathKron(:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a, simoptions);
             end
         end
     end
@@ -30,14 +30,14 @@ else
         PolicyPathKron=zeros(2,N_a,N_j,T,'gpuArray');
         for tt=1:T
             for jj=1:N_j
-                PolicyPathKron(:,:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a);%,options);
+                PolicyPathKron(:,:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a, simoptions);
             end
         end
     else
         PolicyPathKron=zeros(2,N_a,N_j,T);
         for tt=1:T
             for jj=1:N_j
-                PolicyPathKron(:,:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a);%,options);
+                PolicyPathKron(:,:,jj,tt)=KronPolicyIndexes_Case1_noz(PolicyPath(:,:,jj,tt), n_d, n_a, simoptions);
             end
         end
     end

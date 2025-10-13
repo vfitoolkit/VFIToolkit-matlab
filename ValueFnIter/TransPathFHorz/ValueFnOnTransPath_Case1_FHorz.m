@@ -33,8 +33,8 @@ if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
     %If vfoptions is not given, just use all the defaults
     vfoptions.divideandconquer=0;
+    vfoptions.gridinterplayer=0;
     vfoptions.parallel=1+(gpuDeviceCount>0);
-    vfoptions.returnmatrix=2;
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
     vfoptions.exoticpreferences='None';
@@ -50,18 +50,15 @@ else
             vfoptions.level1n=11;
         end
     end
+    if ~isfield(vfoptions,'gridinterplayer')
+        vfoptions.gridinterplayer=0;
+    elseif vfoptions.gridinterplayer==1
+        if ~isfield(vfoptions,'ngridinterp')
+            error('You have vfoptions.gridinterplayer, so must also set vfoptions.ngridinterp')
+        end
+    end
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if ~isfield(vfoptions,'returnmatrix')
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
     end
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
@@ -445,14 +442,14 @@ end
 %% Setup for various objects
 if N_e==0
     if N_z==0
-        Policy_final=KronPolicyIndexes_FHorz_Case1_noz(Policy_final, n_d, n_a, N_j);
+        Policy_final=KronPolicyIndexes_FHorz_Case1_noz(Policy_final, n_d, n_a, N_j, vfoptions);
         if N_d>0
             Policy_final2=Policy_final;
             Policy_final=shiftdim(Policy_final2(1,:,:)+N_d*(Policy_final2(2,:,:)-1),1);
         end
         V_final=reshape(V_final,[N_a,N_j]);
     else
-        Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_z,N_j);
+        Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_z,N_j, vfoptions);
         if N_d>0
             Policy_final2=Policy_final;
             Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
@@ -466,14 +463,14 @@ if N_e==0
     end
 else
     if N_z==0
-        Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_z,N_j,n_e);
+        Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
         if N_d>0
             Policy_final2=Policy_final;
             Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
         end
         V_final=reshape(V_final,[N_a,N_e,N_j]);
     else
-        Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_z,N_j,n_e);
+        Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
         if N_d>0
             Policy_final2=Policy_final;
             Policy_final=shiftdim(Policy_final2(1,:,:,:,:)+N_d*(Policy_final2(2,:,:,:,:)-1),1);

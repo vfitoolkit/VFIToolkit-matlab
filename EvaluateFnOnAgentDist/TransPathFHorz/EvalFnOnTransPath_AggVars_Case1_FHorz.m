@@ -17,8 +17,9 @@ if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
-    simoptions.fastOLG=1;
     simoptions.policy_forceintegertype=0;
+    simoptions.fastOLG=1; % parallel over j, faster but uses more memory
+    simoptions.gridinterplayer=0;
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -34,11 +35,18 @@ else
     if ~isfield(simoptions,'iterate')
         simoptions.iterate=1;
     end
-    if ~isfield(simoptions,'fastOLG')
-        simoptions.fastOLG=1;
-    end
     if ~isfield(simoptions,'policy_forceintegertype')
         simoptions.policy_forceintegertype=1;
+    end
+    if ~isfield(simoptions,'fastOLG')
+        simoptions.fastOLG=1; % parallel over j, faster but uses more memory
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    elseif simoptions.gridinterplayer==1
+        if ~isfield(simoptions,'ngridinterp')
+            error('You have simoptions.gridinterplayer, so must also set simoptions.ngridinterp')
+        end
     end
 end
 
@@ -355,7 +363,7 @@ AggVarsPath=struct();
 if N_e==0
     if N_z==0
         AgentDistPath=reshape(AgentDistPath,[N_a,N_j,T]);
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j,T);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_noz(PolicyPath, n_d, n_a, N_j,T, simoptions);
 
         for tt=1:T
 
@@ -388,7 +396,7 @@ if N_e==0
                 PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyPath(:,:,:,tt), n_d, n_a, N_j,simoptions);
             end
 
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, [], 2, simoptions); % The 2 is for Parallel (use GPU)
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, [], simoptions);
 
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
@@ -396,7 +404,7 @@ if N_e==0
         end
     else % N_z>0
         AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_j,T]);
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j,T);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j,T, simoptions);
 
         for tt=1:T
 
@@ -433,7 +441,7 @@ if N_e==0
                 PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz(PolicyPath(:,:,:,:,tt), n_d, n_a, n_z, N_j,simoptions);
             end
 
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, 2, simoptions); % The 2 is for Parallel (use GPU)
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, simoptions);
 
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
@@ -446,7 +454,7 @@ else
         % Not yet implemented
     else
         AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_e,N_j,T]);
-        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1(PolicyPath, n_d, n_a, n_z, N_j,T,n_e);
+        PolicyPath=KronPolicyIndexes_TransPathFHorz_Case1_e(PolicyPath, n_d, n_a, n_z, n_e, N_j,T, simoptions);
 
         for tt=1:T
 
@@ -486,7 +494,7 @@ else
                 PolicyUnKron=UnKronPolicyIndexes_Case1_FHorz_e(PolicyPath(:,:,:,:,:,tt), n_d, n_a, n_z,n_e,N_j,simoptions);
             end
 
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, 2, simoptions); % The 2 is for Parallel (use GPU)
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,:,tt), PolicyUnKron, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, N_j, d_grid, a_grid, z_grid_J, simoptions);
             
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
