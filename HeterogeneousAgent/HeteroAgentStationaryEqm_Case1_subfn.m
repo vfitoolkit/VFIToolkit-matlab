@@ -1,7 +1,7 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(GEpricesvec, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, FnsToEvaluateCell, GeneralEqmEqnsCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions, simoptions, vfoptions)
 
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
-[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,CalibParamNames,heteroagentoptions);
+[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
 
 %% 

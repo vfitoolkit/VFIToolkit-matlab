@@ -2,7 +2,7 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_GEptype
 
 % nGEprices=length(GEPriceParamNames);
 heteroagentparamsvecindex=[0; GEpriceindexes(:,2)];
-[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,CalibParamNames,heteroagentoptions);
+[GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
 %%
 for pp=1:nGEprices % Not sure this is needed, have it just in case they are used when calling 'GeneralEqmConditionsFn', but I am pretty sure they never would be.
