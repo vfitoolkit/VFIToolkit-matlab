@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Iteration_SemiExo_TwoProbs_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters)
+function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_TwoProbs_noz_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters)
 % 'TwoProbs' refers to two probabilities.
 % Policy_aprime has an additional final dimension of length 2 which is
 % the two points (and contains only the aprime indexes, no d indexes as would usually be the case). 
@@ -16,9 +16,9 @@ semizindexcorrespondingtod2_c=repelem(repmat((1:1:N_semiz)',N_e,1),N_a,1);
 % Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
 % Hence, just force sparse cpu arrays.
 
-StationaryDistKron=zeros(N_a*N_semiz*N_e,N_j,'gpuArray');
-StationaryDistKron(:,1)=jequaloneDistKron;
-StationaryDistKron_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
+StationaryDist=zeros(N_a*N_semiz*N_e,N_j,'gpuArray');
+StationaryDist(:,1)=jequaloneDistKron;
+StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
 
 % Precompute
 II2=repelem((1:1:N_a*N_semiz*N_e),2*N_semiz,1); % Index for this period (a,semiz,z,e), note the 2 copies
@@ -40,13 +40,13 @@ for jj=1:(N_j-1)
     % First, get Gamma
     Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,2))',N_a*N_semiz,N_a*N_semiz*N_e); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
-    StationaryDistKron_jj=Gammatranspose*StationaryDistKron_jj;
+    StationaryDist_jj=Gammatranspose*StationaryDist_jj;
     
     % Now do e transitions
     pi_e=sparse(gather(pi_e_J(:,jj)));
-    StationaryDistKron_jj=kron(pi_e,StationaryDistKron_jj);
+    StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 
-    StationaryDistKron(:,jj+1)=gpuArray(full(StationaryDistKron_jj));
+    StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
 
 
@@ -61,6 +61,6 @@ if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
     AgeWeights=AgeWeights';
 end
 
-StationaryDistKron=StationaryDistKron.*AgeWeights;
+StationaryDist=StationaryDist.*AgeWeights;
 
 end

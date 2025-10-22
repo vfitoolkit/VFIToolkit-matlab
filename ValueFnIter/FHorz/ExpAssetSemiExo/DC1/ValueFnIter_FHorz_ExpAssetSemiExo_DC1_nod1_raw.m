@@ -2,7 +2,6 @@ function [V,Policy3]=ValueFnIter_FHorz_ExpAssetSemiExo_DC1_nod1_raw(n_d2,n_d3,n_
 % d2 determines experience asset, d3 determines semi-exog state
 % a is endogenous state, a2 is experience asset
 % z is exogenous state, semiz is semi-exog state
-
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
 N_d2=prod(n_d2);
@@ -114,7 +113,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             z_val=bothz_gridvals_J(z_c,:,N_j);
 
             % n-Monotonicity
-            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0,n_d23,n_a1,vfoptions.level1n,n_a2,special_n_bothz, d_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1);
+            ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0,n_d23,n_a1,vfoptions.level1n,n_a2,special_n_bothz, d23_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, z_val, ReturnFnParamsVec,1);
 
             % First, we want a1prime conditional on (d,1,a)
             [~,maxindex1]=max(ReturnMatrix_ii_z,[],2);
@@ -139,7 +138,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2
                     a1primeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0,n_d23,maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_bothz, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0,n_d23,maxgap(ii)+1,level1iidiff(ii),n_a2,special_n_bothz, d23_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime
@@ -154,7 +153,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     % Just use aprime(ii) for everything
-                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0,n_d23,1,level1iidiff(ii),n_a2,special_n_bothz, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
+                    ReturnMatrix_ii_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0,n_d23,1,level1iidiff(ii),n_a2,special_n_bothz, d23_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_val, ReturnFnParamsVec,2);
                     [Vtempii,maxindex]=max(ReturnMatrix_ii_z,[],1);
                     V(curraindex,z_c,N_j)=shiftdim(Vtempii,1);
                     % maxindex does not need reworking, as with expasset there is no a2prime

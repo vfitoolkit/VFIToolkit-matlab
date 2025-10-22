@@ -24,9 +24,10 @@ StationaryDistKron_jj=sparse(gather(jequaloneDistKron));
 
 II2=repelem((1:1:N_a*N_bothz*N_e),N_semiz,1);
 % Note: repelem((1:1:N_a*N_bothz*N_e),N_semiz,1) is just a simpler way to write repelem((1:1:N_a*N_bothz*N_e)',1,N_semiz)'
+firststep_precomp=kron(ones(N_e,1),kron(N_a*N_semiz*(0:1:N_z-1)',ones(N_a*N_semiz,1)))+N_a*(0:1:N_semiz-1);
 
 for jj=1:(N_j-1)
-    firststep=optaprime(:,jj)+kron(ones(N_e,1),kron(N_a*N_semiz*(0:1:N_z-1)',ones(N_a*N_semiz,1)))+N_a*(0:1:N_semiz-1); % (a',semiz',z',e)-by-semiz
+    firststep=optaprime(:,jj)+firststep_precomp; % (a',semiz',z',e)-by-semiz
     % Note: optaprime and the z are columns, while semiz is a row that adds every semiz
 
     % Get the semiz transition probabilities into needed form

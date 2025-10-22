@@ -271,7 +271,7 @@ else
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,N_j);
 
-            for z_c=1:N_bothz
+            for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,N_j);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
@@ -480,7 +480,7 @@ for reverse_j=1:N_j-1
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_semiz_d3=pi_semiz_J(:,:,d3_c,jj);
 
-            for z_c=1:N_bothz
+            for z_c=1:N_semiz
                 z_val=semiz_gridvals_J(z_c,:,jj);
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
