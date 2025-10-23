@@ -25,7 +25,7 @@ if ~exist('vfoptions','var')
     vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     if isscalar(n_a) % one endogenous state
-        if N_a<400 || N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
+        if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
             vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
         else
             vfoptions.howardsgreedy=0;
@@ -86,7 +86,7 @@ else
     end  
     if ~isfield(vfoptions,'howardsgreedy')
         if isscalar(n_a) % one endogenous state
-            if N_a<400 || N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
+            if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
                 vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
             else
                 vfoptions.howardsgreedy=0;
