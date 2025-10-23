@@ -4,6 +4,11 @@ function [V,Policy]=ValueFnIter_FHorz_ExpAsset_GI(n_d1,n_d2,n_a1,n_a2,n_z, N_j, 
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 N_z=prod(n_z);
+if isfield(vfoptions,'n_e')
+    N_e=prod(vfoptions.n_e);
+else
+    N_e=0;
+end
 
 
 %%
@@ -12,7 +17,7 @@ if N_a1==0
     error('Cannot use grid interpolation layer if there is no standard endogenous state')
 end
 
-if isfield(vfoptions,'n_e')
+if N_e>0
     if vfoptions.divideandconquer==0
         if N_d1==0
             if N_z==0

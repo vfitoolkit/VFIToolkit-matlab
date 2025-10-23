@@ -330,6 +330,7 @@ end
 
 if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
+    % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
     
     if isfield(vfoptions,'SemiExoStateFn')
         % Split decision variables (other, semiexo, experienceasset)
@@ -344,7 +345,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
         d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
         % Split endogenous assets into the standard ones and the experience asset
-        if length(n_a)==1
+        if isscalar(n_a)
             n_a1=0;
         else
             n_a1=n_a(1:end-1);
@@ -355,7 +356,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
 
     else % no semiz
         % Split decision variables into the standard ones and the one relevant to the experience asset
-        if length(n_d)==1
+        if isscalar(n_d)
             n_d1=0;
         else
             n_d1=n_d(1:end-1);
@@ -364,7 +365,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         d1_grid=d_grid(1:sum(n_d1));
         d2_grid=d_grid(sum(n_d1)+1:end);
         % Split endogenous assets into the standard ones and the experience asset
-        if length(n_a)==1
+        if isscalar(n_a)
             n_a1=0;
         else
             n_a1=n_a(1:end-1);
@@ -382,7 +383,11 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
             [V,Policy]=ValueFnIter_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.experienceassetu==1
-        [V,Policy]=ValueFnIter_Case1_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if isfield(vfoptions,'n_semiz')
+            error('Combination of experienceassetu and semi-exogenous state has not yet been implemented (contact me if you need it)')
+        else
+            [V,Policy]=ValueFnIter_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
     elseif vfoptions.experienceassetz==1
         % I want to implement this too :)
     elseif vfoptions.experienceassetze==1
