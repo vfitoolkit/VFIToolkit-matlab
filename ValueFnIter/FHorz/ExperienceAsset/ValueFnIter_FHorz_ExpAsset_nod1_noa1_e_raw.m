@@ -62,10 +62,10 @@ else
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
     a2primeProbs=repmat(a2primeProbs,1,1,N_z);  % [N_d2,N_a2,N_z]
         
-    Vnext=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),2); % First, switch V_Jplus1 into Kron form
+    EVpre=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),2); % First, switch V_Jplus1 into Kron form
 
-    Vlower=reshape(Vnext(a2primeIndex(:),:),[N_d2,N_a2,N_z]);
-    Vupper=reshape(Vnext(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z]);
+    Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z]);
+    Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
@@ -73,11 +73,12 @@ else
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
+    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
+    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+    EV=squeeze(sum(EV,3));
+    % EV is over (d2,a1prime,a2,z)
+
     if vfoptions.lowmemory==0
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, n_e, d2_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
@@ -89,13 +90,10 @@ else
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
-
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_grid, a2_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            e_val=e_gridvals_J(e_c,:,N_j);
+
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_grid, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
             entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*EV;
 
@@ -107,13 +105,13 @@ else
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-2);
-            EV_z(isnan(EV_z))=0; % remove nan created where value fn is -Inf but probability is zero
-            EV_z=sum(EV_z,3);
-            % EV is over (d2,a1prime,a2,z)
+            z_val=z_gridvals_J(z_c,:,N_j);
+            EV_z=EV(:,:,z_c);
 
             for e_c=1:N_e
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, special_n_z, special_n_e, d2_grid, a2_grid, z_gridvals_J(z_c,:,N_j), e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+                e_val=e_gridvals_J(e_c,:,N_j);
+
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, special_n_z, special_n_e, d2_grid, a2_grid, z_val, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
                 entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z;
 
@@ -146,10 +144,10 @@ for reverse_j=1:N_j-1
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
     a2primeProbs=repmat(a2primeProbs,1,1,N_z);  % [N_d2,N_a2,N_z]
         
-    Vnext=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3); % Expectations over e
+    EVpre=sum(shiftdim(pi_e_J(:,jj),-2).*V(:,:,:,jj+1),3); % Expectations over e
 
-    Vlower=reshape(Vnext(a2primeIndex(:),:),[N_d2,N_a2,N_z]);
-    Vupper=reshape(Vnext(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z]);
+    Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z]);
+    Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
@@ -157,11 +155,12 @@ for reverse_j=1:N_j-1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
+    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
+    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+    EV=squeeze(sum(EV,3));
+    % EV is over (d2,a1prime,a2,z)
+
     if vfoptions.lowmemory==0
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, n_e, d2_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
@@ -174,13 +173,10 @@ for reverse_j=1:N_j-1
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
-
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_grid, a2_grid, z_gridvals_J(:,:,jj), e_gridvals_J(e_c,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            e_val=e_gridvals_J(e_c,:,jj);
+
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_grid, a2_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
             entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*EV;
 
@@ -192,13 +188,14 @@ for reverse_j=1:N_j-1
         end
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
-            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2);
-            EV_z(isnan(EV_z))=0; % remove nan created where value fn is -Inf but probability is zero
-            EV_z=sum(EV_z,3);
+            z_val=z_gridvals_J(z_c,:,jj);
+            EV_z=EV(:,:,z_c);
             % EV is over (d2,a1prime,a2,z)
 
             for e_c=1:N_e
-                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, special_n_z, special_n_e, d2_grid, a2_grid, z_gridvals_J(z_c,:,jj), e_gridvals_J(e_c,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+                e_val=e_gridvals_J(e_c,:,jj);
+
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, special_n_z, special_n_e, d2_grid, a2_grid, z_val, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
                 entireRHS=ReturnMatrix_ze+DiscountFactorParamsVec*EV_z;
 

@@ -53,7 +53,7 @@ else % no e variable
             if N_z==0
                 [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_GI_nod1_noz_raw(n_d2,n_a1,n_a2, N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_GI_nod1_raw(n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_GI_nod1_raw(n_d2,n_a1,n_a2,n_z, N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else
             if N_z==0

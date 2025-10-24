@@ -34,10 +34,10 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,1]);
+    EVpre=reshape(vfoptions.V_Jplus1,[N_a,1]);
 
-    Vlower=reshape(Vnext(a2primeIndex),[N_d2,N_a2]);
-    Vupper=reshape(Vnext(a2primeIndex+1),[N_d2,N_a2]);
+    Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2]);
+    Vupper=reshape(EVpre(a2primeIndex+1),[N_d2,N_a2]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation

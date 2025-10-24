@@ -82,10 +82,10 @@ else
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,N_a2)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d2*N_a1,N_a2]
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1);  % [N_d2*N_a1,N_a2]
     
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,1]);
+    EVpre=reshape(vfoptions.V_Jplus1,[N_a,1]);
 
-    Vlower=reshape(Vnext(aprimeIndex(:)),[N_d2*N_a1,N_a2]);
-    Vupper=reshape(Vnext(aprimeplus1Index(:)),[N_d2*N_a1,N_a2]);
+    Vlower=reshape(EVpre(aprimeIndex(:)),[N_d2*N_a1,N_a2]);
+    Vupper=reshape(EVpre(aprimeplus1Index(:)),[N_d2*N_a1,N_a2]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
@@ -94,12 +94,12 @@ else
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     
-    DiscountedentireEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]); % (d,a1prime,1,a2)
+    DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]); % (d,a1prime,1,a2)
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n, n_a2, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1);
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV;
+    entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
     % First, we want a1prime conditional on (d,1,a)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -123,7 +123,7 @@ else
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
             daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2,]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,N_j)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -137,7 +137,7 @@ else
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
             daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,1,level1iidiff(ii),1,1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,N_j)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -182,12 +182,12 @@ for reverse_j=1:N_j-1
     EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     % Already applied the probabilities from interpolating onto grid
     
-    DiscountedentireEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]); % (d,a1prime,1,a2)
+    DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2]); % (d,a1prime,1,a2)
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, n_a1, vfoptions.level1n, n_a2, d2_gridvals, a1_gridvals, a1_gridvals(level1ii), a2_gridvals, ReturnFnParamsVec,1);
 
-    entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV;
+    entireRHS_ii=ReturnMatrix_ii+DiscountedEV;
 
     % First, we want a1prime conditional on (d,1,a1,a2)
     [~,maxindex1]=max(entireRHS_ii,[],2);
@@ -211,7 +211,7 @@ for reverse_j=1:N_j-1
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
             daprime=(1:1:N_d2)'+N_d2*repelem(a1primeindexes-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*(maxgap(ii)+1),level1iidiff(ii)*N_a2]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,jj)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime
@@ -225,7 +225,7 @@ for reverse_j=1:N_j-1
             % Just use aprime(ii) for everything
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2_noz(ReturnFn, 0, n_d2, 1, level1iidiff(ii), n_a2, d2_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, ReturnFnParamsVec,2);
             daprime=(1:1:N_d2)'+N_d2*repelem(loweredge-1,1,1,level1iidiff(ii),1)+N_d2*N_a1*shiftdim((0:1:N_a2-1),-2); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountedentireEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountedEV(reshape(daprime,[N_d2*1,level1iidiff(ii)*N_a2]));
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
             V(curraindex,jj)=shiftdim(Vtempii,1);
             % maxindex does not need reworking, as with expasset there is no a2prime

@@ -145,6 +145,7 @@ for pp=1:nCalibParams
         calibomitparamsmatrix(:,sum(calibomitparams_counter))=tempomitparam;
     else
         % Get all the parameters
+        size(currentparameter)
         if size(currentparameter,2)==1
             calibparamsvec0=[calibparamsvec0; currentparameter];
         else

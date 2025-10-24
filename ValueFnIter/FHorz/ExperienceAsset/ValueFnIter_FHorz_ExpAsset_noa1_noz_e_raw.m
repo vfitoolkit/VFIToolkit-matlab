@@ -32,7 +32,8 @@ if ~isfield(vfoptions,'V_Jplus1')
         Policy(:,:,N_j)=maxindex;
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_e, [d1_grid; d2_grid], a2_grid, e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            e_val=e_gridvals_J(e_c,:,N_j);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_e, [d1_grid; d2_grid], a2_grid, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
             V(:,e_c,N_j)=Vtemp;
@@ -48,10 +49,10 @@ else
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
     % Using V_Jplus1
-    Vnext=sum(pi_e_J(:,N_j)'.*reshape(vfoptions.V_Jplus1,[N_a,N_e]),2);    % First, switch V_Jplus1 into Kron form
+    EVpre=sum(pi_e_J(:,N_j)'.*reshape(vfoptions.V_Jplus1,[N_a,N_e]),2);    % First, switch V_Jplus1 into Kron form
 
-    Vlower=reshape(Vnext(a2primeIndex),[N_d2,N_a2]);
-    Vupper=reshape(Vnext(a2primeIndex+1),[N_d2,N_a2]);
+    Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2]);
+    Vupper=reshape(EVpre(a2primeIndex+1),[N_d2,N_a2]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
@@ -71,7 +72,9 @@ else
         Policy(:,:,N_j)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_e, [d1_grid; d2_grid], a2_grid, e_gridvals_J(e_c,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            e_val=e_gridvals_J(e_c,:,N_j);
+
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_e, [d1_grid; d2_grid], a2_grid, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
             entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
@@ -102,10 +105,10 @@ for reverse_j=1:N_j-1
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, d2_grid, a2_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
 
-    Vnext=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2);
+    EVpre=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2);
 
-    Vlower=reshape(Vnext(a2primeIndex),[N_d2,N_a2]);
-    Vupper=reshape(Vnext(a2primeIndex+1),[N_d2,N_a2]);
+    Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2]);
+    Vupper=reshape(EVpre(a2primeIndex+1),[N_d2,N_a2]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
@@ -125,7 +128,9 @@ for reverse_j=1:N_j-1
         Policy(:,:,jj)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
         for e_c=1:N_e
-            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_e, [d1_grid; d2_grid], a2_grid, e_gridvals_J(e_c,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            e_val=e_gridvals_J(e_c,:,jj);
+
+            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_e, [d1_grid; d2_grid], a2_grid, e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
             entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
