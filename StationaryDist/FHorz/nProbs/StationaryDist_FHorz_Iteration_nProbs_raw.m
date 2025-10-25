@@ -1,8 +1,9 @@
-function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprimez,PolicyProbs,N_probs,N_a,N_z,N_j,pi_z_J,Parameters)
+function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_probs,N_a,N_z,N_j,pi_z_J,Parameters)
 % 'nProbs' refers to N_probs probabilities.
 % Policy_aprimez has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
+Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1); % Note: add z index following the z dimension
 Policy_aprimez=reshape(Policy_aprimez,[N_a*N_z,N_probs,N_j]);
 PolicyProbs=reshape(PolicyProbs,[N_a*N_z,N_probs,N_j]);
 

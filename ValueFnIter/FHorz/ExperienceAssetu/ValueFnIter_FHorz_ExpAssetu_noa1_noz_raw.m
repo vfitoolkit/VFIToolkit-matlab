@@ -4,6 +4,7 @@ N_d1=prod(n_d1);
 N_d2=prod(n_d2);
 N_a2=prod(n_a2);
 N_a=N_a2;
+N_u=prod(n_u);
 
 V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
@@ -36,10 +37,10 @@ else
     [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
     
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,1]);
+    EVpre=reshape(vfoptions.V_Jplus1,[N_a,1]);
 
-    Vlower=reshape(Vnext(a2primeIndex),[N_d2,N_a2,N_u]);
-    Vupper=reshape(Vnext(a2primeIndex+1),[N_d2,N_a2,N_u]);
+    Vlower=reshape(EVpre(a2primeIndex),[N_d2,N_a2,N_u]);
+    Vupper=reshape(EVpre(a2primeIndex+1),[N_d2,N_a2,N_u]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation

@@ -7,7 +7,8 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_TwoProbs_raw(jequ
 N_bothz=N_semiz*N_z;
 
 Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_bothz,N_j])); % (a,z,j)
-Policy_aprime=gather(reshape(Policy_aprime,[N_a*N_bothz,2,N_j])); % (a,z,2,j)
+Policy_aprimez=Policy_aprime+repelem(N_a*N_semiz*gpuArray(0:1:N_z-1),1,N_semiz);
+Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_bothz,2,N_j])); % (a,z,2,j)
 PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_bothz,2,N_j])); % (a,z,2,j)
 
 % precompute
@@ -26,11 +27,10 @@ StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix
 % Precompute
 II2=repelem((1:1:N_a*N_bothz),2*N_semiz,1); % Index for this period (a,semiz,z), note the 2 copies
 % Note: repelem((1:1:N_a*N_bothz),2*N_semiz,1) is just a simpler way to write repelem((1:1:N_a*N_bothz)',1,2*N_semiz)'
-firststep_precomp=kron(N_a*N_semiz*(0:1:N_z-1)',ones(N_a*N_semiz,1))+N_a*repelem(0:1:N_semiz-1,1,2); 
 
 for jj=1:(N_j-1)
 
-    firststep=repmat(Policy_aprime(:,:,jj),1,N_semiz)+firststep_precomp; % (a',semiz',z')-by-(2,semiz)
+    firststep=repmat(Policy_aprimez(:,:,jj),1,N_semiz)+N_a*repelem(0:1:N_semiz-1,1,2); % (a',semiz',z')-by-(2,semiz)
     % Note: optaprime and the z are columns, while semiz is a row that adds every semiz
     
     % Get the semiz transition probabilities into needed form

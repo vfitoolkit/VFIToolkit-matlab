@@ -1,5 +1,6 @@
 function StationaryDist=StationaryDist_FHorz_ExpAsset_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,d_grid,a2_grid,Parameters,simoptions)
 
+%% Setup related to experience asset
 n_d2=n_d(end);
 % Split endogenous assets into the standard ones and the experience asset
 if isscalar(n_a)
@@ -19,15 +20,16 @@ else
     aprimeFnParamNames={};
 end
 
+%%
 l_d=length(n_d);
 l_a=length(n_a);
 
 N_a=prod(n_a);
 
-%%
 jequaloneDistKron=reshape(jequaloneDist,[N_a,1]);
 jequaloneDistKron=gpuArray(jequaloneDistKron); % make sure it is on gpu
 
+%%
 % Policy is currently about d and a2prime. Convert it to being about aprime
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
 Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);

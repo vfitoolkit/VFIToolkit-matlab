@@ -34,11 +34,14 @@ if ~isfield(vfoptions,'V_Jplus1')
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
     elseif vfoptions.lowmemory==1
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, [d1_grid; d2_grid], a2_grid, z_gridvals_J(z_c,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
-        %Calc the max and it's index
-        [Vtemp,maxindex]=max(ReturnMatrix,[],1);
-        V(:,z_c,N_j)=Vtemp;
-        Policy(:,z_c,N_j)=maxindex;
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, [d1_grid; d2_grid], a2_grid, z_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            %Calc the max and it's index
+            [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+            V(:,z_c,N_j)=Vtemp;
+            Policy(:,z_c,N_j)=maxindex;
+        end
     end
 else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
@@ -49,10 +52,10 @@ else
     % Note: aprimeIndex is [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
     a2primeProbs=repmat(a2primeProbs,1,1,1,N_z);  % [N_d2,N_a2,N_u,N_z]
 
-    Vnext=reshape(vfoptions.V_Jplus1,[N_a,N_z]);
+    EVpre=reshape(vfoptions.V_Jplus1,[N_a,N_z]);
 
-    Vlower=reshape(Vnext(a2primeIndex,:),[N_d2,N_a2,N_u,N_z]);
-    Vupper=reshape(Vnext(a2primeIndex+1,:),[N_d2,N_a2,N_u,N_z]);
+    Vlower=reshape(EVpre(a2primeIndex,:),[N_d2,N_a2,N_u,N_z]);
+    Vupper=reshape(EVpre(a2primeIndex+1,:),[N_d2,N_a2,N_u,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     a2primeProbs(skipinterp)=0; % effectively skips interpolation
@@ -62,15 +65,18 @@ else
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
 
+    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
+    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+    EV=squeeze(sum(EV,3));
+    % EV is over (d2,a1prime,a2,z)
+
+    DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,1);
+
     if vfoptions.lowmemory==0
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, [d1_grid; d2_grid], a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
+        entireRHS=ReturnMatrix+DiscountedEV;
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -79,14 +85,12 @@ else
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            EV_z=EV.*shiftdim(pi_z_J(z_c,:,N_j)',-2);
-            EV_z(isnan(EV_z))=0; % remove nan created where value fn is -Inf but probability is zero
-            EV_z=sum(EV_z,3);
-            % EV is over (d2,a1prime,a2,z)
+            z_val=z_gridvals_J(z_c,:,N_j);
+            DiscountedEV_z=DiscountedEV(:,:,z_c);
 
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, [d1_grid; d2_grid], a2_grid, z_gridvals_J(z_c,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, [d1_grid; d2_grid], a2_grid, z_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-            entireRHS=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,N_d1,1);
+            entireRHS=ReturnMatrix_z+DiscountedEV_z;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -126,15 +130,18 @@ for reverse_j=1:N_j-1
     % Already applied the probabilities from interpolating onto grid
     EV=squeeze(sum((EV.*pi_u),3)); % (d2,a1prime,a2,zprime)
 
+    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
+    EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
+    EV=squeeze(sum(EV,3));
+    % EV is over (d2,a1prime,a2,z)
+
+    DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,1);
+
     if vfoptions.lowmemory==0
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-        EV(isnan(EV))=0; % remove nan created where value fn is -Inf but probability is zero
-        EV=squeeze(sum(EV,3));
-        % EV is over (d2,a1prime,a2,z)
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, [d1_grid; d2_grid], a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
+        entireRHS=ReturnMatrix+DiscountedEV;
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -143,14 +150,12 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
-            EV_z=EV.*shiftdim(pi_z_J(z_c,:,jj)',-2);
-            EV_z(isnan(EV_z))=0; % remove nan created where value fn is -Inf but probability is zero
-            EV_z=sum(EV_z,3);
-            % EV is over (d2,a1prime,a2,z)
+            z_val=z_gridvals_J(z_c,:,jj);
+            DiscountedEV_z=DiscountedEV(:,:,z_c);
 
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, [d1_grid; d2_grid], a2_grid, z_gridvals_J(z_c,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, [d1_grid; d2_grid], a2_grid, z_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-            entireRHS=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,N_d1,1);
+            entireRHS=ReturnMatrix_z+DiscountedEV_z;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);

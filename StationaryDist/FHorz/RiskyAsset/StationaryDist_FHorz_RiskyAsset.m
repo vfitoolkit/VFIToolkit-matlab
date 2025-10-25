@@ -20,8 +20,7 @@ end
 n_d23=n_d(simoptions.refine_d(1)+1:sum(simoptions.refine_d(1:3))); % decision variables for riskyasset
 
 % Split endogenous assets into the standard ones and the risky asset
-l_a=length(n_a);
-if l_a==1
+if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
@@ -40,6 +39,7 @@ if ~isfield(simoptions,'pi_u')
     error('To use an risky asset you must define simoptions.pi_u')
 end
 % to evaluate the aprimeFn we need the grids on gpu
+n_u=simoptions.n_u;
 u_grid=gpuArray(simoptions.u_grid);
 pi_u=gpuArray(simoptions.pi_u);
 
@@ -56,19 +56,23 @@ else
     aprimeFnParamNames={};
 end
 
+
+if isfield(simoptions,'n_e')
+    N_e=prod(simoptions.n_e);
+else
+    N_e=0;
+end
+
 %%
-if n_z(1)==0
-    error('Have not yet impelmented N_z=0 in StationaryDist_FHorz_Case1_RiskyAsset (contact me)')
+if n_z(1)==0 && N_e==0
+    error('Have not yet impelmented N_z=0 and N_e=0 in StationaryDist_FHorz_RiskyAsset (contact me)')
 end
 %%
 if ~isfield(simoptions,'aprimedependsonage')
     simoptions.aprimedependsonage=0;
 end
 
-N_a=prod(n_a);
 N_a1=prod(n_a1);
-N_z=prod(n_z);
-N_u=prod(simoptions.n_u);
 
 if N_a1==0
     n_a=n_a2;
@@ -77,21 +81,33 @@ else
 end
 
 
-%%
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
-    jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z*N_e,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z*N_e,N_j]);
-    n_ze=[n_z,simoptions.n_e];
-    N_ze=N_z*N_e;
-else
-    jequaloneDistKron=reshape(jequaloneDist,[N_a*N_z,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
-    n_ze=n_z;
-    N_ze=N_z;
-end
-% NOTE: have rolled e into z
 
+%%
+l_d=length(n_d);
+l_a=length(n_a);
+
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_u=prod(n_u);
+
+%%
+if N_z==0
+    % Note: n_z(1)==0 && N_e==0 already got sent elsewhere
+    n_ze=simoptions.n_e;
+    N_ze=N_e;
+else
+    if N_e==0
+        n_ze=n_z;
+        N_ze=N_z;
+    else
+        n_ze=[n_z,simoptions.n_e];
+        N_ze=N_z*N_e;
+    end
+end
+
+jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
+jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
+Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
 %% riskyasset transitions
 Policy_a2prime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
@@ -121,15 +137,42 @@ elseif l_a>3
     error('Only two assets other than the risky asset is allowed (email if you need this)')
 end
 
+Policy_aprime=reshape(Policy_aprime,[N_a,N_ze,N_u*2,N_j]);
+PolicyProbs=reshape(PolicyProbs,[N_a,N_ze,N_u*2,N_j]);
+
 
 %%
-% Note that PolicyProbs contains pi_u already.
+if simoptions.gridinterplayer==0
+    % Note: N_z=0 && N_e=0 is a different code
+    if N_e==0 % just z
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_z,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+        StationaryDist=gpuArray(StationaryDist);
+    elseif N_z==0 % just e
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+        StationaryDist=gpuArray(StationaryDist);
+    else % both z and e
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+        StationaryDist=gpuArray(StationaryDist);
+    end
+elseif simoptions.gridinterplayer==1
+    % (a,z,2,j)
+    Policy_aprime=repmat(Policy_aprime,1,1,2,1);
+    PolicyProbs=repmat(PolicyProbs,1,1,2,1);
+    % Policy_aprime(:,:,:,1:2*N_u,:) lower grid point for a1 is unchanged 
+    Policy_aprime(:,:,2*N_u+1:end,:)=Policy_aprime(:,:,2*N_u+1:end,:)+1; % add one to a1, to get upper grid point
 
-% Note: N_z=0 is a different code
-if isfield(simoptions,'n_e')
-    StationaryDist=StationaryDist_FHorz_Iteration_uProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_u,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
-else % no e
-    StationaryDist=StationaryDist_FHorz_Iteration_uProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_z,N_u,N_j,pi_z_J,Parameters);
+    aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index)
+    PolicyProbs(:,:,1:2*N_u,:)=PolicyProbs(:,:,1:2*N_u,:).*(1-aprimeProbs_upper); % lower a1
+    PolicyProbs(:,:,2*N_u+1:end,:)=PolicyProbs(:,:,2*N_u+1:end,:).*aprimeProbs_upper; % upper a1
+
+    % Note: N_z=0 && N_e=0 is a different code
+    if N_e==0 % just z
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2*N_u*2,N_a,N_z,N_j,pi_z_J,Parameters);
+    elseif N_z==0 % just e
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2*N_u*2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
+    else % both z and e
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2*N_u*2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+    end
 end
 
 
@@ -138,9 +181,9 @@ if simoptions.parallel==2
 end
 if simoptions.outputkron==0
     StationaryDist=reshape(StationaryDist,[n_a,n_ze,N_j]);
-else
-    % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDist,[N_a,N_ze,N_j]);
+% else
+%     % If 1 then leave output in Kron form
+%     StationaryDist=reshape(StationaryDist,[N_a,N_ze,N_j]);
 end
 
 end

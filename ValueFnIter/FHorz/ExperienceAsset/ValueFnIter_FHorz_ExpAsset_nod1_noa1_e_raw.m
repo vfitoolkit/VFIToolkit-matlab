@@ -62,7 +62,7 @@ else
     % Note: aprimeIndex is [N_d2*N_a2,1], whereas aprimeProbs is [N_d2,N_a2]
     a2primeProbs=repmat(a2primeProbs,1,1,N_z);  % [N_d2,N_a2,N_z]
         
-    EVpre=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),2); % First, switch V_Jplus1 into Kron form
+    EVpre=sum(shiftdim(pi_e_J(:,N_j),-2).*reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]),3); % First, switch V_Jplus1 into Kron form
 
     Vlower=reshape(EVpre(a2primeIndex(:),:),[N_d2,N_a2,N_z]);
     Vupper=reshape(EVpre(a2primeIndex(:)+1,:),[N_d2,N_a2,N_z]);

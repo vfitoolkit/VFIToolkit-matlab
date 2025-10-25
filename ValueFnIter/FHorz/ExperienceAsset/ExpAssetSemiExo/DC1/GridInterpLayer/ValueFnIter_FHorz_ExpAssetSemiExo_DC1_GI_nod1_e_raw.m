@@ -187,7 +187,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         for d3_c=1:N_d3
             d23_gridvals_val=[d2_gridvals,repelem(d3_grid(d3_c),N_d2,1)];
 
-            for z_c=1:N_semiz
+            for z_c=1:N_z
                 zind=(1:1:N_semiz)+N_semiz*(z_c-1);
                 z_val=bothz_gridvals_J(zind,:,N_j);
 
@@ -286,7 +286,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                     [Vtempii,maxindexL2]=max(ReturnMatrix_ii,[],1);
                     V_ford3_jj(:,z_c,e_c,d3_c)=shiftdim(Vtempii,1);
                     d_ind=rem(maxindexL2-1,N_d2)+1;
-                    allind=d_ind+N_d2*aind+N_d2*N_a*semizBind; % midpoint is n_d2-by-1-by-n_a1-by-n_a2
+                    allind=d_ind+N_d2*aind; % midpoint is n_d2-by-1-by-n_a1-by-n_a2
                     Policy3_ford3_jj(1,:,z_c,e_c,d3_c)=d_ind; % d2
                     Policy3_ford3_jj(2,:,z_c,e_c,d3_c)=shiftdim(squeeze(midpoint(allind)),-1); % a1prime midpoint
                     Policy3_ford3_jj(3,:,z_c,e_c,d3_c)=shiftdim(ceil(maxindexL2/N_d2),-1); % a1primeL2ind

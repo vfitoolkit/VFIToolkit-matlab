@@ -100,9 +100,9 @@ if simoptions.parallel==2
 end
 if simoptions.outputkron==0
     StationaryDist=reshape(StationaryDist,[n_a,n_r,n_ze,N_j]);
-else
-    % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDist,[N_a,N_r,N_ze,N_j]);
+% else
+%     % If 1 then leave output in Kron form
+%     StationaryDist=reshape(StationaryDist,[N_a,N_r,N_ze,N_j]);
 end
 
 end

@@ -86,18 +86,19 @@ for jj=1:N_j
     % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 
-    if l_a==1
+    if l_a==1 % just experience asset
         Policy_aprime(:,:,1,jj)=aprimeIndexes;
         Policy_aprime(:,:,2,jj)=aprimeIndexes+1;
-    elseif l_a==2 % experience asset and one other asset
+    elseif l_a==2 % one other asset, then experience asset
         Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
         Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1);
-    elseif l_a==3 % experience asset and two other assets
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+prod(n_a(1:2));
+    elseif l_a==3 % two other assets, then experience asset
+        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
+        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1)*n_a(2);
     else
         error('Not yet implemented experience asset with length(n_a)>3')
     end
+
     PolicyProbs(:,:,1,jj)=aprimeProbs;
     PolicyProbs(:,:,2,jj)=1-aprimeProbs;
 end
@@ -129,13 +130,11 @@ elseif simoptions.gridinterplayer==1
 
     % Note: N_z=0 && N_e=0 is a different code
     if N_e==0 % just z
-        Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1);
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprimez,PolicyProbs,4,N_a,N_z,N_j,pi_z_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,N_a,N_z,N_j,pi_z_J,Parameters);
     elseif N_z==0 % just e
         StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
     else % both z and e
-        Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1),1,N_e);
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprimez,PolicyProbs,4,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,4,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
     end
 end
 
@@ -143,9 +142,9 @@ end
 
 if simoptions.outputkron==0
     StationaryDist=reshape(StationaryDist,[n_a,n_ze,N_j]);
-else
+% else
     % If 1 then leave output in Kron form
-    StationaryDist=reshape(StationaryDist,[N_a,N_ze,N_j]);
+    % StationaryDist=reshape(StationaryDist,[N_a,N_ze,N_j]);
 end
 
 end

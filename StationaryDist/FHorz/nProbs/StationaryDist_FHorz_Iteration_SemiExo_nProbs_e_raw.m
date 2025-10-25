@@ -1,35 +1,31 @@
-function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_TwoProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,pi_e_J,Parameters)
-% 'TwoProbs' refers to two probabilities.
-% Policy_aprime has an additional final dimension of length 2 which is
-% the two points (and contains only the aprime indexes, no d indexes as would usually be the case). 
-% PolicyProbs are the corresponding probabilities of each of these two.
-N_bothz=N_semiz*N_z;
+function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_probs,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,pi_e_J,Parameters)
+% 'nProbs' refers to N_probs probabilities.
+% Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
+% PolicyProbs are the corresponding probabilities of each of these N_probs.
 
-Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_bothz*N_e,N_j]); % (a,z,j)
+Policy_dsemiexo=gather(reshape(Policy_dsemiexo,[N_a*N_semiz*N_z*N_e,N_j])); % (a,semiz,z,e,j)
 Policy_aprimez=Policy_aprime+repmat(repelem(N_a*N_semiz*gpuArray(0:1:N_z-1),1,N_semiz),1,N_e);
-Policy_aprimez=reshape(Policy_aprimez,[N_a*N_bothz*N_e,2,N_j]); % (a,z,2,j)
-PolicyProbs=reshape(PolicyProbs,[N_a*N_bothz*N_e,2,N_j]); % (a,z,2,j)
+Policy_aprimez=reshape(Policy_aprimez,[N_a*N_semiz*N_z*N_e,N_probs,N_j]);
+PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z*N_e,N_probs,N_j]);
 
 % precompute
 semizindexcorrespondingtod2_c=repelem(repmat(gpuArray(1:1:N_semiz)',N_z*N_e,1),N_a,1);
 semizindexcorrespondingtod2_c=semizindexcorrespondingtod2_c+N_semiz*gpuArray(0:1:N_semiz-1);
 
 %% Use Tan improvement
-% Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]
-% Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
-% Hence, just force sparse cpu arrays.
 
-StationaryDist=zeros(N_a*N_bothz*N_e,N_j,'gpuArray');
+StationaryDist=zeros(N_a*N_semiz*N_z*N_e,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(jequaloneDistKron); % sparse() creates a matrix of zeros
 
 % Precompute
-II2=repelem(gpuArray(1:1:N_a*N_bothz*N_e),2*N_semiz,1); % Index for this period (a,semiz,z,e), note the 2 copies
-% Note: repelem((1:1:N_a*N_bothz*N_e),2*N_semiz,1) is just a simpler way to write repelem((1:1:N_a*N_bothz*N_e)',1,2*N_semiz)'
+II2=repelem(gpuArray(1:1:N_a*N_semiz*N_z*N_e),N_semiz*N_probs,1); % Index for this period (a,semiz), note the N_probs-copies
+% Note: repelem(gpuArray(1:1:N_a*N_semiz*N_z*N_e),N_semiz*N_probs,1) is just a simpler way to write repelem(gpuArray(1:1:N_a*N_semiz*N_z*N_e)',1,N_semiz*N_probs)'
+
 
 for jj=1:(N_j-1)
 
-    firststep=repmat(Policy_aprimez(:,:,jj),1,N_semiz)+N_a*repelem(0:1:N_semiz-1,1,2); % (a',semiz',z',e)-by-(2,semiz)
+    firststep=repmat(Policy_aprimez(:,:,jj),1,N_semiz)+N_a*repelem(0:1:N_semiz-1,1,N_probs); % (a',semiz',z',e)-by-(N_probs,semiz)
     % Note: optaprime and the z are columns, while semiz is a row that adds every semiz
     
     % Get the semiz transition probabilities into needed form
@@ -40,7 +36,7 @@ for jj=1:(N_j-1)
     semiztransitions=pi_semiz(fullindex); % (a,z,semiz -by- semiz')
     
     % First, get Gamma
-    Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,2))',N_a*N_bothz,N_a*N_bothz*N_e); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
+    Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,N_probs))',N_a*N_bothz,N_a*N_bothz*N_e); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
     % First step of Tan improvement
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);
@@ -56,7 +52,6 @@ for jj=1:(N_j-1)
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
-
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 try

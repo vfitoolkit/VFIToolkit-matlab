@@ -163,8 +163,8 @@ a2primeProbs(offBottomOfGrid)=1;
 a2primeProbs(offTopOfGrid)=0;
 
 if N_z==0
-    a2primeIndexes=reshape(a2primeIndexes,[N_a,1,N_u]); % Index of lower grid point
-    a2primeProbs=reshape(a2primeProbs,[N_a,1,N_u]); % Probability of lower grid point
+    a2primeIndexes=reshape(a2primeIndexes,[N_a,N_u]); % Index of lower grid point
+    a2primeProbs=reshape(a2primeProbs,[N_a,N_u]); % Probability of lower grid point
 else
     a2primeIndexes=reshape(a2primeIndexes,[N_a,N_z,N_u]); % Index of lower grid point
     a2primeProbs=reshape(a2primeProbs,[N_a,N_z,N_u]); % Probability of lower grid point
