@@ -36,7 +36,7 @@ for jj=1:(N_j-1)
     semiztransitions=pi_semiz(fullindex); % (a,z,semiz -by- semiz')
     
     % First, get Gamma
-    Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,N_probs))',N_a*N_bothz,N_a*N_bothz*N_e); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
+    Gammatranspose=sparse(firststep',II2,(repmat(PolicyProbs(:,:,jj),1,N_semiz).*repelem(semiztransitions,1,N_probs))',N_a*N_semiz*N_z,N_a*N_semiz*N_z*N_e); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
 
     % First step of Tan improvement
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);
@@ -44,7 +44,7 @@ for jj=1:(N_j-1)
     pi_z=sparse(pi_z_J(:,:,jj));
 
     % Second step of Tan improvement
-    StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_bothz,1]);
+    StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_semiz*N_z,1]);
 
     % Now do e transitions
     pi_e=sparse(pi_e_J(:,jj));
