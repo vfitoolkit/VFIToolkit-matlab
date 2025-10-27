@@ -20,7 +20,7 @@ DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-1);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-VKronNext=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,:,:),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+VKronNext=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,1,:),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 
 if vfoptions.lowmemory==0
 
@@ -32,9 +32,9 @@ if vfoptions.lowmemory==0
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
 
-    discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
+    discountedEV=repelem(reshape(DiscountFactorParamsVec.*EV,[N_a,N_j,N_z]),1,N_a,1); %(aprime)-by-(a,j)-by-z
 
-    entireRHS=ReturnMatrix+repelem(discountedEV,1,N_a,1,N_e); %(aprime)-by-(a,j)-by-z-by-e
+    entireRHS=ReturnMatrix+discountedEV; %(aprime)-by-(a,j)-by-z-by-e
 
     %Calc the max and it's index
     [V,Policy]=max(entireRHS,[],1);
@@ -43,20 +43,20 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
 
     n_e_special=ones(1,length(n_e));
+
+    %Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=VKronNext.*repelem(pi_z_J,N_a,1,1);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=sum(EV,2);
+
+    discountedEV=repelem(reshape(DiscountFactorParamsVec.*EV,[N_a,N_j,N_z]),1,N_a,1); % aprime-j
     
     for e_c=1:N_e
         e_vals=e_gridvals_J(:,:,e_c,:); % e_gridvals_J has shape (j,1,prod(n_e),l_e) for fastOLG
         ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe(ReturnFn, 0, n_a, n_z, n_e_special, N_j, [], a_grid, z_grid, e_vals, ReturnFnParamsAgeMatrix);
         % fastOLG: ReturnMatrix is [aprime,a,j,z] (e)
 
-        %Calc the condl expectation term (except beta), which depends on z but not on control variables
-        EV=VKronNext.*repelem(pi_z_J,N_a,1,1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2);
-
-        discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
-
-        entireRHS_e=ReturnMatrix_e+repelem(discountedEV,1,N_a,1); %(aprime)-by-(a,j)-by-z
+        entireRHS_e=ReturnMatrix_e+discountedEV; %(aprime)-by-(a,j)-by-z
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -69,24 +69,27 @@ elseif vfoptions.lowmemory==2
     n_e_special=ones(1,length(n_e));
     n_z_special=ones(1,length(n_z));
 
-    for e_c=1:N_e
-        e_vals=e_gridvals_J(:,:,e_c,:); % e_gridvals_J has shape (j,1,prod(n_e),l_e) for fastOLG
-        for z_c=1:N_z
-            z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
-            ReturnMatrix_ez=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe(ReturnFn, 0, n_a, n_z_special, n_e_special, N_j, [], a_grid, z_vals, e_vals, ReturnFnParamsAgeMatrix);
+    %Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=VKronNext.*repelem(pi_z_J,N_a,1,1);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=sum(EV,2);
+
+    discountedEV=repelem(reshape(DiscountFactorParamsVec.*EV,[N_a,N_j,N_z]),1,N_a,1); % aprime-j
+
+    for z_c=1:N_z
+        z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
+        discountedEV_z=discountedEV(:,:,z_c);
+
+        for e_c=1:N_e
+            e_vals=e_gridvals_J(:,:,e_c,:); % e_gridvals_J has shape (j,1,prod(n_e),l_e) for fastOLG
+
+            ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe(ReturnFn, 0, n_a, n_z_special, n_e_special, N_j, [], a_grid, z_vals, e_vals, ReturnFnParamsAgeMatrix);
             % fastOLG: ReturnMatrix is [aprime,a,j] (z,e)
 
-            %Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=VKronNext.*repelem(pi_z_J(:,:,z_c),N_a,1,1);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-
-            discountedEV_z=DiscountFactorParamsVec.*reshape(EV_z,[N_a,N_j]); % aprime-j
-
-            entireRHS_ez=ReturnMatrix_ez+repelem(discountedEV_z,1,N_a); %(aprime)-by-(a,j)
+            entireRHS_ze=ReturnMatrix_ze+discountedEV_z; %(aprime)-by-(a,j)
 
             %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_ez,[],1);
+            [Vtemp,maxindex]=max(entireRHS_ze,[],1);
             V(:,z_c,e_c)=Vtemp;
             Policy(:,z_c,e_c)=maxindex;
         end

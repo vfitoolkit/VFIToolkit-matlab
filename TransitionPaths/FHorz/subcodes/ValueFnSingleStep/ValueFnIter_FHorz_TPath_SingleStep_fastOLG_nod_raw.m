@@ -32,14 +32,12 @@ if vfoptions.lowmemory==0
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
     
-    discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,N_j,N_z]); % aprime-j-z
+    discountedEV=repelem(reshape(DiscountFactorParamsVec.*EV,[N_a,N_j,N_z]),1,N_a,1); % (d,aprime)-by-(a,j)-by-z
 
-    entirediscountedEV=repelem(discountedEV,1,N_a,1); % (d,aprime)-by-(a,j)-by-z
-
-    entirediscountedEV=ReturnMatrix+entirediscountedEV; %(aprime)-by-(a,j,z)
+    entireRHS=ReturnMatrix+discountedEV; %(aprime)-by-(a,j,z)
 
     %Calc the max and it's index
-    [V,Policy]=max(entirediscountedEV,[],1);
+    [V,Policy]=max(entireRHS,[],1);
     V=shiftdim(V,1);
 
 elseif vfoptions.lowmemory==1
@@ -56,14 +54,12 @@ elseif vfoptions.lowmemory==1
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
 
-        discountedEV_z=DiscountFactorParamsVec.*reshape(EV_z,[N_a,N_j]); % aprime-j
+        discountedEV_z=repelem(reshape(DiscountFactorParamsVec.*EV_z,[N_a,N_j]),1,N_a); % (d,aprime)-by-(a,j)
 
-        entirediscountedEV_z=repelem(discountedEV_z,1,N_a); % (d,aprime)-by-(a,j)
-
-        entirediscountedEV_z=ReturnMatrix_z+entirediscountedEV_z; %(aprime)-by-(a,j)
+        entireRHS_z=ReturnMatrix_z+discountedEV_z; %(aprime)-by-(a,j)
 
         %Calc the max and it's index
-        [Vtemp,maxindex]=max(entirediscountedEV_z,[],1);
+        [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;
         Policy(:,z_c)=maxindex;
     end

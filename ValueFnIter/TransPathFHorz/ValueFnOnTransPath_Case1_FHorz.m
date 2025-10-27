@@ -397,25 +397,49 @@ if N_e>0
     end
     
     if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-        e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
-        pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
-        % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
-        if transpathoptions.epathtrivial==0
-            temp=transpathoptions.e_grid_J_T;
-            transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-            transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-            for tt=1:T
-                for jj=1:N_j
-                    e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+        if N_z>0
+            e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
+            pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
+            % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
+            if transpathoptions.epathtrivial==0
+                temp=transpathoptions.e_grid_J_T;
+                transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
+                transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
+                for tt=1:T
+                    for jj=1:N_j
+                        e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                    end
+                end
+                transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
+                transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
+                transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
+                for tt=1:T
+                    temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
+                    transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
                 end
             end
-            transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
-            transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
-            transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
-            for tt=1:T
-                temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:))); 
+        else
+            e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG: (j,N_e,l_e)
+            pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,N_e]); % Give it the size required for fastOLG value function
+            % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
+            if transpathoptions.epathtrivial==0
+                temp=transpathoptions.e_grid_J_T;
+                transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
+                transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
+                for tt=1:T
+                    for jj=1:N_j
+                        e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
+                    end
+                end
+                transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
+                transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,e,t)
+                transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
+                for tt=1:T
+                    temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
+                    transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
+                end
             end
+
         end
     end
 
@@ -463,12 +487,17 @@ if N_e==0
     end
 else
     if N_z==0
-        Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
+        Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_e,N_j, vfoptions);
         if N_d>0
             Policy_final2=Policy_final;
             Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
         end
-        V_final=reshape(V_final,[N_a,N_e,N_j]);
+        if transpathoptions.fastOLG==0
+            V_final=reshape(V_final,[N_a,N_e,N_j]);
+        else % vfoptions.fastOLG==1
+            V_final=reshape(permute(reshape(V_final,[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j,N_e]);
+            Policy_final=reshape(permute(Policy_final,[1,3,2]),[N_a,N_j,N_e]);
+        end
     else
         Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
         if N_d>0
@@ -633,7 +662,7 @@ else % N_e
                     e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_z,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -668,7 +697,7 @@ else % N_e
                     e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_z,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 

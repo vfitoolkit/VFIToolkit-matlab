@@ -21,7 +21,6 @@ z_gridvals_J=reshape(z_gridvals_J,[1,1,1,N_j,N_z,length(n_z)]); % needed shape f
 
 % e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]); % needed shape for ReturnFnMatrix with fastOLG and DC1
-% pi_e_J=repelem(permute(pi_e_J,[2,1]),N_a,1) % Give it the size best for expectations with fastOLG (already taken above)
 
 %%
 d_grid=gpuArray(d_grid);
@@ -38,7 +37,7 @@ level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=repelem(DiscountFactorParamsVec,N_a,1);
+DiscountFactorParamsVec=reshape(DiscountFactorParamsVec,[1,1,1,N_j]);
 
 % Create a matrix containing all the return function parameters (in order).
 % Each column will be a specific parameter with the values at every age.
@@ -50,12 +49,12 @@ if vfoptions.lowmemory==0
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
 
-    discountedentireEV=reshape(DiscountFactorParamsVec,[1,N_a,1,N_j,1]).*repmat(reshape(EV,[1,N_a,1,N_j,N_z]),N_d,1); % [d,aprime]
+    discountedEV=repelem(DiscountFactorParamsVec.*reshape(EV,[1,N_a,1,N_j,N_z]),N_d,1); % [aprime]
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, n_z, n_e, N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,1);
 
-    entireRHS_ii=ReturnMatrix_ii+discountedentireEV; % (d,aprime,a and j,z,e), autofills a and e for expectation term
+    entireRHS_ii=ReturnMatrix_ii+discountedEV; % (d,aprime,a and j,z,e), autofills a and e for expectation term
      
     % First, we want aprime conditional on (d,1,a,j,z,e)
     [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
@@ -105,7 +104,7 @@ elseif vfoptions.lowmemory==1
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
 
-    discountedentireEV=reshape(DiscountFactorParamsVec,[1,N_a,1,N_j,1]).*repmat(reshape(EV,[1,N_a,1,N_j,N_z]),N_d,1); % [d,aprime]
+    discountedEV=repelem(DiscountFactorParamsVec.*reshape(EV,[1,N_a,1,N_j,N_z]),N_d,1); % [aprime]
 
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,j,1,prod(n_e),l_e)
@@ -113,7 +112,7 @@ elseif vfoptions.lowmemory==1
         % n-Monotonicity
         ReturnMatrix_ii_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, n_z, special_n_e, N_j, d_gridvals, a_grid, a_grid(level1ii), z_gridvals_J, e_vals, ReturnFnParamsAgeMatrix,1);
 
-        entireRHS_ii=ReturnMatrix_ii_e+discountedentireEV; % (d,aprime,a and j,z), autofills a for expectation term
+        entireRHS_ii=ReturnMatrix_ii_e+discountedEV; % (d,aprime,a and j,z), autofills a for expectation term
 
         % First, we want aprime conditional on (d,1,a,j)
         [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
@@ -159,22 +158,23 @@ elseif vfoptions.lowmemory==2
     special_n_e=ones(1,length(n_e));
     special_n_z=ones(1,length(n_z));
 
-    for e_c=1:N_e
-        e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,j,1,prod(n_e),l_e)
-        for z_c=1:N_z
-            z_vals=z_gridvals_J(1,1,1,:,z_c,:); % z_gridvals_J has shape (1,1,1,j,prod(n_z),l_z) for fastOLG
+    %Calc the condl expectation term (except beta), which depends on z but not on control variables
+    EV=VKronNext.*repelem(pi_z_J,N_a,1,1);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=sum(EV,2);
 
-            %Calc the condl expectation term (except beta), which depends on z but not on control variables
-            EV_z=VKronNext.*repelem(pi_z_J(:,:,z_c),N_a,1,1);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+    discountedEV=repelem(DiscountFactorParamsVec.*reshape(EV,[1,N_a,1,N_j,N_z]),N_d,1); % [aprime]
 
-            discountedentireEV_z=reshape(DiscountFactorParamsVec,[1,N_a,1,N_j,1]).*repmat(reshape(EV_z,[1,N_a,1,N_j]),N_d,1); % [d,aprime]
+    for z_c=1:N_z
+        z_vals=z_gridvals_J(1,1,1,:,z_c,:); % z_gridvals_J has shape (1,1,1,j,prod(n_z),l_z) for fastOLG
+        discountedEV_z=discountedEV(:,:,:,:,z_c);
+        for e_c=1:N_e
+            e_vals=e_gridvals_J(1,1,1,:,1,e_c,:); % e_gridvals_J has shape (1,1,1,j,1,prod(n_e),l_e)
 
             % n-Monotonicity
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid, a_grid(level1ii), z_vals, e_vals, ReturnFnParamsAgeMatrix,1);
 
-            entireRHS_ii=ReturnMatrix_ii+discountedentireEV_z; % (d,aprime,a and j,z), autofills j for expectation term
+            entireRHS_ii=ReturnMatrix_ii+discountedEV_z; % (d,aprime,a and j,z), autofills j for expectation term
 
             % First, we want aprime conditional on (d,1,a,j)
             [RMtemp_ii,maxindex1]=max(entireRHS_ii,[],2);
@@ -199,7 +199,7 @@ elseif vfoptions.lowmemory==2
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-N_j
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     daprime=(repmat(1:1:N_d,1,maxgap(ii)+1))'+N_d*repelem(reshape(aprimeindexes-1,[N_d*(maxgap(ii)+1),1,N_j]),1,level1iidiff(ii))+N_d*N_a*shiftdim((0:1:N_j-1),-1); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii=ReturnMatrix_ii+discountedentireEV_z(daprime);
+                    entireRHS_ii=ReturnMatrix_ii+discountedEV_z(daprime);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(Vtempii,1);
                     Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_j-1),-1))-1),1); % loweredge(given the d)
@@ -208,7 +208,7 @@ elseif vfoptions.lowmemory==2
                     % Just use aprime(ii) for everything
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, N_j, d_gridvals, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_vals, e_vals, ReturnFnParamsAgeMatrix,2);
                     daprime=(1:1:N_d)'+N_d*repelem(reshape(loweredge-1,[N_d,1,N_j]),1,level1iidiff(ii))+N_d*N_a*shiftdim((0:1:N_j-1),-1); % all the d, with the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii=ReturnMatrix_ii+discountedentireEV_z(daprime);
+                    entireRHS_ii=ReturnMatrix_ii+discountedEV_z(daprime);
                     [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                     V(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(Vtempii,1);
                     Policy(level1ii(ii)+1:level1ii(ii+1)-1,:,z_c,e_c)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*shiftdim((0:1:N_j-1),-1))-1),1); % loweredge(given the d)
