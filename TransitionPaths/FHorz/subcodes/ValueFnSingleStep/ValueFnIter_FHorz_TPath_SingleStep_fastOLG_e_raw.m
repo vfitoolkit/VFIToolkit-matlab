@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z-by-e

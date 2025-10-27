@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_nod_noz_raw(V,n_a,N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_a=prod(n_a);
 

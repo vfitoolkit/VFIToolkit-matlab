@@ -51,7 +51,7 @@ for i=1:T-1 %so t=T-i
     % transpathoptions.zpathprecomputed==0 % Depends on the price path  parameters, so just have to use vfoptions.ExogShockFn within  ValueFnIter command
     
     
-    [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     % The VKron input is next period value fn, the VKron output is this period.
     % Policy is kept in the form where it is just a single-value in (d,a')
     

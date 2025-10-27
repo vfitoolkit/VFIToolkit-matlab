@@ -149,7 +149,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
         end
         
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy in fastOLG is [N_a,N_j,N_z] and contains the joint-index for (d,aprime)
         

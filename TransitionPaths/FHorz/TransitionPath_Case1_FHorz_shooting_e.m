@@ -163,7 +163,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
         end
 
-        [V, Policy]=ValueFnIter_Case1_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d,n_a,n_z,n_e,N_j,d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
         
