@@ -12,21 +12,20 @@ N_a=prod(n_a);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG_noz(ReturnFn, 0, n_a, N_j, [], a_grid, ReturnFnParamsAgeMatrix);
-
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=DiscountFactorParamsVec';
+DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 
-VKronNext=zeros(N_a,N_j,'gpuArray');
-VKronNext(:,1:N_j-1)=V(:,2:end); % Swap j and z
+EV=zeros(N_a,1,N_j,'gpuArray');
+EV(:,1,1:N_j-1)=V(:,2:end); % Leave N_j as zeros
 
-entirediscountedEV=ReturnMatrix+kron(DiscountFactorParamsVec.*VKronNext,ones(1,N_a)); %(aprime)-by-(a,j)
+ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
 
-%Calc the max and it's index
-[Vtemp,maxindex]=max(entirediscountedEV,[],1);
-V=reshape(Vtemp,[N_a,N_j]); % V is over (a,j)
-Policy=reshape(maxindex,[N_a,N_j]); % Policy is over (a,j)
+entireRHS=ReturnMatrix+DiscountFactorParamsVec.*EV; %(aprime)-by-(a,j)
 
+% Calc the max and it's index
+[V,Policy]=max(entireRHS,[],1);
+V=squeeze(V);
+Policy=squeeze(Policy);
 
 end

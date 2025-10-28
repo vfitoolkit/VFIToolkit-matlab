@@ -14,25 +14,22 @@ N_a=prod(n_a);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG_noz(ReturnFn, n_d, n_a, N_j, d_grid, a_grid, ReturnFnParamsAgeMatrix);
-
 DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorParamNames,N_j);
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
-DiscountFactorParamsVec=DiscountFactorParamsVec';
+DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 
-VKronNext=zeros(N_a,N_j,'gpuArray');
-VKronNext(:,1:N_j-1)=V(:,2:end);
+EV=zeros(N_a,1,N_j,'gpuArray');
+EV(:,1,1:N_j-1)=V(:,2:end);
 
-RHS=ReturnMatrix+kron(DiscountFactorParamsVec.*VKronNext,ones(N_d,N_a)); %(d,aprime)-by-(a,j)
+DiscountedEV=repelem(DiscountFactorParamsVec.*EV,N_d,1,1); % [N_d*N_aprime,1,N_j]
 
-%Calc the max and it's index
-[Vtemp,maxindex]=max(RHS,[],1);
-V=reshape(Vtemp,[N_a,N_j]); % V is over (a,j)
-Policy=reshape(maxindex,[N_a,N_j]); % Policy is over (a,j)
+ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_grid, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
 
-% %%
-% Policy2=zeros(2,N_a,N_j,'gpuArray'); %NOTE: this is not actually in Kron form
-% Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
-% Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
+entireRHS=ReturnMatrix+DiscountedEV; %(d,aprime)-by-(a,j)
+
+% Calc the max and it's index
+[V,Policy]=max(entireRHS,[],1);
+V=squeeze(V); % V is over (a,j)
+Policy=squeeze(Policy); % Policy is over (a,j)
 
 end

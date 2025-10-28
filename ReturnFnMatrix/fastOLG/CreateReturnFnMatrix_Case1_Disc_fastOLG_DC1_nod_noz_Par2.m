@@ -13,6 +13,8 @@ if Level==1
     N_aprime=length(aprime_grid); % Because l_a=1
 elseif Level==2
     N_aprime=size(aprime_grid,1); % Because l_a=1
+elseif Level==3
+    N_aprime=size(aprime_grid,2); % Because l_a=1
 end
 
 Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), ParamCell{:});
