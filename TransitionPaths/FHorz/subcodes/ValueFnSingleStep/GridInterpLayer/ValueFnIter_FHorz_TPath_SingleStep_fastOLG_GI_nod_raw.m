@@ -8,6 +8,8 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_nod_raw(V,n_a,n_
 N_a=prod(n_a);
 N_z=prod(n_z);
 
+% Policy=zeros(N_a*N_j,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+
 z_gridvals_J=shiftdim(z_gridvals_J,-2); % [1,1,N_j,N_z,l_z]
 
 %% First, create the big 'next period (of transition path) expected value fn.
@@ -39,7 +41,6 @@ if vfoptions.lowmemory==0
     % Calc the max and it's index
     [V,Policy]=max(entireRHS,[],1);
     V=reshape(V,[N_a*N_j,N_z]);
-    Policy=squeeze(Policy);
 
 elseif vfoptions.lowmemory==1
 
@@ -67,7 +68,7 @@ end
 
 %% fastOLG with z, so need to output to take certain shapes
 % V=reshape(V,[N_a*N_j,N_z]);
-% Policy=reshape(Policy,[N_a,N_j,N_z]);
+Policy=reshape(Policy,[N_a,N_j,N_z]);
 % Note that in fastOLG, we do not separate d from aprime in Policy
 
 

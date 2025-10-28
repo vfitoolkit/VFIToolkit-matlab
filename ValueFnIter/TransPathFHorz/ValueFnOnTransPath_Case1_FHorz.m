@@ -289,10 +289,10 @@ if N_z>0
     z_gridvals_J=zeros(N_z,l_z,N_j,'gpuArray');
     for jj=1:N_j
         z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1);
-    end
+    end    
 
     if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-        z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z
+        z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
         pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function 
         transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
         if transpathoptions.zpathtrivial==0
@@ -467,16 +467,36 @@ end
 if N_e==0
     if N_z==0
         Policy_final=KronPolicyIndexes_FHorz_Case1_noz(Policy_final, n_d, n_a, N_j, vfoptions);
-        if N_d>0
-            Policy_final2=Policy_final;
-            Policy_final=shiftdim(Policy_final2(1,:,:)+N_d*(Policy_final2(2,:,:)-1),1);
+        if vfoptions.gridinterplayer==0
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:)+N_d*(Policy_final2(2,:,:)-1),1);
+            end
+        elseif vfoptions.gridinterplayer==1
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:)-1)+(Policy_final2(3,:,:)-1)-1),1);
+            else
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:)-1)+(Policy_final2(2,:,:)-1),1);
+            end
         end
         V_final=reshape(V_final,[N_a,N_j]);
     else
         Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_z,N_j, vfoptions);
-        if N_d>0
-            Policy_final2=Policy_final;
-            Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
+        if vfoptions.gridinterplayer==0
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
+            end
+        elseif vfoptions.gridinterplayer==1
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:,:)-1)+(Policy_final2(3,:,:,:)-1)-1),1);
+            else
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:,:)-1)+(Policy_final2(2,:,:,:)-1),1);
+            end
         end
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_z,N_j]);
@@ -626,7 +646,7 @@ if N_e==0
                     pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr); % fastOLG value function uses (j,z',z)
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
-
+                
                 [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG(V,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)

@@ -14,6 +14,8 @@ Policy=zeros(N_a,N_j,N_z,'gpuArray'); % first dim indexes the optimal choice for
 z_gridvals_J=shiftdim(z_gridvals_J,-2); % [1,1,N_j,N_z,l_z]
 
 %%
+a_grid=gpuArray(a_grid);
+
 % n-Monotonicity
 % vfoptions.level1n=11;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));

@@ -15,36 +15,23 @@ end
 N_d=prod(n_d);
 N_a=length(a_grid); % Because l_a=1
 if Level==1
-    N_aprime=length(aprime_grid);
-elseif Level==2
-    N_aprime=size(aprime_grid,2); % Because l_a=1
+    % aprime is currently in the first dim, so shift it
+    aprime_grid=shiftdim(aprime_grid,-1);
+end
+N_aprime=size(aprime_grid,2); % Because l_a=1
+
+
+if l_d==1
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), ParamCell{:});
+elseif l_d==2
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), ParamCell{:});
+elseif l_d==3
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), ParamCell{:});
+elseif l_d==4
+    Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), ParamCell{:});
 end
 
-
-if Level==1
-    if l_d==1
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    elseif l_d==2
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    elseif l_d==3
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    elseif l_d==4
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    end
-elseif Level==2
-    if l_d==1
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), ParamCell{:});
-    elseif l_d==2
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    elseif l_d==3
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    elseif l_d==4
-        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), shiftdim(aprime_grid,-1), shiftdim(a_grid,-2), ParamCell{:});
-    end
-
-end
-
-if Level==1 % For level 1
+if Level==1 || Level==3 % For level 1
     Fmatrix=reshape(Fmatrix,[N_d,N_aprime,N_a,N_j]);
 elseif Level==2 % For level 2
     Fmatrix=reshape(Fmatrix,[N_d*N_aprime,N_a,N_j]);

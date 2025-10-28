@@ -14,14 +14,17 @@ midpoints_jj=zeros(1,N_a,N_j,'gpuArray');
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
-% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
 n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
-% n2aprime=length(aprime_grid);
+n2aprime=length(aprime_grid);
+
+jind=shiftdim(gpuArray(0:1:N_j-1),-1);
+
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j (note: N_aprime is just equal to N_a)
@@ -39,11 +42,14 @@ EV(:,1,1:N_j-1)=V(:,2:end);
 % Interpolate EV over aprime_grid
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
+DiscountedEV=DiscountFactorParamsVec.*EV;
+DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp;
+
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);
 % [N_aprime,level1n,N_j]
 
-entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*EV; % (aprime,a and j), autofills a dimension for expectation term
+entireRHS_ii=ReturnMatrix_ii+DiscountedEV; % (aprime,a and j), autofills a dimension for expectation term
 
 % Calc the max and it's index
 [~,maxindex1]=max(entireRHS_ii,[],1);
@@ -61,7 +67,8 @@ for ii=1:(vfoptions.level1n-1)
         aprimeindexes=loweredge+(0:1:maxgap(ii))'; % ' due to no d
         % aprimeindexes is 1-by-maxgap(ii)+1-by-N_j
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn,N_j,a_grid(aprimeindexes),a_grid(level1ii(ii)+1:level1ii(ii+1)-1),ReturnFnParamsAgeMatrix,2);
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(EVinterp(aprimeindexes(:)),[maxgap(ii)+1,level1iidiff(ii),N_j]);
+        aprimej=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*jind; % the current aprimeii(ii):aprimeii(ii+1)
+        entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEV(aprimej(:)),[maxgap(ii)+1,level1iidiff(ii),N_j]);
        [~,maxindex]=max(entireRHS_ii,[],1);
         midpoints_jj(1,curraindex,:)=maxindex+(loweredge-1);
     else
@@ -76,7 +83,8 @@ midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and av
 aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
 % aprime possibilities are n2long-by-n_a-by-N_j
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn,N_j,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
-entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a,N_j]);
+aprimej=aprimeindexes+n2aprime*jind;
+entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[n2long,N_a,N_j]);
 [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
 V=shiftdim(Vtempii,1);
 Policy(1,:,:)=shiftdim(squeeze(midpoints_jj),-1); % midpoint

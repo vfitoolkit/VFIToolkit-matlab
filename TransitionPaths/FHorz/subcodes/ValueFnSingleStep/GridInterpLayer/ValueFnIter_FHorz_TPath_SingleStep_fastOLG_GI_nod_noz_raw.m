@@ -11,7 +11,9 @@ Policy=zeros(2,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for a
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
 n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
-% n2aprime=length(aprime_grid);
+n2aprime=length(aprime_grid);
+
+jind=shiftdim(gpuArray(0:1:N_j-1),-1);
 
 %% First, create the big 'next period (of transition path) expected value fn.
 
@@ -43,8 +45,8 @@ midpoint=max(min(maxindex,n_a-1),2); % avoid the top end (inner), and avoid the 
 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
 % aprime possibilities are n2long-by-n_a-by-N_j
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn,N_j,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
-% aprime=aprimeindexes;
-entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(EVinterp(aprimeindexes(:)),[n2long,N_a,N_j]);
+aprimej=aprimeindexes+n2aprime*jind;
+entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*reshape(EVinterp(aprimej(:)),[n2long,N_a,N_j]);
 [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
 V=shiftdim(Vtempii,1);
 Policy(1,:,:)=shiftdim(squeeze(midpoint),-1); % midpoint

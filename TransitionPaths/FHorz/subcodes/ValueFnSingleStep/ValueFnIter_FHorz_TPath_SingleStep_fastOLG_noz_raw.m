@@ -23,7 +23,7 @@ EV(:,1,1:N_j-1)=V(:,2:end);
 
 DiscountedEV=repelem(DiscountFactorParamsVec.*EV,N_d,1,1); % [N_d*N_aprime,1,N_j]
 
-ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_grid, a_grid, a_grid, ReturnFnParamsAgeMatrix,2);
+ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_grid, a_grid', a_grid, ReturnFnParamsAgeMatrix,2);
 
 entireRHS=ReturnMatrix+DiscountedEV; %(d,aprime)-by-(a,j)
 
