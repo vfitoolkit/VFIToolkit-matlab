@@ -25,91 +25,49 @@ N_aprime=size(aprime_grid,2); % Because l_a=1
 N_a=length(a_grid); % Because l_a=1
 N_z=prod(n_z);
 
-if Level==1
-    if l_z==1
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        end
-    elseif l_z==2
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        end
-    elseif l_z==3
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        end
-    elseif l_z==4
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        end
+if l_z==1
+    if l_d==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
+    elseif l_d==2
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
+    elseif l_d==3
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
+    elseif l_d==4
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
     end
-elseif Level==2
-    if l_z==1
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), ParamCell{:});
-        end
-    elseif l_z==2
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
-        end
-    elseif l_z==3
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
-        end
-    elseif l_z==4
-        if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
-        end
+elseif l_z==2
+    if l_d==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
+    elseif l_d==2
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
+    elseif l_d==3
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
+    elseif l_d==4
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), ParamCell{:});
+    end
+elseif l_z==3
+    if l_d==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
+    elseif l_d==2
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
+    elseif l_d==3
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
+    elseif l_d==4
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), ParamCell{:});
+    end
+elseif l_z==4
+    if l_d==1
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
+    elseif l_d==2
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
+    elseif l_d==3
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
+    elseif l_d==4
+        Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), z_gridvals_J(1,1,1,:,:,1), z_gridvals_J(1,1,1,:,:,2), z_gridvals_J(1,1,1,:,:,3), z_gridvals_J(1,1,1,:,:,4), ParamCell{:});
     end
 end
+
+
 
 if Level==1 || Level==3 % For level 1
     Fmatrix=reshape(Fmatrix,[N_d,N_aprime,N_a,N_j,N_z]);
