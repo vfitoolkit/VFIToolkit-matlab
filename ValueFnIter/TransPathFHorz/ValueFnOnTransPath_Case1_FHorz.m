@@ -508,9 +508,19 @@ if N_e==0
 else
     if N_z==0
         Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_e,N_j, vfoptions);
-        if N_d>0
-            Policy_final2=Policy_final;
-            Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
+        if vfoptions.gridinterplayer==0
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
+            end
+        elseif vfoptions.gridinterplayer==1
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:,:)-1)+(Policy_final2(3,:,:,:)-1)-1),1);
+            else
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:,:)-1)+(Policy_final2(2,:,:,:)-1),1);
+            end
         end
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_e,N_j]);
@@ -520,9 +530,19 @@ else
         end
     else
         Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
-        if N_d>0
-            Policy_final2=Policy_final;
-            Policy_final=shiftdim(Policy_final2(1,:,:,:,:)+N_d*(Policy_final2(2,:,:,:,:)-1),1);
+        if vfoptions.gridinterplayer==0
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:,:,:)+N_d*(Policy_final2(2,:,:,:,:)-1),1);
+            end
+        elseif vfoptions.gridinterplayer==1
+            if N_d>0
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(Policy_final2(1,:,:,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:,:,:)-1)+(Policy_final2(3,:,:,:,:)-1)-1),1);
+            else
+                Policy_final2=Policy_final;
+                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:,:,:)-1)+(Policy_final2(2,:,:,:,:)-1),1);
+            end
         end
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_z,N_e,N_j]);

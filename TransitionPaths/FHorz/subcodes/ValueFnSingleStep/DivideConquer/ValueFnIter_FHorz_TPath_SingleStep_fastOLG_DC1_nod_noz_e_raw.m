@@ -2,19 +2,16 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_nod_noz_e_ra
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,e,j)
 % V is (a,j)-by-e
+% e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG
 
 N_a=prod(n_a);
 N_e=prod(n_e);
 
-% pi_e_J is (a,j)-by-e
-EV=[sum(V(N_a+1:end,:).*pi_e_J(N_a+1:end,:),3); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 
 % fastOLG, so a-j-e
-V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
 Policy=zeros(N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
-% e_gridvals_J has shape (j,prod(n_e),l_e) for fastOLG
-e_gridvals_J=reshape(e_gridvals_J,[1,1,N_j,N_e,length(n_e)]); % needed shape for ReturnFnMatrix with fastOLG and DC1
+e_gridvals_J=shiftdim(e_gridvals_J,-2); % needed shape for ReturnFnMatrix with fastOLG and DC1
 
 %%
 a_grid=gpuArray(a_grid);
@@ -35,9 +32,16 @@ DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
+% pi_e_J is (a,j)-by-e
+EV=[sum(V(N_a+1:end,:).*pi_e_J(N_a+1:end,:),2); zeros(N_a,1,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+
+discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,1,N_j]); % [aprime]
+
+V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
+
+
 if vfoptions.lowmemory==0
 
-    discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,1,N_j]); % [aprime]
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, n_e, N_j, a_grid, a_grid(level1ii), e_gridvals_J, ReturnFnParamsAgeMatrix,1);
@@ -78,8 +82,6 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
 
     special_n_e=ones(1,length(n_e));
-
-    discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,1,N_j]); % [aprime]
 
     for e_c=1:N_e
         e_vals=e_gridvals_J(1,1,:,e_c,:); % e_gridvals_J has shape (1,1,j,prod(n_e),l_e)

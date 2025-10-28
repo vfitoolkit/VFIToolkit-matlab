@@ -22,9 +22,18 @@ ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames
 
 VKronNext=[sum(V(N_a+1:end,:,:).*pi_e_J(N_a+1:end,1,:),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 
+EVpre=zeros(N_a,1,N_j,N_z);
+EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_z]); % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+EV=EVpre.*shiftdim(pi_z_J,-2);
+EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
+
+DiscountedEV=DiscountFactorParamsVec.*EV;
+
+
 if vfoptions.lowmemory==0
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe(ReturnFn, 0, n_a, n_z, n_e, N_j, [], a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, 0, n_a, n_z, n_e, N_j, [], a_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix);
     % fastOLG: ReturnMatrix is [aprime,a,j,z]
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
