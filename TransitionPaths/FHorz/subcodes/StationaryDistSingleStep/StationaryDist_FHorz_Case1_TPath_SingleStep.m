@@ -14,17 +14,9 @@ end
 
 if simoptions.fastOLG==0
     if N_e==0
-        if simoptions.iterate==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Simulation_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_j,pi_z_J,simoptions);
-        elseif simoptions.iterate==1
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_j,pi_z_J);
-        end
+        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_j,pi_z_J);
     else
-        if simoptions.iterate==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Simulation_e_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,simoptions);
-        elseif simoptions.iterate==1
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J);
-        end
+        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,AgeWeights,AgeWeightsOld,Policy,N_d,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J);
     end
 elseif simoptions.fastOLG==1
     if N_e==1
