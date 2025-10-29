@@ -53,7 +53,7 @@ elseif vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 
     for z_c=1:N_z
-        z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
+        z_vals=z_gridvals_J(1,1,1,:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn, n_d, special_n_z, N_j, d_gridvals, a_grid', a_grid, z_vals, ReturnFnParamsAgeMatrix,2);

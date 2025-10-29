@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_grid, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_e_raw(V,n_d,n_a,n_z,n_e,N_j, d_gridvals, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z,e), rather than standard (a,z,e,j)
 % V is (a,j)-by-z-by-e
@@ -13,9 +13,6 @@ z_gridvals_J=shiftdim(z_gridvals_J,-3);
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]);
 
 %%
-d_grid=gpuArray(d_grid);
-d_gridvals=CreateGridvals(n_d,d_grid,1);
-a_grid=gpuArray(a_grid);
 
 % n-Monotonicity
 % vfoptions.level1n=5;

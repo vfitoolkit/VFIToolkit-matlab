@@ -11,8 +11,9 @@ N_e=prod(n_e);
 %                       (N_a,N_z,N_e,N_j,T) if there is no d
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,N_e,N_j,T]);
-if n_d(1)==0
-    if isa(PolicyPath,'gpuArray')
+
+if simoptions.gridinterplayer==0
+    if n_d(1)==0
         PolicyPathKron=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
         for tt=1:T
             for jj=1:N_j
@@ -20,15 +21,15 @@ if n_d(1)==0
             end
         end
     else
-        PolicyPathKron=zeros(N_a,N_z,N_e,N_j,T);
+        PolicyPathKron=zeros(2,N_a,N_z,N_e,N_j,T,'gpuArray');
         for tt=1:T
             for jj=1:N_j
-                PolicyPathKron(:,:,:,jj,tt)=KronPolicyIndexes_Case1_e(PolicyPath(:,:,:,:,jj,tt), n_d, n_a, n_z, n_e, simoptions);
+                PolicyPathKron(:,:,:,:,jj,tt)=KronPolicyIndexes_Case1_e(PolicyPath(:,:,:,:,jj,tt), n_d, n_a, n_z, n_e, simoptions);
             end
         end
     end
-else
-    if isa(PolicyPath,'gpuArray')
+elseif simoptions.gridinterplayer==1
+    if n_d(1)==0
         PolicyPathKron=zeros(2,N_a,N_z,N_e,N_j,T,'gpuArray');
         for tt=1:T
             for jj=1:N_j
@@ -36,7 +37,7 @@ else
             end
         end
     else
-        PolicyPathKron=zeros(2,N_a,N_z,N_e,N_j,T);
+        PolicyPathKron=zeros(3,N_a,N_z,N_e,N_j,T,'gpuArray');
         for tt=1:T
             for jj=1:N_j
                 PolicyPathKron(:,:,:,:,jj,tt)=KronPolicyIndexes_Case1_e(PolicyPath(:,:,:,:,jj,tt), n_d, n_a, n_z, n_e, simoptions);
@@ -44,6 +45,5 @@ else
         end
     end
 end
-
 
 end

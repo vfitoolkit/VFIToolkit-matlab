@@ -53,8 +53,8 @@ elseif vfoptions.lowmemory==1
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entirediscountedEV_e,[],1);
-        V(:,e_c)=Vtemp;
-        Policy(:,e_c)=maxindex;
+        V(:,e_c)=reshape(Vtemp,[N_a*N_j,1]);
+        Policy(:,e_c)=reshape(maxindex,[N_a*N_j,1]);
     end
 end
 

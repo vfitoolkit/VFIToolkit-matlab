@@ -81,9 +81,9 @@ else
 end
 
 
-%% Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-% Actually, some of those prices are 1-by-N_j, so is more subtle than this.
+%% Note: Internally PricePath is matrix of size T-by-'number of prices', similarly for ParamPath
+% PricePath is matrix of size T-by-'number of prices'.
+% Actually, some of those prices may be 1-by-N_j, so is more subtle than this.
 PricePathNames=fieldnames(PricePath);
 PricePathStruct=PricePath; 
 PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
@@ -106,7 +106,8 @@ for ii=1:length(PricePathNames)
         PricePath(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii})';
     end
 end
-
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% Actually, some of those prices may be 1-by-N_j, so is more subtle than this.
 ParamPathNames=fieldnames(ParamPath);
 ParamPathStruct=ParamPath;
 ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
@@ -185,270 +186,19 @@ else
     ReturnFnParamNames={};
 end
 
+%% Set up exogenous shock processes
+[z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions, vfoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions,3);
+% Convert z and e to age-dependent joint-grids and transtion matrix
+% output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
-%% Check if z_grid and/or pi_z depend on prices. If not then create pi_z_J and z_grid_J for the entire transition before we start
-% If 'exogenous shock fn' is used, then precompute it to save evaluating it numerous times
-% Check if using 'exogenous shock fn' (exogenous state has a grid and transition matrix that depends on age)
-
-if N_z>0
-
-    % transpathoptions.zpathprecomputed=1; % Hardcoded: I do not presently allow for z to be determined by an ExogShockFn which includes parameters from PricePath
-
-    if ismatrix(pi_z) % (z,zprime)
-        % Just a basic pi_z, but convert to pi_z_J for codes
-        z_grid_J=z_grid.*ones(1,N_j);
-        pi_z_J=pi_z.*ones(1,1,N_j);
-        transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
-        if isfield(vfoptions,'pi_z_J') % This is just legacy, intend to depreciate it
-            z_grid_J=vfoptions.z_grid_J;
-            pi_z_J=vfoptions.pi_z_J;
-        end
-    elseif ndims(pi_z)==3 % (z,zprime,j)
-        % Inputs are already z_grid_J and pi_z_J
-        z_grid_J=z_grid;
-        pi_z_J=pi_z;
-        transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
-    elseif ndims(pi_z)==4 % (z,zprime,j,t)
-        transpathoptions.zpathtrivial=0; % z_grid_J and pi_z_J var over the path
-        transpathoptions.pi_z_J_T=pi_z;
-        transpathoptions.z_grid_J_T=z_grid;
-        z_grid_J=z_grid(:,:,1); % placeholder
-        pi_z_J=pi_z(:,:,:,1); % placeholder
-    end
-    % These inputs get overwritten if using vfoptions.ExogShockFn
-    if isfield(vfoptions,'ExogShockFn')
-        % Note: If ExogShockFn depends on the path, it must be done via a parameter
-        % that depends on the path (i.e., via ParamPath or PricePath)
-        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-        overlap=0;
-        for ii=1:length(vfoptions.ExogShockFnParamNames)
-            if strcmp(vfoptions.ExogShockFnParamNames{ii},PricePathNames)
-                overlap=1;
-            end
-        end
-        if overlap==1
-            error('It is not allowed for z to be determined by an ExogShockFn which includes parameters from PricePath')
-        else % overlap==0
-            % If ExogShockFn does not depend on any of the prices (in PricePath), then
-            % we can simply create it now rather than within each 'subfn' or 'p_grid'
-
-            % Check if it depends on the ParamPath
-            transpathoptions.zpathtrivial=1;
-            for ii=1:length(vfoptions.ExogShockFnParamNames)
-                if strcmp(vfoptions.ExogShockFnParamNames{ii},ParamPathNames)
-                    transpathoptions.zpathtrivial=0;
-                end
-            end
-            if transpathoptions.zpathtrivial==1
-                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
-                z_grid_J=zeros(N_z,N_j,'gpuArray');
-                for jj=1:N_j
-                    ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                    ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                    for ii=1:length(ExogShockFnParamsVec)
-                        ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                    end
-                    [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                    pi_z_J(:,:,jj)=gpuArray(pi_z);
-                    z_grid_J(:,jj)=gpuArray(z_grid);
-                end
-                % Now store them in vfoptions and simoptions
-                vfoptions.pi_z_J=pi_z_J;
-                vfoptions.z_grid_J=z_grid_J;
-                % simoptions.pi_z_J=pi_z_J;
-                % simoptions.z_grid_J=z_grid_J;
-            elseif transpathoptions.zpathtrivial==0
-                % z_grid_J and/or pi_z_J varies along the transition path (but only depending on ParamPath, not PricePath
-                transpathoptions.pi_z_J_T=zeros(N_z,N_z,N_j,T,'gpuArray');
-                transpathoptions.z_grid_J_T=zeros(sum(n_z),N_j,T,'gpuArray');
-                pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
-                z_grid_J=zeros(sum(n_z),N_j,'gpuArray');
-                for tt=1:T
-                    for ii=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
-                    end
-                    % Note, we know the PricePath is irrelevant for the current purpose
-                    for jj=1:N_j
-                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for ii=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
-                        end
-                        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                        pi_z_J(:,:,jj)=gpuArray(pi_z);
-                        z_grid_J(:,jj)=gpuArray(z_grid);
-                    end
-                    transpathoptions.pi_z_J_T(:,:,:,tt)=pi_z_J;
-                    transpathoptions.z_grid_J_T(:,:,tt)=z_grid_J;
-                end
-            end
-        end
-    end
-
-    % Transition path only ever uses z_gridvals_J, not z_grid_J
-    z_gridvals_J=zeros(N_z,l_z,N_j,'gpuArray');
-    for jj=1:N_j
-        z_gridvals_J(:,:,jj)=CreateGridvals(n_z,z_grid_J(:,jj),1);
-    end    
-
-    if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-        z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
-        pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function 
-        transpathoptions.pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
-        if transpathoptions.zpathtrivial==0
-            temp=transpathoptions.z_grid_J_T;
-            transpathoptions=rmfield(transpathoptions,'z_grid_J_T');
-            transpathoptions.z_gridvals_J_T=zeros(N_z,l_z,N_j,T,'gpuArray');
-            for tt=1:T
-                for jj=1:N_j
-                    z_gridvals_J(:,:,jj,tt)=CreateGridvals(n_z,temp(:,jj,tt),1);
-                end
-            end
-            transpathoptions.z_gridvals_J_T=permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]); % from (j,z,t) to (z,j,t)
-            transpathoptions.pi_z_J_T=permute(transpathoptions.pi_z_J_T,[3,1,2,4]);  % We want it to be (j,z,z',t)
-            transpathoptions.pi_z_J_T_alt=permute(transpathoptions.pi_z_J_T,[1,3,2,4]);  % We want it to be (j,z',z,t) [note, this permute is off the previous one]
-        end
-    end
-end
-
-%% If using e variables do the same for e as we just did for z
-if N_e>0
-    n_e=vfoptions.n_e;
-    % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
-
-    transpathoptions.epathprecomputed=0;
-    if isfield(vfoptions,'pi_e')
-        e_grid_J=vfoptions.e_grid.*ones(1,N_j);
-        pi_e_J=vfoptions.pi_e.*ones(1,N_j);
-        transpathoptions.epathprecomputed=1;
-        transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
-    elseif isfield(vfoptions,'pi_e_J')
-        e_grid_J=vfoptions.e_grid_J;
-        pi_e_J=vfoptions.pi_e_J;
-        transpathoptions.epathprecomputed=1;
-        transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
-    elseif isfield(vfoptions,'EiidShockFn')
-        % Note: If EiidShockFn depends on the path, it must be done via a parameter
-        % that depends on the path (i.e., via ParamPath or PricePath)
-        vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-        overlap=0;
-        for ii=1:length(vfoptions.EiidShockFnParamNames)
-            if strcmp(vfoptions.EiidShockFnParamNames{ii},PricePathNames)
-                overlap=1;
-            end
-        end
-        if overlap==0
-            transpathoptions.epathprecomputed=1;
-            % If ExogShockFn does not depend on any of the prices (in PricePath), then
-            % we can simply create it now rather than within each 'subfn' or 'p_grid'
-
-            % Check if it depends on the ParamPath
-            transpathoptions.epathtrivial=1;
-            for ii=1:length(vfoptions.EiidShockFnParamNames)
-                if strcmp(vfoptions.EiidShockFnParamNames{ii},ParamPathNames)
-                    transpathoptions.epathtrivial=0;
-                end
-            end
-            if transpathoptions.epathtrivial==1
-                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
-                e_grid_J=zeros(N_e,N_j,'gpuArray');
-                for jj=1:N_j
-                    EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                    EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                    for ii=1:length(EiidShockFnParamsVec)
-                        EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                    end
-                    [e_grid,pi_e]=vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                    pi_e_J(:,jj)=gpuArray(pi_e);
-                    e_grid_J(:,jj)=gpuArray(e_grid);
-                end
-            elseif transpathoptions.epathtrivial==0
-                % e_grid_J and/or pi_e_J varies along the transition path (but only depending on ParamPath, not PricePath)
-                transpathoptions.pi_e_J_T=zeros(N_e,N_e,N_j,T,'gpuArray');
-                transpathoptions.e_grid_J_T=zeros(sum(n_e),N_j,T,'gpuArray');
-                pi_e_J=zeros(N_e,N_e,N_j,'gpuArray');
-                e_grid_J=zeros(sum(n_e),N_j,'gpuArray');
-                for tt=1:T
-                    for ii=1:length(ParamPathNames)
-                        Parameters.(ParamPathNames{ii})=ParamPathStruct.(ParamPathNames{ii});
-                    end
-                    % Note, we know the PricePath is irrelevant for the current purpose
-                    for jj=1:N_j
-                        EiidShockFnParamsVec=CreateVectorFromParams(Parameters, vfoptions.EiidShockFnParamNames,jj);
-                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                        for ii=1:length(ExogShockFnParamsVec)
-                            EiidShockFnParamsCell(ii,1)={EiidShockFnParamsVec(ii)};
-                        end
-                        [e_grid,pi_e]=vfoptions.ExogShockFn(EiidShockFnParamsCell{:});
-                        pi_e_J(:,jj)=gpuArray(pi_e);
-                        e_grid_J(:,jj)=gpuArray(e_grid);
-                    end
-                    transpathoptions.pi_e_J_T(:,:,tt)=pi_e_J;
-                    transpathoptions.e_grid_J_T(:,:,tt)=e_grid_J;
-                end
-            end
-        end
-    end
-
-    % Transition path only ever uses e_gridvals_J, not e_grid_J
-    e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
-    for jj=1:N_j
-        e_gridvals_J(:,:,jj)=CreateGridvals(n_e,e_grid_J(:,jj),1);
-    end
-    
-    if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-        if N_z>0
-            e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
-            pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
-            % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
-            if transpathoptions.epathtrivial==0
-                temp=transpathoptions.e_grid_J_T;
-                transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                for tt=1:T
-                    for jj=1:N_j
-                        e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                    end
-                end
-                transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
-                transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
-                transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
-                for tt=1:T
-                    temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                    transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
-                end
-            end
-        else
-            e_gridvals_J=permute(e_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG: (j,N_e,l_e)
-            pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,N_e]); % Give it the size required for fastOLG value function
-            % transpathoptions.pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
-            if transpathoptions.epathtrivial==0
-                temp=transpathoptions.e_grid_J_T;
-                transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                for tt=1:T
-                    for jj=1:N_j
-                        e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                    end
-                end
-                transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]); % from (e,j,t) to (j,e,t)
-                transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,e,t)
-                transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
-                for tt=1:T
-                    temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,N_e]
-                    transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
-                end
-            end
-
-        end
-    end
-
-
-    vfoptions.e_grid_J=e_gridvals_J;
-    vfoptions.pi_e_J=pi_e_J;
-    % simoptions.e_grid_J=e_gridvals_J;
-    % simoptions.pi_e_J=pi_e_J;
-end
+% Sets up
+% transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
+%                              =0; % they vary over path, so z_gridvals_J_T and pi_z_J_T
+% transpathoptions.epathtrivial=1; % e_gridvals_J and pi_e_J are not varying over the path
+%                              =0; % they vary over path, so e_gridvals_J_T and pi_e_J_T
+% and
+% transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
+%                           =0; % grids are exogenous
 
 
 %%
@@ -879,14 +629,14 @@ end
 if N_e==0
     if N_z==0
         VPath=reshape(VPath,[n_a,N_j,T]);
-        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz_noz(PolicyPath, n_d, n_a,N_j,T);
+        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz_noz(PolicyPath, n_d, n_a,N_j,T,vfoptions);
     else
         if transpathoptions.fastOLG==0
             VPath=reshape(VPath,[n_a,n_z,N_j,T]);
         else
             VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_z,T]),[1,3,2,4]),[n_a,n_z,N_j,T]);
         end
-        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz(PolicyPath, n_d, n_a, n_z, N_j, T);
+        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz(PolicyPath, n_d, n_a, n_z, N_j, T,vfoptions);
     end
 else
     if N_z==0
@@ -895,14 +645,14 @@ else
         else
             VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_e,T]),[1,3,2,4]),[n_a,n_e,N_j,T]);
         end
-        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz(PolicyPath, n_d, n_a, n_e, N_j, T);
+        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz(PolicyPath, n_d, n_a, n_e, N_j, T,vfoptions);
     else
         if transpathoptions.fastOLG==0
             VPath=reshape(VPath,[n_a,n_z,n_e,N_j,T]);
         else
             VPath=reshape(permute(reshape(VPath,[N_a,N_j,N_z,N_e,T]),[1,3,4,2,5]),[n_a,n_z,n_e,N_j,T]);
         end
-        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz_e(PolicyPath, n_d, n_a, n_z, n_e, N_j,T);
+        PolicyPath=UnKronPolicyIndexes_Case1_TransPathFHorz_e(PolicyPath, n_d, n_a, n_z, n_e, N_j,T,vfoptions);
     end
 end
 

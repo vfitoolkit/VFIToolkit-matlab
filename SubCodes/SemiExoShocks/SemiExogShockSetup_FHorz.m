@@ -9,7 +9,7 @@ if ~isfield(options,'n_semiz')
     return
 end
 
-if ~isfield(options,'SemiExoStateFn')
+if ~isfield(options,'SemiExoStateFn') && ~isfield(options,'pi_semiz_J')
     error('When using options.n_semiz you must declare options.SemiExoStateFn (options refers to either options or simoptions)')
 end
 if ~isfield(options,'semiz_grid')
@@ -63,19 +63,32 @@ else
     % Create the transition matrix in terms of (semiz,semizprime,dsemiz,j) for the semi-exogenous states for each age
     N_semiz=prod(options.n_semiz);
     l_semiz=length(options.n_semiz);
-    temp=getAnonymousFnInputNames(options.SemiExoStateFn);
-    if length(temp)>(l_semiz+l_semiz+l_dsemiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-        SemiExoStateFnParamNames={temp{l_semiz+l_semiz+options.l_dsemiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
+    if isfield(options,'SemiExoStateFn')
+        temp=getAnonymousFnInputNames(options.SemiExoStateFn);
+        if length(temp)>(l_semiz+l_semiz+l_dsemiz) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
+            SemiExoStateFnParamNames={temp{l_semiz+l_semiz+options.l_dsemiz+1:end}}; % the first inputs will always be (d,semizprime,semiz)
+        else
+            SemiExoStateFnParamNames={};
+        end
+        % Create pi_semiz_J
+        pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_j,'gpuArray');
+        for jj=1:N_j
+            SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
+            pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_dsemiz,options.n_semiz,dsemiz_grid,semiz_gridvals_J,options.SemiExoStateFn,SemiExoStateFnParamValues));
+        end
     else
-        SemiExoStateFnParamNames={};
+        % User already inputted options.pi_semiz_J
+        % So just check it is the right size
+        if ~all(size(options.pi_semiz_J)==[N_semiz,N_semiz,N_dsemiz,N_j])
+            if all(size(options.pi_semiz_J)==[N_semiz,N_semiz,N_dsemiz])
+                pi_semiz_J=repelem(gpuArray(options.pi_semiz_J),1,1,1,N_j);
+            else
+                error('pi_semiz_J matrix is the wrong size')
+            end
+        else
+            pi_semiz_J=gpuArray(options.pi_semiz_J);
+        end
     end
-    % Create pi_semiz_J
-    pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_j,'gpuArray');
-    for jj=1:N_j
-        SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-        pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_dsemiz,options.n_semiz,dsemiz_grid,semiz_gridvals_J,options.SemiExoStateFn,SemiExoStateFnParamValues));
-    end
-
 
     %% Check that pi_semiz_J has rows summing to one
     % Check that pi_semiz_J has rows summing to one, if not, print a warning

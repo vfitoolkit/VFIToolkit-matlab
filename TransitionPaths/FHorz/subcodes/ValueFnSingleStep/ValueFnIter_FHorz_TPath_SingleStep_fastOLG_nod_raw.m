@@ -45,13 +45,13 @@ elseif vfoptions.lowmemory==1
 
     Policy=zeros(N_a,N_j,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime
 
-    n_z_special=ones(1,length(n_z));
+    special_n_z=ones(1,length(n_z));
     
     for z_c=1:N_z
-        z_vals=z_gridvals_J(:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
+        z_vals=z_gridvals_J(1,1,:,z_c,:); % z_gridvals_J has shape (j,prod(n_z),l_z) for fastOLG
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, n_z_special, N_j, a_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix,1);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, special_n_z, N_j, a_grid, a_grid, z_vals, ReturnFnParamsAgeMatrix,1);
         % fastOLG: ReturnMatrix_z is [aprime,a,j]
 
         entireRHS_z=ReturnMatrix_z+DiscountedEV_z; % [aprime,a,j]

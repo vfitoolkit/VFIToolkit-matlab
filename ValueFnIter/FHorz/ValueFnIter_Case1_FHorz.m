@@ -205,7 +205,7 @@ if vfoptions.parallel<2
     if isfield(vfoptions,'n_e')
         error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
     end
-    if isfield(vfoptions,'SemiExoStateFn')
+    if isfield(vfoptions,'n_semiz')
         error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.divideandconquer==0
@@ -332,7 +332,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
     
-    if isfield(vfoptions,'SemiExoStateFn')
+    if isfield(vfoptions,'n_semiz')
         % Split decision variables (other, semiexo, experienceasset)
         if length(n_d)>2
             n_d1=n_d(1:end-2);
@@ -533,7 +533,7 @@ end
 
 %% Semi-exogenous state
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
-if isfield(vfoptions,'SemiExoStateFn')
+if isfield(vfoptions,'n_semiz')
     if length(n_d)>vfoptions.l_dsemiz
         n_d1=n_d(1:end-vfoptions.l_dsemiz);
         d1_grid=d_grid(1:sum(n_d1));

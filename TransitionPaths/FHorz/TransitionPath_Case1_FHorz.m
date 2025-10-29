@@ -84,9 +84,9 @@ end
 
 
 
-%% Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-% Actually, some of those prices are 1-by-N_j, so is more subtle than this.
+%% Note: Internally PricePath is matrix of size T-by-'number of prices', similarly for ParamPath
+% PricePath is matrix of size T-by-'number of prices'.
+% Actually, some of those prices may be 1-by-N_j, so is more subtle than this.
 PricePathNames=fieldnames(PricePathOld);
 PricePathStruct=PricePathOld; 
 PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
@@ -112,7 +112,8 @@ for pp=1:length(PricePathNames)
         PricePathOld(:,PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=PricePathStruct.(PricePathNames{pp})';
     end
 end
-
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+% Actually, some of those prices may be 1-by-N_j, so is more subtle than this.
 ParamPathNames=fieldnames(ParamPath);
 ParamPathStruct=ParamPath;
 ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
@@ -344,7 +345,7 @@ end
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a parameter that is being determined in general eqm
 
 % Some of the shock grids depend on parameters that are determined in general eqm
-[z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions,simoptions);
+[z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions);
 % This command also uses transpathoptions to record if they depend on the
 % transition path (can have z and e grids differ over the path). It also
 % setup up

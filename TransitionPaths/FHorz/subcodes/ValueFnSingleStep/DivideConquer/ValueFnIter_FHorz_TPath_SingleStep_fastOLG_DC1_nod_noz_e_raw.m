@@ -14,7 +14,6 @@ Policy=zeros(N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for
 e_gridvals_J=shiftdim(e_gridvals_J,-2); % needed shape for ReturnFnMatrix with fastOLG and DC1
 
 %%
-a_grid=gpuArray(a_grid);
 
 % n-Monotonicity
 % vfoptions.level1n=5;
@@ -41,7 +40,6 @@ V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
 
 
 if vfoptions.lowmemory==0
-
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, n_e, N_j, a_grid, a_grid(level1ii), e_gridvals_J, ReturnFnParamsAgeMatrix,1);
@@ -87,7 +85,7 @@ elseif vfoptions.lowmemory==1
         e_vals=e_gridvals_J(1,1,:,e_c,:); % e_gridvals_J has shape (1,1,j,prod(n_e),l_e)
 
         % n-Monotonicity
-        ReturnMatrix_ii_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2e(ReturnFn, special_n_e, N_j, a_grid, a_grid(level1ii), e_vals, ReturnFnParamsAgeMatrix,1);
+        ReturnMatrix_ii_e=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_Par2(ReturnFn, special_n_e, N_j, a_grid, a_grid(level1ii), e_vals, ReturnFnParamsAgeMatrix,1);
 
         entireRHS_ii=ReturnMatrix_ii_e+discountedEV; % (d,aprime,a and j,z), autofills a for expectation term
 

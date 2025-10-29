@@ -6,7 +6,7 @@ N_a=prod(n_a);
 
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d  & aprime (layer 1 and layer 2)
 
-% Grid interpolation
+%% Grid interpolation
 % vfoptions.ngridinterp=9;
 n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
 n2long=vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
@@ -16,8 +16,6 @@ n2aprime=length(aprime_grid);
 aBind=gpuArray(0:1:N_a-1);
 jind=shiftdim(gpuArray(0:1:N_j-1),-2);
 jBind=shiftdim(gpuArray(0:1:N_j-1),-1);
-
-
 
 %% First, create the big 'next period (of transition path) expected value fn.
 

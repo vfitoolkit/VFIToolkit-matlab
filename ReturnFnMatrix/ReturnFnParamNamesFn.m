@@ -19,7 +19,7 @@ l_z=length(n_z);
 if n_z(1)==0
     l_z=0;
 end
-if isfield(vfoptions,'SemiExoStateFn')
+if isfield(vfoptions,'n_semiz')
     l_z=l_z+length(vfoptions.n_semiz);
 end
 l_e=0;
