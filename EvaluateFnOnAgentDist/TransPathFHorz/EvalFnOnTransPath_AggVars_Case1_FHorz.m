@@ -73,19 +73,25 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
+
 if N_z==0
     l_z=0;
 else
     l_z=length(n_z);
 end
-l_ze=l_z;
 
-N_e=0;
 if isfield(simoptions,'n_e')
-    l_e=length(simoptions.n_e);
-    l_ze=l_z+l_e;
-    N_e=prod(simoptions.n_e);
+    n_e=simoptions.n_e;
+else
+    n_e=0;
 end
+N_e=prod(n_e);
+if N_e==0
+    l_e=0;
+else
+    l_e=length(n_e);
+end
+l_ze=l_z+l_e;
 
 
 %% Note: Internally PricePath is matrix of size T-by-'number of prices'.
@@ -196,7 +202,7 @@ simoptions.AggVarNames=AggVarNames;
 
 
 %% Set up exogenous shock processes
-[z_gridvals_J, ~, e_gridvals_J, ~, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,[],N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
+[z_gridvals_J, ~, ~, e_gridvals_J, ~, ~, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,[],N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,1);
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
@@ -331,7 +337,7 @@ else
 
             Policy_tt=reshape(PolicyPath(:,:,:,:,tt),[size(PolicyPath,1),n_a,n_e,N_j]);
 
-            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,:,tt), Policy_tt, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_e, N_j, d_grid, a_grid, e_gridvals_J, simoptions);
+            AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(AgentDistPath(:,:,:,tt), Policy_tt, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_e, N_j, d_grid, a_grid, e_gridvals_J, simoptions);
             
             for ff=1:length(AggVarNames)
                 AggVarsPath.(AggVarNames{ff}).Mean(tt)=AggVars.(AggVarNames{ff}).Mean;
@@ -340,7 +346,7 @@ else
     else
         simoptions.n_e=n_e;
         simoptions.e_grid=e_gridvals_J;
-        simoptions.pi_e_J=pi_e_J;
+        % simoptions.pi_e_J=pi_e_J;
         AgentDistPath=reshape(AgentDistPath,[N_a,N_z,N_e,N_j,T]);
         PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,N_e,N_j,T]);
 

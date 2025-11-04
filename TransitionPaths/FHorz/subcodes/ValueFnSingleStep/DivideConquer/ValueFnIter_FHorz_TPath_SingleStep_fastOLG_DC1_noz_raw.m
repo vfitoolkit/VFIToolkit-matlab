@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_noz_raw(V,n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_noz_raw(V,n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames,vfoptions)
 % fastOLG just means parallelize over "age" (j)
 
 N_d=prod(n_d);
@@ -11,8 +11,6 @@ V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 Policy=zeros(N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
 %%
-d_grid=gpuArray(d_grid);
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 a_grid=gpuArray(a_grid);
 
 % n-Monotonicity
@@ -80,6 +78,11 @@ for ii=1:(vfoptions.level1n-1)
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+N_d*(loweredge(rem(maxindex-1,N_d)+1+N_d*jBind)-1),1); % loweredge(given the d)
     end
 end
+
+%% Separate d and aprime
+Policy2=zeros(2,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 
 end

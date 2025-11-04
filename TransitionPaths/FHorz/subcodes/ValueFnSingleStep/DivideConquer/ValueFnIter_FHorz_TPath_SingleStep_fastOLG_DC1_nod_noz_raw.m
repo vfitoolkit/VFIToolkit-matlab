@@ -68,4 +68,8 @@ for ii=1:(vfoptions.level1n-1)
 end
 
 
+%%
+Policy=shiftdim(Policy,-1); % So first dim is just one point
+
+
 end

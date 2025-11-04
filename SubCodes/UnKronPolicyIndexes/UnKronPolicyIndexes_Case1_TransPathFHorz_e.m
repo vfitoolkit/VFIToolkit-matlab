@@ -24,14 +24,14 @@ if N_d==0
 
     for jj=1:N_j
         for tt=1:T
-            PolicyTemp(1,:,:,:,jj,tt)=shiftdim(rem(Policy(:,:,:,jj,tt)-1,n_aprime(1))+1,-1);
+            PolicyTemp(1,:,:,:,jj,tt)=shiftdim(rem(Policy(1,:,:,:,jj,tt)-1,n_aprime(1))+1,-1);
             if l_aprime>1
                 if l_aprime>2
                     for ii=2:l_aprime-1
-                        PolicyTemp(ii,:,:,:,jj,tt)=shiftdim(rem(ceil(Policy(:,:,:,jj,tt)/prod(n_aprime(1:ii-1)))-1,n_aprime(ii))+1,-1);
+                        PolicyTemp(ii,:,:,:,jj,tt)=shiftdim(rem(ceil(Policy(1,:,:,:,jj,tt)/prod(n_aprime(1:ii-1)))-1,n_aprime(ii))+1,-1);
                     end
                 end
-                PolicyTemp(l_aprime,:,:,:,jj,tt)=shiftdim(ceil(Policy(:,:,:,jj,tt)/prod(n_aprime(1:l_aprime-1))),-1);
+                PolicyTemp(l_aprime,:,:,:,jj,tt)=shiftdim(ceil(Policy(1,:,:,:,jj,tt)/prod(n_aprime(1:l_aprime-1))),-1);
             end
         end
     end

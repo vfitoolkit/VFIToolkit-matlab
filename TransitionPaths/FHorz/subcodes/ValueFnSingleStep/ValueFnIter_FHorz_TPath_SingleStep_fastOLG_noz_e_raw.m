@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,e), rather than standard (a,e,j)
 % V is (a,j)-by-e
@@ -62,6 +62,12 @@ end
 % V=reshape(V,[N_a*N_j,N_e]);
 Policy=reshape(Policy,[N_a,N_j,N_e]);
 % Note that in fastOLG, we do not separate d from aprime in Policy
+
+
+%% Separate d and aprime
+Policy2=zeros(2,N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 
 end

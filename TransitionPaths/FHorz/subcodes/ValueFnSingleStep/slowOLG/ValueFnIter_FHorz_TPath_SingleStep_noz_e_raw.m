@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e_raw(V,n_d,n_a,n_e,N_j, d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_noz_e_raw(V,n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -19,7 +19,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if vfoptions.lowmemory==0
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
@@ -29,7 +29,7 @@ elseif vfoptions.lowmemory==1
     
     for e_c=1:N_e
         e_val=e_gridvals_J(e_c,:,N_j);
-        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
+        ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix_e,[],1);
         V(:,e_c,N_j)=Vtemp;
@@ -50,7 +50,7 @@ for reverse_j=1:N_j-1
 
     if vfoptions.lowmemory==0
                 
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_grid, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_e, d_gridvals, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
                 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1,1);
@@ -67,7 +67,7 @@ for reverse_j=1:N_j-1
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_grid, a_grid, e_val, ReturnFnParamsVec);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_e, d_gridvals, a_grid, e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
             entireRHS_e=ReturnMatrix_e+DiscountFactorParamsVec*EV;
@@ -81,6 +81,9 @@ for reverse_j=1:N_j-1
     end
 end
 
-% SingleStep, so leave d and aprime together in a single index.
+%% Separate d and aprime
+Policy2=zeros(2,N_a,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
+Policy2(1,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
+Policy2(2,:,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
 end

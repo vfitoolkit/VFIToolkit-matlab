@@ -132,5 +132,8 @@ V=reshape(V,[N_a*N_j,N_z]);
 % Policy=reshape(Policy,[N_a,N_j,N_z]);
 % Note that in fastOLG, we do not separate d from aprime in Policy
 
+%%
+Policy=shiftdim(Policy,-1); % So first dim is just one point
+
 
 end

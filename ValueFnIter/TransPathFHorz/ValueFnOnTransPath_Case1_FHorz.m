@@ -45,7 +45,7 @@ else
     %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'divideandconquer')
         vfoptions.divideandconquer=0;
-    else
+    elseif vfoptions.divideandconquer==1
         if ~isfield(vfoptions,'level1n')
             vfoptions.level1n=11;
         end
@@ -132,21 +132,20 @@ for ii=1:length(ParamPathNames)
 end
 
 %% Check the sizes of some of the inputs
-if isempty(n_d)
-    N_d=0;
-else
-    N_d=prod(n_d);
-end
-N_z=prod(n_z);
+N_d=prod(n_d);
 N_a=prod(n_a);
-
-
-%%
-% Make sure all the relevant inputs are GPU arrays (not standard arrays)
-pi_z=gpuArray(pi_z);
-if N_d>0
-    d_grid=gpuArray(d_grid);
+N_z=prod(n_z);
+if isfield(vfoptions, 'n_e')
+    n_e=vfoptions.n_e;
+else
+    n_e=0;
 end
+N_e=prod(n_e);
+
+
+%% Make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
 V_final=gpuArray(V_final);
@@ -154,12 +153,12 @@ V_final=gpuArray(V_final);
 
 %% Handle ReturnFn and FnsToEvaluate structures
 l_d=length(n_d);
-if n_d(1)==0
+if N_d==0
     l_d=0;
 end
 l_a=length(n_a);
 l_z=length(n_z);
-if n_z(1)==0
+if N_z==0
     l_z=0;
 end
 l_a_temp=l_a;
@@ -168,16 +167,12 @@ if max(vfoptions.endotype)==1
     l_a_temp=l_a-sum(vfoptions.endotype);
     l_z_temp=l_z+sum(vfoptions.endotype);
 end
-if ~isfield(vfoptions,'n_e')
-    N_e=0;
-    l_e=0;
-elseif vfoptions.n_e(1)==0
-    N_e=0;
+if N_e==0
     l_e=0;
 else
-    N_e=prod(vfoptions.n_e);
     l_e=length(vfoptions.n_e);
 end
+
 % Create ReturnFnParamNames
 temp=getAnonymousFnInputNames(ReturnFn);
 if length(temp)>(l_d+l_a_temp+l_a_temp+l_z_temp)
@@ -187,7 +182,7 @@ else
 end
 
 %% Set up exogenous shock processes
-[z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions, vfoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions,3);
+[z_gridvals_J, pi_z_J, ~, e_gridvals_J, pi_e_J, ~, transpathoptions, vfoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,vfoptions,3);
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
@@ -214,91 +209,48 @@ if transpathoptions.verbose==1
 end
 
 %% Setup for various objects
+% Note: I keep Policy as having a first dimension (even if it is just 1)
 if N_e==0
     if N_z==0
         Policy_final=KronPolicyIndexes_FHorz_Case1_noz(Policy_final, n_d, n_a, N_j, vfoptions);
-        if vfoptions.gridinterplayer==0
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:)+N_d*(Policy_final2(2,:,:)-1),1);
-            end
-        elseif vfoptions.gridinterplayer==1
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:)-1)+(Policy_final2(3,:,:)-1)-1),1);
-            else
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:)-1)+(Policy_final2(2,:,:)-1),1);
-            end
+        if N_d==0 && vfoptions.gridinterplayer==0
+            Policy_final=reshape(Policy_final,[1,N_a,N_j]);
         end
         V_final=reshape(V_final,[N_a,N_j]);
     else
         Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_z,N_j, vfoptions);
-        if vfoptions.gridinterplayer==0
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
-            end
-        elseif vfoptions.gridinterplayer==1
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:,:)-1)+(Policy_final2(3,:,:,:)-1)-1),1);
-            else
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:,:)-1)+(Policy_final2(2,:,:,:)-1),1);
-            end
+        if N_d==0 && vfoptions.gridinterplayer==0
+            Policy_final=reshape(Policy_final,[1,N_a,N_z,N_j]);
         end
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_z,N_j]);
         else % vfoptions.fastOLG==1
             V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j,N_z]);
-            Policy_final=reshape(permute(Policy_final,[1,3,2]),[N_a,N_j,N_z]);
+            Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_z]);
         end
     end
 else
     if N_z==0
         Policy_final=KronPolicyIndexes_FHorz_Case1(Policy_final,n_d,n_a,n_e,N_j, vfoptions);
-        if vfoptions.gridinterplayer==0
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(Policy_final2(2,:,:,:)-1),1);
-            end
-        elseif vfoptions.gridinterplayer==1
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:,:)-1)+(Policy_final2(3,:,:,:)-1)-1),1);
-            else
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:,:)-1)+(Policy_final2(2,:,:,:)-1),1);
-            end
+        if N_d==0 && vfoptions.gridinterplayer==0
+            Policy_final=reshape(Policy_final,[1,N_a,N_e,N_j]);
         end
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_e,N_j]);
         else % vfoptions.fastOLG==1
             V_final=reshape(permute(reshape(V_final,[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j,N_e]);
-            Policy_final=reshape(permute(Policy_final,[1,3,2]),[N_a,N_j,N_e]);
+            Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_e]);
         end
     else
         Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
-        if vfoptions.gridinterplayer==0
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:,:,:)+N_d*(Policy_final2(2,:,:,:,:)-1),1);
-            end
-        elseif vfoptions.gridinterplayer==1
-            if N_d>0
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(Policy_final2(1,:,:,:,:)+N_d*(1+(vfoptions.ngridinterp+1)*(Policy_final2(2,:,:,:,:)-1)+(Policy_final2(3,:,:,:,:)-1)-1),1);
-            else
-                Policy_final2=Policy_final;
-                Policy_final=shiftdim(1+(vfoptions.ngridinterp+1)*(Policy_final2(1,:,:,:,:)-1)+(Policy_final2(2,:,:,:,:)-1),1);
-            end
+        if N_d==0 && vfoptions.gridinterplayer==0
+            Policy_final=reshape(Policy_final,[1,N_a,N_z,N_e,N_j]);
         end
         if transpathoptions.fastOLG==0
             V_final=reshape(V_final,[N_a,N_z,N_e,N_j]);
         else % vfoptions.fastOLG==1
             V_final=reshape(permute(reshape(V_final,[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
-            Policy_final=reshape(permute(Policy_final,[1,4,2,3]),[N_a,N_j,N_z,N_e]);
+            Policy_final=reshape(permute(Policy_final,[1,2,5,3,4]),[size(Policy_final,1),N_a,N_j,N_z,N_e]);
         end
     end
 end
@@ -311,8 +263,8 @@ if N_e==0
             %% fastOLG=0, no z, no e
             VPath=zeros(N_a,N_j,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_j,T,'gpuArray'); %Periods 1 to T-1
-            PolicyPath(:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
@@ -328,7 +280,7 @@ if N_e==0
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
-                PolicyPath(:,:,T-ttr)=Policy;
+                PolicyPath(:,:,:,T-ttr)=Policy;
                 VPath(:,:,T-ttr)=V;
             end
         else
@@ -336,8 +288,8 @@ if N_e==0
 
             VPath=zeros(N_a,N_j,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
-            PolicyPath(:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
@@ -353,7 +305,7 @@ if N_e==0
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
-                PolicyPath(:,:,T-ttr)=Policy;
+                PolicyPath(:,:,:,T-ttr)=Policy;
                 VPath(:,:,T-ttr)=V;
             end
         end
@@ -363,8 +315,8 @@ if N_e==0
             %% fastOLG=0, z, no e
             VPath=zeros(N_a,N_z,N_j,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
-            PolicyPath(:,:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_z,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,:,T)=Policy_final;
         
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
@@ -386,7 +338,7 @@ if N_e==0
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
-                PolicyPath(:,:,:,T-ttr)=Policy;
+                PolicyPath(:,:,:,:,T-ttr)=Policy;
                 VPath(:,:,:,T-ttr)=V;
             end
 
@@ -395,8 +347,8 @@ if N_e==0
             % Note: fastOLG with z: use V as (a,j)-by-z and Policy as a-by-j-by-z
             VPath=zeros(N_a*N_j,N_z,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_j,N_z,T,'gpuArray');
-            PolicyPath(:,:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_j,N_z,T,'gpuArray');
+            PolicyPath(:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
             %policy function at each step. Since we won't need to keep the value
@@ -421,7 +373,7 @@ if N_e==0
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
-                PolicyPath(:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
+                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
                 VPath(:,:,T-ttr)=V;
             end
         end
@@ -433,8 +385,8 @@ else % N_e
             %% fastOLG=0, no z, e
             VPath=zeros(N_a,N_e,N_j,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
-            PolicyPath(:,:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,:,T)=Policy_final;
 
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
@@ -456,7 +408,7 @@ else % N_e
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
-                PolicyPath(:,:,:,T-ttr)=Policy;
+                PolicyPath(:,:,:,:,T-ttr)=Policy;
                 VPath(:,:,:,T-ttr)=V;
             end
 
@@ -465,8 +417,8 @@ else % N_e
             % Note: fastOLG with e: use V as (a,j)-by-e and Policy as a-by-j-by-e
             VPath=zeros(N_a*N_j,N_e,T,'gpuArray');
             VPath(:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_j,N_e,T,'gpuArray');
-            PolicyPath(:,:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_j,N_e,T,'gpuArray');
+            PolicyPath(:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
             %policy function at each step. Since we won't need to keep the value
@@ -491,7 +443,7 @@ else % N_e
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
-                PolicyPath(:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
+                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
                 VPath(:,:,T-ttr)=V;
             end
         end
@@ -500,8 +452,8 @@ else % N_e
             %% fastOLG=0, z, e
             VPath=zeros(N_a,N_z,N_e,N_j,T,'gpuArray');
             VPath(:,:,:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
-            PolicyPath(:,:,:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_z,N_e,N_j,T,'gpuArray'); %Periods 1 to T-1
+            PolicyPath(:,:,:,:,:,T)=Policy_final;
             
             % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
             V=V_final;
@@ -527,7 +479,7 @@ else % N_e
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
-                PolicyPath(:,:,:,:,T-ttr)=Policy;
+                PolicyPath(:,:,:,:,:,T-ttr)=Policy;
                 VPath(:,:,:,:,T-ttr)=V;
             end
 
@@ -535,8 +487,8 @@ else % N_e
             %% fastOLG=1, z, e
             VPath=zeros(N_a*N_j,N_z,N_e,T,'gpuArray');
             VPath(:,:,:,T)=V_final;
-            PolicyPath=zeros(N_a,N_j,N_z,N_e,T,'gpuArray');
-            PolicyPath(:,:,:,:,T)=Policy_final;
+            PolicyPath=zeros((N_d>0)+1+(vfoptions.gridinterplayer>0),N_a,N_j,N_z,N_e,T,'gpuArray');
+            PolicyPath(:,:,:,:,:,T)=Policy_final;
 
             %First, go from T-1 to 1 calculating the Value function and Optimal
             %policy function at each step. Since we won't need to keep the value
@@ -565,7 +517,7 @@ else % N_e
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
-                PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
+                PolicyPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
                 VPath(:,:,:,T-ttr)=V;
             end
         end
@@ -574,52 +526,19 @@ end
 
 
 %% Unkron to get into the shape for output
-% First, when there is N_d, seperate d from aprime
-if N_d>0
-    PolicyPath2=PolicyPath;
-    if N_e==0
-        if N_z==0
-            PolicyPath=zeros(2,N_a,N_j,T,'gpuArray');
-            PolicyPath(1,:,:,:)=shiftdim(rem(PolicyPath2-1,N_d)+1,-1);
-            PolicyPath(2,:,:,:)=shiftdim(ceil(PolicyPath2/N_d),-1);
-        else
-            if transpathoptions.fastOLG==1
-                PolicyPath2=permute(PolicyPath2,[1,3,2,4]); % was (a,j,z,t), now (a,z,j,t)
-            end
-            PolicyPath=zeros(2,N_a,N_z,N_j,T,'gpuArray');
-            PolicyPath(1,:,:,:,:)=shiftdim(rem(PolicyPath2-1,N_d)+1,-1);
-            PolicyPath(2,:,:,:,:)=shiftdim(ceil(PolicyPath2/N_d),-1);
-        end
-    else
-        if N_z==0
-            if transpathoptions.fastOLG==1
-                PolicyPath2=permute(PolicyPath2,[1,3,2,4]); % was (a,j,e,t), now (a,e,j,t)
-            end
-            PolicyPath=zeros(2,N_a,N_e,N_j,T,'gpuArray');
-            PolicyPath(1,:,:,:,:)=shiftdim(rem(PolicyPath2-1,N_d)+1,-1);
-            PolicyPath(2,:,:,:,:)=shiftdim(ceil(PolicyPath2/N_d),-1);
-        else
-            if transpathoptions.fastOLG==1
-                PolicyPath2=permute(PolicyPath2,[1,3,4,2,5]); % was (a,j,z,e,t), now (a,z,e,j,t)
-            end
-            PolicyPath=zeros(2,N_a,N_z,N_e,N_j,T,'gpuArray');
-            PolicyPath(1,:,:,:,:,:)=shiftdim(rem(PolicyPath2-1,N_d)+1,-1);
-            PolicyPath(2,:,:,:,:,:)=shiftdim(ceil(PolicyPath2/N_d),-1);
-        end
-    end
-elseif transpathoptions.fastOLG==1
-    % no d, but as fastOLG, still need to permute
+if transpathoptions.fastOLG==1
+    % fastOLG, so need to permute back to standard ordering
     if N_e==0
         if N_z==0
             % no need to do anything
         else
-            PolicyPath=permute(PolicyPath,[1,3,2,4]); % was (a,j,e,t), now (a,e,j,t)
+            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,e,t), now (daprime,a,e,j,t)
         end
     else
         if N_z==0
-            PolicyPath=permute(PolicyPath,[1,3,2,4]); % was (a,j,z,t), now (a,z,j,t)
+            PolicyPath=permute(PolicyPath,[1,2,4,3,5]); % was (daprime,a,j,z,t), now (daprime,a,z,j,t)
         else
-            PolicyPath=permute(PolicyPath,[1,3,4,2,5]); % was (a,j,z,e,t), now (a,z,e,j,t)
+            PolicyPath=permute(PolicyPath,[1,2,4,5,3,6]); % was (daprime,a,j,z,e,t), now (daprime,a,z,e,j,t)
         end
     end
 end

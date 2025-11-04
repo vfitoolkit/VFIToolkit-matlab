@@ -90,6 +90,7 @@ for reverse_j=1:N_j-1
     end
 end
 
-
+%%
+Policy=shiftdim(Policy,-1); % So first dim is just one point
 
 end

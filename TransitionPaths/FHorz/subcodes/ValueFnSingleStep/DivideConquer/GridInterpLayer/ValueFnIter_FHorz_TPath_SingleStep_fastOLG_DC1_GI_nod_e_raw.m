@@ -231,7 +231,8 @@ adjust=(Policy(2,:,:,:,:)<1+n2short+1); % if second layer is choosing below midp
 Policy(1,:,:,:,:)=Policy(1,:,:,:,:)-adjust; % lower grid point
 Policy(2,:,:,:,:)=adjust.*Policy(2,:,:,:,:)+(1-adjust).*(Policy(2,:,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
-Policy=squeeze(Policy(1,:,:,:,:)+N_a*(Policy(2,:,:,:,:)-1));
+% Leave the first dimension as is
+% Policy=squeeze(Policy(1,:,:,:,:)+N_a*(Policy(2,:,:,:,:)-1));
 
 
 %% fastOLG with z & e, so need output to take certain shapes

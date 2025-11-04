@@ -1,22 +1,12 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_j,jequalOneDist)
-% Parallelizes over age jj
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist)
+% Parallelizes over age jj (age weights are handled elsewhere, here all are normalized to one)
 % AgentDist is [N_a*N_j,1]
-% AgeWeights is [N_a*N_j,1] (obviously just repeats same numbers over the N_a)
-
-% if N_d==0
-%     optaprime=gather(reshape(PolicyIndexesKron(:,1:end-1),[1,N_a*(N_j-1)]));
-% else
-%     optaprime=gather(reshape(PolicyIndexesKron(2,:,1:end-1),[1,N_a*(N_j-1)]));
-% end
-% optaprime is [1,N_a*(N_j-1)]
-
-
-% Remove the existing age weights, then impose the new age weights at the end
-AgentDist=AgentDist./AgeWeightsOld;
+% Policy_aprime is [1,N_a*(N_j-1)]
 
 AgentDist_tt=sparse(gather(reshape(AgentDist(1:end-N_a),[N_a*(N_j-1),1]))); % end-N_a is avoiding those that correspond to jj=N_j
 
-Gammatranspose=sparse(optaprime+N_a*repelem((0:1:N_j-2),1,N_a),1:1:N_a*(N_j-1),ones(N_a*(N_j-1),1),N_a*(N_j-1),N_a*(N_j-1));
+firststep=Policy_aprime+N_a*repelem((0:1:N_j-2),1,N_a);
+Gammatranspose=sparse(firststep,1:1:N_a*(N_j-1),ones(N_a*(N_j-1),1),N_a*(N_j-1),N_a*(N_j-1));
 % Note: N_j-1, not N_j
 
 AgentDist_tt=Gammatranspose*AgentDist_tt;
@@ -24,9 +14,5 @@ AgentDist_tt=Gammatranspose*AgentDist_tt;
 AgentDist(N_a+1:end)=gpuArray(full(AgentDist_tt)); % N_a+1 is avoiding those that correspond to jj=1
 AgentDist(1:N_a)=jequalOneDist; % age j=1 dist
 
-% Need to remove the old age weights, and impose the new ones
-% Already removed the old age weights earlier, so now just impose the new ones.
-% AgeWeights is a row vector
-AgentDist=AgentDist.*AgeWeights;
 
 end

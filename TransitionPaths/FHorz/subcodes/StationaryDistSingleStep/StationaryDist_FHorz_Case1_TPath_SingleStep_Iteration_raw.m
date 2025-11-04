@@ -1,17 +1,8 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,AgeWeights,AgeWeightsOld,optaprime,N_a,N_z,N_j,pi_z_J,jequalOneDist)
-% Will treat the agents as being on a continuum of mass 1.
-
-% Options needed
-%  simoptions.maxit
-%  simoptions.tolerance
-%  simoptions.parallel
+function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,Policy_aprime,N_a,N_z,N_j,pi_z_J,jequalOneDist)
+% age weights are handled elsewhere, here all are normalized to one
 
 % AgentDist=reshape(AgentDist,[N_a*N_z,N_j]);
-
-% Remove the existing age weights, then impose the new age weights at the end
-AgentDist=AgentDist./AgeWeightsOld;
-
-optaprime=gather(reshape(optaprime,[1,N_a*N_z,N_j]));
+% Policy_aprime=gather(reshape(Policy_aprime,[1,N_a*N_z,N_j]));
 
 pi_z_J=gather(pi_z_J);
 
@@ -20,7 +11,7 @@ for jjr=1:(N_j-1)
     AgentDist_jj=sparse(gather(AgentDist(:,jj)));
     pi_z=sparse(pi_z_J(:,:,jj));
 
-    optaprime_jj=optaprime(1,:,jj);
+    optaprime_jj=Policy_aprime(1,:,jj);
 
     % Tan improvement
     firststep=optaprime_jj+kron(N_a*(0:1:N_z-1),ones(1,N_a));
@@ -37,9 +28,5 @@ AgentDist=gpuArray(AgentDist);
 % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
 AgentDist(:,1)=jequalOneDist;
 
-% Need to remove the old age weights, and impose the new ones
-% Already removed the old age weights earlier, so now just impose the new ones.
-% AgeWeights is a column vector
-AgentDist=AgentDist.*AgeWeights;
 
 end

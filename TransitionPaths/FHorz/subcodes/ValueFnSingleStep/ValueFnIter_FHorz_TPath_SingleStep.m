@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep(VKron,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep(VKron,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 
 N_d=prod(n_d);
@@ -8,7 +8,7 @@ N_d=prod(n_d);
 if N_d==0
     [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 else
-    [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
