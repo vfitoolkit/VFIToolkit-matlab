@@ -21,7 +21,13 @@ PricePathDist=Inf;
 pathcounter=1;
 
 % fastOLG so everything is (a,j,z,e)
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+% Shapes:
+% V is [N_a,N_j,N_z,N_e]
+% AgentDist for fastOLG is [N_a*N_j*N_z,N_e]
+
+PricePathNew=zeros(size(PricePathOld),'gpuArray');
+PricePathNew(T,:)=PricePathOld(T,:);
+AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 % reshape pi_e_J and e_grid_J for use in fastOLG value fn
 
 if transpathoptions.trivialjequalonedist==0
@@ -130,7 +136,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % (a,j,z)-by-e
         end
 
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights_T(:,:,tt),Policy(1,:,:,:), Policy(2,:,:,:), FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_ze,N_a,N_ze,d_gridvals,aprime_gridvals,a_gridvals,ze_gridvals_J,1);
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights_T(:,:,tt),Policy(1,:,:,:,:), Policy(2,:,:,:,:), FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_ze,N_a,N_ze,d_gridvals,aprime_gridvals,a_gridvals,ze_gridvals_J,1);
         
         % An easy way to get the new prices is just to call GeneralEqmConditions_Case1 and then adjust it for the current prices
             % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
@@ -165,7 +171,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             jequalOneDist=jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
         end
         % simoptions.fastOLG=1 is hardcoded
-        AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,reshape(Policy(2,:,1:end-1,:,:),[1,N_a*(N_j-1)*N_z*N_e]),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+        AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,reshape(Policy(2,:,1:end-1,:,:),[1,N_a*(N_j-1)*N_z*N_e]),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
     end    
 
 

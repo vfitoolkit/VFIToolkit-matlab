@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist)
+function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist)
 % age weights are handled elsewhere, here all are normalized to one
 % AgentDist is [N_a,N_j]
 % Policy_aprime=gather(reshape(Policy_aprime,[1,N_a,N_j]));

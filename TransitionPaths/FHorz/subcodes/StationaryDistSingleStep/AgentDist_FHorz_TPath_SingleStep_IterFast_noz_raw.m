@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist)
+function AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist)
 % Parallelizes over age jj (age weights are handled elsewhere, here all are normalized to one)
 % AgentDist is [N_a*N_j,1]
 % Policy_aprime is [1,N_a*(N_j-1)]

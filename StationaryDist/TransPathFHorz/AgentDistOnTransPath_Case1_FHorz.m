@@ -381,7 +381,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -396,7 +396,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprime,N_a,N_j,jequalOneDist);
                     AgentDistPath(:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repelem(AgeWeights_T,N_a,1); % put in the age weights
@@ -417,7 +417,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,Policy_aprime,N_a,N_z,N_j,pi_z_J,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_raw(AgentDist,Policy_aprime,N_a,N_z,N_j,pi_z_J,jequalOneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -436,7 +436,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,Policy_aprime,N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_raw(AgentDist,Policy_aprime,N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                     AgentDistPath(:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % put in the age weights
@@ -458,7 +458,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J,jequalOneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -477,7 +477,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1); % put in the age weights
@@ -501,7 +501,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_e_raw(AgentDist,Policy_aprime,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_e_raw(AgentDist,Policy_aprime,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,jequalOneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -522,7 +522,7 @@ if simoptions.gridinterplayer==0
                     end
                     % Get the current optimal policy
                     Policy_aprime=Policy_aprimePath(:,:,tt);
-                    AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_e_raw(AgentDist,Policy_aprime,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,Policy_aprime,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_z,1); % put in the age weights

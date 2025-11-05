@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist)
+function AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist)
 % Parallelizes over age jj (age weights are handled elsewhere, here all are normalized to one)
 % AgentDist is [N_a*N_j,N_e] % To be able to do Step 2 of Tan improvement it needs to be this form (note N_j then N_z,N_e)
 % pi_e_J_sim is [N_a*(N_j-1),N_e]

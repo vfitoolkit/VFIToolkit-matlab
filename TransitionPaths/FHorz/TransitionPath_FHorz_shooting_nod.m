@@ -16,8 +16,13 @@ end
 PricePathDist=Inf;
 pathcounter=1;
 
-% V_final=reshape(V_final,[N_a,N_z,N_j]);
-PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+% Shapes:
+% V is [N_a,N_z,N_j]
+% AgentDist for basic is [N_a*N_z,N_j]
+% AgentDist for fastOLG is [N_a*N_j*N_z,1]
+
+PricePathNew=zeros(size(PricePathOld),'gpuArray');
+PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
 if transpathoptions.trivialjequalonedist==0
@@ -162,9 +167,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             jequalOneDist=jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
         end
         if simoptions.fastOLG==0
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_Iteration_raw(AgentDist,Policy,N_a,N_z,N_j,pi_z_J,jequalOneDist);
+            AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_raw(AgentDist,Policy,N_a,N_z,N_j,pi_z_J,jequalOneDist);
         else % simoptions.fastOLG==1
-            AgentDist=StationaryDist_FHorz_Case1_TPath_SingleStep_IterFast_raw(AgentDist,Policy_fastOLG_aprime(exceptlastj),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+            AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_raw(AgentDist,Policy_fastOLG_aprime(exceptlastj),N_a,N_z,N_j,pi_z_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
         end
     end
 

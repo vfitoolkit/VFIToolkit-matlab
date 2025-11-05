@@ -1,4 +1,7 @@
-function PricePathOld=TransitionPath_FHorz_shooting_noz_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_e,N_j, N_d,N_a,N_e, l_d,l_a,l_e, d_gridvals, aprime_gridvals,a_gridvals,a_grid,e_gridvals_J,e_gridvals_J_fastOLG, pi_e_J,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions)
+function PricePathOld=TransitionPath_FHorz_shooting_fastOLG_GI_noz_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n2short, n_d, n_a, n_e, N_j, N_d,N_a,N_e, l_d,l_a,l_e, d_gridvals,aprimefine_gridvals,a_gridvals,d_grid,a_grid,e_gridvals_J, pi_e_J,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions, transpathoptions)
+% fastOLG: fastOLG uses (a,j,e) instead of the standard (a,e,j)
+% This (a,j,e) is important for ability to implement codes based on matrix multiplications (especially for Tan improvement)
+
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -12,18 +15,21 @@ if transpathoptions.verbose==1
 end
 
 %%
-
 PricePathDist=Inf;
 pathcounter=1;
 
+% fastOLG so everything is (a,j,e)
 % Shapes:
-% V is [N_a,N_e,N_j]
-% AgentDist for basic is [N_a*N_e,N_j]
+% V is [N_a,N_j,N_e]
 % AgentDist for fastOLG is [N_a*N_j,N_e]
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray');
 PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+
+% preallocate
+PolicyPath_aprime=zeros([N_a*(N_j-1)*N_e,2,T-1],'gpuArray');
+PolicyProbsPath=zeros([N_a*(N_j-1)*N_e,2,T-1],'gpuArray');
 
 if transpathoptions.trivialjequalonedist==0
     jequalOneDist_T=jequalOneDist;
@@ -32,14 +38,14 @@ end
 
 %%
 while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
-    PolicyPath=zeros(2,N_a,N_e,N_j,T-1,'gpuArray'); % Periods 1 to T-1
-
+    
+    PolicyPath=zeros(3,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
     
     %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. 
     % Since we won't need to keep the value functions for anything later we just store the current one in V
     V=V_final;
     for ttr=1:T-1 %so tt=T-ttr
-
+        
         for kk=1:length(PricePathNames)
             Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
@@ -49,26 +55,34 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         
         if transpathoptions.zpathtrivial==0
             e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
-            pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr);
+            pi_e_J=transpathoptions.pi_e_J_T(:,:,T-ttr); % fastOLG value function uses (j,z',z)
         end
         
-        [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz_e(V,n_d,n_a,n_e,N_j,d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_noz_e(V,n_d,n_a,n_e,N_j,d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
-        % Policy is kept in the form where it is just a single-value in (d,a')
+        % Policy in fastOLG is [N_a,N_j,N_e] and contains the joint-index for (d,aprime)
         
-        PolicyPath(:,:,:,:,T-ttr)=Policy;
+        PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so a-by-j-by-z
+
     end
 
-    
+
     %% Now we have the PolicyPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path
     
+    % PolicyPath_d=PolicyPath(1,:,:,:,:);
+    PolicyPath_aprimefine=(n2short+1)*(PolicyPath(2,:,:,:,:)-1)+PolicyPath(3,:,:,:,:);
+    PolicyPath_aprime(:,1,:)=reshape(PolicyPath(2,:,1:end-1,:,:),[N_a*(N_j-1)*N_e,1,T-1]); % lower grid point index
+    PolicyPath_aprime(:,2,:)=PolicyPath_aprime(:,1,:)+1; % upper grid point index
+    PolicyProbsPath(:,2,:)=reshape((PolicyPath(3,:,1:end-1,:,:)-1)/n2short,[N_a*(N_j-1)*N_e,1,T-1]); % prob of upper grid point
+    PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % prob of lower grid point
+
     % Call AgentDist the current periods distn
     AgentDist=AgentDist_initial;
     for tt=1:T-1
         
-        % Get the current optimal policy
-        Policy=PolicyPath(:,:,:,:,tt);
-        
+        % Get the current optimal policy (not needed, only use PolicyPath_parimefine, PolicyPath_aprime, and PolicyProbPath)
+        % Policy=PolicyPath(:,:,:,:,tt); % fastOLG: so a-by-j-by-z
+                
         % Get t-1 PricePath and ParamPath before we update them
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
@@ -107,7 +121,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
-        
+
         % Get t+1 PricePath
         if use_tplus1price==1
             for pp=1:length(tplus1priceNames)
@@ -118,19 +132,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         
         if transpathoptions.zpathtrivial==0
             e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,tt);
-            if simoptions.fastOLG==0
-                pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
-            else
-                pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);
-            end
+            pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % fastOLG value function uses (j,z,z')
         end
 
-        AgeWeights=AgeWeights_T(:,:,tt); % By coincidence, this is same for fastOLG=0,1
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights_T(:,:,tt),PolicyPath(1,:,:,:,tt), PolicyPath_aprimefine(:,:,:,:,tt), FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_e,N_a,N_e,d_gridvals,aprimefine_gridvals,a_gridvals,e_gridvals_J,1);
 
-        Policy_fastOLG_d=reshape(permute(Policy(1,:,:,:),[1,2,4,3]),[1,N_a*N_j*N_e]);
-        Policy_fastOLG_aprime=reshape(permute(Policy(2,:,:,:),[1,2,4,3]),[1,N_a*N_j*N_e]);
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights,Policy_fastOLG_d, Policy_fastOLG_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_e,N_a,N_e,d_gridvals,aprime_gridvals,a_gridvals,e_gridvals_J_fastOLG,1);
-        
         % An easy way to get the new prices is just to call GeneralEqmConditions_Case1 and then adjust it for the current prices
             % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
             % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
@@ -150,7 +156,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
-            PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
+            PricePathNew(tt,:)=PricePathOld(tt,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
         end
         
         % Sometimes, want to keep the AggVars to plot them
@@ -163,11 +169,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         if transpathoptions.trivialjequalonedist==0
             jequalOneDist=jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
         end
-        if simoptions.fastOLG==0
-            AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy(2,:,:,:),N_a,N_e,N_j,pi_e_J,jequalOneDist);
-        else % simoptions.fastOLG==1
-            AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_fastOLG_aprime(exceptlastj),N_a,N_e,N_j,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
-        end
+        % if simoptions.fastOLG=1 is hardcoded
+        AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_TwoProbs_noz_e_raw(AgentDist,PolicyPath_aprime(:,:,tt),PolicyProbsPath(:,:,tt),N_a,N_e,N_j,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % Policy for jj=1:N_j-1
     end
 
 
@@ -218,13 +221,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
     end
     
-    % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
+    %Set price path to be 9/10ths the old path and 1/10th the new path (but
+    %making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0
         PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
     elseif transpathoptions.weightscheme==1 % Just a constant weighting
-        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight.*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight).*PricePathNew(1:T-1,:);
+        PricePathOld(1:T-1,:)=transpathoptions.oldpathweight*PricePathOld(1:T-1,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:T-1,:);
     elseif transpathoptions.weightscheme==2 % A exponentially decreasing weighting on new path from (1-oldpathweight) in first period, down to 0.1*(1-oldpathweight) in T-1 period.
-        % I should precalculate these weighting vectors
         Ttheta=transpathoptions.Ttheta;
         PricePathOld(1:Ttheta,:)=transpathoptions.oldpathweight*PricePathOld(1:Ttheta,:)+(1-transpathoptions.oldpathweight)*PricePathNew(1:Ttheta,:);
         PricePathOld(Ttheta:T-1,:)=((transpathoptions.oldpathweight+(1-exp(linspace(0,log(0.2),T-Ttheta)))*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathOld(Ttheta:T-1,:)+((exp(linspace(0,log(0.2),T-Ttheta)).*(1-transpathoptions.oldpathweight))'*ones(1,l_p)).*PricePathNew(Ttheta:T-1,:);
@@ -242,7 +245,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
     end
     
-    TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence
+    TransPathConvergence=PricePathDist/transpathoptions.tolerance; %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
@@ -252,7 +255,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations
         PricePathHistory{pathcounter,1}=PricePathDist;
-        PricePathHistory{pathcounter,2}=PricePathOld;        
+        PricePathHistory{pathcounter,2}=PricePathOld;
         if rem(pathcounter,10)==1
             save ./SavedOutput/TransPath_Internal.mat PricePathHistory
         end
