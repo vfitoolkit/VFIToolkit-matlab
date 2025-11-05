@@ -22,8 +22,6 @@ if ~exist('vfoptions','var')
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
     % Howards improvement
-    vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
-    vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     if isscalar(n_a) % one endogenous state
         if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
             vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
@@ -33,6 +31,14 @@ if ~exist('vfoptions','var')
     else
         vfoptions.howardsgreedy=0;
     end
+    % When doing Howards iterations, the following are some suboptions
+    vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
+    vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
+    if N_a>1200 && N_z>100
+        vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix. Sparse is only faster for bigger models.
+    else
+        vfoptions.howardssparse=0;
+    end
     % Different asset types
     vfoptions.endogenousexit=0;
     vfoptions.endotype=0; % (vector indicating endogenous state is a type)
@@ -40,7 +46,7 @@ if ~exist('vfoptions','var')
     vfoptions.experienceasset=0;
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
-    % Other option
+    % Other options
     vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
@@ -49,7 +55,7 @@ if ~exist('vfoptions','var')
     % When calling as a subcommand, the following is used internally
     vfoptions.alreadygridvals=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
+    % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'verbose')
         vfoptions.verbose=0;
     end
@@ -78,12 +84,7 @@ else
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
     end
-    if ~isfield(vfoptions,'howards')
-        vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
-    end  
-    if ~isfield(vfoptions,'maxhowards')
-        vfoptions.maxhowards=500;
-    end  
+    % Howards improvement
     if ~isfield(vfoptions,'howardsgreedy')
         if isscalar(n_a) % one endogenous state
             if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
@@ -95,6 +96,21 @@ else
             vfoptions.howardsgreedy=0;
         end
     end
+    % When doing Howards iterations, the following are some suboptions
+    if ~isfield(vfoptions,'howards')
+        vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
+    end  
+    if ~isfield(vfoptions,'maxhowards')
+        vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
+    end
+    if ~isfield(vfoptions,'howardssparse')
+        if N_a>1200 && N_z>100
+            vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix. Sparse is only faster for bigger models.
+        else
+            vfoptions.howardssparse=0;
+        end
+    end
+    % Different asset types
     if ~isfield(vfoptions,'endogenousexit')
         vfoptions.endogenousexit=0;
     end
@@ -104,11 +120,12 @@ else
     if ~isfield(vfoptions,'incrementaltype')
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     end
-%     vfoptions.exoticpreferences % default is not to declare it
-%     vfoptions.SemiEndogShockFn % default is not to declare it    
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
     end
+%     vfoptions.exoticpreferences % default is not to declare it
+%     vfoptions.SemiEndogShockFn % default is not to declare it    
+    % Other options
     if ~isfield(vfoptions,'polindorval')
         vfoptions.polindorval=1;
     end
@@ -471,7 +488,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
         
         if N_d==0
-            if vfoptions.parallel==0     % On CPU
+            if vfoptions.parallel==0 % On CPU
                 [VKron,Policy]=ValueFnIter_nod_Par0_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron,Policy]=ValueFnIter_nod_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
@@ -479,7 +496,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
                 if vfoptions.howardsgreedy==1
                     [VKron,Policy]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
                 elseif vfoptions.howardsgreedy==0
-                    [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid,
+                    if vfoptions.howardssparse==0
+                        [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid
+                    elseif vfoptions.howardssparse==1
+                        [VKron,Policy]=ValueFnIter_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter); %  a_grid, z_grid
+                    end
                 end
             end
         else
@@ -501,7 +522,11 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         
         if vfoptions.parallel==2 % On GPU
             if N_d==0
-                [VKron,Policy]=ValueFnIter_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+                if vfoptions.howardssparse==0
+                    [VKron,Policy]=ValueFnIter_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+                elseif vfoptions.howardssparse==1
+                    [VKron,Policy]=ValueFnIter_LowMem_sparse_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+                end
             else
                 [VKron, Policy]=ValueFnIter_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             end
