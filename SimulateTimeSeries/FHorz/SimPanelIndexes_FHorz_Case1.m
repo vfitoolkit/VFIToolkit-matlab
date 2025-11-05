@@ -87,20 +87,13 @@ if ~isfield(simoptions, 'n_semiz')
 end
 if simoptions.n_semiz(1)>0
     simoptions.parallel=1;
+    simoptions.riskyasset=0;
     if N_z==0
-        if isfield(simoptions,'aggshock')
-            SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz_aggshock(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
-            if MoveOutputtoGPU==1
-                SimPanel=gpuArray(SimPanel);
-            end
-            return
-        else
-            SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
-            if MoveOutputtoGPU==1
-                SimPanel=gpuArray(SimPanel);
-            end
-            return
+        SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
+        if MoveOutputtoGPU==1
+            SimPanel=gpuArray(SimPanel);
         end
+        return
     else
         SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions);
         if MoveOutputtoGPU==1
@@ -117,7 +110,7 @@ numbersims=gather(simoptions.numbersims); % This is just to deal with weird erro
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
 
 %% First do the case without e variables, otherwise do with e variables
-if ~isfield(simoptions,'n_e')
+if simoptions.n_e(1)==0
     
     % Get seedpoints from InitialDist
     if simoptions.lowmemory==0

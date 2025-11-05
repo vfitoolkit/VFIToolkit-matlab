@@ -5,11 +5,7 @@ N_a=prod(n_a);
 
 l_a=length(n_a);
 
-simperiods=gather(simoptions.simperiods);
-
 %% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
-Parameters=simoptions.Parameters; % Hid a copy here for this purpose :)
-
 if ~isfield(simoptions,'n_semiz')
     error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
 end
@@ -37,24 +33,26 @@ d2_grid=simoptions.d_grid(sum(n_d1)+1:end);
 % Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
 N_semiz=prod(simoptions.n_semiz);
 l_semiz=length(simoptions.n_semiz);
-temp=getAnonymousFnInputNames(simoptions.SemiExoStateFn);
-if length(temp)>(l_semiz+l_semiz+l_d2) % This is largely pointless, the SemiExoShockFn is always going to have some parameters
-    SemiExoStateFnParamNames={temp{l_semiz+l_semiz+l_d2+1:end}}; % the first inputs will always be (semiz,semizprime,d)
-else
-    SemiExoStateFnParamNames={};
-end
-pi_semiz_J=zeros(N_semiz,N_semiz,prod(n_d2),N_j);
-for jj=1:N_j
-    SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-    pi_semiz_J(:,:,:,jj)=CreatePiSemiZ(n_d2,simoptions.n_semiz,d2_grid,simoptions.semiz_grid,simoptions.SemiExoStateFn,SemiExoStateFnParamValues);
-end
+
+% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,simoptions.Parameters,simoptions,2);
+% output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
+% size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
+% size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
+% If no semiz, then vfoptions just does not contain these field
+
 cumsumpi_semiz_J=gather(cumsum(pi_semiz_J,2));
 
 %%
 simperiods=gather(simoptions.simperiods);
-numbersims=gather(simoptions.numbersims); % This is just to deal with weird error that matlab decided simoptions.numbersims was on gpu and so couldn't be an input to rand()
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
+
+if n_d1(1)>0
+    % Change Policy from (d,aprime) to (d2,aprime) [We don't need d1 for the simulations]
+    PolicyKron(1,:,:,:)=ceil(PolicyKron(1,:,:,:)/N_d1);
+end
+
 
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')
@@ -72,12 +70,12 @@ if ~isfield(simoptions,'n_e')
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
             seedpoint=seedpoints(ii,:);
-            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_raw(PolicyKron,N_d1,N_j,cumsumpi_semiz_J, seedpoint, simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_raw(PolicyKron,N_j,cumsumpi_semiz_J, seedpoint, simperiods);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_raw(PolicyKron,N_d1,N_j,cumsumpi_semiz_J, seedpoint, simperiods);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_raw(PolicyKron,N_j,cumsumpi_semiz_J, seedpoint, simperiods);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
@@ -114,12 +112,12 @@ else %if isfield(simoptions,'n_e')
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
             seedpoint=seedpoints(ii,:);
-            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_e_raw(PolicyKron,N_d1,N_j,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_e_raw(PolicyKron,N_semiz,N_j,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_e_raw(PolicyKron,N_d1,N_j,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_noz_semiz_e_raw(PolicyKron,N_semiz,N_j,cumsumpi_semiz_J,cumsumpi_e_J, seedpoint, simperiods);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
