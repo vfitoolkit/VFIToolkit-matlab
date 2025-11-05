@@ -16,7 +16,7 @@ function PricePath=TransitionPath_Case1_FHorz(PricePathOld, ParamPath, T, V_fina
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
+    % If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-4);
     transpathoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately); 
@@ -24,7 +24,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
-    transpathoptions.maxiter=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
+    transpathoptions.maxiter=1000; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
     transpathoptions.graphpricepath=0;
     transpathoptions.graphaggvarspath=0;
@@ -459,7 +459,12 @@ else
     end
 end
 if transpathoptions.ageweightstrivial==1
-    if max(abs(AgeWeights_initial-AgeWeights))>10^(-9) % was 10^(-13), but this was problematic with numerical rounding errors
+    if max(abs(AgeWeights_initial-AgeWeights'))>10^(-9) % was 10^(-13), but this was problematic with numerical rounding errors
+        % Note: AgeWeights_inital is [1,N_j], while AgeWeights is [N_j,1], hence we need the transpose on AgeWeights
+        fprintf('AgeWeights are: \n')
+        AgeWeights
+        fprintf('AgeWeights implicit in the initial agent distribution are: \n')
+        AgeWeights_initial
         error('AgeWeights differs from the weights implicit in the initial agent distribution')
     end
 end
