@@ -208,7 +208,12 @@ else
     end
 end
 if transpathoptions.ageweightstrivial==1
-    if max(abs(AgeWeights_initial-AgeWeights))>10^(-9) % was 10^(-13), but this was problematic with numerical rounding errors
+    if max(abs(AgeWeights_initial-AgeWeights'))>10^(-9) % was 10^(-13), but this was problematic with numerical rounding errors
+        % Note: AgeWeights_inital is [1,N_j], while AgeWeights is [N_j,1], hence we need the transpose on AgeWeights
+        fprintf('AgeWeights are: \n')
+        AgeWeights
+        fprintf('AgeWeights implicit in the initial agent distribution are: \n')
+        AgeWeights_initial
         error('AgeWeights differs from the weights implicit in the initial agent distribution')
     end
 end
