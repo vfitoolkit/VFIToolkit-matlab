@@ -29,6 +29,12 @@ N_d2=prod(n_d2);
 N_d3=prod(n_d3);
 N_a1=prod(n_a1);
 N_z=prod(n_z);
+if isfield(vfoptions,'n_e')
+    N_e=prod(vfoptions.n_e);
+else
+    N_e=0;
+end
+
 
 % Note: divide-and-conquer is only possible with a1
 if N_a1>0 % set up for divide-and-conquer
@@ -67,7 +73,7 @@ if N_a1==0
     error('Have not implemented experience assets with semi-exogenous shocks, without also having a standard asset')
 end
 
-if isfield(vfoptions,'n_e')
+if N_e>0
     if vfoptions.divideandconquer==0
         if N_d1==0
             if N_z==0

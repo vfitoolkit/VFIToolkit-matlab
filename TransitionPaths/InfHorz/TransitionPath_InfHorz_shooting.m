@@ -134,7 +134,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
     % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
-    Vnext=V_final;
+    V=V_final;
     for ttr=1:T-1 %so tt=T-ttr
         
         for kk=1:length(PricePathNames)
@@ -144,35 +144,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(V,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
               
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        Vnext=V;
     end
     % Free up space on GPU by deleting things no longer needed
-    clear V Vnext
-
-
-    % disp('check')
-    % temp=UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath,n_d,n_a,n_z,T-1,vfoptions);
-    % size(temp)
-    % size(PolicyIndexesPath)
-    % max(abs(temp(:)-PolicyIndexesPath(:)))
-    % 
-    % max(max(max(PolicyIndexesPath(1,:,:,:))))
-    % max(max(max(PolicyIndexesPath(2,:,:,:))))
-    % max(max(max(PolicyIndexesPath(3,:,:,:))))
-    % 
-    % size(aprime_gridvals)
-    % 
-    % disp('check2')
-    % PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath,n_d,n_a,n_z,T-1,vfoptions),n_d,n_a,n_z,T-1,d_gridvals,aprime_gridvals,simoptions,1);
-    % PV1=d_grid(PolicyIndexesPath(1,:,:,:));
-    % PV2=a_grid(PolicyIndexesPath(2,:,:,:));
-    % max(max(max(max(PolicyValuesPath(1,:,:,:)-PV1))))
-    % max(max(max(max(PolicyValuesPath(2,:,:,:)-PV2))))
+    clear V
 
     
     % Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path.
@@ -239,9 +218,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
         
-        % [AggVars.L.Mean, AggVars.K.Mean,tt,full(sum(AgentDist))]
-        % sum(a_grid.*sum(reshape(AgentDist,[N_a,N_z]),2))
-
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae

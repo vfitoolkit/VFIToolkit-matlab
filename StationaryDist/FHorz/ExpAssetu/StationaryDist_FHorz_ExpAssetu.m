@@ -100,7 +100,7 @@ jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
 
-%%
+%% expassetu transitions
 % Policy is currently about d and a2prime. Convert it to being about aprime
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
 Policy_aprime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point

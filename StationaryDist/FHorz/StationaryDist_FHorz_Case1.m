@@ -156,7 +156,8 @@ if simoptions.experienceasset==1
 end
 if simoptions.experienceassetu==1
     if isfield(simoptions,'n_semiz')
-        error('Have not yet implemented experienceassetu with semiexo state, contact me if you need this')
+        StationaryDist=StationaryDist_FHorz_ExpAssetuSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+        return
     end
     StationaryDist=StationaryDist_FHorz_ExpAssetu(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
