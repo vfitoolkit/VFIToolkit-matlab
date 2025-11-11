@@ -1,140 +1,38 @@
-function StationaryDistKron=StationaryDist_FHorz_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,PolicyIndexesKron,N_d,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,Parameters,simoptions)
-%Will treat the agents as being on a continuum of mass 1.
-
-% Options needed
-%  simoptions.maxit
-%  simoptions.tolerance
-%  simoptions.parallel
-%  simoptions.parovere
-
+function StationaryDistKron=StationaryDist_FHorz_Iteration_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,Parameters)
+% Will treat the agents as being on a continuum of mass 1.
 
 % Ran a bunch of runtime tests. Tan improvement is always faster.
-% Seems loop over e vs parallel over e is essentially break-even.
+% Seems loop over e vs parallel over e is essentially break-even [see old version of this code on github, loop was removed in late2025].
 
-pi_e_J=gather(pi_e_J);
-pi_z_J=gather(pi_z_J);
+Policy_aprimez=Policy_aprime+N_a*repmat(gpuArray(0:1:N_z-1),1,N_e,1); % Note: add z' index following the z&e dimension [Tan improvement, z stays where it is]
+Policy_aprimez=gather(Policy_aprimez);
 
-if simoptions.loopovere==0
+StationaryDistKron=zeros(N_a*N_z*N_e,N_j,'gpuArray');
+StationaryDistKron(:,1)=jequaloneDistKron;
 
-    if N_d==0
-        PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z*N_e,N_j]));
-    else
-        PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z*N_e,N_j]));
-    end
+StationaryDist_jj=sparse(gather(jequaloneDistKron));
 
-    StationaryDistKron=zeros(N_a*N_z*N_e,N_j);
-    StationaryDistKron(:,1)=gather(jequaloneDistKron);
+IIind=(1:1:N_a*N_z*N_e)';
+JJind=ones(N_a,N_z*N_e);
 
-    StationaryDist_jj=sparse(gather(jequaloneDistKron));
-    
-    for jj=1:(N_j-1)
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
+for jj=1:(N_j-1)
 
-        optaprime=PolicyIndexesKron(1,:,jj);
+    Gammatranspose=sparse(Policy_aprimez(:,:,jj),IIind,JJind,N_a*N_z,N_a*N_z*N_e);
 
-        firststep=optaprime+kron(ones(1,N_e),kron(N_a*(0:1:N_z-1),ones(1,N_a))); % Turn into index for (a',z)
-        Gammatranspose=sparse(firststep,1:1:N_a*N_z*N_e,ones(N_a*N_z*N_e,1),N_a*N_z,N_a*N_z*N_e);
 
-        pi_z=sparse(pi_z_J(:,:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
-        pi_e=sparse(pi_e_J(:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+    % First step of Tan improvement
+    StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
 
-        % Two steps of the Tan improvement
-        StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
-        StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
+    % Second step of Tan improvement
+    pi_z=sparse(gather(pi_z_J(:,:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+    StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
-        StationaryDist_jj=kron(pi_e,StationaryDist_jj);
+    % Put e back into dist
+    pi_e=sparse(gather(pi_e_J(:,jj))); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
+    StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 
-        StationaryDistKron(:,jj+1)=full(StationaryDist_jj);
-    end
-    if simoptions.parallel==2 % Move result to gpu
-        StationaryDistKron=gpuArray(StationaryDistKron);
-        % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
-    end
-
-elseif simoptions.loopovere==1
-    StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
-    StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
-    StationaryDistKron(:,:,1)=StationaryDist_jj;
-    
-    if N_d==0
-        PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]));
-    else
-        PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z,N_e,N_j]));
-    end
-
-    for jj=1:(N_j-1)
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
-        pi_z=sparse(pi_z_J(:,:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
-
-        for e_c=1:N_e % you can probably parfor this?
-            optaprime=PolicyIndexesKron(1,:,e_c,jj);
-            StationaryDist_jjee=sparse(StationaryDist_jj(:,e_c));
-
-            firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
-            Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
-
-            % Two steps of the Tan improvement
-            StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
-            StationaryDist_jjee=reshape(StationaryDist_jjee*pi_z,[N_a*N_z,1]);
-
-            StationaryDist_jj(:,e_c)=full(StationaryDist_jjee);
-        end
-
-        StationaryDist_jj=sum(StationaryDist_jj,2);
-        StationaryDist_jj=StationaryDist_jj.*pi_e_J(:,jj)';
-
-        StationaryDistKron(:,:,jj+1)=full(StationaryDist_jj);
-    end
-    if simoptions.parallel==2 % Move result to gpu
-        StationaryDistKron=gpuArray(StationaryDistKron);
-        % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
-    end
-elseif simoptions.loopovere==2 % loop over e, but using a parfor loop [Ran some runtime tests, this parfor is much slower than simoptions.loopovere=1]
-    StationaryDistKron=zeros(N_a*N_z,N_e,N_j);
-    StationaryDist_jj=gather(reshape(jequaloneDistKron,[N_a*N_z,N_e]));
-    StationaryDistKron(:,:,1)=StationaryDist_jj;
-
-    if N_d==0
-        PolicyIndexesKron=gather(reshape(PolicyIndexesKron,[1,N_a*N_z,N_e,N_j]));
-    else
-        PolicyIndexesKron=gather(reshape(PolicyIndexesKron(2,:,:,:,:),[1,N_a*N_z,N_e,N_j]));
-    end
-
-    for jj=1:(N_j-1)
-        if simoptions.verbose==1
-            fprintf('Stationary Distribution iteration horizon: %i of %i \n',jj, N_j)
-        end
-        pi_z=sparse(pi_z_J(:,:,jj)); % Note: this cannot be moved outside the for-loop as Matlab only allows sparse for 2-D arrays (so cannot, e.g., do sparse(pi_z_J)).
-
-        parfor e_c=1:N_e % you can probably parfor this?
-            optaprime=PolicyIndexesKron(1,:,e_c,jj);
-            StationaryDist_jjee=sparse(StationaryDist_jj(:,e_c));
-
-            firststep=optaprime+kron(N_a*(0:1:N_z-1),ones(1,N_a));
-            Gammatranspose=sparse(firststep,1:1:N_a*N_z,ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
-
-            % Two steps of the Tan improvement
-            StationaryDist_jjee=reshape(Gammatranspose*StationaryDist_jjee,[N_a,N_z]);
-            StationaryDist_jjee=reshape(StationaryDist_jjee*pi_z,[N_a*N_z,1]);
-
-            StationaryDist_jj(:,e_c)=full(StationaryDist_jjee);
-        end
-
-        StationaryDist_jj=sum(StationaryDist_jj,2);
-        StationaryDist_jj=StationaryDist_jj.*pi_e_J(:,jj)';
-
-        StationaryDistKron(:,:,jj+1)=full(StationaryDist_jj);
-    end
-    if simoptions.parallel==2 % Move result to gpu
-        StationaryDistKron=gpuArray(StationaryDistKron);
-        % Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
-    end
+    StationaryDistKron(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
-
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
 try
@@ -147,11 +45,6 @@ if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
     AgeWeights=AgeWeights';
 end
 
-if simoptions.loopovere>0
-    StationaryDistKron=StationaryDistKron.*shiftdim(AgeWeights,-1); %.*repmat(shiftdim(AgeWeights,-1),N_a*N_z,N_e,1);
-else
-    StationaryDistKron=StationaryDistKron.*AgeWeights;
-end
-
+StationaryDistKron=StationaryDistKron.*AgeWeights;
 
 end

@@ -1,8 +1,9 @@
-function StationaryDist=StationaryDist_FHorz_ExpAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_u,N_j,d_grid,a2_grid,u_grid,pi_u,Parameters,simoptions)
+function StationaryDist=StationaryDist_FHorz_RiskyAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_u,N_j,d_grid,a2_grid,u_grid,pi_u,Parameters,simoptions)
 
-%% Setup related to experience asset
-n_d2=n_d(end);
-% Split endogenous assets into the standard ones and the experience asset
+%% Setup related to risky asset
+n_d23=n_d(simoptions.refine_d(1)+1:sum(simoptions.refine_d(1:3))); % decision variables for riskyasset
+
+% Split endogenous assets into the standard ones and the risky asset
 if isscalar(n_a)
     n_a1=0;
 else
@@ -11,12 +12,11 @@ end
 n_a2=n_a(end); % n_a2 is the experience asset
 
 % aprimeFnParamNames in same fashion
-l_d2=length(n_d2);
-l_a2=length(n_a2);
-l_u=length(n_u);
+l_u=length(simoptions.n_u);
+l_d23=length(n_d23);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d2+l_a2+l_u)
-    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}}; % the first inputs will always be (d2,a2,u)
+if length(temp)>(l_d23+l_u)
+    aprimeFnParamNames={temp{l_d23+l_u+1:end}}; % the first inputs will always be (d,u)
 else
     aprimeFnParamNames={};
 end
@@ -31,17 +31,14 @@ N_u=prod(n_u);
 jequaloneDistKron=reshape(jequaloneDist,[N_a,1]);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
 
-
-%% expassetu transitions
-% Policy is currently about d and a2prime. Convert it to being about aprime
-% as that is what we need for simulation, and we can then just send it to standard Case1 commands.
+%% riskyasset transitions
 Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
 Policy_aprime=zeros(N_a,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_u,2,N_j,'gpuArray'); % probabilities of grid points
-whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetu_Case1(Policy(:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, 0,n_u, d_grid, a2_grid,u_grid, aprimeFnParamsVec);
+    [aprimeIndexes,aprimeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(1:l_d,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_ze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
     % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z,N_u]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 
@@ -65,7 +62,6 @@ end
 
 Policy_aprime=reshape(Policy_aprime,[N_a,N_u*2,N_j]);
 PolicyProbs=reshape(PolicyProbs,[N_a,N_u*2,N_j]);
-
 
 %%
 

@@ -1,47 +1,19 @@
 function StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions)
-%%
-if isempty(n_d)
-    n_d=0;
-end
-N_z=prod(n_z);
+%% Finite Horizon agent distribution. Solves using iteration (implemented with the Tan improvement).
+% jequaloneDist is the distribution of agents in period j=1.
 
 if exist('simoptions','var')==0
-    simoptions.verbose=0;
-    simoptions.tolerance=10^(-9);
-    % Things that are really just for internal usage
-    simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
-    simoptions.outputkron=0; % If 1 then leave output in Kron form
-    simoptions.tanimprovement=1;  % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
-    simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
     simoptions.gridinterplayer=0; % =1 Policy interpolates between grid points (must match vfoptions.interpgridlayer)
     % Alternative endo states
     simoptions.experienceasset=0;
     simoptions.experienceassetu=0;
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
-    % When calling as a subcommand, the following is used internally
-    simoptions.alreadygridvals=0;
+    % Things that are really just for internal usage
+    simoptions.outputkron=0; % If 1 then leave output in Kron form
+    simoptions.alreadygridvals=0; % =1 when calling as a subcommand
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(simoptions,'verbose')
-        simoptions.verbose=0;
-    end
-    if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-9);
-    end
-    % Things that are really just for internal usage
-    if ~isfield(simoptions,'parallel')
-            simoptions.parallel=1+(gpuDeviceCount>0); % 1 if cpu, 2 if gpu
-    end
-    if ~isfield(simoptions,'outputkron')
-        simoptions.outputkron=0; % If 1 then leave output in Kron form
-    end
-    if ~isfield(simoptions,'tanimprovement')
-        simoptions.tanimprovement=1; % Mostly hardcoded, but in simplest case of (a,z) you can try out the alternatives
-    end
-    if ~isfield(simoptions,'loopovere')
-        simoptions.loopovere=0; % default is parallel over e, 1 will loop over e, 2 will parfor loop over e
-    end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0; % =1 Policy interpolates between grid points (must match vfoptions.interpgridlayer)
     elseif simoptions.gridinterplayer==1
@@ -62,18 +34,15 @@ else
     if ~isfield(simoptions,'residualasset')
         simoptions.residualasset=0;
     end
+    % Things that are really just for internal usage
+    if ~isfield(simoptions,'outputkron')
+        simoptions.outputkron=0; % If 1 then leave output in Kron form
+    end
     if ~isfield(simoptions,'alreadygridvals')
-        % When calling as a subcommand, the following is used internally
-        simoptions.alreadygridvals=0;
+        simoptions.alreadygridvals=0; % =1 when calling as a subcommand
     end
 end
 
-% Check for something that used to be an option, but no longer is
-if isfield(simoptions,'iterate')
-    if simoptions.iterate==0
-        error('simoptions.iterate=0 is no longer supported (has been eliminated from VFI Toolkit)')
-    end
-end
 
 %% Check for the age weights parameter, and make sure it is a row vector
 if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
@@ -144,107 +113,182 @@ if abs(sum(jequaloneDist(:))-1)>10^(-9)
     error('The jequaloneDist must be of mass one')
 end
 
+%%
+if isfield(simoptions,'n_semiz')
+    N_semiz=prod(simoptions.n_semiz);
+    if ~isfield(simoptions,'l_dsemiz')
+        simoptions.l_dsemiz=1; % by default, just one decision variable is used for the semi-exo state
+    end
+else
+    N_semiz=0;
+end
+
 
 %% Non-standard endogenous states
 if simoptions.experienceasset==1
-    if isfield(simoptions,'n_semiz')
+    if N_semiz==0
+        StationaryDist=StationaryDist_FHorz_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        return
+    else
         StationaryDist=StationaryDist_FHorz_ExpAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
         return
     end
-    StationaryDist=StationaryDist_FHorz_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-    return
 end
 if simoptions.experienceassetu==1
-    if isfield(simoptions,'n_semiz')
+    if N_semiz==0
+        StationaryDist=StationaryDist_FHorz_ExpAssetu(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        return
+
+    else
         StationaryDist=StationaryDist_FHorz_ExpAssetuSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
         return
     end
-    StationaryDist=StationaryDist_FHorz_ExpAssetu(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-    return
 end
 if simoptions.riskyasset==1
-    if isfield(simoptions,'n_semiz')
-    StationaryDist=StationaryDist_FHorz_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+    if N_semiz==0
+        StationaryDist=StationaryDist_FHorz_RiskyAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
+        return
+    else
+        StationaryDist=StationaryDist_FHorz_RiskyAssetSemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
         return
     end
-    StationaryDist=StationaryDist_FHorz_RiskyAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-    return
 end
 if simoptions.residualasset==1
     StationaryDist=StationaryDist_FHorz_ResidAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
     return
 end
 
+
+
 %% Standard endogenous states
+if N_semiz>0
+    StationaryDist=StationaryDist_FHorz_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
+    return
+end
+
+
+
+
+
+%% Now we are just left with the baseline: standard endogenous state, with/without markov z and with/without iid e
+
+%% Key to understanding the below is to notice that the agent distribution evolves according to aprime, but d is irrelevant
+% So the code is just cleaning up Policy_aprime, and then goes to the appropriate iteration command based on what shocks are in the model
+
+if prod(n_d)==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
+
+N_a=prod(n_a);
+N_z=prod(n_z);
 if isfield(simoptions,'n_e')
     N_e=prod(simoptions.n_e);
 else
     N_e=0;
 end
 
-if simoptions.gridinterplayer==0
-    if isfield(simoptions,'n_semiz')
-        if N_e==0
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_SemiExo_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_SemiExo(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
-            end
-        else
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_SemiExo_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_SemiExo_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_j,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-            end
-        end
+% Deal with the no z and no e first (as it needs different shapes to the rest)
+if N_z==0 && N_e==0
+    jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
+    jequaloneDist=reshape(jequaloneDist,[N_a,1]);
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
+
+    % Policy_aprime
+    if l_a==1 % one endo state
+        Policy_aprime=Policy(l_d+1,:,:);
+    elseif l_a==2 % two endo states
+        Policy_aprime=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1);
+    elseif l_a==3 % three endo states
+        Policy_aprime=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1);
+    elseif l_a==4 % four endo states
+        Policy_aprime=Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1);
     else
-        if N_e==0
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-            end
-        else
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-            end
-        end
+        error('Not yet implemented standard endogenous states with length(n_a)>4')
+    end
+    Policy_aprime=shiftdim(Policy_aprime,1);
+
+    if simoptions.gridinterplayer==0
+        StationaryDist=StationaryDist_FHorz_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,N_a,N_j,Parameters);
+    elseif simoptions.gridinterplayer==1
+        % (a,1,j)
+        Policy_aprime=reshape(Policy_aprime,[N_a,1,N_j]);
+        Policy_aprime=repmat(Policy_aprime,1,2,1);
+        PolicyProbs=ones([N_a,2,N_j],'gpuArray');
+        % Policy_aprime(:,1,:) lower grid point for a1 is unchanged
+        Policy_aprime(:,2,:)=Policy_aprime(:,2,:)+1; % add one to a1, to get upper grid point
+
+        aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,1,N_j]); % probability of upper grid point (from L2 index)
+        PolicyProbs(:,1,:)=PolicyProbs(:,1,:).*(1-aprimeProbs_upper); % lower a1
+        PolicyProbs(:,2,:)=PolicyProbs(:,2,:).*aprimeProbs_upper; % upper a1
+
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_j,Parameters);
+    end
+else
+    if N_z==0
+        N_ze=N_e;
+    elseif N_e==0
+        N_ze=N_z;
+    else % neither is zero
+        N_ze=N_z*N_e;
     end
 
-elseif simoptions.gridinterplayer==1
-    if isfield(simoptions,'n_semiz')
-        if N_e==0
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_SemiExo_GI_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,N_j,simoptions.pi_semiz_J,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_SemiExo_GI(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,N_j,simoptions.pi_semiz_J,pi_z_J,Parameters,simoptions);
-            end
-        else
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_SemiExo_GI_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,simoptions.n_e,N_j,simoptions.pi_semiz_J,simoptions.pi_e_J,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_SemiExo_GI_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_semiz,n_z,simoptions.n_e,N_j,simoptions.pi_semiz_J,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-            end
-        end
+    jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
+    jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
+
+    % Policy_aprime
+    if l_a==1 % one endo state
+        Policy_aprime=Policy(l_d+1,:,:,:);
+    elseif l_a==2 % two endo states
+        Policy_aprime=Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1);
+    elseif l_a==3 % three endo states
+        Policy_aprime=Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1);
+    elseif l_a==4 % four endo states
+        Policy_aprime=Policy(l_d+1,:,:,:)+n_a(1)*(Policy(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:,:)-1);
     else
-        if N_e==0
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_GI_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,N_j,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_GI_raw(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
-            end
-        else
-            if N_z==0
-                StationaryDist=StationaryDist_FHorz_GI_noz_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,simoptions.n_e,N_j,simoptions.pi_e_J,Parameters,simoptions);
-            else
-                StationaryDist=StationaryDist_FHorz_GI_e(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,simoptions.n_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters,simoptions);
-            end
+        error('Not yet implemented standard endogenous states with length(n_a)>4')
+    end
+    Policy_aprime=shiftdim(Policy_aprime,1);
+
+    
+    %%
+    if simoptions.gridinterplayer==0
+        if N_z==0 && N_e==0 % handled separately above
+            % StationaryDist=StationaryDist_FHorz_Iteration_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,N_a,N_j,Parameters);
+        elseif N_e==0 % just z
+            StationaryDist=StationaryDist_FHorz_Iteration_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,N_a,N_z,N_j,pi_z_J,Parameters);
+        elseif N_z==0 % just e
+            StationaryDist=StationaryDist_FHorz_Iteration_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
+        else % both z and e
+            StationaryDist=StationaryDist_FHorz_Iteration_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+        end
+    elseif simoptions.gridinterplayer==1
+        % (a,z,1,j)
+        Policy_aprime=reshape(Policy_aprime,[N_a,N_ze,1,N_j]);
+        Policy_aprime=repmat(Policy_aprime,1,1,2,1);
+        PolicyProbs=ones([N_a,N_ze,2,N_j],'gpuArray');
+        % Policy_aprime(:,:,1,:) lower grid point for a1 is unchanged
+        Policy_aprime(:,:,2,:)=Policy_aprime(:,:,2,:)+1; % add one to a1, to get upper grid point
+
+        aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_ze,1,N_j]); % probability of upper grid point (from L2 index)
+        PolicyProbs(:,:,1,:)=PolicyProbs(:,:,1,:).*(1-aprimeProbs_upper); % lower a1
+        PolicyProbs(:,:,2,:)=PolicyProbs(:,:,2,:).*aprimeProbs_upper; % upper a1
+
+        if N_z==0 && N_e==0 % handled separately above
+            % StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_j,Parameters);
+        elseif N_e==0 % just z
+            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_z,N_j,pi_z_J,Parameters);
+        elseif N_z==0 % just e
+            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
+        else % both z and e
+            StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
         end
     end
-
 end
+
 
 
 

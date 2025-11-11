@@ -3,9 +3,10 @@ function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDistK
 % Policy_aprimez has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
-Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1); % Note: add z index following the z dimension
-Policy_aprimez=reshape(Policy_aprimez,[N_a*N_z,N_probs,N_j]);
-PolicyProbs=reshape(PolicyProbs,[N_a*N_z,N_probs,N_j]);
+% Policy_aprime and PolicyProbs are currently [N_a,N_z,N_probs,N_j]
+Policy_aprimez=Policy_aprime+N_a*gpuArray(0:1:N_z-1);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
+Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_probs,N_j])); % sparse() requires inputs to be 2-D
+PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_probs,N_j])); % sparse() requires inputs to be 2-D
 
 %% Use Tan improvement
 
@@ -14,7 +15,7 @@ StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 
 % Precompute
-II2=repmat(gpuArray(1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
+II2=repmat((1:1:N_a*N_z)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
@@ -28,7 +29,7 @@ for jj=1:(N_j-1)
     pi_z=sparse(pi_z_J(:,:,jj));
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
-    StationaryDist(:,jj+1)=full(StationaryDist_jj);
+    StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
 
 

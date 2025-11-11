@@ -44,7 +44,7 @@ u_grid=gpuArray(simoptions.u_grid);
 pi_u=gpuArray(simoptions.pi_u);
 
 %%
-l_d=length(n_d);
+% l_d=length(n_d);
 
 % aprimeFnParamNames in same fashion
 l_u=length(simoptions.n_u);
@@ -63,10 +63,11 @@ else
     N_e=0;
 end
 
-%%
 if n_z(1)==0 && N_e==0
-    error('Have not yet impelmented N_z=0 and N_e=0 in StationaryDist_FHorz_RiskyAsset (contact me)')
+    StationaryDist=StationaryDist_FHorz_RiskyAssetu_noz(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_u,N_j,d_grid,a2_grid,u_grid,pi_u,Parameters,simoptions);
+    return
 end
+
 %%
 if ~isfield(simoptions,'aprimedependsonage')
     simoptions.aprimedependsonage=0;
@@ -110,31 +111,31 @@ jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
 Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
 %% riskyasset transitions
-Policy_a2prime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
+Policy_aprime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
 whichisdforriskyasset=(simoptions.refine_d(1)+1):1:length(n_d);  % is just saying which is the decision variable that influences the risky asset (it is all the decision variables)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndexes,a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_ze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
+    [aprimeIndexes,aprimeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy(1:l_d,:,:,jj),simoptions.aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_ze, simoptions.n_u, simoptions.d_grid, a2_grid, u_grid, aprimeFnParamsVec);
     % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z,N_u]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-    Policy_a2prime(:,:,:,1,jj)=a2primeIndexes; % lower grid point
-    Policy_a2prime(:,:,:,2,jj)=a2primeIndexes+1; % upper grid point
-    % Encode the u probabilities (pi_u) into the PolicyProbs
-    PolicyProbs(:,:,:,1,jj)=a2primeProbs.*shiftdim(pi_u,-2); % lower grid point probability (and probability of u)
-    PolicyProbs(:,:,:,2,jj)=(1-a2primeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
-end
+    
+    if l_a==1 % just experienceassetu
+        Policy_aprime(:,:,:,1,jj)=aprimeIndexes;
+        Policy_aprime(:,:,:,2,jj)=aprimeIndexes+1;
+    elseif l_a==2 % one other asset, then experience assetu
+        Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
+        Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1);
+    elseif l_a==3 % two other assets, then experience assetu
+        Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
+        Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1)*n_a(2);
+    else
+        error('Not yet implemented experience asset with length(n_a)>3')
+    end
 
-if l_a==1 % just riskyasset
-    Policy_aprime=Policy_a2prime;
-elseif l_a==2 % one other asset, then riskyasset
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*(Policy_a2prime(:,:,:,1,:)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*Policy_a2prime(:,:,:,1,:); % Note: upper grid point minus 1 is anyway just lower grid point
-elseif l_a==3 % two other assets, then riskyasset
-    Policy_aprime(:,:,:,1,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*n_a(2)*(Policy_a2prime(:,:,:,1,:)-1);
-    Policy_aprime(:,:,:,2,:)=reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*reshape(Policy(l_d+1,:,:,:),[N_a,N_ze,1,1,N_j])+n_a(1)*n_a(2)*Policy_a2prime(:,:,:,1,:); % Note: upper grid point minus 1 is anyway just lower grid point
-elseif l_a>3
-    error('Only two assets other than the risky asset is allowed (email if you need this)')
+    % Encode the u probabilities (pi_u) into the PolicyProbs
+    PolicyProbs(:,:,:,1,jj)=aprimeProbs.*shiftdim(pi_u,-2); % lower grid point probability (and probability of u)
+    PolicyProbs(:,:,:,2,jj)=(1-aprimeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
 end
 
 Policy_aprime=reshape(Policy_aprime,[N_a,N_ze,N_u*2,N_j]);
@@ -145,14 +146,11 @@ PolicyProbs=reshape(PolicyProbs,[N_a,N_ze,N_u*2,N_j]);
 if simoptions.gridinterplayer==0
     % Note: N_z=0 && N_e=0 is a different code
     if N_e==0 % just z
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_z,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
-        StationaryDist=gpuArray(StationaryDist);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_z,N_j,pi_z_J,Parameters);
     elseif N_z==0 % just e
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
-        StationaryDist=gpuArray(StationaryDist);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
     else % both z and e
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
-        StationaryDist=gpuArray(StationaryDist);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_u*2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
     end
 elseif simoptions.gridinterplayer==1
     % (a,z,2,j)

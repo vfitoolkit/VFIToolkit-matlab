@@ -3,18 +3,19 @@ function StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDis
 % Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
 
-Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1),1,N_e); % Note: add z index following the z dimension
-Policy_aprimez=reshape(Policy_aprimez,[N_a*N_z*N_e,N_probs,N_j]);
-PolicyProbs=reshape(PolicyProbs,[N_a*N_z*N_e,N_probs,N_j]);
+% Policy_aprime and PolicyProbs are currently [N_a,N_z*N_e,N_probs,N_j]
+Policy_aprimez=Policy_aprime+repmat(N_a*gpuArray(0:1:N_z-1),1,N_e);  % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
+Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
+PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z*N_e,N_probs,N_j])); % sparse() requires inputs to be 2-D
 
 %% Use Tan improvement
 
 StationaryDist=zeros(N_a*N_z*N_e,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
-StationaryDist_jj=sparse(jequaloneDistKron); % sparse() creates a matrix of zeros
+StationaryDist_jj=sparse(gather(jequaloneDistKron)); % sparse() creates a matrix of zeros
 
 % Precompute
-II2=repmat(gpuArray((1:1:N_a*N_z*N_e)'),1,N_probs); %  Index for this period (a,z), note the N_probs-copies
+II2=repmat((1:1:N_a*N_z*N_e)',1,N_probs); %  Index for this period (a,z), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
@@ -24,12 +25,12 @@ for jj=1:(N_j-1)
     % First step of Tan improvement
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
 
-    pi_z=sparse(pi_z_J(:,:,jj));
-    pi_e=sparse(pi_e_J(:,jj));
-
     % Second step of Tan improvement
+    pi_z=sparse(gather(pi_z_J(:,:,jj)));
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
+    % Put e back into dist
+    pi_e=sparse(gather(pi_e_J(:,jj)));
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 
     StationaryDist(:,jj+1)=full(StationaryDist_jj);

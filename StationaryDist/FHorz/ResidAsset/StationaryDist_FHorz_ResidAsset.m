@@ -43,19 +43,23 @@ N_r=prod(n_r);
 N_z=prod(n_z);
 
 %%
-if isfield(simoptions,'n_e')
-    N_e=prod(simoptions.n_e);
-    jequaloneDistKron=reshape(jequaloneDist,[N_a*N_r*N_z*N_e,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a*N_r,N_z*N_e,N_j]);
-    n_ze=[n_z,simoptions.n_e];
-    N_ze=N_z*N_e;
+if N_z==0
+    % Note: n_z(1)==0 && N_e==0 already got sent elsewhere
+    n_ze=simoptions.n_e;
+    N_ze=N_e;
 else
-    jequaloneDistKron=reshape(jequaloneDist,[N_a*N_r*N_z,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a*N_r,N_z,N_j]);
-    n_ze=n_z;
-    N_ze=N_z;
+    if N_e==0
+        n_ze=n_z;
+        N_ze=N_z;
+    else
+        n_ze=[n_z,simoptions.n_e];
+        N_ze=N_z*N_e;
+    end
 end
-% NOTE: have rolled e into z
+
+jequaloneDist=gpuArray(jequaloneDist); % make sure it is on gpu
+jequaloneDist=reshape(jequaloneDist,[N_a*N_r*N_ze,1]);
+Policy=reshape(Policy,[size(Policy,1),N_a*N_r,N_ze,N_j]);
 
 
 %% Residual asset
@@ -87,12 +91,18 @@ Policy_arprime(:,:,1,:)=Policy_aprime+N_a*(Policy_rprime-1);
 Policy_arprime(:,:,2,:)=Policy_aprime+N_a*(Policy_rprime+1-1);
 
 
-%%   
-% Note: N_z=0 is a different code
-if isfield(simoptions,'n_e')
-    error('Have not yet impelmented N_e in StationaryDist_FHorz_Case1_ResidAsset (contact me)')
-else % no e
-    StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_raw(jequaloneDistKron,AgeWeightParamNames,Policy_arprime,PolicyProbs,N_a*N_r,N_ze,N_j,pi_z_J,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
+%%
+if simoptions.gridinterplayer==0
+    % Note: N_z=0 && N_e=0 is a different code
+    if N_e==0 % just z
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a,N_z,N_j,pi_z_J,Parameters);
+    elseif N_z==0 % just e
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
+    else % both z and e
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+    end
+elseif simoptions.gridinterplayer==1
+    error('grid interpolation layer not yet implemented for residual assets (contact me)')
 end
 
 if simoptions.parallel==2
@@ -100,9 +110,9 @@ if simoptions.parallel==2
 end
 if simoptions.outputkron==0
     StationaryDist=reshape(StationaryDist,[n_a,n_r,n_ze,N_j]);
-% else
-%     % If 1 then leave output in Kron form
-%     StationaryDist=reshape(StationaryDist,[N_a,N_r,N_ze,N_j]);
+else
+    % If 1 then leave output in Kron form
+    StationaryDist=reshape(StationaryDist,[N_a,N_r,N_ze,N_j]);
 end
 
 end

@@ -61,8 +61,7 @@ end
 
 if simoptions.gridinterplayer==0
     
-    StationaryDist=StationaryDist_FHorz_Iteration_TwoProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,N_a,N_j,Parameters); % zero is n_d, because we already converted Policy to only contain aprime
-    StationaryDist=gpuArray(StationaryDist); % NEED TO MOVE TAN IMPROVEMENT TO GPU
+    StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_raw(jequaloneDistKron,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_j,Parameters);
 
 elseif simoptions.gridinterplayer==1
     % (a,u,2,j)
