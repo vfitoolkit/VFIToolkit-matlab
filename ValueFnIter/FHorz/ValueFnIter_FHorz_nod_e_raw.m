@@ -8,8 +8,6 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-a_grid=gpuArray(a_grid);
-
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
@@ -65,13 +63,13 @@ else
 
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
     EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
+
+    EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension
     
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-        
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1,N_e);
         
@@ -83,9 +81,6 @@ else
         
         
     elseif vfoptions.lowmemory==1
-        EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:);
@@ -105,11 +100,7 @@ else
         
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:);
-            
-            %Calc the condl expectation term (except beta) which depends on z but not control variables
-            EV_z=EV.*pi_z_J(z_c,:,N_j);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+            EV_z=EV(:,:,z_c);
             
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -143,13 +134,13 @@ for reverse_j=1:N_j-1
     EV=V(:,:,:,jj+1);
     EV=sum(EV.*pi_e_J(1,1,:,jj),3);
     
+    EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=sum(EV,2); % sum over z', leaving a singular second dimension
+
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_z, n_e, 0, a_grid, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
-        
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2); % sum over z', leaving a singular second dimension
-        
+                
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1,N_e);
         
         % Calc the max and it's index
@@ -160,9 +151,6 @@ for reverse_j=1:N_j-1
         
         
     elseif vfoptions.lowmemory==1
-        EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
@@ -181,11 +169,7 @@ for reverse_j=1:N_j-1
         
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            
-            %Calc the condl expectation term (except beta) which depends on z but not control variables
-            EV_z=EV.*pi_z_J(z_c,:,jj);
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
+            EV_z=EV(:,:,z_c);
             
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);

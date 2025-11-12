@@ -9,13 +9,10 @@ V=zeros(N_a,N_semiz,N_j,'gpuArray');
 Policy=zeros(2,N_a,N_semiz,N_j,'gpuArray');
 
 %%
-d2_grid=gpuArray(d2_grid);
-a_grid=gpuArray(a_grid);
-
 special_n_d2=ones(1,length(n_d2));
 d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
-semizind=shiftdim((0:1:N_semiz-1),-1);
+semizind=shiftdim(gpuArray(0:1:N_semiz-1),-1);
 
 loweredgesize=[1,1,N_semiz];
 
@@ -120,8 +117,8 @@ else
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_semiz
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
-                daprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*semizind; % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(daprimez(:)),[(maxgap(ii)+1),level1iidiff(ii),N_semiz]);
+                aprimez=aprimeindexes+N_a*semizind;
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[(maxgap(ii)+1),1,N_semiz]); % autoexpand level1iidiff(ii) in 2nd-dim
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                 Policy_ford2_jj(curraindex,:,d2_c)=maxindex+(loweredge-1); % loweredge(given the d and z)
@@ -129,8 +126,8 @@ else
                 loweredge=maxindex1(1,ii,:);
                 % Just use aprime(ii) for everything
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
-                daprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*semizind; % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(daprimez(:)),[1,level1iidiff(ii),N_semiz]);
+                aprimez=loweredge+N_a*semizind;
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[1,1,N_semiz]); % autoexpand level1iidiff(ii) in 2nd-dim
                 V_ford2_jj(curraindex,:,d2_c)=shiftdim(entireRHS_ii,1);
                 Policy_ford2_jj(curraindex,:,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1);
             end
@@ -192,8 +189,8 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_semiz
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,5);
-                aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*semizind; % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[(maxgap(ii)+1),level1iidiff(ii),N_semiz]);
+                aprimez=aprimeindexes+N_a*semizind;
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[(maxgap(ii)+1),1,N_semiz]); % autoexpand level1iidiff(ii) in 2nd-dim
                 [Vtempii,maxindex]=max(entireRHS_ii,[],1);
                 V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
                 Policy_ford2_jj(curraindex,:,d2_c)=maxindex+(loweredge-1); % loweredge(given the d and z)
@@ -201,8 +198,8 @@ for reverse_j=1:N_j-1
                 loweredge=maxindex1(1,ii,:);
                 % Just use aprime(ii) for everything
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,jj), ReturnFnParamsVec,5);
-                aprimez=repelem(loweredge,1,level1iidiff(ii),1)+N_a*semizind; % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez(:)),[1,level1iidiff(ii),N_semiz]);
+                aprimez=loweredge+N_a*semizind;
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_d2(aprimez),[1,1,N_semiz]); % autoexpand level1iidiff(ii) in 2nd-dim
                 V_ford2_jj(curraindex,:,d2_c)=shiftdim(entireRHS_ii,1);
                 Policy_ford2_jj(curraindex,:,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1);
             end

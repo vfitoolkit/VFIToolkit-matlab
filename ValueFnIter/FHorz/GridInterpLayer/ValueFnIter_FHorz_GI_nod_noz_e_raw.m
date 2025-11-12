@@ -8,8 +8,6 @@ V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy=zeros(2,N_a,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 
 %%
-a_grid=gpuArray(a_grid);
-
 if vfoptions.lowmemory==1
     special_n_e=ones(1,length(n_e));
 end
@@ -70,18 +68,15 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
     end
 else
-    % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=sum(EV.*pi_e_J(:,:,N_j),2);
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(1,:,N_j),2);    % First, switch V_Jplus1 into Kron form
+
+    % Interpolate EV over aprime_grid
+    EVinterp=interp1(a_grid,EV,aprime_grid);
 
     if vfoptions.lowmemory==0
-        % Interpolate EV over aprime_grid
-        EVinterp=interp1(a_grid,EV,aprime_grid);
-
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
@@ -101,9 +96,6 @@ else
         Policy(1,:,:,N_j)=shiftdim(squeeze(midpoint),-1); % midpoint
         Policy(2,:,:,N_j)=shiftdim(maxindexL2,-1); % aprimeL2ind
     elseif vfoptions.lowmemory==1
-        % Interpolate EV over aprime_grid
-        EVinterp=interp1(a_grid,EV,aprime_grid);
-
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
 
@@ -141,12 +133,12 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=V(:,:,jj+1);
-    EV=sum(EV.*pi_e_J(:,:,jj),2);
+    EV=sum(V(:,:,jj+1).*pi_e_J(:,:,jj),2);
+
+    % Interpolate EV over aprime_grid
+    EVinterp=interp1(a_grid,EV,aprime_grid);
 
     if vfoptions.lowmemory==0
-        % Interpolate EV over aprime_grid
-        EVinterp=interp1(a_grid,EV,aprime_grid);
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
@@ -167,8 +159,6 @@ for reverse_j=1:N_j-1
         Policy(1,:,:,jj)=shiftdim(squeeze(midpoint),-1); % midpoint
         Policy(2,:,:,jj)=shiftdim(maxindexL2,-1); % aprimeL2ind
     elseif vfoptions.lowmemory==1
-        % Interpolate EV over aprime_grid
-        EVinterp=interp1(a_grid,EV,aprime_grid);
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);

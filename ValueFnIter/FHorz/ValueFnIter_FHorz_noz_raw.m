@@ -6,10 +6,6 @@ N_a=prod(n_a);
 V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
-%%
-d_grid=gpuArray(d_grid);
-a_grid=gpuArray(a_grid);
-
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)

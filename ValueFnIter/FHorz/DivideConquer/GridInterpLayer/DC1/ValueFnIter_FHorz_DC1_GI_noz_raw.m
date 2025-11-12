@@ -8,8 +8,6 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 
 %%
-d_grid=gpuArray(d_grid);
-a_grid=gpuArray(a_grid);
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % Preallocate
@@ -20,7 +18,7 @@ aind=0:1:N_a-1; % already includes -1
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
-level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
@@ -86,12 +84,10 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    % Using V_Jplus1
-    EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
-    entireEV=repelem(EV,N_d,1);
-
+    EV=reshape(vfoptions.V_Jplus1,[N_a,1]); % Using V_Jplus1
+    
+    % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    entireEVinterp=repelem(EVinterp,N_d,1); % [d,aprime]
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsVec,1);
@@ -114,8 +110,7 @@ else
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,3);
-            daprime=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprime(:),[N_d,(maxgap(ii)+1),level1iidiff(ii)]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1])); % autoexpand the level1iidiff(ii) in 3rd-dim
             [~,maxindex]=max(entireRHS_ii,[],2);
             midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
         else
@@ -130,8 +125,7 @@ else
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn,n_d,d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec,2);
-    daprime=(1:1:N_d)'+N_d*(aprimeindexes-1);
-    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprime(:)),[N_d*n2long,N_a]);
+    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimeindexes(:)),[N_d*n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     V(:,N_j)=shiftdim(Vtempii,1);
     d_ind=rem(maxindexL2-1,N_d)+1;
@@ -156,11 +150,9 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     EV=V(:,jj+1);
-    entireEV=repelem(EV,N_d,1);
-
+    % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
-    entireEVinterp=repelem(EVinterp,N_d,1); % [d,aprime]
-
+    
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsVec,1);
 
@@ -182,8 +174,7 @@ for reverse_j=1:N_j-1
             aprimeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
             ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn, n_d, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec,3);
-            daprime=(1:1:N_d)'+N_d*repelem(aprimeindexes-1,1,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
-            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*entireEV(reshape(daprime(:),[N_d,(maxgap(ii)+1),level1iidiff(ii)]));
+            entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimeindexes(:),[N_d,(maxgap(ii)+1),1])); % autoexpand the level1iidiff(ii) in 3rd-dim
             [~,maxindex]=max(entireRHS_ii,[],2);
             midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
         else
@@ -198,8 +189,7 @@ for reverse_j=1:N_j-1
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_noz_Par2(ReturnFn,n_d,d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsVec,2);
-    daprime=(1:1:N_d)'+N_d*(aprimeindexes-1);
-    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprime(:)),[N_d*n2long,N_a]);
+    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp(aprimeindexes(:)),[N_d*n2long,N_a]);
     [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
     V(:,jj)=shiftdim(Vtempii,1);
     d_ind=rem(maxindexL2-1,N_d)+1;

@@ -14,9 +14,6 @@ V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Policy3=zeros(2,N_a,N_semiz*N_z,N_j,'gpuArray');
 
 %%
-d2_grid=gpuArray(d2_grid);
-a_grid=gpuArray(a_grid);
-
 special_n_d2=ones(1,length(n_d2));
 d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
@@ -105,7 +102,7 @@ else
                 z_val=bothz_gridvals_J(z_c,:,N_j);
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_val, a_grid, z_val, ReturnFnParamsVec);
 
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
+                % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);
                 EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_d2z=sum(EV_d2z,2);
@@ -180,8 +177,7 @@ for reverse_j=1:N_j-1
                 z_val=bothz_gridvals_J(z_c,:,jj);
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d2, n_a, special_n_bothz, d2_val, a_grid, z_val, ReturnFnParamsVec);
 
-                %Calc the condl expectation term (except beta), which depends on z but
-                %not on control variables
+                % Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_d2z=EV.*shiftdim(pi_bothz(z_c,:)',-1);
                 EV_d2z(isnan(EV_d2z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_d2z=sum(EV_d2z,2);

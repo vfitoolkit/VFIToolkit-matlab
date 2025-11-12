@@ -23,7 +23,6 @@ if exist('vfoptions','var')==0
     end
     vfoptions.verbose=0;
     vfoptions.lowmemory=0;
-    vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
     vfoptions.divideandconquer=0; % =1 Use divide-and-conquer to exploit monotonicity
     vfoptions.gridinterplayer=0; % Interpolate between grid points (not yet implemented for most cases)
     vfoptions.polindorval=1;
@@ -56,9 +55,6 @@ else
     end
     if ~isfield(vfoptions,'lowmemory')
         vfoptions.lowmemory=0;
-    end
-    if ~isfield(vfoptions,'paroverz') % Only used when vfoptions.lowmemory=0
-        vfoptions.paroverz=1;
     end
     if ~isfield(vfoptions,'divideandconquer')
         vfoptions.divideandconquer=0; % =1 Use divide-and-conquer to exploit monotonicity

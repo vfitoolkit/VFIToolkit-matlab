@@ -36,7 +36,39 @@ if isscalar(n_a)
     end
 elseif length(n_a)==2
     %% 2 endogenous states
-    error('vfoptions.gridinterplayer=1 only works for one endogenous state (you have length(n_a)>1)')
+    if isscalar(vfoptions.ngridinterp)
+        if N_d==0
+            if isfield(vfoptions,'n_e')
+                if N_z==0
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_GI2B_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_GI2B_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            else
+                if N_z==0
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_GI2B_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron,PolicyKron]=ValueFnIter_FHorz_GI2B_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        else % N_d
+            if isfield(vfoptions,'n_e')
+                if N_z==0
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_GI2B_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_GI2B_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            else
+                if N_z==0
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_GI_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                else
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_GI_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                end
+            end
+        end
+    else 
+        error('vfoptions.gridinterplayer=1 with two endogenous states can only be applied to the first of the two endo states (you have length(vfoptions.ngridinterp)>1)')
+    end
 else
     error('Cannot use vfoptions.divideandconquer with more than two endogenous states (you have length(n_a)>2)')
 end

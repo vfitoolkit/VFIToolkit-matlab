@@ -12,8 +12,6 @@ if ~isfield(vfoptions,'parallel_e')
     % Parallel e can have some elements (starting from the front end) equal to 1. I will parallelize over these.
 end
 
-%%
-a_grid=gpuArray(a_grid);
 
 %%
 if all(vfoptions.parallel_e==0)
@@ -36,13 +34,12 @@ if all(vfoptions.parallel_e==0)
             Policy(:,e_c,N_j)=maxindex;
         end
     else
-        % Using V_Jplus1
-        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
         EV=sum(EV.*pi_e_J(:,:,N_j),2);
+
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, special_n_e, 0, a_grid, e_val, ReturnFnParamsVec);
@@ -71,7 +68,6 @@ if all(vfoptions.parallel_e==0)
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=V(:,:,jj+1);
-
         EV=sum(EV.*pi_e_J(:,:,jj),2);
 
         for e_c=1:N_e
@@ -104,12 +100,10 @@ elseif all(vfoptions.parallel_e==1)
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
     else
-        % Using V_Jplus1
-        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
-
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]); % Using V_Jplus1
         EV=sum(EV.*pi_e_J(1,:,N_j),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
@@ -138,7 +132,6 @@ elseif all(vfoptions.parallel_e==1)
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=V(:,:,jj+1);
-
         EV=sum(EV.*pi_e_J(1,:,jj),2);
 
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_e, 0, a_grid, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
@@ -192,12 +185,11 @@ else
             Policy(:,:,e2_c,N_j)=maxindex;
         end
     else
-        % Using V_Jplus1
-        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]);    % First, switch V_Jplus1 into Kron form
 
         DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
+        EV=reshape(vfoptions.V_Jplus1,[N_a,N_e]); % Using V_Jplus1
         EV=sum(EV.*pi_e2_J,3);
 
         for e2_c=1:N_e2
@@ -234,7 +226,6 @@ else
         DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
         EV=V(:,:,:,jj+1);
-
         EV=sum(EV.*pi_e2_J(1,1,:,jj),3);
 
         for e2_c=1:N_e2

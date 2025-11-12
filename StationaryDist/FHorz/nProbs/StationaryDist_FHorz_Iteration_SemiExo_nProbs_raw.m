@@ -14,7 +14,7 @@ Policy_aprimesemizz=gather(Policy_aprimesemizz); % [N_a*N_semiz*N_z,N_semiz*N_pr
 % Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]),1,N_semiz)+repmat(N_a*(0:1:N_semiz-1),1,N_probs)+repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1); % Note: add semiz' index following the semiz' dimension, add z' index following the z dimension for Tan improvement
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]);
-precompute
+% precompute
 semizindex=repmat(repelem(gpuArray(1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*gpuArray(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
 % % Previous line gave out of memory order, so the following line just does gather() earlier.
 % semizindex=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1)); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J

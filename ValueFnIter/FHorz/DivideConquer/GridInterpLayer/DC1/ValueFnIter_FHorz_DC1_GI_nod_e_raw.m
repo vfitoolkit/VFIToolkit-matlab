@@ -8,8 +8,6 @@ V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 
 %%
-a_grid=gpuArray(a_grid);
-
 if vfoptions.lowmemory>=1
     special_n_e=ones(1,length(n_e));
 end
@@ -29,7 +27,7 @@ end
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
-level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 zind=shiftdim((0:1:N_z-1),-1);
 
@@ -186,11 +184,10 @@ else
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]);    % First, switch V_Jplus1 into Kron form
-    EV=sum(EV.*pi_e_J(1,1,:,N_j),3);
-    
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_z,N_e]).*pi_e_J(1,1,:,N_j),3); % Using V_Jplus1
+
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Interpolate EV over aprime_grid
@@ -218,8 +215,8 @@ else
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_z-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-                aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*zind; % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[1,level1iidiff(ii),N_z,N_e]));
+                aprimez=aprimeindexes+N_a*zind;
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[1,1,N_z,N_e]); % autoexpand level1iidiff(ii) in 2nd-dim
                 [~,maxindex]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,curraindex,:,:)=maxindex+loweredge-1;
             else
@@ -266,8 +263,8 @@ else
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are maxgap(ii)+1-by-1-by-n_z
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,2);
-                    aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1)+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[1,level1iidiff(ii),N_z]));
+                    aprimez=aprimeindexes+N_a*zind;
+                    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[1,1,N_z]); % autoexpand level1iidiff(ii) in 2nd-dim
                     [~,maxindex]=max(entireRHS_ii,[],1);
                     midpoints_jj(1,curraindex,:)=maxindex+loweredge-1;
                 else
@@ -318,8 +315,7 @@ else
                         aprimeindexes=loweredge+(0:1:maxgap(ii))';
                         % aprime possibilities are maxgap(ii)+1-by-1
                         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,2);
-                        % aprimez=repelem(aprimeindexes,1,level1iidiff(ii),1); % the current aprimeii(ii):aprimeii(ii+1)
-                        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(reshape(aprimeindexes(:),[1,level1iidiff(ii)]));
+                        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(aprimeindexes(:)); % autoexpand level1iidiff(ii) in 2nd-dim
                         [~,maxindex]=max(entireRHS_ii,[],1);
                         midpoints_jj(1,curraindex)=maxindex+loweredge-1;
                     else
@@ -334,7 +330,6 @@ else
                 aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn,special_n_z,special_n_e,aprime_grid(aprimeindexes),a_grid,z_val,e_val,ReturnFnParamsVec,2);
-                % aprimez=aprimeindexes;
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes(:)),[n2long,N_a]);
                 [Vtempii,maxindexL2]=max(entireRHS_ii,[],1);
                 V(:,z_c,e_c,N_j)=shiftdim(Vtempii,1);
@@ -361,9 +356,8 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    EV=V(:,:,:,jj+1);
-    EV=sum(EV.*pi_e_J(1,1,:,jj),3);
-    
+    EV=sum(V(:,:,:,jj+1).*pi_e_J(1,1,:,jj),3);
+
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
@@ -393,8 +387,8 @@ for reverse_j=1:N_j-1
                 aprimeindexes=loweredge+(0:1:maxgap(ii))';
                 % aprime possibilities are maxgap(ii)+1-by-1-by-n_z-by-n_e
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
-                aprimez=repelem(aprimeindexes,1,level1iidiff(ii))+N_a*zind; % the current aprimeii(ii):aprimeii(ii+1)
-                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[maxgap(ii)+1,level1iidiff(ii),N_z,N_e]));
+                aprimez=aprimeindexes+N_a*zind;
+                entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[maxgap(ii)+1,1,N_z,N_e]); % autoexpand level1iidiff(ii) in 2nd-dim
                 [~,maxindex]=max(entireRHS_ii,[],1);
                 midpoints_jj(1,curraindex,:,:)=maxindex+loweredge-1;
             else % maxgap(ii)==0
@@ -440,8 +434,8 @@ for reverse_j=1:N_j-1
                     aprimeindexes=loweredge+(0:1:maxgap(ii))';
                     % aprime possibilities are maxgap(ii)+1-by-1-by-n_z
                     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, n_z, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,2);
-                    aprimez=repelem(aprimeindexes,1,level1iidiff(ii))+N_a*zind; % the current aprimeii(ii):aprimeii(ii+1)
-                    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV(reshape(aprimez,[maxgap(ii)+1,level1iidiff(ii),N_z]));
+                    aprimez=aprimeindexes+N_a*zind;
+                    entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[maxgap(ii)+1,1,N_z]); % autoexpand level1iidiff(ii) in 2nd-dim
                     [~,maxindex]=max(entireRHS_ii,[],1);
                     midpoints_jj(1,curraindex,:)=maxindex+loweredge-1;
                 else % maxgap(ii)==0
@@ -492,7 +486,7 @@ for reverse_j=1:N_j-1
                         aprimeindexes=loweredge+(0:1:maxgap(ii))';
                         % aprime possibilities are maxgap(ii)+1-by-1
                         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2e(ReturnFn, special_n_z, special_n_e, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,2);
-                        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(reshape(aprimeindexes,[maxgap(ii)+1,1]));
+                        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*EV_z(aprimeindexes(:)); % autoexpand level1iidiff(ii) in 2nd-dim
                         [~,maxindex]=max(entireRHS_ii,[],1);
                         midpoints_jj(1,curraindex)=maxindex+(loweredge-1);
                     else % maxgap(ii)==0

@@ -7,7 +7,6 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-a_grid=gpuArray(a_grid);
 
 % n-Monotonicity
 % vfoptions.level1n=5;
@@ -39,11 +38,10 @@ if ~isfield(vfoptions,'V_Jplus1')
     end
   
 else
-    % Using V_Jplus1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
-    EV=reshape(vfoptions.V_Jplus1,[N_a,1]);    % First, switch V_Jplus1 into Kron form
+    EV=reshape(vfoptions.V_Jplus1,[N_a,1]); % Using V_Jplus1
 
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid, a_grid(level1ii), ReturnFnParamsVec);
@@ -90,8 +88,7 @@ for reverse_j=1:N_j-1
     V(level1ii,jj)=shiftdim(Vtempii,1);
     Policy(level1ii,jj)=shiftdim(maxindex1,1);
 
-    % Note: Did a runtime test, this simple version is faster than actually
-    % checking if maxgap(ii)=0 like in all the other DC1 codes.
+    % Note: Did a runtime test, this simple version is faster than actually checking if maxgap(ii)=0 like in all the other DC1 codes.
     for ii=1:(vfoptions.level1n-1)
         curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nodz_Par2(ReturnFn, a_grid(Policy(level1ii(ii),jj):Policy(level1ii(ii+1),jj)), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsVec);

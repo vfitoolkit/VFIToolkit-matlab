@@ -16,12 +16,7 @@ V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Policy=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for d1,d2,aprime and aprime2 (in GI layer)
 
 %%
-d1_grid=gpuArray(d1_grid);
-d2_grid=gpuArray(d2_grid);
-a_grid=gpuArray(a_grid);
-
 special_n_d=[n_d1,ones(1,length(n_d2))];
-
 d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
 
 d12_gridvals=permute(reshape(d_gridvals,[N_d1,N_d2,length(n_d1)+length(n_d2)]),[1,3,2]); % version to use when looping over d2
@@ -30,8 +25,9 @@ if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
 end
 
-aind=0:1:N_a-1; % already includes -1
-bothzind=shiftdim((0:1:N_bothz-1),-1); % already includes -1
+aind=gpuArray(0:1:N_a-1); % already includes -1
+bothzind=shiftdim(gpuArray(0:1:N_bothz-1),-1); % already includes -1
+bothzBind=shiftdim(gpuArray(0:1:N_bothz-1),-2); % already includes -1
 
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
@@ -126,8 +122,7 @@ else
 
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
-            entireEVinterp=repelem(EVinterp,N_d1,1,1);
-
+            
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
             % Treat standard problem as just being the first layer
@@ -139,8 +134,8 @@ else
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d-by-n2long-by-n_a-by-n_bothz
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-            daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_bothz-1),-2); % the current aprime
-            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_bothz]);
+            aprimez=aprimeindexes+n2aprime*bothzBind;
+            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[N_d1*n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
             
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
@@ -177,7 +172,6 @@ else
 
                 % Interpolate EV over aprime_grid
                 EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid);
-                entireEVinterp_z=repelem(EVinterp_z,N_d1,1,1);
 
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*shiftdim(EV_d2z,-1);
@@ -190,8 +184,7 @@ else
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, special_n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
-                daprime=(1:1:N_d1)'+N_d1*(aprimeindexes-1); % the current aprime
-                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d1*n2long,N_a]);
+                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes),[N_d1*n2long,N_a]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,z_c,d2_c)=shiftdim(Vtemp,1);
@@ -242,7 +235,6 @@ for reverse_j=1:N_j-1
 
             % Interpolate EV over aprime_grid
             EVinterp=interp1(a_grid,EV_d2,aprime_grid);
-            entireEVinterp=repelem(EVinterp,N_d1,1,1);
 
             ReturnMatrix_d2=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, n_bothz, d12c_gridvals, a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,1);
             entireRHS=ReturnMatrix_d2+DiscountFactorParamsVec*shiftdim(EV_d2,-1);
@@ -255,8 +247,8 @@ for reverse_j=1:N_j-1
             aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
             % aprime possibilities are n_d1-by-n2long-by-n_a-by-n_bothz
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec,2);
-            daprimez=(1:1:N_d1)'+N_d1*(aprimeindexes-1)+N_d1*n2aprime*shiftdim((0:1:N_bothz-1),-2); % the current aprime
-            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp(daprimez(:)),[N_d1*n2long,N_a,N_bothz]);
+            aprimez=aprimeindexes+n2aprime*bothzBind;
+            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[N_d1*n2long,N_a,N_bothz]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
             V_ford2_jj(:,:,d2_c)=shiftdim(Vtemp,1);
@@ -293,7 +285,6 @@ for reverse_j=1:N_j-1
 
                 % Interpolate EV over aprime_grid
                 EVinterp_z=interp1(a_grid,EV_d2z,aprime_grid);
-                entireEVinterp_z=repelem(EVinterp_z,N_d1,1,1);
 
                 ReturnMatrix_d2z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, special_n_d, n_a, special_n_bothz, d12c_gridvals, a_grid, z_val, ReturnFnParamsVec,1);
                 entireRHS_z=ReturnMatrix_d2z+DiscountFactorParamsVec*shiftdim(EV_d2z,-1);
@@ -306,8 +297,7 @@ for reverse_j=1:N_j-1
                 aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
                 % aprime possibilities are n_d-by-n2long-by-n_a
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d, special_n_bothz, d12c_gridvals, aprime_grid(aprimeindexes), a_grid, z_val, ReturnFnParamsVec,2);
-                daprime=(1:1:N_d1)'+N_d1*(aprimeindexes-1); % the current aprime
-                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(entireEVinterp_z(daprime(:)),[N_d1*n2long,N_a]);
+                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp_z(aprimeindexes),[N_d1*n2long,N_a]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,z_c,d2_c)=shiftdim(Vtemp,1);

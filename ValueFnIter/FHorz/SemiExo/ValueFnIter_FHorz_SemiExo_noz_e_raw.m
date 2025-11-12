@@ -14,10 +14,6 @@ V=zeros(N_a,N_semiz,N_e,N_j,'gpuArray');
 Policy3=zeros(3,N_a,N_semiz,N_e,N_j,'gpuArray');
 
 %%
-d1_grid=gpuArray(d1_grid);
-d2_grid=gpuArray(d2_grid);
-a_grid=gpuArray(a_grid);
-
 d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
 
 special_n_d=[n_d1,ones(1,length(n_d2))];

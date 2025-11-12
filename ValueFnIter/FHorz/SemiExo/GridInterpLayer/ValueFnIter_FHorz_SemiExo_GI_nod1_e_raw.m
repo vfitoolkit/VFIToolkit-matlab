@@ -14,9 +14,6 @@ V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_semiz*N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for d2, aprime and aprime2 (in GI layer)
 
 %%
-d2_grid=gpuArray(d2_grid);
-a_grid=gpuArray(a_grid);
-
 special_n_d2=ones(1,length(n_d2));
 d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
@@ -26,9 +23,9 @@ elseif vfoptions.lowmemory==2
     error('vfoptions.lowmemory=2 not supported with semi-exogenous states');
 end
 
-aind=0:1:N_a-1;
-bothzind=shiftdim((0:1:N_bothz-1),-1); % already includes -1
-eind=shiftdim((0:1:N_e-1),-2); % already includes -1
+aind=gpuArray(0:1:N_a-1); % already includes -1
+bothzind=shiftdim(gpuArray(0:1:N_bothz-1),-1); % already includes -1
+eind=shiftdim(gpuArray(0:1:N_e-1),-2); % already includes -1
 
 bothz_gridvals_J=[repmat(semiz_gridvals_J,N_z,1,1),repelem(z_gridvals_J,N_semiz,1,1)];
 
@@ -135,7 +132,7 @@ else
             % aprime possibilities are n2long-by-n_a-by-n_bothz-by-n_e
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, n_e, d2_val, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
             aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
-            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_bothz,N_e]);
+            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[n2long,N_a,N_bothz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
             
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
@@ -179,7 +176,7 @@ else
                 % aprime possibilities are n2long-by-n_a-by-n_bothz
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,5);
                 aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
-                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_bothz]);
+                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[n2long,N_a,N_bothz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1);
@@ -240,7 +237,7 @@ for reverse_j=1:N_j-1
             % aprime possibilities are n2long-by-n_a-by-n_bothz-by-n_e
             ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, n_e, d2_val, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec,5);
             aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
-            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_bothz,N_e]);
+            entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[n2long,N_a,N_bothz,N_e]);
             [Vtemp,maxindex]=max(entireRHS_ii,[],1);
             
             V_ford2_jj(:,:,:,d2_c)=shiftdim(Vtemp,1);
@@ -284,7 +281,7 @@ for reverse_j=1:N_j-1
                 % aprime possibilities are n2long-by-n_a-by-n_bothz
                 ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, special_n_d2, n_bothz, special_n_e, d2_val, aprime_grid(aprimeindexes), a_grid, bothz_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec,5);
                 aprimez=aprimeindexes+n2aprime*bothzind; % the current aprime
-                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez(:)),[n2long,N_a,N_bothz]);
+                entireRHS_ii=ReturnMatrix_d2ii+DiscountFactorParamsVec*reshape(EVinterp(aprimez),[n2long,N_a,N_bothz]);
                 [Vtemp,maxindex]=max(entireRHS_ii,[],1);
 
                 V_ford2_jj(:,:,e_c,d2_c)=shiftdim(Vtemp,1);
