@@ -51,7 +51,7 @@ if ~isfield(vfoptions,'V_Jplus1')
             [~,maxindex1]=max(ReturnMatrix_ii_ze,[],2);
 
             % Now, get and store the full (d,aprime)
-            [Vtempii,maxindex2]=max(reshape(ReturnMatrix_ii_ze,[N_d*N_a1*N_a2,vfoptions.level1n*N_a2,N_z]),[],1);
+            [Vtempii,maxindex2]=max(reshape(ReturnMatrix_ii_ze,[N_d*N_a1*N_a2,vfoptions.level1n*N_a2]),[],1);
             % Store
             curraindex=repmat(level1ii',N_a2,1)+N_a1*repelem((0:1:N_a2-1)',vfoptions.level1n,1);
             V(curraindex,z_c,e_c,N_j)=shiftdim(Vtempii,1);

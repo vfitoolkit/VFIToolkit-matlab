@@ -61,10 +61,16 @@ end
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
-for gg=1:length(GEeqnNames)
-    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+if vfoptions.parallel==2
+    for gg=1:length(GEeqnNames)
+        GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    end
+else
+    for gg=1:length(GEeqnNames)
+        % Note: _v3 rather than _v3g, so on CPU rather than GPU
+        GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    end
 end
-
 
 %% We might want to output GE conditions as a vector or structure
 if heteroagentoptions.outputGEform==0 % scalar
