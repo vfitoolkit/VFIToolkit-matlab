@@ -1,5 +1,5 @@
-function [V,Policy2]=ValueFnIter_FHorz_DC2B_noz_e_raw(n_d,n_a,n_e,N_j, d_grid, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% divide-and-conquer for length(n_a)==1
+function [V,Policy2]=ValueFnIter_FHorz_DC2B_noz_e_raw(n_d,n_a,n_e,N_j, d_gridvals, a_grid, e_gridvals_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% divide-and-conquer in the first endo state
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -9,10 +9,10 @@ V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
-
-N_a1=n_a(1);
-N_a2=n_a(2);
+n_a1=n_a(1);
+n_a2=n_a(2:end);
+N_a1=n_a1;
+N_a2=n_a2;
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 
@@ -238,7 +238,6 @@ for reverse_j=1:N_j-1
             allind=dind+N_d*a2primeind+N_d*N_a2*repelem(a2ind,1,level1iidiff(ii))+N_d*N_a2*N_a2*eind; % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_e
             Policy(curraindex,:,jj)=shiftdim(maxindexfix+N_d*(loweredge(allind)-1),1);
         end
-
     end
 
 end

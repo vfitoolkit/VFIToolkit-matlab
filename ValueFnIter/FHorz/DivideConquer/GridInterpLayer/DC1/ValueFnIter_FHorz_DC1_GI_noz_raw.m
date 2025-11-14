@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_DC1_GI_noz_raw(n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_DC1_GI_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % divide-and-conquer for length(n_a)==1
 
 N_d=prod(n_d);
@@ -8,7 +8,6 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % Preallocate
 midpoints_jj=zeros(N_d,1,N_a,'gpuArray');

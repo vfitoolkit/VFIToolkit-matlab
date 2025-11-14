@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_DC1_noz_raw(n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_DC1_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % divide-and-conquer for length(n_a)==1
 
 N_d=prod(n_d);
@@ -9,7 +9,6 @@ Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d an
 
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % n-Monotonicity
 % vfoptions.level1n=5;

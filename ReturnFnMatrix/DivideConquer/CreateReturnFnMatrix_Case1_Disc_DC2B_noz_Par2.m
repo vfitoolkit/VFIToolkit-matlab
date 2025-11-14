@@ -16,9 +16,9 @@ if l_d>4
 end
 
 if Level==1
-    N_a1prime=length(a1prime_grid); % Because l_a=1
+    N_a1prime=size(a1prime_grid,1); % Because l_a=1
     a1prime_grid=shiftdim(a1prime_grid,-1);
-elseif Level==2
+elseif Level==2 || Level==3
     N_a1prime=size(a1prime_grid,2); % Because l_a=1
 end
 N_a2prime=N_a2;
@@ -33,7 +33,7 @@ elseif l_d==4
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), a1prime_grid, shiftdim(a2prime_grid,-2), shiftdim(a1_grid,-3), shiftdim(a2_grid,-4), ParamCell{:});
 end
 
-if Level==1
+if Level==1 || Level==3
     Fmatrix=reshape(Fmatrix,[N_d,N_a1prime,N_a2prime,N_a1,N_a2]);
 elseif Level==2 % For level 2
     Fmatrix=reshape(Fmatrix,[N_d*N_a1prime*N_a2prime,N_a1*N_a2]);

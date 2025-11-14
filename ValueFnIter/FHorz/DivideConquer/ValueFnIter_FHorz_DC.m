@@ -3,6 +3,8 @@ function [V,Policy]=ValueFnIter_FHorz_DC(n_d, n_a, n_z, N_j, d_grid, a_grid, z_g
 N_d=prod(n_d);
 N_z=prod(n_z);
 
+d_gridvals=CreateGridvals(n_d,d_grid,1);
+
 if ~isfield(vfoptions,'level1n')
     if isscalar(n_a)
         vfoptions.level1n=max(ceil(n_a(1)/50),5); % minimum of 5
@@ -40,15 +42,15 @@ if isscalar(n_a)
     else % N_d
         if isfield(vfoptions,'n_e')
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         else
             if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_DC1_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end
@@ -88,27 +90,27 @@ elseif length(n_a)==2
             if isfield(vfoptions,'n_e')
                 if N_z==0
                     if vfoptions.lowmemory==0
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_noz_e_lowmem_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_noz_e_lowmem_raw(n_d,n_a,  vfoptions.n_e, N_j, d_gridvals, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     end
                 else
                     if vfoptions.lowmemory==0
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1 % loop over e
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_e_lowmem_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_e_lowmem_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==2 % loop over e and z
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_e_lowmem2_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_e_lowmem2_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_gridvals, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     end
                 end
             else
                 if N_z==0
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_noz_raw(n_d,n_a, N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                 else
                     if vfoptions.lowmemory==0
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     elseif vfoptions.lowmemory==1
-                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_lowmem_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                        [VKron, PolicyKron]=ValueFnIter_FHorz_DC2B_lowmem_raw(n_d,n_a,n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
                     end
                 end
             end

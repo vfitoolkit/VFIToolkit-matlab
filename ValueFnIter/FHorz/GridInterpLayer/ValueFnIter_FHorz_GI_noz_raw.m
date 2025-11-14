@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_GI_noz_raw(n_d,n_a,N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_GI_noz_raw(n_d,n_a,N_j, d_gridvals, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -7,9 +7,7 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(3,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
-
-aind=0:1:N_a-1;
+aind=gpuArray(0:1:N_a-1); % already includes -1
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
@@ -30,7 +28,7 @@ aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,1);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,1);
     %Calc the max and it's index
     [~,maxindex]=max(ReturnMatrix,[],2);
 
@@ -56,7 +54,7 @@ else
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,1);    
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,1);    
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1); % [d,aprime,a]
 
@@ -97,7 +95,7 @@ for reverse_j=1:N_j-1
     % Interpolate EV over aprime_grid
     EVinterp=interp1(a_grid,EV,aprime_grid);
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_grid, a_grid, ReturnFnParamsVec,1);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_noz_Par2(ReturnFn, n_d, n_a, d_gridvals, a_grid, ReturnFnParamsVec,1);
     % (d,aprime,a)
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*shiftdim(EV,-1); % [d,aprime,a]

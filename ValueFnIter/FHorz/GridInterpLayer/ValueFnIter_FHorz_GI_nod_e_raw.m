@@ -30,12 +30,12 @@ n2aprime=length(aprime_grid);
 % aprime_grid=repelem(a_grid,1+n2short,1);
 % aprime_grid=aprime_grid(1:(N_a+(N_a-1)*n2short));
 
+pi_e_J=shiftdim(pi_e_J,-2); % Move to thrid dimension
+
 %% j=N_j
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames, N_j);
-
-pi_e_J=shiftdim(pi_e_J,-2); % Move to thrid dimension
 
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0

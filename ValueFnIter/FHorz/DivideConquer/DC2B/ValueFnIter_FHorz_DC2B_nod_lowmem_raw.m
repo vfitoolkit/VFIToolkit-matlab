@@ -1,4 +1,5 @@
 function [V, Policy]=ValueFnIter_FHorz_DC2B_nod_lowmem_raw(n_a,n_z,N_j, a_grid, z_gridvals_J,pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% divide-and-conquer in the first endo state
 % lowmem=loop over z
 special_n_z=ones(1,length(n_z),'gpuArray');
 
@@ -9,8 +10,10 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-N_a1=n_a(1);
-N_a2=n_a(2);
+n_a1=n_a(1);
+n_a2=n_a(2:end);
+N_a1=n_a1;
+N_a2=n_a2;
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 

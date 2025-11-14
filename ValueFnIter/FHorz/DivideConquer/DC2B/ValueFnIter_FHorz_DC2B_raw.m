@@ -1,4 +1,5 @@
-function [V,Policy2]=ValueFnIter_FHorz_DC2B_raw(n_d,n_a,n_z,N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_DC2B_raw(n_d,n_a,n_z,N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+% divide-and-conquer in the first endo state
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -8,10 +9,10 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
-
-N_a1=n_a(1);
-N_a2=n_a(2);
+n_a1=n_a(1);
+n_a2=n_a(2:end);
+N_a1=n_a1;
+N_a2=n_a2;
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 

@@ -1,14 +1,16 @@
 function [V,Policy]=ValueFnIter_FHorz_DC2B_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
-% divide-and-conquer for length(n_a)==1
+% divide-and-conquer in the first endo state
 
 N_a=prod(n_a);
 
 V=zeros(N_a,N_j,'gpuArray');
-Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
+Policy=zeros(2,N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
 
 %%
-N_a1=n_a(1);
-N_a2=n_a(2);
+n_a1=n_a(1);
+n_a2=n_a(2:end);
+N_a1=n_a1;
+N_a2=n_a2;
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 
@@ -30,7 +32,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     % n-Monotonicity
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC2B_nodz_Par2(ReturnFn, a1_grid, a2_grid, a1_grid(level1ii), a2_grid, ReturnFnParamsVec,1);
 
-    %Calc the max and it's index
+    % Calc the max and it's index
     [~,maxindex1]=max(ReturnMatrix_ii,[],1);
 
     % Now, get and store the full (d,aprime)

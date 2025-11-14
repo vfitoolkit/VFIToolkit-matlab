@@ -9,11 +9,7 @@ end
 N_a1=length(a1_grid);
 N_a2=length(a2_grid);
 
-if Level==1
-    N_a1prime=length(a1prime_grid); % Because l_a=1
-elseif Level==2
-    N_a1prime=size(a1prime_grid,1); % Because l_a=1
-end
+N_a1prime=size(a1prime_grid,1); % Because l_a=1
 N_a2prime=N_a2;
 
 Fmatrix=arrayfun(ReturnFn, a1prime_grid, shiftdim(a2prime_grid,-1), shiftdim(a1_grid,-2), shiftdim(a2_grid,-3), ParamCell{:});
