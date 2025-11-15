@@ -6,7 +6,7 @@ Policy_aprime=gather(Policy_aprime);
 StationaryDistKron=zeros(N_a,N_j,'gpuArray');
 StationaryDistKron(:,1)=jequaloneDistKron;
 
-StationaryDistKron_jj=gather(sparse(jequaloneDistKron));
+StationaryDistKron_jj=sparse(gather(jequaloneDistKron));
 
 IIind=(1:1:N_a)';
 JJind=ones(N_a,1);
