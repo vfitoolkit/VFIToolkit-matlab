@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_SemiExo_GI_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_SemiExo_GI_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a=prod(n_a);
@@ -10,7 +10,6 @@ Policy=zeros(3,N_a,N_semiz,N_j,'gpuArray'); % first dim indexes the optimal choi
 
 %%
 special_n_d2=ones(1,length(n_d2));
-d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
 if vfoptions.lowmemory>0
     special_n_semiz=ones(1,length(n_semiz));

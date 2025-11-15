@@ -228,10 +228,13 @@ if N_z==0 && N_e==0
     end
 else
     if N_z==0
+        n_ze=n_e;
         N_ze=N_e;
     elseif N_e==0
+        n_ze=n_z;
         N_ze=N_z;
     else % neither is zero
+        n_ze=[n_z,n_e];
         N_ze=N_z*N_e;
     end
 
@@ -290,6 +293,20 @@ else
 end
 
 
-
+if N_z==0 && N_e==0
+    if simoptions.outputkron==0
+        StationaryDist=reshape(StationaryDist,[n_a,N_j]);
+    else
+        % If 1 then leave output in Kron form
+        StationaryDist=reshape(StationaryDist,[N_a,N_j]);
+    end
+else
+    if simoptions.outputkron==0
+        StationaryDist=reshape(StationaryDist,[n_a,n_ze,N_j]);
+    else
+        % If 1 then leave output in Kron form
+        StationaryDist=reshape(StationaryDist,[N_a,N_ze,N_j]);
+    end
+end
 
 end

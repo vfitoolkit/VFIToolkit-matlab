@@ -287,7 +287,7 @@ if N_e>0
     % end
 else % N_e==0
     if N_a1==0
-        % error('riskyasset+semiz without a1 not yet implemented')
+        error('riskyasset+semiz without a1 not yet implemented')
         % if N_z==0
         %     error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
         % else

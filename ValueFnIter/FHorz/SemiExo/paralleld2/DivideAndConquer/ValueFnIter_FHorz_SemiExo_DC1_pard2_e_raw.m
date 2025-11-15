@@ -1,10 +1,9 @@
-function [V,Policy]=ValueFnIter_FHorz_SemiExo_DC1_pard2_e_raw(n_d1,n_d2,n_a,n_z,n_semiz, n_e,N_j, d1_grid, d2_grid, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J,pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_SemiExo_DC1_pard2_e_raw(n_d1,n_d2,n_a,n_z,n_semiz, n_e,N_j, d1_gridvals, d2_gridvals, a_grid, z_gridvals_J, semiz_gridvals_J, e_gridvals_J,pi_z_J, pi_semiz_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 n_bothz=[n_semiz,n_z]; % These are the return function arguments
 
 n_d=[n_d1,n_d2];
 N_d=prod(n_d);
-d_grid=[d1_grid; d2_grid];
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -18,10 +17,7 @@ V=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_semiz*N_z,N_e,N_j,'gpuArray');
 
 %%
-a_grid=gpuArray(a_grid);
-
-special_n_d=[n_d1,ones(1,length(n_d2))];
-d_gridvals=CreateGridvals(n_d,[d1_grid; d2_grid],1);
+d_gridvals=[repmat(d1_gridvals,N_d2,1),repelem(d2_gridvals,N_d1,1)];
 
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));

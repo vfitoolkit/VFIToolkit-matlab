@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_SemiExo_DC1_GI_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_grid, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_SemiExo_DC1_GI_nod1_noz_raw(n_d2,n_a,n_semiz,N_j, d2_gridvals, a_grid, semiz_gridvals_J, pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a=prod(n_a);
@@ -10,7 +10,6 @@ Policy=zeros(3,N_a,N_semiz,N_j,'gpuArray'); % first dim indexes the optimal choi
 
 %%
 special_n_d2=ones(1,length(n_d2));
-d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
 aind=gpuArray(0:1:N_a-1);
 aind2=gpuArray(1:1:N_a);
@@ -26,7 +25,7 @@ midpoints_jj=zeros(1,N_a,N_semiz,'gpuArray');
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
-level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
@@ -52,7 +51,7 @@ if ~isfield(vfoptions,'V_Jplus1')
     midpoints_Nj=zeros(N_d2,1,N_a,N_semiz,'gpuArray');
 
     % n-Monotonicity
-    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d2, n_semiz, d2_grid, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d2, n_semiz, d2_gridvals, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
     % Treat standard problem as just being the first layer
     [~,maxindex1]=max(ReturnMatrix_ii,[],2);
 
