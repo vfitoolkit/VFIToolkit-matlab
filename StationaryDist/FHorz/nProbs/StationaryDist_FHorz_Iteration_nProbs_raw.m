@@ -26,7 +26,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]);
 
     % Second step of Tan improvement
-    pi_z=sparse(pi_z_J(:,:,jj));
+    pi_z=sparse(gather(pi_z_J(:,:,jj)));
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
