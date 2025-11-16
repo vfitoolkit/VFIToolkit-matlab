@@ -1,17 +1,14 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_CPU(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions)
 % cpu version only does the basics
 
-%%
-if isempty(n_d)
-    n_d=0;
-    l_d=0;
-elseif n_d(1)==0
+if n_d(1)==0
     l_d=0;
 else
     l_d=length(n_d);
 end
-l_a=length(n_a);
+l_a=1; % hardcoded for CPU
 l_z=length(n_z);
+
 N_a=prod(n_a);
 N_z=prod(n_z);
 

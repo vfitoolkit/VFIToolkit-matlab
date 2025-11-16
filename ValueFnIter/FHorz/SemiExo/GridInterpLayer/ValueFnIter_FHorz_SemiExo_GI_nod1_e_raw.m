@@ -79,7 +79,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
-            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d2, n_a, n_bothz, special_n_e, d2_grid, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
+            ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d2, n_a, n_bothz, special_n_e, d2_gridvals, a_grid, bothz_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,1);
             % Treat standard problem as just being the first layer
             [~,maxindex]=max(ReturnMatrix_e,[],2);
 

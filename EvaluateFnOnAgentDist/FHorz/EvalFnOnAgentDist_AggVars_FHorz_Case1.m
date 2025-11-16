@@ -2,6 +2,7 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist,Policy, Fn
 
 if ~exist('simoptions','var')
     simoptions.lowmemory=0;
+    % Largely just for internal use
     simoptions.parallel=1+(gpuDeviceCount>0);
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
@@ -10,6 +11,7 @@ else
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0;
     end
+    % Largely just for internal use
     if ~isfield(simoptions,'parallel')
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
@@ -23,7 +25,8 @@ else
 end
 
 if simoptions.parallel==1
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_cpu(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_CPU(StationaryDist,Policy, FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+    return
 end
 
 %%

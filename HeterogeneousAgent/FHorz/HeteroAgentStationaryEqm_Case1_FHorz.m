@@ -39,22 +39,6 @@ if isempty(n_p)
     N_p=0;
 end
 
-if exist('vfoptions','var')==0
-    vfoptions.parallel=1+(gpuDeviceCount>0);
-    %If vfoptions is not given, just use all the defaults
-    %Note that the defaults will be set when we call 'ValueFnIter...'
-    %commands and the like, so no need to set them here except for a few.
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=1+(gpuDeviceCount>0);
-    end
-end
-
-if ~exist('simoptions','var')
-    simoptions=struct(); % create a 'placeholder' simoptions that can be passed to subcodes
-end
-
 if ~exist('heteroagentoptions','var')
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
@@ -159,8 +143,24 @@ GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
 AggVarNames=fieldnames(FnsToEvaluate);
 
+
+%%
+if exist('vfoptions','var')==0
+    vfoptions=struct();
+else
+    if ~isfield(vfoptions,'parallel')
+        vfoptions.parallel=1+(gpuDeviceCount>0);
+    end
+end
 simoptions.outputasstructure=0;
 
+%%
+if vfoptions.parallel==2
+    jequaloneDist=gpuArray(jequaloneDist);
+else
+    [p_eqm,GeneralEqmConditions]=HeteroAgentStationaryEqm_FHorz_CPU(jequaloneDist,AgeWeightParamNames, n_d, n_a, n_z, N_j, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);    
+    varargout={p_eqm,GeneralEqmConditions};
+end
 
 %% Set up exogenous shock grids now (so they can then just be reused every time)
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a

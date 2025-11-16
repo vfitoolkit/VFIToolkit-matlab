@@ -10,6 +10,7 @@ if exist('simoptions','var')==0
     simoptions.riskyasset=0;
     simoptions.residualasset=0;
     % Things that are really just for internal usage
+    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
     simoptions.alreadygridvals=0; % =1 when calling as a subcommand
 else
@@ -35,6 +36,9 @@ else
         simoptions.residualasset=0;
     end
     % Things that are really just for internal usage
+    if ~isfield(simoptions,'parallel')
+        simoptions.parallel=1+(gpuDeviceCount>0);
+    end
     if ~isfield(simoptions,'outputkron')
         simoptions.outputkron=0; % If 1 then leave output in Kron form
     end
@@ -42,7 +46,6 @@ else
         simoptions.alreadygridvals=0; % =1 when calling as a subcommand
     end
 end
-
 
 %% Check for the age weights parameter, and make sure it is a row vector
 if size(Parameters.(AgeWeightParamNames{1}),2)==1 % Seems like column vector
@@ -53,6 +56,17 @@ end
 if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
     warning('StationaryDist: The age-weights do not sum to one')
 end
+
+%% 
+if simoptions.parallel==2
+   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
+   % Nothing to actually do here
+else
+   % CPU can be used, but only for the basics. Is kept separate here so that the rest of the codes can just assume you have GPU and work with it.
+   StationaryDist=StationaryDist_FHorz_CPU(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
+   return
+end
+
 
 %% Exogenous shock grids
 if simoptions.alreadygridvals==0
@@ -228,13 +242,13 @@ if N_z==0 && N_e==0
     end
 else
     if N_z==0
-        n_ze=n_e;
+        n_ze=simoptions.n_e;
         N_ze=N_e;
     elseif N_e==0
         n_ze=n_z;
         N_ze=N_z;
     else % neither is zero
-        n_ze=[n_z,n_e];
+        n_ze=[n_z,simoptions.n_e];
         N_ze=N_z*N_e;
     end
 

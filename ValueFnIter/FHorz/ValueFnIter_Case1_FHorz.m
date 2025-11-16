@@ -1,7 +1,6 @@
 function varargout=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % Typically, varargout=[V, Policy]
 
-
 V=nan;
 Policy=nan;
 
@@ -9,25 +8,12 @@ Policy=nan;
 %% Check which vfoptions have been used, set all others to defaults 
 if exist('vfoptions','var')==0
     disp('No vfoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-    vfoptions.parallel=1+(gpuDeviceCount>0);
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    vfoptions.verbose=0;
-    vfoptions.lowmemory=0;
+    % If vfoptions is not given, just use all the defaults
+    vfoptions.verbose=0; % =1 print out feedback on what is happening internally
     vfoptions.divideandconquer=0; % =1 Use divide-and-conquer to exploit monotonicity
-    vfoptions.gridinterplayer=0; % Interpolate between grid points (not yet implemented for most cases)
-    vfoptions.polindorval=1;
-    vfoptions.policy_forceintegertype=0;
-    vfoptions.outputkron=0; % If 1 then leave output in Kron form
+    vfoptions.gridinterplayer=0; % Interpolate between grid points (not yet implemented for alternative preferences)
+    vfoptions.lowmemory=0; % use more loops and less parallelization, reduce memory use but at the cost of slower runtimes
+    % Alternative model setups
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.exoticpreferences='None';
     vfoptions.dynasty=0;
@@ -36,25 +22,17 @@ if exist('vfoptions','var')==0
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
-    % When calling as a subcommand, the following is used internally
+    % Largely just for internal use only
+    vfoptions.parallel=1+(gpuDeviceCount>0);
+    vfoptions.polindorval=1;
+    vfoptions.policy_forceintegertype=0;
+    % When calling as a subcommand, the following are used internally
+    vfoptions.outputkron=0; % If 1 then leave output in Kron form
     vfoptions.alreadygridvals=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if ~isfield(vfoptions,'returnmatrix')
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    if ~isfield(vfoptions,'lowmemory')
-        vfoptions.lowmemory=0;
+    % Check vfoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(vfoptions,'verbose')
+        vfoptions.verbose=0;
     end
     if ~isfield(vfoptions,'divideandconquer')
         vfoptions.divideandconquer=0; % =1 Use divide-and-conquer to exploit monotonicity
@@ -66,20 +44,12 @@ else
             error('When using vfoptions.gridinterplayer=1 you must set vfoptoins.ngridinterp (number of points to interpolate for aprime between each consecutive pair of points in a_grid)')
         end
     end
-    if ~isfield(vfoptions,'verbose')
-        vfoptions.verbose=0;
+    if ~isfield(vfoptions,'lowmemory')
+        vfoptions.lowmemory=0;
     end
+    % Alternative model setups
     if isfield(vfoptions,'incrementaltype')==0
         vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
-    end
-    if ~isfield(vfoptions,'polindorval')
-        vfoptions.polindorval=1;
-    end
-    if ~isfield(vfoptions,'outputkron')
-        vfoptions.outputkron=0; % If 1 then leave output in Kron form
-    end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
     end
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
@@ -99,8 +69,21 @@ else
     if ~isfield(vfoptions,'residualasset')
         vfoptions.residualasset=0;
     end
+    % Largely just for internal use only
+    if ~isfield(vfoptions,'parallel')
+        vfoptions.parallel=1+(gpuDeviceCount>0);
+    end
+    if ~isfield(vfoptions,'polindorval')
+        vfoptions.polindorval=1;
+    end
+    if ~isfield(vfoptions,'policy_forceintegertype')
+        vfoptions.policy_forceintegertype=0;
+    end
+    % When calling as a subcommand, the following are used internally
+    if ~isfield(vfoptions,'outputkron')
+        vfoptions.outputkron=0; % If 1 then leave output in Kron form
+    end
     if ~isfield(vfoptions,'alreadygridvals')
-        % When calling as a subcommand, the following is used internally
         vfoptions.alreadygridvals=0;
     end
 end

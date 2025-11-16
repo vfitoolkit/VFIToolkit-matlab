@@ -32,7 +32,7 @@ else
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
-        EV_z=EV.*(ones(N_a,1)*pi_z(z_c,:));
+        EV_z=EV.*pi_z(z_c,:);
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
 
@@ -68,7 +68,7 @@ for reverse_j=1:N_j-1
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
 
         %Calc the condl expectation term (except beta), which depends on z but not on control variables
-        EV_z=EV.*(ones(N_a,1)*pi_z(z_c,:));
+        EV_z=EV.*pi_z(z_c,:);
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
 

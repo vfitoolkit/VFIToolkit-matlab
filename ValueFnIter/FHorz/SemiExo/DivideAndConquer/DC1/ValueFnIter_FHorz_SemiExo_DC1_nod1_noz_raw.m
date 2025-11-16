@@ -36,42 +36,34 @@ if ~isfield(vfoptions,'V_Jplus1')
         d2_val=d2_gridvals(d2_c,:);
 
         % n-Monotonicity
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,1);
+        ReturnMatrix_d2ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid, a_grid(level1ii), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,4);
 
-        % First, we want aprime conditional on (d,1,a,z)
-        [~,maxindex1]=max(ReturnMatrix_ii,[],2);
-
-        % Now, get and store the full (d,aprime)
-        [Vtempii,maxindex2]=max(reshape(ReturnMatrix_ii,[N_d2*N_a,vfoptions.level1n,N_semiz]),[],1);
+        % First, we want aprime conditional on (1,a,z)
+        [Vtempii,maxindex1]=max(ReturnMatrix_d2ii,[],1);
 
         % Store
         V_ford2_jj(level1ii,:,d2_c)=shiftdim(Vtempii,1);
-        Policy_ford2_jj(level1ii,:,d2_c)=shiftdim(maxindex2,1); % d,aprime
+        Policy_ford2_jj(level1ii,:,d2_c)=shiftdim(maxindex1,1); % d,aprime
 
         % Second level based on montonicity
-        maxgap=squeeze(max(max(maxindex1(:,1,2:end,:)-maxindex1(:,1,1:end-1,:),[],4),[],1));
+        maxgap=squeeze(max(maxindex1(1,2:end,:)-maxindex1(1,1:end-1,:),[],3));
         for ii=1:(vfoptions.level1n-1)
             curraindex=level1ii(ii)+1:1:level1ii(ii+1)-1;
             if maxgap(ii)>0
-                loweredge=min(maxindex1(:,1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
-                % loweredge is n_d-by-1-by-n_z
-                aprimeindexes=loweredge+(0:1:maxgap(ii));
-                % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
+                loweredge=min(maxindex1(1,ii,:),n_a-maxgap(ii)); % maxindex1(ii,:), but avoid going off top of grid when we add maxgap(ii) points
+                % loweredge is 1-by-1-by-n_semiz
+                aprimeindexes=loweredge+(0:1:maxgap(ii))';
+                % aprime possibilities are maxgap(ii)+1-by-1-by-n_semiz
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
                 [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
                 V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
-                dind=(rem(maxindex-1,N_d2)+1);
-                allind=dind+N_d2*semizind; % loweredge is n_d-by-1-by-1-by-n_z
-                Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d2*(loweredge(allind)-1)); % loweredge(given the d and z)
+                Policy_ford2_jj(curraindex,:,d2_c)=maxindex+(loweredge-1); % loweredge(given the d and z)
             else
-                loweredge=maxindex1(:,1,ii,:);
+                loweredge=maxindex1(1,ii,:);
                 % Just use aprime(ii) for everything
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,2);
-                [Vtempii,maxindex]=max(ReturnMatrix_ii,[],1);
-                V_ford2_jj(curraindex,:,d2_c)=shiftdim(Vtempii,1);
-                dind=(rem(maxindex-1,N_d2)+1);
-                allind=dind+N_d2*semizind; % loweredge is n_d-by-1-by-1-by-n_z
-                Policy_ford2_jj(curraindex,:,d2_c)=shiftdim(maxindex+N_d2*(loweredge(allind)-1)); % loweredge(given the d and z)
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, special_n_d2, n_semiz, d2_val, reshape(a_grid(loweredge),loweredgesize), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), semiz_gridvals_J(:,:,N_j), ReturnFnParamsVec,5);
+                V_ford2_jj(curraindex,:,d2_c)=shiftdim(ReturnMatrix_ii,1);
+                Policy_ford2_jj(curraindex,:,d2_c)=repelem(shiftdim(loweredge,1),level1iidiff(ii),1);
             end
         end
     end
