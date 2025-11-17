@@ -23,11 +23,11 @@ if ~isfield(options,'l_dsemiz')
 end
 
 
-%% Create semiz_gridvals_J
+%% Create semiz_gridvals_J (joint grid on semiz)
 if ndims(options.semiz_grid)==2
     if all(size(options.semiz_grid)==[sum(options.n_semiz),1])
         semiz_gridvals_J=CreateGridvals(options.n_semiz,options.semiz_grid,1).*ones(1,1,N_j,'gpuArray');
-    elseif all(size(options.semiz_grid)==[prod(options.n_semiz),length(options.n_semiz)])
+    elseif all(size(options.semiz_grid)==[prod(options.n_semiz),length(options.n_semiz)]) % joint grid
         semiz_gridvals_J=options.semiz_grid.*ones(1,1,N_j,'gpuArray');
     end
 else % Already age-dependent
@@ -36,7 +36,7 @@ else % Already age-dependent
         for jj=1:N_j
             semiz_gridvals_J(:,:,jj)=CreateGridvals(options.n_semiz,options.semiz_grid(:,jj),1);
         end
-    elseif all(size(options.semiz_grid)==[prod(options.n_semiz),length(options.n_semiz),N_j])
+    elseif all(size(options.semiz_grid)==[prod(options.n_semiz),length(options.n_semiz),N_j]) % joint grid
         semiz_gridvals_J=options.semiz_grid;
     end
 end
@@ -59,7 +59,7 @@ else
     dsemiz_grid=d_grid(sum(n_predsemiz)+1:sum(n_d));
 
     %% Create pi_semiz_J
-
+    
     % Create the transition matrix in terms of (semiz,semizprime,dsemiz,j) for the semi-exogenous states for each age
     N_semiz=prod(options.n_semiz);
     l_semiz=length(options.n_semiz);
@@ -74,7 +74,7 @@ else
         pi_semiz_J=zeros(N_semiz,N_semiz,N_dsemiz,N_j,'gpuArray');
         for jj=1:N_j
             SemiExoStateFnParamValues=CreateVectorFromParams(Parameters,SemiExoStateFnParamNames,jj);
-            pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_dsemiz,options.n_semiz,dsemiz_grid,semiz_gridvals_J,options.SemiExoStateFn,SemiExoStateFnParamValues));
+            pi_semiz_J(:,:,:,jj)=gpuArray(CreatePiSemiZ(n_dsemiz,options.n_semiz,dsemiz_grid,semiz_gridvals_J(:,:,jj),options.SemiExoStateFn,SemiExoStateFnParamValues));
         end
     else
         % User already inputted options.pi_semiz_J

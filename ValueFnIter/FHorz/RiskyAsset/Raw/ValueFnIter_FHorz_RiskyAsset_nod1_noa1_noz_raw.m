@@ -13,17 +13,16 @@ N_u=prod(n_u);
 % d3_grid
 % For aprimeFn
 n_d23=[n_d2,n_d3];
-N_d23=prod(n_d23);
 d23_grid=[d2_grid; d3_grid];
 
 V=zeros(N_a,N_j,'gpuArray');
 Policy2=zeros(2,N_a,N_j,'gpuArray'); % two: d2, d3 
 
 %%
-d3_grid=gpuArray(d3_grid);
-d23_grid=gpuArray(d23_grid);
-a_grid=gpuArray(a_grid);
 u_grid=gpuArray(u_grid);
+
+d3_gridvals=CreateGridvals(n_d3,d3_grid,1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 %% j=N_j
 
@@ -32,7 +31,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d3, n_a, d3_grid, a_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d3, n_a, d3_gridvals, a_gridvals, ReturnFnParamsVec);
 
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -59,7 +58,7 @@ else
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
     
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d3, n_a, d3_grid, a_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d3, n_a, d3_gridvals, a_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
 
     % Time to refine
@@ -106,7 +105,7 @@ for reverse_j=1:N_j-1
     EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
     % EV is over (d,1)
     
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d3, n_a, d3_grid, a_grid, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn, n_d3, n_a, d3_gridvals, a_gridvals, ReturnFnParamsVec);
     % (d,aprime,a)
     
     % Time to refine

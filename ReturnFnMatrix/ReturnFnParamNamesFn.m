@@ -54,7 +54,6 @@ if isfield(vfoptions,'endotype')
     end
 end
 
-
 % Figure out ReturnFnParamNames from ReturnFn
 temp=getAnonymousFnInputNames(ReturnFn);
 if length(temp)>(l_d+l_aprime+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters

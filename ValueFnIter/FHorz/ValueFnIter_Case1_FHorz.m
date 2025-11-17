@@ -386,7 +386,7 @@ if vfoptions.riskyasset==1
     else
         n_a1=n_a(1:end-1);
     end
-    n_a2=n_a(end); % n_a2 is the experience asset
+    n_a2=n_a(end); % n_a2 is the risky asset
     a1_grid=a_grid(1:sum(n_a1));
     a2_grid=a_grid(sum(n_a1)+1:end);
 

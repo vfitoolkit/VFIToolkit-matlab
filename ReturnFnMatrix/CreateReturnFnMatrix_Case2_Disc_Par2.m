@@ -1,11 +1,5 @@
-function Fmatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParams)
+function Fmatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d, n_a, n_z, d_gridvals, a_gridvals, z_gridvals, ReturnFnParams)
 %If there is no d variable, just input n_d=0 and d_grid=0
-
-if size(d_grid,2)==1 % stacked-column % IN FUTURE, CHANGE INPUT TO BE d_gridvals
-    d_gridvals=CreateGridvals(n_d,d_grid,1);
-else
-    d_gridvals=d_grid;
-end
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
@@ -50,35 +44,33 @@ if l_d>=1
     end
 end
 if l_a>=1
-    a1vals=shiftdim(a_grid(1:n_a(1)),-1);
+    a1vals=shiftdim(a_gridvals(:,1),-1);
     if l_a>=2
-        a2vals=shiftdim(a_grid(n_a(1)+1:sum(n_a(1:2))),-1-1);
+        a2vals=shiftdim(a_gridvals(:,2),-1);
         if l_a>=3
-            a3vals=shiftdim(a_grid(sum(n_a(1:2))+1:sum(n_a(1:3))),-1-2);
+            a3vals=shiftdim(a_gridvals(:,3),-1);
             if l_a>=4
-                a4vals=shiftdim(a_grid(sum(n_a(1:3))+1:sum(n_a(1:4))),-1-3);
+                a4vals=shiftdim(a_gridvals(:,4),-1);
             end
         end
     end
 end
-
-% joint z_grid
 if l_z>=1
-    z1vals=shiftdim(z_grid(:,1),-1-l_a);
+    z1vals=shiftdim(z_gridvals(:,1),-2);
     if l_z>=2
-        z2vals=shiftdim(z_grid(:,2),-1-l_a);
+        z2vals=shiftdim(z_gridvals(:,2),-2);
         if l_z>=3
-            z3vals=shiftdim(z_grid(:,3),-1-l_a);
+            z3vals=shiftdim(z_gridvals(:,3),-2);
             if l_z>=4
-                z4vals=shiftdim(z_grid(:,4),-1-l_a);
+                z4vals=shiftdim(z_gridvals(:,4),-2);
                 if l_z>=5
-                    z5vals=shiftdim(z_grid(:,5),-1-l_a);
+                    z5vals=shiftdim(z_gridvals(:,5),-2);
                     if l_z>=6
-                        z6vals=shiftdim(z_grid(:,6),-l_d-l_a);
+                        z6vals=shiftdim(z_gridvals(:,6),-2);
                         if l_z>=7
-                            z7vals=shiftdim(z_grid(:,7),-1-l_a);
+                            z7vals=shiftdim(z_gridvals(:,7),-2);
                             if l_z>=8
-                                z8vals=shiftdim(z_grid(:,8),-1-l_a);
+                                z8vals=shiftdim(z_gridvals(:,8),-2);
                             end
                         end
                     end

@@ -12,8 +12,6 @@ N_u=prod(n_u);
 
 % For ReturnFn
 n_d13=[n_d1,n_d3];
-N_d13=prod(n_d13);
-d13_grid=[d1_grid; d3_grid];
 % For aprimeFn
 n_d23=[n_d2,n_d3];
 N_d23=prod(n_d23);
@@ -23,17 +21,17 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy3=zeros(3,N_a,N_z,N_j,'gpuArray'); % three: d1, d2, d3 
 
 %%
-d13_grid=gpuArray(d13_grid);
-d23_grid=gpuArray(d23_grid);
-a_grid=gpuArray(a_grid);
 u_grid=gpuArray(u_grid);
+
+d13_gridvals=CreateGridvals([n_d1,n_d3],[d1_grid;d3_grid],1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 if vfoptions.lowmemory>0
     special_n_z=ones(1,length(n_z));
 end
 
-aind=(0:1:N_a-1);
-zind=shiftdim(0:1:N_z-1,-1);
+aind=gpuArray(0:1:N_a-1);
+zind=shiftdim(gpuArray(0:1:N_z-1),-1);
 
 
 %% j=N_j
@@ -44,7 +42,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_gridvals, a_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
@@ -56,7 +54,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_gridvals, a_gridvals, z_val, ReturnFnParamsVec);
             %Calc the max and it's index
             [Vtemp,maxindex]=max(ReturnMatrix_z,[],1);
             V(:,z_c,N_j)=Vtemp;
@@ -79,7 +77,7 @@ else
 
     if vfoptions.lowmemory==0
         
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_gridvals, a_gridvals, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
         EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
@@ -117,7 +115,7 @@ else
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_gridvals, a_gridvals, z_val, ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
@@ -175,7 +173,7 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, n_z, d13_gridvals, a_gridvals, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z)
 
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
@@ -214,7 +212,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_grid, a_grid, z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d13, n_a, special_n_z, d13_gridvals, a_gridvals, z_val, ReturnFnParamsVec);
             
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
