@@ -25,7 +25,7 @@ V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy3=zeros(3,N_a,N_e,N_j,'gpuArray'); % d1,d2,d3,a1prime
 
 %%
-u_grid=gpuArray(u_grid);
+pi_u=shiftdim(pi_u,-1); % 2nd dimension
 
 d3a1_gridvals=CreateGridvals([n_d3,n_a1],[d3_grid;a1_grid],1);
 a1a2_gridvals=CreateGridvals([n_a1,n_a2],[a1_grid;a2_grid],1);
@@ -63,46 +63,46 @@ if ~isfield(vfoptions,'V_Jplus1')
         end
     end
 else
-    % Using V_Jplus1
-    V_Jplus1=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(:,N_j)',2);    % First, switch V_Jplus1 into Kron form ,take expecation over e
-
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,N_j);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
+    EV=sum(reshape(vfoptions.V_Jplus1,[N_a,N_e]).*pi_e_J(:,N_j)',2); % Using V_Jplus1
+
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: a2primeIndex is [N_d,N_u], whereas a2primeProbs is [N_d,N_u]
 
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
-    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
-    
-    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
-    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-    skipinterp=logical(V_Jplus1(aprimeIndex(:))==V_Jplus1(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
-    aprimeProbs(skipinterp)=0;
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(V_Jplus1(aprimeIndex),[N_d23*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(V_Jplus1(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EVlower=reshape(EV(aprimeIndex),[N_d23*N_a1,N_u]); % the lower aprime
+    EVupper=reshape(EV(aprimeplus1Index),[N_d23*N_a1,N_u]); % the upper aprime
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(EVlower==EVupper);
+    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+    
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs.*EVlower+(1-aprimeProbs).*EVupper; % (d23 & a1prime,u,zprime)
     % Already applied the probabilities from interpolating onto grid
+    EV=squeeze(sum((EV.*pi_u),2)); % (d23 & a1prime,1)
     
-    % Expectation over u (using pi_u), and then add the lower and upper
-    EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u), sum over u
-    % EV is over (d&a1prime,1)
-    
+    % Time to refine EV, we can refine out d2
+    [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1]),[],1);
+
+    DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
+
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2],n_e, d3a1_gridvals, a1a2_gridvals,e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,a,e)
   
-        % Time to refine
-        % First: ReturnMatrix, we can refine out d1
+        % Time to refine ReturnMatrix, we can refine out d1
         % no d1 here
-        % Second: EV, we can refine out d2
-        [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,1]),[],1);
+
         % Now put together entireRHS, which just depends on d3
-        entireRHS=ReturnMatrix+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
+        entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
         
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -114,20 +114,15 @@ else
 
     elseif vfoptions.lowmemory==1
 
-        betaEV=DiscountFactorParamsVec*EV.*ones(1,N_a,1);
-        % Time to refine
-        % Second (out of order): EV, we can refine out d2
-        [EV_onlyd3,d2index]=max(reshape(betaEV,[N_d2,N_d3*N_a1,1]),[],1);
-
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,N_j);
            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
            
-           % Time to refine
-           % First: ReturnMatrix, we can refine out d1
+           % Time to refine ReturnMatrix, we can refine out d1
            % no d1 here
+
            % Now put together entireRHS, which just depends on d3
-           entireRHS_e=ReturnMatrix_e+shiftdim(EV_onlyd3,1);
+           entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;
            
            %Calc the max and it's index
            [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -153,7 +148,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames,jj);
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
-    VKronNext_j=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
+    EV=sum(V(:,:,jj+1).*pi_e_J(:,jj)',2); % Expectation over e
     
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [a2primeIndex,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, [n_d23,n_a1], n_a2, n_u, d23_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
@@ -162,36 +157,37 @@ for reverse_j=1:N_j-1
 
     aprimeIndex=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex-1,N_a1,1); % [N_d*N_a1,N_u]
     aprimeplus1Index=repelem((1:1:N_a1)',N_d23,N_u)+N_a1*repmat(a2primeIndex,N_a1,1); % [N_d*N_a1,N_u]
-    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
     % Note: aprimeIndex corresponds to value of (a1, a2), but has dimension (d,a1)
-    
-    % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
-    % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-    skipinterp=logical(VKronNext_j(aprimeIndex(:))==VKronNext_j(aprimeplus1Index(:))); % Note, probably just do this off of a2prime values
-    aprimeProbs(skipinterp)=0;
-    
+    aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
+
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-    EV1=aprimeProbs.*reshape(VKronNext_j(aprimeIndex),[N_d23*N_a1,N_u]); % (d&a1prime,u), the lower aprime
-    EV2=(1-aprimeProbs).*reshape(VKronNext_j(aprimeplus1Index),[N_d23*N_a1,N_u]); % (d&a1prime,u), the upper aprime
+    EVlower=reshape(EV(aprimeIndex),[N_d23*N_a1,N_u]); % the lower aprime
+    EVupper=reshape(EV(aprimeplus1Index),[N_d23*N_a1,N_u]); % the upper aprime
+    % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
+    skipinterp=(EVlower==EVupper);
+    aprimeProbs(skipinterp)=0; % effectively skips interpolation
+    
+    % Switch EV from being in terps of a2prime to being in terms of d2 and a2
+    EV=aprimeProbs.*EVlower+(1-aprimeProbs).*EVupper; % (d23 & a1prime,u,zprime)
     % Already applied the probabilities from interpolating onto grid
+    EV=squeeze(sum((EV.*pi_u),2)); % (d23 & a1prime,1)
     
-    % Expectation over u (using pi_u), and then add the lower and upper
-    EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d&a1prime,u), sum over u
-    % EV is over (d&a1prime,1)
-    
+    % Time to refine EV, we can refine out d2
+    [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1]),[],1);
+
+    DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
+
     if vfoptions.lowmemory==0
         
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_e, d3a1_gridvals, a1a2_gridvals, e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,a,e)
-        
-        % Time to refine
-        % First: ReturnMatrix, we can refine out d1
+
+        % Time to refine ReturnMatrix, we can refine out d1
         % no d1 here
-        % Second: EV, we can refine out d2
-        [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,1]),[],1);
-        % Now put together entireRHS, which just depends on d3
-        entireRHS=ReturnMatrix+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
         
+        % Now put together entireRHS, which just depends on d3
+        entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
+
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
 
@@ -201,21 +197,16 @@ for reverse_j=1:N_j-1
         Policy3(1,:,:,jj)=shiftdim(d2index(maxindex),1);
         
     elseif vfoptions.lowmemory==1
-       
-       betaEV=DiscountFactorParamsVec*EV.*ones(1,N_a,1);
-       % Time to refine
-       % Second (out of order): EV, we can refine out d2
-       [EV_onlyd3,d2index]=max(reshape(betaEV,[N_d2,N_d3*N_a1,1]),[],1);
 
        for e_c=1:N_e
            e_val=e_gridvals_J(e_c,:,jj);
            ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], special_n_e, d3a1_gridvals, a1a2_gridvals, e_val, ReturnFnParamsVec);
-           
-           % Time to refine
-           % First: ReturnMatrix, we can refine out d1
+
+           % Time to refine ReturnMatrix, we can refine out d1
            % no d1 here
+
            % Now put together entireRHS, which just depends on d3
-           entireRHS_e=ReturnMatrix_e+shiftdim(EV_onlyd3,1);
+           entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
            
            %Calc the max and it's index
            [Vtemp,maxindex]=max(entireRHS_e,[],1);

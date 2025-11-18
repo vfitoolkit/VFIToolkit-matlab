@@ -126,6 +126,8 @@ else
     % Time to refine EV, we can refine out d2
     [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,N_z]),[],1);
 
+    DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
+
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
@@ -134,7 +136,7 @@ else
         % no d1 here
 
         % Now put together entireRHS, which just depends on d3
-        entireRHS=ReturnMatrix+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);
+        entireRHS=ReturnMatrix+DiscountedEV_onlyd3;
                 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -149,6 +151,7 @@ else
 
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
+
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, special_n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
             
@@ -156,7 +159,7 @@ else
             % no d1 here
 
             % Now put together entireRHS, which just depends on d3
-            entireRHS_e=ReturnMatrix_e+shiftdim(EV_onlyd3,1);
+            entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;
             
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
@@ -170,7 +173,7 @@ else
     elseif vfoptions.lowmemory==2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            EV_onlyd3_z=EV_onlyd3(:,:,1,z_c);
+            DiscountedEV_onlyd3_z=DiscountedEV_onlyd3(:,1,z_c);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,N_j);
@@ -181,7 +184,7 @@ else
                 % no d1 here
 
                 % Now put together entireRHS, which just depends on d3
-                entireRHS_ze=ReturnMatrix_ze+shiftdim(EV_onlyd3_z,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_onlyd3_z;
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
@@ -240,6 +243,8 @@ for reverse_j=1:N_j-1
     % Time to refine EV, we can refine out d2
     [EV_onlyd3,d2index]=max(reshape(EV,[N_d2,N_d3*N_a1,1,N_z,1]),[],1);
 
+    DiscountedEV_onlyd3=DiscountFactorParamsVec*shiftdim(EV_onlyd3,1);
+
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn, [n_d3,n_a1], [n_a1,n_a2], n_z, n_e, d3a1_gridvals, a1a2_gridvals, z_gridvals_J(:,:,jj), e_gridvals_J(:,:,jj), ReturnFnParamsVec);
         % (d,aprime,a,z,e)
@@ -248,7 +253,7 @@ for reverse_j=1:N_j-1
         % no d1 here
 
         % Now put together entireRHS, which just depends on d3
-        entireRHS=ReturnMatrix+shiftdim(DiscountFactorParamsVec*EV_onlyd3,1);        
+        entireRHS=ReturnMatrix+DiscountedEV_onlyd3;        
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         
@@ -269,7 +274,7 @@ for reverse_j=1:N_j-1
             % no d1 here
 
             % Now put together entireRHS, which just depends on d3
-            entireRHS_e=ReturnMatrix_e+shiftdim(EV_onlyd3,1);            
+            entireRHS_e=ReturnMatrix_e+DiscountedEV_onlyd3;            
             % Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS_e,[],1);
             
@@ -283,7 +288,7 @@ for reverse_j=1:N_j-1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            EV_onlyd3_z=EV_onlyd3(:,:,1,z_c);
+            DiscountedEV_onlyd3_z=DiscountedEV_onlyd3(:,1,z_c);
 
             for e_c=1:N_e
                 e_val=e_gridvals_J(e_c,:,jj);
@@ -294,7 +299,7 @@ for reverse_j=1:N_j-1
                 % no d1 here
 
                 % Now put together entireRHS, which just depends on d3
-                entireRHS_ze=ReturnMatrix_ze+shiftdim(EV_onlyd3_z,1);
+                entireRHS_ze=ReturnMatrix_ze+DiscountedEV_onlyd3_z;
                 
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);                
