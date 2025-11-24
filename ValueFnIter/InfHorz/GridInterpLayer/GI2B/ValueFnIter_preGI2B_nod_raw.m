@@ -20,8 +20,9 @@ N_a1prime=N_a1+(N_a1-1)*vfoptions.ngridinterp;
 a1prime_grid=interp1(1:1:N_a1,a1_grid,linspace(1,N_a1,N_a1+(N_a1-1)*vfoptions.ngridinterp))';
 n_aprime=[N_a1prime,n_a(2:end)];
 N_aprime=prod(n_aprime);
-aprime_grid=[a1prime_grid; a2_grid];
-ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_aprime, n_a, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams);
+aprime_gridvals=CreateGridvals(n_aprime,[a1prime_grid; a2_grid],1);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
+ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_aprime, n_a, n_z, aprime_gridvals, a_gridvals, z_gridvals, ReturnFnParams);
 originalindex=gpuArray(1:vfoptions.ngridinterp+1:N_a1prime)'+N_a1prime*gpuArray(0:1:N_a2-1);
 ReturnMatrix=ReturnMatrixfine(originalindex(:),:,:);
 
