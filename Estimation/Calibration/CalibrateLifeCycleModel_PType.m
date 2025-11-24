@@ -95,7 +95,9 @@ for pp=1:length(CalibParamNames)
         nCalibParamsFinder(nCalibParams,2)=0;
     end
 end
-
+if nCalibParams<length(CalibParamNames)
+    warning('Guessing you accidently input N_i instead of Names_i to CalibrateLifeCycleModel_PType()?')
+end
 
 % Sometimes we want to omit parameters
 if isfield(caliboptions,'omitcalibparam')
@@ -154,6 +156,7 @@ for pp=1:nCalibParams
     end
 end
 
+
 % If the parameter is constrained in some way then we need to transform it
 [calibparamsvec0,caliboptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(calibparamsvec0,calibparamsvecindex,CalibParamNames,nCalibParamsFinder,caliboptions,1);
 % Also converts the constraints info in caliboptions to be a vector rather than by name.
@@ -207,6 +210,10 @@ if caliboptions.calibrateshocks==0
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
+else
+    % just need some placeholders
+    z_gridvals_J=[];
+    pi_z_J=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, staty dist, etc. So
@@ -274,7 +281,7 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.fminalgo~=8
-    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames,PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
 elseif caliboptions.fminalgo==8
     caliboptions.vectoroutput=2;
     weightsbackup=caliboptions.weights;

@@ -129,7 +129,7 @@ if zdependsonptype==0
                     if all(size(z_grid)==[sum(n_z),1])
                         z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
                     else % already joint-grid
-                        z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                        z_gridvals_J(:,:,jj)=gpuArray(z_grid);
                     end
                 end
             elseif ndims(z_grid)==3 % already an age-dependent joint-grid
