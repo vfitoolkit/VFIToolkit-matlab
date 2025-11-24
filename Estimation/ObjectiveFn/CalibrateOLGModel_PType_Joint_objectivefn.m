@@ -75,7 +75,13 @@ AggVarNames=fieldnames(AggVars);
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars.(AggVarNames{aa}).Mean;
 end
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
+
+% Evaluate General Eqm Eqns
+GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
+for gg=1:length(GEeqnNames)
+    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+end
 
 %% Model moments
 if usingallstats==1

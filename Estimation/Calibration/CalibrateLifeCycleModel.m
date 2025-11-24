@@ -71,7 +71,7 @@ else
 end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
-calibomitparams_counter=zeros(length(CalibParamNames)); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
+calibomitparams_counter=zeros(length(CalibParamNames),1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
 calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
 for pp=1:length(CalibParamNames)
     if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))

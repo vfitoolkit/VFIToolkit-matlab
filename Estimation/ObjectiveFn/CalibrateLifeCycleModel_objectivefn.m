@@ -19,7 +19,6 @@ if caliboptions.verbose==1
     end
 end
 
-
 for pp=1:length(CalibParamNames)
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));

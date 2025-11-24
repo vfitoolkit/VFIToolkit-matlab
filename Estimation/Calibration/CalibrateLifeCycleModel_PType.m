@@ -107,7 +107,7 @@ else
 end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
-calibparamssizes=zeros(nCalibParams,1); % with PType, some parameters may be matrices (depend on both j and i)
+calibparamssizes=zeros(nCalibParams,2); % with PType, some parameters may be matrices (depend on both j and i)
 calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
 calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
 for pp=1:nCalibParams

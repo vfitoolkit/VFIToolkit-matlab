@@ -154,6 +154,7 @@ for pp=1:nGEParams
 end
 
 %% Setup for which parameters are being calibrated
+nCalibParams=length(CalibParamNames);
 
 % Sometimes we want to omit parameters
 if isfield(caliboptions,'omitcalibparam')
@@ -162,10 +163,10 @@ else
     OmitCalibParamsNames={''};
 end
 calibparamsvec0=[]; % column vector
-calibparamsvecindex=zeros(length(CalibParamNames)+1,1); % Note, first element remains zero
-calibomitparams_counter=zeros(length(CalibParamNames)); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
+calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
+calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
 calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
-for pp=1:length(CalibParamNames)
+for pp=1:nCalibParams
     if any(strcmp(OmitCalibParamsNames,CalibParamNames{pp}))
         % This parameter is under an omit-mask, so need to only use part of it
         tempparam=Parameters.(CalibParamNames{pp});
@@ -218,13 +219,10 @@ if caliboptions.jointoptimization==1
     caliboptions.constrainAtoB=[caliboptions.constrainAtoB; heteroagentoptions.constrainAtoB];
     caliboptions.constrain0to1=[caliboptions.constrain0to1; heteroagentoptions.constrain0to1];
     calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:length(GEPriceParamNames))'];
-    calibparamssizes=[calibparamssizes; ones(length(GEPriceParamNames),2)];
-    calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];
-    nCalibParamsFinder(nCalibParams+1:nCalibParams+length(GEPriceParamNames),1)=nCalibParams+(1:1:length(GEPriceParamNames))';
-    nCalibParamsFinder(nCalibParams+1:nCalibParams+length(GEPriceParamNames),2)=0;
-    
+    calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];    
     nCalibParams=nCalibParams+length(GEPriceParamNames);
 end
+
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
@@ -337,22 +335,22 @@ end
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.jointoptimization==0
     if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
     elseif caliboptions.fminalgo==8
         caliboptions.vectoroutput=2;
         weightsbackup=caliboptions.weights;
         caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
         caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 elseif caliboptions.jointoptimization==1
     if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
     elseif caliboptions.fminalgo==8
         caliboptions.vectoroutput=2;
         weightsbackup=caliboptions.weights;
         caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
         caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 end
@@ -438,9 +436,9 @@ for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
+        CalibParams.(CalibParamNames{pp})=currparamraw;
     else
-        CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        CalibParams.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
     end
 end
 clear calibparamsvec % I modified it, so want to make sure I don't accidently use it again later

@@ -1,4 +1,4 @@
-function Obj=CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
+function Obj=CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -9,11 +9,11 @@ function Obj=CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames
 if caliboptions.verbose==1
     fprintf(' \n')
     fprintf('Current parameter values: \n')
-    for pp=1:nCalibParams
+    for pp=1:length(CalibParamNames)
         if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
-            fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+            fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
         else
-            fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'=  \n'])
+            fprintf(['    ',CalibParamNames{pp},'=  \n'])
             calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
         end
     end
@@ -23,12 +23,11 @@ for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(currparamraw,calibparamssizes(pp,:));
+        Parameters.(CalibParamNames{pp})=currparamraw;
     else
-        Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
+        Parameters.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
     end
 end
-
 
 %% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
 if ~isempty(ParametrizeParamsFn)
@@ -57,7 +56,13 @@ AggVarNames=fieldnames(AggVars);
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars.(AggVarNames{aa}).Mean;
 end
-GeneralEqmConditionsVec=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
+
+% Evaluate General Eqm Eqns
+GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
+for gg=1:length(GEeqnNames)
+    % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+end
 
 %% Model moments
 if usingallstats==1
