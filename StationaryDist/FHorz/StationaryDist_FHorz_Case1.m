@@ -159,6 +159,10 @@ if simoptions.experienceassetu==1
     end
 end
 if simoptions.riskyasset==1
+    if ~isfield(simoptions,'refine_d')
+        warning('Using simoptions.riskyasset=1 without setting simoptions.refine_d is outdated behaviour, it is strongly recommended you set simoptions.refine_d')
+    end
+
     if N_semiz==0
         StationaryDist=StationaryDist_FHorz_RiskyAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
         return

@@ -404,6 +404,9 @@ if vfoptions.riskyasset==1
     if ~isfield(vfoptions,'pi_u') % && ~isfield(vfoptions,'pi_u_J')
         error('You have vfoptions.riskyasset=1, but have not setup vfoptions.pi_u')
     end
+    if ~isfield(vfoptions,'refine_d')
+        warning('Using vfoptions.riskyasset=1 without setting vfoptions.refine_d is outdated behaviour, it is strongly recommended you set vfoptions.refine_d')
+    end
 
     % Now just send all this to the right value fn iteration command
     if isfield(vfoptions,'n_semiz')
