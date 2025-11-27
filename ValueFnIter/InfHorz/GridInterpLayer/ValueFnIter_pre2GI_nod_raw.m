@@ -1,5 +1,6 @@
 function [VKron, Policy]=ValueFnIter_pre2GI_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParams, vfoptions) % Verbose, a_grid, z_grid,
 % pre2GI: create the whole ReturnMatrix based on aprime, and just consider the entire 'fine' ReturnMatrix the entire time.
+warning('ValueFnIter_pre2GI_nod_raw() is depreciated (was a runtime test, you should not end up here, let me know if you do')
 
 N_a=prod(n_a);
 N_z=prod(n_z);

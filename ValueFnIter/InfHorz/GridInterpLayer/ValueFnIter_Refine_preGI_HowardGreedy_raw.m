@@ -51,6 +51,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     ReturnMatrix=ReturnMatrixfine(:,1:vfoptions.ngridinterp+1:n_aprime,:,:);
 end
 
+
 %% The rest, except putting d back into Policy at the end, is all just copy-paste from ValueFnIter_preGI_nod_raw()
 pi_z_alt=shiftdim(pi_z',-1);
 
@@ -68,6 +69,7 @@ pi_z_big2=gpuArray(repmat(pi_z_big1,2,1)); % (a-z-2,zprime)
 %%
 tempcounter=1;
 currdist=1;
+
 
 %% First, just consider a_grid for next period
 while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=vfoptions.maxiter
@@ -102,6 +104,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     tempcounter=tempcounter+1;
 
 end
+
 
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1; % force going into the next while loop at least one iteration
@@ -144,6 +147,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     tempcounter=tempcounter+1;
 
 end
+
 
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 Policy_a=reshape(Policy_a,[N_a*N_z,1]);

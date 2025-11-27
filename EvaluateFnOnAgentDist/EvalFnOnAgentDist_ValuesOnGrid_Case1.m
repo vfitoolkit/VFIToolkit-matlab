@@ -77,7 +77,7 @@ if Parallel==2
         ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
     end
 else
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
         
     if l_d>0
         
