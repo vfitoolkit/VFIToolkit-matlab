@@ -21,7 +21,7 @@ if ~exist('vfoptions','var')
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
-    % Howards improvement
+    % Howards improvement [note: for vfoptions.gridinterplayer=0]
     if isscalar(n_a) % one endogenous state
         if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
             vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
@@ -77,6 +77,9 @@ else
     if ~isfield(vfoptions,'gridinterplayer')
         vfoptions.gridinterplayer=0; % grid interpolation layer
     elseif vfoptions.gridinterplayer==1
+        if ~isfield(vfoptions,'preGI')
+            vfoptions.preGI=0; % post GI is faster
+        end
         if ~isfield(vfoptions,'ngridinterp')
             error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp')
         end
@@ -86,13 +89,17 @@ else
     end
     % Howards improvement
     if ~isfield(vfoptions,'howardsgreedy')
-        if isscalar(n_a) % one endogenous state
-            if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
-                vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
+        if vfoptions.gridinterplayer==0
+            if isscalar(n_a) % one endogenous state
+                if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
+                    vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
+                else
+                    vfoptions.howardsgreedy=0;
+                end
             else
                 vfoptions.howardsgreedy=0;
             end
-        else
+        elseif vfoptions.gridinterplayer==1
             vfoptions.howardsgreedy=0;
         end
     end
@@ -446,6 +453,7 @@ end
 
 %% Divide-and-conquer
 if vfoptions.divideandconquer==1
+    warning('Divide-and-Conquer tends to be a slow option in Infinite Horizon problems')
     [V,Policy]=ValueFnIter_DivideConquer(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
     varargout={V,Policy};
     return

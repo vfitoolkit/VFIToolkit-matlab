@@ -21,7 +21,7 @@ if l_z>4
 end
 
 if Level==1
-    N_aprime=length(aprime_grid); % Because l_a=1
+    N_aprime=size(aprime_grid,1); % Because l_a=1
     aprime_grid=shiftdim(aprime_grid,-1);
 elseif Level==2
     N_aprime=size(aprime_grid,2); % Because l_a=1
@@ -31,7 +31,7 @@ elseif Level==3
     % aprime_grid unchanged
     % Level 3 has level 2 inputs but level 1 outputs, used for GI
 elseif Level==4
-    N_aprime=length(aprime_grid); % Because l_a=1
+    N_aprime=size(aprime_grid,1); % Because l_a=1
     aprime_grid=shiftdim(aprime_grid,-1);
     % Level 4 is just version of Level 1 for semi when looping over d2
 elseif Level==5

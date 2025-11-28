@@ -98,6 +98,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 
 end
 
+
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1; % force going into the next while loop at least one iteration
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
@@ -139,6 +140,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     tempcounter=tempcounter+1;
 
 end
+
 
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 Policy_a=reshape(Policy_a,[N_a*N_z,1]); % fine index

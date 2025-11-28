@@ -15,11 +15,7 @@ if l_z>4
     error('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4)')
 end
 
-if Level==1
-    N_aprime=length(aprime_grid); % Because l_a=1
-elseif Level==2
-    N_aprime=size(aprime_grid,1); % Because l_a=1
-end
+N_aprime=size(aprime_grid,1); % Because l_a=1
 
 if l_z==1
     Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), shiftdim(z_gridvals(:,1),-2), ParamCell{:});
