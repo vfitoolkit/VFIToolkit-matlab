@@ -1,6 +1,5 @@
 function [VKron, Policy]=ValueFnIter_sparse_nod_raw(VKron,N_a,N_z,pi_z,DiscountFactorParamsVec,ReturnMatrix,Howards,MaxHowards,Tolerance,maxiter)
-%Does pretty much exactly the same as ValueFnIter_Case1, only without any 
-% decision variable (n_d=0)
+% Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 pi_z_transpose = transpose(pi_z);
 pi_z_alt       = shiftdim(pi_z_transpose,-1);

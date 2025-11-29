@@ -79,7 +79,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=1000;
+    transpathoptions.maxiter=1000;
     transpathoptions.verbose=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
@@ -116,8 +116,8 @@ else
     if ~isfield(transpathoptions,'Ttheta')
         transpathoptions.Ttheta=1;
     end
-    if ~isfield(transpathoptions,'maxiterations')
-        transpathoptions.maxiterations=1000;
+    if ~isfield(transpathoptions,'maxiter')
+        transpathoptions.maxiter=1000;
     end
     if ~isfield(transpathoptions,'verbose')
         transpathoptions.verbose=0;

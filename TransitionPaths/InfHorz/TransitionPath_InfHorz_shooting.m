@@ -130,7 +130,7 @@ end
 
 
 %%
-while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter
         
     % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
     % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V

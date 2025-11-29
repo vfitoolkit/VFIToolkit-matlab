@@ -160,7 +160,8 @@ Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is define
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 % Separate Policy into L1 and L2
 fineindex=reshape(Policy_a,[N_a*N_z,1]);
-L1a=ceil((fineindex-1)/(n2short+1))-1; % this ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
+L1a=ceil((fineindex-1)/(n2short+1))-1; % this ranges -1:0:2*vfoptions.maxaprimediff-1
+% (L1a-vfoptions.maxaprimediff+1) ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
 L1=max(L1a-vfoptions.maxaprimediff+1+aprimeshifter(:)-1,1); % lower grid point index (on the full grid), so this ranges 0 to n_a-1
 L1intermediate=max(L1a,0)+1; % lower grid point index (on the small grid, in form so we can get L2)
 L2=fineindex-(L1intermediate-1)*(n2short+1); % L2 index

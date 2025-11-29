@@ -21,7 +21,7 @@ if l_z>4
 end
 
 if Level==1
-    N_a1prime=length(a1prime_grid);
+    N_a1prime=size(a1prime_grid,1);
     a1prime_grid=shiftdim(a1prime_grid,-1);
 elseif Level==2
     N_a1prime=size(a1prime_grid,2);

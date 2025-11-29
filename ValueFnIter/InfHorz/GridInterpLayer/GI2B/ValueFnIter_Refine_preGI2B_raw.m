@@ -2,14 +2,15 @@ function [VKron,Policy]=ValueFnIter_Refine_preGI2B_raw(VKron,n_d,n_a,n_z,d_gridv
 % When using refinement, lowmemory is implemented in the first stage (return fn) but not the second (the actual iteration).
 % Refine, so there is at least one d variable
 
+N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+
 N_a1=n_a(1);
 N_a2=prod(n_a(2:end));
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
-
-N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
+a_gridvals=CreateGridvals(n_a,a_grid,1);
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;
@@ -31,7 +32,7 @@ daprime_gridvals=[repmat(d_gridvals,N_aprime,1),repelem(aprime_gridvals,N_d,1)];
 % lot of memory.
 
 if vfoptions.lowmemory==0
-    ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_daprime, n_a, n_z, daprime_gridvals, a_grid, z_gridvals, ReturnFnParams);
+    ReturnMatrixfine=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_daprime, n_a, n_z, daprime_gridvals, a_gridvals, z_gridvals, ReturnFnParams);
     ReturnMatrixfine=reshape(ReturnMatrixfine,[N_d,N_aprime,N_a,N_z]);
     
     % For refinement, now we solve for d*(aprime,a,z) that maximizes the ReturnFn
@@ -49,7 +50,7 @@ elseif vfoptions.lowmemory==1 % loop over z
     special_n_z=ones(1,l_z);
     for z_c=1:N_z
         zvals=z_gridvals(z_c,:);
-        ReturnMatrixfine_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_daprime, n_a, special_n_z, daprime_gridvals, a_grid, zvals, ReturnFnParams);
+        ReturnMatrixfine_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_daprime, n_a, special_n_z, daprime_gridvals, a_gridvals, zvals, ReturnFnParams);
         ReturnMatrixfine_z=reshape(ReturnMatrixfine_z,[N_d,N_aprime,N_a]);
         [ReturnMatrixfine_z,dstar_z]=max(ReturnMatrixfine_z,[],1); % solve for dstar
         ReturnMatrixfine(:,:,z_c)=shiftdim(ReturnMatrixfine_z,1);
@@ -150,15 +151,16 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
 end
 
-
 %% Switch policy to lower grid index and L2 index (is currently index on fine grid)
 fineindex=reshape(Policy_a,[1,N_a,N_z]);
 Policy=zeros(4,N_a,N_z,'gpuArray');
 fineindexvec1=rem(fineindex-1,N_a1prime)+1;
 fineindexvec2=ceil(fineindex/N_a1prime);
+
 L1a=ceil((fineindexvec1-1)/(n2short+1))-1;
 L1=max(L1a,0)+1; % lower grid point index
 L2=fineindexvec1-(L1-1)*(n2short+1); % L2 index
+
 Policy(2,:,:)=L1;
 Policy(3,:,:)=fineindexvec2;
 Policy(4,:,:)=L2;
@@ -166,7 +168,6 @@ Policy(4,:,:)=L2;
 %% For refinement, add d back into Policy
 temppolicyindex=fineindex(:)+N_aprime*(0:1:N_a*N_z-1)';
 Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is defined on the fine grid
-
 
 
 end

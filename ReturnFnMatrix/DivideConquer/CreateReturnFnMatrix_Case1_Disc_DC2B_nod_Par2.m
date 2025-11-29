@@ -16,9 +16,9 @@ if l_z>4
 end
 
 if Level==1
-    N_a1prime=length(a1prime_grid); % Because l_a=1
+    N_a1prime=size(a1prime_grid,1); % Because l_a1=1
 elseif Level==2
-    N_a1prime=size(a1prime_grid,1); % Because l_a=1
+    N_a1prime=size(a1prime_grid,1); % Because l_a1=1
 end
 N_a2prime=N_a2;
 

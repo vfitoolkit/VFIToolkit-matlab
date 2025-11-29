@@ -34,8 +34,8 @@ if ~exist('vfoptions','var')
     % When doing Howards iterations, the following are some suboptions
     vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
-    if N_a>1200 && N_z>100
-        vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix. Sparse is only faster for bigger models.
+    if N_a>1200 && N_z>100 && vfoptions.gridinterplayer==0
+        vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
     else
         vfoptions.howardssparse=0;
     end
@@ -111,8 +111,8 @@ else
         vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     end
     if ~isfield(vfoptions,'howardssparse')
-        if N_a>1200 && N_z>100
-            vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix. Sparse is only faster for bigger models.
+        if N_a>1200 && N_z>100 && vfoptions.gridinterplayer==0
+            vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
         else
             vfoptions.howardssparse=0;
         end
@@ -448,7 +448,7 @@ end
 %% Divide-and-conquer together with grid interpolation layer is not yet done in InfHorz. It is assumed you just want the grid interpolation layer
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
     vfoptions.divideandconquer=0;
-    warning('Cannot yet use divide-and-conquer with grid interpolation layer for InfHorz, so just ignoring the divide-and-conquer (and doing the gird interpolation layer)')
+    warning('Cannot yet use divide-and-conquer with grid interpolation layer for InfHorz, so just ignoring the divide-and-conquer (and doing the grid interpolation layer)')
 end
 
 %% Divide-and-conquer

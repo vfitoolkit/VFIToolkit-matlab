@@ -20,7 +20,15 @@ end
 
 % Set the maximum 'rough grid' change in aprime allowed when solving fine problem, in terms of moving from what was optimal when only solving the rough grid problem.
 if ~isfield(vfoptions,'maxaprimediff')
-    vfoptions.maxaprimediff=3; % only used for postGI (for vfoptions.preGI=0)
+    if n_d(1)==0
+        if n_a(1)<500
+            vfoptions.maxaprimediff=3; % only used for postGI (for vfoptions.preGI=0)
+        else
+            vfoptions.maxaprimediff=4; % only used for postGI (for vfoptions.preGI=0)
+        end
+    else
+        vfoptions.maxaprimediff=10; % only used for postGI (for vfoptions.preGI=0)
+    end
 end
 
 
@@ -51,8 +59,11 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
     if isscalar(n_a)
         if N_d==0
             if vfoptions.howardsgreedy==0
-                disp('pre')
-                [V,Policy]=ValueFnIter_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_preGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_preGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid (greedy is better at smaller grids)
@@ -61,7 +72,11 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
         else % N_d
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
-                [V,Policy]=ValueFnIter_Refine_preGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_Refine_preGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_Refine_preGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid (greedy is better at smaller grids)
@@ -71,20 +86,24 @@ if vfoptions.preGI==1 % precompute ReturnMatrixfine
     else
         if N_d==0
             if vfoptions.howardsgreedy==0
-                [V,Policy]=ValueFnIter_preGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_preGI2B_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid (greedy is better at smaller grids)
-                [V,Policy]=ValueFnIter_preGI2B_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_preGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
+            else
+                error('Based on runtimes for the one endogeneous state models with grid interpolation layer, it seems howards greedy is not worthwhile, so did not bother implementing it (you have vfoptoins.howardsgreedy>0)')
             end
         else % N_d
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
-                [V,Policy]=ValueFnIter_Refine_preGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==1
-                [V,Policy]=ValueFnIter_Refine_preGI2B_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid (greedy is better at smaller grids)
-                [V,Policy]=ValueFnIter_Refine_preGI2B_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_Refine_preGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
+            else
+                error('Based on runtimes for the one endogeneous state models with grid interpolation layer, it seems howards greedy is not worthwhile, so did not bother implementing it (you have vfoptoins.howardsgreedy>0)')
             end
         end
     end
@@ -97,7 +116,11 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
     if isscalar(n_a)
         if N_d==0
             if vfoptions.howardsgreedy==0
-                [V,Policy]=ValueFnIter_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_postGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid
@@ -108,7 +131,11 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
         else % N_d
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
-                [V,Policy]=ValueFnIter_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_Refine_postGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
             elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid
@@ -120,20 +147,24 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
     else
         if N_d==0
             if vfoptions.howardsgreedy==0
-                % [V,Policy]=ValueFnIter_postGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==1
-                % [V,Policy]=ValueFnIter_postGI2B_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid
-                % [V,Policy]=ValueFnIter_postGI2B_HowardMix_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_postGI2B_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
+            else
+                error('Based on runtimes for the one endogeneous state models with grid interpolation layer, it seems howards greedy is not worthwhile, so did not bother implementing it (you have vfoptoins.howardsgreedy>0)')
             end
         else % N_d
             % Nowadays, I know that only Refine is worth doing, so just skip to that.
             if vfoptions.howardsgreedy==0
-                % [V,Policy]=ValueFnIter_Refine_postGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==1
-                % [V,Policy]=ValueFnIter_Refine_postGI2B_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
-            elseif vfoptions.howardsgreedy==2 % howards greedy for a_grid, then howards iter for aprime_grid
-                % [V,Policy]=ValueFnIter_Refine_postGI2B_HowardMix_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                if vfoptions.howardssparse==0
+                    [V,Policy]=ValueFnIter_Refine_postGI2B_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+                elseif vfoptions.howardssparse==1
+                    error('Not yet implemented')
+                end
+            else
+                error('Based on runtimes for the one endogeneous state models with grid interpolation layer, it seems howards greedy is not worthwhile, so did not bother implementing it (you have vfoptoins.howardsgreedy>0)')
             end
         end
     end
