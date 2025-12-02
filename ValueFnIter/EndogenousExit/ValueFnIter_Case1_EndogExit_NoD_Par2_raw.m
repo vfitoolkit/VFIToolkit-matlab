@@ -48,8 +48,6 @@ while currdist>Tolerance
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         Ftemp=ExitPolicy.*ReturnToExitMatrix+(1-ExitPolicy).*Ftemp;
         for Howards_counter=1:Howards
-            %VKrontemp=VKron;
-            %EVKrontemp=VKrontemp(PolicyIndexes,:);
             EVKrontemp=VKron(PolicyIndexes,:);
             
             EVKrontemp=EVKrontemp.*aaa;
@@ -59,13 +57,6 @@ while currdist>Tolerance
         end
     end
 
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
 
 end

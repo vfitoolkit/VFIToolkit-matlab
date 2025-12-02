@@ -39,7 +39,7 @@ if ~isempty(tplus1priceNames)
     use_tplus1price=1;
 end
 use_tminus1price=0;
-if ~(tminus1priceNames)
+if ~isempty(tminus1priceNames)
     use_tminus1price=1;
     for tt=1:length(tminus1priceNames)
         if ~isfield(transpathoptions.initialvalues,tminus1priceNames{tt})

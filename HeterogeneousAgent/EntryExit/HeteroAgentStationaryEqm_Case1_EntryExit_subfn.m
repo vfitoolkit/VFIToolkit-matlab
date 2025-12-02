@@ -1,6 +1,6 @@
 function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_EntryExit_subfn(GEprices, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnInputNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
 
-N_d=prod(n_d);
+% N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
@@ -136,24 +136,22 @@ StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z, simoptions,Paramete
 if ~isempty(fieldnames(FnsToEvaluate)) % Note that the entry/exit aggregates are treated seperately, so it is possible for this to be empty
     
     if simoptions.endogenousexit==2
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames, PolicyWhenExiting);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, EntryExitParamNames, PolicyWhenExiting);
     else
-        AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions, EntryExitParamNames);
+        AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions, EntryExitParamNames);
     end
     
-    % The following line is often a useful double-check if something is going wrong.
-    %    AggVars
-    
-    if isstruct(GeneralEqmEqns)
-        AggVarNames=fieldnames(AggVars); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
-        for ii=1:length(AggVarNames)
-            Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Aggregate;
-        end
+    % Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+    AggVarNames=fieldnames(FnsToEvaluate); % Using GeneralEqmEqns as a struct presupposes using FnsToEvaluate (and hence AggVars) as a stuct
+    for aa=1:length(AggVarNames)
+        Parameters.(AggVarNames{aa})=AggVars(aa);
     end
+    
 else
     AggVars=struct();
     AggVarNames={};
 end
+
 
 %% Step 4.2: Evaluate the general equilibrium condititions.
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
@@ -162,10 +160,10 @@ if standardgeneqmcondnsused==1
     if isstruct(GeneralEqmEqns)
         GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns, Parameters));
     else
-        GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, simoptions.parallel));
+        GeneralEqmConditionsVec(standardgeneqmcondnindex)=real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames));
     end
     %     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
-    %     GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames, simoptions.parallel)));
+    %     GeneralEqmConditionsVec(standardgeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(AggVars,GEprices, GeneralEqmEqns, Parameters,GeneralEqmEqnInputNames)));
 end
 % Now fill in the 'non-standard' cases
 if specialgeneqmcondnsused==1
@@ -182,7 +180,7 @@ if specialgeneqmcondnsused==1
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[numel(V),1]));
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel)));
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames)));
             end
         end
     else
@@ -196,21 +194,21 @@ if specialgeneqmcondnsused==1
                 % Calculate the expected (based on entrants distn) value fn (note, DistOfNewAgents is the pdf, so this is already 'normalized' EValueFn.
                 EValueFn=sum(reshape(V,[numel(V),1]).*reshape(Parameters.(EntryExitParamNames.DistOfNewAgents{1}),[numel(V),1]));
                 % And use entrants distribution, not the stationary distn
-                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames, simoptions.parallel)));
+                GeneralEqmConditionsVec(entrygeneqmcondnindex)=gather(real(GeneralEqmConditions_Case1(EValueFn,GEprices, EntryCondnEqn, Parameters,EntryCondnEqnParamNames)));
             end
         end
     end
 end
 
-if heteroagentoptions.showfigures==1 && condlentrycondnexists==1
-    % THIS IS NOT A GREAT IMPLEMENTATION OF CONDITIONAL ENTRY DECISION FOR VERBOSE. BUT WILL DO FOR NOW.
-    figure(heteroagentoptions.verbosefighandle)
-    if N_a>1 && N_z>1
-        surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
-    else
-        plot(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
-    end
-end
+% if heteroagentoptions.showfigures==1 && condlentrycondnexists==1
+%     % THIS IS NOT A GREAT IMPLEMENTATION OF CONDITIONAL ENTRY DECISION FOR VERBOSE. BUT WILL DO FOR NOW.
+%     figure(heteroagentoptions.verbosefighandle)
+%     if N_a>1 && N_z>1
+%         surf(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
+%     else
+%         plot(double(reshape(Parameters.(EntryExitParamNames.CondlEntryDecisions{1}),[N_a,N_z])))
+%     end
+% end
 
 %%
 
@@ -229,25 +227,17 @@ if heteroagentoptions.verbose==1
 %         fprintf('Iterations to get conditional entry: %i \n', jj)
 %     end
     fprintf('Current GE prices: \n')
-    for ii=1:length(GEPriceParamNames)
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},GEprices(ii))
+    for gg=1:length(GEPriceParamNames)
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{gg}, Parameters.(GEPriceParamNames{gg}))
     end
     fprintf('Current aggregate variables: \n')
-    if ~isstruct(AggVars)
-        AggVars
-    else
-        for ii=1:length(AggVarNames)
-            fprintf('	%s: %8.4f \n',AggVarNames{ii},AggVars.(AggVarNames{ii}).Aggregate)
-        end
+    for aa=1:length(AggVarNames)
+        fprintf('	%s: %8.4f \n',AggVarNames{aa}, Parameters.(AggVarNames{aa}))
     end
     fprintf('Current GeneralEqmEqns: \n')
-    if ~isstruct(GeneralEqmEqns)
-        GeneralEqmConditionsVec
-    else
-        GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns2); % Note: uses GeneralEqmEqns2 as this is the full list of general eqm conditions
-        for ii=1:length(GeneralEqmEqnsNames)
-            fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
-        end
+    GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns2); % Note: uses GeneralEqmEqns2 as this is the full list of general eqm conditions
+    for ii=1:length(GeneralEqmEqnsNames)
+        fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
     end
 end
 

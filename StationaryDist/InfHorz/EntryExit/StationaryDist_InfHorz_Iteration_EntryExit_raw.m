@@ -1,4 +1,4 @@
-function [StationaryDistKron]=StationaryDist_Case1_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function [StationaryDistKron]=StationaryDist_InfHorz_Iteration_EntryExit_raw(StationaryDistKron,Parameters,EntryExitParamNames,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
 % Will treat the agents as being on a continuum of mass 1, and then keep
 % track of actual mass using StationaryDistKron.mass.
 
@@ -55,9 +55,7 @@ elseif simoptions.endogenousexit==2
     % Mixed exit (endogenous and exogenous), so we know that CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a*N_z,1]);
     Gammatranspose=sparse(optaprime++kron(N_a*(0:1:N_z-1),ones(1,N_a)),1:1:N_a*N_z,(exitprobs(1)+exitprobs(2)*CondlProbOfSurvival).*ones(N_a*N_z,1),N_a*N_z,N_a*N_z);
 
-    % NOTE TO SELF: This wasn't tested when I converted to Tan improvement (as is not in any of the three firm
-    % models implemented in toolkit), so following is a copy-paste backup
-    % of how it worked without Tan improvement
+    % NOTE TO SELF: This wasn't tested when I converted to Tan improvement (as is not in any of the three firm models implemented in toolkit), so following is a copy-paste backup of how it worked without Tan improvement
     % Ptranspose=sparse(N_a,N_a*N_z);
     % Ptranspose(optaprime+N_a*(0:1:N_a*N_z-1))=1;
     % % Ptranspose1=(kron(pi_z',ones(N_a,N_a))).*(kron(exitprob(1)*ones(N_z,1),Ptranspose)); % No exit, and remove exog exit
@@ -78,7 +76,6 @@ counter=0;
 % convergence, then switch solution back into seperate mass and pdf form for output.
 StationaryDistKron_pdf=sparse(gather(StationaryDistKron.mass*StationaryDistKron.pdf)); % Make it the pdf
 
-% simoptions
 
 while currdist>simoptions.tolerance && counter<simoptions.maxit
 
@@ -123,7 +120,7 @@ StationaryDistKron.mass=sum(sum(StationaryDistKron.pdf));
 StationaryDistKron.pdf=StationaryDistKron.pdf/StationaryDistKron.mass; % Make it the pdf
 
 if ~((100*counter)<simoptions.maxit)
-    disp('WARNING: SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
+    warning('SteadyState_Case1 stopped due to reaching simoptions.maxit, this might be causing a problem')
 end 
 
 end

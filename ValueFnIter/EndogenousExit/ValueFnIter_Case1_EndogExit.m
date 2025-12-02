@@ -23,9 +23,8 @@ l_a=length(n_a);
 l_z=length(n_z);
 
 % Make sure that the inputs specifically required for endogenous exit have been included.
-if isfield(vfoptions,'ReturnToExitFn')==0
-    fprintf('ERROR: vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFn \n');
-    return
+if ~isfield(vfoptions,'ReturnToExitFn')
+    error('vfoptions.endogenousexit=1 requires that you specify vfoptions.ReturnToExitFn');
 end
 
 %%
@@ -48,32 +47,9 @@ if vfoptions.lowmemory==0
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
-
-    if vfoptions.verbose==1
-        disp('Creating return fn matrix')
-        tic;
-        if vfoptions.returnmatrix==0
-            fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-        end
-    end
     
-    if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_grid, vfoptions.parallel, ReturnToExitFnParamsVec);
-    elseif vfoptions.returnmatrix==1
-        ReturnMatrix=ReturnFn;
-        ReturnToExitMatrix=vfoptions.ReturnToExitFn; % It is simply assumed that you are doing this for both.
-    elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
-        ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_grid, ReturnToExitFnParamsVec);
-    end
-        
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create return fn matrix: %8.4f \n', time)
-        disp('Starting Value Function')
-        tic;
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+    ReturnToExitMatrix=CreateReturnToExitFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_a, n_z, a_grid, z_grid, ReturnToExitFnParamsVec);
         
     %%
     V0Kron=reshape(V0,[N_a,N_z]);
@@ -108,7 +84,6 @@ if vfoptions.lowmemory==0
         end
     end
     
-    
 elseif vfoptions.lowmemory==1    
     fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=1, please contact robertdkirkby@gmail.com if this is something you want/need \n');
     dbstack
@@ -119,24 +94,11 @@ elseif vfoptions.lowmemory==2
     return
 end
 
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to solve for Value Fn and Policy: %8.4f \n', time)
-    disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
-    tic;
-end
+
 %% Cleaning up the output
 V=reshape(VKron,[n_a,n_z]);
 ExitPolicy=reshape(ExitPolicy,[n_a,n_z]);
 Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-end
-
-if vfoptions.polindorval==2
-    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,vfoptions.parallel);
-end
 
 % Sometimes numerical rounding errors (of the order of 10^(-16) can mean
 % that Policy is not integer valued. The following corrects this by converting to int64 and then

@@ -11,37 +11,6 @@ N_p=prod(n_p);
 p_eqm=struct(); p_eqm_index=nan; GeneralEqmConditions=nan;
 
 %% Check which options have been used, set all others to defaults 
-if exist('vfoptions','var')==0
-    %If vfoptions is not given, just use all the defaults
-    vfoptions.parallel=2;
-    %Note that the defaults will be set when we call 'ValueFnIter...'
-    %commands and the like, so no need to set them here except for a few.
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-    if isfield(vfoptions,'parallel')==0
-        vfoptions.parallel=2;
-    end
-end
-
-if exist('simoptions','var')==0
-    simoptions.fakeoption=0; % create a 'placeholder' simoptions that can be passed to subcodes
-    %Note that the defaults will be set when we call 'StationaryDist...'
-    %commands and the like, so no need to set them here except for a few.
-    simoptions.agententryandexit=1;
-    simoptions.endogenousexit=0;
-else
-    %Check simoptions for missing fields, if there are some fill them with the defaults
-    if isfield(simoptions,'parallel')==0
-        simoptions.parallel=2;
-    end
-    if isfield(simoptions,'agententryandexit')==0
-        simoptions.agententryandexit=1;
-    end
-    if isfield(simoptions,'endogenousexit')==0
-        simoptions.endogenousexit=0;
-    end
-end
-
 if exist('heteroagentoptions','var')==0
     heteroagentoptions.multiGEcriterion=1;
     heteroagentoptions.fminalgo=1;
@@ -49,25 +18,50 @@ if exist('heteroagentoptions','var')==0
     heteroagentoptions.maxiter=1000;
     heteroagentoptions.showfigures=1;
 else
-    if isfield(heteroagentoptions,'multiGEcriterion')==0
+    if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
     if N_p~=0
-        if isfield(heteroagentoptions,'pgrid')==0
-            disp('VFI Toolkit ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
+        if ~isfield(heteroagentoptions,'pgrid')
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
         end
     end
-    if isfield(heteroagentoptions,'verbose')==0
+    if ~isfield(heteroagentoptions,'verbose')
         heteroagentoptions.verbose=0;
     end
-    if isfield(heteroagentoptions,'fminalgo')==0
+    if ~isfield(heteroagentoptions,'fminalgo')
         heteroagentoptions.fminalgo=1; % use fminsearch
     end
-    if isfield(heteroagentoptions,'maxiter')==0
-        heteroagentoptions.maxiter=1000; % use fminsearch
+    if ~isfield(heteroagentoptions,'maxiter')
+        heteroagentoptions.maxiter=1000;
     end
-    if isfield(heteroagentoptions,'showfigures')==0
+    if ~isfield(heteroagentoptions,'showfigures')
         heteroagentoptions.showfigures=1;
+    end
+end
+
+
+if exist('vfoptions','var')==0
+    % Note that the vfoptions will be set when we call 'ValueFnIter...' commands and the like, so no need to set them here except for a few.
+    vfoptions.parallel=2;
+else
+    % Note that the vfoptions will be set when we call 'ValueFnIter...' commands and the like, so no need to set them here except for a few.
+    if isfield(vfoptions,'parallel')==0
+        vfoptions.parallel=2;
+    end
+end
+
+if exist('simoptions','var')==0
+    % Note that the simoptions will be set when we call 'StationaryDist...' commands and the like, so no need to set them here except for a few.
+    simoptions.agententryandexit=1;
+    simoptions.endogenousexit=0;
+else
+    % Note that the simoptions will be set when we call 'StationaryDist...' commands and the like, so no need to set them here except for a few.
+    if isfield(simoptions,'agententryandexit')==0
+        simoptions.agententryandexit=1;
+    end
+    if isfield(simoptions,'endogenousexit')==0
+        simoptions.endogenousexit=0;
     end
 end
 

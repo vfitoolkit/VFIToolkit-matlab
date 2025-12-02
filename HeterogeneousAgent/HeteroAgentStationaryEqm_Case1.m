@@ -196,15 +196,10 @@ end
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-% Check if gthere is an initial guess for V0
+% Check if there is an initial guess for V0
 if isfield(vfoptions,'V0')
-    V0=reshape(vfoptions.V0,[N_a,N_z]);
-else
-    if vfoptions.parallel==2
-        V0=zeros([N_a,N_z], 'gpuArray');
-    else
-        V0=zeros([N_a,N_z]);
-    end
+    % just so we don't have to reshape every iteration
+    vfoptions.V0=reshape(vfoptions.V0,[N_a,N_z]);
 end
 
 

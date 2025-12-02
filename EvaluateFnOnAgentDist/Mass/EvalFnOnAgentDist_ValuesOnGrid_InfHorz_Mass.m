@@ -1,14 +1,18 @@
-function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_InfHorz_Mass(StationaryDistmass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel, simoptions)
+function ValuesOnGrid=EvalFnOnAgentDist_ValuesOnGrid_InfHorz_Mass(StationaryDistmass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 % Internal fn, not intended for use by user.
 
 if ~isfield(simoptions,'endogenousexit')
     simoptions.endogenousexit=0;
+    simoptions.gridinterplayer=0;
 else
     if simoptions.endogenousexit==1
         if ~isfield(simoptions,'keeppolicyonexit')
             simoptions.keeppolicyonexit=0;
         end
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
     end
 end
 
@@ -45,7 +49,7 @@ else
 end
 
 %%
-if Parallel==2
+if gpuDeviceCount>0
     StationaryDistmass=gpuArray(StationaryDistmass);
     Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
@@ -82,7 +86,7 @@ if Parallel==2
     
     ValuesOnGrid=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]

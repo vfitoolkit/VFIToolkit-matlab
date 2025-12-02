@@ -31,7 +31,6 @@ if Parallel==2
     
     % l_d not needed with Parallel=2 implementation
     l_a=length(n_a);
-    l_z=length(n_z);
     
     N_a=prod(n_a);
     N_z=prod(n_z);
@@ -58,7 +57,7 @@ if Parallel==2
     
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
     PolicyValuesPermute=permute(PolicyValues,[2,3,1]); %[N_a,N_z,l_d+l_a]
     
@@ -68,7 +67,7 @@ if Parallel==2
             FnToEvaluateParamsCell=cell(0);
         else
             if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
-                if length(FnsToEvaluateParamNames(ff).Names)==1
+                if isscalar(FnsToEvaluateParamNames(ff).Names)
                     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
                 else
                     FnToEvaluateParamsCell=cell(1,length(FnsToEvaluateParamNames(ff).Names));
@@ -130,7 +129,7 @@ else
                 FnToEvaluateParamsVec={};
             else
                 if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
-                    if length(FnsToEvaluateParamNames(ff).Names)==1
+                    if isscalar(FnsToEvaluateParamNames(ff).Names)
                         FnToEvaluateParamsVec=StationaryDistmass;
                     else
                         FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names(2:end))];
@@ -158,7 +157,7 @@ else
                 FnToEvaluateParamsVec={};
             else
                 if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
-                    if length(FnsToEvaluateParamNames(ff).Names)==1
+                    if isscalar(FnsToEvaluateParamNames(ff).Names)
                         FnToEvaluateParamsVec=StationaryDistmass;
                     else
                         FnToEvaluateParamsVec=[StationaryDistmass,CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names(2:end))];
