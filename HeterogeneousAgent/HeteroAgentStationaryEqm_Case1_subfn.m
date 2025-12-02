@@ -35,6 +35,16 @@ for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
 
+%% Custom Model Stats
+if heteroagentoptions.useCustomModelStats==1
+    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    end
+end
+
 %% Intermediate Eqns
 if heteroagentoptions.useintermediateEqns==1
     % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
@@ -47,29 +57,12 @@ if heteroagentoptions.useintermediateEqns==1
     end
 end
 
-%% Custom Model Stats
-if heteroagentoptions.useCustomModelStats==1
-    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
-    % Note: anything else you want, just 'hide' it in heteroagentoptions
-    customstatnames=fieldnames(CustomStats);
-    for pp=1:length(customstatnames)
-        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
-    end
-end
-
-
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
-if vfoptions.parallel==2
-    for gg=1:length(GEeqnNames)
-        GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3g(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
-    end
-else
-    for gg=1:length(GEeqnNames)
-        % Note: _v3 rather than _v3g, so on CPU rather than GPU
-        GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
-    end
+for gg=1:length(GEeqnNames)
+    % Note: _v3 rather than _v3g, so on CPU rather than GPU
+    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
 end
 
 %% We might want to output GE conditions as a vector or structure

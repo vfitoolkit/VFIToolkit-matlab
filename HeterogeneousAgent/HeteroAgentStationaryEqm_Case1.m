@@ -19,6 +19,9 @@ if exist('heteroagentoptions','var')
             else
                 heteroagentoptions.toleranceGEprices=10^(-4).*ones(1,length(heteroagentoptions.fminalgo)); % Accuracy of general eqm prices
             end
+            if ~exist('EntryExitParamNames','var')
+                EntryExitParamNames={};
+            end
             temp=heteroagentoptions.fminalgo;
             temp2=heteroagentoptions.toleranceGEcondns;
             temp3=heteroagentoptions.toleranceGEprices;
