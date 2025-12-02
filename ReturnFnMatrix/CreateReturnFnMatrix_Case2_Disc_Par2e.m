@@ -3,7 +3,7 @@ function Fmatrix=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d, n_a, n_z, n
 
 ParamCell=cell(length(ReturnFnParams),1);
 for ii=1:length(ReturnFnParams)
-    if size(ReturnFnParams(ii))~=[1,1]
+    if ~all(size(ReturnFnParams(ii))==[1,1])
         error('Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
     end
     ParamCell(ii,1)={ReturnFnParams(ii)};
@@ -22,20 +22,20 @@ l_a=length(n_a);
 l_z=length(n_z);
 l_e=length(n_e);
 if l_d>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
+    error('Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
 end
 if l_a>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
+    error('Using GPU for the return fn does not allow for more than four of a variable (you have length(n_a)>4)')
 end
 if l_z>5
-    error('ERROR: Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4)')
+    error('Using GPU for the return fn does not allow for more than four of z variable (you have length(n_z)>4)')
 end
 if l_e>5
-    error('ERROR: Using GPU for the return fn does not allow for more than four of e variable (you have length(n_e)>4)')
+    error('Using GPU for the return fn does not allow for more than four of e variable (you have length(n_e)>4)')
 end
 
 if nargin(ReturnFn)~=l_d+l_a+l_z+l_e+length(ReturnFnParams)
-    error('ERROR: Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
+    error('Number of inputs to ReturnFn does not fit with size of ReturnFnParams')
 end
 
 
@@ -99,7 +99,7 @@ end
 if l_e==1
     if l_d==1
         if l_a==1 && l_z==1
-            d1vals(1,1,1)=d_grid(1); % Requires special treatment
+            % d1vals(1,1,1)=d_grid(1); % Requires special treatment
             Fmatrix=arrayfun(ReturnFn, d1vals, a1vals, z1vals, e1vals,ParamCell{:});
         elseif l_a==1 && l_z==2
             Fmatrix=arrayfun(ReturnFn, d1vals, a1vals, z1vals,z2vals, e1vals,ParamCell{:});
