@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid,a1_grid, a2_grid, z_gridvals, ReturnFn, aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
+function [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid,a1_grid, a2_grid, z_gridvals, ReturnFn, aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
 
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
@@ -36,7 +36,6 @@ end
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
     [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
-    tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
@@ -46,36 +45,41 @@ else
 end
 
 use_tplus1price=0;
-if length(tplus1priceNames)>0
+if ~isempty(tplus1priceNames)
     use_tplus1price=1;
 end
 use_tminus1price=0;
-if length(tminus1priceNames)>0
+if ~isempty(tminus1priceNames)
     use_tminus1price=1;
     for tt=1:length(tminus1priceNames)
         if ~isfield(transpathoptions.initialvalues,tminus1priceNames{tt})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
             dbstack
-            break
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
         end
     end
 end
 use_tminus1AggVars=0;
-if length(tminus1AggVarsNames)>0
+if ~isempty(tminus1AggVarsNames)
     use_tminus1AggVars=1;
     for tt=1:length(tminus1AggVarsNames)
         if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{tt})
-            fprintf('ERROR: Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
             dbstack
-            break
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
         end
     end
 end
 % Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
 
-use_tminus1price
-use_tminus1AggVars
-use_tplus1price
+if transpathoptions.verbose>1
+    tplus1priceNames
+    tminus1priceNames
+    tminus1AggVarsNames
+    tminus1paramNames
+    tplus1pricePathkk
+    use_tminus1price
+    use_tminus1AggVars
+    use_tplus1price
+end
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 AggVarNames=fieldnames(FnsToEvaluate);
@@ -105,7 +109,7 @@ pi_z_sparse=sparse(pi_z); % Need full pi_z for value fn, and sparse for agent di
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
 AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
-GEcondnsPath=zeros(T-1,length(GEeqnNames),'gpuArray');
+GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 if l_d1==0
     n_d=n_d2;
@@ -312,7 +316,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
             p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-            GEcondnsPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
+            GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
@@ -388,7 +392,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         nrows=ceil(length(GEeqnNames)/ncolumns);
         fig3=figure(3);
         for pp=1:length(GEeqnNames)
-            subplot(nrows,ncolumns,pp); plot(GEcondnsPath(:,pp))
+            subplot(nrows,ncolumns,pp); plot(GEcondnPath(:,pp))
             title(GEeqnNames{pp})
         end
     end

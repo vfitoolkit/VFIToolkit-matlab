@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_PType(PricePathOld, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
+function varargout=TransitionPath_Case1_PType(PricePathOld, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 
@@ -134,7 +134,7 @@ else
     end
 end
 if vfoptions.divideandconquer==1
-    if length(n_a)==1
+    if isscalar(n_a)
         vfoptions.level1n=11;
     end
 end
@@ -592,11 +592,16 @@ end
 
 
 %%
+if transpathoptions.verbose==1
+    transpathoptions
+end
+
+%%
 if transpathoptions.GEnewprice~=2
     if transpathoptions.parallel==2
         if transpathoptions.usestockvars==0
             if ~isfield(vfoptions,'n_e')
-                PricePathOld=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+                [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
             else
                 error('Cannot use e variables with infinite horizon (contact me if you need this)')
                 % PricePathOld=TransitionPath_Case1_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
@@ -609,21 +614,21 @@ if transpathoptions.GEnewprice~=2
     for ii=1:length(PricePathNames)
         PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
     end
+
+    if nargout==1
+        varargout={PricePath};
+    elseif nargout==2
+        varargout={PricePath,GEcondnPath};
+    end
+
     return
 end
 
-l_p=size(PricePathOld,2);
 
-if transpathoptions.verbose==1
-    transpathoptions
+if transpathoptions.GEnewprice==2
+    % NOT IMPLEMENTED
+
+
 end
-
-if transpathoptions.verbose==1
-    DiscountFactorParamNames
-    ReturnFnParamNames
-    ParamPathNames
-    PricePathNames
-end
-
 
 end

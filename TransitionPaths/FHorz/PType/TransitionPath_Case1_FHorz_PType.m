@@ -1,4 +1,4 @@
-function PricePath=TransitionPath_Case1_FHorz_PType(PricePathOld, ParamPath, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions)
+function varargout=TransitionPath_Case1_FHorz_PType(PricePathOld, ParamPath, T, V_final, AgentDist_init, jequalOneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -1073,18 +1073,15 @@ if transpathoptions.verbose>1
 end
 
 
-
-%%
-
 if transpathoptions.verbose==1
     transpathoptions
-    % fprintf('Finished setting up ptypes, now starting to compute the transition path \n')
 end
 
+%% Shooting algorithm
 if transpathoptions.GEnewprice~=2
     % For permanent type, there is just one shooting command,
     % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
-    PricePathOld=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, jequalOneDist_T, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    [PricePathOld,GEcondnPath]=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, jequalOneDist_T, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
 
     % Switch the solution into structure for output.
     pp_indexinpricepath=zeros(1,length(PricePathNames));
@@ -1113,6 +1110,13 @@ if transpathoptions.GEnewprice~=2
             end
         end
     end
+
+    if nargout==1
+        varargout={PricePath};
+    elseif nargout==2
+        varargout={PricePath,GEcondnPath};
+    end
+
     return
 end
 
@@ -1121,6 +1125,13 @@ end
 if transpathoptions.GEnewprice==2 % Function minimization
     % Have not attempted implementing this for PType yet, no point until I
     % get it to be useful without PType
+
+    if nargout==1
+        varargout={PricePath};
+    elseif nargout==2
+        varargout={PricePath,GEcondnPath};
+    end
+
 end
 
 

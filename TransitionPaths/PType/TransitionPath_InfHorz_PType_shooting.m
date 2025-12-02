@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FullFnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -6,10 +6,6 @@ function PricePathOld=TransitionPath_InfHorz_PType_shooting(PricePathOld, PriceP
 
 l_p=size(PricePathOld,2);
 
-if transpathoptions.verbose==1
-    transpathoptions
-    
-end
 if transpathoptions.verbose==1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));
@@ -40,6 +36,7 @@ for ii=1:PTypeStructure.N_i
     AgentDist_initial.(iistr)=reshape(StationaryDist_init.(iistr),[N_a*N_z,1]);
 end
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 if transpathoptions.verbose==1
     ParamPathNames
@@ -101,10 +98,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
             if N_d>0
                 PolicyIndexesPath(:,:,:,T-tt)=Policy;
-%                 PolicyIndexesPath.(iistr)(:,:,:,:,T-tt)=Policy;
             else
                 PolicyIndexesPath(:,:,T-tt)=Policy;
-%                 PolicyIndexesPath.(iistr)(:,:,:,T-tt)=Policy;
             end
             Vnext=V;
             
@@ -190,6 +185,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 Parameters.(AggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end
             p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
+            GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
@@ -198,8 +194,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
     end
     
-%     % Free up space on GPU by deleting things no longer needed
-%     clear AgentDist
     
     % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));

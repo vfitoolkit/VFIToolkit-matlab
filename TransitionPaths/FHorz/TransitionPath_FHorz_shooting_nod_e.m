@@ -1,4 +1,4 @@
-function PricePathOld=TransitionPath_FHorz_shooting_nod_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_a,n_z,n_e,N_j, N_a,N_z,N_e,N_ze, l_a,l_z,l_e,l_ze, aprime_gridvals,a_gridvals,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting_nod_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_a,n_z,n_e,N_j, N_a,N_z,N_e,N_ze, l_a,l_z,l_e,l_ze, aprime_gridvals,a_gridvals,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions)
 % PricePathOld is matrix of size T-by-'number of prices'
 % ParamPath is matrix of size T-by-'number of parameters that change over path'
 
@@ -25,6 +25,7 @@ pathcounter=1;
 PricePathNew=zeros(size(PricePathOld),'gpuArray');
 PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+GEcondnPath=zeros(T-1,length(GeneralEqmEqnsCell),'gpuArray');
 
 if transpathoptions.trivialjequalonedist==0
     jequalOneDist_T=jequalOneDist;
@@ -158,6 +159,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
             p_i=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell,GeneralEqmEqnParamNames,Parameters));
+            GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
             p_i=I_makescutoff.*p_i;
