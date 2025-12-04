@@ -1,4 +1,4 @@
-function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_EntryExit(n_d, n_a, n_z, n_p, d_grid, a_grid, z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
+function [p_eqm,p_eqm_index,GeneralEqmConditions]=HeteroAgentStationaryEqm_Case1_EntryExit(n_d, n_a, n_z, n_p, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions)
 % If n_p=0 then will use fminsearch to find the general equilibrium (find
 % price vector that corresponds to GeneralEqmCondition=0). By setting n_p to
 % nonzero it is assumed you want to use a grid on prices, which must then
@@ -89,7 +89,7 @@ end
 
 %% Otherwise, use fminsearch to find the general equilibrium
 
-GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_EntryExit_subfn(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_EntryExit_subfn(p, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
 
 p0=nan(length(GEPriceParamNames),1);
 for ii=1:length(GEPriceParamNames)
@@ -163,7 +163,7 @@ if specialgeneqmcondnsused==1
         % Need to compute this (is calculated inside subfn, but then lost (not kept)
         % To keep things clean and tidy I am using a function call to do
         % this, it is essentially a copy-paste of the _subfn command.
-        p_eqm.(EntryExitParamNames.CondlEntryDecisions{1})=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p_eqm_vec, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
+        p_eqm.(EntryExitParamNames.CondlEntryDecisions{1})=HeteroAgentStationaryEqm_Case1_EntryExit_subfn_condlentry(p_eqm_vec, n_d, n_a, n_z, pi_z, d_grid, a_grid, z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames, EntryExitParamNames, heteroagentoptions, simoptions, vfoptions);
     end
 end
 % p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless.

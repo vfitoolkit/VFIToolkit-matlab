@@ -249,7 +249,11 @@ end
 
 %% V0 (initial guess)
 if isfield(vfoptions,'V0')
-    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
+    if vfoptions.parallel==2
+        V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
+    else
+        V0=reshape(vfoptions.V0,[N_a,N_z]);
+    end
     vfoptions.actualV0=1;
 else
     if vfoptions.parallel==2
@@ -264,8 +268,8 @@ end
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
     if vfoptions.parallel<2
-        % only basics allowed with cpu
-        z_gridvals=z_grid;
+        % only basics allowed with cpu (can have two z variables, but that is as complex as it gets)
+        z_gridvals=CreateGridvals(n_z,z_grid,1);
     else
         [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
     end
@@ -488,7 +492,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
                 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
             end
         elseif vfoptions.parallel<2
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, vfoptions.parallel, ReturnFnParamsVec);
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
         end
         
         if vfoptions.verbose==1
