@@ -235,6 +235,8 @@ if heteroagentoptions.gridsinGE==0
         simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
         simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
     end
+else
+    z_gridvals=[];
 end
 % Regardless of whether they are done here of in _subfn, they will be
 % precomputed by the time we get to the value fn, staty dist, etc. So

@@ -76,6 +76,7 @@ if Case1orCase2==1
     
     if l_aprime==1
         aprimePolicy_gridvals=aprime_grid(Policy_aprime);
+        aprimePolicy_gridvals=reshape(aprimePolicy_gridvals,size(Policy_aprime)); % not sure why I even need this line, but I seem to need it
     elseif l_aprime==2
         a1prime_grid=aprime_grid(1:n_aprime(1));
         a2prime_grid=aprime_grid(n_aprime(1)+1:n_aprime(1)+n_aprime(2));

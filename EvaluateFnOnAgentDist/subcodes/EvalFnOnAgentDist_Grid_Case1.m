@@ -1,10 +1,5 @@
-function Values=EvalFnOnAgentDist_Grid_Case1(FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,Parallel)
-
-if Parallel~=2
-    fprintf('Need to use EvalFnOnAgentDist_Grid_Case1_cpu instead of EvalFnOnAgentDist_Grid_Case1 \n')
-    dbstack
-    return
-end
+function Values=EvalFnOnAgentDist_Grid_Case1(FnToEvaluate,FnToEvaluateParams,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_gridvals)
+error('Should use EvalFnOnAgentDist_Grid() instead (please tell me if you see this error, user should not reach here')
 
 if n_d(1)==0
     l_d=0;
@@ -33,34 +28,17 @@ if l_a>=1
         end
     end
 end
-if all(size(z_grid)==[sum(n_z),1]) % kroneker product z_grid
-    if l_z>=1
-        z1vals=shiftdim(z_grid(1:n_z(1)),-l_a);
-        if l_z>=2
-            z2vals=shiftdim(z_grid(n_z(1)+1:n_z(1)+n_z(2)),-l_a-1);
-            if l_z>=3
-                z3vals=shiftdim(z_grid(sum(n_z(1:2))+1:sum(n_z(1:3))),-l_a-2);
-                if l_z>=4
-                    z4vals=shiftdim(z_grid(sum(n_z(1:3))+1:sum(n_z(1:4))),-l_a-3);
-                    if l_z>=5
-                        z5vals=shiftdim(z_grid(sum(n_z(1:4))+1:sum(n_z(1:5))),-l_a-4);
-                    end
-                end
-            end
-        end
-    end
-elseif all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
-    if l_z>=1
-        z1vals=shiftdim(z_grid(:,1),-l_a);
-        if l_z>=2
-            z2vals=shiftdim(z_grid(:,2),-l_a);
-            if l_z>=3
-                z3vals=shiftdim(z_grid(:,3),-l_a);
-                if l_z>=4
-                    z4vals=shiftdim(z_grid(:,4),-l_a);
-                    if l_z>=5
-                        z5vals=shiftdim(z_grid(:,5),-l_a);
-                    end
+% joint z_grid
+if l_z>=1
+    z1vals=shiftdim(z_gridvals(:,1),-l_a);
+    if l_z>=2
+        z2vals=shiftdim(z_gridvals(:,2),-l_a);
+        if l_z>=3
+            z3vals=shiftdim(z_gridvals(:,3),-l_a);
+            if l_z>=4
+                z4vals=shiftdim(z_gridvals(:,4),-l_a);
+                if l_z>=5
+                    z5vals=shiftdim(z_gridvals(:,5),-l_a);
                 end
             end
         end
@@ -251,28 +229,26 @@ if l_a+l_z==8
     end
 end
 
-if all(size(z_grid)==[prod(n_z),l_z]) % joint z_grid
-    if l_d>=1
-        d1vals=reshape(d1vals,[n_a,N_z]);
-        if l_d>=2
-            d2vals=reshape(d2vals,[n_a,N_z]);
-            if l_d>=3
-                d3vals=reshape(d3vals,[n_a,N_z]);
-                if l_d>=4
-                    d4vals=reshape(d4vals,[n_a,N_z]);
-                end
+if l_d>=1
+    d1vals=reshape(d1vals,[n_a,N_z]);
+    if l_d>=2
+        d2vals=reshape(d2vals,[n_a,N_z]);
+        if l_d>=3
+            d3vals=reshape(d3vals,[n_a,N_z]);
+            if l_d>=4
+                d4vals=reshape(d4vals,[n_a,N_z]);
             end
         end
     end
-    if l_a>=1
-        a1primevals=reshape(a1primevals,[n_a,N_z]);
-        if l_a>=2
-            a2primevals=reshape(a2primevals,[n_a,N_z]);
-            if l_a>=3
-                a3primevals=reshape(a3primevals,[n_a,N_z]);
-                if l_a>=4
-                    a4primevals=reshape(a4primevals,[n_a,N_z]);
-                end
+end
+if l_a>=1
+    a1primevals=reshape(a1primevals,[n_a,N_z]);
+    if l_a>=2
+        a2primevals=reshape(a2primevals,[n_a,N_z]);
+        if l_a>=3
+            a3primevals=reshape(a3primevals,[n_a,N_z]);
+            if l_a>=4
+                a4primevals=reshape(a4primevals,[n_a,N_z]);
             end
         end
     end
