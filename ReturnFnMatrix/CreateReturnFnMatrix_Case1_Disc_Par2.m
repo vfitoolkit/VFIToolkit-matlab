@@ -115,9 +115,6 @@ elseif l_d==0 && l_a==4 && l_z==5
     Fmatrix=arrayfun(ReturnFn, a1primevals,a2primevals,a3primevals,a4primevals, a1vals,a2vals,a3vals,a4vals, z1vals,z2vals,z3vals,z4vals,z5vals, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==1
     % d_gridvals(:,1)(1,1,1,1)=d_grid(1); % Requires special treatment
-    size(d_gridvals)
-    size(a1primevals)
-    size(a1vals)
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1primevals, a1vals, z1vals, ParamCell{:});
 elseif l_d==1 && l_a==1 && l_z==2
     Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1primevals, a1vals, z1vals,z2vals, ParamCell{:});

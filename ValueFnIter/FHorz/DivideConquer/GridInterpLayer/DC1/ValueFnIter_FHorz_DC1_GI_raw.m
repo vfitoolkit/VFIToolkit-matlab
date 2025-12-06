@@ -68,7 +68,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
                 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
                 [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                midpoints_jj(:,1,curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:);
                 midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);

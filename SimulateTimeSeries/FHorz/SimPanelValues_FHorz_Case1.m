@@ -11,15 +11,15 @@ function SimPanelValues=SimPanelValues_FHorz_Case1(InitialDist,Policy,FnsToEvalu
 
 %% Check which simoptions have been declared, set all others to defaults 
 if ~exist('simoptions','var')
-    %If simoptions is not given, just use all the defaults
+    % If simoptions is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0); % GPU where available, otherwise parallel CPU.
     simoptions.verbose=0;
     simoptions.simperiods=N_j;
     simoptions.numbersims=10^3;
     simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
+    simoptions.gridinterplayer=0;
     simoptions.keepoutputasmatrix=0;
     % When calling as a subcommand, the following is used internally
-    simoptions.gridinterplayer=0;
     simoptions.alreadygridvals=0;
     % Following are just for my convenience
     simoptions.n_semiz=0;
@@ -38,28 +38,30 @@ else
     if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^3;
     end 
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
     if ~isfield(simoptions,'lowmemory')
         simoptions.lowmemory=0; % setting to 1 slows the simulations, but reduces memory
+    end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
     end
     if ~isfield(simoptions,'keepoutputasmatrix')
         simoptions.keepoutputasmatrix=0;
     end
     % When calling as a subcommand, the following is used internally
-    if ~isfield(simoptions,'gridinterplayer')
-        simoptions.gridinterplayer=0;
-    end
     if ~isfield(simoptions, 'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
+    % Following are just for my convenience
     if ~isfield(simoptions,'n_semiz')
         simoptions.n_semiz=0;
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
     end
+end
+
+if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
+    simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
 end
 
 %%
@@ -69,13 +71,17 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
-l_daprime=l_d+l_a; % Does not yet handle anything but basics
+
+N_d=prod(n_d);
+N_a=prod(n_a);
+% N_semizze set below
 
 if ndims(pi_z)==3
     pi_z_J=pi_z;
 else
     pi_z_J=repelem(pi_z,1,1,N_j);
 end
+
 
 %% Simulate Panel Indexes
 d_grid=gather(d_grid);
@@ -98,11 +104,11 @@ end
 if isfield(simoptions,'n_semiz')
     simoptions.Parameters=Parameters; % Need to be able to pass a copy of this to SimPanelIndexes
 end
-Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_semizze, N_j,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_semizze, N_j,simoptions); % Create it here as want it both here and inside SimPanelIndexes_FHorz (which will recognise that it is already in this form)
 Policy=gather(Policy);
 
 simoptions.simpanelindexkron=1; % Keep the output as kron form as will want this later anyway for assigning the values
-SimPanelIndexes=SimPanelIndexes_FHorz_Case1(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
+SimPanelIndexes=SimPanelIndexes_FHorz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions);
 
 %% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
@@ -112,6 +118,11 @@ l_semizze=length(n_semizze);
 % Note: semiz, z and e are from here on all just rolled together in n_z, z_gridvals_J, N_z and l_z
 
 %% Implement new way of handling FnsToEvaluate
+% Figure out l_daprime from Policy
+l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
 
 % Note: l_semizze
 if isstruct(FnsToEvaluate)
@@ -141,29 +152,46 @@ nFnsToEvalute=length(FnsToEvaluate);
 
 
 %% Precompute the gridvals vectors.
-N_a=prod(n_a);
+if simoptions.gridinterplayer==0
+    n_aprime=n_a;
+    aprime_grid=a_grid;
+else
+    % Switch policy and aprime_grid to being on the fine grid
+    Policy(l_d+1,:,:,:)=(simoptions.ngridinterp+1)*(Policy(l_d+1,:,:,:)-1)+Policy(end,:,:,:);
+    Policy=Policy(1:end-1,:,:,:);
+    if l_a==1
+        n_aprime=1+(n_a-1)*(simoptions.ngridinterp+1);
+        aprime_grid=interp1(1:simoptions.ngridinterp+1:n_aprime,a_grid,1:1:n_aprime)';
+    else
+        a1_grid=a_grid(1:n_a(1));
+        n_a1=a1_grid;
+        n_a1prime=1+(n_a1-1)*(simoptions.ngridinterp+1);
+        a1prime_grid=interp1(1:simoptions.ngridinterp+1:n_a1prime,a1_grid,1:1:n_a1prime)';
+        n_aprime=[n_a1,n_a(2:end)];
+        aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
+    end
+end
 
-a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
 
 % Note that dPolicy and aprimePolicy will depend on age
-if n_d(1)==0
+if N_d==0
     daprimePolicy_gridvals=zeros(N_a*N_semizze,l_a,N_j);
 else
     daprimePolicy_gridvals=zeros(N_a*N_semizze,l_d+l_a,N_j); % Note: N_e=1 if no e variables
 end
 
 for jj=1:N_j    
-    if n_d(1)==0
-        [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(Policy(:,:,jj),n_d,n_a,n_a,n_semizze,d_grid,a_grid,1, 1);
-    else
-        [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(Policy(:,:,:,jj),n_d,n_a,n_a,n_semizze,d_grid,a_grid,1, 1);
-    end
-    if n_d(1)==0
+    if N_d==0
+        [~,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(Policy(:,:,jj),n_d,n_aprime,n_a,n_semizze,d_grid,aprime_grid,1, 1);
         daprimePolicy_gridvals(:,:,jj)=aprimePolicy_gridvals_j;
     else
+        [dPolicy_gridvals_j,aprimePolicy_gridvals_j]=CreateGridvals_PolicyKron(Policy(:,:,:,jj),n_d,n_aprime,n_a,n_semizze,d_grid,aprime_grid,1, 1);
         daprimePolicy_gridvals(:,:,jj)=[dPolicy_gridvals_j, aprimePolicy_gridvals_j];
     end
 end
+
+a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
+
 
 %% Now switch everything to gpu so can use arrayfun() to evaluates all the FnsToEvaluate
 daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);

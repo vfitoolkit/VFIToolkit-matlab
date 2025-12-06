@@ -1,36 +1,18 @@
-function SimPanel=SimPanelIndexes_FHorz_Case1(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
-% Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
-% 'simperiods' beginning from randomly drawn InitialDist. (If you use the
-% newbirths option you will get more than 'numbersims', due to the extra births)
+function SimPanel=SimPanelIndexes_FHorz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
+% Simulates a panel based on Policy of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist. 
+% (If you use simoptions.newbirths you will get more than 'numbersims', due to the extra births)
 %
-% InitialDist can be inputed as over the finite time-horizon (j), or
-% without a time-horizon in which case it is assumed to be an InitialDist
-% for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
+% InitialDist can be inputed as over the finite time-horizon (j), or without a time-horizon in which case it is assumed to 
+% be an InitialDist for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
+%
+% Output will be (simul index for the variables,simoptions.simperiods,simoptions.numbersims)
 
+% Based on simoptions that should already be set
+% simoptions.simperiods=N_j;
+% simoptions.numbersims=10^3;  
 
 %% Check which simoptions have been declared, set all others to defaults 
-if exist('simoptions','var')==1
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions, 'polindorval')
-        simoptions.polindorval=1;
-    end
-    if ~isfield(simoptions, 'simperiods')
-        simoptions.simperiods=N_j;
-    end
-    if ~isfield(simoptions, 'numbersims')
-        simoptions.numbersims=10^3;
-    end
-    if ~isfield(simoptions, 'parallel')
-        simoptions.parallel=1; % parallel CPU for panel data simulations
-    end
-    if ~isfield(simoptions, 'verbose')
-        simoptions.verbose=0;
-    end
-    if isfield(simoptions,'ExogShockFn') % If using ExogShockFn then figure out the parameter names
-        simoptions.ExogShockFnParamNames=getAnonymousFnInputNames(simoptions.ExogShockFn);
-    end
-    
+if ~exist('simoptions','var')
     simoptions.newbirths=0; % It is assumed you do not want to add 'new births' to panel as you go. If you do you just tell it the 'birstdist' (sometimes just the same as InitialDist, but not often)
     if isfield(simoptions,'birthdist')
         simoptions.newbirths=1;
@@ -45,21 +27,11 @@ if exist('simoptions','var')==1
     end
 
 else
-    %If simoptions is not given, just use all the defaults
-    simoptions.polindorval=1;
-    simoptions.simperiods=N_j;
-    simoptions.numbersims=10^3;
-    simoptions.parallel=1; % parallel CPU for panel data simulations
-    simoptions.verbose=0;
+    % If simoptions is not given, just use all the defaults
     simoptions.newbirths=0;
     simoptions.simpanelindexkron=0; % For some VFI Toolkit commands the kron is faster to use
 end
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
 l_z=length(n_z);
 
@@ -71,7 +43,7 @@ N_d=prod(n_d);
 %%
 cumsumpi_z_J=cumsum(pi_z_J,2);
 InitialDist=gather(InitialDist);
-PolicyKron=gather(PolicyKron);
+Policy=gather(Policy);
 cumsumpi_z_J=gather(cumsumpi_z_J);
 
 MoveOutputtoGPU=0;
@@ -89,13 +61,13 @@ if simoptions.n_semiz(1)>0
     simoptions.parallel=1;
     simoptions.riskyasset=0;
     if N_z==0
-        SimPanel=SimPanelIndexes_FHorz_Case1_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
+        SimPanel=SimPanelIndexes_FHorz_noz_semiz(InitialDist,Policy,n_d,n_a,N_j, simoptions);
         if MoveOutputtoGPU==1
             SimPanel=gpuArray(SimPanel);
         end
         return
     else
-        SimPanel=SimPanelIndexes_FHorz_Case1_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions);
+        SimPanel=SimPanelIndexes_FHorz_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions);
         if MoveOutputtoGPU==1
             SimPanel=gpuArray(SimPanel);
         end
@@ -134,12 +106,12 @@ if simoptions.n_e(1)==0
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
             seedpoint=seedpoints(ii,:);
-            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyKron,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_raw(Policy,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyKron,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_raw(Policy,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
@@ -170,8 +142,9 @@ if simoptions.n_e(1)==0
             seedpoints=floor(seedpoints);  % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
             for ii=1:newbirthsvector(birthperiod)
+                simoptions.simperiods=simperiods-birthperiod+1;
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_raw(PolicyKron,N_d,N_j,cumsumpi_z_J, seedpoint, simperiods-birthperiod+1);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_raw(Policy,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
                 SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
             end
         end
@@ -182,9 +155,11 @@ if simoptions.n_e(1)==0
         SimPanelKron=reshape(SimPanel,[3,N_j*simoptions.numbersims]);
         SimPanel=nan(l_a+l_z+1,N_j*simoptions.numbersims); % (a,z,j)
         
-        SimPanel(1:l_a,:)=ind2sub_homemade(n_a,SimPanelKron(1,:)); % a
-        SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
+        SimPanel(1:l_a,:)=ind2sub_vec_homemade(n_a,SimPanelKron(1,:)')'; % a
+        SimPanel(l_a+1:l_a+l_z,:)=ind2sub_vec_homemade(n_z,SimPanelKron(2,:)')'; % z
         SimPanel(end,:)=SimPanelKron(3,:); % j
+
+        SimPanel=reshape(SimPanel,[3,N_j,simoptions.numbersims]);
     end
 
 
@@ -219,12 +194,12 @@ else %if isfield(simoptions,'n_e')
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
             seedpoint=seedpoints(ii,:);
-            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_Case1_e_raw(PolicyKron,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J, simoptions, seedpoint);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(PolicyKron,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
@@ -256,7 +231,7 @@ else %if isfield(simoptions,'n_e')
 
             for ii=1:newbirthsvector(birthperiod)
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_Case1_e_raw(PolicyKron,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,seedpoint,simperiods);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,simoptions,seedpoint);
                 SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
             end
         end
@@ -271,8 +246,9 @@ else %if isfield(simoptions,'n_e')
         SimPanel(l_a+1:l_a+l_z,:)=ind2sub_homemade(n_z,SimPanelKron(2,:)); % z
         SimPanel(l_a+l_z+1:l_a+l_z+l_e,:)=ind2sub_homemade(simoptions.n_e,SimPanelKron(3,:)); % e
         SimPanel(end,:)=SimPanelKron(4,:); % j
+
+        SimPanel=reshape(SimPanel,[4,N_j,simoptions.numbersims]);
     end
-        
 end
 
 if MoveOutputtoGPU==1

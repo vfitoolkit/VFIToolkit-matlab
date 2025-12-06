@@ -3,7 +3,6 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_subfn(GEpricesvec, 
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
 [GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
-
 %% 
 for pp=1:nGEprices
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
