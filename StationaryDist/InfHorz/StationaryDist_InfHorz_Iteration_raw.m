@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_InfHorz_Iteration_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_Iteration_raw(StationaryDistKron,Policy_aprime,N_a,N_z,pi_z,simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
@@ -11,13 +11,9 @@ function StationaryDistKron=StationaryDist_InfHorz_Iteration_raw(StationaryDistK
 % THIS does not seem to be a good idea as it uses way to much memory and appears to in fact slow the code down. NOTE: this is no longer used
 % anywhere in code, I leave it here as a reminder that I tried this and it did not work well. This is particularly true now that I use sparse matrices.
 
-if N_d==0
-    optaprime=reshape(PolicyIndexesKron,[1,N_a*N_z]);
-else
-    optaprime=reshape(PolicyIndexesKron(2,:,:),[1,N_a*N_z]);
-end
+Policy_aprime=reshape(Policy_aprime,[1,N_a*N_z]);
 PtransposeA=sparse(N_a,N_a*N_z);
-PtransposeA(optaprime+N_a*(0:1:N_a*N_z-1))=1;
+PtransposeA(Policy_aprime+N_a*(0:1:N_a*N_z-1))=1;
 
 pi_z=sparse(pi_z);
 try % Following formula only works if pi_z is already sparse, otherwise kron(pi_z',ones(N_a,N_a)) is not sparse.
@@ -28,10 +24,6 @@ catch % Otherwise do something slower but which is sparse regardless of whether 
     for ii=1:N_z
         Ptranspose(:,(1:1:N_a)+N_a*(ii-1))=Ptranspose(:,(1:1:N_a)+N_a*(ii-1)).*kron(pi_z(ii,:)',ones(N_a,N_a));
     end
-end
-
-if simoptions.parallel==2
-    Ptranspose=gpuArray(Ptranspose);
 end
 
 %% The rest is essentially the same regardless of which simoption.parallel is being used

@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_InfHorz_IterationTan_raw(StationaryDistKron,Policy_aprime,N_a,N_z,pi_z,simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_IterationTan_noz_raw(StationaryDistKron,Policy_aprime,N_a,simoptions)
 % Will treat the agents as being on a continuum of mass 1.
 % Uses the improvement of: Tan (2020) - A fast and low computational memory algorithm for non-stochastic simulations in heterogeneous agent models
 
@@ -8,29 +8,21 @@ function StationaryDistKron=StationaryDist_InfHorz_IterationTan_raw(StationaryDi
 %  simoptions.multiiter
 
 % First, get Gamma
-Policy_aprimez=Policy_aprime+N_a*(0:1:N_z-1);
-Policy_aprimez=gather(reshape(Policy_aprimez,[1,N_a*N_z]));
+Policy_aprime=gather(reshape(Policy_aprime,[1,N_a]));
 
-%% Use Tan improvement
-% Cannot reshape() with sparse gpuArrays. [And not obvious how to do Tan improvement without reshape()]
-% Using full gpuArrays is marginally slower than just spare cpu arrays, so no point doing that.
-% Hence, just force sparse cpu arrays.
+%% Use Tan improvement [not actually relevant without z variable]
 
 StationaryDistKron=sparse(gather(StationaryDistKron));
 
 % Gamma for first step of Tan improvement
-Gammatranspose=sparse(Policy_aprimez,1:1:N_a*N_z,ones(1,N_a*N_z),N_a*N_z,N_a*N_z);
-% pi_z for second step of Tan improvement
-pi_z=sparse(gather(pi_z));
+Gammatranspose=sparse(Policy_aprime,1:1:N_a,ones(1,N_a),N_a,N_a);
 
 currdist=Inf;
 counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit
     
     % First step of Tan improvement
-    StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
-    % Second step of Tan improvement
-    StationaryDistKron=reshape(StationaryDistKron*pi_z,[N_a*N_z,1]);
+    StationaryDistKron=reshape(Gammatranspose*StationaryDistKron,[N_a]); %No point checking distance every single iteration. Do 100, then check.
     
     % Only check covergence every couple of iterations
     if rem(counter,simoptions.multiiter)==0

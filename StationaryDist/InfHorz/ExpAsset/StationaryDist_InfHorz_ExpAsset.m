@@ -100,10 +100,9 @@ end
 %%
 % Note: N_z=0 is a different code
 if isfield(simoptions,'n_e')
-    error('Have not yet impelmented N_e in StationaryDist_InfHorz_ExpAsset (contact me)')
+    StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_e_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,N_e,pi_z,pi_e,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 else % no e
-    Policy_aprimez=Policy_aprime+N_a*(0:1:N_z-1);
-    StationaryDist=StationaryDist_InfHorz_Iteration_TwoProbs_raw(StationaryDistKron,Policy_aprimez,PolicyProbs,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
+    StationaryDist=StationaryDist_InfHorz_Iteration_nProbs_raw(StationaryDistKron,Policy_aprime,PolicyProbs,2,N_a,N_z,pi_z,simoptions); % zero is n_d, because we already converted Policy to only contain aprime
 end
 
 if simoptions.parallel==2

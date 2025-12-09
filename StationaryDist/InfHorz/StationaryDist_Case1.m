@@ -15,16 +15,15 @@ if exist('simoptions','var')==0
     simoptions.maxit=10^6; % In my experience, after a simulation, if you need more than 10^6 iterations to reach the steady-state it is because something has gone wrong
     simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
     simoptions.multiiter=50; % How many iteration steps before check tolerance
-    simoptions.iterate=1;
-    simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
-    simoptions.policyalreadykron=0; % Can specify that policy is already in kron form, used to speed up general eqm and transition path computations.
     simoptions.outputkron=0;
     % Options relating to simulation method
     simoptions.ncores=1;
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
     simoptions.simperiods=10^6; % I tried a few different things and this seems reasonable.
     simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
-    % Options relating to eigenvector method
+    % Options for other solution methods, probably not things you want to play with
+    simoptions.iterate=1;
+    simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
     simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     % Alternative setups
     simoptions.gridinterplayer=0;
@@ -32,6 +31,9 @@ if exist('simoptions','var')==0
     % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
     simoptions.experienceasset=0;
+    % Alternative Exogenous States
+    simoptions.n_e=0;
+    simoptions.n_semiz=0;
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
 else
@@ -51,15 +53,6 @@ else
     if ~isfield(simoptions, 'multiiter')
         simoptions.multiiter=50; % How many iteration steps before check tolerance
     end
-    if ~isfield(simoptions, 'iterate')
-        simoptions.iterate=1;
-    end
-    if ~isfield(simoptions, 'tanimprovement')
-        simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
-    end
-    if ~isfield(simoptions, 'policyalreadykron')
-        simoptions.policyalreadykron=0;
-    end
     if ~isfield(simoptions, 'outputkron')
         simoptions.outputkron=0;
     end
@@ -76,7 +69,13 @@ else
     if ~isfield(simoptions, 'burnin')
         simoptions.burnin=10^3; % Increasing this to 10^4 did not seem to impact the actual simulation agent distributions
     end
-    % Options relating to eigenvector method
+    % Options for other solution methods, probably not things you want to play with
+    if ~isfield(simoptions, 'iterate')
+        simoptions.iterate=1;
+    end
+    if ~isfield(simoptions, 'tanimprovement')
+        simoptions.tanimprovement=1; % Use Tan (2020) improvement to iteration (is hardcoded into everything but the most basic setting)
+    end
     if ~isfield(simoptions,'eigenvector')
         simoptions.eigenvector=0; % I implemented an eigenvector based approach. It is fast but not robust.
     end
@@ -100,25 +99,33 @@ else
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
+    % Alternative Exogenous States
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
 end
 
-%%
+%% Setup for Exogenous Shocks
 if simoptions.alreadygridvals==0
     if isfield(simoptions,'ExogShockFn')
         [~, pi_z, simoptions]=ExogShockSetup(n_z,[],pi_z,Parameters,simoptions,2);
     end
 end
 
-if simoptions.parallel==1 || simoptions.eigenvector==1 % Eigenvector only works for cpu
-    Policy=gather(Policy);
-    pi_z=gather(pi_z);
-else
-    Policy=gpuArray(Policy); % Note that in this instance it is very likely that the policy is anyway already on the gpu
-    pi_z=gpuArray(pi_z);
+N_e=prod(simoptions.n_e);
+N_semiz=prod(simoptions.n_semiz);
+if N_e>0
+    error('Have not yet tried e variables for InfHorz, contact me if you need this')
+end
+if N_semiz>0
+    error('Have not yet tried semiz variables for InfHorz, contact me if you need this')
 end
 
 
@@ -237,11 +244,91 @@ end
 
 %% Down to just the baseline case, codes show a couple of possiblities. Only one is used, rest are legacy/demonstration.
 
+%%
+if simoptions.gridinterplayer==1
+    if N_z==0
+        if N_e==0
+            StationaryDist=StationaryDist_InfHorz_GI_noz_raw(StationaryDist,Policy,n_d,n_a,N_a,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,1]);
+        else
+            StationaryDist=StationaryDist_InfHorz_GI_noz_e_raw(StationaryDist,Policy,n_d,n_a,N_a,N_e,pi_e,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,n_e]);
+        end
+    else
+        if N_e==0
+            StationaryDist=StationaryDist_InfHorz_GI_raw(StationaryDist,Policy,n_d,n_a,N_a,N_z,pi_z,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+        else
+            StationaryDist=StationaryDist_InfHorz_GI_e_raw(StationaryDist,Policy,n_d,n_a,N_a,N_z,N_e,pi_z,pi_e,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,n_z,n_e]);
+        end
+    end
+
+    return
+end
+
+%% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
+if simoptions.iterate==1
+    if N_z==0
+        if N_e==0
+            Policy=KronPolicyIndexes_Case1_noz(Policy, n_d, n_a, simoptions);
+        else
+            Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, simoptions.n_e, simoptions);
+        end
+    else
+        if N_e==0
+            Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
+        else
+            Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, [n_z,simoptions.n_e], simoptions);
+        end
+    end
+
+    if N_d==0
+        Policy_aprime=Policy;
+    else
+        if N_z==0 && N_e==0
+            Policy_aprime=Policy(2,:);
+        else
+            Policy_aprime=Policy(2,:,:);
+        end
+    end
+
+
+    if N_z==0
+        if N_e==0
+            StationaryDist=StationaryDist_InfHorz_IterationTan_noz_raw(StationaryDist,Policy_aprime,N_a,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,1]);
+        else
+            StationaryDist=StationaryDist_InfHorz_IterationTan_noz_e_raw(StationaryDist,Policy_aprime,N_a,N_e,pi_e,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,n_e]);
+        end
+    else
+        if N_e==0
+            if simoptions.tanimprovement==0 % Note: not using the Tan improvement is only for the baseline case with z (no e)
+                StationaryDist=StationaryDist_InfHorz_Iteration_raw(StationaryDist,Policy_aprime,N_a,N_z,pi_z,simoptions);
+            elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
+                StationaryDist=StationaryDist_InfHorz_IterationTan_raw(StationaryDist,Policy_aprime,N_a,N_z,pi_z,simoptions);
+            end
+            StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+        else
+            StationaryDist=StationaryDist_InfHorz_IterationTan_e_raw(StationaryDist,Policy_aprime,N_a,N_z,N_e,pi_z,pi_e,simoptions);
+            StationaryDist=reshape(StationaryDist,[n_a,n_z,n_e]);
+        end
+    end
+
+    return
+end
+
+% The rest are only implemented with z (no e). They are just legacy that
+% shows other ways you can compute the agent distribution, not things you
+% are actually going to want to use.
+
+
 %% The eigenvector method is never used as it seems to be both slower and often has problems (gives incorrect solutions, it struggles with markov chains in which chunks of the asymptotic distribution are zeros)
 if simoptions.eigenvector==1
     Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
-    StationaryDist=StationaryDist_InfHorz_LeftEigen_raw(Policy,N_d,N_a,N_z,pi_z,simoptions);
-    if numel(StationaryDist)==1
+    StationaryDist=StationaryDist_InfHorz_LeftEigen_raw(gather(Policy),N_d,N_a,N_z,gather(pi_z),simoptions);
+    if isscalar(StationaryDist)
         % Has failed, so continue on below to simulation and iteration commands
         warning('Eigenvector method for simulating agent dist failed, going to use simulate/iterate instead')
     else
@@ -261,27 +348,6 @@ if simoptions.iterate==0
     StationaryDist=reshape(StationaryDist,[n_a,n_z]);
     return
 end
-
-%%
-if simoptions.gridinterplayer==1
-    StationaryDist=StationaryDist_InfHorz_GI_raw(StationaryDist,Policy,n_d,n_a,N_a,N_z,pi_z,simoptions);
-    StationaryDist=reshape(StationaryDist,[n_a,n_z]);
-    return
-end
-
-
-%% Iterate on the agent distribution, starts from the simulated agent distribution (or the initialdist)
-if simoptions.iterate==1
-    Policy=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z, simoptions);
-    if simoptions.tanimprovement==0
-        StationaryDist=StationaryDist_InfHorz_Iteration_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,simoptions);
-    elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
-        StationaryDist=StationaryDist_InfHorz_IterationTan_raw(StationaryDist,Policy,N_d,N_a,N_z,pi_z,simoptions);
-    end
-    StationaryDist=reshape(StationaryDist,[n_a,n_z]);
-    return
-end
-
 
 
 

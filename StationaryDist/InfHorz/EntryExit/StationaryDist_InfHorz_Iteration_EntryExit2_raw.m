@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_Case1_Iteration_EntryExit2_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z, ExitProb, EntryDist, simoptions)
+function StationaryDistKron=StationaryDist_InfHorz_Iteration_EntryExit2_raw(StationaryDistKron,PolicyIndexesKron,N_d,N_a,N_z,pi_z, ExitProb, EntryDist, simoptions)
 %Will treat the agents as being on a continuum of mass 1.
 
 % Options needed
