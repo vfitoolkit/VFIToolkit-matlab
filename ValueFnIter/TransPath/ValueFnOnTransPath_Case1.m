@@ -100,33 +100,12 @@ end
 
 
 %%
-% Internally PricePathOld is matrix of size T-by-'number of prices'.
+% Note: Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-PricePathStruct=PricePath; % I do this here just to make it easier for the user to read and understand the inputs.
-PricePathNames=fieldnames(PricePathStruct);
-ParamPathStruct=ParamPath; % I do this here just to make it easier for the user to read and understand the inputs.
-ParamPathNames=fieldnames(ParamPathStruct);
-if transpathoptions.parallel==2 
-    PricePath=zeros(T,length(PricePathNames),'gpuArray');
-    for ii=1:length(PricePathNames)
-        PricePath(:,ii)=gpuArray(PricePathStruct.(PricePathNames{ii}));
-    end
-    ParamPath=zeros(T,length(ParamPathNames),'gpuArray');
-    for ii=1:length(ParamPathNames)
-        ParamPath(:,ii)=gpuArray(ParamPathStruct.(ParamPathNames{ii}));
-    end
-else
-    PricePath=zeros(T,length(PricePathNames));
-    for ii=1:length(PricePathNames)
-        PricePath(:,ii)=gather(PricePathStruct.(PricePathNames{ii}));
-    end
-    ParamPath=zeros(T,length(ParamPathNames));
-    for ii=1:length(ParamPathNames)
-        ParamPath(:,ii)=gather(ParamPathStruct.(ParamPathNames{ii}));
-    end
-end
+[PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath,ParamPath,T);
 
-% % The outputted VPath and PolicyPath are T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
+%% 
+% The outputted VPath and PolicyPath are T-1 periods long (periods 0 (before the reforms are announced) & T are the initial and final values; they are not created by this command and instead can be used to provide double-checks of the output (the T-1 and the final should be identical if convergence has occoured).
 % if n_d(1)==0
 %     PolicyPath=zeros([length(n_d),n_a,n_z,N_j,T-1],'gpuArray'); %Periods 1 to T-1
 % else

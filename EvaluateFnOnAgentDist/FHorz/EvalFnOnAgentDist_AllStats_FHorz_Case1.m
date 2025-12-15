@@ -32,6 +32,9 @@ else
     end
 end
 
+if gpuDeviceCount==0
+    error('AllStats requires a GPU')
+end
 
 %%
 l_a=length(n_a);

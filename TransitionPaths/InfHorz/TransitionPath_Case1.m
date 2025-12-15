@@ -10,62 +10,6 @@ function varargout=TransitionPath_Case1(PricePathOld, ParamPath, T, V_final, Age
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
 
-%%
-% Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-PricePathNames=fieldnames(PricePathOld);
-PricePathStruct=PricePathOld; 
-PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(PricePathNames)
-    temp=PricePathStruct.(PricePathNames{ii});
-    tempsize=size(temp);
-    PricePathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-PricePathSizeVec=cumsum(PricePathSizeVec);
-if length(PricePathNames)>1
-    PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];
-else
-    PricePathSizeVec=[1;PricePathSizeVec];
-end
-PricePathOld=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(PricePathNames)
-    if size(PricePathStruct.(PricePathNames{ii}),1)==T
-        PricePathOld(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii});
-    else % Need to transpose
-        PricePathOld(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii})';
-    end
-    %     PricePathOld(:,ii)=PricePathStruct.(PricePathNames{ii});
-end
-
-ParamPathNames=fieldnames(ParamPath);
-ParamPathStruct=ParamPath;
-ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{ii});
-    tempsize=size(temp);
-    ParamPathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-ParamPathSizeVec=cumsum(ParamPathSizeVec);
-if length(ParamPathNames)>1
-    ParamPathSizeVec=[[1,ParamPathSizeVec(1:end-1)+1];ParamPathSizeVec];
-else
-    ParamPathSizeVec=[1;ParamPathSizeVec];
-end
-ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{ii}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii});
-    else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii})';
-    end
-%     ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
-end
-
-PricePath=struct();
-
-% PricePathNames
-% ParamPathNames
-
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
@@ -191,9 +135,7 @@ else
         if ~isfield(vfoptions,'quasi_hyperbolic')
             vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
         elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hyperbolic,'Sophisticated')
-            fprintf('ERROR: when using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
-            dbstack
-            return
+            error('When using Quasi-Hyperbolic discounting vfoptions.quasi_hyperbolic must be either Naive or Sophisticated \n')
         end
     end
     if ~isfield(vfoptions,'experienceasset')
@@ -280,12 +222,18 @@ elseif any(size(pi_z)~=[N_z, N_z])
     dbstack
     error('pi is not of size N_z-by-N_z \n')
 end
-if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
-    fprintf('PricePath has %i prices and GeneralEqmEqns is % i eqns \n',length(PricePathNames), length(fieldnames(GeneralEqmEqns)))
+if length(fieldnames(PricePathOld))~=length(fieldnames(GeneralEqmEqns))
+    fprintf('PricePath has %i prices and GeneralEqmEqns is % i eqns \n',length(fieldnames(PricePathOld)), length(fieldnames(GeneralEqmEqns)))
     dbstack
     error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
 end
 
+%%
+% Note: Internally PricePath is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+[PricePathOld,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePathOld,ParamPath,T);
+
+PricePath=struct();
 
 %%
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -294,6 +242,7 @@ d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
 PricePathOld=gpuArray(PricePathOld);
+ParamPath=gpuArray(ParamPath);
 
 %% Switch to z_gridvals
 l_z=length(n_z);
@@ -311,6 +260,26 @@ end
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 GEeqnNames=fieldnames(GeneralEqmEqns);
+
+%% If using intermediateEqns, switch from structure to cell setup
+transpathoptions.useintermediateEqns=0;
+if isfield(transpathoptions,'intermediateEqns')
+    transpathoptions.useintermediateEqns=1;
+    intEqnNames=fieldnames(transpathoptions.intermediateEqns);
+    nIntEqns=length(intEqnNames);
+
+    transpathoptions.intermediateEqnsCell=cell(1,nIntEqns);
+    for gg=1:nIntEqns
+        temp=getAnonymousFnInputNames(transpathoptions.intermediateEqns.(intEqnNames{gg}));
+        transpathoptions.intermediateEqnParamNames(gg).Names=temp;
+        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});        
+    end
+    % Now:
+    %  transpathoptions.intermediateEqns is still the structure
+    %  transpathoptions.intermediateEqnsCell is cell
+    %  transpathoptions.intermediateEqnParamNames(gg).Names contains the names
+end
+
 
 %% If using a shooting algorithm, set that up
 % Set up GEnewprice==3 (if relevant)

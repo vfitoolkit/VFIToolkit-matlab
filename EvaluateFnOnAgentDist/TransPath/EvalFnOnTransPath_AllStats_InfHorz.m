@@ -1,4 +1,4 @@
-function AllStatsPath=EvalFnOnTransPath_AllStats_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,simoptions)
+function AllStatsPath=EvalFnOnTransPath_AllStats_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,simoptions)
 % AllStatsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
 
 if ~exist('simoptions','var')
@@ -8,9 +8,10 @@ if ~exist('simoptions','var')
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
+    % Model solution
+    simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
-    simoptions.gridinterplayer=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
 else
@@ -29,12 +30,13 @@ else
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
+    % Model solution
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
-    end
-    if ~isfield(simoptions,'gridinterplayer')
-        simoptions.gridinterplayer=0;
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
@@ -58,53 +60,7 @@ N_z=prod(n_z);
 %%
 % Note: Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-PricePathNames=fieldnames(PricePath);
-PricePathStruct=PricePath; 
-PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-for tt=1:length(PricePathNames)
-    temp=PricePathStruct.(PricePathNames{tt});
-    tempsize=size(temp);
-    PricePathSizeVec(tt)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-PricePathSizeVec=cumsum(PricePathSizeVec);
-if length(PricePathNames)>1
-    PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];
-else
-    PricePathSizeVec=[1;PricePathSizeVec];
-end
-PricePath=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for tt=1:length(PricePathNames)
-    if size(PricePathStruct.(PricePathNames{tt}),1)==T
-        PricePath(:,PricePathSizeVec(1,tt):PricePathSizeVec(2,tt))=PricePathStruct.(PricePathNames{tt});
-    else % Need to transpose
-        PricePath(:,PricePathSizeVec(1,tt):PricePathSizeVec(2,tt))=PricePathStruct.(PricePathNames{tt})';
-    end
-    %     PricePath(:,ii)=PricePathStruct.(PricePathNames{ii});
-end
-
-ParamPathNames=fieldnames(ParamPath);
-ParamPathStruct=ParamPath;
-ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for tt=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{tt});
-    tempsize=size(temp);
-    ParamPathSizeVec(tt)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-ParamPathSizeVec=cumsum(ParamPathSizeVec);
-if length(ParamPathNames)>1
-    ParamPathSizeVec=[[1,ParamPathSizeVec(1:end-1)+1];ParamPathSizeVec];
-else
-    ParamPathSizeVec=[1;ParamPathSizeVec];
-end
-ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for tt=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{tt}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,tt):ParamPathSizeVec(2,tt))=ParamPathStruct.(ParamPathNames{tt});
-    else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,tt):ParamPathSizeVec(2,tt))=ParamPathStruct.(ParamPathNames{tt})';
-    end
-%     ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
-end
+[PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath,ParamPath,T);
 
 %%
 FnsToEvaluateNames=fieldnames(FnsToEvaluate);
@@ -209,16 +165,17 @@ PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_gridvals
 AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
 
 % preallocate
-AllStatsPath.(FnsToEvaluateNames{ff}).Mean=zeros(1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).Median=zeros(1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).RatioMeanToMedian=zeros(1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).Variance=zeros(1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).StdDeviation=zeros(1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).LorenzCurve=zeros(simoptions.npoints,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).Gini=zeros(1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).QuantileCutoffs=zeros(simoptions.nquantiles+1,T);
-AllStatsPath.(FnsToEvaluateNames{ff}).QuantileMeans=zeros(simoptions.nquantiles,T);
-
+for ff=1:length(FnsToEvaluateNames)
+    AllStatsPath.(FnsToEvaluateNames{ff}).Mean=zeros(1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).Median=zeros(1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).RatioMeanToMedian=zeros(1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).Variance=zeros(1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).StdDeviation=zeros(1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).LorenzCurve=zeros(simoptions.npoints,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).Gini=zeros(1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).QuantileCutoffs=zeros(simoptions.nquantiles+1,T);
+    AllStatsPath.(FnsToEvaluateNames{ff}).QuantileMeans=zeros(simoptions.nquantiles,T);
+end
 
 %%
 for tt=1:T

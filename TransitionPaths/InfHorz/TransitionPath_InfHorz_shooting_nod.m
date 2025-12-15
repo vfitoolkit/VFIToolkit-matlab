@@ -129,8 +129,8 @@ end
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter
     
-    % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. Since we won't need to keep the value
-    % functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
+    %% Iterate backwards from T-1 to 1 calculating the Value function and Optimal policy function at each step. 
+    % Since we won't need to keep the value functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
     Vnext=V_final;
     for ttr=1:T-1 %so tt=T-ttr
 
@@ -155,7 +155,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     % Free up space on GPU by deleting things no longer needed
     clear V Vnext
     
-    
+    %% Modify PolicyIndexesPath into forms needed for forward iteration
     % Create version of PolicyIndexesPath in form we want for the agent distribution iteration
     % Creates PolicyaprimezPath, and when using grid interpolation layer also PolicyProbsPath 
     if isscalar(n_a)
@@ -180,16 +180,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,0,n_a,n_z,T-1,[],a_grid,vfoptions,1);
     PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T-1]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T-1]
 
+    %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
-        % Get the current optimal policy, and iterate the agent dist
-        if simoptions.gridinterplayer==0
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
-        elseif simoptions.gridinterplayer==1
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
-        end
-        
+        %% Setup around Parameters for period tt
         GEprices=PricePathOld(tt,:);
         
         for kk=1:length(PricePathNames)
@@ -224,8 +219,30 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             end
         end
 
+        %% Get the current optimal policy, and iterate the agent dist
+        if simoptions.gridinterplayer==0
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+        elseif simoptions.gridinterplayer==1
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
+        end
+
+        %% AggVars
         AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
         
+
+        %% Intermediate Eqns
+        if transpathoptions.useintermediateEqns==1
+            % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
+            intEqnnames=fieldnames(transpathoptions.intermediateEqns);
+            intermediateEqnsVec=zeros(1,length(intEqnnames));
+            % Do the intermediateEqns, in order
+            for gg=1:length(intEqnnames)
+                intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+                Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
+            end
+        end
+
+        %% General Eqm Eqns
         % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
         % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
         if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
@@ -373,6 +390,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     pathcounter=pathcounter+1;
 end
 
+
+%% Switch to structure for output
 for tt=1:length(PricePathNames)
     PricePath.(PricePathNames{tt})=PricePathOld(:,tt);
 end

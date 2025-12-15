@@ -10,7 +10,6 @@ if ~exist('simoptions','var')
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
-    simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.gridinterplayer=0;
     simoptions.alreadygridvals=0;
 else
@@ -27,9 +26,6 @@ else
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     end
-    if ~isfield(simoptions,'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0);
-    end
     if ~isfield(simoptions, 'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
@@ -38,6 +34,9 @@ else
     end
 end
 
+if gpuDeviceCount==0
+    error('AllStats requires a GPU')
+end
 
 if n_d(1)==0
     l_d=0;
@@ -57,11 +56,7 @@ end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
-    if simoptions.parallel<2
-        z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
-    else
-        [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
-    end
+    [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
 elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
@@ -90,14 +85,13 @@ end
 
 %% I want to do some things now, so that they can be used in setting up conditional restrictions
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-if simoptions.parallel==2
-    % Make sure things are on the gpu (they should already be)
-    StationaryDistVec=gpuArray(StationaryDistVec);
-    Policy=gpuArray(Policy);
-    % Switch to PolicyValues, and permute
-    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-    PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
-end
+
+% Make sure things are on the gpu (they should already be)
+StationaryDistVec=gpuArray(StationaryDistVec);
+Policy=gpuArray(Policy);
+% Switch to PolicyValues, and permute
+PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
 
 %% If there are any conditional restrictions, set up for these
@@ -106,10 +100,7 @@ end
 useCondlRest=0;
 % Code works by evaluating the the restriction and imposing this on the distribution (and renormalizing it). 
 if isfield(simoptions,'conditionalrestrictions')
-    if simoptions.parallel~=2
-        error('simoptions.conditionalrestrictions can only be used with GPU')
-    end
-    
+
     useCondlRest=1;
     CondlRestnFnNames=fieldnames(simoptions.conditionalrestrictions);
 
@@ -152,78 +143,25 @@ end
 
 
 %%
-if simoptions.parallel==2
+for ff=1:length(FnsToEvalNames)
+    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+    Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+    Values=reshape(Values,[N_a*N_z,1]);
 
-    for ff=1:length(FnsToEvalNames)
-        FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-        Values=reshape(Values,[N_a*N_z,1]);
+    AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
 
-        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
-        %% If there are any conditional restrictions then deal with these
-        % Evaluate AllStats, but conditional on the restriction being one.
-        if useCondlRest==1
-            % Evaluate the conditinal restrictions: 
-            % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
-            for rr=1:length(CondlRestnFnNames)
-                if restrictedsamplemass(rr)>0
-                    AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-                end
+    %% If there are any conditional restrictions then deal with these
+    % Evaluate AllStats, but conditional on the restriction being one.
+    if useCondlRest==1
+        % Evaluate the conditinal restrictions:
+        % Only change is to use RestrictionStruct(rr).RestrictedStationaryDistVec as the agent distribution
+        for rr=1:length(CondlRestnFnNames)
+            if restrictedsamplemass(rr)>0
+                AllStats.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,RestrictionStruct(rr).RestrictedStationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
             end
         end
-
     end
 
-else 
-    %% On CPU (simoptions.parallel~=2)
-    StationaryDistVec=gather(StationaryDistVec);
-    Policy=gather(Policy);
-
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
-    a_gridvals=num2cell(a_gridvals);
-    z_gridvals=num2cell(z_gridvals);
-    
-    for ff=1:length(FnsToEvalNames)
-        % Includes check for cases in which no parameters are actually required
-        if isempty(FnsToEvaluateParamNames(ff).Names) % check for 'FnsToEvaluateParamNames={}'
-            Values=zeros(N_a*N_z,1);
-            if l_d==0
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
-                end
-            else % l_d>0
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:});
-                end
-            end
-        else
-            Values=zeros(N_a*N_z,1);
-            if l_d==0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-                Values=zeros(N_a*N_z,1);
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
-                end
-            else % l_d>0
-                FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ff).Names));
-                for ii=1:N_a*N_z
-                    j1=rem(ii-1,N_a)+1;
-                    j2=ceil(ii/N_a);
-                    Values(ii)=FnsToEvaluate{ff}(d_gridvals{j1+(j2-1)*N_a,:},aprime_gridvals{j1+(j2-1)*N_a,:},a_gridvals{j1,:},z_gridvals{j2,:},FnToEvaluateParamsCell{:});
-                end
-            end
-        end
-                
-        AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
-    end
 end
 
 
