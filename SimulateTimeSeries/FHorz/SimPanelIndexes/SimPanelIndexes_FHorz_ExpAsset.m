@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_FHorz(InitialDist,Policy_aprime,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_ExpAsset(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, Parameters, simoptions)
 % Simulates a panel based on Policy of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist. 
 % (If you use simoptions.newbirths you will get more than 'numbersims', due to the extra births)
 %
@@ -14,6 +14,12 @@ function SimPanel=SimPanelIndexes_FHorz(InitialDist,Policy_aprime,n_d,n_a,n_z,N_
 % Based on simoptions that should already be set
 % simoptions.simperiods=N_j;
 % simoptions.numbersims=10^3;  
+
+error('SimPanelIndexes_FHorz_ExpAsset is not yet implemented, ask on forum if you need this')
+
+if ~isfield(simoptions,'l_dsemiz')
+    simoptions.l_dsemiz=1;
+end
 
 %% Check which simoptions have been declared, set all others to defaults 
 if ~exist('simoptions','var')
@@ -47,7 +53,7 @@ N_d=prod(n_d);
 %%
 cumsumpi_z_J=cumsum(pi_z_J,2);
 
-Policy_aprime=KronPolicyIndexes_FHorz_Case1(Policy_aprime,0,n_a,n_z,N_j,simoptions);
+Policy=KronPolicyIndexes_FHorz_Case1(Policy,0,n_a,n_z,N_j,simoptions);
 
 %%
 simperiods=gather(simoptions.simperiods);
@@ -80,12 +86,12 @@ if simoptions.n_e(1)==0
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
             seedpoint=seedpoints(ii,:);
-            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_raw(Policy_aprime,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_raw(Policy,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_raw(Policy_aprime,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_raw(Policy,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
@@ -118,7 +124,7 @@ if simoptions.n_e(1)==0
             for ii=1:newbirthsvector(birthperiod)
                 simoptions.simperiods=simperiods-birthperiod+1;
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_raw(Policy_aprime,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_raw(Policy,N_d,N_j,cumsumpi_z_J, simoptions, seedpoint);
                 SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
             end
         end
@@ -168,12 +174,12 @@ else %if isfield(simoptions,'n_e')
     if simoptions.parallel==0
         for ii=1:simoptions.numbersims
             seedpoint=seedpoints(ii,:);
-            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_e_raw(Policy_aprime,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J, simoptions, seedpoint);
+            SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J, simoptions, seedpoint);
         end
     else
         parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
             seedpoint=seedpoints(ii,:);
-            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_e_raw(Policy_aprime,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J, simoptions, seedpoint);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
@@ -205,7 +211,7 @@ else %if isfield(simoptions,'n_e')
 
             for ii=1:newbirthsvector(birthperiod)
                 seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_e_raw(Policy_aprime,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,simoptions,seedpoint);
+                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_e_raw(Policy,N_d,N_j,cumsumpi_z_J,cumsumpi_e_J,simoptions,seedpoint);
                 SimPanel2(:,birthperiod:end,sum(newbirthsvector(1:(birthperiod-1)))+ii)=SimLifeCycleKron;
             end
         end

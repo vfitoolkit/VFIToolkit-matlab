@@ -45,6 +45,10 @@ if simoptions.gridinterplayer==1
     end
 end
 
+if simoptions.experienceasset==1 || simoptions.experienceassetu==1
+    l_aprime=l_aprime-1;
+end
+
 
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1

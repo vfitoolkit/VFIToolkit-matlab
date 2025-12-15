@@ -31,7 +31,7 @@ else
     l_aprime=l_a;
     aprime_grid=a_grid;
     n_aprime=n_a;
-     % If using a specific asset type, then remove from aprime
+    % If using a specific asset type, then remove from aprime
     if isfield(vfoptions,'experienceasset')
         if vfoptions.experienceasset>0
             l_aprime=l_a-1;

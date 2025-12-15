@@ -1,6 +1,6 @@
-function PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath(PolicyPathKron, n_d, n_a, n_z,T,vfoptions)
+function PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath(PolicyPathKron, n_d, n_a, n_z,T,vfoptions,justfirstdim)
 
-% Input: PolicyPathKron=zeros(2,N_a,N_z,T); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
+% Input: PolicyPathKron=zeros(2,N_a,N_z,T); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 %                       (N_a,N_z,T) if there is no d
 % Output: PolicyPath (l_d+l_a,n_a,n_z,T);
 % Note: This can look slightly different based on vfoptions
@@ -25,8 +25,9 @@ if N_d==0
             PolicyPath(l_aprime,:,:,:)=shiftdim(ceil(PolicyPathKron(:,:,:)/prod(n_a(1:l_aprime-1))),-1);
         end
 
-        PolicyPath=reshape(PolicyPath,[l_aprime,n_a,n_z,T]);
-
+        if justfirstdim==0
+            PolicyPath=reshape(PolicyPath,[l_aprime,n_a,n_z,T]);
+        end
     elseif vfoptions.gridinterplayer==1
         PolicyPath=zeros(l_aprime+1,N_a,N_z,T,'gpuArray');
 
@@ -46,7 +47,10 @@ if N_d==0
         else
             PolicyPath(l_aprime+1,:,:,:)=PolicyPathKron(3,:,:,:);
         end
-        PolicyPath=reshape(PolicyPath,[l_aprime+1,n_a,n_z,T]);
+
+        if justfirstdim==0
+            PolicyPath=reshape(PolicyPath,[l_aprime+1,n_a,n_z,T]);
+        end
     end
 
 elseif N_d>0 
@@ -72,7 +76,9 @@ elseif N_d>0
             PolicyPath(l_d+l_aprime,:,:,:)=shiftdim(ceil(PolicyPathKron(2,:,:,:)/prod(n_a(1:l_aprime-1))),-1);
         end
 
-        PolicyPath=reshape(PolicyPath,[l_d+l_aprime,n_a,n_z,T]);
+        if justfirstdim==0
+            PolicyPath=reshape(PolicyPath,[l_d+l_aprime,n_a,n_z,T]);
+        end
 
     elseif vfoptions.gridinterplayer==1
         PolicyPath=zeros(l_d+l_aprime+1,N_a,N_z,T,'gpuArray');
@@ -103,7 +109,10 @@ elseif N_d>0
         else
             PolicyPath(l_d+l_aprime+1,:,:,:)=PolicyPathKron(4,:,:,:);
         end
-        PolicyPath=reshape(PolicyPath,[l_d+l_aprime+1,n_a,n_z,T]);
+
+        if justfirstdim==0
+            PolicyPath=reshape(PolicyPath,[l_d+l_aprime+1,n_a,n_z,T]);
+        end
     end
 end
 

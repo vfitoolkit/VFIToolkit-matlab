@@ -77,6 +77,8 @@ else % vfoptions.gridinterplayer==1
     end
 end
 
+
+
 % if strcmp(vfoptions.solnmethod,'purediscretization_refinement')
 %     % COMMENT: testing a transition in model of Pijoan-Mas (2006) it
 %     % seems refirement is slower for transtions, so this is never

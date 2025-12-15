@@ -37,6 +37,13 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
+    % Model setup
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetu')
+        simoptions.experienceassetu=0;
+    end
     % Model settings - Entry and Exit make the panel simulation much trickier
     if ~isfield(simoptions,'agententryandexit')
         simoptions.agententryandexit=0;
@@ -66,6 +73,9 @@ else
     simoptions.verbose=0;
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.gridinterplayer=0;
+    % Model setup
+    simoptions.experienceasset=0;
+    simoptions.experienceassetu=0;
     % Model settings - Entry and Exit make the panel simulation much trickier
     simoptions.agententryandexit=0;
     simoptions.endogenousexit=0; % Note: this will only be relevant if agententryandexit=1

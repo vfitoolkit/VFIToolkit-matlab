@@ -58,7 +58,9 @@ else
             n_aprime=n_a(1:end-1);
             ordinary=0;
         end
-    elseif isfield(vfoptions,'gridinterplayer')
+    end
+    
+    if isfield(vfoptions,'gridinterplayer')
         if vfoptions.gridinterplayer==1
             ordinary=0;
             l_aprime=l_a;
@@ -85,7 +87,6 @@ else
         n_aprime=n_a;
     end
 end
-
 
 cumsum_n_aprime=cumsum(n_aprime);
 cumsum_n_d=cumsum(n_d);

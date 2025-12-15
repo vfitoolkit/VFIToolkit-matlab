@@ -52,8 +52,9 @@ elseif vfoptions.lowmemory==1
         V(:,z_c)=Vtemp;
         Policy(:,z_c)=maxindex;
     end
-    
 end
 
+%% Policy in transition paths
+Policy=UnKronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,vfoptions);
 
 end

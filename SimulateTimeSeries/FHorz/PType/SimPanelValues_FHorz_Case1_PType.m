@@ -1,4 +1,4 @@
-function SimPanelValues=SimPanelValues_FHorz_Case1_PType(InitialDist,PTypeDistParamNames,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z, simoptions)
+function SimPanelValues=SimPanelValues_FHorz_Case1_PType(jequaloneDist,PTypeDistParamNames,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z, simoptions)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist.
 %
@@ -100,6 +100,10 @@ ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % them randomly, but cant be bothered right now. But otherwise if I don't 
 % make this random the sample won't satisfy properties of arandom sample)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
+
+
+%% Deal with jequaloneDist
+[jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames,0);
 
 
 %%
@@ -243,13 +247,38 @@ for ii=1:N_i
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
-    if isstruct(InitialDist)
-        InitialDist_temp=InitialDist.(Names_i{ii});
+    if isa(jequaloneDist,'struct')
+        if isfield(jequaloneDist,Names_i{ii})
+            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
+            % jequaloneDist_temp must be of mass one for the codes to work.
+            if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
+                fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)
+                error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
+            end
+        else
+            if isfinite(N_j_temp)
+                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
+                dbstack
+            end
+        end
     else
-        InitialDist_temp=InitialDist; % Any dependence on permanent type must be done as a structure
+        % Note: when jequaloneDist is not a structure all ptypes must have the same grids
+        if idiminj1dist==0
+            jequaloneDist_temp=jequaloneDist;
+        else % idminj1dist==1
+            if prod(n_z_temp)==0
+                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
+            else
+                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(sum(jequaloneDist(:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            end
+        end
+        if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
+            error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}, ' \n'])
+        end
     end
     
-    SimPanelValues_ii=SimPanelValues_FHorz_Case1(InitialDist_temp,Policy_temp,FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
+    simoptions_temp.keepoutputasmatrix=1;
+    SimPanelValues_ii=SimPanelValues_FHorz_Case1(jequaloneDist_temp,Policy_temp,FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
     % simoptions.outputasstructure=0; % SimPanelValues as matrix is set above
         
     if ii==1

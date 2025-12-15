@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -168,5 +168,20 @@ adjust=(Policy(3,:,:,:)<1+n2short+1); % if second layer is choosing below midpoi
 Policy(2,:,:,:)=Policy(2,:,:,:)-adjust; % lower grid point
 Policy(3,:,:,:)=adjust.*Policy(3,:,:,:)+(1-adjust).*(Policy(3,:,:,:)-n2short-1); % from 1 (lower grid point) to 1+n2short+1 (upper grid point)
 
+%% Policy in transition paths
+l_d=length(n_d);
+Policy2=zeros(l_d+2,N_a,N_z);
+% sort d variables
+Policy2(1,:,:)=rem(Policy(1,:,:)-1,n_d(1))+1;
+if l_d>1
+    if l_d>2
+        for ii=2:l_d-1
+            Policy2(ii,:,:)=rem(ceil(Policy(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+        end
+    end
+    Policy2(l_d,:,:)=ceil(Policy(1,:,:)/prod(n_d(1:l_d-1)));
+end
+% rest are already in right shape
+Policy2(l_d+1:end,:,:)=Policy(2:3,:,:);
 
 end

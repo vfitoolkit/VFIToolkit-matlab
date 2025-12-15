@@ -287,13 +287,12 @@ if simoptions.iterate==1
         Policy_aprime=Policy;
     else
         if N_z==0 && N_e==0
-            Policy_aprime=Policy(2,:);
+            Policy_aprime=shiftdim(Policy(2,:),1);
         else
-            Policy_aprime=Policy(2,:,:);
+            Policy_aprime=shiftdim(Policy(2,:,:),1);
         end
     end
-
-
+    
     if N_z==0
         if N_e==0
             StationaryDist=StationaryDist_InfHorz_IterationTan_noz_raw(StationaryDist,Policy_aprime,N_a,simoptions);

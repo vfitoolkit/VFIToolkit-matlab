@@ -1,4 +1,4 @@
-function PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPathKron, n_d, n_a1, n_a, n_z,T,vfoptions)
+function PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPathKron, n_d, n_a1, n_a, n_z,T,vfoptions,justfirstdim)
 
 % Input: PolicyPathKron=zeros(2,N_a,N_z,T); % if no d1: this is d2,a1prime
 %        PolicyPathKron=zeros(3,N_a,N_z,T); % d1,d2,a1prime
@@ -59,7 +59,9 @@ if vfoptions.gridinterplayer==0
         end
     end
     
-    PolicyPath=reshape(PolicyPath,[l_d+l_aprime,n_a,n_z,T]);
+    if justfirstdim==0
+        PolicyPath=reshape(PolicyPath,[l_d+l_aprime,n_a,n_z,T]);
+    end
 
 elseif vfoptions.gridinterplayer==1
     PolicyPath=zeros(l_d+l_aprime+1,N_a,N_z,T,'gpuArray');
@@ -108,8 +110,10 @@ elseif vfoptions.gridinterplayer==1
 
     % L2 index
     PolicyPath(l_d+l_aprime+1,:,:,:)=PolicyPathKron(end,:,:,:);
-    
-    PolicyPath=reshape(PolicyPath,[l_d+l_aprime+1,n_a,n_z,T]);
+
+    if justfirstdim==0
+        PolicyPath=reshape(PolicyPath,[l_d+l_aprime+1,n_a,n_z,T]);
+    end
 end
 
 

@@ -9,9 +9,9 @@ function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_semiz_raw(PolicyKron,N_semiz
 
 currstate=seedpoint;
 
-% seedpoint is (a,z,semiz,j)
+% seedpoint is (a,semiz,z,j)
 
-initialage=seedpoint(4); % j in (a,z,semiz,j)
+initialage=seedpoint(4); % j in (a,semiz,z,j)
 
 % Simulation is simoptions.simperiods, or up to 'end of finite horizon'.
 periods=min(simoptions.simperiods,N_j-initialage);
@@ -20,14 +20,14 @@ periods=min(simoptions.simperiods,N_j-initialage);
 % (d,aprime) only contains (d2,aprime), where d2 is the decision variable
 % that is for the semi-exo state.
 
-SimLifeCycleKron=nan(4,N_j);
+SimLifeCycleKron=nan(4,N_j); % (a,semiz,z,j)
 if simoptions.gridinterplayer==0
     for jj=0:periods
         SimLifeCycleKron(1,jj+initialage)=currstate(1); % a_c
         SimLifeCycleKron(2,jj+initialage)=currstate(2); % semiz_c
         SimLifeCycleKron(3,jj+initialage)=currstate(3); % z_c
 
-        temp=PolicyKron(:,currstate(1),currstate(2)+N_semiz*(currstate(3)-1),jj+initialage); % (d2,aprime)
+        temp=PolicyKron(:,currstate(1),currstate(2)+N_semiz*(currstate(3)-1),jj+initialage); % (d2,aprimeL1,aprimeL2)
         currstate(1)=temp(2);
 
         [~,currstate(2)]=max(cumsumpi_semiz_J(currstate(2),:,temp(1),jj+initialage)>rand(1,1));
@@ -39,7 +39,7 @@ elseif simoptions.gridinterplayer==1
         SimLifeCycleKron(2,jj+initialage)=currstate(2); % semiz_c
         SimLifeCycleKron(3,jj+initialage)=currstate(3); % z_c
 
-        temp=PolicyKron(:,currstate(1),currstate(2)+N_semiz*(currstate(3)-1),jj+initialage); % (d2,aprime)
+        temp=PolicyKron(:,currstate(1),currstate(2)+N_semiz*(currstate(3)-1),jj+initialage); % (d2,aprimeL1,aprimeL2)
         loweraprimdind=temp(2);
         aprimeprob=(temp(3)-1)/(1+simoptions.ngridinterp);
         currstate(1)=loweraprimdind+(rand(1)<aprimeprob);

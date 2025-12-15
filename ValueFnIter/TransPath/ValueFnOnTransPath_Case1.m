@@ -184,14 +184,26 @@ VKronPath(:,:,T)=V_final;
 
 z_gridvals=CreateGridvals(n_z,z_grid,1);
 
+%%
+if N_d==0
+    l_daprime=length(n_a);
+else
+    l_daprime=length(n_d)+length(n_a);
+end
+if vfoptions.experienceasset==1
+    l_daprime=l_daprime-1;
+end
 
+if vfoptions.gridinterplayer==0
+    PolicyIndexesPath=zeros(l_daprime,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
+elseif vfoptions.gridinterplayer==1
+    PolicyIndexesPath=zeros(l_daprime+1,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
+end
+PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z]);
 
 %%
 if vfoptions.experienceasset==0
     if N_d==0 && vfoptions.gridinterplayer==0
-        PolicyIndexesPath=zeros(N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-        PolicyIndexesPath(:,:,T)=KronPolicyIndexes_Case1(Policy_final, n_d, n_a, n_z, vfoptions);
-
         % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
         Vnext=V_final;
         for ttr=1:T-1 %so t=T-i
@@ -212,23 +224,6 @@ if vfoptions.experienceasset==0
             Vnext=V;
         end
     else
-        if N_d>0 && vfoptions.gridinterplayer==0
-            PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: d,a
-        elseif N_d==0 && vfoptions.gridinterplayer==1
-            if isscalar(n_a)
-                PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: a1,L2
-            else
-                PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: a1,a2,L2
-            end
-        elseif N_d>0 && vfoptions.gridinterplayer==1
-            if isscalar(n_a)
-                PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: d,a1,L2
-            else
-                PolicyIndexesPath=zeros(4,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1: d1,a1,a2,L2
-            end
-        end
-        PolicyIndexesPath(:,:,:,T)=KronPolicyIndexes_InfHorz(Policy_final, n_d, n_a, n_z, vfoptions);
-
         % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
         Vnext=V_final;
         for ttr=1:T-1 %so t=T-i
@@ -285,20 +280,6 @@ else
         aprimeFnParamNames={};
     end
 
-    if n_d1(1)==0
-        PolicyIndexesPath=zeros(2,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-        temp=KronPolicyIndexes_Case2(Policy_final, [n_d,n_a(1:end-1)], n_a, n_z);
-        PolicyIndexesPath(1,:,:,T)=rem(temp-1,N_d)+1;
-        PolicyIndexesPath(2,:,:,T)=ceil(temp/N_d);
-    else
-        N_d1=prod(n_d1);
-        PolicyIndexesPath=zeros(3,N_a,N_z,T,'gpuArray'); % Periods 1 to T-1
-        temp=KronPolicyIndexes_Case2(Policy_final, [n_d,n_a(1:end-1)], n_a, n_z);
-        dind=rem(temp-1,N_d)+1;
-        PolicyIndexesPath(1,:,:,T)=rem(dind-1,N_d1)+1;
-        PolicyIndexesPath(2,:,:,T)=ceil(dind/N_d1);
-        PolicyIndexesPath(3,:,:,T)=ceil(temp/N_d);
-    end
 
     % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     Vnext=V_final;
@@ -324,10 +305,7 @@ end
 
 %% Unkron to get into the shape for output
 VPath=reshape(VKronPath,[n_a,n_z,T]);
-if vfoptions.experienceasset==0
-    PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath(PolicyIndexesPath, n_d, n_a, n_z,T,vfoptions);
-elseif vfoptions.experienceasset==1
-    PolicyPath=UnKronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyIndexesPath, n_d, n_a1,n_a, n_z,T,vfoptions);
-end
+PolicyPath=reshape(PolicyIndexesPath,[size(PolicyIndexesPath,1),n_a,n_z,T]);
+
 
 end

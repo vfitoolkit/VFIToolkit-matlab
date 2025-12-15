@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_GI_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_GI_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % DC2B: two endogenous states, divide-and-conquer on the first endo state, but not on the second endo state
 
 N_d=prod(n_d);
@@ -132,6 +132,22 @@ L2=fineindex1-(L1-1)*(n2short+1); % L2 index
 Policy(2,:,:)=L1;
 Policy(4,:,:)=L2;
 
+
+%% Policy in transition paths
+l_d=length(n_d);
+Policy2=zeros(l_d+3,N_a,N_z);
+% sort d variables
+Policy2(1,:,:)=rem(Policy(1,:,:)-1,n_d(1))+1;
+if l_d>1
+    if l_d>2
+        for ii=2:l_d-1
+            Policy2(ii,:,:)=rem(ceil(Policy(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+        end
+    end
+    Policy2(l_d,:,:)=ceil(Policy(1,:,:)/prod(n_d(1:l_d-1)));
+end
+% rest are already in right shape
+Policy2(l_d+1:end,:,:)=Policy(2:4,:,:);
 
 
 end

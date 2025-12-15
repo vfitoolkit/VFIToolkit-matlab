@@ -147,13 +147,6 @@ if transpathoptions.parallel~=2
     error('Transition paths can only be solved if you have a GPU')
 end
 
-if isfield(transpathoptions,'p_eqm_init')
-    p_eqm_init=transpathoptions.p_eqm_init;
-    use_p_eqm_init=1;
-else
-    use_p_eqm_init=0;
-end
-
 if transpathoptions.graphGEcondns==1
     if transpathoptions.GEnewprice~=3
         error('Can only use transpathoptions.graphGEcondns=1 when using transpathoptions.GEnewprice=3')
@@ -217,7 +210,7 @@ else
         vfoptions.gridinterplayer=0;
     elseif vfoptions.gridinterplayer==1
         if ~isfield(vfoptions,'ngridinterp')
-            error('When using vfoptions.gridinterplayer=1 you must set vfoptions.gridinterplayer')
+            error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp')
         end
     end
 end
@@ -260,7 +253,7 @@ else
         simoptions.gridinterplayer=0;
     elseif simoptions.gridinterplayer==1
         if ~isfield(simoptions,'ngridinterp')
-            error('When using simoptions.gridinterplayer=1 you must set simoptions.gridinterplayer')
+            error('When using simoptions.gridinterplayer=1 you must set simoptions.ngridinterp')
         end
     end
 end

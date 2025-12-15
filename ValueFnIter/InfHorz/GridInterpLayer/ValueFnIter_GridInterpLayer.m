@@ -18,18 +18,32 @@ if ~isfield(vfoptions,'multigridswitch')
     end
 end
 
+if ~isfield(vfoptions,'postGIrepeat')
+    vfoptions.postGIrepeat=0; % Do multiple post-GI layers (this is the number of additional layers)
+end
+
 % Set the maximum 'rough grid' change in aprime allowed when solving fine problem, in terms of moving from what was optimal when only solving the rough grid problem.
 if ~isfield(vfoptions,'maxaprimediff')
     if n_d(1)==0
-        if n_a(1)<500
-            vfoptions.maxaprimediff=3; % only used for postGI (for vfoptions.preGI=0)
-        else
+        if vfoptions.postGIrepeat==0
             vfoptions.maxaprimediff=4; % only used for postGI (for vfoptions.preGI=0)
+        elseif vfoptions.postGIrepeat>1
+            vfoptions.maxaprimediff=2; % only used for postGI (for vfoptions.preGI=0)
         end
     else
-        vfoptions.maxaprimediff=10; % only used for postGI (for vfoptions.preGI=0)
+        if vfoptions.postGIrepeat==0
+            vfoptions.maxaprimediff=10; % only used for postGI (for vfoptions.preGI=0)
+        elseif vfoptions.postGIrepeat>1
+            vfoptions.maxaprimediff=5; % only used for postGI (for vfoptions.preGI=0)
+        end
     end
 end
+
+% Note: The defaults mean that only four of the following commands get used:
+% ValueFnIter_postGI_nod_raw
+% ValueFnIter_Refine_postGI_raw
+% ValueFnIter_postGI2B_nod_raw
+% ValueFnIter_Refine_postGI2B_raw
 
 
 %% Archived code checked if multi-grid was faster than just going directly to using aprime_grid the whole time. Found that multi-grid is faster.

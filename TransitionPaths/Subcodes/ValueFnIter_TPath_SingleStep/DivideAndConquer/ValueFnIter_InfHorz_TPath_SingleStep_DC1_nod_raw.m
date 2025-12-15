@@ -61,5 +61,7 @@ for ii=1:(vfoptions.level1n-1)
     end
 end
 
+%% Policy in transition paths
+Policy=UnKronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,vfoptions);
 
 end

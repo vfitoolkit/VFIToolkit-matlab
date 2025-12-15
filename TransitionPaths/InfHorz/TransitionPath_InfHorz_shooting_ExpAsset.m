@@ -16,15 +16,17 @@ l_a1=length(n_a1);
 l_a2=length(n_a2);
 l_a=l_a1+l_a2;
 l_z=length(n_z);
+l_aprime=l_a1;
+l_daprime=l_d+l_a1;
 
-if transpathoptions.verbose==1
+if transpathoptions.verbose>=1
     transpathoptions
     ParamPathNames
     PricePathNames
 end
 
 %%
-if transpathoptions.verbose==1
+if transpathoptions.verbose>=1
     % Set up some things to be used later
     pathnametitles=cell(1,2*length(PricePathNames));
     for tt=1:length(PricePathNames)
@@ -85,8 +87,8 @@ end
 AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_d+l_a1+l_a+l_z) % expasset
-        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a1+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_daprime+l_a+l_z) % expasset
+        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end
@@ -118,55 +120,28 @@ else
     n_d=[n_d1,n_d2];
     d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
 end
+a1_gridvals=CreateGridvals(n_a1,a1_grid,1);
 a_gridvals=CreateGridvals([n_a1,n_a2],[a1_grid; a2_grid],1);
-if l_d1==0
-    if vfoptions.gridinterplayer==0
-        a1prime_gridvals=CreateGridvals(n_a1,a1_grid,1);
-        PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-    elseif vfoptions.gridinterplayer==1
-        if isscalar(n_a)
-            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp;
-            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,gpuArray(linspace(1,N_a,n_aprime))');
-            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            PolicyIndexesPath=zeros(3,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-        else
-            a1_grid=a_grid(1:n_a(1));
-            n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp;
-            n_aprime=[n_a1prime,n_a(2:end)];
-            a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a1_grid,gpuArray(linspace(1,n_a(1),n_a1prime))');
-            aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
-            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            PolicyIndexesPath=zeros(4,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-        end
+
+if vfoptions.gridinterplayer==0
+    a1prime_gridvals=CreateGridvals(n_a1,a1_grid,1);
+    PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
+elseif vfoptions.gridinterplayer==1
+    if isscalar(n_a)
+        n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp;
+        aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,gpuArray(linspace(1,N_a,n_aprime))');
+        a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+    else
+        a1_grid=a_grid(1:n_a(1));
+        n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp;
+        n_aprime=[n_a1prime,n_a(2:end)];
+        a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a1_grid,gpuArray(linspace(1,n_a(1),n_a1prime))');
+        aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
+        a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
     end
-else % l_d1
-    if vfoptions.gridinterplayer==0
-        a1prime_gridvals=CreateGridvals(n_a1,a1_grid,1);
-        PolicyIndexesPath=zeros(3,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-    elseif vfoptions.gridinterplayer==1
-        if isscalar(n_a)
-            n_aprime=n_a+(n_a-1)*vfoptions.ngridinterp;
-            aprime_grid=interp1(gpuArray(1:1:N_a)',a_grid,gpuArray(linspace(1,N_a,n_aprime))');
-            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            PolicyIndexesPath=zeros(4,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-        else
-            a1_grid=a_grid(1:n_a(1));
-            n_a1prime=n_a(1)+(n_a(1)-1)*vfoptions.ngridinterp;
-            n_aprime=[n_a1prime,n_a(2:end)];
-            a1prime_grid=interp1(gpuArray(1:1:n_a(1))',a1_grid,gpuArray(linspace(1,n_a(1),n_a1prime))');
-            aprime_grid=[a1prime_grid; a_grid(n_a(1)+1:end)];
-            a1prime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            PolicyIndexesPath=zeros(5,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-        end
-    end
+    PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 end
 
-if n_d1(1)==0
-    d_gridvals=CreateGridvals(n_d2,d2_grid,1);
-else
-    d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
-end
-a1_gridvals=CreateGridvals(n_a1,a1_grid,1);
 
 % Precompute for AgentDist
 if l_d1==0
@@ -206,8 +181,48 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     % Free up space on GPU by deleting things no longer needed
     clear V Vnext
 
-    % Now we have the full PolicyIndexesPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path.
-    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(UnKronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyIndexesPath,n_d,n_a1,[n_a1,n_a2],n_z,T-1,vfoptions),n_d,[n_a1,n_a2],n_z,T-1,d_gridvals,a1prime_gridvals,simoptions,1);
+    % Create version of PolicyIndexesPath in form we want for the agent distribution iteration
+    % Creates PolicyaprimezPath, and when using grid interpolation layer also PolicyProbsPath 
+
+    whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+    aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
+    [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParamsVec);
+    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z]
+    % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+    Policy_a2prime(:,:,1)=a2primeIndexes; % lower grid point
+    Policy_a2prime(:,:,2)=a2primeIndexes+1; % upper grid point
+    PolicyProbs(:,:,1)=a2primeProbs; % probability of lower grid point
+    PolicyProbs(:,:,2)=1-a2primeProbs; % probability of upper grid point
+
+    if l_a1==0 % just experienceasset
+        Policy_aprime=Policy_a2prime;
+    elseif l_a1==1 % one other asset, then experience asset
+        Policy_aprime(:,:,1)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*(Policy_a2prime(:,:,1)-1);
+        Policy_aprime(:,:,2)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
+    end
+    Policy_aprimez=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
+    error('this needs fixing (create PolicyaprimePath for experienceasset')
+    if isscalar(n_a)
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:),[N_a*N_z,T]); % aprime index
+    elseif length(n_a)==2
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1),[N_a*N_z,T]);
+    elseif length(n_a)==3
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:)-1),[N_a*N_z,T]);
+    elseif length(n_a)==4
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(l_d+4,:,:)-1),[N_a*N_z,T]);
+    end
+    PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
+    if simoptions.gridinterplayer==1
+        PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T]); % reinterpret this as lower grid index
+        PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
+        PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index
+        PolicyProbsPath(:,2,:)=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:),[N_a*N_z,1,T]); % L2 index
+        PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+        PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
+    end
+    % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
+    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,n_d,n_a,n_z,T-1,d_grid,a_grid,vfoptions,1);
+
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
@@ -251,41 +266,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         %% Iterate Agent Dist
         if simoptions.gridinterplayer==0
-
-            whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
-            aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParamsVec);
-            % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z]
-            % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
-            Policy_a2prime(:,:,1)=a2primeIndexes; % lower grid point
-            Policy_a2prime(:,:,2)=a2primeIndexes+1; % upper grid point
-            PolicyProbs(:,:,1)=a2primeProbs; % probability of lower grid point
-            PolicyProbs(:,:,2)=1-a2primeProbs; % probability of upper grid point
-
-            if l_a1==0 % just experienceasset
-                Policy_aprime=Policy_a2prime;
-            elseif l_a1==1 % one other asset, then experience asset
-                Policy_aprime(:,:,1)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*(Policy_a2prime(:,:,1)-1);
-                Policy_aprime(:,:,2)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
-            end
-            Policy_aprimez=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
-            error('not done yet')
-            % if isscalar(n_a)
-            %     Policy_aprime(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % lower grid point
-            %     Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
-            %     PolicyProbs(:,2)=reshape(Policy(3,:,:),[N_a*N_z,1]); % L2 index
-            % else % length(n_a)>1
-            %     Policy_aprime(:,1)=reshape(Policy(2,:,:),[N_a*N_z,1]); % lower grid point
-            %     Policy_aprime=Policy_aprime+n_a(1)*(reshape(Policy(3,:,:),[N_a*N_z,1])-1); % a2
-            %     Policy_aprime(:,2)=Policy_aprime(:,1)+1; % upper grid point
-            %     PolicyProbs(:,2)=reshape(Policy(4,:,:),[N_a*N_z,1]); % L2 index
-            % end
-            % PolicyProbs(:,2)=(PolicyProbs(:,2)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-            % PolicyProbs(:,1)=1-PolicyProbs(:,2); % probability of lower grid point
-            Policy_aprimez=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,1]);
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
         end
         
         %% AggVars and General Eqm

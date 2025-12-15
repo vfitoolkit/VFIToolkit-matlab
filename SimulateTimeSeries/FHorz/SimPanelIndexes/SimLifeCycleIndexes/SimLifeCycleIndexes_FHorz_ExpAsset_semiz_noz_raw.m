@@ -1,0 +1,35 @@
+function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_noz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J,simoptions,seedpoint)
+% All inputs must be on the CPU
+%
+% Simulates a path based on PolicyIndexes of length 'periods' beginning from point 'seedpoint' (this is not just left
+% as being random since some random points may be ones that never 'exist' in eqm)
+%
+% Outputs the indexes for (a,z,semiz,j) for every period j. This is for period 1 to J. 
+% Since most simulations will not start at period 1, the first entries are typically 'NaN'.
+
+currstate=seedpoint;
+
+% seedpoint is (a,semiz,j)
+
+initialage=seedpoint(3); % j in (a,semiz,j)
+
+% Simulation is simoptions.simperiods, or up to 'end of finite horizon'.
+periods=min(simoptions.simperiods,N_j-initialage);
+
+% If N_d1>0, you should eliminate d1 from Policy so that instead of
+% (d,aprime) only contains (d2,aprime), where d2 is the decision variable
+% that is for the semi-exo state.
+
+SimLifeCycleKron=nan(3,N_j); % (a,semiz,j)
+for jj=0:periods
+    SimLifeCycleKron(1,jj+initialage)=currstate(1); % a_c
+    SimLifeCycleKron(2,jj+initialage)=currstate(2); % semiz_c
+
+    alowerProbs=CumPolicyProbs(currstate(1),currstate(2),:,jj+initialage);
+    [~,probindex]=max(alowerProbs>rand(1));
+    d2ind=Policy_dsemiexo(currstate(1),currstate(2),jj+initialage);
+    currstate(1)=Policy_aprime(currstate(1),currstate(2),probindex,jj+initialage);
+
+    [~,currstate(2)]=max(cumsumpi_semiz_J(currstate(2),:,d2ind,jj+initialage)>rand(1,1));
+end
+SimLifeCycleKron(3,initialage:(initialage+periods))=initialage:1:(initialage+periods);

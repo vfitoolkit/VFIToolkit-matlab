@@ -5,6 +5,12 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 N_a=prod(n_a);
 
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_a=length(n_a);
 
 %% Check which simoptions have been used, set all others to defaults 
 if exist('simoptions','var')==0
@@ -83,12 +89,6 @@ if simoptions.experienceasset==1
 end
 
 %%
-if simoptions.experienceasset==0
-    PolicyPath=KronPolicyIndexes_InfHorz_TransPath(PolicyPath, n_d, n_a, n_z,T,simoptions);
-elseif simoptions.experienceasset==1
-    PolicyPath=KronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPath, n_d, n_a, n_z,T,simoptions);
-end
-
 AgentDistPath=zeros(N_a*N_z,T,'gpuArray');
 % Call AgentDist the current periods distn
 AgentDist=reshape(AgentDist_initial,[N_a*N_z,1]);
@@ -96,45 +96,40 @@ pi_z_sparse=sparse(pi_z);
 AgentDistPath(:,1)=AgentDist;
 
 if simoptions.experienceasset==0
+    l_aprime=l_a; % standard endogenous states
+    
+    PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
+    if l_a==1
+        PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:),[N_a*N_z,T]); % aprime index
+    elseif l_a==2
+        PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:)+n_a(1)*(PolicyPath(l_d+2,:,:)-1),[N_a*N_z,T]);
+    elseif l_a==3
+        PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:)+n_a(1)*(PolicyPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:)-1),[N_a*N_z,T]);
+    elseif l_a==4
+        PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:)+n_a(1)*(PolicyPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyPath(l_d+4,:,:)-1),[N_a*N_z,T]);
+    end
+    PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
+    
     if simoptions.gridinterplayer==0
         II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
         IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
-        if N_d==0
-            Policy_aprime=reshape(PolicyPath(:,:,:),[N_a*N_z,T]);
-        else
-            Policy_aprime=reshape(PolicyPath(2,:,:,:),[N_a*N_z,T]);
-        end
-        Policy_aprimez=Policy_aprime+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
         for tt=1:T-1
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(Policy_aprimez(:,tt)),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(PolicyaprimezPath(:,tt)),II1,IIones,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=AgentDist;
         end
     elseif simoptions.gridinterplayer==1
-
-        l_a=length(n_a);
-        Policy_aprime=zeros(N_a*N_z,2,T,'gpuArray'); % preallocate
-        PolicyProbs=zeros(N_a*N_z,2,T,'gpuArray'); % preallocate
+        PolicyProbsPath=zeros(N_a*N_z,2,T,'gpuArray'); % preallocate
         II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
-        if N_d==0
-            Policy_aprime(:,1,:)=reshape(PolicyPath(1,:,:,:),[N_a*N_z,1,T]); % lower grid point
-            if l_a>1
-                Policy_aprime(:,1,:)=+Policy_aprime(:,1,:)+n_a(1)*(reshape(PolicyPath(2,:,:,:),[N_a*N_z,1,T])-1);
-            end
-        else
-            Policy_aprime(:,1,:)=reshape(PolicyPath(2,:,:,:),[N_a*N_z,1,T]); % lower grid point
-            if l_a>1
-                Policy_aprime(:,1,:)=+Policy_aprime(:,1,:)+n_a(1)*(reshape(PolicyPath(3,:,:,:),[N_a*N_z,1,T])-1);
-            end
-        end
-        Policy_aprime(:,2,:)=Policy_aprime(:,1,:)+1; % upper grid point
 
-        Policy_aprimez=Policy_aprime+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
-
-        PolicyProbs(:,2,:)=(reshape(PolicyPath(end,:,:,:),[N_a*N_z,1,T])-1)/(1+simoptions.ngridinterp); % probability of upper grid point
-        PolicyProbs(:,1,:)=1-PolicyProbs(:,2,:); % probability of lower grid point
+        PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T]); % reinterpret this as lower grid index
+        PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
+        PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index
+        PolicyProbsPath(:,2,:)=reshape(PolicyPath(l_d+l_aprime+1,:,:),[N_a*N_z,1,T]); % L2 index
+        PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+        PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
 
         for tt=1:T-1
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez(:,:,tt),II2,PolicyProbs(:,:,tt),N_a,N_z,pi_z_sparse);
+            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=AgentDist;
         end
     end
@@ -185,12 +180,14 @@ elseif simoptions.experienceasset==1
         aprimeFnParamNames={};
     end
    
+    PolicyPath=KronPolicyIndexes_InfHorz_TransPath_ExpAsset(PolicyPath, n_d, n_a, n_z,T,simoptions);
+
     % Precompute
     Policy_a2prime=zeros(N_a,N_z,2,'gpuArray'); % the lower grid point
     PolicyProbs=zeros(N_a,N_z,2,'gpuArray'); % preallocate
     Policy_aprime=zeros(N_a,N_z,2,'gpuArray'); % preallocate
     II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
-
+    
     if simoptions.gridinterplayer==0
 
         for tt=1:T-1
@@ -221,9 +218,9 @@ elseif simoptions.experienceasset==1
                 Policy_aprime(:,:,1)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*(Policy_a2prime(:,:,1)-1);
                 Policy_aprime(:,:,2)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
             end
-            Policy_aprimez=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
+            PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
             
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=AgentDist;
         end
 

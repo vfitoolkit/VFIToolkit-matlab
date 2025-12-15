@@ -1,58 +1,17 @@
-function SimPanel=SimPanelIndexes_FHorz_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions)
-% Intended to be called from SimPanel=SimPanelIndexes_FHorz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_noz_semiz(InitialDist,PolicyKron,n_a, n_semiz, cumsumpi_semiz_J, N_j, simoptions)
+% Intended to be called from SimPanelIndexes_FHorz_semiz
+%
+% PolicyKron already only contains d2
 
 N_a=prod(n_a);
+N_semiz=prod(n_semiz);
 
 l_a=length(n_a);
-
-%% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
-if ~isfield(simoptions,'n_semiz')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.n_semiz')
-end
-if ~isfield(simoptions,'semiz_grid')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.semiz_grid')
-end
-if ~isfield(simoptions,'d_grid')
-    error('When using simoptions.SemiExoShockFn you must declare simoptions.d_grid')
-else
-    simoptions.d_grid=gpuArray(simoptions.d_grid);
-end
-if ~isfield(simoptions,'numd_semiz')
-    simoptions.numd_semiz=1; % by default, only one decision variable influences the semi-exogenous state
-end
-if length(n_d)>simoptions.numd_semiz
-    n_d1=n_d(1:end-simoptions.numd_semiz);
-    d1_grid=simoptions.d_grid(1:sum(n_d1));
-else
-    n_d1=0; d1_grid=[];
-end
-N_d1=prod(n_d1);
-n_d2=n_d(end-simoptions.numd_semiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
-l_d2=length(n_d2);
-d2_grid=simoptions.d_grid(sum(n_d1)+1:end);
-% Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
-N_semiz=prod(simoptions.n_semiz);
-l_semiz=length(simoptions.n_semiz);
-
-% Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,simoptions.Parameters,simoptions,2);
-% output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
-% size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
-% size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
-% If no semiz, then vfoptions just does not contain these field
-
-cumsumpi_semiz_J=gather(cumsum(pi_semiz_J,2));
 
 %%
 simperiods=gather(simoptions.simperiods);
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
-
-if n_d1(1)>0
-    % Change Policy from (d,aprime) to (d2,aprime) [We don't need d1 for the simulations]
-    PolicyKron(1,:,:,:)=ceil(PolicyKron(1,:,:,:)/N_d1);
-end
-
 
 %% First do the case without e variables, otherwise do with e variables
 if ~isfield(simoptions,'n_e')

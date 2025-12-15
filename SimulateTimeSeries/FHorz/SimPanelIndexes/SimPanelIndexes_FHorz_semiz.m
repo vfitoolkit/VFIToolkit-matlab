@@ -1,11 +1,14 @@
-function SimPanel=SimPanelIndexes_FHorz_semiz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,cumsumpi_z_J, simoptions)
-% Intended to be called from SimPanel=SimPanelIndexes_FHorz(InitialDist,PolicyKron,n_d,n_a,n_z,N_j,pi_z_J, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_semiz(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, Parameters,,simoptions)
+% Inputs should already be on cpu, output is on cpu
+% 
+% Intended to be called from SimPanelValues_FHorz_Case1()
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
 l_a=length(n_a);
 l_z=length(n_z);
+
 
 %% Setup related to semi-exogenous state (an exogenous state whose transition probabilities depend on a decision variable)
 if ~isfield(simoptions,'n_semiz')
@@ -36,7 +39,7 @@ d2_grid=simoptions.d_grid(sum(n_d1)+1:end);
 
 
 % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,simoptions.Parameters,simoptions,2);
+simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2);
 % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
 % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
 % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
@@ -50,14 +53,26 @@ l_semiz=length(simoptions.n_semiz);
 cumsumpi_semiz_J=gather(cumsum(simoptions.pi_semiz_J,2));
 
 %%
+if N_z==0
+    N_semizz=N_semiz*N_z;
+else
+    N_semizz=N_semiz;
+end
+Policy=reshape(Policy,[size(Policy,1),N_a,N_semizz,N_j]);
+PolicyKron=KronPolicyIndexes_FHorz_Case1(Policy(n_d1+1:end,:,:,:),n_d2,n_a,n_z,N_j,simoptions);
+
+if N_z==0
+    SimPanel=SimPanelIndexes_FHorz_noz_semiz(InitialDist,PolicyKron,n_d,n_a,N_j, simoptions);
+    return
+end
+
+cumsumpi_z_J=cumsum(pi_z_J,2);
+
+
+%%
 simperiods=gather(simoptions.simperiods);
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
-
-if n_d1(1)>0
-    % Change Policy from (d,aprime) to (d2,aprime) [We don't need d1 for the simulations]
-    PolicyKron(1,:,:,:)=ceil(PolicyKron(1,:,:,:)/N_d1);
-end
 
 
 %% First do the case without e variables, otherwise do with e variables
