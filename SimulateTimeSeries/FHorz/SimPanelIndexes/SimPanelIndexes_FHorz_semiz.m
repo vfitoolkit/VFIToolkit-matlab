@@ -100,7 +100,7 @@ if simoptions.n_e(1)==0
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
     end
-
+    
     if simoptions.simpanelindexkron==0 % Convert results out of kron
         SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
         SimPanel=nan(l_a+l_semiz+l_z+1,N_j*simoptions.numbersims); % (a,semiz,z,j)

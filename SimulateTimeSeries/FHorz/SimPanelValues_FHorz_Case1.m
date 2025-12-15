@@ -130,7 +130,7 @@ else
         SimPanelIndexes=SimPanelIndexes_FHorz_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
     end
 end
-SimPanelIndexes=gpuArray(SimPanelIndexes);
+% Note: SimPanelIndexes contains semiz,z,e all in a single dimension (as that suits how the gridvals are created below)
 
 %% Exogenous shock grids (must come after the SimPanelIndexes as it then strips n_semiz and n_e out of simoptions)
 % Create the combination of (semiz,z,e) as all three are the same for FnsToEvaluate 
@@ -207,8 +207,7 @@ SimPanelValues=nan(length(FnsToEvaluate), N_j, simoptions.numbersims,'gpuArray')
 % Note, having the whole N_j at this stage makes assiging the values based on the indexes vastly faster
 
 
-
-%% For sure the following could be made faster by improving how I do it
+%% Create PanelValues from PanelIndexes
 
 for jj=1:N_j
     SimPanelIndexes_jj=SimPanelIndexes(:,jj,:);
@@ -222,7 +221,7 @@ for jj=1:N_j
 
         az_ind=squeeze(currentPanelIndexes_jj(1,1,:)+N_a*(currentPanelIndexes_jj(2,1,:)-1));
         % a_ind=currentPanelIndexes_jj(1,1,:);
-        % z_ind=currentPanelIndexes_jj(2,1,:);
+        % z_ind=currentPanelIndexes_jj(2,1,:); % this is semiz,z,e all together
         % j_ind=currentPanelIndexes_jj(3,1,:);
 
         a_val=a_gridvals(currentPanelIndexes_jj(1,1,:),:); % a_grid does depend on age

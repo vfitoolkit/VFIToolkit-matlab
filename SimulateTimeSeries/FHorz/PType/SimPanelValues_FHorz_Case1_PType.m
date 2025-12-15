@@ -101,7 +101,6 @@ ExtraSims=simoptions.numbersims-sum(PType_numbersims);
 % make this random the sample won't satisfy properties of arandom sample)
 PType_numbersims(1:ExtraSims)=PType_numbersims(1:ExtraSims)+1;
 
-
 %% Deal with jequaloneDist
 [jequaloneDist,idiminj1dist,Parameters]=jequaloneDist_PType(jequaloneDist,Parameters,simoptions,n_a,n_z,N_i,Names_i,PTypeDistParamNames,0);
 
@@ -278,8 +277,12 @@ for ii=1:N_i
     end
     
     simoptions_temp.keepoutputasmatrix=1;
-    SimPanelValues_ii=SimPanelValues_FHorz_Case1(jequaloneDist_temp,Policy_temp,FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
-    % simoptions.outputasstructure=0; % SimPanelValues as matrix is set above
+    if simoptions_temp.numbersims>0
+        SimPanelValues_ii=SimPanelValues_FHorz_Case1(jequaloneDist_temp,Policy_temp,FnsToEvaluate_temp,Parameters_temp,FnsToEvaluateParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,z_grid_temp,pi_z_temp, simoptions_temp);
+        % simoptions.outputasstructure=0; % SimPanelValues as matrix is set above
+    else
+        SimPanelValues_ii=[];
+    end
         
     if ii==1
         SimPanelValues(WhichFnsForCurrentPType,:,1:sum(PType_numbersims(1:ii)))=SimPanelValues_ii;

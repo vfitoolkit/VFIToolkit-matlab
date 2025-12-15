@@ -210,6 +210,9 @@ if N_z==0
             SimPanel(end,:)=SimPanelKron(3,:); % j
 
             SimPanel=reshape(SimPanel,[3,N_j,simoptions.numbersims]);
+        else
+            % All exogenous states together
+            % Only semiz, so nothing to do
         end
 
     else % No z, e
@@ -226,7 +229,7 @@ if N_z==0
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
-        SimPanel=nan(5,simperiods,simoptions.numbersims); % (a,semiz,z,e,j)
+        SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,semiz,e,j)
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
                 seedpoint=seedpoints(ii,:);
@@ -251,6 +254,11 @@ if N_z==0
             SimPanel(end,:)=SimPanelKron(4,:); % j
 
             SimPanel=reshape(SimPanel,[4,N_j,simoptions.numbersims]);
+        else
+            % All exogenous states together
+            SimPanel(2,:,:)=SimPanel(2,:,:)+N_semiz*(SimPanel(3,:,:)-1); % put semiz and e together
+            SimPanel(3,:,:)=SimPanel(4,:,:); % move j forward
+            SimPanel=SimPanel(1:3,:,:);
         end
     end
 
@@ -268,7 +276,7 @@ else % N_z>0
             seedpoints=[ind2sub_vec_homemade([N_a,N_semiz,N_z,N_j],seedpointind'),ones(simoptions.numbersims,1)];
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-        
+                
         SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,semiz,z,j)
         if simoptions.parallel==0
             for ii=1:simoptions.numbersims
@@ -293,6 +301,11 @@ else % N_z>0
             SimPanel(end,:)=SimPanelKron(4,:); % j
 
             SimPanel=reshape(SimPanel,[4,N_j,simoptions.numbersims]);
+        else
+            % All exogenous states together
+            SimPanel(2,:,:)=SimPanel(2,:,:)+N_semiz*(SimPanel(3,:,:)-1); % put semiz and z together
+            SimPanel(3,:,:)=SimPanel(4,:,:); % move j forward
+            SimPanel=SimPanel(1:3,:,:);
         end
         
     else % z, e
@@ -335,6 +348,11 @@ else % N_z>0
             SimPanel(end,:)=SimPanelKron(5,:); % j
 
             SimPanel=reshape(SimPanel,[5,N_j,simoptions.numbersims]);
+        else
+            % All exogenous states together
+            SimPanel(2,:,:)=SimPanel(2,:,:)+N_semiz*(SimPanel(3,:,:)-1)+N_semiz*N_z*(SimPanel(4,:,:)-1); % put semiz and z and e together
+            SimPanel(3,:,:)=SimPanel(5,:,:); % move j forward
+            SimPanel=SimPanel(1:3,:,:);
         end
     end
 end

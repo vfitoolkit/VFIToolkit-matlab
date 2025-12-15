@@ -35,3 +35,4 @@ for jj=0:periods
     [~,currstate(3)]=max(cumsumpi_z_J(currstate(3),:,jj+initialage)>rand(1,1));
 end
 SimLifeCycleKron(4,initialage:(initialage+periods))=initialage:1:(initialage+periods);
+
