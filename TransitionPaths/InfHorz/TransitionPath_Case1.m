@@ -13,7 +13,7 @@ function varargout=TransitionPath_Case1(PricePathOld, ParamPath, T, V_final, Age
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
     disp('No transpathoptions given, using defaults')
-    %If transpathoptions is not given, just use all the defaults
+    % If transpathoptions is not given, just use all the defaults
     transpathoptions.tolerance=10^(-5);
     transpathoptions.updateaccuracycutoff=10^(-9); % If the suggested update is less than this then don't bother; 10^(-9) is decent odds to be numerical error anyway (currently only works for transpathoptions.GEnewprice=3)
     transpathoptions.parallel=1+(gpuDeviceCount>0);
@@ -32,7 +32,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.weightsforpath=ones(T,length(GeneralEqmEqns)); % Won't actually be used under the defaults, but am still setting it.
     transpathoptions.tanimprovement=1;
 else
-    %Check transpathoptions for missing fields, if there are some fill them with the defaults
+    % Check transpathoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(transpathoptions,'tolerance')
         transpathoptions.tolerance=10^(-5);
     end

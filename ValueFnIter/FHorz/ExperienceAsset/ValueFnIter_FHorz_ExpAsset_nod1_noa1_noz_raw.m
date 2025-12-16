@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_ExpAsset_nod1_noa1_noz_raw(n_d2,n_a2,N_j, d2_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAsset_nod1_noa1_noz_raw(n_d2,n_a2,N_j, d2_gridvals, d2_grid, a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d2=prod(n_d2);
 N_a2=prod(n_a2);
@@ -18,7 +18,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_grid, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
@@ -43,7 +43,7 @@ else
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_grid, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 
@@ -82,7 +82,7 @@ for reverse_j=1:N_j-1
     % Switch EV from being in terps of a2prime to being in terms of d2 and a2
     EV=a2primeProbs.*Vlower+(1-a2primeProbs).*Vupper; % (d2,a1prime,a2,u,zprime)
     
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_grid, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,n_d2, n_a2, d2_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV;
 

@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_ExpAssetu_noa1_noz_raw(n_d1,n_d2,n_a2,n_u, N_j, d1_grid, d2_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAssetu_noa1_noz_raw(n_d1,n_d2,n_a2,n_u, N_j, d_gridvals, d2_grid, a2_grid, u_grid, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -10,7 +10,6 @@ V=zeros(N_a,N_j,'gpuArray');
 Policy=zeros(N_a,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
-d1_grid=gpuArray(d1_grid);
 d2_grid=gpuArray(d2_grid);
 a2_grid=gpuArray(a2_grid);
 
@@ -23,7 +22,7 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, [d1_grid; d2_grid], a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,N_j)=Vtemp;
@@ -50,7 +49,7 @@ else
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
 
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, [d1_grid; d2_grid], a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
@@ -89,7 +88,7 @@ for reverse_j=1:N_j-1
     % Already applied the probabilities from interpolating onto grid
     EV=sum((EV.*pi_u),3); % (d2,a1prime,a2,zprime)
     
-    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, [d1_grid; d2_grid], a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
+    ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_noz_Par2(ReturnFn,[n_d1,n_d2], n_a2, d_gridvals, a2_grid, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
