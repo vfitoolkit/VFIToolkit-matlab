@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_FHorz_ExpAsset(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, Parameters, simoptions)
+function SimPanel=SimPanelIndexes_FHorz_ExpAssetU(InitialDist,Policy,n_d,n_a,n_z,N_j,pi_z_J, Parameters, simoptions)
 % Inputs should already be on cpu, output is on cpu
 % 
 % Intended to be called from SimPanelValues_FHorz_Case1()
@@ -30,18 +30,11 @@ end
 
 cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
 
-%% Experience asset
-n_d2=n_d(end); % decision variable that controls experience asset
+%% Experience asset u
+n_d2=n_d(end); % decision variable that controls experience asset u
 l_d2=length(n_d2); % wouldn't be here if no d2
-% if length(n_d)>2
-    % n_d1=n_d(1:end-2);
-    % l_d1=length(n_d1);
-% else
-    % n_d1=0;
-    % l_d1=0;
-% end
 
-%% Setup related to experience asset
+%% Setup related to experience asset u
 % Split endogenous assets into the standard ones and the experience asset
 if isscalar(n_a)
     n_a1=0;
@@ -64,16 +57,39 @@ else
     error('To use an experience asset you must define simoptions.d_grid')
 end
 
+if isfield(simoptions,'n_u')
+    n_u=simoptions.n_u;
+else
+    error('To use an experience assetu you must define vfoptions.n_u')
+end
+N_u=prod(n_u);
+if isfield(simoptions,'u_grid')
+    u_grid=simoptions.u_grid(:); % note, column
+else
+    error('To use an experience assetu you must define vfoptions.u_grid')
+end
+if isfield(simoptions,'pi_u')
+    pi_u=simoptions.pi_u(:); % note, column
+else
+    error('To use an experience assetu you must define vfoptions.pi_u')
+end
+
+% Make sure u_grid and pi_u are on gpu
+u_grid=gpuArray(u_grid);
+pi_u=gpuArray(pi_u);
+simoptions.u_grid=gpuArray(simoptions.u_grid); % needed to by some subfns
 
 % aprimeFnParamNames in same fashion
 % l_d2=length(n_d2);
 l_a2=length(n_a2);
+l_u=length(n_u);
 temp=getAnonymousFnInputNames(simoptions.aprimeFn);
-if length(temp)>(l_d2+l_a2)
-    aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+if length(temp)>(l_d2+l_a2+l_u)
+    aprimeFnParamNames={temp{l_d2+l_a2+l_u+1:end}}; % the first inputs will always be (d2,a2,u)
 else
     aprimeFnParamNames={};
 end
+
 
 %%
 if N_z==0
@@ -96,51 +112,58 @@ else
     Policy=reshape(Policy,[size(Policy,1),N_a,N_bothze,N_j]);
 end
 
-%% expasset transitions
-% Policy is currently about d and a1prime. Convert it to being about aprime
+
+%% expassetu transitions
+% Policy is currently about d and a2prime. Convert it to being about aprime
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
-Policy_aprime=zeros(N_a,max(1,N_bothze),2,N_j,'gpuArray'); % the lower grid point
-PolicyProbs=zeros(N_a,max(1,N_bothze),2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
+Policy_aprime=zeros(N_a,max(1,N_bothze),N_u,2,N_j,'gpuArray'); % the lower grid point
+PolicyProbs=zeros(N_a,max(1,N_bothze),N_u,2,N_j,'gpuArray'); % probabilities of grid points
 whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_bothze, d_grid, a2_grid, aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_bothze]
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetu_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_bothze,n_u, d_grid, a2_grid,u_grid, aprimeFnParamsVec);
+    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z,N_u]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 
-    if l_a==1
-        Policy_aprime(:,:,1,jj)=aprimeIndexes;
-        Policy_aprime(:,:,2,jj)=aprimeIndexes+1;
-    elseif l_a==2 % experience asset and one other asset
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1);
-    elseif l_a==3 % experience asset and two other assets
-        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+prod(n_a(1:2))*(aprimeIndexes-1);
-        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+prod(n_a(1:2));
+    if N_bothze==0
+        aprimeIndexes=reshape(aprimeIndexes,[N_a,1,N_u]);
+        aprimeProbs=reshape(aprimeProbs,[N_a,1,N_u]);
+    end
+
+    if l_a==1 % just experienceassetu
+        Policy_aprime(:,:,:,1,jj)=aprimeIndexes;
+        Policy_aprime(:,:,:,2,jj)=aprimeIndexes+1;
+    elseif l_a==2 % one other asset, then experience assetu
+        Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(aprimeIndexes-1);
+        Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1);
+    elseif l_a==3 % two other assets, then experience assetu
+        Policy_aprime(:,:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
+        Policy_aprime(:,:,:,2,jj)=Policy_aprime(:,:,:,1,jj)+n_a(1)*n_a(2);
     else
         error('Not yet implemented experience asset with length(n_a)>3')
     end
-    PolicyProbs(:,:,1,jj)=aprimeProbs;
-    PolicyProbs(:,:,2,jj)=1-aprimeProbs;
-end
 
-N_probs=2;
+    % Encode the u probabilities (pi_u) into the PolicyProbs
+    PolicyProbs(:,:,:,1,jj)=aprimeProbs.*shiftdim(pi_u,-2); % lower grid point probability (and probability of u)
+    PolicyProbs(:,:,:,2,jj)=(1-aprimeProbs).*shiftdim(pi_u,-2); % upper grid point probability (and probability of u)
+end
+Policy_aprime=reshape(Policy_aprime,[N_a,max(1,N_bothze),N_u*2,N_j]);
+PolicyProbs=reshape(PolicyProbs,[N_a,max(1,N_bothze),N_u*2,N_j]);
+
+N_probs=N_u*2;
 if simoptions.gridinterplayer==1
-    N_probs=4;
+    N_probs=N_u*4;
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);
-    % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged 
-    Policy_aprime(:,:,3:4,:)=Policy_aprime(:,:,3:4,:)+1; % add one to a1, to get upper grid point
+    % Policy_aprime(:,:,1:2*N_u,:) lower grid point for a1 is unchanged 
+    Policy_aprime(:,:,2*N_u+1:end,:)=Policy_aprime(:,:,2*N_u+1:end,:)+1; % add one to a1, to get upper grid point
 
     aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,max(1,N_bothze),1,N_j]); % probability of upper grid point (from L2 index)
-    PolicyProbs(:,:,1:2,:)=PolicyProbs(:,:,1:2,:).*(1-aprimeProbs_upper); % lower a1
-    PolicyProbs(:,:,3:4,:)=PolicyProbs(:,:,3:4,:).*aprimeProbs_upper; % upper a1
+    PolicyProbs(:,:,1:2*N_u,:)=PolicyProbs(:,:,1:2*N_u,:).*(1-aprimeProbs_upper); % lower a1
+    PolicyProbs(:,:,2*N_u+1:end,:)=PolicyProbs(:,:,2*N_u+1:end,:).*aprimeProbs_upper; % upper a1
 end
 CumPolicyProbs=cumsum(PolicyProbs,3);
-
-
-
 
 %% First do the case without e variables, otherwise do with e variables
 if N_z==0

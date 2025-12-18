@@ -165,7 +165,11 @@ if simoptions.experienceasset==1
         SimPanelIndexes=SimPanelIndexes_FHorz_ExpAsset_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);        
     end
 elseif simoptions.experienceassetu==1
-    error('Cannot yet simulate panel with simoptions.experienceassetu=1, ask on forum if you want this')
+    if N_semiz==0
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);
+    else
+        SimPanelIndexes=SimPanelIndexes_FHorz_ExpAssetU_semiz(gather(InitialDist),gather(Policy),n_d,n_a,n_z,N_j,gather(pi_z_J), Parameters, simoptions);        
+    end
 elseif simoptions.riskyasset==1    
     error('Cannot yet simulate panel with simoptions.riskyasset=1, ask on forum if you want this')
 else
