@@ -3,6 +3,33 @@ function SimPanel=SimPanelIndexes_FHorz_ExpAsset_semiz(InitialDist,Policy,n_d,n_
 % 
 % Intended to be called from SimPanelValues_FHorz_Case1()
 
+N_d=prod(n_d);
+if N_d>0
+    l_d=length(n_d);
+else
+    l_d=0;
+end
+
+N_a=prod(n_a);
+l_a=length(n_a);
+
+N_z=prod(n_z);
+if N_z>0
+    l_z=length(n_z);
+    cumsumpi_z_J=cumsum(pi_z_J,2);
+else
+    l_z=0;
+end
+N_e=prod(simoptions.n_e);
+if N_e>0
+    l_e=length(simoptions.n_e);
+    cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
+else
+    l_e=0;
+end
+
+cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
+
 %%
 if ~isfield(simoptions,'l_dsemiz')
     simoptions.l_dsemiz=1;
@@ -64,50 +91,41 @@ simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simopti
 % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
 % If no semiz, then vfoptions just does not contain these field
 
-
-%%
-l_d=length(n_d);
-l_a=length(n_a);
-
-N_a=prod(n_a);
+% Create the transition matrix in terms of (d,zprime,z) for the semi-exogenous states for each age
 N_semiz=prod(simoptions.n_semiz);
-N_z=prod(n_z);
+l_semiz=length(simoptions.n_semiz);
+cumsumpi_semiz_J=gather(cumsum(simoptions.pi_semiz_J,2));
 
-N_e=prod(simoptions.n_e);
-if N_e>0
-    l_e=length(simoptions.n_e);
-    cumsumpi_e_J=gather(cumsum(simoptions.pi_e_J,1));
-end
 
 %%
 if N_z==0
     if N_e==0
-        N_bothze=N_semiz;
+        N_semizze=N_semiz;
     else
-        N_bothze=N_semiz*N_e;
+        N_semizze=N_semiz*N_e;
     end
 else
     if N_e==0
-        N_bothze=N_semiz*N_z;
+        N_semizze=N_semiz*N_z;
     else
-        N_bothze=N_semiz*N_z*N_e;
+        N_semizze=N_semiz*N_z*N_e;
     end
 end
 
-InitialDist=reshape(InitialDist,[N_a*N_bothze,1]);
-Policy=reshape(Policy,[size(Policy,1),N_a,N_bothze,N_j]);
+InitialDist=reshape(InitialDist,[N_a*N_semizze,1]);
+Policy=reshape(Policy,[size(Policy,1),N_a,N_semizze,N_j]);
 
 
 %% expasset transitions
 % Policy is currently about d and a1prime. Convert it to being about aprime
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
-Policy_aprime=zeros(N_a,N_bothze,2,N_j,'gpuArray'); % the lower grid point
-PolicyProbs=zeros(N_a,N_bothze,2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
+Policy_aprime=zeros(N_a,N_semizze,2,N_j,'gpuArray'); % the lower grid point
+PolicyProbs=zeros(N_a,N_semizze,2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
 whichisdforexpasset=length(n_d)-1;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_bothze, d_grid, a2_grid, aprimeFnParamsVec);
-    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_bothze]
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_semizze, d_grid, a2_grid, aprimeFnParamsVec);
+    % Note: aprimeIndexes and aprimeProbs are both [N_a,N_semizze]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 
     if l_a==1
@@ -135,7 +153,7 @@ if simoptions.gridinterplayer==1
     % Policy_aprime(:,:,1:2,:) lower grid point for a1 is unchanged 
     Policy_aprime(:,:,3:4,:)=Policy_aprime(:,:,3:4,:)+1; % add one to a1, to get upper grid point
 
-    aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_bothze,1,N_j]); % probability of upper grid point (from L2 index)
+    aprimeProbs_upper=reshape(shiftdim((Policy(end,:,:,:)-1)/(simoptions.ngridinterp+1),1),[N_a,N_semizze,1,N_j]); % probability of upper grid point (from L2 index)
     PolicyProbs(:,:,1:2,:)=PolicyProbs(:,:,1:2,:).*(1-aprimeProbs_upper); % lower a1
     PolicyProbs(:,:,3:4,:)=PolicyProbs(:,:,3:4,:).*aprimeProbs_upper; % upper a1
 end
@@ -156,19 +174,6 @@ end
 Policy_dsemiexo=shiftdim(Policy_dsemiexo,1);
 
 
-%%
-cumsumpi_semiz_J=gather(cumsum(simoptions.pi_semiz_J,2));
-
-if N_z>0
-    cumsumpi_z_J=cumsum(pi_z_J,2);
-end
-
-%%
-simperiods=gather(simoptions.simperiods);
-
-cumsumInitialDistVec=cumsum(InitialDist(:))/sum(InitialDist(:)); % Note: by using (:) I can ignore what the original dimensions were
-
-
 %% Do the simulations themselves
 
 if N_z==0
@@ -176,7 +181,6 @@ if N_z==0
         Policy_aprime=reshape(Policy_aprime,[N_a,N_semiz,N_probs,N_j]);
         CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_semiz,N_probs,N_j]);
         Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a,N_semiz,N_j]);
-
 
         % Get seedpoints from InitialDist
         [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
@@ -187,18 +191,11 @@ if N_z==0
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
-        SimPanel=nan(3,simperiods,simoptions.numbersims); % (a,semiz,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_noz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J, simoptions, seedpoint);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_noz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J, simoptions, seedpoint);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
-            end
+        SimPanel=nan(3,N_j,simoptions.numbersims); % (a,semiz,j)
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_noz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J, simoptions, seedpoint);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
 
         if simoptions.simpanelindexkron==0 % Convert results out of kron
@@ -229,20 +226,12 @@ if N_z==0
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
-        SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,semiz,e,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_noz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_noz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
-            end
+        SimPanel=nan(4,N_j,simoptions.numbersims); % (a,semiz,e,j)
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_noz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-
         
         if simoptions.simpanelindexkron==0 % Convert results out of kron
             SimPanelKron=reshape(SimPanel,[4,N_j*simoptions.numbersims]);
@@ -277,18 +266,11 @@ else % N_z>0
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
                 
-        SimPanel=nan(4,simperiods,simoptions.numbersims); % (a,semiz,z,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J, simoptions, seedpoint);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J, simoptions, seedpoint);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
-            end
+        SimPanel=nan(4,N_j,simoptions.numbersims); % (a,semiz,z,j)
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J, simoptions, seedpoint);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
 
         if simoptions.simpanelindexkron==0 % Convert results out of kron
@@ -322,20 +304,12 @@ else % N_z>0
         end
         seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
-        SimPanel=nan(5,simperiods,simoptions.numbersims); % (a,semiz,z,e,j)
-        if simoptions.parallel==0
-            for ii=1:simoptions.numbersims
-                seedpoint=seedpoints(ii,:);
-                SimPanel(:,:,ii)=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
-            end
-        else
-            parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-                seedpoint=seedpoints(ii,:);
-                SimLifeCycleKron=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
-                SimPanel(:,:,ii)=SimLifeCycleKron;
-            end
+        SimPanel=nan(5,N_j,simoptions.numbersims); % (a,semiz,z,e,j)
+        parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
+            seedpoint=seedpoints(ii,:);
+            SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_e_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J,cumsumpi_e_J, simoptions, seedpoint);
+            SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-
         
         if simoptions.simpanelindexkron==0 % Convert results out of kron
             SimPanelKron=reshape(SimPanel,[5,N_j*simoptions.numbersims]);

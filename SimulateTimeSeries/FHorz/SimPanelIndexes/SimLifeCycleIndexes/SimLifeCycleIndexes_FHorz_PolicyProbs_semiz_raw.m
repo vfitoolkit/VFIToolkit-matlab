@@ -1,24 +1,12 @@
-function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_ExpAsset_semiz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J,simoptions,seedpoint)
+function SimLifeCycleKron=SimLifeCycleIndexes_FHorz_PolicyProbs_semiz_raw(Policy_aprime,CumPolicyProbs,Policy_dsemiexo,N_j,cumsumpi_z_J,cumsumpi_semiz_J,simoptions,seedpoint)
 % All inputs must be on the CPU
-%
-% Simulates a path based on PolicyIndexes of length 'periods' beginning from point 'seedpoint' (this is not just left
-% as being random since some random points may be ones that never 'exist' in eqm)
-%
-% Outputs the indexes for (a,z,semiz,j) for every period j. This is for period 1 to J. 
-% Since most simulations will not start at period 1, the first entries are typically 'NaN'.
 
-currstate=seedpoint;
-
-% seedpoint is (a,semiz,z,j)
+currstate=seedpoint; % seedpoint is (a,semiz,z,j)
 
 initialage=seedpoint(4); % j in (a,semiz,z,j)
 
 % Simulation is simoptions.simperiods, or up to 'end of finite horizon'.
 periods=min(simoptions.simperiods,N_j-initialage);
-
-% If N_d1>0, you should eliminate d1 from Policy so that instead of
-% (d,aprime) only contains (d2,aprime), where d2 is the decision variable
-% that is for the semi-exo state.
 
 SimLifeCycleKron=nan(4,N_j); % (a,semiz,z,j)
 for jj=0:periods
