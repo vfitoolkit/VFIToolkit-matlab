@@ -143,7 +143,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             for ii=1:length(AggVarNames)
                 Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
             end
-            p_i=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell,GeneralEqmEqnParamNames,Parameters));
+            for gg=1:length(GeneralEqmEqnsCell)
+                GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg},GeneralEqmEqnParamNames(gg).Names, Parameters));
+            end
+            p_i=real(GeneralEqmConditionsVec);
             GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
             p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
             I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
