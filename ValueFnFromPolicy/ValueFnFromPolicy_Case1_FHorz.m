@@ -301,7 +301,7 @@ elseif N_z>0 && N_e==0
 elseif N_z>0 && N_e>0
     PolicyValues=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions,1);
     % The following will also be needed to calculate the expectation of next period value fn, evaluated based on the policy.
-    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1e(Policy, n_d, n_a, n_z,N_j,n_e);
+    PolicyIndexesKron=KronPolicyIndexes_FHorz_Case1_e(Policy, n_d, n_a, n_z,N_j,n_e);
 
     
     %% Calculate the Value Fn by backward iteration
