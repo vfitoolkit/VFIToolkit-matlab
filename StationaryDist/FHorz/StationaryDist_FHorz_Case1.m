@@ -58,7 +58,7 @@ if abs((sum(Parameters.(AgeWeightParamNames{1}))-1))>10^(-15)
 end
 
 %% 
-if simoptions.parallel==2
+if simoptions.parallel==2 || ndims(pi_z)~=2
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
    % Nothing to actually do here
 else

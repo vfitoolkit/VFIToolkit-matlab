@@ -9,14 +9,19 @@ end
 
 N_a=prod(n_a);
 N_z=prod(n_z);
+if isfield(simoptions,'n_e')
+    N_e=prod(simoptions.n_e);
+else
+    N_e=0;
+end
 
 jequaloneDist=gather(jequaloneDist);
 Policy=gather(Policy);
 pi_z=gather(pi_z);
 
 
-%% Deal with the no z first (as it needs different shapes to the rest)
-if N_z==0
+%% Deal with the no z and no e first (as it needs different shapes to the rest)
+if N_z==0 && N_e==0
     jequaloneDist=reshape(jequaloneDist,[N_a,1]);
     Policy=reshape(Policy,[size(Policy,1),N_a,N_j]);
 
@@ -55,35 +60,50 @@ if N_z==0
 
     StationaryDist=reshape(StationaryDistKron,[n_a,N_j]);
 
-else % N_z>0
-    jequaloneDist=reshape(jequaloneDist,[N_a*N_z,1]);
-    Policy=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
+else % N_z>0 or N_e>0
+    if N_z==0
+        n_ze=simoptions.n_e;
+        N_ze=N_e;
+    elseif N_e==0
+        n_ze=n_z;
+        N_ze=N_z;
+    else % neither is zero
+        n_ze=[n_z,simoptions.n_e];
+        N_ze=N_z*N_e;
+    end
+
+    jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 
     % Policy_aprime
     Policy_aprime=Policy(l_d+1,:,:,:);
     Policy_aprime=shiftdim(Policy_aprime,1);
 
-    Policy_aprimez=Policy_aprime+N_a*(0:1:N_z-1); % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
+    Policy_aprimez=Policy_aprime+N_a*(0:1:N_ze-1); % Note: add z' index following the z dimension [Tan improvement, z stays where it is]
 
-    StationaryDistKron=zeros(N_a*N_z,N_j);
+    StationaryDistKron=zeros(N_a*N_ze,N_j);
     StationaryDistKron(:,1)=jequaloneDist;
 
     StationaryDist_jj=sparse(jequaloneDist);
 
-    IIind=1:1:N_a*N_z;
-    JJind=ones(N_a,N_z);
+    IIind=1:1:N_a*N_ze;
+    JJind=ones(N_a,N_ze);
 
-    pi_z=sparse(pi_z);
+    if N_e==0
+        pi_z=sparse(pi_z);
+    else
+        pi_z=sparse(repmat(pi_z,N_e));
+    end
 
     for jj=1:(N_j-1)
 
-        Gammatranspose=sparse(Policy_aprimez(:,:,jj),IIind,JJind,N_a*N_z,N_a*N_z);
+        Gammatranspose=sparse(Policy_aprimez(:,:,jj),IIind,JJind,N_a*N_ze,N_a*N_ze);
 
         % First step of Tan improvement
-        StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+        StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a,N_ze]); %No point checking distance every single iteration. Do 100, then check.
 
         % Second step of Tan improvement
-        StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_z,1]);
+        StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_ze,1]);
 
         StationaryDistKron(:,jj+1)=full(StationaryDist_jj);
     end
@@ -102,7 +122,7 @@ else % N_z>0
 
     StationaryDistKron=StationaryDistKron.*AgeWeights;
 
-    StationaryDist=reshape(StationaryDistKron,[n_a,n_z,N_j]);
+    StationaryDist=reshape(StationaryDistKron,[n_a,n_ze,N_j]);
 
 end
 

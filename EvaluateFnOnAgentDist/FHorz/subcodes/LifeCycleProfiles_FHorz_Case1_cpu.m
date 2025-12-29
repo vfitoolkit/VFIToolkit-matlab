@@ -44,7 +44,61 @@ else
     l_z=length(n_z);
 end
 
+if isfield(simoptions,'pi_z_J')
+    z_grid_J=simoptions.pi_z_J;
+else
+    if size(z_grid,2)==1 % kronecker-grid
+        z_grid_J=repmat(z_grid,1,N_j);
+    elseif size(z_grid,2)==l_z % joint-grids
+        z_grid_J=zeros(N_z,l_z,N_j);
+        for jj=1:N_j
+            z_grid_J(:,:,jj)=z_grid;
+        end
+    end
+end
+if ndims(z_grid_J)==2
+    jointzgrid=0;
+elseif ndims(z_grid_J)==3
+    jointzgrid=1;
+end
+% Don't think we need to test `isfield(simoptions,'SemiExoStateFn') here
+if isfield(simoptions,'n_e')
+    n_e=simoptions.n_e;
+    N_e=prod(n_e);
+    l_e=length(n_e);
+    
+    if isfield(simoptions,'pi_e_J')
+        e_grid_J=simoptions.e_grid_J;
+    % not testing `isfield(simoptions,'EiidShockFn') here
+    else
+        if size(simoptions.e_grid,2)==1 % kronecker-grid
+            e_grid_J=repmat(simoptions.e_grid,1,N_j);
+        elseif size(simoptions.e_grid,2)==l_z % joint-grids
+            e_grid_J=zeros(N_e,l_e,N_j);
+            for jj=1:N_j
+                e_grid_J(:,:,jj)=simoptions.e_grid;
+            end
+        end
+    end
+    
+    if ndims(e_grid_J)==2
+        jointegrid=0;
+    elseif ndims(e_grid_J)==3
+        jointegrid=1;
+    end
 
+    % Now combine into z
+    if n_z(1)==0
+        n_ze=simoptions.n_e;
+    else
+        n_ze=[n_z,n_e];
+    end
+    N_ze=prod(n_ze);
+else
+    N_e=0;
+    n_ze=n_z;
+    N_ze=N_z;
+end
 
 %% Implement new way of handling FnsToEvaluate
 % Figure out l_daprime from Policy
@@ -74,10 +128,9 @@ if isfield(simoptions,'keepoutputasmatrix')
     end
 end
 
-
 %% Create a different 'Values' for each of the variable to be evaluated
 
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,N_j]);
+StationaryDistVec=reshape(StationaryDist,[N_a*N_ze,N_j]);
 
 ngroups=length(simoptions.agegroupings);
 
@@ -113,7 +166,9 @@ for kk=1:length(simoptions.agegroupings)
 
     clear gridvalsFull
     for jj=j1:jend
-        [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+        % Check whether we should pass n_z (as below) or n_ze ???  Earlier
+        % code used the former, but current code fails without n_ze
+        [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_ze,d_grid,a_grid,simoptions,1, 2);
         gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
         gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
 
@@ -138,18 +193,32 @@ for kk=1:length(simoptions.agegroupings)
             % Note that n_z>0 and n_e=0 we just leave z_gridvals as is
         end
 
+        if ~isa(z_gridvals, 'cell')
+            % fix pathways other than `CreateGridvals`
+            z_gridvals=num2cell(z_gridvals);
+        end
         gridvalsFull(jj-j1+1).z_gridvals=z_gridvals;
     end
 
     for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
         Values=nan(N_a*N_ze,jend-j1+1); % Preallocate
+        % Since we are combining z_ and e_ gridvals into z_gridvals, knock
+        % out the e parameters from our parameter list. Excess z_gridvals
+        % will properly fill the expected e_gridvals
+        e_matches=cellfun(@(x) x(1)=='e' && isstrprop(x(2),'digit'),FnsToEvaluateParamNames(ii).Names);
+        if sum(e_matches)==length(FnsToEvaluateParamNames(ii).Names) || sum(~e_matches)==0
+            this_FnToEvaluateParamNames=[];
+        else
+            this_FnToEvaluateParamNames={FnsToEvaluateParamNames(ii).Names{~e_matches}};
+        end
         if l_d>0
             for jj=j1:jend
                 d_gridvals=gridvalsFull(jj-j1+1).d_gridvals;
                 aprime_gridvals=gridvalsFull(jj-j1+1).aprime_gridvals;
                 z_gridvals=gridvalsFull(jj-j1+1).z_gridvals;
                 % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
+                % check for 'FnsToEvaluateParamNames={}'
+                if isempty(this_FnToEvaluateParamNames)
                     for ll=1:N_a*N_ze
                         %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                         l1=rem(ll-1,N_a)+1;
@@ -157,7 +226,7 @@ for kk=1:length(simoptions.agegroupings)
                         Values(ll,jj-j1+1)=FnsToEvaluate{ii}(d_gridvals{l1+(l2-1)*N_a,:},aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
                     end
                 else
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
+                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,this_FnToEvaluateParamNames,jj));
                     for ll=1:N_a*N_ze
                         %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                         l1=rem(ll-1,N_a)+1;
@@ -171,14 +240,14 @@ for kk=1:length(simoptions.agegroupings)
                 aprime_gridvals=gridvalsFull(jj-j1+1).aprime_gridvals;
                 z_gridvals=gridvalsFull(jj-j1+1).z_gridvals;
                 % Includes check for cases in which no parameters are actually required
-                if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
+                if isempty(this_FnToEvaluateParamNames) % check for 'FnsToEvaluateParamNames={}'
                     for ll=1:N_a*N_ze
                         l1=rem(ll-1,N_a)+1;
                         l2=ceil(ll/N_a);
                         Values(ll,jj-j1+1)=FnsToEvaluate{ii}(aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
                     end
                 else
-                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
+                    FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,this_FnToEvaluateParamNames,jj));
                     for ll=1:N_a*N_ze
                         l1=rem(ll-1,N_a)+1;
                         l2=ceil(ll/N_a);

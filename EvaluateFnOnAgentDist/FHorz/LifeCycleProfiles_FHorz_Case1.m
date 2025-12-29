@@ -41,6 +41,8 @@ if ~exist('simoptions','var')
     % When calling as a subcommand, the following is used internally
     simoptions.gridinterplayer=0;
     simoptions.alreadygridvals=0;
+    simoptions.experienceasset=0;
+    simoptions.experienceassetu=0;
 else
     %Check options for missing fields, if there are some fill them with the defaults
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
@@ -83,6 +85,12 @@ else
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'experienceassetu')
+        simoptions.experienceassetu=0;
     end
 end
 
