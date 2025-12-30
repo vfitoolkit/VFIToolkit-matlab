@@ -134,7 +134,7 @@ else
 end
 % Check pi_z inputs
 if isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
-    % okay (dont need to check pi_z
+    % okay (dont need to check pi_z)
 elseif ndims(pi_z)==2
     if ~isequal(size(pi_z), [N_z, N_z])
         if N_z>0

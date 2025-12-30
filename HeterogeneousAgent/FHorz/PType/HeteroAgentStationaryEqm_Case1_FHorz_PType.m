@@ -245,21 +245,27 @@ paramnamesptype={};
 paramthatdependsonptype=zeros(1,length(paramnames));
 N_i=length(Names_i);
 for pp=1:length(paramnames)
-    if isstruct(Parameters.(paramnames{pp})) % parameter depends on ptype as a structure
-        for ii=1:N_i
-            Parameters.([paramnames{pp},'_',Names_i{ii}])=Parameters.(paramnames{pp}).(Names_i{ii});
+    try
+        if isstruct(Parameters.(paramnames{pp})) % parameter depends on ptype as a structure
+            for ii=1:N_i
+                Parameters.([paramnames{pp},'_',Names_i{ii}])=Parameters.(paramnames{pp}).(Names_i{ii});
+            end
+            paramthatdependsonptype(pp)=1;
+            paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
+        elseif any(size(Parameters.(paramnames{pp}))==N_i) % parameter depends on ptype as a vector
+            temp=Parameters.(paramnames{pp});
+            for ii=1:N_i
+                Parameters.([paramnames{pp},'_',Names_i{ii}])=temp(ii);
+            end
+            paramthatdependsonptype(pp)=1;
+            paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
         end
-        paramthatdependsonptype(pp)=1;
-        paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
-    elseif any(size(Parameters.(paramnames{pp}))==N_i) % parameter depends on ptype as a vector
-        temp=Parameters.(paramnames{pp});
-        for ii=1:N_i
-            Parameters.([paramnames{pp},'_',Names_i{ii}])=temp(ii);
-        end
-        paramthatdependsonptype(pp)=1;
-        paramnamesptype{sum(paramthatdependsonptype)}=paramnames{pp};
+        % if not dependent on ptype, nothing to do
+    catch ME
+        % In OLGModels13.m, married couples have kappa_j1 and kappa_j2
+        % parameters, but no kappa_j parameter. kappa_j leads to male and
+        % female vectors, but no married vectors, so nothing to do.
     end
-    % if not dependent on ptype, nothing to do
 end
 
 
