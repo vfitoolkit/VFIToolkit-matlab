@@ -134,7 +134,7 @@ else
 end
 % Check pi_z inputs
 if isa(z_grid,'function_handle') || isfield(vfoptions,'ExogShockFn')
-    % okay (dont need to check pi_z
+    % okay (dont need to check pi_z)
 elseif ndims(pi_z)==2
     if ~isequal(size(pi_z), [N_z, N_z])
         if N_z>0
@@ -523,7 +523,7 @@ if isfield(vfoptions,'n_semiz')
     n_d2=n_d(end-vfoptions.l_dsemiz+1:end); % n_d2 is the decision variable that influences the transition probabilities of the semi-exogenous state
     d2_grid=d_grid(sum(n_d1)+1:end);
 
-    d1_gridvals=CreateGridvals(n_d2,d1_grid,1);
+    d1_gridvals=CreateGridvals(n_d1,d1_grid,1);
     d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 
     % Now that we have pi_semiz_J we are ready to compute the value function.
