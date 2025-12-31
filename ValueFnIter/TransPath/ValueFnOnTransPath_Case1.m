@@ -182,46 +182,24 @@ PolicyIndexesPath(:,:,:,T)=reshape(Policy_final, [size(Policy_final,1),N_a,N_z])
 
 %%
 if vfoptions.experienceasset==0
-    if N_d==0 && vfoptions.gridinterplayer==0
-        % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-        Vnext=V_final;
-        for ttr=1:T-1 %so t=T-i
+    % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+    Vnext=V_final;
+    for ttr=1:T-1 %so t=T-i
 
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(T-ttr,kk);
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
-            end
-
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
-
-            PolicyIndexesPath(:,:,T-ttr)=Policy;
-
-            VKronPath(:,:,T-ttr)=V;
-            Vnext=V;
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePath(T-ttr,kk);
         end
-    else
-        % Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
-        Vnext=V_final;
-        for ttr=1:T-1 %so t=T-i
-
-            for kk=1:length(PricePathNames)
-                Parameters.(PricePathNames{kk})=PricePath(T-ttr,kk);
-            end
-            for kk=1:length(ParamPathNames)
-                Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
-            end
-
-            [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
-            
-            PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-
-            VKronPath(:,:,T-ttr)=V;
-            Vnext=V;
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
         end
+
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
+
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
+
+        VKronPath(:,:,T-ttr)=V;
+        Vnext=V;
     end
 else
     % Split decision variables into the standard ones and the one relevant to the experience asset

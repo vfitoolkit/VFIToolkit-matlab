@@ -55,6 +55,6 @@ elseif vfoptions.lowmemory==1
 end
 
 %% Policy in transition paths
-Policy=UnKronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,vfoptions);
+Policy=UnKronPolicyIndexes_Case1(Policy,0,n_a,n_z,vfoptions);
 
 end

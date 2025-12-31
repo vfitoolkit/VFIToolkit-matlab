@@ -155,21 +155,18 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
               
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
     end
-    % Free up space on GPU by deleting things no longer needed
-    save VPolicy.mat V Policy  % DEBUGGING
-    clear V
-
+    
     %% Modify PolicyIndexesPath into forms needed for forward iteration
     % Create version of PolicyIndexesPath in form we want for the agent distribution iteration
     % Creates PolicyaprimezPath, and when using grid interpolation layer also PolicyProbsPath 
     if isscalar(n_a)
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:),[N_a*N_z,T-1]); % aprime index
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:),[N_a*N_z,T-1]); % aprime index
     elseif length(n_a)==2
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1),[N_a*N_z,T-1]);
     elseif length(n_a)==3
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1),[N_a*N_z,T-1]);
     elseif length(n_a)==4
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(l_d+4,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(l_d+4,:,:,:)-1),[N_a*N_z,T-1]);
     end
     PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
     if simoptions.gridinterplayer==1
@@ -224,9 +221,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         %% Get the current optimal policy, and iterate the agent dist
-        Policy=PolicyIndexesPath(:,:,:,tt);
         if simoptions.gridinterplayer==0
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
             AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
         end
