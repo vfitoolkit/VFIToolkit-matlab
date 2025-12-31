@@ -8,6 +8,7 @@ l_a=length(n_a);
 l_z=length(n_z);
 l_aprime=length(n_a);
 l_daprime=l_a;  % This is the no_d code
+l_d=0; % But we need l_d logically below, so set to zero
 
 if transpathoptions.verbose>=1
     transpathoptions
@@ -145,11 +146,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
         
-        if vfoptions.gridinterplayer==0
-            PolicyIndexesPath(:,:,T-ttr)=Policy;
-        elseif vfoptions.gridinterplayer==1
-            PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        end
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
         Vnext=V;
     end
     % Free up space on GPU by deleting things no longer needed
@@ -221,7 +218,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         %% Get the current optimal policy, and iterate the agent dist
         if simoptions.gridinterplayer==0
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
             AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
         end
