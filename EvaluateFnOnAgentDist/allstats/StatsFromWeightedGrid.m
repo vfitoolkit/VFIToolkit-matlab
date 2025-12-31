@@ -127,8 +127,9 @@ else
         AllStats.StdDeviation=sqrt(AllStats.Variance);
     end
 
-    if (whichstats(4)>=1 && npoints>0 && WeightedSortedValues(1)>=0) || whichstats(6)==2
-        % precompute so don't duplicate
+    if (whichstats(4)>=1 && npoints>0 && ~(WeightedSortedValues(1)<0)) || whichstats(6)==2
+        % precompute so don't duplicate; precompute needed if
+        % WeightedSortedValues contains NaNs
         CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
     end
 

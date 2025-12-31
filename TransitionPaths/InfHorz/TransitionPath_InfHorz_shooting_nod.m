@@ -132,7 +132,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     
     %% Iterate backwards from T-1 to 1 calculating the Value function and Optimal policy function at each step. 
     % Since we won't need to keep the value functions for anything later we just store the next period one in Vnext, and the current period one to be calculated in V
-    Vnext=V_final;
+    V=V_final;
     for ttr=1:T-1 %so tt=T-ttr
 
         for kk=1:length(PricePathNames)
@@ -142,27 +142,24 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,0,n_a,n_z,[], a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(V,0,n_a,n_z,[], a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
         
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-        Vnext=V;
     end
-    % Free up space on GPU by deleting things no longer needed
-    clear V Vnext
     
     %% Modify PolicyIndexesPath into forms needed for forward iteration
     % Create version of PolicyIndexesPath in form we want for the agent distribution iteration
     % Creates PolicyaprimezPath, and when using grid interpolation layer also PolicyProbsPath 
     if isscalar(n_a)
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:),[N_a*N_z,T-1]); % aprime index
+        PolicyaprimePath=reshape(PolicyIndexesPath(1,:,:,:),[N_a*N_z,T-1]); % aprime index
     elseif length(n_a)==2
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimePath=reshape(PolicyIndexesPath(1,:,:,:)+n_a(1)*(PolicyIndexesPath(2,:,:,:)-1),[N_a*N_z,T-1]);
     elseif length(n_a)==3
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimePath=reshape(PolicyIndexesPath(1,:,:,:)+n_a(1)*(PolicyIndexesPath(2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(3,:,:,:)-1),[N_a*N_z,T-1]);
     elseif length(n_a)==4
-        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(l_d+4,:,:)-1),[N_a*N_z,T-1]);
+        PolicyaprimePath=reshape(PolicyIndexesPath(1,:,:,:)+n_a(1)*(PolicyIndexesPath(2,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(3,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(4,:,:,:)-1),[N_a*N_z,T-1]);
     end
     PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
     if simoptions.gridinterplayer==1
