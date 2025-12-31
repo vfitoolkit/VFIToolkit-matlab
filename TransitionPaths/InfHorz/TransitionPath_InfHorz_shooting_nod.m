@@ -8,7 +8,6 @@ l_a=length(n_a);
 l_z=length(n_z);
 l_aprime=length(n_a);
 l_daprime=l_a;  % This is the no_d code
-l_d=0; % But we need l_d logically below, so set to zero
 
 if transpathoptions.verbose>=1
     transpathoptions
@@ -166,13 +165,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T-1]); % reinterpret this as lower grid index
         PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
         PolicyaprimezPath(:,2,:)=PolicyaprimezPath(:,2,:)+1; % upper grid index
-        PolicyProbsPath(:,2,:)=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:),[N_a*N_z,1,T-1]); % L2 index
+        PolicyProbsPath(:,2,:)=reshape(PolicyIndexesPath(l_aprime+1,:,:),[N_a*N_z,1,T-1]); % L2 index
         PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
         PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
     end
     % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
     PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,0,n_a,n_z,T-1,[],a_grid,vfoptions,1);
-    PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T-1]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T-1]
+    PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T-1]),[2,3,1,4]); %[N_a,N_z,l_a,T-1]
 
     %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
