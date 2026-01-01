@@ -1,4 +1,4 @@
-function [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
 
 
 N_z=prod(n_z);
@@ -376,10 +376,5 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     pathcounter=pathcounter+1;
 end
 
-
-%% Switch to structure for output
-for tt=1:length(PricePathNames)
-    PricePath.(PricePathNames{tt})=PricePathOld(:,tt);
-end
 
 end

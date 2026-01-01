@@ -81,55 +81,10 @@ else
 end
 
 
-%% Note: Internally PricePath is matrix of size T-by-'number of prices', similarly for ParamPath
-% PricePath is matrix of size T-by-'number of prices'.
-% Actually, some of those prices may be 1-by-N_j, so is more subtle than this.
-PricePathNames=fieldnames(PricePath);
-PricePathStruct=PricePath; 
-PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(PricePathNames)
-    temp=PricePathStruct.(PricePathNames{ii});
-    tempsize=size(temp);
-    PricePathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-PricePathSizeVec=cumsum(PricePathSizeVec);
-if length(PricePathNames)>1
-    PricePathSizeVec=[[1,PricePathSizeVec(1:end-1)+1];PricePathSizeVec];
-else
-    PricePathSizeVec=[1;PricePathSizeVec];
-end
-PricePath=zeros(T,PricePathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(PricePathNames)
-    if size(PricePathStruct.(PricePathNames{ii}),1)==T
-        PricePath(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii});
-    else % Need to transpose
-        PricePath(:,PricePathSizeVec(1,ii):PricePathSizeVec(2,ii))=PricePathStruct.(PricePathNames{ii})';
-    end
-end
+%% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-% Actually, some of those prices may be 1-by-N_j, so is more subtle than this.
-ParamPathNames=fieldnames(ParamPath);
-ParamPathStruct=ParamPath;
-ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for ii=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{ii});
-    tempsize=size(temp);
-    ParamPathSizeVec(ii)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-ParamPathSizeVec=cumsum(ParamPathSizeVec);
-if length(ParamPathNames)>1
-    ParamPathSizeVec=[[1,ParamPathSizeVec(1:end-1)+1];ParamPathSizeVec];
-else
-    ParamPathSizeVec=[1;ParamPathSizeVec];
-end
-ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for ii=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{ii}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii});
-    else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,ii):ParamPathSizeVec(2,ii))=ParamPathStruct.(ParamPathNames{ii})';
-    end
-end
+[PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_FHorz_StructToMatrix(PricePath,ParamPath,N_j,T);
+
 
 %% Check the sizes of some of the inputs
 N_d=prod(n_d);
@@ -197,11 +152,11 @@ end
 
 
 %%
-if transpathoptions.verbose==1
+if transpathoptions.verbose>=1
     transpathoptions
 end
 
-if transpathoptions.verbose==1
+if transpathoptions.verbose==2
     DiscountFactorParamNames
     ReturnFnParamNames
     ParamPathNames

@@ -1,4 +1,4 @@
-function [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid,a1_grid, a2_grid, z_gridvals, ReturnFn, aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid,a1_grid, a2_grid, z_gridvals, ReturnFn, aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
 
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
@@ -428,11 +428,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     pathcounter=pathcounter+1;
     
 
-end
-
-
-for tt=1:length(PricePathNames)
-    PricePath.(PricePathNames{tt})=PricePathOld(:,tt);
 end
 
 

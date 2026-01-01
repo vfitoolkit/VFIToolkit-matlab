@@ -1,9 +1,9 @@
-function varargout=TransitionPath_Case1(PricePathOld, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
+function varargout=TransitionPath_Case1(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
 %
-% PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
+% PricePath0 is a structure with fields names being the Prices and each field containing a T-by-1 path. It is the initial guess for the PricePath.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 %
 % transpathoptions is not a required input.
@@ -183,8 +183,7 @@ if exist('simoptions','var')==0
     simoptions.tolerance=10^(-9);
     simoptions.gridinterplayer=0;
 else
-    %Check vfoptions for missing fields, if there are some fill them with
-    %the defaults
+    %Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'tolerance')
         simoptions.tolerance=10^(-9);
     end
@@ -222,18 +221,17 @@ elseif any(size(pi_z)~=[N_z, N_z])
     dbstack
     error('pi is not of size N_z-by-N_z \n')
 end
-if length(fieldnames(PricePathOld))~=length(fieldnames(GeneralEqmEqns))
-    fprintf('PricePath has %i prices and GeneralEqmEqns is % i eqns \n',length(fieldnames(PricePathOld)), length(fieldnames(GeneralEqmEqns)))
+if length(fieldnames(PricePath0))~=length(fieldnames(GeneralEqmEqns))
+    fprintf('PricePath has %i prices and GeneralEqmEqns is % i eqns \n',length(fieldnames(PricePath0)), length(fieldnames(GeneralEqmEqns)))
     dbstack
     error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
 end
 
-%%
-% Note: Internally PricePath is matrix of size T-by-'number of prices'.
+%% Internally PricePath is matrix of size T-by-'number of prices'.
 % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-[PricePathOld,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePathOld,ParamPath,T);
+[PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T);
 
-PricePath=struct();
+PricePathStruct=struct();
 
 %%
 % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
@@ -241,7 +239,7 @@ pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
-PricePathOld=gpuArray(PricePathOld);
+PricePath0=gpuArray(PricePath0);
 ParamPath=gpuArray(ParamPath);
 
 %% Switch to z_gridvals
@@ -343,12 +341,25 @@ if isfield(simoptions,'agententryandexit')==1 % isfield(transpathoptions,'agente
 end
 
 %%
+if transpathoptions.verbose>=1
+    transpathoptions
+end
+
+if transpathoptions.verbose==2
+    DiscountFactorParamNames
+    ReturnFnParamNames
+    ParamPathNames
+    PricePathNames
+end
+
+
+%%
 if transpathoptions.GEnewprice~=2
     if vfoptions.experienceasset==0
         if N_d==0
-            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
+            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
         else
-            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
+            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
         end
     elseif vfoptions.experienceasset==1
         % Split decision variables into the standard ones and the one relevant to the experience asset
@@ -390,19 +401,33 @@ if transpathoptions.GEnewprice~=2
         if N_a1==0
             error('Have not yet implemented TPath for InfHorz with experienceasset and no other (standard) asset, contact me if you want/need this')
         else
-            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_ExpAsset(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid, a1_grid, a2_grid,z_gridvals, ReturnFn, vfoptions.aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
+            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_ExpAsset(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid, a1_grid, a2_grid,z_gridvals, ReturnFn, vfoptions.aprimeFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions);
         end
     end
+
+
+    % Switch to structure for output
+    for tt=1:length(PricePathNames)
+        PricePathStruct.(PricePathNames{tt})=PricePath(:,tt);
+    end
+
 end
 
 if transpathoptions.GEnewprice==2
     warning('Have not yet implemented transpathoptions.GEnewprice==2 for infinite horizon transition paths (2 is to treat path as a fixed-point problem) ')
+
+
+    % Switch to structure for output
+    for tt=1:length(PricePathNames)
+        PricePathStruct.(PricePathNames{tt})=PricePath(:,tt);
+    end
+
 end
 
 if nargout==1
-    varargout={PricePath};
+    varargout={PricePathStruct};
 elseif nargout==2
-    varargout={PricePath,GEcondnPath};
+    varargout={PricePathStruct,GEcondnPath};
 end    
 
 

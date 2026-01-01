@@ -1,4 +1,4 @@
-function [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
 
 
 N_z=prod(n_z);
@@ -275,9 +275,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         AgentDist=AgentDistnext;
     end
-    save DistAgg.mat AgentDist AggVars PolicyIndexesPath PolicyValuesPath % DEBUGGING
-    % Free up space on GPU by deleting things no longer needed
-    clear AgentDistnext AgentDist
     
     % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
@@ -385,12 +382,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
 end
 
-
-
-%% Switch to structure for output
-for tt=1:length(PricePathNames)
-    PricePath.(PricePathNames{tt})=PricePathOld(:,tt);
-end
 
 
 end
