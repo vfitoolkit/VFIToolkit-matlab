@@ -114,11 +114,11 @@ elseif vfoptions.gridinterplayer==1
     PolicyIndexesPath=zeros(l_aprime+1,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 end
 if simoptions.gridinterplayer==0
-    II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
-    IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
+    II1=(1:1:N_a*N_z); % Index for this period (a,z)
+    IIones=ones(N_a*N_z,1); % Next period 'probabilities'
 elseif simoptions.gridinterplayer==1
     PolicyProbs=zeros(N_a*N_z,2,'gpuArray'); % preallocate
-    II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+    II2=([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
 end
 
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter

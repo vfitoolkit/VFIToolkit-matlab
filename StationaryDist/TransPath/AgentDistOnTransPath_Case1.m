@@ -42,12 +42,12 @@ if simoptions.experienceasset==1
     [PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec]=PricePathParamPath_StructToMatrix(PricePath,ParamPath,T);
 end
 
-%%
+%% Because of Tan improvement the AgentDist is done as a spare cpu matrix, and only afterwards do we store it on gpu
 AgentDistPath=zeros(N_a*N_z,T,'gpuArray');
 % Call AgentDist the current periods distn
-AgentDist=reshape(AgentDist_initial,[N_a*N_z,1]);
+AgentDist=gather(sparse(reshape(AgentDist_initial,[N_a*N_z,1])));
 pi_z_sparse=sparse(pi_z);
-AgentDistPath(:,1)=AgentDist;
+AgentDistPath(:,1)=gpuArray(full(AgentDist));
 
 if simoptions.experienceasset==0
     l_aprime=l_a; % standard endogenous states
@@ -65,15 +65,15 @@ if simoptions.experienceasset==0
     PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
     
     if simoptions.gridinterplayer==0
-        II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
-        IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
+        II1=(1:1:N_a*N_z); % Index for this period (a,z)
+        IIones=ones(N_a*N_z,1); % Next period 'probabilities'
         for tt=1:T-1
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,gather(PolicyaprimezPath(:,tt)),II1,IIones,N_a,N_z,pi_z_sparse);
-            AgentDistPath(:,tt+1)=AgentDist;
+            AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     elseif simoptions.gridinterplayer==1
         PolicyProbsPath=zeros(N_a*N_z,2,T,'gpuArray'); % preallocate
-        II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+        II2=([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
 
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T]); % reinterpret this as lower grid index
         PolicyaprimezPath=repelem(PolicyaprimezPath,1,2,1); % create copy that will be the upper grid index
@@ -84,7 +84,7 @@ if simoptions.experienceasset==0
 
         for tt=1:T-1
             AgentDist=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
-            AgentDistPath(:,tt+1)=AgentDist;
+            AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     end
 elseif simoptions.experienceasset==1
@@ -140,7 +140,7 @@ elseif simoptions.experienceasset==1
     Policy_a2prime=zeros(N_a,N_z,2,'gpuArray'); % the lower grid point
     PolicyProbs=zeros(N_a,N_z,2,'gpuArray'); % preallocate
     Policy_aprime=zeros(N_a,N_z,2,'gpuArray'); % preallocate
-    II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+    II2=([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
     
     if simoptions.gridinterplayer==0
 
@@ -174,8 +174,8 @@ elseif simoptions.experienceasset==1
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
             
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_TwoProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
-            AgentDistPath(:,tt+1)=AgentDist;
+            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
 
     elseif simoptions.gridinterplayer==1

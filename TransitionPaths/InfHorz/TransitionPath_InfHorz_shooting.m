@@ -121,7 +121,7 @@ elseif vfoptions.gridinterplayer==1
 end
 if simoptions.gridinterplayer==0
     II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
-    IIones=ones(N_a*N_z,1,'gpuArray'); % Next period 'probabilities'
+    IIones=ones(N_a*N_z,1); % Next period 'probabilities'
 elseif simoptions.gridinterplayer==1
     PolicyProbsPath=zeros(N_a*N_z,2,T-1,'gpuArray'); % preallocate
     II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
@@ -222,7 +222,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
 
         %% AggVars
-        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
+        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(gpuArray(full(AgentDist)), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
         for ii=1:length(AggVarNames)
             Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
         end
