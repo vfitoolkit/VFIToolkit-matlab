@@ -11,12 +11,6 @@ l_aprime=length(n_a);
 l_daprime=l_d+l_a;
 
 
-if transpathoptions.verbose==1
-    transpathoptions
-    ParamPathNames
-    PricePathNames
-end
-
 %%
 if transpathoptions.verbose==1
     % Set up some things to be used later

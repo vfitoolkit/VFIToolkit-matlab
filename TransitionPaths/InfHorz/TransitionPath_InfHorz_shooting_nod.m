@@ -9,12 +9,6 @@ l_z=length(n_z);
 l_aprime=length(n_a);
 l_daprime=l_a;  % This is the no_d code
 
-if transpathoptions.verbose>=1
-    transpathoptions
-    ParamPathNames
-    PricePathNames
-end
-
 %%
 if transpathoptions.verbose>=1
     % Set up some things to be used later

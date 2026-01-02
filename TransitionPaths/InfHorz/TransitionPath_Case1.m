@@ -407,8 +407,8 @@ if transpathoptions.GEnewprice~=2
 
 
     % Switch to structure for output
-    for tt=1:length(PricePathNames)
-        PricePathStruct.(PricePathNames{tt})=PricePath(:,tt);
+    for pp=1:length(PricePathNames)
+        PricePathStruct.(PricePathNames{pp})=PricePath(:,pp)';
     end
 
 end
@@ -418,8 +418,8 @@ if transpathoptions.GEnewprice==2
 
 
     % Switch to structure for output
-    for tt=1:length(PricePathNames)
-        PricePathStruct.(PricePathNames{tt})=PricePath(:,tt);
+    for pp=1:length(PricePathNames)
+        PricePathStruct.(PricePathNames{pp})=PricePath(:,pp)';
     end
 
 end

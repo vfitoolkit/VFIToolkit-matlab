@@ -19,21 +19,21 @@ if ~isfield(vfoptions,'multigridswitch')
 end
 
 if ~isfield(vfoptions,'postGIrepeat')
-    vfoptions.postGIrepeat=0; % Do multiple post-GI layers (this is the number of additional layers)
+    vfoptions.postGIrepeat=1; % Do multiple post-GI layers (this is the number of additional layers)
 end
 
 % Set the maximum 'rough grid' change in aprime allowed when solving fine problem, in terms of moving from what was optimal when only solving the rough grid problem.
 if ~isfield(vfoptions,'maxaprimediff')
     if n_d(1)==0
         if vfoptions.postGIrepeat==0
-            vfoptions.maxaprimediff=4; % only used for postGI (for vfoptions.preGI=0)
-        elseif vfoptions.postGIrepeat>1
-            vfoptions.maxaprimediff=2; % only used for postGI (for vfoptions.preGI=0)
+            vfoptions.maxaprimediff=5; % only used for postGI (for vfoptions.preGI=0)
+        elseif vfoptions.postGIrepeat>0
+            vfoptions.maxaprimediff=3; % only used for postGI (for vfoptions.preGI=0)
         end
     else
         if vfoptions.postGIrepeat==0
             vfoptions.maxaprimediff=10; % only used for postGI (for vfoptions.preGI=0)
-        elseif vfoptions.postGIrepeat>1
+        elseif vfoptions.postGIrepeat>0
             vfoptions.maxaprimediff=5; % only used for postGI (for vfoptions.preGI=0)
         end
     end
