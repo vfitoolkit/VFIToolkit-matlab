@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_ExpAsset_Refine_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_InfHorz_ExpAsset_Refine_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);

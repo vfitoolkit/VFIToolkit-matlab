@@ -147,7 +147,7 @@ end
 while vfoptions.postGIrepeat>0
     vfoptions.postGIrepeat=vfoptions.postGIrepeat-1;
 
-    % Current optimal aprime is Policy_a
+    % Current optimal aprime is Policy
     % So create an aprime_grid that is just an interpolation within +-vfoptions.maxaprimediff
 
     % First, we switch Policy_a to be the nearest point on the rough grid

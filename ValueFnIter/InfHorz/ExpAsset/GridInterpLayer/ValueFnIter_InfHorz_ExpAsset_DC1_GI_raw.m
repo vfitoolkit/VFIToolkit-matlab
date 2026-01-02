@@ -1,4 +1,4 @@
-function [V, Policy]=ValueFnIter_Case1_ExpAsset_DC1_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_InfHorz_ExpAsset_DC1_raw(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -11,7 +11,7 @@ N_z=prod(n_z);
 d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 d_gridvals=[repmat(d1_gridvals,N_d2,1),repelem(d2_gridvals,N_d1,1)];
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
-n_a1prime=n_a1;
+n_a1prime=n_a;
 % a1prime_gridvals=a1_gridvals;
 
 % precompute
@@ -23,7 +23,7 @@ level1ii=round(linspace(1,n_a1,vfoptions.level1n));
 level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 %% Start by setting up ReturnFn for the first-level (as we can reuse this every iteration)
-ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2,n_a1prime,vfoptions.level1n,n_a2, n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii,:), a2_gridvals, z_gridvals, ReturnFnParamsVec, 1);
+ReturnMatrixLvl1=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2,n_a1prime,n_a1,n_a2, n_z, d_gridvals, a1_gridvals, a1_gridvals(level1ii,:), a2_gridvals, z_gridvals, ReturnFnParamsVec, 1);
 
 V=reshape(V0,[N_a,N_z]);
 Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
@@ -100,7 +100,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % loweredge is n_d-by-1-by-n_a2-by-1-by-n_a2-by-n_z
             a1primeindexes=loweredge+(0:1:maxgap(ii));
             % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_a2-by-n_z
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, maxgap(ii)+1, level1iidiff(ii), n_a2, n_z, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, maxgap(ii), n_a1, n_a2, n_z, d_gridvals, a1_gridvals(a1primeindexes), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0);
             daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*(a1primeindexes-1)+N_d1*N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d1*N_d2*(maxgap(ii)+1),N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);
@@ -117,7 +117,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         else
             loweredge=maxindex1(:,1,ii,:,:);
             % Just use aprime(ii) for everything
-            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, 1, level1iidiff(ii), n_a2, n_z, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0);
+            ReturnMatrix_ii=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, 1, n_a1, n_a2, n_z, d_gridvals, a1_gridvals(loweredge), a1_gridvals(level1ii(ii)+1:level1ii(ii+1)-1), a2_gridvals, z_gridvals, ReturnFnParamsVec,2,0);
             daprime=(1:1:N_d1*N_d2)'+N_d1*N_d2*(loweredge-1)+N_d1*N_d2*N_a1*shiftdim((0:1:N_a2-1),-2)+N_d1*N_d2*N_a1*N_a2*shiftdim((0:1:N_z-1),-3); % the current aprimeii(ii):aprimeii(ii+1)
             entireRHS_ii=ReturnMatrix_ii+repelem(DiscountedentireEV(reshape(daprime,[N_d1*N_d2*1,N_a2,N_z])),1,level1iidiff(ii),1);
             [Vtempii,maxindex]=max(entireRHS_ii,[],1);

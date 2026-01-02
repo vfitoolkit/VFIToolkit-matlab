@@ -44,6 +44,7 @@ if ~exist('vfoptions','var')
     vfoptions.endotype=0; % (vector indicating endogenous state is a type)
     vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
     vfoptions.experienceasset=0;
+    vfoptions.inheritanceasset=0;
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     % Other options
@@ -129,6 +130,9 @@ else
     end
     if ~isfield(vfoptions,'experienceasset')
         vfoptions.experienceasset=0;
+    end
+    if ~isfield(vfoptions,'inheritanceasset')
+        vfoptions.inheritanceasset=0;
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
@@ -362,36 +366,64 @@ end
 if vfoptions.experienceasset==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     
-    if isscalar(n_a)
-        error('experienceasset in InfHorz is only coded alongside a standard endogenous state (you have length(n_a)==1)')
-    elseif length(n_a)==2
-        % Split decision variables into the standard ones and the one relevant to the experience asset
-        if isscalar(n_d)
-            n_d1=0;
-        else
-            n_d1=n_d(1:end-1);
-        end
-        n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
-        d1_grid=d_grid(1:sum(n_d1));
-        d2_grid=d_grid(sum(n_d1)+1:end);
-        % Split endogenous assets into the standard ones and the experience asset
-        if isscalar(n_a)
-            n_a1=0;
-        else
-            n_a1=n_a(1:end-1);
-        end
-        n_a2=n_a(end); % n_a2 is the experience asset
-        a1_grid=a_grid(1:sum(n_a1));
-        a2_grid=a_grid(sum(n_a1)+1:end);
-
-        % Now just send all this to the right value fn iteration command
-        [V,Policy]=ValueFnIter_Case1_ExpAsset(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+    % Split decision variables into the standard ones and the one relevant to the experience asset
+    if isscalar(n_d)
+        n_d1=0;
     else
-        error('experienceasset in InfHorz is only coded alongside a single standard endogenous state (you have length(n_a)>2)')
+        n_d1=n_d(1:end-1);
     end
+    n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+    d1_grid=d_grid(1:sum(n_d1));
+    d2_grid=d_grid(sum(n_d1)+1:end);
+
+    % Split endogenous assets into the standard ones and the experience asset
+    if isscalar(n_a)
+        n_a1=0;
+    else
+        n_a1=n_a(1:end-1);
+    end
+    n_a2=n_a(end); % n_a2 is the experience asset
+    a1_grid=a_grid(1:sum(n_a1));
+    a2_grid=a_grid(sum(n_a1)+1:end);
+
+    % Now just send all this to the right value fn iteration command
+    [V,Policy]=ValueFnIter_InfHorz_ExpAsset(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+
     varargout={V,Policy};
     return
 end
+
+%% Inheritance asset
+if vfoptions.inheritanceasset==1
+    % It is simply assumed that the inheritance asset is the last asset, and that the decision that influences it is the last decision.
+
+    % Split decision variables into the standard ones and the one relevant to the experience asset
+    if isscalar(n_d)
+        n_d1=0;
+    else
+        n_d1=n_d(1:end-1);
+    end
+    n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+    d1_grid=d_grid(1:sum(n_d1));
+    d2_grid=d_grid(sum(n_d1)+1:end);
+
+    % Split endogenous assets into the standard ones and the experience asset
+    if isscalar(n_a)
+        n_a1=0;
+    else
+        n_a1=n_a(1:end-1);
+    end
+    n_a2=n_a(end); % n_a2 is the experience asset
+    a1_grid=a_grid(1:sum(n_a1));
+    a2_grid=a_grid(sum(n_a1)+1:end);
+
+    % Now just send all this to the right value fn iteration command
+    [V,Policy]=ValueFnIter_InfHorz_InheritAsset(V0,n_d1,n_d2,n_a1,n_a2,n_z, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
+
+    varargout={V,Policy};
+    return
+end
+
 
 %% Semi-endogenous state
 % The transition matrix of the exogenous shocks depends on the value of the endogenous state.
