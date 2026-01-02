@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1,IIones,N_a,N_z,pi_z_sparse)
+function AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1,IIones,N_a,N_z,pi_z_sparse)
 % II1 and IIones are inputs just so they can be precomputed and then reused each period of transition
 % II1=gpuArray(1:1:N_a*N_z);
 % IIones=ones(N_a*N_z,1,'gpuArray');

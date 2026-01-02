@@ -216,9 +216,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         
         %% Get the current optimal policy, and iterate the agent dist
         if simoptions.gridinterplayer==0
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDistnext=AgentDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
-            AgentDistnext=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
+            AgentDistnext=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
         end
 
         %% AggVars

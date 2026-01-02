@@ -1,4 +1,4 @@
-function AgentDist=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse)
+function AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,Policy_aprimez,II2,PolicyProbs,N_a,N_z,pi_z_sparse)
 % 'nProbs' refers to n probabilities.
 % Policy_aprimez has shape [N_a*N_z,N_probs] and contains only the (kron) aprime indexes, no d indexes. 
 % PolicyProbs are the corresponding probabilities of each of these N_probs.

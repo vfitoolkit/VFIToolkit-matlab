@@ -68,7 +68,7 @@ if simoptions.experienceasset==0
         II1=(1:1:N_a*N_z); % Index for this period (a,z)
         IIones=ones(N_a*N_z,1); % Next period 'probabilities'
         for tt=1:T-1
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     elseif simoptions.gridinterplayer==1
@@ -83,7 +83,7 @@ if simoptions.experienceasset==0
         PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
 
         for tt=1:T-1
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     end
@@ -174,7 +174,7 @@ elseif simoptions.experienceasset==1
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
             
-            AgentDist=StationaryDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
 
