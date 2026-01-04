@@ -100,7 +100,7 @@ a_grid=gather(a_grid);
 
 a_gridvals=CreateGridvals(n_a,a_grid,2);
 
-PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
+PolicyIndexes=reshape(Policy,[size(Policy,1),N_a,N_z,N_j]);
 for kk=1:length(simoptions.agegroupings)
     j1=simoptions.agegroupings(kk);
     if kk<length(simoptions.agegroupings)
@@ -108,12 +108,12 @@ for kk=1:length(simoptions.agegroupings)
     else
         jend=N_j;
     end
-    StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_ze*(jend-j1+1),1]);
+    StationaryDistVec_kk=reshape(StationaryDistVec(:,j1:jend),[N_a*N_z*(jend-j1+1),1]);
     StationaryDistVec_kk=StationaryDistVec_kk./sum(StationaryDistVec_kk); % Normalize to sum to one for this 'agegrouping'
 
     clear gridvalsFull
     for jj=j1:jend
-        [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+        [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
         gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
         gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
 
@@ -142,7 +142,7 @@ for kk=1:length(simoptions.agegroupings)
     end
 
     for ii=1:length(FnsToEvaluate) % Each of the functions to be evaluated on the grid
-        Values=nan(N_a*N_ze,jend-j1+1); % Preallocate
+        Values=nan(N_a*N_z,jend-j1+1); % Preallocate
         if l_d>0
             for jj=j1:jend
                 d_gridvals=gridvalsFull(jj-j1+1).d_gridvals;
@@ -150,7 +150,7 @@ for kk=1:length(simoptions.agegroupings)
                 z_gridvals=gridvalsFull(jj-j1+1).z_gridvals;
                 % Includes check for cases in which no parameters are actually required
                 if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
-                    for ll=1:N_a*N_ze
+                    for ll=1:N_a*N_z
                         %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                         l1=rem(ll-1,N_a)+1;
                         l2=ceil(ll/N_a);
@@ -158,7 +158,7 @@ for kk=1:length(simoptions.agegroupings)
                     end
                 else
                     FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                    for ll=1:N_a*N_ze
+                    for ll=1:N_a*N_z
                         %        j1j2=ind2sub_homemade([N_a,N_z],ii); % Following two lines just do manual implementation of this.
                         l1=rem(ll-1,N_a)+1;
                         l2=ceil(ll/N_a);
@@ -172,14 +172,14 @@ for kk=1:length(simoptions.agegroupings)
                 z_gridvals=gridvalsFull(jj-j1+1).z_gridvals;
                 % Includes check for cases in which no parameters are actually required
                 if isempty(FnsToEvaluateParamNames(ii).Names) % check for 'FnsToEvaluateParamNames={}'
-                    for ll=1:N_a*N_ze
+                    for ll=1:N_a*N_z
                         l1=rem(ll-1,N_a)+1;
                         l2=ceil(ll/N_a);
                         Values(ll,jj-j1+1)=FnsToEvaluate{ii}(aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:});
                     end
                 else
                     FnToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(ii).Names,jj));
-                    for ll=1:N_a*N_ze
+                    for ll=1:N_a*N_z
                         l1=rem(ll-1,N_a)+1;
                         l2=ceil(ll/N_a);
                         Values(ll,jj-j1+1)=FnsToEvaluate{ii}(aprime_gridvals{l1+(l2-1)*N_a,:},a_gridvals{l1,:},z_gridvals{l2,:},FnToEvaluateParamsCell{:});
@@ -189,7 +189,7 @@ for kk=1:length(simoptions.agegroupings)
         end
 
         % From here on is essentially identical to the 'with gpu' case.
-        Values=reshape(Values,[N_a*N_ze*(jend-j1+1),1]);
+        Values=reshape(Values,[N_a*N_z*(jend-j1+1),1]);
 
         [SortedValues,SortedValues_index] = sort(Values);
 

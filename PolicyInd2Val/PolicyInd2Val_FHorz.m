@@ -239,7 +239,7 @@ end
 
 % This CPU implementation could be vectorized to be much faster
 if Parallel~=2
-    Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j);
+    Policy=KronPolicyIndexes_FHorz_Case1(Policy, n_d, n_a, n_z, N_j,vfoptions);
     if n_d(1)==0
         PolicyValues=zeros(l_aprime,N_a,N_z,N_j);
         for jj=1:N_j

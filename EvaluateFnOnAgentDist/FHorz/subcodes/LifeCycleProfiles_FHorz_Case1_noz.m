@@ -1,4 +1,4 @@
-function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,N_j,d_grid,a_grid,simoptions)
+function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Policy,FnsToEvaluate,Parameters,FnsToEvaluateParamNames,n_d,n_a,N_j,d_grid,a_grid,simoptions)
 % Similar to SimLifeCycleProfiles but works from StationaryDist rather than
 % simulating panel data. Where applicable it is faster and more accurate.
 % options.agegroupings can be used to do conditional on 'age bins' rather than age
@@ -17,6 +17,10 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_noz(StationaryDist,Po
 % AgeConditionalStats(length(FnsToEvaluate)).Gini=nan(1,ngroups);
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileCutoffs=nan(options.nquantiles+1,ngroups); % Includes the min and max values
 % AgeConditionalStats(length(FnsToEvaluate)).QuantileMeans=nan(options.nquantiles,ngroups);
+
+if ~isfield(simoptions,'agegroupings')
+    simoptions.agegroupings=1:1:N_j; % by default does each period seperately, can be used to say, calculate gini for age bins
+end
 
 % N_d=prod(n_d);
 N_a=prod(n_a);
@@ -242,7 +246,7 @@ else % options.parallel~=2
         
         clear gridvalsFull
         for jj=j1:jend
-            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,jj),n_d,n_a,n_a,0,d_grid,a_grid,1, 2);
+            [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,jj),n_d,n_a,n_a,0,d_grid,a_grid,simoptions,1, 2);
             gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
             gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
         end
