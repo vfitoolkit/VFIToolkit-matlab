@@ -13,7 +13,24 @@ function SimPanelValues=SimPanelValues_Case1(InitialDist,Policy,FnsToEvaluate,Fn
 % for time j=1. (So InitialDist is either n_a-by-n_z-by-n_j, or n_a-by-n_z)
 
 %% Check which simoptions have been declared, set all others to defaults 
-if exist('simoptions','var')==1
+if ~exist('simoptions','var')
+    % If simoptions is not given, just use all the defaults
+    simoptions.numbersims=10^3; % number of agents to simulate
+    simoptions.simperiods=50; % length of each agent simulation
+    simoptions.burnin=0; % In infinite horizon, InitialDist is typically the stationary dist and so no need to burnin
+    simoptions.verbose=0;
+    simoptions.parallel=1+(gpuDeviceCount>0);
+    simoptions.gridinterplayer=0;
+    % Model setup
+    simoptions.experienceasset=0;
+    simoptions.experienceassetu=0;
+    simoptions.inheritanceasset=0;
+    % Model settings - Entry and Exit make the panel simulation much trickier
+    simoptions.agententryandexit=0;
+    simoptions.endogenousexit=0; % Note: this will only be relevant if agententryandexit=1
+    simoptions.entryinpanel=0; % Note: this will only be relevant if agententryandexit=1
+    simoptions.exitinpanel=0; % Note: this will only be relevant if agententryandexit=1
+else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     % Main simulation options
     if ~isfield(simoptions,'numbersims')
@@ -44,6 +61,9 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions,'experienceassetu')
         simoptions.experienceassetu=0;
     end
+    if ~isfield(simoptions,'inheritanceasset')
+        simoptions.inheritanceasset=0;
+    end
     % Model settings - Entry and Exit make the panel simulation much trickier
     if ~isfield(simoptions,'agententryandexit')
         simoptions.agententryandexit=0;
@@ -65,22 +85,6 @@ if exist('simoptions','var')==1
             simoptions.exitinpanel=0;
         end
     end
-else
-    %If simoptions is not given, just use all the defaults
-    simoptions.numbersims=10^3; % number of agents to simulate
-    simoptions.simperiods=50; % length of each agent simulation
-    simoptions.burnin=0; % In infinite horizon, InitialDist is typically the stationary dist and so no need to burnin
-    simoptions.verbose=0;
-    simoptions.parallel=1+(gpuDeviceCount>0);
-    simoptions.gridinterplayer=0;
-    % Model setup
-    simoptions.experienceasset=0;
-    simoptions.experienceassetu=0;
-    % Model settings - Entry and Exit make the panel simulation much trickier
-    simoptions.agententryandexit=0;
-    simoptions.endogenousexit=0; % Note: this will only be relevant if agententryandexit=1
-    simoptions.entryinpanel=0; % Note: this will only be relevant if agententryandexit=1
-    simoptions.exitinpanel=0; % Note: this will only be relevant if agententryandexit=1
 end
 
 if n_d(1)==0
@@ -91,16 +95,12 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
+% N_d=prod(n_d);
 N_a=prod(n_a);
 % N_z=prod(n_z);
-% N_d=prod(n_d);
-
-% Simulations are done on the CPU, so move things there
 
 if simoptions.agententryandexit==1 && isfield(simoptions,'SemiEndogShockFn')
-    fprintf('ERROR: Cannot currently use simoptions.agententryandexit==1 SemiEndogShockFn together. Email me if you need this. \n')
-    dbstack
-    return
+    error('Cannot currently use simoptions.agententryandexit==1 and SemiEndogShockFn together. \n')
 end
 
 %% Implement new way of handling FnsToEvaluate
@@ -123,15 +123,9 @@ else
 end
 
 
-%% Setup before starting the agent simulations
-PolicyIndexesKron=gather(KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions)); % Create it here as want it both here and inside SimPanelIndexes_FHorz_Case1 (which will recognise that it is already in this form)
+%% Simulate Panel Indexes
 pi_z=gather(pi_z); % This is only use for the simulations
 InitialDist=gather(InitialDist);
-
-
-%% Simulate SimPanelIndexes_Case1
-% NOTE: ESSENTIALLY ALL THE RUN TIME IS IN THIS COMMAND. WOULD BE GOOD TO OPTIMIZE/IMPROVE.
-
 
 if simoptions.agententryandexit==1
     % Do everything for an extra period, and then delete this at the end
@@ -155,21 +149,25 @@ if simoptions.agententryandexit==1
     TotalNumberSims=simoptions.numbersims+simoptions.simperiods*NumberOfNewAgentsPerPeriod;
     SimPanelIndexes=nan(l_a+l_z,simoptions.simperiods,TotalNumberSims); % (a,z)
     % Start with those based on the initial distribution
-    SimPanelIndexes(:,:,1:simoptions.numbersims)=gather(SimPanelIndexes_Case1(InitialDist.pdf,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters));
+    SimPanelIndexes(:,:,1:simoptions.numbersims)=gather(SimPanelIndexes_InfHorz(InitialDist.pdf,gather(Policy),n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters));
     % Now do those for the entrants each period
     numbersims=simoptions.numbersims; % Store this, so can restore it after following loop
     simperiods=simoptions.simperiods;% Store this, so can restore it after following loop
     simoptions.numbersims=NumberOfNewAgentsPerPeriod;
     for t=1:simperiods
-        SimPanelIndexes(:,t:end,numbersims+1+NumberOfNewAgentsPerPeriod*(t-1):numbersims+NumberOfNewAgentsPerPeriod*t)=gather(SimPanelIndexes_Case1(DistOfNewAgents,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters));
+        SimPanelIndexes(:,t:end,numbersims+1+NumberOfNewAgentsPerPeriod*(t-1):numbersims+NumberOfNewAgentsPerPeriod*t)=gather(SimPanelIndexes_InfHorz(DistOfNewAgents,gather(Policy),n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters));
         simoptions.simperiods=simoptions.simperiods-1;
     end
     simoptions.numbersims=numbersims; % Restore.
     simoptions.simperiods=simperiods;% Retore.
 elseif isfield(simoptions,'SemiEndogShockFn')
-    SimPanelIndexes=SimPanelIndexes_Case1_SemiEndog(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions);
-else % simoptions.agententryandexit==0    
-    SimPanelIndexes=SimPanelIndexes_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions);
+    SimPanelIndexes=SimPanelIndexes_InfHorz_SemiEndog(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
+else % simoptions.agententryandexit==0
+    if simoptions.inheritanceasset==1
+        SimPanelIndexes=SimPanelIndexes_InfHorz_InheritAsset(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
+    else
+        SimPanelIndexes=SimPanelIndexes_InfHorz(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
+    end
 end
 
 %% From now on is just replacing the indexes with values

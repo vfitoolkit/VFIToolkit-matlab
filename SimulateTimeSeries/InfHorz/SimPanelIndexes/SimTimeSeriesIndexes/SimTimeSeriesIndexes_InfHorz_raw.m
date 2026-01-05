@@ -1,4 +1,4 @@
-function SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyKron,l_d,n_a,cumsum_pi_z,seedpoint,simoptions)
+function SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_raw(PolicyKron,l_d,n_a,cumsum_pi_z,seedpoint,simoptions)
 
 % burnin=simoptions.burnin;
 % seedpoint=simoptions.seedpoint;

@@ -1,4 +1,4 @@
-function SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsum_pi_z,burnin,seedpoint,simperiods,parallel)
+function SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsum_pi_z,burnin,seedpoint,simperiods,parallel)
 
 % burnin=simoptions.burnin;
 % seedpoint=simoptions.seedpoint;

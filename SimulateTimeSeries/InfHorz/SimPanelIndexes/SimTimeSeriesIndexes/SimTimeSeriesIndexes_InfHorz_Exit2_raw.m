@@ -1,4 +1,4 @@
-function SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsum_pi_z,burnin,seedpoint,simperiods,exitprobabilities,parallel)
+function SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsum_pi_z,burnin,seedpoint,simperiods,exitprobabilities,parallel)
 % Exit2 is same as Exit, but allowing for 'mix' of endogenous and exogenous exit.
 
 % burnin=simoptions.burnin;

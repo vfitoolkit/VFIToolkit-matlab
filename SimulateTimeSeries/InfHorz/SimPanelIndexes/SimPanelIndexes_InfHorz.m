@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_Case1(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
+function SimPanel=SimPanelIndexes_InfHorz(InitialDist,PolicyIndexesKron,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
 % Input must already be on CPU
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length 'simperiods' beginning from randomly drawn InitialDist. 
 % CondlProbOfSurvival is an optional input. (only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both)
@@ -61,12 +61,12 @@ for ii=1:simoptions.numbersims % Parallel CPUs for the simulations
     seedpoint_ii=round(seedpoint_ii); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
     if exitinpanel==0
-        SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,l_d,n_a,cumsumpi_z,seedpoint_ii,simoptions);
+        SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_raw(PolicyIndexesKron,l_d,n_a,cumsumpi_z,seedpoint_ii,simoptions);
     else
         if endogenousexit==2 % Mixture of endogenous and exogenous exit
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,exitprobs,0); % 0: burnin, 0: use single CPU
+            SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,exitprobs,0); % 0: burnin, 0: use single CPU
         else % Otherwise (either one of endogenous or exogenous exit; but not mixture)
-            SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
+            SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,N_d,N_a,N_z,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
         end
     end
 

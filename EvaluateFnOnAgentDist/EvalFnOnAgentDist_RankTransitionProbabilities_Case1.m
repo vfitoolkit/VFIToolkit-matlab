@@ -1,4 +1,4 @@
-function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions,npoints)
+function TransitionProbabilities=EvalFnOnAgentDist_RankTransitionProbabilities_Case1(t, NSims, StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, simoptions,npoints)
 %Returns a Matrix 100-by-100 that contains the t-period transition probabilities for all of the quantiles from 1
 %to 100. Unless the optional npoints input is used in which case it will be
 %npoints-by-npoints. (third dimension is the different FnsToEvaluate that this
@@ -21,6 +21,8 @@ function [TransitionProbabilities]=EvalFnOnAgentDist_RankTransitionProbabilities
 % values. We can do this just based on index values for the state
 % variables, and then just evaluate the functions on them and calculate the
 % ranks at the end.
+
+simoptions
 
 %%
 if ~isfield(simoptions,'parallel')
@@ -54,17 +56,18 @@ z_gridvals=CreateGridvals(n_z,z_grid,1);
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
+    FnsToEvaluate_copy=FnsToEvaluate; % keep a copy in case needed for conditional restrictions
     FnsToEvaluateStruct=1;
     clear FnsToEvaluateParamNames
-    AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    FnsToEvalNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(FnsToEvalNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
-        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+        FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
     end    
     FnsToEvaluate=FnsToEvaluate2;
 else
@@ -74,67 +77,63 @@ end
 %%
 StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
-MoveOutputToGPU=0;
-if simoptions.parallel==2  
-    % Simulation on GPU is really slow.
-    % So instead, switch to CPU, and then switch
-    % back. For anything but ridiculously short simulations it is more than
-    % worth the overhead.
-    Policy=gather(Policy);
-    StationaryDist=gather(StationaryDist);
-    MoveOutputToGPU=1;
-end
-simoptions.parallel=1; % Want to do the simulations on simoptions.parallel CPU, so switch to this
-
-
 %% Start with generating starting indexes and using simulations to get finish/final indexes. Will give us NSims transitions (indexes).
-burnin=0;
-simperiods=t;
+simoptions.burnin=0;
+simoptions.simperiods=t;
+simoptions.numbersims=NSims;
 
-% NSims=10^5;
+% Switch to CPU for simulations
+StationaryDist=gather(StationaryDist);
 
-cumsumStationaryDist=cumsum(reshape(StationaryDist,[N_a*N_z,1]));
-% [~,seedpoints]=max(cumsumStationaryDist>rand(1,NSims,'gpuArray'));
+% Simulate a panel of t periods, and then just keep the first and last period from that
+SimPanelValues=SimPanelValues_Case1(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions);
 
-Transitions_StartAndFinishIndexes=nan(2,NSims);
-parfor ii=1:NSims
-    Transitions_StartAndFinishIndexes_ii=Transitions_StartAndFinishIndexes(:,ii);
-    % Draw initial condition
-    [~,seedpoint]=max(cumsumStationaryDist>rand(1,1,'gpuArray'));
-    Transitions_StartAndFinishIndexes_ii(1)=seedpoint;
-    seedpoint=ind2sub_homemade([N_a,N_z],seedpoint); % put in form needed for SimTimeSeriesIndexes_Case1_raw
-    % Simulate time series
-    SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,N_d,N_a,N_z,pi_z,burnin,seedpoint,simperiods,simoptions.parallel);
-    % Store last
-    Transitions_StartAndFinishIndexes_ii(2)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
-    Transitions_StartAndFinishIndexes(:,ii)=Transitions_StartAndFinishIndexes_ii;
-end
-
-%% Done simulating, switch back to GPU
-if MoveOutputToGPU==1
-    Transitions_StartAndFinishIndexes=gpuArray(Transitions_StartAndFinishIndexes);
-    Policy=gpuArray(Policy);
-end
+% cumsumStationaryDist=cumsum(reshape(StationaryDist,[N_a*N_z,1]));
+% cumsum_pi_z=cumsum(pi_z,2);
+% if simoptions.inheritanceasset==0
+%     PolicyIndexesKron=gather(KronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,simoptions));
+%     Transitions_StartAndFinishIndexes=nan(2,NSims);
+%     parfor ii=1:NSims
+%         Transitions_StartAndFinishIndexes_ii=Transitions_StartAndFinishIndexes(:,ii);
+%         % Draw initial condition
+%         [~,seedpoint]=max(cumsumStationaryDist>rand(1,1));
+%         Transitions_StartAndFinishIndexes_ii(1)=seedpoint;
+%         seedpoint=ind2sub_homemade([N_a,N_z],seedpoint); % put in form needed for SimTimeSeriesIndexes_Case1_raw
+%         % Simulate time series
+%         SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,l_d,n_a,cumsum_pi_z,seedpoint,simoptions);
+%         % Store last
+%         Transitions_StartAndFinishIndexes_ii(2)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
+%         Transitions_StartAndFinishIndexes(:,ii)=Transitions_StartAndFinishIndexes_ii;
+%     end
+% end
+% 
+% %% Done simulating, switch back to GPU
+% Transitions_StartAndFinishIndexes=gpuArray(Transitions_StartAndFinishIndexes);
 
 %% We have the indexes. Now convert into values. Will give us NSims transitions (values).
 Transitions_StartAndFinish=nan(2,NSims,length(FnsToEvaluate),'gpuArray');
-Transitions_StartAndFinish_jj=nan(2,NSims,'gpuArray');
+Transitions_StartAndFinish_ff=nan(2,NSims,'gpuArray');
 
 PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
-for ff=1:length(FnsToEvaluate)
+for ff=1:length(FnsToEvalNames)
+    % FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+    % Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+    % Values=reshape(Values,[N_a*N_z,1]);
+    % % MIGHT BE POSSIBLE TO MERGE FOLLOWING TWO LINES (replace rows 1 and 2 with all rows ':'), JUST UNSURE WHAT
+    % % RESULTING BEHAVIOUR WILL BE IN TERMS OF SIZE() AND CURRENTLY TO LAZY TO CHECK.
+    % Transitions_StartAndFinish_ff(1,:)=Values(Transitions_StartAndFinishIndexes(1,:));
+    % Transitions_StartAndFinish_ff(2,:)=Values(Transitions_StartAndFinishIndexes(2,:));
+    temp=SimPanelValues.(FnsToEvalNames{ff});
+    Transitions_StartAndFinish_ff(1,:)=temp(1,:);
+    Transitions_StartAndFinish_ff(2,:)=temp(end,:);
+    
+    %% Now convert values into ranks. Will give us NSims transitions (ranks).
     FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
     Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
     Values=reshape(Values,[N_a*N_z,1]);
-    % MIGHT BE POSSIBLE TO MERGE FOLLOWING TWO LINES (replace rows 1 and 2 with all rows ':'), JUST UNSURE WHAT
-    % RESULTING BEHAVIOUR WILL BE IN TERMS OF SIZE() AND CURRENTLY TO LAZY TO CHECK.
-    Transitions_StartAndFinish_jj(1,:)=Values(Transitions_StartAndFinishIndexes(1,:));
-    Transitions_StartAndFinish_jj(2,:)=Values(Transitions_StartAndFinishIndexes(2,:));
-    
-    %% Now convert values into ranks. Will give us NSims transitions (ranks).
-    % Do this inside same for loop as also uses Values.
     % To do this we use the CDF, so start with calculating CDF for current 'SSvaluesFn'
     [SortedValues,SortedValues_index] = sort(Values);
     SortedStationaryDistVec=StationaryDistVec(SortedValues_index);
@@ -143,7 +142,7 @@ for ff=1:length(FnsToEvaluate)
     ranks_index_start=nan(NSims,1,'gpuArray');
     ranks_index_fin=nan(NSims,1,'gpuArray');
     parfor kk=1:NSims
-        temp=Transitions_StartAndFinish_jj(:,kk);
+        temp=Transitions_StartAndFinish_ff(:,kk);
         % Ranks of starting points
         [~,ranks_index_start(kk)]=max(SortedValues>temp(1));
         % Ranks of finishing points
@@ -152,12 +151,12 @@ for ff=1:length(FnsToEvaluate)
     
     % Ranks of starting points
     ranks=CumSumSortedStationaryDistVec(ranks_index_start);
-    Transitions_StartAndFinish_jj(1,:)=ranks;
+    Transitions_StartAndFinish_ff(1,:)=ranks;
     % Ranks of finishing points
     ranks=CumSumSortedStationaryDistVec(ranks_index_fin);
-    Transitions_StartAndFinish_jj(2,:)=ranks;
+    Transitions_StartAndFinish_ff(2,:)=ranks;
     
-    Transitions_StartAndFinish(:,:,ff)=Transitions_StartAndFinish_jj;
+    Transitions_StartAndFinish(:,:,ff)=Transitions_StartAndFinish_ff;
 end
 
 %% We have NSims rank transitions. Now switch into rank transition probabilities.
@@ -180,9 +179,9 @@ if FnsToEvaluateStruct==1
     TransitionProbabilities2=TransitionProbabilities;
     clear TransitionProbabilities
     TransitionProbabilities=struct();
-%     AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        TransitionProbabilities.(AggVarNames{ff})=TransitionProbabilities2(:,:,ff);
+%     FnsToEvalNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(FnsToEvalNames)
+        TransitionProbabilities.(FnsToEvalNames{ff})=TransitionProbabilities2(:,:,ff);
     end
 end
 

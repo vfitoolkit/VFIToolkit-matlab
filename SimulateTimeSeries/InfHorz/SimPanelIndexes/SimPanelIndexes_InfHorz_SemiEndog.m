@@ -1,4 +1,4 @@
-function SimPanel=SimPanelIndexes_Case1_SemiEndog(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
+function SimPanel=SimPanelIndexes_InfHorz_SemiEndog(InitialDist,Policy,n_d,n_a,n_z,pi_z, simoptions, CondlProbOfSurvival, Parameters)
 % Simulates a panel based on PolicyIndexes of 'numbersims' agents of length
 % 'simperiods' beginning from randomly drawn InitialDist. 
 % CondlProbOfSurvival is an optional input. (only needed when using: simoptions.exitinpanel=1, there there is exit, either exog, endog or mix of both)
@@ -48,31 +48,16 @@ end
 
 if exist('CondlProbOfSurvival','var')==1
     simoptions.exitinpanel=1;
-    CondlProbOfSurvivalKron=reshape(CondlProbOfSurvival,[N_a,N_z]);
+    CondlProbOfSurvival=reshape(CondlProbOfSurvival,[N_a,N_z]);
     if ~isfield(simoptions, 'endogenousexit')
         simoptions.endogenousexit=0;  % Note: this will only be relevant if exitinpanel=1
     end
 end
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
 l_a=length(n_a);
 l_z=length(n_z);
 
-% Check if the inputted Policy is already in form of PolicyIndexesKron. If
-% so this saves a big chunk of the run time of 'SimPanelIndexes_FHorz_Case1',
-% Since this command is often called as a subcommand by functions where
-% PolicyIndexesKron it saves a lot of run time.
-%Policy is [l_d+l_a,n_a,n_z]
-if (l_d==0 && ndims(Policy)==2) || ndims(Policy)==3
-%     fprintf('Policy is alread Kron')
-    PolicyIndexesKron=Policy;
-else %    size(Policy)==[l_d+l_a,n_a,n_z]
-    PolicyIndexesKron=KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z);%,simoptions);
-end
+PolicyIndexesKron=gather(KronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,simoptions));
 
 if simoptions.parallel==2
     % Get seedpoints from InitialDist while on gpu
@@ -147,7 +132,7 @@ SimPanel=nan(l_a+l_z,simoptions.simperiods,simoptions.numbersims); % (a,z)
 if simoptions.parallel==0
     for ii=1:simoptions.numbersims
         seedpoint=seedpoints(ii,:);
-        SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
+        SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
         
         SimPanel_ii=nan(l_a+l_z,simoptions.simperiods);
         
@@ -170,7 +155,7 @@ else
     simperiods=simoptions.simperiods; % reduce overhead with parfor
     parfor ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
         seedpoint=seedpoints(ii,:);
-        SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
+        SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_SemiEndog_raw(PolicyIndexesKron,N_d,N_a,N_z,cumsumpi_z_semiendog,0,seedpoint,simperiods,0); % 0: burnin, 0: use single CPU
         
         SimPanel_ii=nan(l_a+l_z,simperiods);
         

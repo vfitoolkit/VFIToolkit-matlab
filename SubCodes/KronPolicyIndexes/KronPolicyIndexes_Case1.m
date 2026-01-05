@@ -13,11 +13,7 @@ l_a=length(n_a);
 
 if simoptions.gridinterplayer==0
     % Reshape Policy
-    % if n_d(1)==0 && l_a==1
-    %     Policy=reshape(Policy,[N_a,N_z]);
-    % else
     Policy=reshape(Policy,[size(Policy,1),N_a,N_z]);
-    % end
 
     if isa(Policy,'gpuArray')
         if n_d(1)==0
