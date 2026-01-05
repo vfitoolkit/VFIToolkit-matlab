@@ -113,7 +113,7 @@ for kk=1:length(simoptions.agegroupings)
 
     clear gridvalsFull
     for jj=j1:jend
-        [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+        [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(PolicyIndexes(:,:,:,jj),n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
         gridvalsFull(jj-j1+1).d_gridvals=d_gridvals;
         gridvalsFull(jj-j1+1).aprime_gridvals=aprime_gridvals;
 

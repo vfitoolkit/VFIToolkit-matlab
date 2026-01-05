@@ -14,8 +14,8 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if ~isfield(vfoptions,'V_Jplus1')
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel,ReturnFnParamsVec);
-    %Calc the max and it's index
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
+    % Calc the max and its index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
     Policy(:,:,N_j)=maxindex;
@@ -26,12 +26,12 @@ else
     
     EV=reshape(vfoptions.V_Jplus1,[N_a,N_z]); % Using V_Jplus1
 
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
 
     parfor z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
 
-        %Calc the condl expectation term (except beta), which depends on z but not on control variables
+        % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*pi_z(z_c,:);
         EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
@@ -39,7 +39,7 @@ else
         entireEV_z=repelem(EV_z,N_d,1);
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*entireEV_z; % autoexpand a into 2nd-dim of entireEV_z
 
-        % Calc the max and it's index
+        % Calc the max and its index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c,N_j)=Vtemp;
         Policy(:,z_c,N_j)=maxindex;
@@ -62,7 +62,7 @@ for reverse_j=1:N_j-1
 
     EV=V(:,:,jj+1);
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
          
     parfor z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);
