@@ -31,7 +31,7 @@ else
     if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
         pi_z=[];
         % Now just do z_gridvals
-        z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
+        % z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
@@ -45,6 +45,7 @@ else
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals=CreateGridvals(n_z,z_grid,1);
         end
+        z_gridvals=gpuArray(z_gridvals);
     elseif gridpiboth==2 % For agent dist, we don't use grid
         z_gridvals=[];
         % Now just do pi_z_J
@@ -56,22 +57,25 @@ else
             end
             [~,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
         end
+        pi_z=gpuArray(pi_z);
     elseif gridpiboth==3
         % For value fn, both z_gridvals_J and pi_z_J
-        z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
+        % z_gridvals=zeros(prod(n_z),length(n_z),'gpuArray');
         if isfield(options,'ExogShockFn')
             ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames);
             ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
             for ii=1:length(ExogShockFnParamsVec)
                 ExogShockFnParamsCell(ii,1)={ExogShockFnParamsVec(ii)};
             end
-            [z_grid,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
+            [z_gridvals,pi_z]=options.ExogShockFn(ExogShockFnParamsCell{:});
         end
         if all(size(z_grid)==[prod(n_z),length(n_z)]) % joint grid
             z_gridvals=z_grid;
         elseif all(size(z_grid)==[sum(n_z),1]) % basic grid
             z_gridvals=CreateGridvals(n_z,z_grid,1);
         end
+        z_gridvals=gpuArray(z_gridvals);
+        pi_z=gpuArray(pi_z);
     end
 end
 

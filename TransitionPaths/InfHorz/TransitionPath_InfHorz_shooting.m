@@ -92,7 +92,7 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
-pi_z_sparse=sparse(pi_z); % Need full pi_z for value fn, and sparse for agent dist
+pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
@@ -120,11 +120,11 @@ elseif vfoptions.gridinterplayer==1
     PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 end
 if simoptions.gridinterplayer==0
-    II1=gpuArray(1:1:N_a*N_z); % Index for this period (a,z)
+    II1=(1:1:N_a*N_z); % Index for this period (a,z)
     IIones=ones(N_a*N_z,1); % Next period 'probabilities'
 elseif simoptions.gridinterplayer==1
     PolicyProbsPath=zeros(N_a*N_z,2,T-1,'gpuArray'); % preallocate
-    II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+    II2=([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
 end
 
 

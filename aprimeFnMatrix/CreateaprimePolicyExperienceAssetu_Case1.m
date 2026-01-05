@@ -20,8 +20,8 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu_Case1
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
-    if size(aprimeFnParams(ii))~=[1,1]
-        error('Using GPU for the return fn does not allow for any of aprimeFn parameters to be anything but a scalar')
+    if ~isscalar(aprimeFnParams(ii))
+        error('Using experienceassetu does not allow for any of aprimeFn parameters to be anything but a scalar')
     end
     ParamCell(ii,1)={aprimeFnParams(ii)};
 end
@@ -38,9 +38,8 @@ l_dexp=length(whichisdforexpasset);
 l_u=length(n_u);
 
 if nargin(aprimeFn)~=l_dexp+1+l_u+length(aprimeFnParams)
-    error('ERROR: Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
+    error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
-
 
 if N_z==0 % To save writing a seperate script for without z
     if l_dexp>=1

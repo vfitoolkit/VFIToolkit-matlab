@@ -21,7 +21,7 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Polic
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
     if size(aprimeFnParams(ii))~=[1,1]
-        error('Using GPU for the return fn does not allow for any of aprimeFn parameters to be anything but a scalar')
+        error('riskyasset does not allow for any of aprimeFn parameters to be anything but a scalar')
     end
     ParamCell(ii,1)={aprimeFnParams(ii)};
 end

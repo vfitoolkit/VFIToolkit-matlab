@@ -101,7 +101,7 @@ pathcounter=0;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
-pi_z_sparse=sparse(pi_z); % Need full pi_z for value fn, and sparse for agent dist
+pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
@@ -148,7 +148,7 @@ d_grid=[d1_grid; d2_grid];
 Policy_a2prime=zeros(N_a,N_z,2,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_z,2,'gpuArray'); % preallocate
 Policy_aprime=zeros(N_a,N_z,2,'gpuArray'); % preallocate
-II2=gpuArray([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
+II2=([1:1:N_a*N_z; 1:1:N_a*N_z]'); % Index for this period (a,z), note the 2 copies
 
 
 %%
@@ -267,7 +267,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         %% AggVars and General Eqm
-        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, [n_a1,n_a2], n_z, a_gridvals, z_gridvals,1);
+        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(gpuArray(full(AgentDist)), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, [n_a1,n_a2], n_z, a_gridvals, z_gridvals,1);
         for ii=1:length(AggVarNames)
             Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
         end

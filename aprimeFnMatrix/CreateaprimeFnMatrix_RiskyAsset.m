@@ -9,8 +9,8 @@ function [a2primeIndexes,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn,
 
 ParamCell=cell(length(aprimeFnParams),1);
 for ii=1:length(aprimeFnParams)
-    if size(aprimeFnParams(ii))~=[1,1]
-        error('Using GPU for the return fn does not allow for any of aprimeFn parameters to be anything but a scalar')
+    if ~isscalar(aprimeFnParams(ii))
+        error('Using riskyasset does not allow for any of aprimeFn parameters to be anything but a scalar')
     end
     ParamCell(ii,1)={aprimeFnParams(ii)};
 end

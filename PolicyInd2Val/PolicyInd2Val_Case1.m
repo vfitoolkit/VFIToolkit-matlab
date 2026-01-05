@@ -58,6 +58,13 @@ else
             n_aprime=n_a(1:end-1);
             ordinary=0;
         end
+    elseif isfield(vfoptions,'inheritanceasset')
+        if vfoptions.inheritanceasset>0
+            l_aprime=l_a-1;
+            aprime_grid=a_grid(1:sum(n_a(1:end-1)));
+            n_aprime=n_a(1:end-1);
+            ordinary=0;
+        end
     end
     
     if isfield(vfoptions,'gridinterplayer')

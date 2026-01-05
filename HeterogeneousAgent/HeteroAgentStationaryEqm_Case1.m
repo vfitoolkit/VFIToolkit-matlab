@@ -282,6 +282,10 @@ if isstruct(FnsToEvaluate)
         % One of the endogenous states should only be counted once
         l_aprime=l_aprime-simoptions.residualassset;
     end
+    if isfield(simoptions,'inheritanceasset')
+        % One of the endogenous states should only be counted once
+        l_aprime=l_aprime-simoptions.inheritanceasset;
+    end
 
     AggVarNames=fieldnames(FnsToEvaluate);
     for ff=1:length(AggVarNames)

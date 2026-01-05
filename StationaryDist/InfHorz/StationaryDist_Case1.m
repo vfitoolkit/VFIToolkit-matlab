@@ -31,6 +31,7 @@ if exist('simoptions','var')==0
     % simoptions.endogenousexit=0; % Not needed when simoptions.agententryandexit=0;
     % simoptions.SemiEndogShockFn % Undeclared by default (cannot be used with entry and exit)
     simoptions.experienceasset=0;
+    simoptions.inheritanceasset=0;
     % Alternative Exogenous States
     simoptions.n_e=0;
     simoptions.n_semiz=0;
@@ -99,6 +100,9 @@ else
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
     end
+    if ~isfield(simoptions,'inheritanceasset')
+        simoptions.inheritanceasset=0;
+    end
     % Alternative Exogenous States
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
@@ -122,10 +126,10 @@ end
 N_e=prod(simoptions.n_e);
 N_semiz=prod(simoptions.n_semiz);
 if N_e>0
-    error('Have not yet tried e variables for InfHorz, contact me if you need this')
+    error('Have not yet implemented e variables for InfHorz, ask on forum you need this')
 end
 if N_semiz>0
-    error('Have not yet tried semiz variables for InfHorz, contact me if you need this')
+    error('Have not yet implemented semiz variables for InfHorz, ask on forum if you need this')
 end
 
 
@@ -241,6 +245,15 @@ if simoptions.experienceasset==1
     return
 end
 
+%% Inheritance asset
+if simoptions.inheritanceasset==1
+    if ~exist('Parameters','var')
+        error('When using simoptions.inheritanceasset=1 you must include Parameter structure as input to StationaryDist_Case1 (input just after simoptions)')
+    end
+    % Iterate using Tan improvement
+    StationaryDist=StationaryDist_InfHorz_InheritAsset(StationaryDist,Policy,n_d,n_a,n_z,pi_z,Parameters,simoptions);
+    return
+end
 
 %% Down to just the baseline case, codes show a couple of possiblities. Only one is used, rest are legacy/demonstration.
 

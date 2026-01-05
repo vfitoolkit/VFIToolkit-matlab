@@ -42,6 +42,10 @@ if isfield(vfoptions,'residualasset')
     % One of the endogenous states should only be counted once.
     l_aprime=l_aprime-vfoptions.residualasset;
 end
+if isfield(vfoptions,'inheritanceasset')
+    % One of the endogenous states should only be counted once.
+    l_aprime=l_aprime-vfoptions.inheritanceasset;
+end
 if isfield(vfoptions,'refine_d')
     % Remove d2
     l_d=l_d-vfoptions.refine_d(2);

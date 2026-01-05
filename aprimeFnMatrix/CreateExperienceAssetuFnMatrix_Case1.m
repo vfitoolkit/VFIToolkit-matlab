@@ -25,12 +25,12 @@ if N_d==0
 end
 l_a2=length(n_a2);
 if l_d>4
-    error('ERROR: Using GPU for the return fn does not allow for more than four of d variable (you have length(n_d)>4)')
+    error('experienceassetu does not allow for more than four of d variable (you have length(n_d)>4)')
 end
 l_u=length(n_u);
 
 if nargin(aprimeFn)~=l_d+l_a2+l_u+length(aprimeFnParams)
-    error('ERROR: Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
+    error('Number of inputs to aprimeFn does not fit with size of aprimeFnParams')
 end
 
 if l_d>=1

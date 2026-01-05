@@ -88,7 +88,7 @@ pathcounter=1;
 
 V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
-pi_z_sparse=sparse(pi_z); % Need full pi_z for value fn, and sparse for agent dist
+pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
 AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
@@ -208,13 +208,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         %% Get the current optimal policy, and iterate the agent dist
         if simoptions.gridinterplayer==0
+            whos AgentDist PolicyaprimezPath II1 IIones pi_z_sparse
             AgentDistnext=AgentDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
         elseif simoptions.gridinterplayer==1
             AgentDistnext=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
         end
 
         %% AggVars
-        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(full(AgentDist), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
+        AggVars=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AggVars(gpuArray(full(AgentDist)), PolicyValuesPath(:,:,:,tt), FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, AggVarNames, n_a, n_z, a_gridvals, z_gridvals,1);
         for ii=1:length(AggVarNames)
             Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
         end

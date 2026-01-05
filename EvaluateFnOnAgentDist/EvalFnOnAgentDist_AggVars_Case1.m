@@ -49,8 +49,6 @@ elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
 
-
-
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
     FnsToEvaluate_copy=FnsToEvaluate; % keep a copy in case needed for conditional restrictions
@@ -153,9 +151,10 @@ if simoptions.parallel==2
     n_a=gpuArray(n_a);
     n_z=gpuArray(n_z);
     d_grid=gpuArray(d_grid);
+    a_gridvals=gpuArray(a_gridvals);
     
     StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-
+    
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
     PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
