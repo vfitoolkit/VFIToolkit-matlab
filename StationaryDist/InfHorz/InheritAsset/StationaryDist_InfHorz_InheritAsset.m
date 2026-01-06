@@ -1,14 +1,14 @@
 function  StationaryDist=StationaryDist_InfHorz_InheritAsset(StationaryDistKron,Policy,n_d,n_a,n_z,pi_z,Parameters,simoptions)
 
-%% Setup related to experience asset
+%% Setup related to inheritance asset
 n_d2=n_d(end);
-% Split endogenous assets into the standard ones and the experience asset
+% Split endogenous assets into the standard ones and the inheritance asset
 if isscalar(n_a)
     n_a1=0;
 else
     n_a1=n_a(1:end-1);
 end
-n_a2=n_a(end); % n_a2 is the experience asset
+n_a2=n_a(end); % n_a2 is the inheritance asset
 
 if ~isfield(simoptions,'aprimeFn')
     error('To use an inheritance asset you must define simoptions.aprimeFn')

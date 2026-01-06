@@ -22,12 +22,7 @@ function TransitionProbabilities=EvalFnOnAgentDist_RankTransitionProbabilities_C
 % variables, and then just evaluate the functions on them and calculate the
 % ranks at the end.
 
-simoptions
-
 %%
-if ~isfield(simoptions,'parallel')
-    simoptions.parallel=1+(gpuDeviceCount>0);
-end
 if ~isfield(simoptions,'gridinterplayer')
     simoptions.gridinterplayer=0;
 end
@@ -36,11 +31,11 @@ if exist('npoints','var')==0
     npoints=100;
 end
 
-if n_d(1)==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
+% if n_d(1)==0
+%     l_d=0;
+% else
+%     l_d=length(n_d);
+% end
 l_a=length(n_a);
 l_z=length(n_z);
 
@@ -53,6 +48,28 @@ if simoptions.gridinterplayer==1
 end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 z_gridvals=CreateGridvals(n_z,z_grid,1);
+
+%%
+StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
+
+%% Start with generating starting indexes and using simulations to get finish/final indexes. Will give us NSims transitions (indexes).
+simoptions.burnin=0;
+simoptions.simperiods=t+1; % So that the going from the first period to the last period represents a t period transition
+simoptions.numbersims=NSims;
+
+% Switch to CPU for simulations
+StationaryDist=gather(StationaryDist);
+
+% Simulate a panel of t periods, and then just keep the first and last period from that
+SimPanelValues=SimPanelValues_Case1(StationaryDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions);
+
+%% We have the indexes. Now convert into values. Will give us NSims transitions (values).
+Transitions_StartAndFinish=nan(2,NSims,length(FnsToEvaluate),'gpuArray');
+Transitions_StartAndFinish_ff=nan(2,NSims,'gpuArray');
+
+PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+permuteindexes=[1+(1:1:(l_a+l_z)),1];
+PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -75,57 +92,9 @@ else
 end
 
 %%
-StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
-
-%% Start with generating starting indexes and using simulations to get finish/final indexes. Will give us NSims transitions (indexes).
-simoptions.burnin=0;
-simoptions.simperiods=t;
-simoptions.numbersims=NSims;
-
-% Switch to CPU for simulations
-StationaryDist=gather(StationaryDist);
-
-% Simulate a panel of t periods, and then just keep the first and last period from that
-SimPanelValues=SimPanelValues_Case1(StationaryDist,Policy,FnsToEvaluate,FnsToEvaluateParamNames,Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions);
-
-% cumsumStationaryDist=cumsum(reshape(StationaryDist,[N_a*N_z,1]));
-% cumsum_pi_z=cumsum(pi_z,2);
-% if simoptions.inheritanceasset==0
-%     PolicyIndexesKron=gather(KronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,simoptions));
-%     Transitions_StartAndFinishIndexes=nan(2,NSims);
-%     parfor ii=1:NSims
-%         Transitions_StartAndFinishIndexes_ii=Transitions_StartAndFinishIndexes(:,ii);
-%         % Draw initial condition
-%         [~,seedpoint]=max(cumsumStationaryDist>rand(1,1));
-%         Transitions_StartAndFinishIndexes_ii(1)=seedpoint;
-%         seedpoint=ind2sub_homemade([N_a,N_z],seedpoint); % put in form needed for SimTimeSeriesIndexes_Case1_raw
-%         % Simulate time series
-%         SimTimeSeriesKron=SimTimeSeriesIndexes_Case1_raw(PolicyIndexesKron,l_d,n_a,cumsum_pi_z,seedpoint,simoptions);
-%         % Store last
-%         Transitions_StartAndFinishIndexes_ii(2)=sub2ind_homemade([N_a,N_z],SimTimeSeriesKron(:,end));
-%         Transitions_StartAndFinishIndexes(:,ii)=Transitions_StartAndFinishIndexes_ii;
-%     end
-% end
-% 
-% %% Done simulating, switch back to GPU
-% Transitions_StartAndFinishIndexes=gpuArray(Transitions_StartAndFinishIndexes);
-
-%% We have the indexes. Now convert into values. Will give us NSims transitions (values).
-Transitions_StartAndFinish=nan(2,NSims,length(FnsToEvaluate),'gpuArray');
-Transitions_StartAndFinish_ff=nan(2,NSims,'gpuArray');
-
-PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
-permuteindexes=[1+(1:1:(l_a+l_z)),1];
-PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
-
 for ff=1:length(FnsToEvalNames)
-    % FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-    % Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
-    % Values=reshape(Values,[N_a*N_z,1]);
-    % % MIGHT BE POSSIBLE TO MERGE FOLLOWING TWO LINES (replace rows 1 and 2 with all rows ':'), JUST UNSURE WHAT
-    % % RESULTING BEHAVIOUR WILL BE IN TERMS OF SIZE() AND CURRENTLY TO LAZY TO CHECK.
-    % Transitions_StartAndFinish_ff(1,:)=Values(Transitions_StartAndFinishIndexes(1,:));
-    % Transitions_StartAndFinish_ff(2,:)=Values(Transitions_StartAndFinishIndexes(2,:));
+
+    % We just want the first and last periods from the SimPanelValues, as this is the t-period transitions
     temp=SimPanelValues.(FnsToEvalNames{ff});
     Transitions_StartAndFinish_ff(1,:)=temp(1,:);
     Transitions_StartAndFinish_ff(2,:)=temp(end,:);

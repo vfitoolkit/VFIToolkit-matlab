@@ -21,15 +21,20 @@ if ~exist('simoptions','var')
     simoptions.verbose=0;
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.gridinterplayer=0;
+    simoptions.lowmemory=0;
     % Model setup
     simoptions.experienceasset=0;
     simoptions.experienceassetu=0;
     simoptions.inheritanceasset=0;
+    simoptions.n_semiz=0;
+    simoptions.n_e=0;
     % Model settings - Entry and Exit make the panel simulation much trickier
     simoptions.agententryandexit=0;
     simoptions.endogenousexit=0; % Note: this will only be relevant if agententryandexit=1
     simoptions.entryinpanel=0; % Note: this will only be relevant if agententryandexit=1
     simoptions.exitinpanel=0; % Note: this will only be relevant if agententryandexit=1
+    % Internal use only
+    simoptions.simpanelindexkron=1;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
     % Main simulation options
@@ -42,17 +47,17 @@ else
     if ~isfield(simoptions,'burnin')
         simoptions.burnin=0; % In infinite horizon, InitialDist is typically the stationary dist and so no need to burnin
     end
-    % Can get more feedback on what is happening
-    if ~isfield(simoptions,'verbose')
+    if ~isfield(simoptions,'verbose') % Can get more feedback on what is happening
         simoptions.verbose=0;
     end
-    % Will use parallel cpus, parallel just determines where the solution is when output
-    if ~isfield(simoptions,'parallel')
+    if ~isfield(simoptions,'parallel') % Will use parallel cpus, parallel just determines where the solution is when output   
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
-    % Info that is needed to understand Policy
-    if ~isfield(simoptions,'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer') % Info that is needed to understand Policy
         simoptions.gridinterplayer=0;
+    end
+    if ~isfield(simoptions,'lowmemory')
+        simoptions.lowmemory=0;
     end
     % Model setup
     if ~isfield(simoptions,'experienceasset')
@@ -63,6 +68,12 @@ else
     end
     if ~isfield(simoptions,'inheritanceasset')
         simoptions.inheritanceasset=0;
+    end
+    if ~isfield(simoptions,'n_semiz')
+        simoptions.n_semiz=0;
+    end
+    if ~isfield(simoptions,'n_e')
+        simoptions.n_e=0;
     end
     % Model settings - Entry and Exit make the panel simulation much trickier
     if ~isfield(simoptions,'agententryandexit')
@@ -85,6 +96,10 @@ else
             simoptions.exitinpanel=0;
         end
     end
+    % Internal use only
+    if ~isfield(simoptions,'simpanelindexkron')
+        simoptions.simpanelindexkron=1;
+    end
 end
 
 if n_d(1)==0
@@ -95,33 +110,39 @@ end
 l_a=length(n_a);
 l_z=length(n_z);
 
-% N_d=prod(n_d);
+N_d=prod(n_d);
 N_a=prod(n_a);
-% N_z=prod(n_z);
+N_z=prod(n_z);
 
 if simoptions.agententryandexit==1 && isfield(simoptions,'SemiEndogShockFn')
     error('Cannot currently use simoptions.agententryandexit==1 and SemiEndogShockFn together. \n')
 end
 
 %% Implement new way of handling FnsToEvaluate
+% Figure out l_daprime from Policy
+l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
+
+
 if isstruct(FnsToEvaluate)
     FnsToEvaluateStruct=1;
     clear FnsToEvaluateParamNames
-    AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    FnsToEvalNames=fieldnames(FnsToEvaluate);
+    for ff=1:length(FnsToEvalNames)
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+        if length(temp)>(l_daprime+l_a+l_z)
+            FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             FnsToEvaluateParamNames(ff).Names={};
         end
-        FnsToEvaluate2{ff}=FnsToEvaluate.(AggVarNames{ff});
+        FnsToEvaluate2{ff}=FnsToEvaluate.(FnsToEvalNames{ff});
     end    
     FnsToEvaluate=FnsToEvaluate2;
 else
     FnsToEvaluateStruct=0;
 end
-
 
 %% Simulate Panel Indexes
 pi_z=gather(pi_z); % This is only use for the simulations
@@ -164,80 +185,120 @@ elseif isfield(simoptions,'SemiEndogShockFn')
     SimPanelIndexes=SimPanelIndexes_InfHorz_SemiEndog(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
 else % simoptions.agententryandexit==0
     if simoptions.inheritanceasset==1
-        SimPanelIndexes=SimPanelIndexes_InfHorz_InheritAsset(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
+        SimPanelIndexes=SimPanelIndexes_InfHorz_InheritAsset(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, Parameters, simoptions);
+    elseif simoptions.experienceasset==1
+        error('Have not yet implemented simulation for InfHorz with experienceasset')
     else
         SimPanelIndexes=SimPanelIndexes_InfHorz(InitialDist,gather(Policy),n_d,n_a,n_z,pi_z, simoptions);
     end
 end
 
-%% From now on is just replacing the indexes with values
-% Move everything to cpu for what remains.
-d_grid=gather(d_grid);
-a_grid=gather(a_grid);
-z_grid=gather(z_grid);
-Policy=gather(Policy);
-
-SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, size(SimPanelIndexes,3)); % Normally size(SimPanelIndexes,3) will equal simoptions.numbersims, but not when there is entry.
 
 %% Precompute the gridvals vectors.
-if simoptions.agententryandexit==1 && simoptions.endogenousexit==1
-    % Policy contains zeros relating to aprime_ind endogenous exit
-    % These zeros would cause problem for CreateGridvals_Policy(), but are
-    % not needed for anything here. So can just replace with nan.
-    Policy(Policy==0)=nan;
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy_IgnoringNan(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+N_semizze=N_z; % Currently only z is implemented in InfHorz
+n_semizze=n_z; % Currently only z is implemented in InfHorz
+l_semizze=l_z; % Currently only z is implemented in InfHorz
+
+if N_semizze==0
+    Policy=reshape(Policy,[size(Policy,1),N_a,1]);
 else
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1,2); % REWORK TO USE FINE APRIME GRID BASED ON POLICY WITH GRIDINTERPLAYER
-end
-a_gridvals=CreateGridvals(n_a,a_grid,2); % 1 at end indicates output as matrices.
-if all(size(z_grid)==[sum(n_z),1])
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
-elseif all(size(z_grid)==[prod(n_z),lenght(n_z)])
-    z_gridvals=z_grid;
-end
-z_gridvals=num2cell(z_gridvals);
-
-if exist('PolicyWhenExiting','var')
-    [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+    Policy=reshape(Policy,[size(Policy,1),N_a,N_semizze]);
 end
 
+% Following commented out lines explain what size daprimePolicy_gridvals will be
+% l_aprime=l_a;
+% if simoptions.experienceasset==1 || simoptions.experienceassetu==1 || simoptions.inheritanceasset==1
+%     l_aprime=l_aprime-1;
+% end
+% if N_d==0
+%     if N_semizze==0
+%         daprimePolicy_gridvals=zeros(N_a,l_aprime);
+%     else
+%         daprimePolicy_gridvals=zeros(N_a*N_semizze,l_aprime);
+%     end
+% else
+%     if N_semizze==0
+%         daprimePolicy_gridvals=zeros(N_a,l_d+l_aprime);
+%     else
+%         daprimePolicy_gridvals=zeros(N_a*N_semizze,l_d+l_aprime);
+%     end
+% end
+
+if N_d==0
+    [~,aprimePolicy_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_semizze,[],a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
+    daprimePolicy_gridvals=aprimePolicy_gridvals;
+else
+    [dPolicy_gridvals,aprimePolicy_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_semizze,d_grid,a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
+    daprimePolicy_gridvals=[dPolicy_gridvals, aprimePolicy_gridvals];
+end
+
+a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
+z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+
+%% Now switch everything to gpu so can use arrayfun() to evaluates all the FnsToEvaluate
+daprimePolicy_gridvals=gpuArray(daprimePolicy_gridvals);
+SimPanelIndexes=gpuArray(SimPanelIndexes);
+
+SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, size(SimPanelIndexes,3),'gpuArray'); % Normally size(SimPanelIndexes,3) will equal simoptions.numbersims, but not when there is entry.
+
+nFnsToEvalute=length(FnsToEvalNames);
 
 %% For sure the following could be made faster by parallelizing some stuff.
 if simoptions.agententryandexit==0
-    for ii=1:simoptions.numbersims
-        SimPanel_ii=SimPanelIndexes(:,:,ii);
-        SimPanelValues_ii=nan(length(FnsToEvaluate),simoptions.simperiods);
-        for t=1:simoptions.simperiods
-            a_sub=SimPanel_ii(1:l_a,t);
-            a_ind=sub2ind_homemade(n_a,a_sub);
-            
-            z_sub=SimPanel_ii((l_a+1):(l_a+l_z),t);
-            z_ind=sub2ind_homemade(n_z,z_sub);
-            
-            j_ind=SimPanel_ii(end,t); % DO I ACTUALLY WANT THIS HERE? (PRETTY SURE THAT IT IS JUST ACTING AS AN EXTRA INPUT LATER WHICH IS BEING IGNORED AS NOT RELEVANT)
-            
-            if l_d==0
-                for vv=1:length(FnsToEvaluate)
-                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                    else
-                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                    end
+
+    %% Create PanelValues from PanelIndexes
+    if N_semizze>0
+        for tt=1:simoptions.simperiods
+            SimPanelIndexes_tt=SimPanelIndexes(:,tt,:);
+
+            currentPanelValues_tt=zeros(simoptions.numbersims,nFnsToEvalute); % transpose will be taken before storing
+
+            az_ind=squeeze(SimPanelIndexes_tt(1,1,:)+N_a*(SimPanelIndexes_tt(2,1,:)-1));
+            % a_ind=currentPanelIndexes_jj(1,1,:);
+            % z_ind=currentPanelIndexes_jj(2,1,:); % this is semiz,z,e all together
+
+            a_val=a_gridvals(SimPanelIndexes_tt(1,1,:),:);
+            z_val=z_gridvals(SimPanelIndexes_tt(2,1,:),:);
+
+            for vv=1:nFnsToEvalute
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                    ParamCell={};
+                else
+                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,tt);
+                    ParamCell=num2cell(ValuesFnParamsVec);
                 end
-            else
-                for vv=1:length(FnsToEvaluate)
-                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                    else
-                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+N_a*(z_ind-1),:},aprime_gridvals{a_ind+N_a*(z_ind-1),:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                    end
-                end
+                daprime_val=daprimePolicy_gridvals(az_ind,:);
+                currentPanelValues_tt(:,vv)=EvalFnOnSimPanelIndex(FnsToEvaluate{vv},ParamCell,daprime_val,a_val,z_val,l_daprime,l_a,l_semizze);
             end
+            SimPanelValues(:,tt,:)=reshape(currentPanelValues_tt',[nFnsToEvalute,1,simoptions.numbersims]);
         end
-        SimPanelValues(:,:,ii)=SimPanelValues_ii;
+    else % N_semizze==0
+        for tt=1:simoptions.simperiods
+            SimPanelIndexes_tt=SimPanelIndexes(:,tt,:);
+            
+            currentPanelValues_tt=zeros(simoptions.numbersims,nFnsToEvalute); % transpose will be taken before storing
+
+            a_ind=squeeze(SimPanelIndexes_tt(1,1,:));
+
+            a_val=a_gridvals(a_ind,:);
+
+            for vv=1:nFnsToEvalute
+                if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                    ParamCell={};
+                else
+                    ValuesFnParamsVec=CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,tt);
+                    ParamCell=num2cell(ValuesFnParamsVec);
+                end
+                daprime_val=daprimePolicy_gridvals(a_ind,:);
+                currentPanelValues_tt(:,vv)=EvalFnOnSimPanelIndex(FnsToEvaluate{vv},ParamCell,daprime_val,a_val,[],l_daprime,l_a,0);
+            end
+            SimPanelValues(:,tt,:)=reshape(currentPanelValues_tt',[nFnsToEvalute,1,simoptions.numbersims]);
+
+        end
     end
+
+
+    %% Rest are with entry and exit
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
     % Need to add check for nan relating to a_ind and z_ind around entry/exit
     for ii=1:size(SimPanelIndexes,3) % simoptions.numbersims
@@ -399,18 +460,17 @@ if simoptions.agententryandexit==1
 end
 
 
-
-%%
+%% Implement new way of handling FnsToEvaluate: convert results
 if FnsToEvaluateStruct==1
     % Change the output into a structure
     SimPanelValues2=SimPanelValues;
     clear SimPanelValues
     SimPanelValues=struct();
-%     AggVarNames=fieldnames(FnsToEvaluate);
-    for ff=1:length(AggVarNames)
-        SimPanelValues.(AggVarNames{ff})=shiftdim(SimPanelValues2(ff,:,:),1);
+    for ff=1:length(FnsToEvalNames)
+        SimPanelValues.(FnsToEvalNames{ff})=shiftdim(SimPanelValues2(ff,:,:),1);
     end
 end
+
 
 end
 
