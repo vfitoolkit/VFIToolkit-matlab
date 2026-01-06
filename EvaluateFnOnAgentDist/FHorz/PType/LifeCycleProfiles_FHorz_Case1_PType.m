@@ -563,7 +563,7 @@ if simoptions.lowmemory==0
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
                 
                 % Get parameter names for current FnsToEvaluate functions
-                tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii}));
+                tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
                 if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
                     FnsToEvaluateParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 else
@@ -577,7 +577,7 @@ if simoptions.lowmemory==0
                 
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2;
-                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
+                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
                 
                 ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]);
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
