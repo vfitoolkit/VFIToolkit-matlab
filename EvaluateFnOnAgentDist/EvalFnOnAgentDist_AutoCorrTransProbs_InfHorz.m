@@ -1,4 +1,4 @@
-function CorrTransProbs=EvalFnOnAgentDist_CorrTransProbs_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, simoptions)
+function CorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, pi_z, simoptions)
 % Returns stats on (auto) correlation and transition probabilities
 % You must input the names for the FnsToEvaluate that you want the transition probabilities for (by default it won't do any)
 % Done as simoptions.transprobs
@@ -24,6 +24,7 @@ if ~exist('simoptions','var')
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.inheritanceasset=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
     % Internal options
@@ -46,6 +47,9 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'inheritanceasset')
+        simoptions.inheritanceasset=0;
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
