@@ -105,32 +105,7 @@ SimPanel=nan(l_a+l_z,simoptions.simperiods,simoptions.numbersims); % preallocate
 
 exitinpanel=simoptions.exitinpanel; % reduce overhead with parfor
 
-if exitinpanel==0
-    % % Baseline setup
-    % parfor ii=1:simoptions.numbersims % Parallel CPUs for the simulations
-    %     seedpoint_ii=ind2sub_homemade([N_a,N_z],seedpointvec(ii));
-    %     seedpoint_ii=round(seedpoint_ii); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-    % 
-    %     SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_raw(Policy,l_d,n_a,cumsumpi_z,seedpoint_ii,simoptions);
-    % 
-    %     SimPanel_ii=nan(l_a+l_z,simoptions.simperiods);
-    % 
-    %     for t=1:simoptions.simperiods
-    %         temp=SimTimeSeriesKron(:,t);
-    %         if ~isnan(temp)
-    %             a_c_vec=ind2sub_homemade([n_a],temp(1));
-    %             z_c_vec=ind2sub_homemade([n_z],temp(2));
-    %             for kk=1:l_a
-    %                 SimPanel_ii(kk,t)=a_c_vec(kk);
-    %             end
-    %             for kk=1:l_z
-    %                 SimPanel_ii(l_a+kk,t)=z_c_vec(kk);
-    %             end
-    %         end
-    %     end
-    %     SimPanel(:,:,ii)=SimPanel_ii;
-    % end
-    
+if exitinpanel==0    
     %% First do the case without e variables, otherwise do with e variables
     if N_z==0
         if N_e==0  % No z, No e
@@ -309,14 +284,25 @@ else
         exitprobs=0; % Not sure why, but Matlab was throwing error if this did not exist even when endogenousexit~=2, presumably something to do with figuring out the parallelization for parfor???
     end
 
-    parfor ii=1:simoptions.numbersims % Parallel CPUs for the simulations
+    if isscalar(n_a)
+        if N_d==0
+            Policy_aprime=gather(squeeze(Policy));
+        else
+            Policy_aprime=gather(squeeze(Policy(2,:,:)));
+        end
+    else
+        error('Entry/exit not yet impelemented for length(n_a)>1, ask on forum if you need this')
+    end
+
+    %par
+    for ii=1:simoptions.numbersims % Parallel CPUs for the simulations
         seedpoint_ii=ind2sub_homemade([N_a,N_z],seedpointvec(ii));
         seedpoint_ii=round(seedpoint_ii); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
 
         if endogenousexit==2 % Mixture of endogenous and exogenous exit
-            SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit2_raw(Policy, CondlProbOfSurvival,N_d,N_a,N_z,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,exitprobs,0); % 0: burnin, 0: use single CPU
+            SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit2_raw(Policy_aprime, CondlProbOfSurvival,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,exitprobs);
         else % Otherwise (either one of endogenous or exogenous exit; but not mixture)
-            SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit_raw(Policy, CondlProbOfSurvival,N_d,N_a,N_z,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods,0); % 0: burnin, 0: use single CPU
+            SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit_raw(Policy_aprime, CondlProbOfSurvival,cumsumpi_z,simoptions.burnin,seedpoint_ii,simoptions.simperiods);
         end
 
         SimPanel_ii=nan(l_a+l_z,simoptions.simperiods);

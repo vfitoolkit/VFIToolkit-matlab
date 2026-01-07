@@ -150,8 +150,7 @@ InitialDist=gather(InitialDist);
 
 if simoptions.agententryandexit==1
     % Do everything for an extra period, and then delete this at the end
-    % (this is needed as lot's of info about exit decisions gets encoded
-    % into the next period as a way to minimize memory usage)
+    % (this is needed as lot's of info about exit decisions gets encoded into the next period as a way to minimize memory usage)
     simoptions.simperiods=simoptions.simperiods+1;
     
     DistOfNewAgents=gather(Parameters.(EntryExitParamNames.DistOfNewAgents{1}));
@@ -224,12 +223,30 @@ end
 %     end
 % end
 
-if N_d==0
-    [~,aprimePolicy_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_semizze,[],a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
-    daprimePolicy_gridvals=aprimePolicy_gridvals;
+if exist('PolicyWhenExiting','var')
+    [d_gridvalsWhenExiting, aprime_gridvalsWhenExiting]=CreateGridvals_Policy(PolicyWhenExiting,n_d,n_a,n_a,n_z,d_grid,a_grid,1,2);
+    if N_d==0
+        daprime_gridvalsWhenExiting=aprime_gridvalsWhenExiting;
+    else
+        daprime_gridvalsWhenExiting=[d_gridvalsWhenExiting, aprime_gridvalsWhenExiting];
+    end
+end
+if simoptions.agententryandexit==1 && simoptions.endogenousexit==1
+    % Policy contains zeros relating to aprime_ind endogenous exit These zeros would cause problem for CreateGridvals_Policy(), but are not needed for anything here. So can just replace with nan.
+    Policy(Policy==0)=nan;
+    [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_IgnoringNan(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1,1);
+    if N_d==0
+        daprimePolicy_gridvals=aprimePolicy_gridvals;
+    else
+        daprimePolicy_gridvals=[dPolicy_gridvals, aprimePolicy_gridvals];
+    end
 else
     [dPolicy_gridvals,aprimePolicy_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_semizze,d_grid,a_grid,simoptions,1, 1); % handles gridinterplayer=1 in here
-    daprimePolicy_gridvals=[dPolicy_gridvals, aprimePolicy_gridvals];
+    if N_d==0
+        daprimePolicy_gridvals=aprimePolicy_gridvals;
+    else
+        daprimePolicy_gridvals=[dPolicy_gridvals, aprimePolicy_gridvals];
+    end
 end
 
 a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
@@ -243,7 +260,7 @@ SimPanelValues=zeros(length(FnsToEvaluate), simoptions.simperiods, size(SimPanel
 
 nFnsToEvalute=length(FnsToEvalNames);
 
-%% For sure the following could be made faster by parallelizing some stuff.
+
 if simoptions.agententryandexit==0
 
     %% Create PanelValues from PanelIndexes
@@ -314,23 +331,13 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
                 
                 j_ind=SimPanel_ii(end,t);
                 
-                if l_d==0
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                        else
-                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                        end
-                    end
-                else
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                        else
-                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                        end
+                daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
+                    else
+                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                     end
                 end
             end
@@ -354,24 +361,14 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==1
                 z_ind=sub2ind_homemade(n_z,z_sub);
                 
                 j_ind=SimPanel_ii(end,t);
-                
-                if l_d==0
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                        else
-                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                        end
-                    end
-                else
-                    for vv=1:length(FnsToEvaluate)
-                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                        else
-                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                        end
+
+                daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
+                for vv=1:length(FnsToEvaluate)
+                    if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
+                    else
+                        FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                        SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                     end
                 end
             end
@@ -406,43 +403,23 @@ elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==2
                     end
                 end
                 if exiting==0
-                    if l_d==0
-                        for vv=1:length(FnsToEvaluate)
-                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                            else
-                                FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                            end
-                        end
-                    else
-                        for vv=1:length(FnsToEvaluate)
-                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                            else
-                                FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvals{a_ind+(z_ind-1)*N_a,:},aprime_gridvals{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                            end
+                    daprime_val=daprimePolicy_gridvals(a_ind+N_a*(z_ind-1),:);
+                    for vv=1:length(FnsToEvaluate)
+                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
+                        else
+                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                         end
                     end
                 elseif exiting==1
-                    if l_d==0
-                        for vv=1:length(FnsToEvaluate)
-                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvalsWhenExiting{a_ind,:},z_gridvals{z_ind,:});
-                            else
-                                FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvalsWhenExiting{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                            end
-                        end
-                    else
-                        for vv=1:length(FnsToEvaluate)
-                            if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:});
-                            else
-                                FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
-                                SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(d_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},aprime_gridvalsWhenExiting{a_ind+(z_ind-1)*N_a,:},a_gridvals{a_ind,:},z_gridvals{z_ind,:},FnsToEvaluateParamsCell{:});
-                            end
+                    daprime_val=daprime_gridvalsWhenExiting(a_ind+N_a*(z_ind-1),:);
+                    for vv=1:length(FnsToEvaluate)
+                        if isempty(FnsToEvaluateParamNames(vv).Names)  % check for 'FnsToEvaluateParamNames={}'
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:));
+                        else
+                            FnsToEvaluateParamsCell=num2cell(CreateVectorFromParams(Parameters,FnsToEvaluateParamNames(vv).Names,j_ind));
+                            SimPanelValues_ii(vv,t)=FnsToEvaluate{vv}(daprime_val,a_gridvals(a_ind,:),z_gridvals(z_ind,:),FnsToEvaluateParamsCell{:});
                         end
                     end
                 end
