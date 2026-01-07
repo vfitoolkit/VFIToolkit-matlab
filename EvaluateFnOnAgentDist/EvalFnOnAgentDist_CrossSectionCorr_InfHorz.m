@@ -129,8 +129,8 @@ end
 %% Just to make them easier to find, fill in the 'lower triangular' part
 for ff1=1:length(FnsToEvaluate)
     for ff2=1:ff1-1
-        CrossSectionCorr.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1})=CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2});
-        CrossSectionCorr.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1})=CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2});
+        CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
+        CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
     end
 end
 
