@@ -8,7 +8,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 % When using n_e, is instead:
-% Input: Policy (l_d+l_a,n_a,n_z,n_e,,N_j);
+% Input: Policy (l_d+l_a,n_a,n_z,n_e,N_j);
 %
 % Output: Policy=zeros(2,N_a,N_z,N_e,N_j); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z 
 %                       (N_a,N_z,N_e,N_j) if there is no d
