@@ -37,28 +37,32 @@ else
             n_aprime=n_a(1:end-1);
             ordinary=0;
         end
-    elseif isfield(vfoptions,'experienceassetu')
+    end
+    if isfield(vfoptions,'experienceassetu')
         if vfoptions.experienceassetu>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
             ordinary=0;
         end
-    elseif isfield(vfoptions,'riskyasset')
+    end
+    if isfield(vfoptions,'riskyasset')
         if vfoptions.riskyasset>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
             ordinary=0;
         end
-    elseif isfield(vfoptions,'residualasset')
+    end
+    if isfield(vfoptions,'residualasset')
         if vfoptions.residualasset>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
             n_aprime=n_a(1:end-1);
             ordinary=0;
         end
-    elseif isfield(vfoptions,'inheritanceasset')
+    end
+    if isfield(vfoptions,'inheritanceasset')
         if vfoptions.inheritanceasset>0
             l_aprime=l_a-1;
             aprime_grid=a_grid(1:sum(n_a(1:end-1)));
@@ -66,6 +70,7 @@ else
             ordinary=0;
         end
     end
+
     
     if isfield(vfoptions,'gridinterplayer')
         if vfoptions.gridinterplayer==1

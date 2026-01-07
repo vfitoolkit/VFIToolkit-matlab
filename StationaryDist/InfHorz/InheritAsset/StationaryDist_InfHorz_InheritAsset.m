@@ -82,6 +82,10 @@ elseif l_a>3
     error('Not yet implemented inheritanceasset with length(n_a)>3')
 end
 
+if simoptions.gridinterplayer==1
+    error('Not yet implemented grid interpolation layer with inheritanceasset')
+end
+
 
 %%
 % Policy depends on zprime
@@ -95,19 +99,6 @@ else
     % If 1 then leave output in Kron form
     StationaryDist=reshape(StationaryDist,[N_a,N_z]);
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

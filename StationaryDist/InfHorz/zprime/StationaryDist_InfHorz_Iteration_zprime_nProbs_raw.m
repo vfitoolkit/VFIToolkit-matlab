@@ -21,15 +21,15 @@ II2=repmat((1:1:N_a*N_z)',1,N_zprime*N_probs); %  Index for this period (a,z), n
 pi_z=sparse(gather(repelem(repmat(pi_z,1,N_probs),N_a,1)));
 
 % Transition matrix
-TranstionMatrixtranspose=sparse(Policy_aprimezprime,II2,PolicyProbs.*pi_z,N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices
+TransitionMatrixtranspose=sparse(Policy_aprimezprime,II2,PolicyProbs.*pi_z,N_a*N_z,N_a*N_z); % Note: sparse() will accumulate at repeated indices
 
 currdist=Inf;
 counter=0;
 while currdist>simoptions.tolerance && counter<simoptions.maxit
 
     % Iterate on agent distribution
-    StationaryDist=TranstionMatrixtranspose*StationaryDist;
-
+    StationaryDist=TransitionMatrixtranspose*StationaryDist;
+    
     if rem(counter,simoptions.multiiter)==0
         StationaryDistOld=StationaryDist;
     elseif rem(counter,simoptions.multiiter)==10

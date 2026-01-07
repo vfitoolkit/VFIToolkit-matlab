@@ -155,29 +155,17 @@ if N_z>0
     if N_e==0 % z, no e
         Policy_aprime=reshape(Policy_aprime,[N_a,N_z,N_zprime,N_probs]);
         CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_z,N_zprime,N_probs]);
-
-        % Get seedpoints from InitialDist
-        if simoptions.lowmemory==0
-            [~,seedpointind]=max(cumsumInitialDistVec>rand(1,simoptions.numbersims)); % will end up with simoptions.numbersims random draws from cumsumInitialDistVec
-        else % simoptions.lowmemory==1
-            seedpointind=zeros(1,simoptions.numbersims);
-            parfor ii=1:simoptions.numbersims
-                [~,ind_ii]=max(cumsumInitialDistVec>rand(1,1));
-                seedpointind(ii)=ind_ii;
-            end
-        end
-        seedpoints=[ind2sub_vec_homemade([N_a,N_z],seedpointind'),ones(simoptions.numbersims,1)];
-        seedpoints=gather(floor(seedpoints)); % For some reason seedpoints had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
-
-        % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
+        
         SimPanel=nan(2,simoptions.simperiods,simoptions.numbersims); % (a,z)
-        % par
-        for ii=1:simoptions.numbersims % This is only change from the simoptions.parallel==0
-            seedpoint=seedpoints(ii,:);
+        parfor ii=1:simoptions.numbersims
+            [~,seedpoint]=max(cumsumInitialDistVec>rand(1,1));
+            seedpoint=ind2sub_homemade([N_a,N_z],seedpoint);
+            seedpoint=round(seedpoint); % For some reason seedpoint had heaps of '.0000' decimal places and were not being treated as integers, this solves that.
+
             SimLifeCycleKron=SimTimeSeriesIndexes_InfHorz_zprime_PolicyProbs_raw(Policy_aprime,CumPolicyProbs,cumsumpi_z, simoptions, seedpoint);
             SimPanel(:,:,ii)=SimLifeCycleKron;
         end
-
+        
         if simoptions.simpanelindexkron==0 % Convert results out of kron
             SimPanelKron=reshape(SimPanel,[3,simoptions.simperiods*simoptions.numbersims]);
             SimPanel=nan(l_a+l_z+1,simoptions.simperiods*simoptions.numbersims); % (a,z)
