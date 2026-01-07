@@ -201,40 +201,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         [PricePathOld,PricePathNew]
     end
     
-    if transpathoptions.graphpricepath==1
-        if length(PricePathNames)>12
-            ncolumns=4;
-        elseif length(PricePathNames)>6
-            ncolumns=3;
-        else
-            ncolumns=2;
-        end
-        nrows=ceil(length(PricePathNames)/ncolumns);
-        fig1=figure(1);
-        for pp=1:length(PricePathNames)
-            subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
-            title(PricePathNames{pp})
-        end
-    end
-    if transpathoptions.graphaggvarspath==1
-        % Do an additional graph, this one of the AggVars
-        if length(AggVarNames)>12
-            ncolumns=4;
-        elseif length(AggVarNames)>6
-            ncolumns=3;
-        else
-            ncolumns=2;
-        end
-        nrows=ceil(length(AggVarNames)/ncolumns);
-        fig2=figure(2);
-        for pp=1:length(AggVarNames)
-            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
-            title(AggVarNames{pp})
-        end
-    end
+    % Create plots of the transition path (before we update pricepath)
+    createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,transpathoptions);
     
-    %Set price path to be 9/10ths the old path and 1/10th the new path (but
-    %making sure to leave prices in periods 1 & T unchanged).
+    % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0
         PricePathOld=PricePathNew; % The update weights are already in GEnewprice setup
     elseif transpathoptions.weightscheme==1 % Just a constant weighting
@@ -261,7 +231,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
-        fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+        fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1) \n',TransPathConvergence)
     end
 
     if transpathoptions.historyofpricepath==1
