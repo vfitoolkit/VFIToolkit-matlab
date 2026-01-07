@@ -17,8 +17,9 @@ function CorrTransProbs=EvalFnOnAgentDist_CorrTransProbs_InfHorz(StationaryDist,
 %%
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
-    simoptions.parallel=1+(gpuDeviceCount>0);
-    simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
+    simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1); % which variables to calculate transition probabilities for (input as cell of FnsToEval names)
+    simoptions.timehorizons=[]; % calculate the correlation and trans prob at these time horizons in addition to the one-period ones (can be a vector, e.g. [5,10] calculates the 1, 5 and 10 period correlations and transition probabilities; the 1 period is always calculated regardless)
+    simoptions.transprobquantiles=[]; % e.g., =5 will calculate the transition probabilities for quintiles
     % Model solution
     simoptions.gridinterplayer=0;
     % Model setup
@@ -29,11 +30,14 @@ if ~exist('simoptions','var')
     simoptions.alreadygridvals=0;
 else
     % Check simoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(simoptions,'parallel')
-        simoptions.parallel=1+(gpuDeviceCount>0);
-    end
     if ~isfield(simoptions, 'transprobs')
-        simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
+        simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1); % which variables to calculate transition probabilities for (input as cell of FnsToEval names)
+    end
+    if ~isfield(simoptions, 'timehorizons')
+        simoptions.timehorizons=[]; % calculate the correlation and trans prob at these time horizons in addition to the one-period ones (can be a vector, e.g. [5,10] calculates the 1, 5 and 10 period correlations and transition probabilities; the 1 period is always calculated regardless)
+    end
+    if ~isfield(simoptions, 'transprobquantiles')
+        simoptions.transprobquantiles=[]; % e.g., =5 will calculate the transition probabilities for quintiles
     end
     % Model solution
     if ~isfield(simoptions, 'gridinterplayer')
@@ -78,11 +82,7 @@ end
 a_gridvals=CreateGridvals(n_a,a_grid,1);
 % Switch to z_gridvals
 if simoptions.alreadygridvals==0
-    if simoptions.parallel<2
-        z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
-    else
-        [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
-    end
+    [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
 elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
@@ -136,8 +136,7 @@ N_semiz=0; % NOT YET IMPLEMENTED
 N_e=0; % NOT YET IMPLEMENTED
 pi_semiz=[];
 pi_e=[];
-P=CreatePTransitionMatrix(Policy,l_d,l_a,N_a,N_semiz,N_z,N_e,pi_semiz,pi_z,pi_e,simoptions);
-
+P=CreatePTransitionMatrix(Policy,l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,pi_semiz,pi_z,pi_e,Parameters,simoptions);
 
 %%
 for ff=1:length(FnsToEvalNames)
@@ -159,11 +158,33 @@ for ff=1:length(FnsToEvalNames)
     CorrTransProbs.(FnsToEvalNames{ff}).StdDeviation=stddevV;
     CorrTransProbs.(FnsToEvalNames{ff}).AutoCovariance=Covar;
     CorrTransProbs.(FnsToEvalNames{ff}).AutoCorrelation=Corr;
-
+    
     %% Calculate transition probabilties
     if simoptions.transprobs(ff)==1
-        [vv,~,indexes]=unique(Values);
-        n_fvals=length(vv); % number of unique values of the FnsToEvaluate{ff}        
+        if isempty(simoptions.transprobquantiles)
+            [vv,~,indexes]=unique(Values);
+            n_fvals=length(vv); % number of unique values of the FnsToEvaluate{ff}
+        else
+            quantilesindicator=zeros(size(Values));
+            % Convert from values into quantile indexes
+            [SortedValues,sortindex]=sort(Values);
+            SortedDist=StationaryDist(sortindex);
+            CumSortedDist=cumsum(SortedDist);
+            quantilecutoffs=nan(simoptions.transprobquantiles-1,1);
+            for qq=1:simoptions.transprobquantiles-1
+                [~,qqind]=max(CumSortedDist>qq*1/simoptions.transprobquantiles);
+                quantilecutoffs(qq)=SortedValues(qqind);
+            end
+            % qq=1
+            quantilesindicator(Values<=quantilecutoffs(1))=1;
+            for qq=2:simoptions.transprobquantiles-1
+                quantilesindicator(logical((Values>quantilecutoffs(qq-1)).*(Values<=quantilecutoffs(qq))))=qq;
+            end
+            quantilesindicator(Values>quantilecutoffs(end))=simoptions.transprobquantiles;
+            % Call it indexes so that it is used in this same manner
+            indexes=quantilesindicator;
+            n_fvals=simoptions.transprobquantiles;
+        end
         % Pintermediate: sum transition probabilities for next period based accumulating the unique values
         Pintermediate=zeros(N_a*N_z,n_fvals);
         for ii=1:N_a*N_z
@@ -177,6 +198,42 @@ for ff=1:length(FnsToEvalNames)
         end
         
         CorrTransProbs.(FnsToEvalNames{ff}).TransitionProbs=P_v;
+    end
+
+    if ~isempty(simoptions.timehorizons)
+        for t_c=1:length(simoptions.timehorizons)
+            tt=simoptions.timehorizons(t_c);
+            Ptt=P^tt;
+
+            % Following is largely just a copy-paste of the tt=1 version, with Ptt in place of P
+            % Calculate covariance between this period and next period values
+            Covar=(StationaryDist.*Values)'*Ptt*Values - meanV*meanV;
+            % Calculate the correlation
+            Corr=Covar/(stddevV*stddevV);
+
+            CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(tt)]).AutoCovariance=Covar;
+            CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(tt)]).AutoCorrelation=Corr;
+
+            % Calculate transition probabilties
+            if simoptions.transprobs(ff)==1
+                % n_fvals & indexes were already created when we did the 1-period transition probabilites, so can just reuse them [because still on same ff]
+
+                % Pintermediate: sum transition probabilities for next period based accumulating the unique values
+                Pintermediate=zeros(N_a*N_z,n_fvals);
+                for ii=1:N_a*N_z
+                    Pintermediate(ii,:)=accumarray(indexes,full(Ptt(ii,:)));
+                end
+                % Final: weighted sum of rows based on this period weights
+                P_v=zeros(n_fvals,n_fvals); % transition probabilities for the values
+                Pintermediate=StationaryDist.*Pintermediate;
+                for kk=1:n_fvals
+                    P_v(:,kk)=accumarray(indexes,Pintermediate(:,kk))./accumarray(indexes,StationaryDist);
+                end
+
+                CorrTransProbs.(FnsToEvalNames{ff}).(['tperiods',num2str(tt)]).TransitionProbs=P_v;
+            end
+
+        end
     end
 end
 

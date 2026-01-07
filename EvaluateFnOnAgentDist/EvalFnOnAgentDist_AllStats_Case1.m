@@ -112,8 +112,8 @@ if isfield(simoptions,'conditionalrestrictions')
         CondlRestnFn=simoptions.conditionalrestrictions.(CondlRestnFnNames{rr});
         % Get parameter names for Conditional Restriction functions
         temp=getAnonymousFnInputNames(CondlRestnFn);
-        if length(temp)>(l_d+l_a+l_a+l_z)
-            CondlRestnFnParamNames={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if length(temp)>(l_daprime+l_a+l_z)
+            CondlRestnFnParamNames={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
         else
             CondlRestnFnParamNames={};
         end
