@@ -168,30 +168,23 @@ end
 %% Drop anything that is infinite horizon and print out a message to say so
 if any(computeForThesei==0)
     N_i=sum(computeForThesei);
-    Names_i2=Names_i;
-    Names_i=cell(N_i,1);
-    ii=0;
-    for ii2=1:length(computeForThesei)
-        if computeForThesei(ii2)==1
-            ii=ii+1;
-            Names_i{ii}=Names_i2{ii2};
-        else % tell the user about it
-            fprintf(['LifeCycleProfiles_FHorz_Case1_PType: Ignoring the ', num2str(ii2), '-th PType, ',Names_i2{ii2}, ' because it is infinite horizon \n']);
+    Names_dropped_i=Names_i;
+    for ii=length(computeForThesei):-1:1
+        if computeForThesei(ii)==0
+            % tell the user about it
+            fprintf(['LifeCycleProfiles_FHorz_Case1_PType: Ignoring the ', num2str(ii), '-th PType, ',Names_i{ii}, ' because it is infinite horizon \n']);
+            Names_i(ii)=[];
+        else
+            Names_dropped_i(ii)=[];
         end
     end   
     % Eliminate any no longer relevant functions from FnsToEvaluate (those which are only used for infinite horizon)
     FnsToEvalNames=fieldnames(FnsToEvaluate);
-    FnsToEvaluate2=FnsToEvaluate;
-    clear FnsToEvaluate
-    for ff=1:length(fieldnames(FnsToEvaluate2))
-        if isstruct(FnsToEvaluate2.(FnsToEvalNames{ff}))
-            for ii=1:N_i
-                if isfield(FnsToEvaluate2.(FnsToEvalNames{ff}),Names_i{ii})
-                    FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii})=FnsToEvaluate2.(FnsToEvalNames{ff}).(Names_i{ii});
-                end
+    for ff=1:length(FnsToEvalNames)
+        if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
+            for ii=1:length(computeForThesei)-N_i
+                FnsToEvaluate.(FnsToEvalNames{ff})=rmfield(FnsToEvaluate.(FnsToEvalNames{ff}),Names_dropped_i{ii});
             end
-        else % Relevant to all the PTypes
-            FnsToEvaluate.(FnsToEvalNames{ff})=FnsToEvaluate2.(FnsToEvalNames{ff});
         end
     end
     % Done. Because from here on we just use N_i and Names_i which now only
@@ -455,7 +448,7 @@ if simoptions.lowmemory==0
         FullParamNames=fieldnames(Parameters);
         nFields=length(FullParamNames);
         for kField=1:nFields
-            if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
+            if isstruct(Parameters.(FullParamNames{kField})) % Check for permanent type in structure form
                 names=fieldnames(Parameters.(FullParamNames{kField}));
                 for jj=1:length(names)
                     if strcmp(names{jj},Names_i{ii})
@@ -563,7 +556,12 @@ if simoptions.lowmemory==0
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
                 
                 % Get parameter names for current FnsToEvaluate functions
-                tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+                if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
+                    tempfn=FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii});
+                else
+                    tempfn=FnsToEvaluate.(FnsToEvalNames{ff});
+                end
+                tempnames=getAnonymousFnInputNames(tempfn);
                 if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
                     FnsToEvaluateParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 else
@@ -577,7 +575,7 @@ if simoptions.lowmemory==0
                 
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2;
-                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
+                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(tempfn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
                 
                 ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]);
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
