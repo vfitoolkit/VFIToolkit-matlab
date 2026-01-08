@@ -92,6 +92,10 @@ permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
 
+% Report output by name, but also create the covariance matrix and the correlation matrix
+CrossSectionCorr.CovarianceMatrix=zeros(length(FnsToEvaluate),length(FnsToEvaluate));
+CrossSectionCorr.CorrelationMatrix=zeros(length(FnsToEvaluate),length(FnsToEvaluate));
+
 %% Calculate all the cross-sectional correlations, note that this creates the 'upper triangular' part
 for ff1=1:length(FnsToEvaluate)
     FnToEvaluateParamsCell1=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff1).Names);
@@ -107,6 +111,10 @@ for ff1=1:length(FnsToEvaluate)
     for ff2=ff1:length(FnsToEvaluate)
         if ff1==ff2
             CrossSectionCorr.(AggVarNames{ff1}).(AggVarNames{ff2})=1;
+
+            % and matrix version
+            CrossSectionCorr.CovarianceMatrix(ff1,ff2)=StdDev1^2;
+            CrossSectionCorr.CorrelationMatrix(ff1,ff2)=1;
         else
             FnToEvaluateParamsCell2=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff2).Names);
             Values2=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff2}, FnToEvaluateParamsCell2,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
@@ -121,6 +129,10 @@ for ff1=1:length(FnsToEvaluate)
             % Store them
             CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CoVar;
             CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=Corr;
+
+            % and matrix version
+            CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CoVar;
+            CrossSectionCorr.CorrelationMatrix(ff1,ff2)=Corr;
         end
     end
 end
@@ -131,9 +143,13 @@ for ff1=1:length(FnsToEvaluate)
     for ff2=1:ff1-1
         CrossSectionCorr.(AggVarNames{ff1}).CovarianceWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CovarianceWith.(AggVarNames{ff1});
         CrossSectionCorr.(AggVarNames{ff1}).CorrelationWith.(AggVarNames{ff2})=CrossSectionCorr.(AggVarNames{ff2}).CorrelationWith.(AggVarNames{ff1});
+
+        % and matrix version
+        CrossSectionCorr.CovarianceMatrix(ff1,ff2)=CrossSectionCorr.CovarianceMatrix(ff2,ff1);
+        CrossSectionCorr.CorrelationMatrix(ff1,ff2)=CrossSectionCorr.CorrelationMatrix(ff2,ff1);
     end
 end
 
-
+CrossSectionCorr.Notes='The CovarianceMatrix and Correlation matrix are essentially duplicating the individual correlations and covariances, but depending on what you want to do the matrix or the individual named pairs might be easier to use so both are created.';
 
 end
