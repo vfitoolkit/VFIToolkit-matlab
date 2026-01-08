@@ -17,8 +17,8 @@ for ff=1:length(AggVarNames)
 end
 % Get all the input names for GeneralEqmEqns
 GEeqnNames=fieldnames(GeneralEqmEqns);
-for ff=1:length(GEeqnNames)
-    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{ff}));
+for gg=1:length(GEeqnNames)
+    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
     tempninputs=length(temp);
     FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     ninputs=ninputs+tempninputs;
