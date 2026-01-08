@@ -412,37 +412,37 @@ if simoptions.lowmemory==0
         % a structure is there a need to take just a specific part and send
         % only that to the 'non-PType' version of the command.
 
-        if isa(n_d,'struct')
+        if isstruct(n_d)
             n_d_temp=n_d.(Names_i{ii});
         else
             n_d_temp=n_d;
         end
-        if isa(n_a,'struct')
+        if isstruct(n_a)
             n_a_temp=n_a.(Names_i{ii});
         else
             n_a_temp=n_a;
         end
-        if isa(n_z,'struct')
+        if isstruct(n_z)
             n_z_temp=n_z.(Names_i{ii});
         else
             n_z_temp=n_z;
         end
-        if isa(N_j,'struct')
+        if isstruct(N_j)
             N_j_temp=N_j.(Names_i{ii});
         else
             N_j_temp=N_j;
         end
-        if isa(d_grid,'struct')
+        if isstruct(d_grid)
             d_grid_temp=d_grid.(Names_i{ii});
         else
             d_grid_temp=d_grid;
         end
-        if isa(a_grid,'struct')
+        if isstruct(a_grid)
             a_grid_temp=a_grid.(Names_i{ii});
         else
             a_grid_temp=a_grid;
         end
-        if isa(z_grid,'struct')
+        if isstruct(z_grid)
             z_grid_temp=z_grid.(Names_i{ii});
         else
             z_grid_temp=z_grid;
@@ -455,7 +455,7 @@ if simoptions.lowmemory==0
         FullParamNames=fieldnames(Parameters);
         nFields=length(FullParamNames);
         for kField=1:nFields
-            if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
+            if isstruct(Parameters.(FullParamNames{kField})) % Check for permanent type in structure form
                 names=fieldnames(Parameters.(FullParamNames{kField}));
                 for jj=1:length(names)
                     if strcmp(names{jj},Names_i{ii})

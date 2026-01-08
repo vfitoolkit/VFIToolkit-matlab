@@ -41,7 +41,7 @@ else
         vfoptions.gridinterplayer=0; % =1 Interpolate between grid points (not yet implemented for most cases)
     elseif vfoptions.gridinterplayer==1
         if ~isfield(vfoptions,'ngridinterp')
-            error('When using vfoptions.gridinterplayer=1 you must set vfoptoins.ngridinterp (number of points to interpolate for aprime between each consecutive pair of points in a_grid)')
+            error('When using vfoptions.gridinterplayer=1 you must set vfoptions.ngridinterp (number of points to interpolate for aprime between each consecutive pair of points in a_grid)')
         end
     end
     if ~isfield(vfoptions,'lowmemory')
