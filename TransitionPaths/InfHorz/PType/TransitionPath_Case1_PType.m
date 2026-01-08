@@ -38,7 +38,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.verbosegraphs=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
-    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.    transpathoptions.fastOLG=0;
+    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.GEnewprice=1; % 1 is shooting algorithm, 0 is that the GE should evaluate to zero and the 'new' is the old plus the "non-zero" (for each time period seperately);
                                    % 2 is to do optimization routine with 'distance between old and new path', 3 is just same as 0, but easier to set up    transpathoptions.historyofpricepath=0;
     transpathoptions.usestockvars=0;
@@ -69,13 +69,13 @@ else
     if isfield(transpathoptions,'verbosegraphs')==0
         transpathoptions.verbosegraphs=0;
     end
-    if isfield(transpathoptions,'graphpricepath')==0
+    if ~isfield(transpathoptions,'graphpricepath')
         transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     end
-    if isfield(transpathoptions,'graphaggvarspath')==0
+    if ~isfield(transpathoptions,'graphaggvarspath')
         transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     end
-    if isfield(transpathoptions,'graphGEcondns')==0
+    if ~isfield(transpathoptions,'graphGEcondns')
         transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     end
     if isfield(transpathoptions,'GEnewprice')==0
@@ -97,17 +97,11 @@ else
     end
     if transpathoptions.usestockvars==1 % Note: If this is not inputted then it is created by the above lines.
         if isfield(transpathoptions,'stockvarinit')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
-            dbstack
-            return
+            error('transpathoptions includes some Stock Variable options but is missing stockvarinit \n')
         elseif isfield(transpathoptions,'stockvarpath0')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
-            dbstack
-            return
+            error('transpathoptions includes some Stock Variable options but is missing stockvarpath0 \n')
         elseif isfield(transpathoptions,'stockvareqns')==0
-            fprintf('ERROR: transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
-            dbstack
-            return
+            error('transpathoptions includes some Stock Variable options but is missing stockvareqns \n')
         end
     end
 end

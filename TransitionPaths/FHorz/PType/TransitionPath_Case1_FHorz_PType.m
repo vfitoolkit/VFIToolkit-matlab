@@ -36,9 +36,9 @@ if exist('transpathoptions','var')==0
     transpathoptions.Ttheta=1;
     transpathoptions.maxiter=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
-    transpathoptions.graphpricepath=0;
-    transpathoptions.graphaggvarspath=0;
-    transpathoptions.graphGEconditions=0;
+    transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
+    transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
+    transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     transpathoptions.historyofpricepath=0;
     transpathoptions.stockvars=0;
     transpathoptions.fastOLG=0; % fastOLG is done as (a,j,z), rather than standard (a,z,j)
@@ -82,13 +82,13 @@ else
         transpathoptions.verbose=0;
     end
     if ~isfield(transpathoptions,'graphpricepath')
-        transpathoptions.graphpricepath=0;
+        transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
     end
     if ~isfield(transpathoptions,'graphaggvarspath')
-        transpathoptions.graphaggvarspath=0;
+        transpathoptions.graphaggvarspath=0; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
     end
-    if ~isfield(transpathoptions,'graphGEconditions')
-        transpathoptions.graphGEconditions=0;
+    if ~isfield(transpathoptions,'graphGEcondns')
+        transpathoptions.graphGEcondns=0;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
     end
     if ~isfield(transpathoptions,'historyofpricepath')
         transpathoptions.historyofpricepath=0;

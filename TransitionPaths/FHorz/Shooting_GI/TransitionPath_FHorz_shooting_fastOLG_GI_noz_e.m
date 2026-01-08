@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting_fastOLG_GI_noz_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n2short, n_d, n_a, n_e, N_j, N_d,N_a,N_e, l_d,l_a,l_e, d_gridvals,aprimefine_gridvals,a_gridvals,d_grid,a_grid,e_gridvals_J, pi_e_J,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions, transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting_fastOLG_GI_noz_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n2short, n_d, n_a, n_e, N_j, N_d,N_a,N_e, l_d,l_a,l_e, d_gridvals,aprimefine_gridvals,a_gridvals,d_grid,a_grid,e_gridvals_J, pi_e_J,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions, transpathoptions)
 % fastOLG: fastOLG uses (a,j,e) instead of the standard (a,e,j)
 % This (a,j,e) is important for ability to implement codes based on matrix multiplications (especially for Tan improvement)
 
@@ -137,29 +137,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
 
         AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights_T(:,:,tt),PolicyPath(1,:,:,:,tt), PolicyPath_aprimefine(:,:,:,:,tt), FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_e,N_a,N_e,d_gridvals,aprimefine_gridvals,a_gridvals,e_gridvals_J,1);
-
-        % An easy way to get the new prices is just to call GeneralEqmConditions_Case1 and then adjust it for the current prices
-            % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
-            % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
-        if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-            AggVarNames=fieldnames(AggVars);
-            for ii=1:length(AggVarNames)
-                Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
-            end
-            PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell,GeneralEqmEqnParamNames,Parameters));
-        % Note there is no GEnewprice==2, it uses a completely different code
-        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-            AggVarNames=fieldnames(AggVars);
-            for ii=1:length(AggVarNames)
-                Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
-            end
-            p_i=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell,GeneralEqmEqnParamNames,Parameters));
-            GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
-            p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
-            I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
-            p_i=I_makescutoff.*p_i;
-            PricePathNew(tt,:)=PricePathOld(tt,:)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
+        for ii=1:length(AggVarNames)
+            Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
         end
+
+        % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
+        [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
+        PricePathNew(tt,:)=PricePathNew_tt;
+        GEcondnPath(tt,:)=GEcondnPath_tt;
         
         % Sometimes, want to keep the AggVars to plot them
         if transpathoptions.graphaggvarspath==1

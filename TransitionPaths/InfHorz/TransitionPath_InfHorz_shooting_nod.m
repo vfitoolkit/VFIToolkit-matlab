@@ -1,5 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, GEeqnNames, vfoptions, simoptions,transpathoptions)
-
+function [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePathOld, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec,  T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions)
 
 N_z=prod(n_z);
 N_a=prod(n_a);
@@ -19,67 +18,6 @@ if transpathoptions.verbose>=1
     end
 end
 
-%% Check if using _tminus1 and/or _tplus1 variables.
-if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames);
-else
-    tplus1priceNames=[];
-    tminus1priceNames=[];
-    tminus1AggVarsNames=[];
-    tplus1pricePathkk=[];
-end
-
-use_tplus1price=0;
-if ~isempty(tplus1priceNames)
-    use_tplus1price=1;
-end
-use_tminus1price=0;
-if ~isempty(tminus1priceNames)
-    use_tminus1price=1;
-    for tt=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{tt})
-            dbstack
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
-        end
-    end
-end
-use_tminus1AggVars=0;
-if ~isempty(tminus1AggVarsNames)
-    use_tminus1AggVars=1;
-    for tt=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{tt})
-            dbstack
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{tt})
-        end
-    end
-end
-% Note: I used this approach (rather than just creating _tplus1 and _tminus1 for everything) as it will be same computation.
-
-if transpathoptions.verbose>1
-    tplus1priceNames
-    tminus1priceNames
-    tminus1AggVarsNames
-    tplus1pricePathkk
-    use_tminus1price
-    use_tminus1AggVars
-end
-
-%% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
-AggVarNames=fieldnames(FnsToEvaluate);
-for ff=1:length(AggVarNames)
-    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_daprime+l_a+l_z)
-        FnsToEvaluateParamNames(ff).Names={temp{l_daprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        FnsToEvaluateParamNames(ff).Names={};
-    end
-    FnsToEvaluateCell{ff}=FnsToEvaluate.(AggVarNames{ff});
-end
-% Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
-simoptions.outputasstructure=1;
-simoptions.AggVarNames=AggVarNames;
-
-
 %%
 l_p=size(PricePathOld,2);
 
@@ -90,7 +28,7 @@ V_final=reshape(V_final,[N_a,N_z]);
 AgentDist_initial=sparse(gather(reshape(AgentDist_initial,[N_a*N_z,1])));
 pi_z_sparse=sparse(gather(pi_z)); % Need full pi_z for value fn, and sparse for agent dist
 
-AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+AggVarsPath=zeros(T-1,length(FnsToEvaluateCell),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
@@ -172,14 +110,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     AgentDist=AgentDist_initial;
     for tt=1:T-1
         %% Setup the Parameters for period tt
-        GEprices=PricePathOld(tt,:);
-        
-        for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
-        end
-        for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
-        end
+
+        % Get t-1 PricePath and ParamPath before we update them
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
                 if tt>1
@@ -189,12 +121,16 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 end
             end
         end
-        if use_tplus1price==1
-            for pp=1:length(tplus1priceNames)
-                kk=tplus1pricePathkk(pp);
-                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+        if use_tminus1params==1
+            for pp=1:length(tminus1paramNames)
+                if tt>1
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                else
+                    Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+                end
             end
         end
+        % Get t-1 AggVars before we update them
         if use_tminus1AggVars==1
             for pp=1:length(tminus1AggVarsNames)
                 if tt>1
@@ -203,6 +139,22 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
                 else
                     Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
                 end
+            end
+        end
+
+        % Update current PricePath and ParamPath
+        for kk=1:length(PricePathNames)
+            Parameters.(PricePathNames{kk})=PricePathOld(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+        end
+        for kk=1:length(ParamPathNames)
+            Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+        end
+
+        % Get t+1 PricePath
+        if use_tplus1price==1
+            for pp=1:length(tplus1priceNames)
+                kk=tplus1pricePathkk(pp);
+                Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
             end
         end
 
@@ -232,25 +184,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
         end
         
         %% General Eqm Eqns
-        % When using negative powers matlab will often return complex numbers, even if the solution is actually a real number. I
-        % force converting these to real, albeit at the risk of missing problems created by actual complex numbers.
-        if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-                PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-        elseif transpathoptions.GEnewprice==0 % THIS NEEDS CORRECTING
-            % Remark: following assumes that there is one'GeneralEqmEqnParameter' per 'GeneralEqmEqn'
-            for j=1:length(GeneralEqmEqns)
-                GEeqn_temp=@(GEprices) sum(real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2)).^2);
-                PricePathNew(tt,j)=fminsearch(GEeqn_temp,GEprices);
-            end
-        % Note there is no GEnewprice==2, it uses a completely different code
-        elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-            p_i=real(GeneralEqmConditions_Case1_v2(GeneralEqmEqns,Parameters, 2));
-            GEcondnPath(tt,:)=p_i; % Sometimes, want to keep the GE conditions to plot them
-            p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
-            I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
-            p_i=I_makescutoff.*p_i;
-            PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
-        end
+        % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
+        [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
+        PricePathNew(tt,:)=PricePathNew_tt;
+        GEcondnPath(tt,:)=GEcondnPath_tt;
 
         % Sometimes, want to keep the AggVars to plot them
         if transpathoptions.graphaggvarspath==1
@@ -261,9 +198,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
 
         AgentDist=AgentDistnext;
     end
-    % Free up space on GPU by deleting things no longer needed
-    clear AgentDistnext AgentDist
-        
+
+    
     % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     % Notice that the distance is always calculated ignoring the time t=1 & t=T periods, as these needn't ever converges
