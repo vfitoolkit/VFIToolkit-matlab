@@ -1,4 +1,4 @@
-function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCorr_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,simoptions)
+function CrossSectionCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(StationaryDist, Policy, FnsToEvaluate, Parameters,FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid,simoptions)
 % Evaluates the cross-sectional correlation between every possible pair from FnsToEvaluate
 % eg. if you give a FnsToEvaluate with three functions you will get nine cross-sectional correlations; with two function you get four.
 %
