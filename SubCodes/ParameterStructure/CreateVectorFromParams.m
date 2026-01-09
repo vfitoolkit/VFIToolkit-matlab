@@ -29,7 +29,7 @@ if nargin==2
             end
         end
         if found==0 % Have added this check so that user can see if they are missing a parameter
-            fprintf(['FAILED TO FIND PARAMETER ',ParamNames{iCalibParam}])
+            warning(['FAILED TO FIND PARAMETER ',ParamNames{iCalibParam}])
         end
     end
 elseif nargin==3
