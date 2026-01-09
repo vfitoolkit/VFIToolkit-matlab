@@ -100,8 +100,8 @@ else
         heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     end
     if N_p~=0
-        if ~isfield(heteroagentoptions,'pgrid')
-            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
+        if ~isfield(heteroagentoptions,'p_grid')
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
         end
     end
     if ~isfield(heteroagentoptions,'toleranceGEprices')
@@ -392,7 +392,7 @@ if heteroagentoptions.fminalgo==5
     if size(heteroagentoptions.fminalgo5.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(GEPriceParamNames)
         % do nothing, this is how things should be
     else
-        fprintf('ERROR: heteroagentoptions.fminalgo5..howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
+        error('heteroagentoptions.fminalgo5..howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
     end
     heteroagentoptions.fminalgo5.permute=zeros(size(heteroagentoptions.fminalgo5.howtoupdate,1),1);
     for tt=1:size(heteroagentoptions.fminalgo5.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
