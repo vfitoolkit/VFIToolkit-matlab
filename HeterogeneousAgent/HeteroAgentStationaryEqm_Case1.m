@@ -1,6 +1,6 @@
 function varargout=HeteroAgentStationaryEqm_Case1(n_d, n_a, n_z, n_p, pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, GeneralEqmEqnParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions, EntryExitParamNames)
 % Outputs: [p_eqm, GeneralEqmConditions]
-% Unless you use n_p and p_grid (n.b. heteroagentoptions.pgrid), in which case [p_eq, p_eqm_index, GeneralEqmConditions]
+% Unless you use n_p and p_grid (n.b. heteroagentoptions.p_grid), in which case [p_eq, p_eqm_index, GeneralEqmConditions]
 
 % Input heteroagentoptions and those that appear after it are all optional.
 
@@ -444,13 +444,13 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
     if N_p~=0 % Solving on p_grid
-        GeneralEqmConditions=zeros(size(heteroagentoptions.pgrid)); %
-        for pp_c=1:size(heteroagentoptions.pgrid,1)
-            pvec=heteroagentoptions.pgrid(pp_c,:);
+        GeneralEqmConditions=zeros(size(heteroagentoptions.p_grid)); %
+        for pp_c=1:size(heteroagentoptions.p_grid,1)
+            pvec=heteroagentoptions.p_grid(pp_c,:);
             GeneralEqmConditions(pp_c,:)=GeneralEqmConditionsFnOpt(pvec);
         end
         [~,p_eqm_index]=max(sum(GeneralEqmConditions.^2,2));
-        p_eqm_vec=heteroagentoptions.pgrid(p_eqm_index,:); % CHECK THAT THIS IS CORRECT!
+        p_eqm_vec=heteroagentoptions.p_grid(p_eqm_index,:); % CHECK THAT THIS IS CORRECT!
     elseif heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,GEparamsvec0,minoptions);
     elseif heteroagentoptions.fminalgo==1

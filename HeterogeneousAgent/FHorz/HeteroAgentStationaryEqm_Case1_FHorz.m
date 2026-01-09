@@ -63,8 +63,8 @@ else
         heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
     end
     if N_p~=0
-        if ~isfield(heteroagentoptions,'pgrid')
-            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
+        if ~isfield(heteroagentoptions,'p_grid')
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
         end
     end
     if ~isfield(heteroagentoptions,'toleranceGEprices')
