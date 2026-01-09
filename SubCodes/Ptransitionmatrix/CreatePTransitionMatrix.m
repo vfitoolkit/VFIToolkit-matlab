@@ -111,7 +111,7 @@ else
         elseif l_a==4
             Policy_aprime(:,:,1)=shiftdim(Policy(l_d+1,:,:)+n_a(1)*(Policy(l_d+2,:,:)-1)+n_a(1)*n_a(2)*(Policy(l_d+3,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(Policy(l_d+4,:,:)-1),1);
         else
-            error('EvalFnOnAgentDist_CorrTransProbs_InfHorz cannot handle length(n_a)>4, contact me if you need this')
+            error('EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz cannot handle length(n_a)>4, contact me if you need this')
         end
 
         % Constructing Gammatranspose is done differently if using grid interpolation layers

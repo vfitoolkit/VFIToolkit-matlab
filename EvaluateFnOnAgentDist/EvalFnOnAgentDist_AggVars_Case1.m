@@ -15,6 +15,12 @@ end
 if ~isfield(simoptions, 'gridinterplayer')
     simoptions.gridinterplayer=0;
 end
+if ~isfield(simoptions, 'experienceasset')
+    simoptions.experienceasset=0;
+end
+if ~isfield(simoptions, 'experienceassetu')
+    simoptions.experienceassetu=0;
+end
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -171,7 +177,7 @@ if simoptions.parallel==2
     
 else % CPU
     
-    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,1, 2);
+    [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
     a_gridvals=num2cell(a_gridvals);
     z_gridvals=num2cell(z_gridvals);
 
