@@ -96,8 +96,7 @@ else
     end
     if N_p~=0
         if ~isfield(heteroagentoptions,'p_grid')
-            disp('ERROR: you have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
-            dbstack
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
         end
     end
     if ~isfield(heteroagentoptions,'toleranceGEprices')
