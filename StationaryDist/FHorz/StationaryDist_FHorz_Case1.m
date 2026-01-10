@@ -61,8 +61,9 @@ end
 if simoptions.parallel==2
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
    % Nothing to actually do here
-else
-   % CPU can be used, but only for the basics. Is kept separate here so that the rest of the codes can just assume you have GPU and work with it.
+elseif ~isfield(simoptions, 'n_e') || prod(simoptions.n_e)<2
+   % CPU can be used, but only for the basics (i.e., no _e grid).
+   % Is kept separate here so that the rest of the codes can just assume you have GPU and work with it.
    StationaryDist=StationaryDist_FHorz_CPU(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
    return
 end
