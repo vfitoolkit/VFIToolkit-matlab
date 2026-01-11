@@ -452,6 +452,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         end
         [~,p_eqm_index]=max(sum(GeneralEqmConditions.^2,2));
         p_eqm_vec=p_gridvals(p_eqm_index,:);
+        heteroagentoptions.outputGEstruct=0; % Output the GeneralEqmConditions as a matrix
     elseif heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,GEparamsvec0,minoptions);
     elseif heteroagentoptions.fminalgo==1
