@@ -4,8 +4,8 @@ function GeneralEqmConditionsValue=GeneralEqmConditions_Case1_v3g(GeneralEqmEqns
 
 GeneralEqmEqnParamsVec=gpuArray(CreateVectorFromParams(Parameters,GeneralEqmEqnParamNames));
 GeneralEqmEqnParamsCell=cell(length(GeneralEqmEqnParamsVec),1);
-for jj=1:length(GeneralEqmEqnParamsVec)
-    GeneralEqmEqnParamsCell(jj,1)={GeneralEqmEqnParamsVec(jj)};
+for pp=1:length(GeneralEqmEqnParamsVec)
+    GeneralEqmEqnParamsCell(pp,1)={GeneralEqmEqnParamsVec(pp)};
 end
 
 GeneralEqmConditionsValue=GeneralEqmEqnsCell(GeneralEqmEqnParamsCell{:});
