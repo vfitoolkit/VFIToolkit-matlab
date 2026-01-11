@@ -775,13 +775,14 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
     if N_p~=0 % Solving on p_grid
-        GeneralEqmConditions=zeros(size(heteroagentoptions.p_grid));
-        for pp_c=1:size(heteroagentoptions.p_grid,1)
-            pvec=heteroagentoptions.p_grid(pp_c,:);
+        p_gridvals=CreateGridvals(n_p,heteroagentoptions.p_grid,1);
+        GeneralEqmConditions=zeros(size(p_gridvals)); %
+        for pp_c=1:N_p
+            pvec=p_gridvals(pp_c,:);
             GeneralEqmConditions(pp_c,:)=GeneralEqmConditionsFnOpt(pvec);
         end
         [~,p_eqm_index]=max(sum(GeneralEqmConditions.^2,2));
-        p_eqm=heteroagentoptions.p_grid(p_eqm_index,:);
+        p_eqm_vec=p_gridvals(p_eqm_index,:);
     elseif heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,GEparamsvec0,minoptions);
     elseif heteroagentoptions.fminalgo==1
