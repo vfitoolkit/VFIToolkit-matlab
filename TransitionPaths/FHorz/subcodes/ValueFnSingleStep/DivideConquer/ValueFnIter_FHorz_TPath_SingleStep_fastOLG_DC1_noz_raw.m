@@ -4,9 +4,6 @@ function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_noz_raw(V,n_
 N_d=prod(n_d);
 N_a=prod(n_a);
 
-VKronNext=zeros(N_a,N_j,'gpuArray');
-VKronNext(:,1:N_j-1)=V(:,2:end);
-
 V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 Policy=zeros(N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
@@ -32,7 +29,16 @@ DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorPara
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
 DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 
-entireEV=repmat(reshape(VKronNext,[1,N_a,1,N_j]),N_d,1); % [d,aprime]
+if vfoptions.EVpre==0
+    EV=zeros(N_a,N_j,'gpuArray');
+    EV(:,1:N_j-1)=V(:,2:end);
+    EV=reshape(EV,[1,N_a,1,N_j]);
+elseif vfoptions.EVpre==1
+    % This is used for 'Matched Expecations Path'
+    EV=reshape(V,[1,N_a,1,N_j]); % input V is of size [N_a,N_j] and we want to use the whole thing
+end
+
+entireEV=repmat(EV,N_d,1); % [d,aprime]
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);

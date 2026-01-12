@@ -38,11 +38,18 @@ DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 % Each column will be a specific parameter with the values at every age.
 ReturnFnParamsAgeMatrix=CreateAgeMatrixFromParams(Parameters, ReturnFnParamNames,N_j); % this will be a matrix, row indexes ages and column indexes the parameters (parameters which are not dependent on age appear as a constant valued column)
 
-EVpre=zeros(N_a,1,N_j,N_z);
-EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_z]); % I use zeros in j=N_j so that can just use pi_z_J to create expectations
-EV=EVpre.*shiftdim(pi_z_J,-2);
-EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
+if vfoptions.EVpre==0
+    EVpre=zeros(N_a,1,N_j,N_z);
+    EVpre(:,1,1:N_j-1,:)=reshape(V(N_a+1:end,:),[N_a,1,N_j-1,N_z]); % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EV=EVpre.*shiftdim(pi_z_J,-2);
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
+elseif vfoptions.EVpre==1
+    % This is used for 'Matched Expecations Path'
+    EV=reshape(V,[N_a,1,N_j,N_z]).*shiftdim(pi_z_J,-2); % input V is already of size [N_a,N_j,N_z] and we want to use the whole thing
+    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
+end
 
 DiscountedEV=shiftdim(DiscountFactorParamsVec.*EV,-1); % [1,N_a,1,N_j,N_z] 1st dim will autofill d, 3rd dim will autofill a
 DiscountedEV=repelem(DiscountedEV,N_d,1,1,1,1);
