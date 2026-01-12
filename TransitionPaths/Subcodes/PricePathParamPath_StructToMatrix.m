@@ -27,26 +27,31 @@ for pp=1:length(PricePathNames)
 end
 
 ParamPathNames=fieldnames(ParamPathStruct);
-ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
-for pp=1:length(ParamPathNames)
-    temp=ParamPathStruct.(ParamPathNames{pp});
-    tempsize=size(temp);
-    ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
-end
-ParamPathSizeVec=cumsum(ParamPathSizeVec);
-if length(ParamPathNames)>1
-    ParamPathSizeVec=[[1,ParamPathSizeVec(1:end-1)+1];ParamPathSizeVec];
-else
-    ParamPathSizeVec=[1;ParamPathSizeVec];
-end
-ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
-for pp=1:length(ParamPathNames)
-    if size(ParamPathStruct.(ParamPathNames{pp}),1)==T
-        ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp});
-    else % Need to transpose
-        ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
+if ~isempty(ParamPathNames)
+    ParamPathSizeVec=zeros(1,length(ParamPathNames)); % Allows for a given price param to depend on age (or permanent type)
+    for pp=1:length(ParamPathNames)
+        temp=ParamPathStruct.(ParamPathNames{pp});
+        tempsize=size(temp);
+        ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
     end
-%     ParamPath(:,pp)=ParamPathStruct.(ParamPathNames{pp});
+    ParamPathSizeVec=cumsum(ParamPathSizeVec);
+    if length(ParamPathNames)>1
+        ParamPathSizeVec=[[1,ParamPathSizeVec(1:end-1)+1];ParamPathSizeVec];
+    else
+        ParamPathSizeVec=[1;ParamPathSizeVec];
+    end
+    ParamPath=zeros(T,ParamPathSizeVec(2,end));% Do this seperately afterwards so that can preallocate the memory
+    for pp=1:length(ParamPathNames)
+        if size(ParamPathStruct.(ParamPathNames{pp}),1)==T
+            ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp});
+        else % Need to transpose
+            ParamPath(:,ParamPathSizeVec(1,pp):ParamPathSizeVec(2,pp))=ParamPathStruct.(ParamPathNames{pp})';
+        end
+        %     ParamPath(:,pp)=ParamPathStruct.(ParamPathNames{pp});
+    end
+else
+    ParamPathSizeVec=[];
+    ParamPath=[];
 end
 
 

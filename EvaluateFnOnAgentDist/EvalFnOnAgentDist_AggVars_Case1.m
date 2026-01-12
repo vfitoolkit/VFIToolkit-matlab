@@ -77,7 +77,7 @@ end
 if isfield(simoptions,'outputasstructure')
     if simoptions.outputasstructure==1
         FnsToEvaluateStruct=1;
-        FnsToEvalNames=simoptions.AggVarNames;
+        % FnsToEvalNames=simoptions.AggVarNames;
     elseif simoptions.outputasstructure==0
         FnsToEvaluateStruct=0;
     end
