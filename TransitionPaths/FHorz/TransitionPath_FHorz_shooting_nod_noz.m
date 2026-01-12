@@ -51,8 +51,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         
         PolicyPath(1,:,:,T-tt)=Policy;
     end
-
-
+    
+    
     
     %% Now we have the PolicyPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path
     

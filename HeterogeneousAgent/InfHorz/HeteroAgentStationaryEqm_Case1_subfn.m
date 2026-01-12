@@ -27,7 +27,6 @@ end
 
 %%
 [V,Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid,a_grid,z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,ReturnFnParamNames,vfoptions);
-
 %Step 2: Calculate the Steady-state distn (given this price) and use it to assess market clearance
 StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
 AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist, Policy, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, simoptions);
