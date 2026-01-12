@@ -665,6 +665,7 @@ if vfoptions.outputkron==0
     V=reshape(VKron,[n_a,n_z]);
     Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 else
+    Policy=reshape(Policy,[1,N_a,N_z]);
     varargout={VKron,Policy};
     return
 end

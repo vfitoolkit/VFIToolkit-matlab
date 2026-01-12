@@ -15,7 +15,6 @@ if exist('simoptions','var')==0
     simoptions.maxit=10^6; % In my experience, after a simulation, if you need more than 10^6 iterations to reach the steady-state it is because something has gone wrong
     simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
     simoptions.multiiter=50; % How many iteration steps before check tolerance
-    simoptions.outputkron=0;
     % Options relating to simulation method
     simoptions.ncores=1;
     simoptions.seedpoint=[ceil(N_a/2),ceil(N_z/2)];
@@ -36,6 +35,7 @@ if exist('simoptions','var')==0
     simoptions.n_e=0;
     simoptions.n_semiz=0;
     % When calling as a subcommand, the following is used internally
+    simoptions.outputkron=0;
     simoptions.alreadygridvals=0;
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
@@ -53,9 +53,6 @@ else
     end
     if ~isfield(simoptions, 'multiiter')
         simoptions.multiiter=50; % How many iteration steps before check tolerance
-    end
-    if ~isfield(simoptions, 'outputkron')
-        simoptions.outputkron=0;
     end
     % Options relating to simulation method
     if ~isfield(simoptions,'ncores')
@@ -111,6 +108,9 @@ else
         simoptions.n_semiz=0;
     end
     % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions, 'outputkron')
+        simoptions.outputkron=0;
+    end
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
@@ -309,10 +309,18 @@ if simoptions.iterate==1
     if N_z==0
         if N_e==0
             StationaryDist=StationaryDist_InfHorz_IterationTan_noz_raw(StationaryDist,Policy_aprime,N_a,simoptions);
-            StationaryDist=reshape(StationaryDist,[n_a,1]);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,1]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,1]);
+            end
         else
             StationaryDist=StationaryDist_InfHorz_IterationTan_noz_e_raw(StationaryDist,Policy_aprime,N_a,N_e,pi_e,simoptions);
-            StationaryDist=reshape(StationaryDist,[n_a,n_e]);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,n_e]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_e]);
+            end
         end
     else
         if N_e==0
@@ -321,10 +329,18 @@ if simoptions.iterate==1
             elseif simoptions.tanimprovement==1 % Improvement of Tan (2020)
                 StationaryDist=StationaryDist_InfHorz_IterationTan_raw(StationaryDist,Policy_aprime,N_a,N_z,pi_z,simoptions);
             end
-            StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,n_z]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_z]);
+            end
         else
             StationaryDist=StationaryDist_InfHorz_IterationTan_e_raw(StationaryDist,Policy_aprime,N_a,N_z,N_e,pi_z,pi_e,simoptions);
-            StationaryDist=reshape(StationaryDist,[n_a,n_z,n_e]);
+            if simoptions.outputkron==0
+                StationaryDist=reshape(StationaryDist,[n_a,n_z,n_e]);
+            else
+                StationaryDist=reshape(StationaryDist,[N_a,N_z,N_e]);
+            end
         end
     end
 
