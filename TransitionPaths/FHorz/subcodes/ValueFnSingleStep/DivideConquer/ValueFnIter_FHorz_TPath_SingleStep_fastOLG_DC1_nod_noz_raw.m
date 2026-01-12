@@ -3,9 +3,6 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_nod_noz_raw(
 % fastOLG just means parallelize over "age" (j)
 N_a=prod(n_a);
 
-VKronNext=zeros(N_a,N_j,'gpuArray');
-VKronNext(:,1:N_j-1)=V(:,2:end);
-
 V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 Policy=zeros(N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
@@ -28,12 +25,19 @@ DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorPara
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
 DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 
-entireEV=reshape(VKronNext,[N_a,1,N_j]); % [aprime]
+if vfoptions.EVpre==0
+    EV=zeros(N_a,N_j,'gpuArray');
+    EV(:,1:N_j-1)=V(:,2:end);
+    EV=reshape(EV,[N_a,1,N_j]);
+elseif vfoptions.EVpre==1
+    % This is used for 'Matched Expecations Path'
+    EV=reshape(V,[N_a,1,N_j]); % input V is of size [N_a,N_j] and we want to use the whole thing
+end
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);
 
-entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*entireEV; % (aprime,a and j), autofills j for expectation term
+entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*EV; % (aprime,a and j), autofills j for expectation term
 
 %Calc the max and it's index
 [Vtempii,maxindex1]=max(entireRHS_ii,[],1);
@@ -50,7 +54,7 @@ for ii=1:(vfoptions.level1n-1)
         % aprime possibilities are maxgap(ii)+1-by-1-by-N_j
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,2);
         aprime=aprimeindexes+N_a*shiftdim((0:1:N_j-1),-1); % with the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*entireEV(aprime);
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*EV(aprime);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         % temp=loweredge(maxindex+shiftdim((0:1:N_j-1),-1));
@@ -60,7 +64,7 @@ for ii=1:(vfoptions.level1n-1)
         % Just use aprime(ii) for everything
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), ReturnFnParamsAgeMatrix,2);
         aprime=loweredge+N_a*shiftdim((0:1:N_j-1),-1); % with the current aprimeii(ii):aprimeii(ii+1)
-        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*entireEV(aprime);
+        entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec.*EV(aprime);
         [Vtempii,maxindex]=max(entireRHS_ii,[],1);
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(Vtempii,1);
         Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(maxindex+loweredge-1,1); % loweredge

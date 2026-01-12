@@ -3,6 +3,8 @@ function [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath, Para
 VPath=struct();
 PolicyPath=struct();
 
+vfoptions.preEV=0; % =1 is used by 'Matched Expecations Path', for TPath we want =0 (this relates to details of fastOLG=1 value fn code)
+
 %%
 if iscell(Names_i)
     N_i=length(Names_i);

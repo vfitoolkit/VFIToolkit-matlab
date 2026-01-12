@@ -37,8 +37,15 @@ DiscountFactorParamsVec=CreateAgeMatrixFromParams(Parameters, DiscountFactorPara
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec,2);
 DiscountFactorParamsVec=shiftdim(DiscountFactorParamsVec,-2);
 
-EV=zeros(N_a,1,N_j,'gpuArray');
-EV(:,1,1:N_j-1)=V(:,2:end);
+if vfoptions.EVpre==0
+    EV=zeros(N_a,N_j,'gpuArray');
+    EV(:,1:N_j-1)=V(:,2:end);
+    EV=reshape(EV,[N_a,1,N_j]);
+elseif vfoptions.EVpre==1
+    % This is used for 'Matched Expecations Path'
+    EV=reshape(V,[N_a,1,N_j]); % input V is of size [N_a,N_j] and we want to use the whole thing
+end
+
 % Interpolate EV over aprime_grid
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
