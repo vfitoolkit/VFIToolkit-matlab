@@ -12,6 +12,8 @@ N_e=prod(n_e);
 z_gridvals_J=shiftdim(z_gridvals_J,-3);
 e_gridvals_J=reshape(e_gridvals_J,[1,1,1,N_j,1,N_e,length(n_e)]);
 
+Policy=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
+
 %%
 
 % n-Monotonicity
@@ -51,11 +53,9 @@ elseif vfoptions.EVpre==1
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
+V=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % V is over (a,j)
 
 DiscountedEV=repelem(shiftdim(DiscountFactorParamsVec.*EV,-1),N_d,1,1,1); % [N_d,N_aprime,1,N_j,N_z]
-
-V=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % V is over (a,j)
-Policy=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
 if vfoptions.lowmemory==0
 
@@ -227,7 +227,6 @@ end
 %% fastOLG with z & e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_z,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
 %% Separate d and aprime
 Policy2=zeros(2,N_a,N_j,N_z,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z

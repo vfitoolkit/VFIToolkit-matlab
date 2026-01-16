@@ -47,5 +47,4 @@ Policy2=zeros(2,N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for 
 Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1);
 Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1);
 
-
 end

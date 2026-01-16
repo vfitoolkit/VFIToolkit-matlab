@@ -70,7 +70,7 @@ while currdist>Tolerance && tempcounter<=maxiter
     tempcounter=tempcounter+1;
 end
 
-Policy=reshape(Policy,[N_a,N_z]);
+Policy=reshape(Policy,[1,N_a,N_z]);
 
 
 

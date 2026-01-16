@@ -50,11 +50,11 @@ elseif vfoptions.EVpre==1
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
+V=zeros(N_a,N_j,N_z,'gpuArray'); % V is over (a,j)
 
 DiscountedEV=shiftdim(DiscountFactorParamsVec.*EV,-1); % [1,N_a,1,N_j,N_z] 1st dim will autofill d, 3rd dim will autofill a
 DiscountedEV=repelem(DiscountedEV,N_d,1,1,1,1);
 
-V=zeros(N_a,N_j,N_z,'gpuArray'); % V is over (a,j)
 
 if vfoptions.lowmemory==0
     
@@ -159,7 +159,6 @@ end
 %% fastOLG with z, so need to output to take certain shapes
 V=reshape(V,[N_a*N_j,N_z]);
 % Policy=reshape(Policy,[N_a,N_j,N_z]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
 %% Separate d and aprime
 Policy2=zeros(2,N_a,N_j,N_z,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z

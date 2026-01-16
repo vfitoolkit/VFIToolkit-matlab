@@ -39,6 +39,8 @@ if isscalar(n_a)
                 [VKron,PolicyKron]=ValueFnIter_FHorz_DC1_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else % N_d
         if isfield(vfoptions,'n_e')
             if N_z==0
@@ -86,6 +88,8 @@ elseif length(n_a)==2
                     end
                 end
             end
+            % Policy without d
+            PolicyKron=shiftdim(PolicyKron,-1);
         else % N_d
             if isfield(vfoptions,'n_e')
                 if N_z==0

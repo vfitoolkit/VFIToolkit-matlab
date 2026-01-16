@@ -1,23 +1,23 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,Policy_d, Policy_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,N_a,d_gridvals,aprime_gridvals,a_gridvals,outputasstructure)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist,PolicyValues_d, PolicyValues_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,N_a,a_gridvals,outputasstructure)
 % fastOLG: so (a,j)-by-1
 % Policy is in Kron form
 
-% If no d variable, set l_d=0, and then Policy_d=[], d_gridvals=[].
+% If no d variable, set l_d=0, and then PolicyValues_d=[], d_gridvals=[].
 
-% d_gridvals is [N_d,l_aprime]
-% aprime_gridvals is [N_aprime,l_aprime]
+% PolicyValues_d is [N_a,N_j,l_d]
+% PolicyValues_aprime is [N_a,N_j,l_aprime]
 % a_gridals is [N_a,l_a]
 
 % parameters that depend on age must be [1,N_j]
 
 % Note: FnsToEvaluate is already cell (converted from struct)
 
-if l_d==0
-    PolicyValues_aprime=reshape(aprime_gridvals(Policy_aprime(:),:),[N_a,N_j,l_aprime]);
-else
-    PolicyValues_d=reshape(d_gridvals(Policy_d(:),:),[N_a,N_j,l_d]);
-    PolicyValues_aprime=reshape(aprime_gridvals(Policy_aprime(:),:),[N_a,N_j,l_aprime]);
-end
+% if l_d==0
+%     PolicyValues_aprime=reshape(aprime_gridvals(Policy_aprime(:),:),[N_a,N_j,l_aprime]);
+% else
+%     PolicyValues_d=reshape(d_gridvals(Policy_d(:),:),[N_a,N_j,l_d]);
+%     PolicyValues_aprime=reshape(aprime_gridvals(Policy_aprime(:),:),[N_a,N_j,l_aprime]);
+% end
 
 if l_a~=l_aprime
     error('cannot yet handle l_a different from l_aprime, need more if-else statements in main body of EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz command to handle that ')

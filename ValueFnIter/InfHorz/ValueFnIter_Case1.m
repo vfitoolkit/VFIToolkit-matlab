@@ -548,7 +548,7 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
                 end
             end
         else
-            if vfoptions.parallel==0     % On CPU
+            if vfoptions.parallel==0  % On CPU
                 [VKron, Policy]=ValueFnIter_Par0_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             elseif vfoptions.parallel==1 % On Parallel CPU
                 [VKron, Policy]=ValueFnIter_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);

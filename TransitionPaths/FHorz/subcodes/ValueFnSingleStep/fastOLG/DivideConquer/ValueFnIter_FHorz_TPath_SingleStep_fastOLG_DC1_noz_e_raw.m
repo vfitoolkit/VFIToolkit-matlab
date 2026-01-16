@@ -42,10 +42,9 @@ elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
     EV=[reshape(V,[N_a*N_j,N_e].*pi_e_J,2)];  % input V is already of size [N_a,N_j] and we want to use the whole thing
 end
+V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
 
 discountedEV=repelem(shiftdim(DiscountFactorParamsVec.*reshape(EV,[N_a,1,N_j]),-1),N_d,1); % [N_d,N_aprime,1,N_a,N_j]
-
-V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
 
 if vfoptions.lowmemory==0
 
@@ -158,7 +157,6 @@ end
 %% fastOLG with e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_e]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
 %% Separate d and aprime
 Policy2=zeros(2,N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime rest of dimensions a,z

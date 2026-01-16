@@ -93,10 +93,10 @@ end
 %% fastOLG with z & e, so need to output to take certain shapes
 % V=reshape(V,[N_a*N_j,N_z,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
-
+%% Output shape for policy
+if vfoptions.lowmemory>0
+    Policy=shiftdim(Policy,-1); % so first dim is just one point
+end
 
 end

@@ -7,7 +7,6 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_nod_noz_e_ra
 N_a=prod(n_a);
 N_e=prod(n_e);
 
-
 % fastOLG, so a-j-e
 Policy=zeros(N_a,N_j,N_e,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
@@ -38,9 +37,10 @@ elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
     EV=[reshape(V,[N_a*N_j,N_e].*pi_e_J,2)];  % input V is already of size [N_a,N_j] and we want to use the whole thing
 end
+V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
+
 discountedEV=DiscountFactorParamsVec.*reshape(EV,[N_a,1,N_j]); % [aprime]
 
-V=zeros(N_a,N_j,N_e,'gpuArray'); % V is over (a,j)
 
 
 if vfoptions.lowmemory==0
@@ -129,11 +129,9 @@ end
 %% fastOLG with e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_e]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
-
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

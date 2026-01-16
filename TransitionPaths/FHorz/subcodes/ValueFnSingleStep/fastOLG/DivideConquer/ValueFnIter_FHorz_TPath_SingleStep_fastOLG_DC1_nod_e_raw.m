@@ -45,10 +45,9 @@ elseif vfoptions.EVpre==1
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=reshape(sum(EV,4),[N_a,1,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
+V=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % V is over (a,j)
 
 DiscountedEV=DiscountFactorParamsVec.*EV;
-
-V=zeros(N_a,N_j,N_z,N_e,'gpuArray'); % V is over (a,j)
 
 if vfoptions.lowmemory==0
     % n-Monotonicity
@@ -183,11 +182,9 @@ end
 %% fastOLG with z & e, so need output to take certain shapes
 V=reshape(V,[N_a*N_j,N_z,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_z,N_e]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
-
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

@@ -41,9 +41,7 @@ for reverse_j=1:N_j-1
     Policy(:,jj)=maxindex;
 end
 
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
-
-
+%% Output shape for policy
+Policy=shiftdim(Policy,-1);
 
 end

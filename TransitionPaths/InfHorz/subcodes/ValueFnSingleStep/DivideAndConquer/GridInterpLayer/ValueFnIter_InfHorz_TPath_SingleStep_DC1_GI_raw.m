@@ -41,7 +41,6 @@ n2aprime=length(aprime_grid);
 V=zeros(N_a,N_z,'gpuArray');
 Policy=zeros(3,N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
-
 %%
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);

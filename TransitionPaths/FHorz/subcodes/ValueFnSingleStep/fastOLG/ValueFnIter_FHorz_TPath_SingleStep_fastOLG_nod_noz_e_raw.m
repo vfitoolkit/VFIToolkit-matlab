@@ -52,18 +52,16 @@ elseif vfoptions.lowmemory==1
         Policy(:,e_c)=reshape(maxindex,[N_a*N_j,1]);
     end
 
-    Policy=reshape(Policy,[N_a,N_j,N_e]);
+    Policy=reshape(Policy,[1,N_a,N_j,N_e]);
 
 end
-
 
 %% fastOLG with e, so need to output to take certain shapes
 % V=reshape(V,[N_a*N_j,N_e]);
 % Policy=reshape(Policy,[N_a,N_j,N_e]);
-% Note that in fastOLG, we do not separate d from aprime in Policy
 
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
+% % Output shape for policy
+% Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end
