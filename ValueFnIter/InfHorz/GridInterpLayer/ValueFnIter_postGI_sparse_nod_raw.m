@@ -33,10 +33,10 @@ end
 %% Create return function matrix on coarse grid
 aprime_gridvals = reshape(a_grid,[n_a,1,1]);     % (a',1,1)
 a_gridvals      = reshape(a_grid,[1,n_a,1]);     % (1,a,1)
-z_gridvals3     = reshape(z_gridvals,[1,1,n_z]); % (1,1,z)
 
 % ReturnMatrix(a',a,z) with a' on coarse grid
-ReturnMatrix = arrayfun(ReturnFn, aprime_gridvals, a_gridvals, z_gridvals3, ParamCell{:});
+%ReturnMatrix = arrayfun(ReturnFn, aprime_gridvals, a_gridvals, z_gridvals3, ParamCell{:});
+ReturnMatrix = CreateReturnFnMatrix_GI_nod(ReturnFn,aprime_gridvals,a_gridvals,z_gridvals,ParamCell,n_z);
 
 %NA = gpuArray.colon(1,N_a)';
 %NAZ = gpuArray.colon(1,N_a*N_z)';
@@ -87,7 +87,7 @@ while currdist>Tolerance && tempcounter<=maxiter
         aprimeindexes=(midpoint+(midpoint-1)*n2short)+(-n2short-1:1:1+n2short)'; % aprime points either side of midpoint
         aprime_fine_small = aprime_fine(aprimeindexes);
         % ReturnMatrix_fine(a',a) has size: [3+2*n2short,n_a]
-        ReturnMatrix_fine = CreateReturnFnMatrix_GI_nod(ReturnFn,aprime_fine_small,a_gridvals,z_vals,ParamCell);
+        ReturnMatrix_fine = CreateReturnFnMatrix_GI_nod_lowmem(ReturnFn,aprime_fine_small,a_gridvals,z_vals,ParamCell,n_z);
         EV_z_interp       = interp1(a_grid,EV_z,aprime_fine_small,'linear','extrap');
         % entireRHS_fine has size [3+2*n2short,n_a]
         entireRHS_fine    = ReturnMatrix_fine+DiscountFactorParamsVec*EV_z_interp;
@@ -161,13 +161,31 @@ end %end function
 
 %-------------------------------------------------------------------------%
 
-function Fmatrix = CreateReturnFnMatrix_GI_nod(ReturnFn,aprime_grid,a_grid,z_gridvals,ParamCell)
+function Fmatrix = CreateReturnFnMatrix_GI_nod(ReturnFn,aprime_grid,a_grid,z_gridvals,ParamCell,n_z)
 % Assumption: z_gridvals has size [1,length(n_z)]
 
 
 %ReturnMatrix_fine = arrayfun(ReturnFn,aprime_grid,a_grid,z_grid,ParamCell{:});
 
-l_z = length(z_gridvals);
+l_z = length(n_z);
+if l_z>3
+    error('ERROR: not allow for more than 3 of z variable (you have length(n_z)>3)')
+end
+
+if l_z==1
+    Fmatrix=arrayfun(ReturnFn, aprime_grid, a_grid, shiftdim(z_gridvals(:,1),-2), ParamCell{:});
+elseif l_z==2
+    Fmatrix=arrayfun(ReturnFn, aprime_grid, a_grid, shiftdim(z_gridvals(:,1),-2), shiftdim(z_gridvals(:,2),-2), ParamCell{:});
+elseif l_z==3
+    Fmatrix=arrayfun(ReturnFn, aprime_grid, a_grid, shiftdim(z_gridvals(:,1),-2), shiftdim(z_gridvals(:,2),-2), shiftdim(z_gridvals(:,3),-2), ParamCell{:});
+end
+
+end % end subfunction
+
+function Fmatrix = CreateReturnFnMatrix_GI_nod_lowmem(ReturnFn,aprime_grid,a_grid,z_gridvals,ParamCell,n_z)
+% Assumption: z_gridvals has size [1,length(n_z)]
+
+l_z = length(n_z);
 if l_z>3
     error('ERROR: not allow for more than 3 of z variable (you have length(n_z)>3)')
 end
