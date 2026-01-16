@@ -9,6 +9,31 @@ N_e=prod(n_e);
 V=zeros(N_a,N_z,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
+N_daz_indexes=N_d*N_a*N_a*N_z;
+% < 16GB GPU out of RAM before indexes; >16GB GPU out of indexes before RAM
+if vfoptions.lowmemory==0 && N_daz_indexes*N_e > intmax('int32')
+    warning("setting vfoptions.lowmemory=1");
+    vfoptions.lowmemory=1;
+end
+if vfoptions.lowmemory==1
+    if N_daz_indexes > intmax('int32')
+        warning("setting vfoptions.lowmemory=2");
+        vfoptions.lowmemory=2;
+    else
+        % Use only half the memory (2 in denominator); doubles are size 8
+        nWorkers=min(round(gpuDevice().TotalMemory / (N_daz_indexes*2*8)), gcp().NumWorkers);
+        if nWorkers<1
+            % We misunderestimated how much memory we need vs. have
+            warning("setting vfoptions.lowmemory=2");
+            vfoptions.lowmemory=2;
+        else
+            % We can sweat our GPU assets with parallel execution
+            parforWorkers = gcp().Workers(1:nWorkers);
+            parforPool = partition(gcp(),"Workers",parforWorkers);
+        end
+    end
+end
+
 %%
 if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
@@ -29,12 +54,13 @@ if ~isfield(vfoptions,'V_Jplus1')
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         %Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
+        clear ReturnMatrix
         V(:,:,:,N_j)=Vtemp;
         Policy(:,:,:,N_j)=maxindex;
 
     elseif vfoptions.lowmemory==1
 
-        for e_c=1:N_e
+        parfor (e_c=1:N_e,parforPool)
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % Calc the max and it's index
@@ -52,6 +78,7 @@ if ~isfield(vfoptions,'V_Jplus1')
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 % Calc the max and it's index
                 [Vtemp,maxindex]=max(ReturnMatrix_ze,[],1);
+                clear ReturnMatrix_ze
                 V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(:,z_c,e_c,N_j)=maxindex;
             end
@@ -77,16 +104,16 @@ else
         % (d,aprime,a,z,e)
         
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; % repmat(entireEV,1,N_a,1,N_e);
-        
+        clear ReturnMatrix
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+        clear entireRHS
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
         
-        for e_c=1:N_e
+        parfor (e_c=1:N_e,parforPool)
             e_val=e_gridvals_J(e_c,:,N_j);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
@@ -112,9 +139,10 @@ else
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
                 entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z; % *ones(1,N_a,1);
-                
+                clear ReturnMatrix_ze
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+                clear entireRHS_ze
                 V(:,z_c,e_c,N_j)=Vtemp;
                 Policy(:,z_c,e_c,N_j)=maxindex;
             end
@@ -150,16 +178,16 @@ for reverse_j=1:N_j-1
         % (d,aprime,a,z,e)
         
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*entireEV; %repmat(entireEV,1,N_a,1,N_e);
-        
+        clear ReturnMatrix
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
-        
+        clear entireRHS
         V(:,:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
         
-        for e_c=1:N_e
+        parfor (e_c=1:N_e,parforPool)
             e_val=e_gridvals_J(e_c,:,jj);
             ReturnMatrix_e=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, n_z, special_n_e, d_grid, a_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec);
             % (d,aprime,a,z)
@@ -185,9 +213,10 @@ for reverse_j=1:N_j-1
                 ReturnMatrix_ze=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, n_d, n_a, special_n_z, special_n_e, d_grid, a_grid, z_val, e_val, ReturnFnParamsVec);
                 
                 entireRHS_ze=ReturnMatrix_ze+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
-                
+                clear ReturnMatrix_ze
                 %Calc the max and it's index
                 [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+                clear entireRHS_ze
                 V(:,z_c,e_c,jj)=Vtemp;
                 Policy(:,z_c,e_c,jj)=maxindex;
             end

@@ -8,13 +8,23 @@ V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
+N_da_indexes=N_d*N_a*N_a;
+% < 16GB GPU out of RAM before indexes; >16GB GPU out of indexes before RAM
+if vfoptions.lowmemory==0 && N_da_indexes*N_z > intmax('int32')
+    warning("setting vfoptions.lowmemory=1");
+    vfoptions.lowmemory=1;
+end
 if vfoptions.lowmemory>0
+    % Use only half the memory (2 in denominator); doubles are size 8
+    nWorkers=min(round(gpuDevice().TotalMemory / (N_da_indexes*2*8)), gcp().NumWorkers);
+    if nWorkers<1
+        nWorkers=1;
+    end
+    % We can sweat our GPU assets with parallel execution
+    parforWorkers = gcp().Workers(1:nWorkers);
+    parforPool = partition(gcp(),"Workers",parforWorkers);
     l_z=length(n_z);
     special_n_z=ones(1,l_z);
-end
-if vfoptions.lowmemory>1
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1);
 end
 
 % For debugging:
@@ -50,17 +60,11 @@ if warmglow==1
     if ~isfield(vfoptions,'V_Jplus1')
         if vfoptions.lowmemory==0
             WGmatrix=kron(WGmatrix,ones(N_d,1)).*ones(1,N_a,N_z);
-        elseif vfoptions.lowmemory==1
+        else
             WGmatrix=kron(WGmatrix,ones(N_d,1)).*ones(1,N_a);
-        elseif vfoptions.lowmemory==2
-            WGmatrix=kron(WGmatrix,ones(N_d,1));
         end
     else
-        if vfoptions.lowmemory==0 || vfoptions.lowmemory==1
-            WGmatrix=kron(WGmatrix,ones(N_d,1)).*ones(1,N_a);
-        elseif vfoptions.lowmemory==2
-            WGmatrix=kron(WGmatrix,ones(N_d,1));
-        end
+        WGmatrix=kron(WGmatrix,ones(N_d,1)).*ones(1,N_a);
     end
 else
     WGmatrix=0;
@@ -77,11 +81,12 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         % Calc the max and it's index
         [Vtemp,maxindex]=max(ReturnMatrix+WGmatrix,[],1);
+        clear ReturnMatrix
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
 
-    elseif vfoptions.lowmemory==1
-        for z_c=1:N_z
+    else
+        parfor (z_c=1:N_z,parforPool)
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
 
@@ -115,7 +120,7 @@ else
         temp2=ReturnMatrix;
         temp2(becareful)=ReturnMatrix(becareful).^ezc2(N_j);
         temp2(ReturnMatrix==0)=-Inf;
-    
+        clear ReturnMatrix
         %Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -131,20 +136,21 @@ else
             temp4(isfinite(temp4))=(sj(N_j)*temp4(isfinite(temp4)).^ezc8(N_j)).^ezc6(N_j);
             temp4(entireEV==0)=0;
         end
-        
+        clear becareful
         entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
-
+        clear temp2 temp4
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(N_j);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf;
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
+        clear entireRHS
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
         
-    elseif vfoptions.lowmemory==1
-        for z_c=1:N_z
+    else
+        parfor (z_c=1:N_z,parforPool)
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
             
@@ -213,7 +219,7 @@ for reverse_j=1:N_j-1
         % Now just make it the right shape (currently has aprime, needs the d,a,z dimensions)
         if vfoptions.lowmemory==0
             WGmatrix=kron(WGmatrix,ones(N_d,1)).*ones(1,1,N_z);
-        elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
+        else
             WGmatrix=kron(WGmatrix,ones(N_d,1));
         end
     end
@@ -235,7 +241,7 @@ for reverse_j=1:N_j-1
         temp2=ReturnMatrix;
         temp2(becareful)=ReturnMatrix(becareful).^ezc2(jj); % Otherwise can get things like 0 to negative power equals infinity
         temp2(ReturnMatrix==0)=-Inf; % Otherwise these ReturnMatrix=zero points get a finite amount added to them (from expectations) and were mishandled later
-
+        clear ReturnMatrix
         %Calc the expectation term (except beta)
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
         EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
@@ -254,18 +260,19 @@ for reverse_j=1:N_j-1
         end
         
         entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4; %.*ones(1,N_a,1);
-
+        clear temp2 temp4
         temp5=logical(isfinite(entireRHS).*(entireRHS~=0));
         entireRHS(temp5)=ezc1*entireRHS(temp5).^ezc7(jj);  % matlab otherwise puts 0 to negative power to infinity
         entireRHS(entireRHS==0)=-Inf; % Dont want to consider these
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
+        clear entireRHS
         V(:,:,jj)=Vtemp;
         Policy(:,:,jj)=maxindex;
         
-    elseif vfoptions.lowmemory==1
-        for z_c=1:N_z
+    else
+        parfor (z_c=1:N_z,parforPool)
             z_val=z_gridvals_J(z_c,:,jj);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
             
@@ -303,7 +310,6 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-                
     end
 end
 
