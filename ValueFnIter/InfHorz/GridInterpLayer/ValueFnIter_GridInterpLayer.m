@@ -133,7 +133,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    error('Not yet implemented')
+                    [V,Policy]=ValueFnIter_postGI_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_postGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
