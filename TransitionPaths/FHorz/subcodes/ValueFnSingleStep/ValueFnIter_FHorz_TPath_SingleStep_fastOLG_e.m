@@ -7,6 +7,9 @@ function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_e(VKron,
 % (fastOLG requires swapping order of j and z)
 
 N_d=prod(n_d);
+N_a=prod(n_a);
+N_z=prod(n_z);
+N_e=prod(n_e);
 % N_z=0 is handled elsewhere
 % N_e=0 is handled elsewhere
 
@@ -44,14 +47,9 @@ else
     error('Not yet implemented exoticpreferences for transtion paths (email me :)')
 end
 
-%%
-% Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-% that Policy is not integer valued. The following corrects this by converting to int64 and then
-% makes the output back into double as Matlab otherwise cannot use it in
-% any arithmetical expressions.
-if vfoptions.policy_forceintegertype==1 || vfoptions.policy_forceintegertype==2
-    PolicyKron=uint64(PolicyKron);
-    PolicyKron=double(PolicyKron);
-end
+%% Policy in transition paths
+% Note: The actual ordering of N_z,N_e,N_j is not relevant to how this command works, so can just mix them up. [as long as N_z,N_e not n_z,n_e]
+PolicyKron=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron,n_d,n_a,N_j,N_z,N_e,vfoptions);
+PolicyKron=reshape(PolicyKron,[size(PolicyKron,1),N_a,N_j,N_z,N_e]);
 
 end

@@ -1,20 +1,23 @@
-function AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_TwoProbs_e_raw(AgentDist,Policy_aprime,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist)
+function AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_e_raw(AgentDist,Policy_aprimejz,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequalOneDist)
 % Parallelizes over age jj (age weights are handled elsewhere, here all are normalized to one)
 % AgentDist is [N_a*N_j*N_z,N_e] % To be able to do Step 2 of Tan improvement it needs to be this form (note N_j then N_z,N_e)
 % pi_z_J_sim is [(N_j-1)*N_z,N_z] (j,z,z')
 % pi_e_J_sim is [N_a*(N_j-1)*N_z,N_e]
-% Policy_aprime is [N_a*(N_j-1)*N_z*N_e,2]
-% PolicyProbs is [N_a*(N_j-1)*N_z*N_e,2]
+% Policy_aprime is [N_a*(N_j-1)*N_z*N_e,N_probs], already except last j
+% PolicyProbs is [N_a*(N_j-1)*N_z*N_e,N_probs], already except last j
+
+% precomputed:
+% II=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,N_probs);
+% policyexceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e*N_probs,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e*N_probs,1)+repelem(N_a*N_j*(0:1:N_z*N_e*N_probs-1)',N_a*(N_j-1),1);
+% exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
+% exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
+% justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j*repelem((0:1:N_z*N_e-1)',N_a,1);
 
 % Get AgentDist for periods 1:N_j-1
-% exceptlastj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
 AgentDist_tt=sparse(gather(reshape(AgentDist(exceptlastj),[N_a*(N_j-1)*N_z*N_e,1]))); % avoiding those that correspond to jj=N_j
 
 % Tan improvement Step 1
-firststep=Policy_aprime+repmat(repelem(N_a*(0:1:(N_j-1)*N_z-1)',N_a,1),N_e,2);
-II=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,2);
-
-Gammatranspose=sparse(firststep,II,PolicyProbs,N_a*(N_j-1)*N_z,N_a*(N_j-1)*N_z*N_e);
+Gammatranspose=sparse(Policy_aprimejz,II,PolicyProbs,N_a*(N_j-1)*N_z,N_a*(N_j-1)*N_z*N_e);
 % Note: N_j-1, not N_j
 % Note that Gamma goes from (a,j,z,e) to (a',j,z) [Gammatranspose is has these reversed]
 
@@ -29,7 +32,6 @@ AgentDist_tt=reshape(AgentDist_tt*pi_z_J_sim,[N_a*(N_j-1)*N_z,1]);
 
 AgentDist_tt=gpuArray(full(AgentDist_tt)).*pi_e_J_sim; % put e' in
 
-% exceptfirstj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
 AgentDist(exceptfirstj)=AgentDist_tt; % N_a*N_z+1 is avoiding those that correspond to jj=1
 
 AgentDist(justfirstj)=jequalOneDist; % age j=1 dist

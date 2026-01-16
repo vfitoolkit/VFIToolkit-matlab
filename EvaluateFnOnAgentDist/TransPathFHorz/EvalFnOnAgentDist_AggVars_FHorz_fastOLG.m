@@ -1,29 +1,19 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,Policy_d, Policy_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,N_a,N_z,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J,outputasstructure)
+function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,PolicyValues_d, PolicyValues_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,N_a,N_z,a_gridvals,z_gridvals_J_fastOLG,outputasstructure)
 % fastOLG: so (a,j)-by-z
 % Policy can be in fastOLG for or not, use fastOLGpolicy=1 or 0 to indicate this
 % No z is treated elsewhere
+% If you have e or semiz, just disguise them as z for this command
 
-% If no d variable, set l_d=0, and then Policy_d=[], d_gridvals=[].
+% If no d variable, set l_d=0, and then PolicyValues_d=[], d_gridvals=[].
 
-% d_gridvals is [N_d,l_aprime]
-% aprime_gridvals is [N_aprime,l_aprime]
+% PolicyValues_d is [N_a,N_j,N_z,l_d]
+% PolicyValues_aprime is [N_a,N_j,N_z,l_aprime]
 % a_gridvals is [N_a,l_a]
-% z_gridvals_J is [N_j,N_z,l_z] (conver to [1,N_j,N_z,l_z]
+% z_gridvals_J_fastOLG is [1,N_j,N_z,l_z] (convert internally to [1,N_j,N_z,l_z])
 
 % parameters that depend on age must be [1,N_j]
 
 % Note: FnsToEvaluate is already cell (converted from struct)
-
-% If you have e or semiz, just disguise them as z for this command
-
-z_gridvals_J=shiftdim(z_gridvals_J,-1);  % make it [1,N_j,N_z,l_z])
-
-if l_d==0
-    PolicyValues_aprime=reshape(aprime_gridvals(Policy_aprime(:),:),[N_a,N_j,N_z,l_aprime]);
-else
-    PolicyValues_d=reshape(d_gridvals(Policy_d(:),:),[N_a,N_j,N_z,l_d]);
-    PolicyValues_aprime=reshape(aprime_gridvals(Policy_aprime(:),:),[N_a,N_j,N_z,l_aprime]);
-end
 
 if l_a~=l_aprime
     error('cannot yet handle l_a different from l_aprime, need more if-else statements in main body of EvalFnOnAgentDist_AggVars_FHorz_fastOLG command to handle that ')
@@ -62,337 +52,337 @@ for ff=1:length(FnsToEvaluate)
     if l_z==1
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), ParamCell{:});
             end
         end
     elseif l_z==2
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
             end
         end
     elseif l_z==3
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), ParamCell{:});
             end
         end
     elseif l_z==4
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), ParamCell{:});
             end
         end
     elseif l_z==5
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), ParamCell{:});
             end
         end
     elseif l_z==6
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), ParamCell{:});
             end
         end
     elseif l_z==7
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), ParamCell{:});
             end
         end
     elseif l_z==8
         if l_d==0
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             end
         elseif l_d==1
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             end
         elseif l_d==2
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             end
         elseif l_d==3
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             end
         elseif l_d==4
             if l_aprime==1
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), a_gridvals, z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==2
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), a_gridvals(:,1), a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             elseif l_aprime==3
-                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), z_gridvals_J(1,:,:,3), z_gridvals_J(1,:,:,4), z_gridvals_J(1,:,:,5), z_gridvals_J(1,:,:,6), z_gridvals_J(1,:,:,7), z_gridvals_J(1,:,:,8), ParamCell{:});
+                Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1), PolicyValues_d(:,:,:,2), PolicyValues_d(:,:,:,3), PolicyValues_d(:,:,:,4), PolicyValues_aprime(:,:,:,1), PolicyValues_aprime(:,:,:,2), PolicyValues_aprime(:,:,:,3), a_gridvals(:,1), a_gridvals(:,2), a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1), z_gridvals_J_fastOLG(1,:,:,2), z_gridvals_J_fastOLG(1,:,:,3), z_gridvals_J_fastOLG(1,:,:,4), z_gridvals_J_fastOLG(1,:,:,5), z_gridvals_J_fastOLG(1,:,:,6), z_gridvals_J_fastOLG(1,:,:,7), z_gridvals_J_fastOLG(1,:,:,8), ParamCell{:});
             end
         end
     end

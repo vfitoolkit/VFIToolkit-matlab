@@ -28,8 +28,8 @@ entireRHS=ReturnMatrix+DiscountFactorParamsVec.*EV; %(aprime)-by-(a,j)
 V=squeeze(V);
 Policy=squeeze(Policy);
 
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

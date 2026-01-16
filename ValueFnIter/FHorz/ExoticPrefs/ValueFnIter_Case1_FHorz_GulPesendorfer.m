@@ -69,6 +69,8 @@ if vfoptions.parallel==2
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_GulPesendorfer_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, vfoptions.temptationFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, TemptationFnParamNames, vfoptions);
             end
         end
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         if isfield(vfoptions,'n_e') % UP TO HERE
             if N_z==0

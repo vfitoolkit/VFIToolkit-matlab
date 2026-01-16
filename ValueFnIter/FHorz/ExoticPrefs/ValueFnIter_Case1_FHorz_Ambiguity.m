@@ -51,6 +51,8 @@ if vfoptions.parallel==2
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_raw(n_ambiguity, n_a, n_z, N_j, a_grid, z_gridvals_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         if isfield(vfoptions,'n_e')
             if N_z==0

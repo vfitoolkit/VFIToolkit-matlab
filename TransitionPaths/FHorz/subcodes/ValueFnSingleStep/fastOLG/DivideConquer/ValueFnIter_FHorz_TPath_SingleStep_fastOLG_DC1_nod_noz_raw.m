@@ -3,7 +3,6 @@ function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_DC1_nod_noz_raw(
 % fastOLG just means parallelize over "age" (j)
 N_a=prod(n_a);
 
-V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 Policy=zeros(N_a,N_j,'gpuArray'); % first dim indexes the optimal choice for d and aprime
 
 %%
@@ -33,6 +32,7 @@ elseif vfoptions.EVpre==1
     % This is used for 'Matched Expecations Path'
     EV=reshape(V,[N_a,1,N_j]); % input V is of size [N_a,N_j] and we want to use the whole thing
 end
+V=zeros(N_a,N_j,'gpuArray'); % V is over (a,j)
 
 % n-Monotonicity
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(ReturnFn, N_j, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);
@@ -72,8 +72,8 @@ for ii=1:(vfoptions.level1n-1)
 end
 
 
-%%
-Policy=shiftdim(Policy,-1); % So first dim is just one point
+%% Output shape for policy
+Policy=shiftdim(Policy,-1); % so first dim is just one point
 
 
 end

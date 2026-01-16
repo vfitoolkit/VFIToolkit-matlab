@@ -1,4 +1,4 @@
-function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting_fastOLG_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_z,N_e,N_ze, l_d,l_a,l_z,l_e,l_ze, d_gridvals,aprime_gridvals,a_gridvals,d_grid,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj, ReturnFn, FnsToEvaluate, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions)
+function [PricePathOld,GEcondnPath]=TransitionPath_FHorz_shooting_fastOLG_e(PricePathOld, PricePathNames, PricePathSizeVec, l_p, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, jequalOneDist, n_d,n_a,n_z,n_e,N_j, N_d,N_a,N_z,N_e,N_ze, l_d,l_aprime,l_a,l_z,l_e,l_ze, d_gridvals,aprime_gridvals,a_gridvals,d_grid,a_grid,z_gridvals_J,e_gridvals_J,ze_gridvals_J_fastOLG, pi_z_J,pi_e_J,pi_z_J_sim,pi_e_J_sim, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, AgeWeights_T, ReturnFnParamNames, N_probs,II1orII,II2,exceptlastj,exceptfirstj,justfirstj, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames,  vfoptions, simoptions, transpathoptions)
 % fastOLG: fastOLG uses (a,j,z,e) instead of the standard (a,z,e,j)
 % This (a,j,z,e) is important for ability to implement codes based on matrix
 % multiplications (especially for Tan improvement)
@@ -16,10 +16,13 @@ if transpathoptions.verbose==1
 end
 
 %%
+% interpret jequalOneDist input
+if transpathoptions.trivialjequalonedist==0
+    jequalOneDist_T=jequalOneDist;
+    jequalOneDist=jequalOneDist_T(:,1);
+end
 
-PricePathDist=Inf;
-pathcounter=1;
-
+%%
 % fastOLG so everything is (a,j,z,e)
 % Shapes:
 % V is [N_a,N_j,N_z,N_e]
@@ -27,20 +30,22 @@ pathcounter=1;
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray');
 PricePathNew(T,:)=PricePathOld(T,:);
-AggVarsPath=zeros(T-1,length(FnsToEvaluate),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+AggVarsPath=zeros(T-1,length(FnsToEvaluateCell),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 GEcondnPath=zeros(T-1,length(GeneralEqmEqnsCell),'gpuArray');
 
-if transpathoptions.trivialjequalonedist==0
-    jequalOneDist_T=jequalOneDist;
-    jequalOneDist=jequalOneDist_T(:,1);
+if vfoptions.gridinterplayer==0
+    PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
+elseif vfoptions.gridinterplayer==1
+    PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
+    N_probs=2;
+    PolicyProbsPath=zeros(N_a*(N_j-1)*N_z*N_e,N_probs,T-1,'gpuArray'); % preallocate
 end
 
-
 %%
+PricePathDist=Inf;
+pathcounter=1;
 while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.maxiter
-    
-    PolicyPath=zeros(2,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
-    
+        
     %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. 
     % Since we won't need to keep the value functions for anything later we just store the current one in V
     V=V_final;
@@ -66,19 +71,41 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % The V input is next period value fn, the V output is this period.
         % Policy in fastOLG is [N_a,N_j,N_z,N_e] and contains the joint-index for (d,aprime)
 
-        PolicyPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so a-by-j-by-z-by-e
+        PolicyIndexesPath(:,:,:,:,:,T-ttr)=Policy; % fastOLG: so a-by-j-by-z-by-e
 
     end
     
+    %% Modify PolicyIndexesPath into forms needed for forward iteration
+    % Create version of PolicyIndexesPath in form we want for the agent distribution iteration
+    % Creates PolicyaprimejzPath (omits j=N_j), and when using grid interpolation layer also PolicyProbsPath 
+    if isscalar(n_a)
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,1:N_j-1,:,:,:),[N_a*(N_j-1)*N_z*N_e,T-1]); % aprime index
+    elseif length(n_a)==2
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,1:N_j-1,:,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,1:N_j-1,:,:,:)-1),[N_a*(N_j-1)*N_z*N_e,T-1]);
+    elseif length(n_a)==3
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,1:N_j-1,:,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,1:N_j-1,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,1:N_j-1,:,:,:)-1),[N_a*(N_j-1)*N_z*N_e,T-1]);
+    elseif length(n_a)==4
+        PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,1:N_j-1,:,:,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,1:N_j-1,:,:,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,1:N_j-1,:,:,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(l_d+4,:,1:N_j-1,:,:,:)-1),[N_a*(N_j-1)*N_z*N_e,T-1]);
+    end
+    PolicyaprimejzPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:(N_j-1)*N_z-1)',N_a,1),N_e,1);
+    if simoptions.gridinterplayer==1
+        L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,1:N_j-1,:,:,:),[N_a*(N_j-1)*N_z*N_e,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_j,N_z,N_e,T-1]
+        PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T-1]); % reinterpret this as lower grid index
+        PolicyaprimejzPath=repelem(PolicyaprimejzPath,1,2,1); % create copy that will be the upper grid index
+        PolicyaprimejzPath(:,2,:)=PolicyaprimejzPath(:,2,:)+1; % upper grid index
+        PolicyProbsPath(:,2,:)=L2index; % L2 index
+        PolicyProbsPath(:,2,:)=(PolicyProbsPath(:,2,:)-1)/(1+simoptions.ngridinterp); % probability of upper grid point
+        PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
+    end
+    % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
+    PolicyValuesPath=PolicyInd2Val_FHorz_TPath(PolicyIndexesPath,n_d,n_a,[n_z,n_e],N_j,T-1,d_gridvals,aprime_gridvals,vfoptions,1,1); % [size(PolicyValuesPath,1),N_a,N_j,N_z*N_e,T]
+    PolicyValuesPath=permute(PolicyValuesPath,[2,3,4,1,5]); %[N_a,N_j,N_z*N_e,l_d+l_aprime,T-1] % fastOLG ordering is needed for AggVars
+
     
-    %% Now we have the PolicyPath, we go forward in time from 1 to T using the policies to update the agents distribution generating a new price path
-    
-    % Call AgentDist the current periods distn
+    %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
+    % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
-        
-        % Get the current optimal policy
-        Policy=PolicyPath(:,:,:,:,:,tt); % fastOLG: so (a,j)-by-z-by-e
                 
         % Get t-1 PricePath and ParamPath before we update them
         if use_tminus1price==1
@@ -127,20 +154,37 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
         end
         
+        %% Get the current optimal policy, and iterate the agent dist
+        if transpathoptions.zepathtrivial==0
+            ze_gridvals_J_fastOLG=transpathoptions.ze_gridvals_J_T_fastOLG(:,:,:,:,tt);
+        end
         if transpathoptions.zpathtrivial==0
-            z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,tt);
             pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
         end
         if transpathoptions.epathtrivial==0
-            e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,:,tt);
             pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt); % (a,j,z)-by-e
         end
 
-        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights_T(:,:,tt),Policy(1,:,:,:,:), Policy(2,:,:,:,:), FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_ze,N_a,N_ze,d_gridvals,aprime_gridvals,a_gridvals,ze_gridvals_J,1);
+        if transpathoptions.trivialjequalonedist==0
+            jequalOneDist=jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
+        end
+        
+        AgeWeights=AgeWeights_T(:,:,tt); % by coincidence this is for fastOLG=0,1
+
+        % simoptions.fastOLG=1 is hardcoded
+        if simoptions.gridinterplayer==0
+            AgentDistnext=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,PolicyaprimejzPath(:,tt),N_a,N_z,N_e,N_j,pi_z_J_sim, pi_e_J_sim,II1orII,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % II1orII is II1
+        elseif simoptions.gridinterplayer==1
+            AgentDistnext=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_e_raw(AgentDist,PolicyaprimejzPath(:,:,tt),PolicyProbsPath(:,:,tt),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II1orII,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % II1orII is II
+        end
+
+        %% AggVars
+        AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_ze,N_a,N_ze,a_gridvals,ze_gridvals_J_fastOLG,1);
         for ii=1:length(AggVarNames)
             Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
         end
         
+        %% General Eqm Eqns
         % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
         [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
         PricePathNew(tt,:)=PricePathNew_tt;
@@ -153,11 +197,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
         end
 
-        if transpathoptions.trivialjequalonedist==0
-            jequalOneDist=jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
-        end
-        % simoptions.fastOLG=1 is hardcoded
-        AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,reshape(Policy(2,:,1:end-1,:,:),[1,N_a*(N_j-1)*N_z*N_e]),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+        AgentDist=AgentDistnext;
     end    
 
 
@@ -168,10 +208,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1     
-        pathcounter
         disp('Old, New')
-        % Would be nice to have a way to get the iteration count without having the whole
-        % printout of path values (I think that would be useful?)
+        % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
         pathnametitles{:}
         [PricePathOld,PricePathNew]
     end

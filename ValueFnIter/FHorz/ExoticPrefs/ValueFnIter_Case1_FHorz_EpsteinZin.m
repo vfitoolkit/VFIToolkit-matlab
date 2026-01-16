@@ -184,6 +184,8 @@ if vfoptions.parallel==2
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
             end
         end
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         if isfield(vfoptions,'n_e')
             if N_z==0

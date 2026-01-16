@@ -453,6 +453,8 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
@@ -476,6 +478,8 @@ if vfoptions.dynasty==1
     
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Dynasty_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Dynasty_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
@@ -565,6 +569,8 @@ if N_d==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
+    % Policy without d
+    PolicyKron=shiftdim(PolicyKron,-1);
 else % N_d
     if isfield(vfoptions,'n_e')
         if N_z==0
