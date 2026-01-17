@@ -73,15 +73,9 @@ if heteroagentoptions.verbose==1
             fprintf('	%s: %8.4f \n',intEqnnames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
         end
     end
-    if heteroagentoptions.useCustomModelStats==1
-        fprintf('Current CustomModelStats variables: \n')
-        for ii=1:length(customstatnames)
-            fprintf('	%s: %8.4f \n',customstatnames{ii},CustomStats.(customstatnames{ii}))
-        end
-    end
     fprintf('Current GeneralEqmEqns: \n')
     for gg=1:length(GEeqnNames)
-        fprintf('	%s: %8.4f \n',GEeqnNames{gg},GeneralEqmConditionsVec(gg))
+        fprintf('	%s: %8.6f \n',GEeqnNames{gg},GeneralEqmConditionsVec(gg))
     end
 end
 

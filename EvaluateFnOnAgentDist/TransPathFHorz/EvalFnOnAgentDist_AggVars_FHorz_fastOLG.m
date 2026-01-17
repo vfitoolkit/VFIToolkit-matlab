@@ -15,11 +15,6 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,PolicyValues_
 
 % Note: FnsToEvaluate is already cell (converted from struct)
 
-if l_a~=l_aprime
-    error('cannot yet handle l_a different from l_aprime, need more if-else statements in main body of EvalFnOnAgentDist_AggVars_FHorz_fastOLG command to handle that ')
-end
-
-
 %%
 if outputasstructure==1
     AggVars=struct();
