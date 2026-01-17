@@ -237,7 +237,7 @@ if heteroagentoptions.verbose==1
     fprintf('Current GeneralEqmEqns: \n')
     GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns2); % Note: uses GeneralEqmEqns2 as this is the full list of general eqm conditions
     for ii=1:length(GeneralEqmEqnsNames)
-        fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
+        fprintf('	%s: %8.6f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
     end
 end
 

@@ -150,7 +150,7 @@ if heteroagentoptions.verbose==1
     end
     fprintf('Current GeneralEqmEqns: \n')
     for gg=1:length(GEeqnNames)
-        fprintf('	%s: %8.4f \n',GEeqnNames{gg},GeneralEqmConditionsVec(gg))
+        fprintf('	%s: %8.6f \n',GEeqnNames{gg},GeneralEqmConditionsVec(gg))
     end
 end
 
