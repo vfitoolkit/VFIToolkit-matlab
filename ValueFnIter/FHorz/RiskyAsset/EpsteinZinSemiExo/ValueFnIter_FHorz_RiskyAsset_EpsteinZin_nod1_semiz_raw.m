@@ -35,12 +35,15 @@ V=zeros(N_a,N_semiz*N_z,N_j,'gpuArray');
 Policy4=zeros(4,N_a,N_semiz*N_z,N_j,'gpuArray'); % d2, d3, d4 and a1prime
 
 %%
-d3_grid=gpuArray(d3_grid);
-d4_grid=gpuArray(d4_grid);
+% d3_grid=gpuArray(d3_grid);
+% d4_grid=gpuArray(d4_grid);
 d23_grid=gpuArray(d23_grid);
 a1_grid=gpuArray(a1_grid);
 a2_grid=gpuArray(a2_grid);
 u_grid=gpuArray(u_grid);
+
+d3d4a1_gridvals=CreateGridvals([n_d3,n_d4,n_a1],[d3_grid;d4_grid;a1_grid],1);
+a1a2_gridvals=CreateGridvals([n_a1,n_a2],[a1_grid;a2_grid],1);
 
 if vfoptions.lowmemory>0
     special_n_bothz=ones(1,length(n_semiz)+length(n_z));
@@ -125,7 +128,7 @@ end
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], n_z, [d3_grid; d4_grid; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+        ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], n_bothz, d3d4a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         
         % Modify the Return Function appropriately for Epstein-Zin Preferences
         becareful=logical(isfinite(ReturnMatrix).*(ReturnMatrix~=0)); % finite and not zero
@@ -164,7 +167,7 @@ if ~isfield(vfoptions,'V_Jplus1')
 
         for z_c=1:N_bothz
             z_val=bothz_gridvals_J(z_c,:,N_j);
-            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], special_n_bothz, [d3_grid; d4_grid; a1_grid], [a1_grid; a2_grid], z_val, ReturnFnParamsVec);
+            ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3d4a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
             becareful=logical(isfinite(ReturnMatrix_z).*(ReturnMatrix_z~=0)); % finite and not zero
@@ -228,8 +231,8 @@ else
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j), pi_semiz(:,:,d4_c)); % reverse order
-
-            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_z, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
+            d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
+            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,N_j), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -244,17 +247,17 @@ else
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
+            skipinterp=logical(EV(aprimeIndex+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index+N_a*((1:1:N_bothz)-1))); % Note, probably just do this off of a2prime values
             aprimeProbs=repmat(a2primeProbs,N_a1,1);  % [N_d*N_a1,N_u]
             aprimeProbs(skipinterp)=0;
 
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+            EV1=EV(aprimeIndex+N_a*((1:1:N_bothz)-1)); % (d,u,z), the lower aprime
+            EV2=EV((aprimeplus1Index)+N_a*((1:1:N_bothz)-1)); % (d,u,z), the upper aprime
 
             % Apply the aprimeProbs
-            EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
-            EV2=reshape(EV2,[N_d23*N_a1,N_u,N_z]).*(1-aprimeProbs); % probability of upper grid point
+            EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs; % probability of lower grid point
+            EV2=reshape(EV2,[N_d23*N_a1,N_u,N_bothz]).*(1-aprimeProbs); % probability of upper grid point
 
             % Expectation over u (using pi_u), and then add the lower and upper
             EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
@@ -275,7 +278,7 @@ else
             % First: ReturnMatrix, we can refine out d1
             % no d1 here
             % Second: EV, we can refine out d2
-            [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
+            [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_bothz]),[],1);
             % Now put together entireRHS, which just depends on d3
             entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
             % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -305,10 +308,10 @@ else
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,N_j),pi_semiz(:,:,d4_c)); % reverse order
-
+            d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,N_j);
-                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], z_val, ReturnFnParamsVec);
+                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_d4z).*(ReturnMatrix_d4z~=0)); % finite and not zero
@@ -457,8 +460,8 @@ for reverse_j=1:N_j-1
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj), pi_semiz(:,:,d4_c)); % reverse order
-
-            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_z, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
+            d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
+            ReturnMatrix_d4=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, bothz_gridvals_J(:,:,jj), ReturnFnParamsVec);
             % (d,aprime,a,z)
 
             % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -473,18 +476,18 @@ for reverse_j=1:N_j-1
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
             % So I will add a check for when this happens, and then overwrite those (by setting aprimeProbs to zero)
-            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_z)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1))); % Note, probably just do this off of a2prime values
-            aprimeProbs=repmat(a2primeProbs,N_a1,N_z);  % [N_d*N_a1,N_u]
+            skipinterp=logical(EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1))==EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1))); % Note, probably just do this off of a2prime values
+            aprimeProbs=repmat(a2primeProbs,N_a1,N_bothz);  % [N_d*N_a1,N_u]
             aprimeProbs(skipinterp)=0;
-            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_z]);
+            aprimeProbs=reshape(aprimeProbs,[N_d23*N_a1,N_u,N_bothz]);
 
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
-            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the lower aprime
-            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_z)-1)); % (d,u,z), the upper aprime
+            EV1=EV(aprimeIndex(:)+N_a*((1:1:N_bothz)-1)); % (d,u,z), the lower aprime
+            EV2=EV(aprimeplus1Index(:)+N_a*((1:1:N_bothz)-1)); % (d,u,z), the upper aprime
 
             % Apply the aprimeProbs
-            EV1=reshape(EV1,[N_d23*N_a1,N_u,N_z]).*aprimeProbs; % probability of lower grid point
-            EV2=reshape(EV2,[N_d23*N_a1,N_u,N_z]).*(1-aprimeProbs); % probability of upper grid point
+            EV1=reshape(EV1,[N_d23*N_a1,N_u,N_bothz]).*aprimeProbs; % probability of lower grid point
+            EV2=reshape(EV2,[N_d23*N_a1,N_u,N_bothz]).*(1-aprimeProbs); % probability of upper grid point
 
             % Expectation over u (using pi_u), and then add the lower and upper
             EV=sum((EV1.*pi_u'),2)+sum((EV2.*pi_u'),2); % (d,1,z), sum over u
@@ -505,7 +508,7 @@ for reverse_j=1:N_j-1
             % First: ReturnMatrix, we can refine out d1
             % no d1 here
             % Second: EV, we can refine out d2
-            [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_z]),[],1);
+            [temp4_onlyd3,d2index]=max(ezc9*ezc3*reshape((~isinf(temp4)).*temp4,[N_d2,N_d3*N_a1,1,N_bothz]),[],1);
             % Now put together entireRHS, which just depends on d3
             entireRHS=ezc1*temp2+DiscountFactorParamsVec*ezc9*shiftdim(temp4_onlyd3,1);
             % entireRHS=ezc1*temp2+ezc3*DiscountFactorParamsVec*temp4;
@@ -535,10 +538,10 @@ for reverse_j=1:N_j-1
         for d4_c=1:N_d4
             % Note: By definition V_Jplus1 does not depend on d2 (only aprime)
             pi_bothz=kron(pi_z_J(:,:,jj),pi_semiz(:,:,d4_c)); % reverse order
-
+            d3_special_d4_a1_gridvals=gpuArray(CreateGridvals([n_d3,special_n_d4,n_a1], [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], 1));
             for z_c=1:N_bothz
                 z_val=bothz_gridvals_J(z_c,:,jj);
-                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, [d3_grid; d4_gridvals(d4_c,:)'; a1_grid], [a1_grid; a2_grid], z_val, ReturnFnParamsVec);
+                ReturnMatrix_d4z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, [n_d3,special_n_d4,n_a1], [n_a1,n_a2], special_n_bothz, d3_special_d4_a1_gridvals, a1a2_gridvals, z_val, ReturnFnParamsVec);
 
                 % Modify the Return Function appropriately for Epstein-Zin Preferences
                 becareful=logical(isfinite(ReturnMatrix_d4z).*(ReturnMatrix_d4z~=0)); % finite and not zero
