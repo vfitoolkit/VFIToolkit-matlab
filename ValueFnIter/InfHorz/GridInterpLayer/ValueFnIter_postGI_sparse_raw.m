@@ -1,9 +1,5 @@
 function [VKron, Policy] = ValueFnIter_postGI_sparse_raw(VKronold,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,DiscountFactorParamsVec,ReturnFnParamsVec,vfoptions)
-% TODO: - Fix create return matrix with more than one z variables
-% - Ftemp needed for Howard
-% - Howard algorithm
-% - Compare gridinterplayer=1 and howardssparse=0 vs gridinterplayer=1 and
-%   howardssparse=1
+
 % Improved version of ValueFnIter_postGI_nod_raw, using sparse matrix for
 % Howard improvement.
 % OUTPUTS
