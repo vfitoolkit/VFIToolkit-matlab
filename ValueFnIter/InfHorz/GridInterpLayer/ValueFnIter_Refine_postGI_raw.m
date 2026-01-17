@@ -120,7 +120,8 @@ i_indices = [gpuArray.colon(1,N_aprime)'; gpuArray.colon(1,N_aprime)'];
 j_indices = [idx_low; idx_high];
 weights = [weight_low; weight_high];
 interpMatrix_sparse = sparse(i_indices, j_indices, weights, N_aprime, N_aprimediff);
-interpMatrix = full(interpMatrix_sparse);  % Keep on GPU, convert to dense for fast multiplication
+%interpMatrix = full(interpMatrix_sparse);  % Keep on GPU, convert to dense for fast multiplication
+interpMatrix = interpMatrix_sparse;
 
 addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
 
