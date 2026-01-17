@@ -224,7 +224,7 @@ if heteroagentoptions.verbose==1
             if heteroagentoptions.GEptype(gg)==1
                 fprintf(['	%s:',numberstr,' \n'],GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
             else
-                fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))            
+                fprintf('	%s: %8.6f \n',GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))            
             end
         end
     end

@@ -4,6 +4,9 @@ function PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d
 if ~exist('outputkron','var')
     outputkron=0;
 end
+if ~isfield(vfoptions,'experienceasset')
+    vfoptions.experienceasset=0;
+end
 
 % N_d=prod(n_d);
 N_a=prod(n_a);

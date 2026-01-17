@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,PolicyValues_d, PolicyValues_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,N_a,N_z,a_gridvals,z_gridvals_J_fastOLG,outputasstructure)
+function AgeConditionalAggVars=EvalFnOnAgentDist_AgeConditionalAggVars_FHorz_fastOLG(AgentDist,PolicyValues_d, PolicyValues_aprime, FnsToEvaluate,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,N_a,N_z,a_gridvals,z_gridvals_J_fastOLG,outputasstructure)
 % fastOLG: so (a,j)-by-z
 % Policy can be in fastOLG for or not, use fastOLGpolicy=1 or 0 to indicate this
 % No z is treated elsewhere
@@ -15,16 +15,11 @@ function AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist,PolicyValues_
 
 % Note: FnsToEvaluate is already cell (converted from struct)
 
-if l_a~=l_aprime
-    error('cannot yet handle l_a different from l_aprime, need more if-else statements in main body of EvalFnOnAgentDist_AggVars_FHorz_fastOLG command to handle that ')
-end
-
-
 %%
 if outputasstructure==1
-    AggVars=struct();
+    AgeConditionalAggVars=struct();
 else % outputasstructure==0
-    AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
+    AgeConditionalAggVars=zeros(length(FnsToEvaluate),N_j,'gpuArray');
 end
 
 % AgentDist is [N_a*N_j*N_z,1] or [N_a*N_j,N_e] or [N_a*N_j*N_z,N_e]
@@ -388,9 +383,9 @@ for ff=1:length(FnsToEvaluate)
     end
 
     if outputasstructure==1
-        AggVars.(AggVarNames{ff}).Mean=sum(Values(:).*AgentDist(:));
+        AgeConditionalAggVars.(AggVarNames{ff}).Mean=sum(sum(reshape(Values(:).*AgentDist(:),[N_a,N_j,N_z]),3),1);
     else % outputasstructure==0
-        AggVars(ff)=sum(Values(:).*AgentDist(:));
+        AgeConditionalAggVars(ff,:)=sum(sum(reshape(Values(:).*AgentDist(:),[N_a,N_j,N_z]),3),1);
     end
 end
 
