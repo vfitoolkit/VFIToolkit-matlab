@@ -108,24 +108,11 @@ elseif vfoptions.lowmemory==1
 end
 
 EVinterpindex2=gpuArray.linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
+addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
+pi_z_alt2=shiftdim(pi_z,-2);
 
 % OPTIMIZATION: Pre-compute interpolation matrix (all on GPU)
-idx_low = floor(EVinterpindex2);
-idx_low = max(1, min(idx_low, N_aprimediff-1));
-idx_high = idx_low + 1;
-weight_high = EVinterpindex2 - idx_low;
-weight_low = 1 - weight_high;
-
-i_indices = [gpuArray.colon(1,N_aprime)'; gpuArray.colon(1,N_aprime)'];
-j_indices = [idx_low; idx_high];
-weights = [weight_low; weight_high];
-interpMatrix_sparse = sparse(i_indices, j_indices, weights, N_aprime, N_aprimediff);
-%interpMatrix = full(interpMatrix_sparse);  % Keep on GPU, convert to dense for fast multiplication
-interpMatrix = interpMatrix_sparse;
-
-addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
-
-pi_z_alt2=shiftdim(pi_z,-2);
+interpMatrix=getInterpMatrix(EVinterpindex2, N_aprime, N_aprimediff);
 
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1;
@@ -162,7 +149,6 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % OPTIMIZED: Replace interp1 with matrix multiplication (LINE 177 BOTTLENECK)
             EVpre2D = reshape(EVpre, N_aprimediff, N_aNz_Nz);
             EVKrontemp = reshape(interpMatrix * EVpre2D, N_aprime*N_aNz, N_z);
-            
             EVKrontemp=EVKrontemp(tempmaxindex2,:);
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
@@ -175,21 +161,19 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 end
 
 %% Do another post-GI layer
+n_aprimediff=1+2*vfoptions.maxaprimediff;
+N_aprimediff=prod(n_aprimediff);
+n_aprime=n_aprimediff+(n_aprimediff-1)*vfoptions.ngridinterp;
+N_aprime=prod(n_aprime);
 while vfoptions.postGIrepeat>0
     vfoptions.postGIrepeat=vfoptions.postGIrepeat-1;
 
     Policy_a=reshape(Policy_a,[1,N_a,N_z]);
     Policy_a=ceil((Policy_a-1)/(n2short+1))-vfoptions.maxaprimediff+aprimeshifter;
-
-    n_aprimediff=1+2*vfoptions.maxaprimediff;
-    N_aprimediff=prod(n_aprimediff);
     aprimeshifter=min(max(Policy_a,1+vfoptions.maxaprimediff),N_a-vfoptions.maxaprimediff);
     aprimeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +aprimeshifter;
     aprime_grid=a_grid(aprimeindex);
     
-    n2short=vfoptions.ngridinterp;
-    n_aprime=n_aprimediff+(n_aprimediff-1)*vfoptions.ngridinterp;
-    N_aprime=prod(n_aprime);
     aprime_grid=interp1((1:1:N_aprimediff)',aprime_grid,linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)');
 
     if vfoptions.lowmemory==0
@@ -214,23 +198,10 @@ while vfoptions.postGIrepeat>0
     end
 
     EVinterpindex2=gpuArray.linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
+    pi_z_alt2=shiftdim(pi_z,-2);
 
     % OPTIMIZATION: Recompute interpolation matrix (all on GPU)
-    idx_low = floor(EVinterpindex2);
-    idx_low = max(1, min(idx_low, N_aprimediff-1));
-    idx_high = idx_low + 1;
-    weight_high = EVinterpindex2 - idx_low;
-    weight_low = 1 - weight_high;
-    
-    i_indices = [gpuArray.colon(1,N_aprime)'; gpuArray.colon(1,N_aprime)'];
-    j_indices = [idx_low; idx_high];
-    weights = [weight_low; weight_high];
-    interpMatrix_sparse = sparse(i_indices, j_indices, weights, N_aprime, N_aprimediff);
-    interpMatrix = full(interpMatrix_sparse);  % Keep on GPU
-
-    addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
-
-    pi_z_alt2=shiftdim(pi_z,-2);
+    interpMatrix=getInterpMatrix(EVinterpindex2, N_aprime, N_aprimediff);
 
     currdist=1;
     while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
@@ -266,7 +237,6 @@ while vfoptions.postGIrepeat>0
                 % OPTIMIZED: Matrix multiplication (LINE 286 BOTTLENECK)
                 EVpre2D = reshape(EVpre, N_aprimediff, N_aNz_Nz);
                 EVKrontemp = reshape(interpMatrix * EVpre2D, N_aprime*N_aNz, N_z);
-                
                 EVKrontemp=EVKrontemp(tempmaxindex2,:);
                 EVKrontemp=EVKrontemp.*pi_z_howards;
                 EVKrontemp(isnan(EVKrontemp))=0;
@@ -294,5 +264,20 @@ L2=fineindex-(L1intermediate-1)*(n2short+1);
 
 Policy(2,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(3,:,:)=reshape(L2,[1,N_a,N_z]);
+
+end
+
+function interpMatrix=getInterpMatrix(EVinterpindex, N_aprime, N_aprimediff)
+    idx_low = floor(EVinterpindex);
+    idx_low = max(1, min(idx_low, N_aprimediff-1));
+    idx_high = idx_low + 1;
+    weight_high = EVinterpindex - idx_low;
+    weight_low = 1 - weight_high;
+    
+    i_indices = [gpuArray.colon(1,N_aprime)'; gpuArray.colon(1,N_aprime)'];
+    j_indices = [idx_low; idx_high];
+    weights = [weight_low; weight_high];
+    % Adding exp(-500) to every element in the matrix makes it dense
+    interpMatrix = sparse(i_indices, j_indices, weights, N_aprime, N_aprimediff)+exp(-500);
 
 end
