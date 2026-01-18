@@ -6,6 +6,7 @@ N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
 N_aNz = N_a*N_z;
+N_aNz_Nz = N_aNz*N_z;
 
 n_da=[n_d,n_a];
 da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)];
@@ -36,7 +37,7 @@ end
 pi_z_alt=shiftdim(pi_z',-1);
 pi_z_howards=repelem(pi_z,N_a,1);
 
-addindexforaz=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
+az_idx=gpuArray(N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1));
 
 %% First, just consider a_grid for next period
 tempcounter=1;
@@ -58,12 +59,11 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     currdist=max(abs(VKrondist));
     
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards 
-        tempmaxindex=shiftdim(Policy_a,1)+addindexforaz;
+        tempmaxindex=shiftdim(Policy_a,1)+az_idx;
         Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a,N_z]);
         Policy_a=Policy_a(:);
         for Howards_counter=1:vfoptions.howards
-            EVKrontemp=VKron(Policy_a,:);
-            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp=VKron(Policy_a,:).*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
@@ -108,7 +108,7 @@ elseif vfoptions.lowmemory==1
 end
 
 EVinterpindex2=gpuArray.linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
-addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
+azfine_idx=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
 pi_z_alt2=shiftdim(pi_z,-2);
 
 % OPTIMIZATION: Pre-compute interpolation matrix (all on GPU)
@@ -137,11 +137,9 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     currdist=max(abs(VKrondist));
 
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards 
-        tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine;
+        tempmaxindex=shiftdim(Policy_a,1)+azfine_idx;
         Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]);
         tempmaxindex2=Policy_a(:)+N_aprime*(0:1:N_a*N_z-1)';
-        
-        N_aNz_Nz = N_aNz*N_z;
         
         for Howards_counter=1:vfoptions.howards
             EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_aNz,N_z]);
@@ -149,8 +147,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
             % OPTIMIZED: Replace interp1 with matrix multiplication (LINE 177 BOTTLENECK)
             EVpre2D = reshape(EVpre, N_aprimediff, N_aNz_Nz);
             EVKrontemp = reshape(interpMatrix * EVpre2D, N_aprime*N_aNz, N_z);
-            EVKrontemp=EVKrontemp(tempmaxindex2,:);
-            EVKrontemp=EVKrontemp.*pi_z_howards;
+            EVKrontemp=EVKrontemp(tempmaxindex2,:).*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
             VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
@@ -225,20 +222,17 @@ while vfoptions.postGIrepeat>0
         currdist=max(abs(VKrondist));
 
         if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
-            tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine;
+            tempmaxindex=shiftdim(Policy_a,1)+azfine_idx;
             Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]);
             tempmaxindex2=Policy_a(:)+N_aprime*(0:1:N_a*N_z-1)';
-            
-            N_aNz_Nz = N_aNz*N_z;
             
             for Howards_counter=1:vfoptions.howards
                 EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_aNz,N_z]);
                 
-                % OPTIMIZED: Matrix multiplication (LINE 286 BOTTLENECK)
+                % OPTIMIZED: Use matrix multiplication to effect interp1
                 EVpre2D = reshape(EVpre, N_aprimediff, N_aNz_Nz);
                 EVKrontemp = reshape(interpMatrix * EVpre2D, N_aprime*N_aNz, N_z);
-                EVKrontemp=EVKrontemp(tempmaxindex2,:);
-                EVKrontemp=EVKrontemp.*pi_z_howards;
+                EVKrontemp=EVKrontemp(tempmaxindex2,:).*pi_z_howards;
                 EVKrontemp(isnan(EVKrontemp))=0;
                 EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
                 VKron=Ftemp+DiscountFactorParamsVec*EVKrontemp;
