@@ -197,7 +197,7 @@ if Parallel==2
                 PolicyValues=reshape(PolicyValues,[l_aprime,N_a,N_z,N_j]);
             end
         else
-            Policy=reshape(Policy,[l_d+l_aprime,N_a*N_z*N_j]);
+            Policy=reshape(Policy,[l_d+l_aprime,N_a*N_z*N_j]); % +1 is the L2index
             PolicyValues=zeros(l_d+l_aprime,N_a*N_z*N_j,'gpuArray');
 
             temp_d_grid=d_grid(1:cumsum_n_d(1));

@@ -609,60 +609,8 @@ if isfield(transpathoptions,'intermediateEqns')
 end
 
 
-%% Set up GEnewprice==3 (if relevant)
-if transpathoptions.GEnewprice==3
-    transpathoptions.weightscheme=0;
-    
-    if isstruct(GeneralEqmEqns) 
-        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-        % Is same as order of fields in GeneralEqmEqns
-        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-        temp=transpathoptions.GEnewprice3.howtoupdate;
-        GEeqnNames=fieldnames(GeneralEqmEqns);
-        for ii=1:length(GEeqnNames)
-            for jj=1:size(temp,1)
-                if strcmp(temp{jj,1},GEeqnNames{ii}) % Names match
-                    transpathoptions.GEnewprice3.howtoupdate{ii,1}=temp{jj,1};
-                    transpathoptions.GEnewprice3.howtoupdate{ii,2}=temp{jj,2};
-                    transpathoptions.GEnewprice3.howtoupdate{ii,3}=temp{jj,3};
-                    transpathoptions.GEnewprice3.howtoupdate{ii,4}=temp{jj,4};
-                end
-            end
-        end
-        nGeneralEqmEqns=length(GEeqnNames);
-    else
-        nGeneralEqmEqns=length(GeneralEqmEqns);
-    end
-    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
-    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    tempweight=transpathoptions.oldpathweight;
-    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
-    for ii=1:length(transpathoptions.GEnewprice3.factor)
-        if transpathoptions.GEnewprice3.factor(ii)==Inf
-            transpathoptions.GEnewprice3.factor(ii)=1;
-            transpathoptions.GEnewprice3.keepold(ii)=0;
-            transpathoptions.oldpathweight(ii)=tempweight;
-        end
-    end
-    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns % Note: inputs were already testted 
-        % do nothing, this is how things should be
-    else
-        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (number of rows is different to the number of GeneralEqmEqns fields) \n')
-    end
-    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
-    for ii=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(PricePathNames)
-            if strcmp(transpathoptions.GEnewprice3.howtoupdate{ii,2},PricePathNames{jj})
-                transpathoptions.GEnewprice3.permute(ii)=jj;
-            end
-        end
-    end
-    if isfield(transpathoptions,'updateaccuracycutoff')==0
-        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
-end
+%% If using a shooting algorithm, set that up
+transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames);
 
 
 %% Check if using _tminus1 and/or _tplus1 variables.
