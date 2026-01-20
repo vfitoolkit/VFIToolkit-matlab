@@ -121,7 +121,7 @@ elseif heteroagentoptions.outputGEform==1 % vector
 elseif heteroagentoptions.outputGEform==2 % structure
     clear GeneralEqmConditions
     for gg=1:length(GEeqnNames)
-        GeneralEqmConditions.(GEeqnNames{gg})=GEeqnNames(gg);
+        GeneralEqmConditions.(GEeqnNames{gg})=GeneralEqmConditionsVec(gg);
     end
 end
 
