@@ -1020,6 +1020,9 @@ if transpathoptions.verbose==1
 end
 
 
+%% If using a shooting algorithm, set that up
+transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames);
+
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
     [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
@@ -1073,7 +1076,7 @@ if transpathoptions.verbose>1
 end
 
 
-if transpathoptions.verbose==1
+if transpathoptions.verbose>=1
     transpathoptions
 end
 
@@ -1125,6 +1128,7 @@ end
 if transpathoptions.GEnewprice==2 % Function minimization
     % Have not attempted implementing this for PType yet, no point until I
     % get it to be useful without PType
+    error('Have not yet implemented transpathoptions.GEnewprice=2')
 
     if nargout==1
         varargout={PricePath};
