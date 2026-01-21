@@ -155,7 +155,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         d_grid=PTypeStructure.(iistr).d_grid;
         a_grid=PTypeStructure.(iistr).a_grid;
         a_gridvals=PTypeStructure.(iistr).a_gridvals;
-        daprime_gridvals=PTypeStructure.(iistr).daprime_gridvals;
+        d_gridvals=PTypeStructure.(iistr).d_gridvals;
+        aprime_gridvals=PTypeStructure.(iistr).aprime_gridvals;
         if N_z>0
             z_gridvals_J=PTypeStructure.(iistr).z_gridvals_J;
             pi_z_J=PTypeStructure.(iistr).pi_z_J;
@@ -198,7 +199,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % PricePathSizeVec_ii, ParamPathSizeVec_ii
         
         % For current ptype, do the backward iteration of V and Policy, then forward iterate agent dist and get the AggVarsPath
-        AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
+        AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
         % AggVarsPath=zeros(length(FnsToEvaluate),T-1);
 
         AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath;
