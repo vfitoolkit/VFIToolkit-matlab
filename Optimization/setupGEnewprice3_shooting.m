@@ -1,6 +1,8 @@
-function options=setupGEnewprice3_shooting(options,GeneralEqmEqns,GEPriceParamNames)
+function options=setupGEnewprice3_shooting(options,GeneralEqmEqns,GEPriceParamNames,N_i,PricePathSizeVec)
 % options can be heteroagentoptions or transpathoptions
 % transpathoptions: GEPriceParamNames will be PricePathNames
+% N_i is an optional input, only needed for models with permanent types
+% PricePathSizeVec is an optional input, only needed for models with permanent types
 
 GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
@@ -68,6 +70,8 @@ if ~isfield(options,'GEptype') % For models without permanent type
     
 else
     %% Model with permanent type: allow for options.GEptype
+    nGeneralEqmEqns_acrossptypes=sum(options.GEptype==0)+N_i*sum(options.GEptype==1);
+    
     % Before starting, make sure that GE that depend on ptype match up with PricePaths that depend on ptype
     for gg=1:nGeneralEqmEqns
         if options.GEptype(gg)==1

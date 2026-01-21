@@ -19,12 +19,7 @@ if transpathoptions.verbosegraphs==1
     title('Price Path') 
     plot(PricePathOld)
     legend(PricePathNames{:})
-    
-%     timeperiodstoplot=[1,2,3,round(T/3),round(T/2),round(2*T/3),T-2,T-1,T];
 end
-
-PricePathDist=Inf;
-pathcounter=1;
 
 AgentDist_initial.ptweights=StationaryDist_init.ptweights;
 for ii=1:PTypeStructure.N_i
@@ -38,15 +33,12 @@ end
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
-if transpathoptions.verbose==1
-    ParamPathNames
-    PricePathNames
-end
 
+%% Iterate on the transition path
+PricePathDist=Inf;
+pathcounter=1;
 while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
     
-    transpathoptions
-
     % For each agent type, first go back through the value & policy fns.
     % Then forwards through agent dist and agg vars.
     AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T-1,PTypeStructure.N_i); % Does not include period T
