@@ -305,50 +305,9 @@ end
 %% Enough setup, Time to do the actual finding the HeteroAgentStationaryEqm:
 
 %% If using fminalgo=5, then need some further setup
-
 if heteroagentoptions.fminalgo==5
-    heteroagentoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
-    
-    if isstruct(GeneralEqmEqns) 
-        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-        % Is same as order of fields in GeneralEqmEqns
-        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-        temp=heteroagentoptions.fminalgo5.howtoupdate;
-        GEeqnNames=fieldnames(GeneralEqmEqns);
-        for tt=1:length(GEeqnNames)
-            for jj=1:size(temp,1)
-                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,1}=temp{jj,1};
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,2}=temp{jj,2};
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,3}=temp{jj,3};
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,4}=temp{jj,4};
-                end
-            end
-        end
-        nGeneralEqmEqns=length(GEeqnNames);
-    else
-        nGeneralEqmEqns=length(GeneralEqmEqns);
-    end
-    heteroagentoptions.fminalgo5.add=[heteroagentoptions.fminalgo5.howtoupdate{:,3}];
-    heteroagentoptions.fminalgo5.factor=[heteroagentoptions.fminalgo5.howtoupdate{:,4}];
-    heteroagentoptions.fminalgo5.keepold=ones(size(heteroagentoptions.fminalgo5.factor));
-    
-    if size(heteroagentoptions.fminalgo5.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(GEPriceParamNames)
-        % do nothing, this is how things should be
-    else
-        fprintf('ERROR: heteroagentoptions.fminalgo5..howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
-    end
-    heteroagentoptions.fminalgo5.permute=zeros(size(heteroagentoptions.fminalgo5.howtoupdate,1),1);
-    for tt=1:size(heteroagentoptions.fminalgo5.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(GEPriceParamNames)
-            if strcmp(heteroagentoptions.fminalgo5.howtoupdate{tt,2},GEPriceParamNames{jj})
-                heteroagentoptions.fminalgo5.permute(tt)=jj;
-            end
-        end
-    end
-    if isfield(heteroagentoptions,'updateaccuracycutoff')==0
-        heteroagentoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
+    % If using a shooting algorithm, set that up
+    heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
 end
 
 
