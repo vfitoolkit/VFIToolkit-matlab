@@ -639,13 +639,6 @@ end
 %% Have now finished creating PTypeStructure. Time to do the actual finding the HeteroAgentStationaryEqm:
 
 
-%% If using fminalgo=5, then need some further setup
-if heteroagentoptions.fminalgo==5
-    % If using a shooting algorithm, set that up
-    heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
-end
-
-
 %%
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     
@@ -723,6 +716,8 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,GEparamsvec0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
     elseif heteroagentoptions.fminalgo==5
         % Update based on rules in heteroagentoptions.fminalgo5.howtoupdate
+        % Set up the howtoupdate rules in the format needed
+        heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
         % Get initial prices, p
         p=nan(1,length(GEPriceParamNames));
         for ii=1:length(GEPriceParamNames)
