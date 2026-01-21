@@ -235,6 +235,9 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a/50); % default
         end
     end
+    if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')
+        PTypeStructure.(iistr).vfoptions.gridinterplayer=0; %default
+    end
     if ~isfield(PTypeStructure.(iistr).vfoptions,'exoticpreferences')
         PTypeStructure.(iistr).vfoptions.exoticpreferences='None'; % not yet implemented, so hardcodes None
     else
@@ -313,11 +316,29 @@ for ii=1:PTypeStructure.N_i
     end
     % to be able to EvalFnsOnAgentDist using fastOLG we also need
     PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
-    if N_d==0
-        PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
-    else
-        PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+    % use fine grid for aprime_gridvals
+    if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
+        PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
+    elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
+        if isscalar(PTypeStructure.(iistr).n_a)
+            n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+            aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
+            PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+        else
+            a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
+            n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+            n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
+            a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
+            aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
+            PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+        end
     end
+    PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
+    % if N_d==0
+    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
+    % else
+    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+    % end
 
     if isa(pi_z,'struct')
         PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
@@ -656,7 +677,7 @@ for ii=1:PTypeStructure.N_i
         % pi_e_J and e_gridvals_J are both gpuArrays
     end
     
-    %% When using z (and e), we can precompute some things that the fastOLG needs for the agent dist
+    %% We can precompute some things that the fastOLG needs for the agent dist
     if N_z>0 && N_e==0
         pi_z_J_sim=gather(reshape(transpathoptions.(iistr).pi_z_J_alt(1:end-1,:,:),[(N_j-1)*N_z,N_z]));
 
@@ -688,7 +709,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).pi_e_J_sim=pi_e_J_sim;
     end
 
-
+    
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
     if transpathoptions.fastOLG==0

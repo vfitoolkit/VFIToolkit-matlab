@@ -8,7 +8,12 @@ GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
 
 %% Set up GEnewprice==3 (if relevant)
-if options.GEnewprice~=3
+if isfield(options,'fminalgo5') % in stationary general eqm, fminalgo5 is shooting
+    fminalgo5=1;
+    % options.GEnewprice=3;
+    options.GEnewprice3=options.fminalgo5;
+    options.oldpathweight=0; % Not actually used for anything
+elseif options.GEnewprice~=3
     return
 end
 
@@ -67,7 +72,7 @@ if ~isfield(options,'GEptype') % For models without permanent type
             end
         end
     end
-    
+
 else
     %% Model with permanent type: allow for options.GEptype
     nGeneralEqmEqns_acrossptypes=sum(options.GEptype==0)+N_i*sum(options.GEptype==1);
@@ -162,6 +167,12 @@ else
 end
 
 
+%% If doing stationary general eqm, call output fminalgo5 instead of GEnewprice3
+if  fminalgo5==1
+    options.fminalgo5=options.GEnewprice3;
+    options=rmfield(options,'GEnewprice3');
+    options=rmfield(options,'oldpathweight');
+end
 
 
 
