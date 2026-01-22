@@ -453,260 +453,85 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).AggVarNames=FnNames;
 
 
-    %% Check if pi_z and z_grid can be precomputed
-    % Note: cannot handle that whether not not they can be precomputed differs across ptypes
-    transpathoptions.zpathprecomputed=0;
-    if N_z>0
-        if ndims(PTypeStructure.(iistr).pi_z)==2
-            transpathoptions.zpathprecomputed=1;
-            transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
-            z_gridvals_J=CreateGridvals(PTypeStructure.(iistr).n_z,gpuArray(PTypeStructure.(iistr).z_grid),1).*ones(1,1,PTypeStructure.(iistr).N_j);
-            pi_z_J=gpuArray(PTypeStructure.(iistr).pi_z.*ones(1,1,PTypeStructure.(iistr).N_j));
-        elseif ndims(PTypeStructure.(iistr).pi_z)==3
-            transpathoptions.zpathprecomputed=1;
-            transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
-            z_gridvals_J=gpuArray(PTypeStructure.(iistr).z_grid);
-            pi_z_J=gpuArray(PTypeStructure.(iistr).pi_z);
-        end
-        if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
-            % Note: If ExogShockFn depends on the path, it must be done via a parameter
-            % that depends on the path (i.e., via ParamPath or PricePath)
-            PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.ExogShockFn);
-            overlap=0;
-            for pp=1:length(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames)
-                if strcmp(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames{pp},PricePathNames)
-                    overlap=1;
-                end
-            end
-            if overlap==0
-                transpathoptions.zpathprecomputed=1;
-                % If ExogShockFn does not depend on any of the prices (in PricePath), then
-                % we can simply create it now rather than within each 'subfn' or 'p_grid'
-
-                % Check if it depends on the ParamPath
-                transpathoptions.zpathtrivial=1;
-                for pp=1:length(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames)
-                    if strcmp(PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames{pp},ParamPathNames)
-                        transpathoptions.zpathtrivial=0;
-                    end
-                end
-                if transpathoptions.zpathtrivial==1
-                    pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
-                    z_gridvals_J=zeros(sum(n_z),length(n_z),N_j,'gpuArray');
-                    for jj=1:N_j
-                        ExogShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames,jj);
-                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                        for pp=1:length(ExogShockFnParamsVec)
-                            ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
-                        end
-                        [z_grid,pi_z]=vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                        pi_z_J(:,:,jj)=gpuArray(pi_z);
-                        z_gridvals_J(:,jj)=CreateGridVals(n_z,gpuArray(z_grid),1);
-                    end
-                elseif transpathoptions.zpathtrivial==0
-                    % z_grid_J and/or pi_z_J varies along the transition path (but only depending on ParamPath, not PricePath
-                    transpathoptions.(iistr).pi_z_J_T=zeros(N_z,N_z,N_j,T,'gpuArray');
-                    transpathoptions.(iistr).z_grid_J_T=zeros(sum(n_z),length(n_z),N_j,T,'gpuArray');
-                    pi_z_J=zeros(N_z,N_z,N_j,'gpuArray');
-                    z_gridvals_J=zeros(sum(n_z),length(n_z),N_j,'gpuArray');
-                    for tt=1:T
-                        for pp=1:length(ParamPathNames)
-                            PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
-                        end
-                        % Note, we know the PricePath is irrelevant for the current purpose
-                        for jj=1:N_j
-                            ExogShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.ExogShockFnParamNames,jj);
-                            ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
-                            for pp=1:length(ExogShockFnParamsVec)
-                                ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
-                            end
-                            [z_grid,pi_z]=PTypeStructure.(iistr).vfoptions.ExogShockFn(ExogShockFnParamsCell{:});
-                            pi_z_J(:,:,jj)=gpuArray(pi_z);
-                            z_gridvals_J(:,jj)=CreateGridVals(n_z,gpuArray(z_grid),1);
-                        end
-                        transpathoptions.(iistr).pi_z_J_T(:,:,:,tt)=pi_z_J;
-                        transpathoptions.(iistr).z_gridvals_J_T(:,:,:,tt)=z_gridvals_J;
-                    end
-                end
-            end
-        end
-        
-        if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-            z_gridvals_J=permute(z_gridvals_J,[3,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLG(): N_j-by-N_z-by-l_z
-            pi_z_J=permute(pi_z_J,[3,2,1]); % We want it to be (j,z',z) for value function
-            transpathoptions.(iistr).pi_z_J_alt=permute(pi_z_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
-            if transpathoptions.zpathtrivial==0
-                temp=transpathoptions.(iistr).z_grid_J_T;
-                transpathoptions=rmfield(transpathoptions,'z_grid_J_T');
-                transpathoptions.(iistr).z_gridvals_J_T=zeros(N_z,l_z,N_j,T,'gpuArray');
-                for tt=1:T
-                    for jj=1:N_j
-                        transpathoptions.(iistr).z_gridvals_J_T(:,:,jj,tt)=CreateGridvals(n_z,temp(:,jj,tt),1);
-                    end
-                end
-                transpathoptions.(iistr).z_gridvals_J_T=permute(transpathoptions.(iistr).z_gridvals_J_T,[3,1,2,4]); % from [N_z,l_z,N_j,T] to [N_j,N_z,l_z,T]
-                transpathoptions.(iistr).pi_z_J_T=permute(transpathoptions.(iistr).pi_z_J_T,[3,1,2,4]);  % We want it to be (j,z,z',t)
-                transpathoptions.(iistr).pi_z_J_T_alt=permute(transpathoptions.(iistr).pi_z_J_T,[1,3,2,4]);  % We want it to be (j,z',z,t) [note, this permute is off the previous one]
-            end
-        end
-
-        % z_gridvals_J is [N_z,l_z,N_j] if transpathoptions.fastOLG=0
-        %              is [N_j,N_z,l_z] if transpathoptions.fastOLG=1
-        % pi_z_J is [N_z,N_z,N_j]       if transpathoptions.fastOLG=0 (j,z,z')
-        % pi_z_J is [N_j,N_z,N_z]       if transpathoptions.fastOLG=1 (j,z',z)
-        % pi_z_J and z_gridvals_J are both gpuArrays
-        % Now store them
-        PTypeStructure.(iistr).pi_z_J=gpuArray(pi_z_J);
-        PTypeStructure.(iistr).z_gridvals_J=gpuArray(z_gridvals_J);
-    end
-    %% If used, check if pi_e and e_grid can be procomputed
-    % Note: cannot handle that whether not not they can be precomputed differs across ptypes
-    if N_e>0
-        % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
-
-        if isfield(PTypeStructure.(iistr).vfoptions,'pi_e')
-            transpathoptions.epathprecomputed=1;
-            transpathoptions.epathtrivial=1; % e_grid_J and pi_e_J are not varying over the path
-            if size(pi_e,2)==1 % does not depend on age
-                pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e.*ones(1,N_j);
-                e_gridvals_J=CreateGridVals(PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).vfoptions.e_grid,1);
-            else % depends on age
-                pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e;
-                e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_grid;
-            end
-        elseif isfield(PTypeStructure.(iistr).vfoptions,'EiidShockFn')
-            transpathoptions.epathprecomputed=0;
-
-            % Note: If EiidShockFn depends on the path, it must be done via a parameter
-            % that depends on the path (i.e., via ParamPath or PricePath)
-            PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.EiidShockFn);
-            overlap=0;
-            for pp=1:length(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames)
-                if strcmp(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames{pp},PricePathNames)
-                    overlap=1;
-                end
-            end
-            if overlap==0
-                transpathoptions.epathprecomputed=1;
-                % If ExogShockFn does not depend on any of the prices (in PricePath), then
-                % we can simply create it now rather than within each 'subfn' or 'p_grid'
-
-                % Check if it depends on the ParamPath
-                transpathoptions.epathtrivial=1;
-                for pp=1:length(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames)
-                    if strcmp(PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames{pp},ParamPathNames)
-                        transpathoptions.epathtrivial=0;
-                    end
-                end
-                if transpathoptions.epathtrivial==1
-                    pi_e_J=zeros(N_e,N_j,'gpuArray');
-                    e_gridvals_J=zeros(sum(PTypeStructure.(iistr).vfoptions.n_e),l_e,N_j,'gpuArray');
-                    for jj=1:N_j
-                        EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).vfoptions.EiidShockFnParamNames,jj);
-                        EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                        for pp=1:length(EiidShockFnParamsVec)
-                            EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
-                        end
-                        [e_grid,pi_e]=PTypeStructure.(iistr).vfoptions.EiidShockFn(EiidShockFnParamsCell{:});
-                        pi_e_J(:,jj)=gpuArray(pi_e);
-                        e_gridvals_J(:,:,jj)=CreateGridVals(n_e,gpuArray(e_grid),1);
-                    end
-                elseif transpathoptions.epathtrivial==0
-                    % e_grid_J and/or pi_e_J varies along the transition path (but only depending on ParamPath, not PricePath)
-                    transpathoptions.(iistr).pi_e_J_T=zeros(N_e,N_j,T,'gpuArray');
-                    transpathoptions.(iistr).e_gridvals_J_T=zeros(sum(PTypeStructure.(iistr).vfoptions.n_e),l_e,N_j,T,'gpuArray');
-                    pi_e_J=zeros(N_e,N_j,'gpuArray');
-                    e_gridvals_J=zeros(sum(PTypeStructure.(iistr).vfoptions.n_e),N_j,'gpuArray');
-                    for tt=1:T
-                        for pp=1:length(ParamPathNames)
-                            PTypeStructure.(iistr).Parameters.(ParamPathNames{pp})=ParamPathStruct.(ParamPathNames{pp});
-                        end
-                        % Note, we know the PricePath is irrelevant for the current purpose
-                        for jj=1:N_j
-                            EiidShockFnParamsVec=CreateVectorFromParams(PTypeStructure.(iistr).Parameters, vPTypeStructure.(iistr).foptions.EiidShockFnParamNames,jj);
-                            EiidShockFnParamsCell=cell(length(EiidShockFnParamsVec),1);
-                            for pp=1:length(ExogShockFnParamsVec)
-                                EiidShockFnParamsCell(pp,1)={EiidShockFnParamsVec(pp)};
-                            end
-                            [e_grid,pi_e]=PTypeStructure.(iistr).vfoptions.ExogShockFn(EiidShockFnParamsCell{:});
-                            pi_e_J(:,jj)=gpuArray(pi_e);
-                            e_gridvals_J(:,:,jj)=CreateGridVals(n_e,gpuArray(e_grid),1);
-                        end
-                        transpathoptions.(iistr).pi_e_J_T(:,:,tt)=pi_e_J;
-                        transpathoptions.(iistr).e_gridvals_J_T(:,:,:,tt)=e_gridvals_J;
-                    end
-                end
-            end
-        end
-        % Now store them
-        PTypeStructure.(iistr).pi_e_J=pi_e_J;
-        PTypeStructure.(iistr).e_gridvals_J=e_gridvals_J;
-
-
-        if transpathoptions.fastOLG==1 % Reshape grid and transtion matrix for use with fastOLG
-            e_gridvals_J=permute(e_gridvals_J,[3,4,1,2]); % Give it the size required for CreateReturnFnMatrix_Case1_Disc_Par2_fastOLGe: (j,1,N_e,l_e)
-            pi_e_J=reshape(kron(pi_e_J,ones(N_a,1,'gpuArray'))',[N_a*N_j,1,N_e]); % Give it the size required for fastOLG value function
-            % transpathoptions.(iistr).pi_e_J_alt=permute(pi_e_J,[1,3,2]); % But is (j,z,z') for agent dist with fastOLG [note, this permute is off the previous one]
-            if transpathoptions.epathtrivial==0
-                temp=transpathoptions.e_grid_J_T;
-                transpathoptions=rmfield(transpathoptions,'e_grid_J_T');
-                transpathoptions.e_gridvals_J_T=zeros(N_e,l_e,N_j,T,'gpuArray');
-                for tt=1:T
-                    for jj=1:N_j
-                        e_gridvals_J(:,:,jj,tt)=CreateGridvals(n_e,temp(:,jj,tt),1);
-                    end
-                end
-                transpathoptions.e_gridvals_J_T=permute(transpathoptions.e_gridvals_J_T,[3,5,1,2,4]); % from (e,j,t) to (j,e,t) [second dimension is singular, this is how I want it for fastOLG value fn where first dim is j, then second is z (which is not relevant to e)]
-                transpathoptions.pi_e_J_T=repelem(permute(transpathoptions.pi_e_J_T,[3,1,2,4]),N_a,1,1,1);  % We want it to be (a-j,1,e,t)
-                transpathoptions.pi_e_J_sim_T=zeros(N_a*(N_j-1)*N_z,N_e,T,'gpuArray');
-                for tt=1:T
-                    temp=reshape(transpathoptions.pi_e_J_T(:,:,:,tt),[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-                    transpathoptions.pi_e_J_sim_T(:,:,tt)=kron(ones(N_z,1,'gpuArray'),gpuArray(temp(N_a+1:end,:)));
-                end
-            end
-        end
-        vfoptions.e_grid_J=gpuArray(e_gridvals_J);
-        vfoptions.pi_e_J=gpuArray(pi_e_J);
-        simoptions.e_grid_J=gpuArray(e_gridvals_J);
-        simoptions.pi_e_J=gpuArray(pi_e_J);
-
-        % e_gridvals_J is [N_e,l_e,N_j]   if transpathoptions.fastOLG=0
-        %              is [N_j,1,N_e,l_e] if transpathoptions.fastOLG=1
-        % pi_e_J is [N_e,N_j]             if transpathoptions.fastOLG=0 (e,j)
-        % pi_e_J is [N_a*N_j,1,N_e]       if transpathoptions.fastOLG=1 (a-j,1,e)
-        % pi_e_J and e_gridvals_J are both gpuArrays
-    end
+    %% Set up exogenous shock processes
+    [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
+    % Convert z and e to age-dependent joint-grids and transtion matrix
+    % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
     
     %% We can precompute some things that the fastOLG needs for the agent dist
-    if N_z>0 && N_e==0
-        pi_z_J_sim=gather(reshape(transpathoptions.(iistr).pi_z_J_alt(1:end-1,:,:),[(N_j-1)*N_z,N_z]));
-
-        % Precompute some things needed for fastOLG agent dist iteration
-        PTypeStructure.(iistr).exceptlastj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-        PTypeStructure.(iistr).exceptfirstj=kron(ones(1,(N_j-1)*N_z),1:1:N_a)+kron(kron(ones(1,N_z),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-        PTypeStructure.(iistr).justfirstj=kron(ones(1,N_z),1:1:N_a)+N_a+kron(N_a*N_j*(0:1:N_z-1),ones(1,N_a));
-        II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
-        II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
-        pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
-
-        PTypeStructure.(iistr).pi_z_J_sim=pi_z_J_sim;
-    elseif N_z>0 && N_e>0
-        pi_z_J_sim=gather(reshape(transpathoptions.(iistr).pi_z_J_alt(1:end-1,:,:),[(N_j-1)*N_z,N_z]));
-
-        % Precompute some things needed for fastOLG agent dist iteration
-        PTypeStructure.(iistr).exceptlastj=kron(ones(1,(N_j-1)*N_z*N_e),1:1:N_a)+kron(kron(ones(1,N_z*N_e),N_a*(0:1:N_j-2)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z*N_e-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-        PTypeStructure.(iistr).exceptfirstj=kron(ones(1,(N_j-1)*N_z*N_e),1:1:N_a)+kron(kron(ones(1,N_z*N_e),N_a*(1:1:N_j-1)),ones(1,N_a))+kron(N_a*N_j*(0:1:N_z*N_e-1),ones(1,N_a*(N_j-1))); % Note: there is one use of N_j which is because we want to index AgentDist
-        PTypeStructure.(iistr).justfirstj=kron(ones(1,N_z*N_e),1:1:N_a)+N_a++kron(N_a*N_j*(0:1:N_z*N_e-1),ones(1,N_a));
-        % note that following are not affected by e
-        II1=repmat(1:1:(N_j-1)*N_z,1,N_z);
-        II2=repmat(1:1:(N_j-1),1,N_z*N_z)+repelem((N_j-1)*(0:1:N_z-1),1,N_z*(N_j-1));
-        pi_z_J_sim=sparse(II1,II2,pi_z_J_sim,(N_j-1)*N_z,(N_j-1)*N_z);
-        % and we now need additional pi_e_J_sim
-        pi_e_J_alt=reshape(pi_e_J,[N_a*N_j,N_e]); % transpathoptions.fastOLG means pi_e_J is [N_a*N_j,1,N_e]
-        pi_e_J_sim=repmat(pi_e_J_alt(N_a+1:end,:),N_z,1); % (a,j,z)-by-e (but only for jj=2:end)
-
-        PTypeStructure.(iistr).pi_z_J_sim=pi_z_J_sim;
-        PTypeStructure.(iistr).pi_e_J_sim=pi_e_J_sim;
+    % But only bother with this when using fastOLG=1
+    if transpathoptions.fastOLG==1
+        if PTypeStructure.(iistr).simoptions.gridinterplayer==1
+            N_probs=2;
+        else
+            N_probs=1;
+        end
+        if N_z==0
+            if N_e==0 % no z, no e
+                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
+                    II1=1:1:N_a*(N_j-1);
+                    PTypeStructure.(iistr).II2=ones(N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',N_j-1,1)+repelem(N_a*(0:1:N_j-2)',N_a,1); % Note: there is one use of N_j which is because we want to index AgentDist
+                    PTypeStructure.(iistr).exceptfirstj=[]; % not needed
+                    PTypeStructure.(iistr).justfirstj=[]; % not needed
+                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
+                    II=repelem((1:1:N_a*(N_j-1))',1,N_probs);
+                    PTypeStructure.(iistr).exceptlastj=[]; % not needed
+                    PTypeStructure.(iistr).exceptfirstj=[]; % not needed
+                    PTypeStructure.(iistr).justfirstj=[]; % not needed
+                end
+            else % no z, yes e
+                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
+                    II1=1:1:N_a*(N_j-1)*N_e;
+                    PTypeStructure.(iistr).II2=ones(N_a*(N_j-1)*N_e,1);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_e,1)+N_a*N_j*repelem((0:1:N_e-1)',N_a,1);
+                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
+                    II=repelem((1:1:N_a*(N_j-1)*N_e)',1,N_probs);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_e,1)+N_a*N_j*repelem((0:1:N_e-1)',N_a,1);
+                end
+            end
+        else % N_z>0
+            if N_e==0 % z, no e
+                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
+                    II1=1:1:N_a*(N_j-1)*N_z;
+                    PTypeStructure.(iistr).II2=ones(N_a*(N_j-1)*N_z,1);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z,1)+N_a*N_j*repelem((0:1:N_z-1)',N_a,1);
+                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
+                    II=repelem((1:1:N_a*(N_j-1)*N_z)',1,N_probs);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z,1)+N_a*N_j*repelem((0:1:N_z-1)',N_a,1);
+                end
+            else % z and e
+                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
+                    II1=1:1:N_a*(N_j-1)*N_z*N_e;
+                    PTypeStructure.(iistr).II2=ones(N_a*(N_j-1)*N_z*N_e,1);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j*repelem((0:1:N_z*N_e-1)',N_a,1);
+                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
+                    II=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,N_probs);
+                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
+                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j*repelem((0:1:N_z*N_e-1)',N_a,1);
+                end
+            end
+        end
+        % To keep inputs simpler
+        if PTypeStructure.(iistr).simoptions.gridinterplayer==0
+            PTypeStructure.(iistr).II1orII=II1;
+        elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
+            PTypeStructure.(iistr).II1orII=II;
+            PTypeStructure.(iistr).II2=[];
+        end
+    else
+        
     end
 
     
