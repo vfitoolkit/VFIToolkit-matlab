@@ -443,9 +443,8 @@ for ii=1:PTypeStructure.N_i
         end
     end
 
-
     %% Set up exogenous shock grids now (so they can then just be reused every time)
-
+    % CHECK IF THE FOLLOWING IS REDUNDANT/OBSOLETE down to next %%
     if isstruct(z_grid)
         PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
     else
@@ -473,6 +472,10 @@ for ii=1:PTypeStructure.N_i
 
     % Check if using ExogShockFn or EiidShockFn, and if so, do these use a parameter that is being determined in general eqm
     heteroagentoptions.gridsinGE(ii)=0;
+
+    %% Set up exogenous shock grids now (so they can then just be reused every time)
+    % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
+    % parameter that is being determined in general eqm
     if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
         tempExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.ExogShockFn);
         % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
@@ -565,7 +568,7 @@ for ii=1:PTypeStructure.N_i
         end
         % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, staty dist, etc. So
         PTypeStructure.(iistr).vfoptions.alreadygridvals_semiexo=1;
-        PTypeStructure.(iistr).simoptions.alreadygridvals_semiexo=1;        
+        PTypeStructure.(iistr).simoptions.alreadygridvals_semiexo=1;
     end
         
 
@@ -581,6 +584,7 @@ for ii=1:PTypeStructure.N_i
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
+
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
     
     %% jequaloneDist and AgeWeightsParamNames
