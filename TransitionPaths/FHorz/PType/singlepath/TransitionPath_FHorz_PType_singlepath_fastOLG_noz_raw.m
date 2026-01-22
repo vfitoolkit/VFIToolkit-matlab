@@ -1,14 +1,15 @@
-function AggVarsPath=TransitionPath_FHorz_PType_singlepath_fastOLG_noz_raw(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist_initial,jequalOneDist_T,AgeWeights_T,l_d,N_d,n_d,N_a,n_a,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluateCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions)
+function AggVarsPath=TransitionPath_FHorz_PType_singlepath_fastOLG_noz_raw(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist_initial,jequalOneDist_T,AgeWeights_T,l_d,N_d,n_d,N_a,n_a,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,ReturnFn, FnsToEvaluateCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, transpathoptions, vfoptions, simoptions)
 % When doing shooting alogrithm on TPath FHorz PType, this is for a given ptype, and does the steps of back-iterate to get policy, then forward to get agent dist and agg vars.
 % The only output is the agg vars path.
 
-AggVarsPath=zeros(T-1,length(FnsToEvaluateCell),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
+AggVarsPath=zeros(length(FnsToEvaluateCell),T-1,'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
 if N_d==0
     l_d=0;
 else
     l_d=length(n_d);
 end
+l_a=length(n_a);
 l_aprime=length(n_a);
 
 %%
@@ -136,12 +137,12 @@ for tt=1:T-1
 
     %% AggVars
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG_noz(AgentDist.*AgeWeights,PolicyValuesPath(:,:,1:l_d,tt), PolicyValuesPath(:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,N_a,a_gridvals,1);
-    for ii=1:length(AggVarNames)
-        Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+    for ff=1:length(AggVarNames)
+        Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;
     end
     % Keep AggVars in the AggVarsPath
-    for ii=1:length(AggVarNames)
-        AggVarsPath(tt,ii)=AggVars.(AggVarNames{ii}).Mean;
+    for ff=1:length(AggVarNames)
+        AggVarsPath(ff,tt)=AggVars.(AggVarNames{ff}).Mean;
     end
 
     AgentDist=AgentDistnext;
