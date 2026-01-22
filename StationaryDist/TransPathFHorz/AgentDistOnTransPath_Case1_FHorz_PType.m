@@ -26,7 +26,7 @@ for ii=1:N_i
 
     % First set up transpathoptions
     if exist('transpathoptions','var')
-        transpathoptions_temp=PType_Options(simoptions,Names_i,ii);
+        transpathoptions_temp=PType_Options(transpathoptions,Names_i,ii);
         if ~isfield(transpathoptions_temp,'verbose')
             transpathoptions_temp.verbose=0;
         end
@@ -37,7 +37,7 @@ for ii=1:N_i
         transpathoptions_temp.verbose=0;
         transpathoptions_temp.verboseparams=0;
     end
-
+    
     % First set up simoptions
     if exist('simoptions','var')
         simoptions_temp=PType_Options(simoptions,Names_i,ii);
