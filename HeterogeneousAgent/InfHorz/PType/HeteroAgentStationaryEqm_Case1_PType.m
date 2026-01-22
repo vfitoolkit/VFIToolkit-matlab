@@ -441,6 +441,8 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
     end
 
+    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
+    
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
     % Allows for FnsToEvaluate as structure.
@@ -455,12 +457,16 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
+    PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
     
     if isa(PTypeDistParamNames, 'array')
         PTypeStructure.(iistr).PTypeWeight=PTypeDistParamNames(ii);
     else
         PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
     end
+
+    % Ptype masses
+    PTypeStructure.ptweights(1,ii)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
 end
 
 
@@ -824,8 +830,12 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     if isfield(heteroagentoptions,'constrainAtoB')
         heteroagentoptions.constrainAtoB=zeros(length(p_eqm_vec),1);
     end
-    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
-    GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
+    if all(heteroagentoptions.GEptype==0)
+        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
+        GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
+    else
+        error('Have not actually yet implemented GEptype for infinite horizon, contact me and I will do so')        
+    end
 end
 if heteroagentoptions.outputGEstruct==1
     % structure is much easier to read if it is on cpu, just because matlab doesn't print the value of scalar for gpu but instead tells you it is gpu
