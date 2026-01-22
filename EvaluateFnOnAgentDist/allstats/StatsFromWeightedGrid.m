@@ -132,7 +132,7 @@ else
         % WeightedSortedValues contains NaNs
         CumSumSortedWeightedValues=cumsum(WeightedSortedValues);
     end
-
+    
     if whichstats(4)>=1
         % Lorenz curve
         if npoints>0
@@ -165,7 +165,7 @@ else
                         % Even thought the weights themselves are non-zero, you can still get that two consecutive elements of CumSumSortedWeights are the same (happened when the weight was 1e-26)
                         [CumSumSortedWeights2,u1index,~]=unique(CumSumSortedWeights);
                         % Sometimes this will become a single value, so need to check for this again
-                        if length(CumSumSortedWeights2)==1
+                        if isscalar(CumSumSortedWeights2)
                             LorenzCurve=1/npoints:1/npoints:1;
                         else
                             temp=interp1(CumSumSortedWeights2,CumSumSortedWeightedValues(u1index),llvec(1:end-1));
