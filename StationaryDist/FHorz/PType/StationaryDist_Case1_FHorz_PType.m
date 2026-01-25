@@ -144,19 +144,23 @@ for ii=1:N_i
             end
         else
             if isfinite(N_j_temp)
-                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
+                error(['You must input a jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
             end
         end
     else
         % Note: when jequaloneDist is not a structure all ptypes must have the same grids
-        if idiminj1dist==0
+        if idiminj1dist==0 % ptype is not a dimension
             jequaloneDist_temp=jequaloneDist;
         else % idminj1dist==1
-            if prod(n_z_temp)==0
-                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
-            else
+            % ptype is a dimension, so need to get the jequaloneDist for ii and also normalize mass conditional on ptype to be one
+            if ndims(jequaloneDist)==5 % has all three of semiz,z,e [other two are a and i]
+                jequaloneDist_temp=jequaloneDist(:,:,:,:,ii)/sum(sum(jequaloneDist(:,:,:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            elseif ndims(jequaloneDist)==4 % has two of semiz,z,e
+                jequaloneDist_temp=jequaloneDist(:,:,:,ii)/sum(sum(jequaloneDist(:,:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            elseif ndims(jequaloneDist)==3 % has one of semiz,z,e
                 jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(sum(jequaloneDist(:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            elseif ndims(jequaloneDist)==2 % has none of semiz,z,e
+                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
             end
         end
         if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
@@ -170,8 +174,7 @@ for ii=1:N_i
             AgeWeightParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
         else
             if isfinite(N_j_temp)
-                sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
+                error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
             end
         end
     end
