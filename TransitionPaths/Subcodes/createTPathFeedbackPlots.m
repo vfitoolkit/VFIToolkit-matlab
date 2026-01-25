@@ -13,7 +13,7 @@ if transpathoptions.graphpricepath==1
         ncolumns=2;
     end
     nrows=ceil(length(PricePathNames)/ncolumns);
-    fig1=figure(1);
+    figure(1)
     for pp=1:length(PricePathNames)
         subplot(nrows,ncolumns,pp); plot(PricePathOld(:,pp))
         title(PricePathNames{pp})
@@ -30,10 +30,17 @@ if transpathoptions.graphaggvarspath==1
         ncolumns=2;
     end
     nrows=ceil(length(AggVarNames)/ncolumns);
-    fig2=figure(2);
-    for pp=1:length(AggVarNames)
-        subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
-        title(AggVarNames{pp})
+    figure(2)
+    if isstruct(AggVarsPath)
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath.(AggVarNames{pp}).Mean)
+            title(AggVarNames{pp})
+        end
+    else
+        for pp=1:length(AggVarNames)
+            subplot(nrows,ncolumns,pp); plot(AggVarsPath(:,pp))
+            title(AggVarNames{pp})
+        end
     end
     sgtitle('Current Agg Vars Path');
 end
@@ -48,7 +55,7 @@ if transpathoptions.graphGEcondns==1
         ncolumns=2;
     end
     nrows=ceil(length(GEeqnNames)/ncolumns);
-    fig3=figure(3);
+    figure(3)
     for pp=1:length(GEeqnNames)
         subplot(nrows,ncolumns,pp); plot(GEcondnPath(:,pp))
         title(GEeqnNames{pp})
