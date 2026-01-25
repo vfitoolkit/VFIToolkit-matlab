@@ -21,16 +21,9 @@ if ~exist('vfoptions','var')
     vfoptions.divideandconquer=0;
     vfoptions.gridinterplayer=0; % grid interpolation layer
     vfoptions.lowmemory=0;
-    % Howards improvement [note: for vfoptions.gridinterplayer=0]
-    if isscalar(n_a) % one endogenous state
-        if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
-            vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
-        else
-            vfoptions.howardsgreedy=0;
-        end
-    else
-        vfoptions.howardsgreedy=0;
-    end
+    % Howards improvement
+    vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
+        % Note: for small models, Howards greedy is faster, but cannot handle that V takes -Inf.
     % When doing Howards iterations, the following are some suboptions
     vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
@@ -90,19 +83,9 @@ else
     end
     % Howards improvement
     if ~isfield(vfoptions,'howardsgreedy')
-        if vfoptions.gridinterplayer==0
-            if isscalar(n_a) % one endogenous state
-                if N_a<400 && N_z<20 % iterated (aka modified-Policy Fn Iteration) or greedy (aka Policy Fn Iteration)
-                    vfoptions.howardsgreedy=1; % small one endogenous state models, use Howards greedy, everything else uses Howards iterations
-                else
-                    vfoptions.howardsgreedy=0;
-                end
-            else
-                vfoptions.howardsgreedy=0;
-            end
-        elseif vfoptions.gridinterplayer==1
-            vfoptions.howardsgreedy=0;
-        end
+        vfoptions.howardsgreedy=0; % =0 iterated (aka modified-Policy Fn Iteration) or =1 greedy (aka Policy Fn Iteration)
+        % Note: for small models, Howards greedy is faster, but cannot handle that V takes -Inf.
+        % Note: Howards greedy =1 can only be used without grid interpolation layer (gridinterplayer=0)
     end
     % When doing Howards iterations, the following are some suboptions
     if ~isfield(vfoptions,'howards')
