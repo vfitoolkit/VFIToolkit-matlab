@@ -2,6 +2,9 @@ function AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,I
 % II1 and IIones are inputs just so they can be precomputed and then reused each period of transition
 % II1=gpuArray(1:1:N_a*N_z);
 % IIones=ones(N_a*N_z,1,'gpuArray');
+% AgentDist is [N_a*N_z,1]
+% Policy_aprimez is 
+% pi_z_sparse is [N_z,N_zprime]
 
 % AgentDist is already sparse and on cpu
 

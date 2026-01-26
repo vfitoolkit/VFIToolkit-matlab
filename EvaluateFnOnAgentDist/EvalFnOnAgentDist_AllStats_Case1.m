@@ -149,7 +149,7 @@ for ff=1:length(FnsToEvalNames)
     Values=reshape(Values,[N_a*N_z,1]);
 
     AllStats.(FnsToEvalNames{ff})=StatsFromWeightedGrid(Values,StationaryDistVec,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,0,simoptions.whichstats);
-
+    
     %% If there are any conditional restrictions then deal with these
     % Evaluate AllStats, but conditional on the restriction being one.
     if useCondlRest==1

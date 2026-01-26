@@ -13,9 +13,11 @@ if isfield(options,'fminalgo5') % in stationary general eqm, fminalgo5 is shooti
     fminalgo5=1;
     % options.GEnewprice=3;
     options.GEnewprice3=options.fminalgo5;
-    options.oldpathweight=0; % Not actually used for anything
 elseif options.GEnewprice~=3
     return % Not being used
+end
+if ~isfield(options,'oldpathweight')
+    options.oldpathweight=0; % Not actually used for anything
 end
 
 options.weightscheme=0;

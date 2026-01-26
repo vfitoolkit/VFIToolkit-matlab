@@ -74,9 +74,9 @@ if ~isfield(vfoptions,'V_Jplus1')
                 % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z-by-n_e
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,6);
                 [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                midpoints_jj(:,1,curraindex,:,:)=shiftdim(maxindex+(loweredge-1),1);
+                midpoints_jj(:,1,curraindex,:,:)=maxindex+(loweredge-1);
             else
                 loweredge=maxindex1(:,1,ii,:,:);
                 midpoints_jj(:,1,curraindex,:,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -118,9 +118,9 @@ if ~isfield(vfoptions,'V_Jplus1')
                     % loweredge is n_d-by-1-by-1-by-n_z
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,3);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,6);
                     [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                    midpoints_jj(:,1,curraindex,:)=shiftdim(maxindex+(loweredge-1),1);
+                    midpoints_jj(:,1,curraindex,:)=maxindex+(loweredge-1);
                 else
                     loweredge=maxindex1(:,1,ii,:);
                     midpoints_jj(:,1,curraindex,:)=repelem(loweredge,1,1,length(curraindex),1);
@@ -164,9 +164,9 @@ if ~isfield(vfoptions,'V_Jplus1')
                         % loweredge is n_d-by-1-by-1
                         aprimeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,3);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,6);
                         [~,maxindex]=max(ReturnMatrix_ii,[],2);
-                        midpoints_jj(:,1,curraindex)=shiftdim(maxindex+(loweredge-1),1);
+                        midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
                     else
                         loweredge=maxindex1(:,1,ii);
                         midpoints_jj(:,1,curraindex)=repelem(loweredge,1,1,length(curraindex),1);
@@ -226,7 +226,7 @@ else
                 % loweredge is n_d-by-1-by-1-by-n_z-by-n_e
                 aprimeindexes=loweredge+(0:1:maxgap(ii));
                 % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z-by-n_e
-                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,3);
+                ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_gridvals_J(:,:,N_j), ReturnFnParamsVec,6);
                 aprimez=aprimeindexes+N_a*zBind;
                 entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[N_d,(maxgap(ii)+1),1,N_z,N_e]); % autoexpand level1iidiff(ii) in 3rd-dim
                 [~,maxindex]=max(entireRHS_ii,[],2);
@@ -277,7 +277,7 @@ else
                     % loweredge is n_d-by-1-by-1-by-n_z
                     aprimeindexes=loweredge+(0:1:maxgap(ii));
                     % aprime possibilities are n_d-by-maxgap(ii)+1-by-1-by-n_z
-                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,3);
+                    ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec,6);
                     aprimez=aprimeindexes+N_a*zBind;
                     entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV(aprimez(:)),[N_d,(maxgap(ii)+1),1,N_z]); % autoexpand level1iidiff(ii) in 3rd-dim
                     [~,maxindex]=max(entireRHS_ii,[],2);
@@ -333,7 +333,7 @@ else
                         % loweredge is n_d-by-1-by-1
                         aprimeindexes=loweredge+(0:1:maxgap(ii));
                         % aprime possibilities are n_d-by-maxgap(ii)+1-by-1
-                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,3);
+                        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, special_n_z, special_n_e, d_gridvals, a_grid(aprimeindexes), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_val, e_val, ReturnFnParamsVec,6);
                         entireRHS_ii=ReturnMatrix_ii+DiscountFactorParamsVec*reshape(EV_z(aprimeindexes(:)),[N_d,(maxgap(ii)+1),1]); % autoexpand level1iidiff(ii) in 3rd-dim
                         [~,maxindex]=max(entireRHS_ii,[],2);
                         midpoints_jj(:,1,curraindex)=maxindex+(loweredge-1);
