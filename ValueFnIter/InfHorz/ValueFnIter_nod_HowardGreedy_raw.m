@@ -37,7 +37,9 @@ while currdist>Tolerance && tempcounter<=maxiter
     if isfinite(currdist) && currdist/Tolerance>10 && tempcounter<MaxHowards
         tempmaxindex=shiftdim(Policy,1)+addindexforaz; % aprime index, add the index for a and z
         Ftemp=reshape(ReturnMatrix(tempmaxindex),[N_a*N_z,1]); % keep return function of optimal policy for using in Howards
-
+        if any(~isfinite(Ftemp))
+            error("Howards-greedy doesn't work for non-finite return values; rerun with `vfoptions.howardsgreedy=0;`")
+        end
         T_E=sparse(greedyHind1,Policy(:)+greedyHind2,greedyHpi,N_a*N_z,N_a*N_z);
 
         VKron=(spI-DiscountFactorParamsVec*T_E)\Ftemp;
