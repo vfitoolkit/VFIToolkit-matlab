@@ -6,6 +6,7 @@ function [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z, N_j,Names_i,d_gr
 %
 V=struct();
 Policy=struct();
+pt_temp=struct("n_d", n_d, "n_a", n_a, "n_z", n_z, "N_j", N_j, "d_grid", d_grid, "a_grid", a_grid, "z_grid", z_grid, "pi_z", pi_z, "ReturnFn", ReturnFn);
 
 % N_d=prod(n_d);
 % N_a=prod(n_a);
@@ -26,6 +27,21 @@ else
             Names_i{ii}=['ptype',num2str(ii)];
         end
     end
+end
+
+% Go through everything which might be dependent on fixed type (PType)
+for n_x=["n_d" "n_a" "n_z" "N_j"]
+    if isstruct(pt_temp.(n_x))
+        pt_temp.(n_x)=pt_temp.(n_x).(Names_i{1})
+    end
+end
+for x_grid=["d_grid" "a_grid" "z_grid" "pi_z"]
+    if isstruct(pt_temp.(x_grid))
+        pt_temp.(x_grid)=pt_temp.(x_grid).(Names_i{1})
+    end
+end
+if isstruct(pt_temp.ReturnFn)
+    pt_temp.ReturnFn=pt_temp.ReturnFn.(Names_i{1});
 end
 
 for ii=1:N_i
@@ -52,54 +68,6 @@ for ii=1:N_i
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
     
-    % Go through everything which might be dependent on fixed type (PType)
-    % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
-    if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
-    else
-        n_d_temp=n_d;
-    end
-    if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
-    else
-        n_a_temp=n_a;
-    end
-    if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
-    else
-        n_z_temp=n_z;
-    end
-    if isa(N_j,'struct')
-        N_j_temp=N_j.(Names_i{ii});
-    else
-        N_j_temp=N_j;
-    end
-    if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(Names_i{ii});
-    else
-        d_grid_temp=d_grid;
-    end
-    if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(Names_i{ii});
-    else
-        a_grid_temp=a_grid;
-    end
-    if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(Names_i{ii});
-    else
-        z_grid_temp=z_grid;
-    end
-    if isa(pi_z,'struct')
-        pi_z_temp=pi_z.(Names_i{ii});
-    else
-        pi_z_temp=pi_z;
-    end
-    if isa(ReturnFn,'struct')
-        ReturnFn_temp=ReturnFn.(Names_i{ii});
-    else
-        ReturnFn_temp=ReturnFn;
-    end
-
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.
@@ -140,11 +108,13 @@ for ii=1:N_i
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
-    if isfinite(N_j_temp)
-        [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
+
+    pt_ns = {pt_temp.n_d,pt_temp.n_a,pt_temp.n_z};
+    pt_grids = {pt_temp.d_grid, pt_temp.a_grid, pt_temp.z_grid, pt_temp.pi_z};
+    if isfinite(pt_temp.N_j)
+        [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(pt_ns{:},pt_temp.N_j,pt_grids{:}, pt_temp.ReturnFn, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
     else % PType actually allows for infinite horizon as well
-        [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
+        [V_ii, Policy_ii]=ValueFnIter_Case1(pt_ns{:},pt_grids{:}, pt_temp.ReturnFn, Parameters_temp, DiscountFactorParamNames_temp, [], vfoptions_temp);
     end
 
     

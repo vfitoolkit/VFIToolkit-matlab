@@ -58,17 +58,15 @@ else
     end
 end
 
-for ii=1:N_i
+vfoptions_temp.verbose=0; % May change below
 
+for ii=1:N_i
     % First set up vfoptions
     if exist('vfoptions','var')
         vfoptions_temp=PType_Options(vfoptions,Names_i,ii);
-    else
-        vfoptions_temp.verbose=0;
-    end 
-    
-    if vfoptions_temp.verbose==1
-        fprintf('Permanent type: %i of %i',ii, N_i)
+        if vfoptions_temp.verbose==1
+            fprintf('Permanent type: %i of %i',ii, N_i)
+        end
     end
     
     % Go through everything which might be dependent on permanent type (PType)
@@ -112,7 +110,7 @@ for ii=1:N_i
     
     % Case 1 or Case 2 is determined via Phi_aprime
     if exist('Phi_aprime','var') % If all the Permanent Types are 'Case 1' then there will be no Phi_aprime
-         if isa(Phi_aprime,'struct')
+         if isstruct(Phi_aprime)
             if isfield(Phi_aprime,Names_i{ii})==1 % Check if it exists for the current permanent type
                 %         names=fieldnames(Phi_aprime);
                 Case1orCase2=2;
@@ -136,54 +134,25 @@ for ii=1:N_i
     end
     
     % Now that we have finitehorz and Case1orCase2, do everything else for the current permanent type.
+    pt_temp=struct("n_d", n_d, "n_a", n_a, "n_z", n_z, "d_grid", d_grid, "a_grid", a_grid, "z_grid", z_grid);
+    for n_x=["n_d" "n_a" "n_z"]
+        if isstruct(pt_temp.(n_x))
+            pt_temp.(n_x)=pt_temp.(n_x).(Names_i{ii});
+        else
+            temp=size(pt_temp.(n_x));
+            if temp(1)>1 % n_d depends on fixed type
+                pt_temp.(n_x)=pt_temp.(n_x)(ii,:);
+            elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
+                sprintf('Possible Warning: Number of columns of %s is the same as the number of permanent types. \n This may just be coincidence as number of %s variables is equal to number of permanent types. \n If they are intended to be permanent types then %s should have them as different rows (not columns). \n',...
+                    n_x, n_x(end), n_x)
+            end
+        end
+    end
 
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
-        n_d_temp=n_d.(Names_i{ii});
-    else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
+    for x_grid=["d_grid" "a_grid" "z_grid"]
+        if isstruct(pt_temp.(x_grid))
+            pt_temp.(x_grid)=pt_temp.(x_grid).(Names_i{ii});
         end
-    end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
-        n_a_temp=n_a.(Names_i{ii});
-    else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
-    end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
-        n_z_temp=n_z.(Names_i{ii});
-    else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
-    end
-    
-    d_grid_temp=d_grid;
-    if isa(d_grid,'struct')
-        d_grid_temp=d_grid.(Names_i{ii});
-    end
-    a_grid_temp=a_grid;
-    if isa(a_grid,'struct')
-        a_grid_temp=a_grid.(Names_i{ii});        
-    end
-    z_grid_temp=z_grid;
-    if isa(z_grid,'struct')
-        z_grid_temp=z_grid.(Names_i{ii});
     end
     
     pi_z_temp=pi_z;
@@ -217,15 +186,15 @@ for ii=1:N_i
                     pi_z_temp=pi_z;
                 end
             end
-        elseif isa(pi_z,'struct')
+        elseif isstruct(pi_z)
             pi_z_temp=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age.
         end
-    elseif isa(pi_z,'struct')
+    elseif isstruct(pi_z)
         pi_z_temp=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     end
     
     ReturnFn_temp=ReturnFn;
-    if isa(ReturnFn,'struct')
+    if isstruct(ReturnFn)
         ReturnFn_temp=ReturnFn.(Names_i{ii});
     end
     
@@ -237,7 +206,7 @@ for ii=1:N_i
     FullParamNames=fieldnames(Parameters); % all the different parameters
     nFields=length(FullParamNames);
     for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+        if isstruct(Parameters.(FullParamNames{kField})) % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
             if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
                 Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
@@ -264,16 +233,16 @@ for ii=1:N_i
     
     % The parameter names can be made to depend on the permanent-type
     DiscountFactorParamNames_temp=DiscountFactorParamNames;
-    if isa(DiscountFactorParamNames,'struct')
+    if isstruct(DiscountFactorParamNames)
         DiscountFactorParamNames_temp=DiscountFactorParamNames.(Names_i{ii});
     end
     ReturnFnParamNames_temp=ReturnFnParamNames;
-    if isa(ReturnFnParamNames,'struct')
+    if isstruct(ReturnFnParamNames)
         ReturnFnParamNames_temp=ReturnFnParamNames.(Names_i{ii});
     end
     if Case1orCase2==2
         PhiaprimeParamNames_temp=PhiaprimeParamNames;
-        if isa(PhiaprimeParamNames,'struct')
+        if isstruct(PhiaprimeParamNames)
             PhiaprimeParamNames_temp=PhiaprimeParamNames.(Names_i{ii});
         end
     end
@@ -282,18 +251,21 @@ for ii=1:N_i
         % Infinite Horizon requires an initial guess of value function. For
         % the present I simply don't let this feature be used when using
         % permanent types. WOULD BE GOOD TO CHANGE THIS IN FUTURE SOMEHOW.
-%         V_ii=zeros(prod(n_a_temp),prod(n_z_temp)); % The initial guess (note that its value is 'irrelevant' in the sense that global uniform convergence is anyway known to occour for VFI).
+%         V_ii=zeros(prod(pt_temp.n_a),prod(pt_temp.n_z)); % The initial guess (note that its value is 'irrelevant' in the sense that global uniform convergence is anyway known to occour for VFI).
+        pt_ns = {pt_temp.n_d,pt_temp.n_a,pt_temp.n_z};
+        pt_grids = {pt_temp.d_grid, pt_temp.a_grid, pt_temp.z_grid, pi_z_temp};
+        pt_return_params = {ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp};
         if Case1orCase2==1
             if exist('vfoptions','var')
-                [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case1(pt_ns{:},pt_grids{:}, pt_return_params{:}, vfoptions_temp);
             else
-                [V_ii, Policy_ii]=ValueFnIter_Case1(n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case1(pt_ns{:},pt_grids{:}, pt_return_params{:});
             end
         elseif Case1orCase2==2
             if exist('vfoptions','var')
-                [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfoptions_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,pt_ns{:},pt_grids{:}, Phi_aprime_temp, Case2_Type_temp, pt_return_params{:}, PhiaprimeParamNames_temp, vfoptions_temp);
             else
-                [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,n_d_temp,n_a_temp,n_z_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case2(V_ii,pt_ns{:},pt_grids{:}, Phi_aprime_temp, Case2_Type_temp, pt_return_params{:}, PhiaprimeParamNames_temp);
             end
         end
     elseif finitehorz==1 % Finite horizon
@@ -301,15 +273,15 @@ for ii=1:N_i
         % dynasty, agedependentgrids, lowmemory, (parallel??)
         if Case1orCase2==1
             if exist('vfoptions','var')
-                [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, vfoptions_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(pt_ns{:},N_j_temp,pt_grids{:}, pt_return_params{:}, vfoptions_temp);
             else
-                [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(pt_ns{:},N_j_temp,pt_grids{:}, pt_return_params{:}, ReturnFnParamNames_temp);
             end
         elseif Case1orCase2==2
             if exist('vfoptions','var')
-                [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp, vfoptions_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(pt_ns{:},N_j_temp,pt_grids{:}, Phi_aprime_temp, Case2_Type_temp, pt_return_params{:}, PhiaprimeParamNames_temp, vfoptions_temp);
             else
-                [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp, a_grid_temp, z_grid_temp, pi_z_temp, Phi_aprime_temp, Case2_Type_temp, ReturnFn_temp, Parameters_temp, DiscountFactorParamNames_temp, ReturnFnParamNames_temp, PhiaprimeParamNames_temp);
+                [V_ii, Policy_ii]=ValueFnIter_Case2_FHorz(pt_ns{:},N_j_temp,pt_grids{:}, Phi_aprime_temp, Case2_Type_temp, pt_return_params{:}, PhiaprimeParamNames_temp);
             end
         end
     end
