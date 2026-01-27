@@ -12,10 +12,7 @@ if ~exist('Refine','var')
     Refine=0;
 end
 
-ParamCell=cell(length(ReturnFnParams),1);
-for ii=1:length(ReturnFnParams)
-    ParamCell(ii,1)={ReturnFnParams(ii)};
-end
+ParamCell=num2cell(ReturnFnParams)';
 
 N_d=prod(n_d);
 N_a=prod(n_a);
