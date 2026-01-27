@@ -3,9 +3,9 @@ function Fmatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_nod_noz_Par2(Return
 l_a=1; % (or else won't get here)
 
 nReturnFnParams=size(ReturnFnParamsAgeMatrix,2);
-ParamCell=cell(nReturnFnParams,1);
+ReturnFnParamsCell=cell(nReturnFnParams,1);
 for ii=1:nReturnFnParams
-    ParamCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_a-l_a)};
+    ReturnFnParamsCell(ii,1)={shiftdim(ReturnFnParamsAgeMatrix(:,ii),-l_a-l_a)};
 end
 
 N_a=length(a_grid); % Because l_a=1
@@ -17,7 +17,7 @@ elseif Level==3
     N_aprime=size(aprime_grid,2); % Because l_a=1
 end
 
-Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), ParamCell{:});
+Fmatrix=arrayfun(ReturnFn, aprime_grid, shiftdim(a_grid,-1), ReturnFnParamsCell{:});
 
 Fmatrix=reshape(Fmatrix,[N_aprime,N_a,N_j]);
 

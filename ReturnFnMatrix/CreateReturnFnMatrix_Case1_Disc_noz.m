@@ -5,10 +5,7 @@ if ~exist('Refine','var')
     Refine=0;
 end
 
-ParamCell=cell(length(ReturnFnParamsVec),1);
-for ii=1:length(ReturnFnParamsVec)
-    ParamCell(ii,1)={ReturnFnParamsVec(ii)};
-end
+ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -26,7 +23,7 @@ if Parallel==0
         for i1=1:N_a
             for i2=1:N_a
                 tempcell=num2cell([a_gridvals(i1,:),a_gridvals(i2,:)]);
-                Fmatrix(i1,i2)=ReturnFn(tempcell{:},ParamCell{:});
+                Fmatrix(i1,i2)=ReturnFn(tempcell{:},ReturnFnParamsCell{:});
             end
         end
             
@@ -38,7 +35,7 @@ if Parallel==0
                 i1i2=i1+(i2-1)*N_d;
                 for i3=1:N_a
                     tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_gridvals(i3,:)]);
-                    Fmatrix(i1i2,i3)=ReturnFn(tempcell{:},ParamCell{:});
+                    Fmatrix(i1i2,i3)=ReturnFn(tempcell{:},ReturnFnParamsCell{:});
                 end
             end
         end
@@ -53,7 +50,7 @@ elseif Parallel==1
             a_vals=a_gridvals(i2,:);
             for i1=1:N_a
                 tempcell=num2cell([a_gridvals(i1,:),a_vals]);
-                Fmatrix_a(i1)=ReturnFn(tempcell{:},ParamCell{:});
+                Fmatrix_a(i1)=ReturnFn(tempcell{:},ReturnFnParamsCell{:});
             end
             Fmatrix(:,i2)=Fmatrix_a;
         end
@@ -65,7 +62,7 @@ elseif Parallel==1
             for i1=1:N_d
                 for i2=1:N_a
                     tempcell=num2cell([d_gridvals(i1,:),a_gridvals(i2,:),a_vals]);
-                    Fmatrix_a(i1+(i2-1)*N_d)=ReturnFn(tempcell{:},ParamCell{:});
+                    Fmatrix_a(i1+(i2-1)*N_d)=ReturnFn(tempcell{:},ReturnFnParamsCell{:});
                 end
             end
             Fmatrix(:,i3)=Fmatrix_a;
