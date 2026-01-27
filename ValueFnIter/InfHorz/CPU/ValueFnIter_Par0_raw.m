@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Par0_raw(VKron, N_d,N_a,N_z,pi_z, beta, ReturnMatrix,Howards,Howards2,Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_Par0_raw(VKron, N_d,N_a,N_z,pi_z, beta, ReturnMatrix,Howards,Howards2,Tolerance,maxiter)
 
 PolicyIndexes1=zeros(N_a,N_z);
 PolicyIndexes2=zeros(N_a,N_z);
@@ -6,7 +6,7 @@ PolicyIndexes2=zeros(N_a,N_z);
 tempcounter=1;
 currdist=Inf;
 
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
     
     VKronold=VKron;
     
@@ -59,6 +59,10 @@ end
 Policy=zeros(2,N_a,N_z);
 Policy(1,:,:)=permute(PolicyIndexes1,[3,1,2]);
 Policy(2,:,:)=permute(PolicyIndexes2,[3,1,2]);
+
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 
 end

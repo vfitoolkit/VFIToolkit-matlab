@@ -174,5 +174,12 @@ L2=fineindex-(L1intermediate-1)*(n2short+1); % L2 index
 Policy(2,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(3,:,:)=reshape(L2,[1,N_a,N_z]);
 
+%% Howards greedy cannot solve models where V contains values of -Inf. Can kind of test for this by looking for -Inf in Ftemp
+if any(~isfinite(Ftemp))
+    warning('Howards-greedy cannot be used for models where V contains values of -Inf. This model looks like it may be one where V takes a value of -Inf at some points in the state-space. Consider checking solution against that with vfoptions.howardsgreedy=0')
+end
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

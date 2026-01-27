@@ -72,6 +72,11 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 
 end
 
+%% Howards greedy cannot solve models where V contains values of -Inf. Can kind of test for this by looking for -Inf in Ftemp
+if any(~isfinite(Ftemp))
+    warning('Howards-greedy cannot be used for models where V contains values of -Inf. This model looks like it may be one where V takes a value of -Inf at some points in the state-space. Consider checking solution against that with vfoptions.howardsgreedy=0')
+end
+
 %% Now switch to considering the fine/interpolated aprime_grid, use Howards iteration
 currdist=1; % force going into the next while loop at least one iteration
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
@@ -123,5 +128,9 @@ L1=max(L1a,0)+1; % lower grid point index
 L2=fineindex-(L1-1)*(n2short+1); % L2 index
 Policy(1,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(2,:,:)=reshape(L2,[1,N_a,N_z]);
+
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end
