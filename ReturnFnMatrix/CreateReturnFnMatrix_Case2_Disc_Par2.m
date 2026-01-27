@@ -1,13 +1,10 @@
 function Fmatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,n_d, n_a, n_z, d_gridvals, a_gridvals, z_gridvals, ReturnFnParams)
 %If there is no d variable, just input n_d=0 and d_grid=0
 
-ParamCell=cell(length(ReturnFnParams),1);
-for ii=1:length(ReturnFnParams)
-    if size(ReturnFnParams(ii))~=[1,1]
-        error('Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
-    end
-    ParamCell(ii,1)={ReturnFnParams(ii)};
+if ~all(arrayfun(@(x) isscalar(x),ReturnFnParams))
+    error('Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
 end
+ParamCell=num2cell(ReturnFnParams)';
 
 N_d=prod(n_d);
 N_a=prod(n_a);
