@@ -27,7 +27,7 @@ if ~exist('vfoptions','var')
     % When doing Howards iterations, the following are some suboptions
     vfoptions.howards=150; % based on some tests, 80 to 150 was fastest, but 150 was best on average
     vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
-    if N_a>1200 && N_z>100 && vfoptions.gridinterplayer==0
+    if N_a>1200 && N_z>100
         vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
     else
         vfoptions.howardssparse=0;
@@ -95,7 +95,7 @@ else
         vfoptions.maxhowards=500; % Turn howards off after this many times (just so it cannot cause convergence to fail if thing are going wrong)
     end
     if ~isfield(vfoptions,'howardssparse')
-        if N_a>1200 && N_z>100 && vfoptions.gridinterplayer==0
+        if N_a>1200 && N_z>100
             vfoptions.howardssparse=1; % Do Howards iteration using a sparse matrix (rather than indexing). Sparse is only faster for bigger models.
         else
             vfoptions.howardssparse=0;
