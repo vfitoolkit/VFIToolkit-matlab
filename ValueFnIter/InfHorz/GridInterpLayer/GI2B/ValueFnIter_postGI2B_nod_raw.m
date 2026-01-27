@@ -274,5 +274,8 @@ Policy(1,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(2,:,:)=fineindexvec2;
 Policy(3,:,:)=reshape(L2,[1,N_a,N_z]);
 
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

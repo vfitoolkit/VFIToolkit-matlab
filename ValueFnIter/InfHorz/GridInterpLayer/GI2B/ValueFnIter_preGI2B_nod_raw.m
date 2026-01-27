@@ -131,5 +131,8 @@ Policy(1,:,:)=L1;
 Policy(2,:,:)=fineindexvec2;
 Policy(3,:,:)=L2;
 
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

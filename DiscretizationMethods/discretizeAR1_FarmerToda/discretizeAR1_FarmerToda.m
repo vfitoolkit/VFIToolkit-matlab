@@ -33,7 +33,7 @@ function [z_grid,pi_z] = discretizeAR1_FarmerToda(mew,rho,sigma,znum,farmertodao
 %%%%%%%%%%%%%%%
 % Original paper:
 % Farmer & Toda (2017) - Discretizing Nonlinear, Non-Gaussian Markov Processes with Exact Conditional Moments
-% They how that this method outperforms both Tauchen and Rouwenhorst for almost all discretization of Gaussian AR(1).
+% They show that this method outperforms both Tauchen and Rouwenhorst for almost all discretization of Gaussian AR(1).
 
 if rho>=0.99
     fprintf('COMMENT: When discretizing gaussian AR(1) process with autocorrelation (rho) greater than 0.99 (which you currently have), the Rouwenhorst method tends to outperform Farmer-Toda method. \n')
