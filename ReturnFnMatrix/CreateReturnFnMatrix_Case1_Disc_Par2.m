@@ -1,4 +1,4 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParams,Refine) % Refine is an optional input
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec,Refine) % Refine is an optional input
 % would be good to make this version assume d (and d_gridvals) and use
 % alternative version when no d variable but problem is that so many codes
 % depend on this one would take ages to modify them all (all value fn
@@ -15,9 +15,9 @@ if ~exist('Refine','var')
     Refine=0;
 end
 
-ParamCell=cell(length(ReturnFnParams),1);
-for ii=1:length(ReturnFnParams)
-    ParamCell(ii,1)={ReturnFnParams(ii)};
+ParamCell=cell(length(ReturnFnParamsVec),1);
+for ii=1:length(ReturnFnParamsVec)
+    ParamCell(ii,1)={ReturnFnParamsVec(ii)};
 end
 
 N_d=prod(n_d);

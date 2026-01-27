@@ -1,9 +1,9 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParams,Level)
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, aprime_grid, a_grid, z_gridvals, ReturnFnParamsVec,Level)
 %If there is no d variable, just input n_d=0 and d_grid=0
 
-ParamCell=cell(length(ReturnFnParams),1);
-for ii=1:length(ReturnFnParams)
-    ParamCell(ii)={ReturnFnParams(ii)};
+ParamCell=cell(length(ReturnFnParamsVec),1);
+for ii=1:length(ReturnFnParamsVec)
+    ParamCell(ii)={ReturnFnParamsVec(ii)};
 end
 
 N_a=length(a_grid); % Because l_a=1
