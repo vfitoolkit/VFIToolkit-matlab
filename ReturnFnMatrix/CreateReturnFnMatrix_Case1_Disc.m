@@ -5,10 +5,7 @@ if ~exist('Refine','var')
     Refine=0;
 end
 
-ParamCell=cell(length(ReturnFnParamsVec),1);
-for ii=1:length(ReturnFnParamsVec)
-    ParamCell(ii,1)={ReturnFnParamsVec(ii)};
-end
+ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -37,7 +34,7 @@ if N_z==0
         Fmatrix=zeros(N_a,N_a);
         for i2=1:N_a % a today
             for i1=1:N_a % a' tomorrow
-                Fmatrix(i1,i2)=ReturnFn(a_grid(i1),a_grid(i2),ParamCell{:});
+                Fmatrix(i1,i2)=ReturnFn(a_grid(i1),a_grid(i2),ReturnFnParamsCell{:});
             end
         end
     else
@@ -45,7 +42,7 @@ if N_z==0
         for i3=1:N_a % a today
             for i2=1:N_a % a' tomorrow
                 for i1=1:N_d % d choice
-                    Fmatrix(i1+(i2-1)*N_d,i3)=ReturnFn(d_grid(i1),a_grid(i2),a_grid(i3),ParamCell{:});
+                    Fmatrix(i1+(i2-1)*N_d,i3)=ReturnFn(d_grid(i1),a_grid(i2),a_grid(i3),ReturnFnParamsCell{:});
                 end
             end
         end
@@ -58,7 +55,7 @@ else
                 Fmatrix_z=zeros(N_a,N_a);
                 for i2=1:N_a % a today
                     for i1=1:N_a % a' tomorrow
-                        Fmatrix_z(i1,i2)=ReturnFn(a_grid(i1),a_grid(i2),z_gridvals(i3),ParamCell{:});
+                        Fmatrix_z(i1,i2)=ReturnFn(a_grid(i1),a_grid(i2),z_gridvals(i3),ReturnFnParamsCell{:});
                     end
                 end
                 Fmatrix(:,:,i3)=Fmatrix_z;
@@ -70,7 +67,7 @@ else
                 for i3=1:N_a % a today
                     for i2=1:N_a % a' tomorrow
                         for i1=1:N_d % d choice
-                            Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_grid(i1),a_grid(i2),a_grid(i3),z_gridvals(i4),ParamCell{:});
+                            Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_grid(i1),a_grid(i2),a_grid(i3),z_gridvals(i4),ReturnFnParamsCell{:});
                         end
                     end
                 end
@@ -86,7 +83,7 @@ else
                 Fmatrix_z=zeros(N_a,N_a);
                 for i2=1:N_a % a today
                     for i1=1:N_a % a' tomorrow
-                        Fmatrix_z(i1,i2)=ReturnFn(a_grid(i1),a_grid(i2),z1,z2,ParamCell{:});
+                        Fmatrix_z(i1,i2)=ReturnFn(a_grid(i1),a_grid(i2),z1,z2,ReturnFnParamsCell{:});
                     end
                 end
                 Fmatrix(:,:,i3)=Fmatrix_z;
@@ -100,7 +97,7 @@ else
                 for i3=1:N_a % a today
                     for i2=1:N_a % a' tomorrow
                         for i1=1:N_d % d choice
-                            Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_grid(i1),a_grid(i2),a_grid(i3),z1,z2,ParamCell{:});
+                            Fmatrix_z(i1+(i2-1)*N_d,i3)=ReturnFn(d_grid(i1),a_grid(i2),a_grid(i3),z1,z2,ReturnFnParamsCell{:});
                         end
                     end
                 end
