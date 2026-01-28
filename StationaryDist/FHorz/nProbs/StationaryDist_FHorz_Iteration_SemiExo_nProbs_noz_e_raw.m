@@ -12,22 +12,24 @@ Policy_aprimesemiz=repelem(reshape(Policy_aprime,[N_a*N_semiz*N_e,N_probs,N_j]),
 Policy_aprimesemiz=gather(Policy_aprimesemiz); % [N_a*N_semiz*N_e,N_semiz*N_probs,N_j]
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_e,1,N_j]);
-% precompute
-semizindex=repmat(repelem(gpuArray(1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*gpuArray(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+
+% precompute; Don't want `PolicyProbs` on GPU anyway, so leave these in CPU RAM
+semizindex=repmat(repelem((1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1)); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+pi_semiz_J=gather(pi_semiz_J);
 % semizindex is [N_a*N_semiz*N_e,N_semiz,N_j]
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_e,N_probs,N_j]);
-PolicyProbs=repelem(PolicyProbs,1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
-PolicyProbs=gather(PolicyProbs);
+PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
+clear semizindex;
 
 %% Use Tan improvement
 
-StationaryDist=zeros(N_a*N_semiz*N_e,N_j,'gpuArray');
+StationaryDist=zeros(N_a*N_semiz*N_e,N_j,'gpuArray'); % StationaryDist cannot be sparse
 StationaryDist(:,1)=jequaloneDistKron;
-StationaryDist_jj=sparse(jequaloneDistKron); % sparse() creates a matrix of zeros
+StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 
-% Precompute
-II2=repelem(gpuArray(1:1:N_a*N_semiz*N_e)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
+% Precompute; II2 used only for sparse matrix creation...best done on CPU
+II2=repelem((1:1:N_a*N_semiz*N_e)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
@@ -37,10 +39,9 @@ for jj=1:(N_j-1)
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
     
     % Put e back into dist
-    pi_e=sparse(gather(pi_e_J(:,jj)));
-    StationaryDist_jj=kron(pi_e,StationaryDist_jj);
+    StationaryDist_jj=kron(pi_e_J(:,jj),StationaryDist_jj);
 
-    StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
+    StationaryDist(:,jj+1)=StationaryDist_jj;
 end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
