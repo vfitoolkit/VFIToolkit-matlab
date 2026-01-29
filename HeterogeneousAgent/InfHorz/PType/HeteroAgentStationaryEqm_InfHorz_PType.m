@@ -360,7 +360,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).l_e=0;
     end
-    
+
     if isstruct(d_grid)
         PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
     else
@@ -481,6 +481,7 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
+    % Copied from FHorz/PType version for consistency
     PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
     
     %% PType masses
@@ -490,7 +491,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
     end
 
-    % Ptype masses
+    % Ptype masses; Copied from FHorz/PType version for consistency
     PTypeStructure.ptweights(1,ii)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
 end
 
