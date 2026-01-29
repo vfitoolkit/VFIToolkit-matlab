@@ -163,6 +163,12 @@ if vfoptions.verbose==1
     vfoptions
 end
 
+%% If using CPU, then go off to dedicated function
+if vfoptions.parallel<2
+    [V,Policy]=ValueFnIter_InfHorz_CPU(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V,Policy};
+    return
+end
 
 %% Check the sizes of some of the inputs
 if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'localpolicysearch')
@@ -220,46 +226,25 @@ if max(vfoptions.incrementaltype)==1
     end
 end
 
-%% Anything but the basics is only for GPU
-if vfoptions.parallel~=2
-    if vfoptions.experienceasset==1
-        error('Cannot use vfoptions.experienceasset=1 without a GPU')
-    end
-else
-    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-    pi_z=gpuArray(pi_z);
-    d_grid=gpuArray(d_grid);
-    a_grid=gpuArray(a_grid);
-    z_grid=gpuArray(z_grid);
-end
-
+%% Make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
 
 %% V0 (initial guess)
 if isfield(vfoptions,'V0')
-    if vfoptions.parallel==2
-        V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
-    else
-        V0=reshape(vfoptions.V0,[N_a,N_z]);
-    end
+    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
     vfoptions.actualV0=1;
 else
-    if vfoptions.parallel==2
-        V0=zeros([N_a,N_z], 'gpuArray');
-    else
-        V0=zeros([N_a,N_z]);
-    end
+    V0=zeros([N_a,N_z], 'gpuArray');
     vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
 end
 
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
-    if vfoptions.parallel<2
-        % only basics allowed with cpu (can have two z variables, but that is as complex as it gets)
-        z_gridvals=CreateGridvals(n_z,z_grid,1);
-    else
-        [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
-    end
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
 elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
@@ -321,9 +306,7 @@ if isfield(vfoptions,'exoticpreferences')
             end
         end
         DiscountFactorParamsMatrix=DiscountFactorParamsMatrix.*ones(N_z,N_z,'gpuArray'); % Make it of size z-by-zprime, so that I can later just assume that it takes this shape
-        if vfoptions.parallel==2
-            DiscountFactorParamsMatrix=gpuArray(DiscountFactorParamsMatrix);
-        end
+        DiscountFactorParamsMatrix=gpuArray(DiscountFactorParamsMatrix);
         % Set the 'fake discount factor to one.
         DiscountFactorParamsVec=1;
         % Set pi_z to include the state-dependent discount factors
@@ -500,14 +483,10 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             disp('Creating return fn matrix')
         end
 
-        if vfoptions.parallel==2 % GPU
-            if N_d==0
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
-            else
-                ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
-            end
-        elseif vfoptions.parallel<2
-            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
+        if N_d==0
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_nod_Par2(ReturnFn, n_a, n_z, a_grid, z_gridvals, ReturnFnParamsVec);
+        else
+            ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec,0);
         end
         
         if vfoptions.verbose==1
@@ -515,30 +494,18 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
         end
         
         if N_d==0
-            if vfoptions.parallel==0 % On CPU
-                [VKron,Policy]=ValueFnIter_nod_Par0_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-            elseif vfoptions.parallel==1 % On Parallel CPU
-                [VKron,Policy]=ValueFnIter_nod_Par1_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-            elseif vfoptions.parallel==2 % On GPU
-                if vfoptions.howardsgreedy==1
-                    [VKron,Policy]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                elseif vfoptions.howardsgreedy==0
-                    if vfoptions.howardssparse==0
-                        [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                    elseif vfoptions.howardssparse==1
-                        [VKron,Policy]=ValueFnIter_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                    end
+            if vfoptions.howardsgreedy==1
+                [VKron,Policy]=ValueFnIter_nod_HowardGreedy_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            elseif vfoptions.howardsgreedy==0
+                if vfoptions.howardssparse==0
+                    [VKron,Policy]=ValueFnIter_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+                elseif vfoptions.howardssparse==1
+                    [VKron,Policy]=ValueFnIter_sparse_nod_raw(V0, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
                 end
             end
         else
-            if vfoptions.parallel==0  % On CPU
-                [VKron, Policy]=ValueFnIter_Par0_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
-            elseif vfoptions.parallel==1 % On Parallel CPU
-                [VKron, Policy]=ValueFnIter_Par1_raw(V0, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
-            elseif vfoptions.parallel==2 % On GPU
-                % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
-                [VKron, Policy]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
-            end
+            % Can't be bothered implementing HowardGreedy here, as for good runtimes you should anyway be doing Refine so wouldn't get here
+            [VKron, Policy]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
         
     elseif vfoptions.lowmemory==1
@@ -547,18 +514,14 @@ if strcmp(vfoptions.solnmethod,'purediscretization')
             disp('Starting Value Function')
         end
         
-        if vfoptions.parallel==2 % On GPU
-            if N_d==0
-                if vfoptions.howardssparse==0
-                    [VKron,Policy]=ValueFnIter_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                elseif vfoptions.howardssparse==1
-                    [VKron,Policy]=ValueFnIter_LowMem_sparse_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
-                end
-            else
-                [VKron, Policy]=ValueFnIter_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+        if N_d==0
+            if vfoptions.howardssparse==0
+                [VKron,Policy]=ValueFnIter_LowMem_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            elseif vfoptions.howardssparse==1
+                [VKron,Policy]=ValueFnIter_LowMem_sparse_nod_raw(V0, n_a, n_z, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             end
         else
-            error('can only use lowmemory on gpu')
+            [VKron, Policy]=ValueFnIter_LowMem_raw(V0, n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
     end
 end
