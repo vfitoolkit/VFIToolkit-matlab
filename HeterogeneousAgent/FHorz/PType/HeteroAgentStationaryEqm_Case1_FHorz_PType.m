@@ -456,10 +456,6 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.(iistr).z_gridvals_J=[];
             PTypeStructure.(iistr).pi_z_J=[];
         end
-        % Regardless of whether they are done here of in _subfn, they will be
-        % precomputed by the time we get to the value fn, staty dist, etc. So
-        PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
-        PTypeStructure.(iistr).simoptions.alreadygridvals=1;
         PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'z_grid'); % Should not be used, as now have z_gridvals_J
         PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'pi_z'); % Should not be used, as now have pi_z_J
          
@@ -480,6 +476,8 @@ for ii=1:PTypeStructure.N_i
         else
             PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
         end
+
+        % Handle age-dependent case in FHorz
         PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames;
         if isa(AgeWeightsParamNames,'struct')
             if isfield(AgeWeightsParamNames,Names_i{ii})
@@ -491,6 +489,7 @@ for ii=1:PTypeStructure.N_i
                 end
             end
         end
+        % Move other, common PTypeStructure cases down below InfHorz code (just below)
     else
         % If z (and e) are not determined in GE, then compute z_gridvals and pi_z
         % Note that these names are distinct from z_gridvals_J and pi_z_J
@@ -505,12 +504,14 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.(iistr).z_gridvals=[];
             PTypeStructure.(iistr).pi_z=[];
         end
-        % Regardless of whether they are done here of in _subfn, they will be
-        % precomputed by the time we get to the value fn, staty dist, etc. So
-        PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
-        PTypeStructure.(iistr).simoptions.alreadygridvals=1;
     end
-    
+
+    % PTypeStructure cases common to FHorz and InfHorz from above...
+    % Regardless of whether they are done here of in _subfn, they will be
+    % precomputed by the time we get to the value fn, staty dist, etc. So
+    PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
+    PTypeStructure.(iistr).simoptions.alreadygridvals=1;
+
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')

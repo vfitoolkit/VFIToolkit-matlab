@@ -302,7 +302,7 @@ for ii=1:PTypeStructure.N_i
     % relevant value.
     
     PTypeStructure.(iistr).n_d=n_d;
-    if isa(n_d,'struct')
+    if isstruct(n_d)
         PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
     else
         temp=size(n_d);
@@ -313,7 +313,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
     PTypeStructure.(iistr).n_a=n_a;
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
     else
         temp=size(n_a);
@@ -324,7 +324,7 @@ for ii=1:PTypeStructure.N_i
         end
     end
     PTypeStructure.(iistr).n_z=n_z;
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
     else
         temp=size(n_z);
@@ -349,34 +349,28 @@ for ii=1:PTypeStructure.N_i
     end
     
     PTypeStructure.(iistr).d_grid=d_grid;
-    if isa(d_grid,'struct')
+    if isstruct(d_grid)
         PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
     end
     PTypeStructure.(iistr).a_grid=a_grid;
-    if isa(a_grid,'struct')
+    if isstruct(a_grid)
         PTypeStructure.(iistr).a_grid=a_grid.(Names_i{ii});
     end
     PTypeStructure.(iistr).z_grid=z_grid;
-    if isa(z_grid,'struct')
+    if isstruct(z_grid)
         PTypeStructure.(iistr).z_grid=z_grid.(Names_i{ii});
     end
     PTypeStructure.(iistr).pi_z=pi_z;
-    if isa(pi_z,'struct')
+    if isstruct(pi_z)
         PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii});
     end
 
     %%
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
-    if isa(ReturnFn,'struct')
+    if isstruct(ReturnFn)
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
-    temp=getAnonymousFnInputNames(PTypeStructure.(iistr).ReturnFn);
-    if length(temp)>(PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
-        PTypeStructure.(iistr).ReturnFnParamNames={temp{PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        PTypeStructure.(iistr).ReturnFnParamNames={};
-    end
-    
+     
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
@@ -385,7 +379,7 @@ for ii=1:PTypeStructure.N_i
     FullParamNames=fieldnames(Parameters); % all the different parameters
     nFields=length(FullParamNames);
     for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+        if isstruct(Parameters.(FullParamNames{kField})) % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
             if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
                 PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
@@ -437,10 +431,11 @@ for ii=1:PTypeStructure.N_i
     %%
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
-    if isa(DiscountFactorParamNames,'struct')
+    if isstruct(DiscountFactorParamNames)
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
     end
 
+    % Copied from FHorz/PType version for consistency and simplicity
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
     
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
@@ -457,6 +452,7 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
+    % Copied from FHorz/PType version for consistency
     PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
     
     if isa(PTypeDistParamNames, 'array')
@@ -465,7 +461,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).PTypeWeight=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1}); % Don't need '.(Names_i{ii}' as this was already done when putting it into PTypeStrucutre, and here I take it straing from PTypeStructure.(iistr).Parameters rather than from Parameters itself.
     end
 
-    % Ptype masses
+    % Ptype masses; Copied from FHorz/PType version for consistency
     PTypeStructure.ptweights(1,ii)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
 end
 
@@ -830,12 +826,8 @@ if heteroagentoptions.outputGEstruct==1 || heteroagentoptions.outputGEstruct==2
     if isfield(heteroagentoptions,'constrainAtoB')
         heteroagentoptions.constrainAtoB=zeros(length(p_eqm_vec),1);
     end
-    if all(heteroagentoptions.GEptype==0)
-        GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
-        GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
-    else
-        error('Have not actually yet implemented GEptype for infinite horizon, contact me and I will do so')        
-    end
+    GeneralEqmConditionsFnOpt=@(p) HeteroAgentStationaryEqm_Case1_PType_subfn(p, PTypeStructure, Parameters, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, GEPriceParamNames, GEeqnNames, AggVarNames, nGEprices, heteroagentoptions);
+    GeneralEqmConditions=GeneralEqmConditionsFnOpt(p_eqm_vec);
 end
 if heteroagentoptions.outputGEstruct==1
     % structure is much easier to read if it is on cpu, just because matlab doesn't print the value of scalar for gpu but instead tells you it is gpu
