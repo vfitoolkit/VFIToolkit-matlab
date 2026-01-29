@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames,
+function [VKron, Policy]=ValueFnIter_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance, maxiter)
 
 l_z=length(n_z);
 
@@ -16,7 +16,7 @@ special_n_z=ones(l_z,1);
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
     
     for z_c=1:N_z
@@ -58,6 +58,9 @@ end
 
 Policy=reshape(Policy,[1,N_a,N_z]);
 
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 
 end

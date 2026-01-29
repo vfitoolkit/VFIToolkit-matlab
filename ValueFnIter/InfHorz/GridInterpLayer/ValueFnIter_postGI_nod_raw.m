@@ -244,5 +244,8 @@ Policy=zeros(2,N_a,N_z,'gpuArray');
 Policy(1,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(2,:,:)=reshape(L2,[1,N_a,N_z]);
 
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

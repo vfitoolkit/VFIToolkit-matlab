@@ -1,11 +1,8 @@
 function [VKron,Policy]=ValueFnIter_Refine_postGI_raw(VKron,n_d,n_a,n_z,d_gridvals,a_grid,z_gridvals,pi_z,ReturnFn,DiscountFactorParamsVec,ReturnFnParams,vfoptions)
-% Optimized version: Replaces interp1 with pre-computed interpolation matrix
-% OPTIMIZATION: Line 177 bottleneck fixed with matrix multiplication approach
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-N_aNz = N_a*N_z;
 
 n_da=[n_d,n_a];
 da_gridvals=[repmat(d_gridvals,N_a,1),repelem(a_grid,N_d,1)];
@@ -74,7 +71,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 end
 Policy_a=reshape(Policy_a,[1,N_a,N_z]);
 
-%% Now that we have solved on the rough grid, we resolve on the fine grid
+%% Now that we have solved on the rough grid, we re-solve on the fine grid
 n_aprimediff=1+2*vfoptions.maxaprimediff;
 N_aprimediff=prod(n_aprimediff);
 aprimeshifter=min(max(Policy_a,1+vfoptions.maxaprimediff),N_a-vfoptions.maxaprimediff);
@@ -107,15 +104,15 @@ elseif vfoptions.lowmemory==1
     end
 end
 
+%% Now switch to considering the fine/interpolated aprime_grid
 EVinterpindex2=gpuArray.linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
 
-% OPTIMIZATION: Pre-compute interpolation matrix (all on GPU)
+% Pre-compute interpolation matrix
 idx_low = floor(EVinterpindex2);
 idx_low = max(1, min(idx_low, N_aprimediff-1));
 idx_high = idx_low + 1;
 weight_high = EVinterpindex2 - idx_low;
 weight_low = 1 - weight_high;
-
 i_indices = [gpuArray.colon(1,N_aprime)'; gpuArray.colon(1,N_aprime)'];
 j_indices = [idx_low; idx_high];
 weights = [weight_low; weight_high];
@@ -126,7 +123,7 @@ addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
 
 pi_z_alt2=shiftdim(pi_z,-2);
 
-%% Now switch to considering the fine/interpolated aprime_grid
+% Perform value fn iteration
 currdist=1;
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
@@ -136,8 +133,8 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     EV(isnan(EV))=0;
     EV=squeeze(sum(EV,4));
     
-    % OPTIMIZED: Matrix multiplication instead of interp1
-    EVinterp = reshape(interpMatrix * reshape(EV, N_aprimediff, N_aNz), N_aprime, N_a, N_z);
+    % Interpolation of EV is performed as a matrix multiplication
+    EVinterp=reshape(interpMatrix*reshape(EV, [N_aprimediff, N_a*N_z]), [N_aprime,N_a,N_z]);
 
     entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp;
 
@@ -148,19 +145,17 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
 
+    % Howards improvement iteration
     if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards 
         tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine;
         Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]);
         tempmaxindex2=Policy_a(:)+N_aprime*(0:1:N_a*N_z-1)';
-        
-        N_aNz_Nz = N_aNz*N_z;
-        
+                
         for Howards_counter=1:vfoptions.howards
-            EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_aNz,N_z]);
+            EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a*N_z,N_z]);
             
-            % OPTIMIZED: Replace interp1 with matrix multiplication (LINE 177 BOTTLENECK)
-            EVpre2D = reshape(EVpre, N_aprimediff, N_aNz_Nz);
-            EVKrontemp = reshape(interpMatrix * EVpre2D, N_aprime*N_aNz, N_z);
+            % Interpolation of EV is performed as a matrix multiplication
+            EVKrontemp = reshape(interpMatrix*reshape(EVpre, [N_aprimediff,N_a*N_z*N_z]),[N_aprime*N_a*N_z, N_z]);
             
             EVKrontemp=EVKrontemp(tempmaxindex2,:);
             EVKrontemp=EVKrontemp.*pi_z_howards;
@@ -214,13 +209,12 @@ while vfoptions.postGIrepeat>0
 
     EVinterpindex2=gpuArray.linspace(1,N_aprimediff,N_aprimediff+(N_aprimediff-1)*vfoptions.ngridinterp)';
 
-    % OPTIMIZATION: Recompute interpolation matrix (all on GPU)
+    % Pre-compute interpolation matrix
     idx_low = floor(EVinterpindex2);
     idx_low = max(1, min(idx_low, N_aprimediff-1));
     idx_high = idx_low + 1;
     weight_high = EVinterpindex2 - idx_low;
     weight_low = 1 - weight_high;
-    
     i_indices = [gpuArray.colon(1,N_aprime)'; gpuArray.colon(1,N_aprime)'];
     j_indices = [idx_low; idx_high];
     weights = [weight_low; weight_high];
@@ -231,6 +225,7 @@ while vfoptions.postGIrepeat>0
 
     pi_z_alt2=shiftdim(pi_z,-2);
 
+    % Perform value fn iteration
     currdist=1;
     while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         VKronold=VKron;
@@ -240,8 +235,8 @@ while vfoptions.postGIrepeat>0
         EV(isnan(EV))=0;
         EV=squeeze(sum(EV,4));
 
-        % OPTIMIZED: Matrix multiplication
-        EVinterp = reshape(interpMatrix * reshape(EV, N_aprimediff, N_aNz), N_aprime, N_a, N_z);
+        % Interpolation of EV is performed as a matrix multiplication
+        EVinterp = reshape(interpMatrix *reshape(EV, [N_aprimediff,N_a*N_z]), [N_aprime,N_a,N_z]);
 
         entireRHS=ReturnMatrixfine+DiscountFactorParamsVec*EVinterp;
 
@@ -251,20 +246,18 @@ while vfoptions.postGIrepeat>0
         VKrondist=VKron(:)-VKronold(:);
         VKrondist(isnan(VKrondist))=0;
         currdist=max(abs(VKrondist));
-
+        
+        % Howards improvement iteration
         if isfinite(currdist) && currdist/vfoptions.tolerance>10 && tempcounter<vfoptions.maxhowards
             tempmaxindex=shiftdim(Policy_a,1)+addindexforazfine;
             Ftemp=reshape(ReturnMatrixfine(tempmaxindex),[N_a,N_z]);
             tempmaxindex2=Policy_a(:)+N_aprime*(0:1:N_a*N_z-1)';
-            
-            N_aNz_Nz = N_aNz*N_z;
-            
+                        
             for Howards_counter=1:vfoptions.howards
-                EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_aNz,N_z]);
+                EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a*N_z,N_z]);
                 
-                % OPTIMIZED: Matrix multiplication (LINE 286 BOTTLENECK)
-                EVpre2D = reshape(EVpre, N_aprimediff, N_aNz_Nz);
-                EVKrontemp = reshape(interpMatrix * EVpre2D, N_aprime*N_aNz, N_z);
+                % Interpolation of EV is performed as a matrix multiplication
+                EVKrontemp = reshape(interpMatrix * reshape(EVpre, [N_aprimediff,N_a*N_z*N_z]), N_aprime*N_a*N_z, N_z);
                 
                 EVKrontemp=EVKrontemp(tempmaxindex2,:);
                 EVKrontemp=EVKrontemp.*pi_z_howards;
@@ -293,5 +286,9 @@ L2=fineindex-(L1intermediate-1)*(n2short+1);
 
 Policy(2,:,:)=reshape(L1,[1,N_a,N_z]);
 Policy(3,:,:)=reshape(L2,[1,N_a,N_z]);
+
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

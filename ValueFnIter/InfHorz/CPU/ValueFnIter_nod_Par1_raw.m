@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_nod_Par1_raw(VKron, N_a, N_z, pi_z, beta, ReturnMatrix, Howards,Howards2, Tolerance) %Verbose
+function [VKron, Policy]=ValueFnIter_nod_Par1_raw(VKron, N_a, N_z, pi_z, beta, ReturnMatrix, Howards,Howards2, Tolerance, maxiter)
 
 Policy=zeros(N_a,N_z);
 
@@ -9,7 +9,7 @@ pi_z_howards=repelem(pi_z,N_a,1);
 tempcounter=1;
 currdist=Inf;
 
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
 
     VKronold=VKron;
 
@@ -51,5 +51,10 @@ while currdist>Tolerance
 end
   
 Policy=reshape(Policy,[1,N_a,N_z]);
+
+
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

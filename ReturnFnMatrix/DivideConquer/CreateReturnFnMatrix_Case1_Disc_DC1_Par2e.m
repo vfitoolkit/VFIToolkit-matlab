@@ -1,10 +1,6 @@
-function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, aprime_grid, a_grid, z_gridvals, e_gridvals, ReturnFnParams, Level)
-%If there is no d variable, just input n_d=0 and d_grid=0
+function Fmatrix=CreateReturnFnMatrix_Case1_Disc_DC1_Par2e(ReturnFn, n_d, n_z, n_e, d_gridvals, aprime_grid, a_grid, z_gridvals, e_gridvals, ReturnFnParamsVec, Level)
 
-ParamCell=cell(length(ReturnFnParams),1);
-for ii=1:length(ReturnFnParams)
-    ParamCell(ii)={ReturnFnParams(ii)};
-end
+ReturnFnParamsCell=num2cell(ReturnFnParamsVec)';
 
 N_d=prod(n_d);
 N_a=length(a_grid); % Because l_a=1
@@ -50,169 +46,169 @@ end
 if l_e==1
     if l_z==1
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==2
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==3
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==4
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), ReturnFnParamsCell{:});
         end
     end
 elseif l_e==2
     if l_z==1
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==2
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==3
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==4
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), ReturnFnParamsCell{:});
         end
     end
 elseif l_e==3
     if l_z==1
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==2
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==3
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==4
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), ReturnFnParamsCell{:});
         end
     end
 elseif l_e==4
     if l_z==1
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==2
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==3
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         end
     elseif l_z==4
         if l_d==1
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==2
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==3
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         elseif l_d==4
-            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ParamCell{:});
+            Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1),d_gridvals(:,2),d_gridvals(:,3),d_gridvals(:,4), aprime_grid, shiftdim(a_grid,-2), shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), shiftdim(z_gridvals(:,4),-3), shiftdim(e_gridvals(:,1),-4), shiftdim(e_gridvals(:,2),-4), shiftdim(e_gridvals(:,3),-4), shiftdim(e_gridvals(:,4),-4), ReturnFnParamsCell{:});
         end
     end
 end

@@ -24,27 +24,14 @@ function [VKron, Policy] = ValueFnIter_postGI_sparse_raw(VKronold,n_d,n_a,n_z,d_
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-ParamCell=cell(length(ReturnFnParamsVec),1);
-for ii=1:length(ReturnFnParamsVec)
-    if ~isequal(size(ReturnFnParamsVec(ii)), [1,1])
-        error('Using GPU for the return fn does not allow for any of ReturnFnParams to be anything but a scalar')
-    end
-    ParamCell(ii,1)={ReturnFnParamsVec(ii)};
-end
-
 %% Create return function matrix on coarse grid
-%d_gridvals      = d_gridvals;                 % (d,1,1,1)
-aprime_gridvals = reshape(a_grid,[1,n_a,1,1]); % (1,a',1)
-a_gridvals      = reshape(a_grid,[1,1,n_a]);     % (1,a,1)
+a_gridvals = a_grid; % only one endogenous state, else wouldn't end up here
 
 % ReturnMatrix(d,a',a,z) with a' on coarse grid
-ReturnMatrixraw = CreateReturnFnMatrix_GI(ReturnFn,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals,ParamCell,n_z);
+ReturnMatrixraw = CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, n_z, d_gridvals, a_gridvals, a_gridvals, z_gridvals, ReturnFnParamsVec,1);
 
 ReturnMatrix = max(ReturnMatrixraw,[],1);
 ReturnMatrix = reshape(ReturnMatrix,[N_a,N_a,N_z]);
-
-%NA = gpuArray.colon(1,N_a)';
-%NAZ = gpuArray.colon(1,N_a*N_z)';
 
 [a_ind,z_ind] = ndgrid((1:N_a)',(1:N_z)');
 a_ind = a_ind(:); % a varies first, size: [N_a*N_z,1]
@@ -52,8 +39,6 @@ z_ind = z_ind(:); % z varies second, size: [N_a*N_z,1]
 
 pi_z_transpose = pi_z.';
 
-Tolerance = vfoptions.tolerance;
-maxiter   = vfoptions.maxiter;
 howards   = vfoptions.howards;
 verbose   = vfoptions.verbose;
 
@@ -62,6 +47,7 @@ n2short = vfoptions.ngridinterp; % number of (evenly spaced) points to put betwe
 n2long  = vfoptions.ngridinterp*2+3; % total number of aprime points we end up looking at in second layer
 aprime_grid=interp1(1:1:N_a,a_grid,linspace(1,N_a,N_a+(N_a-1)*n2short));
 
+special_n_z=ones(1,length(n_z),'gpuArray');
 
 VKron  = zeros(N_a,N_z,'gpuArray');
 Policy = zeros(3,N_a,N_z,'gpuArray'); % first dim indexes the optimal choice for aprime and aprime2 (in GI layer)
@@ -69,18 +55,17 @@ Ftemp  = zeros(N_a,N_z,'gpuArray'); % useful for Howard
 
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance && tempcounter<=maxiter
+while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
     %% Given VKronold, obtain VKron
-
-
+    
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV = VKronold*pi_z_transpose; % (a',z)
 
     for z_c=1:N_z
         z_val = z_gridvals(z_c,:);   % scalars z1,z2,etc.
         EV_z  = EV(:,z_c);           % (a',1)
-
+        
         ReturnMatrix_z=ReturnMatrix(:,:,z_c); % (a',a) a' on coarse grid
 
         entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*EV_z; %(a',a)
@@ -96,9 +81,9 @@ while currdist>Tolerance && tempcounter<=maxiter
         % aprime possibilities are n_d-by-n2long-by-n_a
         aprime_ii = aprime_grid(aprimeindexes);
         % ReturnMatrix_ii_z is (N_d,n2long,n_a)
-        ReturnMatrix_ii_z = CreateReturnFnMatrix_GI_lowmem(ReturnFn,d_gridvals,aprime_ii,a_gridvals,z_val,ParamCell,n_z);
+        ReturnMatrix_ii_z = CreateReturnFnMatrix_Case1_Disc_DC1_Par2(ReturnFn, n_d, special_n_z, d_gridvals, aprime_ii, a_gridvals, z_val, ReturnFnParamsVec,1);
         % EV_z_interp is (n2long,n_a)
-        EV_z_interp = interp1(a_grid,EV_z,aprime_ii,'linear','extrap');
+        EV_z_interp = interp1(a_grid,EV_z,aprime_ii,'linear');
        
         % entireRHS_ii_z is (N_d,n2long,n_a)
         entireRHS_ii_z = ReturnMatrix_ii_z + DiscountFactorParamsVec*reshape(EV_z_interp,[1,n2long,n_a]);
@@ -169,47 +154,8 @@ Policy(3,:,:)=adjust.*Policy(3,:,:)+(1-adjust).*(Policy(3,:,:)-n2short-1); % fro
 
 %Policy=Policy(1,:,:)+N_d*(Policy(2,:,:)-1)+N_d*N_a*(Policy(3,:,:)-1);
 
-
-
-end %end function
-
-%-------------------------------------------------------------------------%
-
-function Fmatrix = CreateReturnFnMatrix_GI(ReturnFn,d_gridvals,aprime_grid,a_grid,z_gridvals,ParamCell,n_z)
-% Assumption: z_gridvals has size [1,length(n_z)]
-
-
-%ReturnMatrix_fine = arrayfun(ReturnFn,aprime_grid,a_grid,z_grid,ParamCell{:});
-
-l_z = length(n_z);
-if l_z>3
-    error('ERROR: not allow for more than 3 of z variable (you have length(n_z)>3)')
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
 end
 
-if l_z==1
-    Fmatrix=arrayfun(ReturnFn, d_gridvals,aprime_grid, a_grid, shiftdim(z_gridvals(:,1),-3), ParamCell{:});
-elseif l_z==2
-    Fmatrix=arrayfun(ReturnFn, d_gridvals,aprime_grid, a_grid, shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), ParamCell{:});
-elseif l_z==3
-    Fmatrix=arrayfun(ReturnFn, d_gridvals,aprime_grid, a_grid, shiftdim(z_gridvals(:,1),-3), shiftdim(z_gridvals(:,2),-3), shiftdim(z_gridvals(:,3),-3), ParamCell{:});
 end
-
-end % end subfunction
-
-function Fmatrix = CreateReturnFnMatrix_GI_lowmem(ReturnFn,d_gridvals,aprime_grid,a_grid,z_gridvals,ParamCell,n_z)
-% Assumption: z_gridvals has size [1,length(n_z)]
-
-l_z = length(n_z);
-if l_z>3
-    error('ERROR: not allow for more than 3 of z variable (you have length(n_z)>3)')
-end
-
-if l_z==1
-    Fmatrix=arrayfun(ReturnFn,d_gridvals,shiftdim(aprime_grid,-1),a_grid, z_gridvals(1), ParamCell{:});
-elseif l_z==2
-    Fmatrix=arrayfun(ReturnFn,d_gridvals,shiftdim(aprime_grid,-1),a_grid, z_gridvals(1), z_gridvals(2), ParamCell{:});
-elseif l_z==3
-    Fmatrix=arrayfun(ReturnFn,d_gridvals,shiftdim(aprime_grid,-1),a_grid, z_gridvals(1), z_gridvals(2), z_gridvals(3), ParamCell{:});
-end
-
-end % end subfunction

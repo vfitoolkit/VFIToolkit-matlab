@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_raw(VKron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix, Howards,Howards2, Tolerance) %Verbose,
+function [VKron, Policy]=ValueFnIter_raw(VKron, n_d,n_a,n_z, pi_z, beta, ReturnMatrix, Howards,Howards2, Tolerance, maxiter)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -15,7 +15,7 @@ addindexforaz=gpuArray(shiftdim((0:1:N_a-1)*N_d*N_a+shiftdim((0:1:N_z-1)*N_d*N_a
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
     
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
@@ -60,5 +60,9 @@ end
 Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
 Policy(1,:,:)=shiftdim(rem(PolicyIndexes-1,N_d)+1,-1);
 Policy(2,:,:)=shiftdim(ceil(PolicyIndexes/N_d),-1);
+
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end
