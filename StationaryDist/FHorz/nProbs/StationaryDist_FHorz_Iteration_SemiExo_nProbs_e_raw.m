@@ -19,7 +19,7 @@ pi_semiz_J=gather(pi_semiz_J);
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z*N_e,N_probs,N_j]);
 PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
-clear semizindex;
+
 
 N_bothz=N_semiz*N_z;
 
@@ -46,7 +46,7 @@ for jj=1:(N_j-1)
     pi_e=sparse(pi_e_J(:,jj));
     StationaryDist_jj=kron(pi_e,StationaryDist_jj);
 
-    StationaryDist(:,jj+1)=StationaryDist_jj;
+    StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
 
 % Reweight the different ages based on 'AgeWeightParamNames'. (it is assumed there is only one Age Weight Parameter (name))
