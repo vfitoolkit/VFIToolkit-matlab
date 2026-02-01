@@ -88,7 +88,7 @@ end
 %% Semi-exogenous shock gridvals and pi 
 if isfield(simoptions,'n_semiz')
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1);
+    simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,simoptions.parallel);
     % output: simoptions.semiz_gridvals_J, simoptions.pi_semiz_J
     % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
     % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
