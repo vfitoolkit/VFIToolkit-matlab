@@ -19,7 +19,6 @@ pi_semiz_J=gather(pi_semiz_J);
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z,N_probs,N_j]);
 PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
-clear semizindex;
 
 N_bothz=N_semiz*N_z;
 
@@ -42,7 +41,7 @@ for jj=1:(N_j-1)
     % Second step of Tan improvement
     StationaryDist_jj=reshape(StationaryDist_jj*pi_z_J(:,:,jj),[N_a*N_bothz,1]);
 
-    StationaryDist(:,jj+1)=StationaryDist_jj;
+    StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
 
 

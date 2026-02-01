@@ -37,7 +37,7 @@ for jj=1:(N_j-1)
     % No z, so just a single interation
     StationaryDist_jj=Gammatranspose*StationaryDist_jj;
     
-    StationaryDist(:,jj+1)=StationaryDist_jj;
+    StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end
 
 
