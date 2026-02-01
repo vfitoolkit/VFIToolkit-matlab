@@ -173,16 +173,16 @@ if heteroagentoptions.verbose==1
         fprintf(' \n')
         fprintf('Current GE prices: \n')
         for ii=1:nGEprices
-            fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},GEpricesvec(ii))
+            fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{ii},GEpricesvec(ii))
         end
         fprintf('Current aggregate variables: \n')
         for ii=1:length(AggVarNames)
-            fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
+            fprintf(heteroagentoptions.verboseaccuracy1,AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
         end
         fprintf('Current GeneralEqmEqns: \n')
         GeneralEqmEqnsNames=fieldnames(GeneralEqmEqns);
         for ii=1:length(GeneralEqmEqnsNames)
-            fprintf('	%s: %8.4f \n',GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
+            fprintf(heteroagentoptions.verboseaccuracy2,GeneralEqmEqnsNames{ii},GeneralEqmConditionsVec(ii))
         end
     else
         numberstr=repmat(' %8.4f',1,PTypeStructure.N_i);
@@ -193,12 +193,12 @@ if heteroagentoptions.verbose==1
             if GEprice_ptype(pp)==1
                 fprintf(['	%s:',numberstr,' \n'],GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
             else
-                fprintf(['	%s: %8.4f \n'],GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
+                fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2)))
             end
         end
         fprintf('Current aggregate variables: \n')
         for aa=1:length(AggVarNames)
-            fprintf('	%s: %8.4f \n',AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+            fprintf(heteroagentoptions.verboseaccuracy1,AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
         end
         fprintf('Current aggregate variables, conditional on ptype: \n')
         for aa=1:length(AggVarNames)
@@ -212,7 +212,7 @@ if heteroagentoptions.verbose==1
                 if heteroagentoptions.intermediateEqnsptype(gg)==1
                     fprintf(['	%s:',numberstr,' \n'],intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
                 else
-                    fprintf('	%s: %8.4f \n',intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
+                    fprintf(heteroagentoptions.verboseaccuracy1,intEqnnames{gg},intermediateEqnsVec(ggindex(gg,1):ggindex(gg,2)))
                 end
             end
         end
@@ -224,7 +224,7 @@ if heteroagentoptions.verbose==1
             if heteroagentoptions.GEptype(gg)==1
                 fprintf(['	%s:',numberstr,' \n'],GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))
             else
-                fprintf('	%s: %8.6f \n',GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))            
+                fprintf(heteroagentoptions.verboseaccuracy2,GeneralEqmEqnsNames{gg},GeneralEqmConditionsVec(ggindex(gg,1):ggindex(gg,2)))            
             end
         end
     end

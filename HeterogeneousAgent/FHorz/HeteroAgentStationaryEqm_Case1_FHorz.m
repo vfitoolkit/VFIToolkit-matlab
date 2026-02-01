@@ -40,32 +40,34 @@ if isempty(n_p)
 end
 
 if ~exist('heteroagentoptions','var')
-    heteroagentoptions.multiGEcriterion=1;
-    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
+    heteroagentoptions.fminalgo=1; % =1 use fminsearch. Main alternatives: =4 is shooting (you set update rules), =5 is CMA-ES (robust but slow), =8 is lsqnonlin() fast but requires Matlab Optimization Toolbox (and often not quite high accuracy of results)
+    heteroagentoptions.multiGEcriterion=1; % How to combine multiple GE condns (default is sum-of-squares)
+    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % Weights on GECondns, when being combined
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.fminalgo=1; % use fminsearch
-    heteroagentoptions.verbose=0;
-    heteroagentoptions.maxiter=1000; % =0 just evaluate (rather than solves for) GE condns
-    heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % Constrain parameters
     heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
-    % heteroagentoptions.outputGEform=0; % For internal use only
+    % Verbose settings (feedback)
+    heteroagentoptions.verbose=0; % =1, give feedback
+    heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
+    heteroagentoptions.verboseaccuracy2=6; % number of decimal places for GECondns
+    heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    % For internal use only
+    % heteroagentoptions.outputGEform=0;
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
 else
+    if ~isfield(heteroagentoptions,'fminalgo')
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
     if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
-    end
-    if N_p~=0
-        if ~isfield(heteroagentoptions,'p_grid')
-            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
-        end
     end
     if ~isfield(heteroagentoptions,'toleranceGEprices')
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
@@ -73,18 +75,15 @@ else
     if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
-    if ~isfield(heteroagentoptions,'verbose')
-        heteroagentoptions.verbose=0;
-    end
-    if ~isfield(heteroagentoptions,'fminalgo')
-        heteroagentoptions.fminalgo=1; % use fminsearch
-    end
     if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
-    if ~isfield(heteroagentoptions,'pricehistory')
-        heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    if N_p~=0
+        if ~isfield(heteroagentoptions,'p_grid')
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
+        end
     end
+    % Constrain parameters
     if ~isfield(heteroagentoptions,'constrainpositive')
         heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
         % Convert constrained positive p into x=log(p) which is unconstrained.
@@ -104,7 +103,21 @@ else
             error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
         end
     end
-    % heteroagentoptions.outputGEform=0; % For internal use only
+    % Verbose settings (feedback)
+    if ~isfield(heteroagentoptions,'verbose')
+        heteroagentoptions.verbose=0;
+    end
+    if ~isfield(heteroagentoptions,'verboseaccuracy1')
+        heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
+    end
+    if ~isfield(heteroagentoptions,'verboseaccuracy2')
+        heteroagentoptions.verboseaccuracy2=6; % number of decimal places for GECondns
+    end
+    if ~isfield(heteroagentoptions,'pricehistory')
+        heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    end
+    % For internal use only
+    % heteroagentoptions.outputGEform=0;
     if ~isfield(heteroagentoptions,'outputGEstruct')
         heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     end
@@ -137,6 +150,8 @@ if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 end
 
+heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
+heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
 
 nGEprices=length(GEPriceParamNames);
 GEeqnNames=fieldnames(GeneralEqmEqns);
