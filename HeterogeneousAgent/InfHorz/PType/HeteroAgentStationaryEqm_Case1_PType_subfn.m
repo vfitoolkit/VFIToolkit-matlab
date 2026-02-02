@@ -3,6 +3,14 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_PType_subfn(GEprice
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
 [GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
+if heteroagentoptions.verbose==2
+    fprintf(' \n')
+    fprintf('Current GE prices: \n')
+    for pp=1:nGEprices
+        fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEpricesvec(pp))
+    end
+end
+
 %% 
 for pp=1:nGEprices
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
@@ -133,12 +141,14 @@ end
 
 
 %% Feedback on progress
-if heteroagentoptions.verbose==1
+if heteroagentoptions.verbose==1 % When=2, we report these earlier
     fprintf(' \n')
     fprintf('Current GE prices: \n')
     for pp=1:nGEprices
         fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(pp))
     end
+end
+if heteroagentoptions.verbose>=1
     fprintf('Current aggregate variables: \n')
     for aa=1:length(AggVarNames)
         fprintf(heteroagentoptions.verboseaccuracy1,AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
