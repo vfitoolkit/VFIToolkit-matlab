@@ -14,8 +14,8 @@ if n_d(1)==0
     Policy=zeros(l_aprime,N_a,N_z);
     for i=1:N_a
         for j=1:N_z
-            optaindexKron=PolicyKron(i,j);
-            optA=ind2sub_homemade(n_aprime',optaindexKron);
+            optaindexKron=PolicyKron(1,i,j);
+            optA=ind2sub_homemade(n_a',optaindexKron); % n_aprime
             Policy(:,i,j)=optA';
         end
     end
