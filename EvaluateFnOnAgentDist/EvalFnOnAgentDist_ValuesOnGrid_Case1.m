@@ -26,9 +26,13 @@ l_daprime=size(Policy,1);
 if simoptions.gridinterplayer==1
     l_daprime=l_daprime-1;
 end
-a_gridvals=CreateGridvals(n_a,a_grid,1);
-[z_gridvals,~,simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
-
+if Parallel==2
+    a_gridvals=CreateGridvals(n_a,a_grid,1);
+    [z_gridvals,~,simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
+elseif Parallel==1
+    a_gridvals=CreateGridvals(n_a,a_grid,2);
+    z_gridvals=CreateGridvals(n_z,z_grid,2); % CPU, so must just be simple stacked column for z
+end
 
 %% Implement new way of handling FnsToEvaluate
 if isstruct(FnsToEvaluate)
@@ -76,9 +80,12 @@ if Parallel==2
         Values=reshape(Values,[N_a*N_z,1]);
         ValuesOnGrid.(AggVarNames{ff})=reshape(Values,[n_a,n_z]);
     end
-else
+elseif Parallel==1
+    % CPU
+    simoptions.experienceasset=0; % needs to be set so can use CreateGridvals_Policy()
+    simoptions.experienceassetu=0; % needs to be set so can use CreateGridvals_Policy()
     [d_gridvals, aprime_gridvals]=CreateGridvals_Policy(Policy,n_d,n_a,n_a,n_z,d_grid,a_grid,simoptions,1, 2);
-        
+    
     if l_d>0
         
         for ff=1:length(FnsToEvaluate)
