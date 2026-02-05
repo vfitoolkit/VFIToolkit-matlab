@@ -161,7 +161,13 @@ VKronPath=zeros(N_a,N_z,T);
 VKronPath(:,:,T)=V_final;
 
 
-z_gridvals=CreateGridvals(n_z,z_grid,1);
+%% Switch to z_gridvals
+l_z=length(n_z);
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+elseif all(size(z_grid)==[prod(n_z),l_z])
+    z_gridvals=z_grid;
+end
 
 %%
 if N_d==0

@@ -77,7 +77,7 @@ if ~isfield(options,'GEptype') % For models without permanent type
     end
 
 else
-    %% Model with permanent type: allow for options.GEptype
+    %% Model with permanent type and using options.GEptype
     nGeneralEqmEqns_acrossptypes=sum(options.GEptype==0)+N_i*sum(options.GEptype==1);
     
     % Before starting, make sure that GE that depend on ptype match up with PricePaths that depend on ptype

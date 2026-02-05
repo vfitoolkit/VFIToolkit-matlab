@@ -83,12 +83,19 @@ end
 
 %%
 a_gridvals=CreateGridvals(n_a,a_grid,1);
-z_gridvals=CreateGridvals(n_z,z_grid,1);
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
 % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
 PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_grid,a_grid,simoptions,1);
 PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T-1]
+
+%% Switch to z_gridvals
+l_z=length(n_z);
+if all(size(z_grid)==[sum(n_z),1])
+    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+elseif all(size(z_grid)==[prod(n_z),l_z])
+    z_gridvals=z_grid;
+end
 
 %%
 AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
