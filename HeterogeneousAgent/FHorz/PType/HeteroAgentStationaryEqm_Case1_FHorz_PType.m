@@ -790,7 +790,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     elseif heteroagentoptions.fminalgo==5
         % Update based on rules in heteroagentoptions.fminalgo5.howtoupdate
         % Set up the howtoupdate rules in the format needed
-        heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
+        heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames,N_i,GEpriceindexes');
         % Get initial prices, p
         p=nan(1,length(GEPriceParamNames));
         for ii=1:length(GEPriceParamNames)
