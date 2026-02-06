@@ -15,7 +15,7 @@ a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 
 % preallocate
-midpoints_jj=zeros(1,N_a2,N_a1,N_a2,N_z,'gpuArray');
+% midpoints_jj=zeros(1,N_a2,N_a1,N_a2,N_z,'gpuArray');
 
 % Grid interpolation
 % vfoptions.ngridinterp=9;

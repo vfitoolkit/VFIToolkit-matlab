@@ -114,7 +114,7 @@ if simoptions.gridinterplayer==0
     else % both z and e
         StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_aprime,PolicyProbs,2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
     end
-elseif simoptions.gridinterplayer==1
+elseif (isscalar(simoptions.gridinterplayer) && simoptions.gridinterplayer==1) || (~isscalar(simoptions.gridinterplayer) && simoptions.gridinterplayer(1)==1 && all(simoptions.gridinterplayer(2:end)==0))
     % (a,z,2,j)
     Policy_aprime=repmat(Policy_aprime,1,1,2,1);
     PolicyProbs=repmat(PolicyProbs,1,1,2,1);
