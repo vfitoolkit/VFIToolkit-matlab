@@ -11,7 +11,7 @@ function AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,I
 Gammatranspose=sparse(gather(Policy_aprimez),II1,IIones,N_a*N_z,N_a*N_z);
 
 % Two steps of the Tan improvement
-AgentDist=reshape(Gammatranspose*AgentDist,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+AgentDist=reshape(Gammatranspose*AgentDist,[N_a,N_z]);
 AgentDist=reshape(AgentDist*pi_z_sparse,[N_a*N_z,1]);
 
 end

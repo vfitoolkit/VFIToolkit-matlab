@@ -12,25 +12,24 @@ Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_pro
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z,1,N_j]);
 
-% precompute
+% precompute; Don't want `PolicyProbs` on GPU anyway, so leave these in CPU RAM
 semizindex=repmat(repelem((1:1:N_semiz)',N_a,1),N_z,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1)); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+pi_semiz_J=gather(pi_semiz_J);
 % semizindex is [N_a*N_semiz*N_z,N_semiz,N_j]
 
-
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z,N_probs,N_j]);
-% pi_semiz_J=gather(pi_semiz_J);
 PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
 
 N_bothz=N_semiz*N_z;
 
 %% Use Tan improvement
 
-StationaryDist=zeros(N_a*N_semiz*N_z,N_j,'gpuArray');
+StationaryDist=zeros(N_a*N_semiz*N_z,N_j,'gpuArray'); % StationaryDist cannot be sparse
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 
-% Precompute
-II2=repelem(gpuArray(1:1:N_a*N_semiz*N_z)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
+% Precompute; II2 used only for sparse matrix creation...best done on CPU
+II2=repelem((1:1:N_a*N_semiz*N_z)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
 
 for jj=1:(N_j-1)
 
@@ -40,8 +39,7 @@ for jj=1:(N_j-1)
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);
 
     % Second step of Tan improvement
-    pi_z=sparse(gather(pi_z_J(:,:,jj)));
-    StationaryDist_jj=reshape(StationaryDist_jj*pi_z,[N_a*N_bothz,1]);
+    StationaryDist_jj=reshape(StationaryDist_jj*pi_z_J(:,:,jj),[N_a*N_bothz,1]);
 
     StationaryDist(:,jj+1)=gpuArray(full(StationaryDist_jj));
 end

@@ -8,26 +8,27 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(je
 % put a&semiz together into the 1st dim, semiz'&nprobs into the 2nd dim.
 
 % Policy_aprime is currently [N_a,N_semiz,N_probs,N_j]
-Policy_aprimesemiz=repelem(reshape(Policy_aprime,[N_a*N_semiz,N_probs,N_j]),1,N_semiz)+repmat(N_a*gpuArray(0:1:N_semiz-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
-Policy_aprimesemiz=gather(Policy_aprimesemiz); % [N_a*N_semiz,N_semiz*N_probs,N_j]
+Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]),1,N_semiz)+repmat(N_a*(0:1:N_semiz-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]);
-% precompute
-semizindex=repelem(gpuArray(1:1:N_semiz)',N_a,1)+N_semiz*gpuArray(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+
+% precompute; Don't want `PolicyProbs` on GPU anyway, so leave these in CPU RAM
+semizindex=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1)); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+pi_semiz_J=gather(pi_semiz_J);
 % semizindex is [N_a*N_semiz,N_semiz,N_j]
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz,N_probs,N_j]);
-PolicyProbs=repelem(PolicyProbs,1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
-PolicyProbs=gather(PolicyProbs);
+PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
+clear semizindex;
 
 %% Use Tan improvement
 
-StationaryDist=zeros(N_a*N_semiz,N_j,'gpuArray');
+StationaryDist=zeros(N_a*N_semiz,N_j,'gpuArray'); % StationaryDist cannot be sparse
 StationaryDist(:,1)=jequaloneDistKron;
-StationaryDist_jj=sparse(jequaloneDistKron); % sparse() creates a matrix of zeros
+StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 
-% Precompute
-II2=repelem(gpuArray(1:1:N_a*N_semiz)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_semiz*N_probs-copies
+% Precompute; II2 used only for sparse matrix creation...best done on CPU
+II2=repelem((1:1:N_a*N_semiz)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_semiz*N_probs-copies
 
 for jj=1:(N_j-1)
         
