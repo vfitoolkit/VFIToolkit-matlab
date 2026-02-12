@@ -68,12 +68,10 @@ else
     EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
 
-    DiscountedEV=DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
-
     if vfoptions.lowmemory==0
         ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals_J(:,:,N_jj), ReturnFnParamsVec,0,0);
 
-        entireRHS=ReturnMatrix+DiscountedEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,1,N_a1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -85,7 +83,7 @@ else
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            DiscountedEV_z=DiscountedEV(:,:,z_c);
+            DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),1,N_a1,1);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
             

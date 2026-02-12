@@ -90,12 +90,13 @@ else
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
+        DiscountedEV=DiscountFactorParamsVec*EV;
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
 
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*EV;
+            entireRHS=ReturnMatrix_e+DiscountedEV;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
