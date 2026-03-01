@@ -18,6 +18,7 @@ end
 
 
 %%
+Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
@@ -69,7 +70,9 @@ for ii=1:PTypeStructure.N_i
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
         AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).simoptions);
     end
-    
+    if heteroagentoptions.useCustomModelStats==1
+        Ptype_cells{ii}={V_ii,Policy_ii,StationaryDist_ii};
+    end
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
 
     if heteroagentoptions.useCustomModelStats==1
@@ -120,6 +123,7 @@ if heteroagentoptions.useintermediateEqns==1
         Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
     end
 end
+
 
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
@@ -172,8 +176,13 @@ if heteroagentoptions.verbose>=1
     end
     if heteroagentoptions.useCustomModelStats==1
         fprintf('Current CustomModelStats variables: \n')
-        for ii=1:length(customstatnames)
-            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{ii},CustomStats.(customstatnames{ii}))
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.iistr{ii};
+            if isfield(customstatnames, iistr)
+                for pp=1:length(customstatnames.(iistr))
+                    fprintf(heteroagentoptions.verboseaccuracy1,customstatnames.(iistr){pp},CustomStats.(iistr).(customstatnames.(iistr){pp}))
+                end
+            end
         end
     end
     fprintf('Current GeneralEqmEqns: \n')
