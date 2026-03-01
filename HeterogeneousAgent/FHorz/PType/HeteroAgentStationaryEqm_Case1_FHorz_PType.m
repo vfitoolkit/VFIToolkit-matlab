@@ -160,9 +160,18 @@ else
     end
 end
 
-heteroagentoptions.useCustomModelStats=0;
-if isfield(heteroagentoptions,'CustomModelStats')
-    heteroagentoptions.useCustomModelStats=1;
+if ~isfield(heteroagentoptions,'useCustomModelStats')
+    heteroagentoptions.useCustomModelStats=0;
+    if isfield(heteroagentoptions,'CustomModelStats')
+        heteroagentoptions.useCustomModelStats=1;
+    else
+        for ii=1:length(Names_i)
+            if isfield(heteroagentoptions,Names_i{ii}) && isfield(heteroagentoptions.(Names_i{ii}),'CustomModelStats')
+                heteroagentoptions.useCustomModelStats=1;
+                break
+            end
+        end
+    end
 end
 
 if heteroagentoptions.fminalgo==0
@@ -319,9 +328,9 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.verbose=0;
     end
     
-    if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
+    if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
         if ~isempty(simoptions)
-            PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+            PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
         else
             PTypeStructure.(iistr).simoptions.verbose=0;
         end
