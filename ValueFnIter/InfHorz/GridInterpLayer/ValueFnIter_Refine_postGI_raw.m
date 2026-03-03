@@ -141,6 +141,7 @@ pi_z_alt2=shiftdim(pi_z,-2);
 
 % Perform value fn iteration
 currdist=1; % force going into the next while loop at least one iteration
+tempcounter=1; % reset tempcounter
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
 
@@ -187,6 +188,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     tempcounter=tempcounter+1;
 end
 
+
 %% Do another post-GI layer
 % Note: is just a copy-paste of the previous post-GI layer code
 % Only difference that before we start there are two lines of code to convert Policy_a back into being about the nearest rough grid index
@@ -200,7 +202,7 @@ while vfoptions.postGIrepeat>0
     Policy_a=reshape(Policy_a,[1,N_a,N_z]); % Howards can mess with the size
     Policy_a=ceil((Policy_a-1)/(n2short+1))-vfoptions.maxaprimediff+aprimeshifter;
     % ceil((Policy_a-1)/(n2short+1))-vfoptions.maxaprimediff ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
-
+    
     % First, create an aprime_grid that is just the +-vfoptions.maxaprimediff
     % Note: this code is for models with a single endogenous state
     n_aprimediff=1+2*vfoptions.maxaprimediff;
@@ -250,6 +252,7 @@ while vfoptions.postGIrepeat>0
 
     %% Now switch to considering the fine/interpolated aprime_grid
     currdist=1; % force going into the next while loop at least one iteration
+    tempcounter=1; % reset tempcounter
     while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         VKronold=VKron;
 
