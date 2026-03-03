@@ -116,6 +116,7 @@ if heteroagentoptions.useCustomModelStats==1
                 PTypeStructure.(iistr).Parameters.(customstatnames.(iistr){pp})=CustomStats.(iistr).(customstatnames.(iistr){pp});
             end
         end
+    end
 end
 
 

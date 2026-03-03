@@ -3,11 +3,15 @@ function AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,I
 % II1=gpuArray(1:1:N_a*N_z);
 % IIones=ones(N_a*N_z,1,'gpuArray');
 % AgentDist is [N_a*N_z,1]
-% Policy_aprimez is 
+% Policy_aprimez is either [2,N_a,N_z] if N_d>0 or [N_a,N_z] if N_d==0
 % pi_z_sparse is [N_z,N_zprime]
 
 % AgentDist is already sparse and on cpu
 
+if length(size(Policy_aprimez))>2
+    II1=repmat(II1,2,1);
+    IIones=repmat(IIones,2,1);
+end
 Gammatranspose=sparse(gather(Policy_aprimez),II1,IIones,N_a*N_z,N_a*N_z);
 
 % Two steps of the Tan improvement

@@ -1,4 +1,4 @@
-function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames)
+function [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i)
 % Subscript that is used to determine if there are any '_tminus1' or
 % '_tplus1' variables used as inputs to FnsToEvaluate or GeneralEqmEqns
 % (Used as part of transition path codes)
@@ -10,7 +10,20 @@ ninputs=0;
 % Get all the input names for FnsToEvaluate
 AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
-    temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    if exist('Names_i','var')
+        temp={};
+        for ii=1:length(Names_i)
+            if isfield(FnsToEvaluate.(AggVarNames{ff}), Names_i{ii})
+                temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}).(Names_i{ii}));
+                break
+            end
+        end
+        if length(temp)==0
+            error(['Could not find', AggVarNames{ff}, 'with PType in {', Names_i, '}'])
+        end
+    else
+        temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
+    end
     tempninputs=length(temp);
     FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     ninputs=ninputs+tempninputs;

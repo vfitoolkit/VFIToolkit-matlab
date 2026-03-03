@@ -31,6 +31,7 @@ for ii=1:PTypeStructure.N_i
     AgentDist_initial.(iistr)=reshape(StationaryDist_init.(iistr),[N_a*N_z,1]);
 end
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+GEeqnNames=fieldnames(GeneralEqmEqns);
 GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
 

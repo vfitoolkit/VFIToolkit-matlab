@@ -296,18 +296,35 @@ for ii=1:N_i
     N_a_temp=prod(n_a_temp);
     
     a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
-    % Turn (semiz,z,e) into z_gridvals_J_temp as FnsToEvalute do not distinguish them
-    [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp,Parameters_temp);
+    if isfinite(N_j_temp)
+        % Turn (semiz,z,e) into z_gridvals_J_temp as FnsToEvalute do not distinguish them
+        [n_z_temp,z_gridvals_J_temp,N_z_temp,l_z_temp,simoptions_temp]=CreateGridvals_FnsToEvaluate_FHorz(n_z_temp,z_grid_temp,N_j_temp,simoptions_temp,Parameters_temp);
+    else
+        l_z_temp=length(n_z_temp);
+        N_z_temp=prod(n_z_temp);
+        z_gridvals_temp=CreateGridvals(n_z_temp,z_grid_temp,1);
+    end
     if N_z_temp==0
         N_z_temp=1; % Just makes things easier below
     end
 
     % Switch to PolicyVals
-    PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
-    if l_z_temp==0
-        PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_j,l_daprime)
+    if isfinite(N_j_temp)
+        PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
+        if l_z_temp==0
+            PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_j,l_daprime)
+        else
+            PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
+        end
+        StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
     else
-        PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,4,1]); % (N_a,N_z,N_j,l_daprime)
+        PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
+        if l_z_temp==0
+            PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,1]); % (N_a,l_daprime)
+        else
+            PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,3,1]); % (N_a,N_z,l_daprime)
+        end
+        StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
     end
     l_daprime_temp=size(PolicyValues_temp,1);
     
@@ -315,7 +332,6 @@ for ii=1:N_i
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
     %% Some things that don't need to go in the loop over FnsToEvalaute
-    StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
     % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
     % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)    
     temp=logical(StationaryDist_ii~=0);
@@ -341,14 +357,21 @@ for ii=1:N_i
                 CondlRestnFnParamNames={};
             end
 
-            if l_z_temp==0
-                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
-                RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,0,a_gridvals_temp,[]));
+            if isfinite(N_j_temp)
+                if l_z_temp==0
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,2); % j in 2nd dimension: (a,j,l_d+l_a), so we want j to be after N_a
+                    RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,0,a_gridvals_temp,[]));
+                else
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
+                    RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp));
+                end
+                RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp*N_j_temp,1]);
             else
-                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,CondlRestnFnParamNames,N_j_temp,3); % j in 3rd dimension: (a,z,j,l_d+l_a), so we want j to be after N_a and N_z
-                RestrictionValues=logical(EvalFnOnAgentDist_Grid_J(CondlRestnFn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp));
+                CondlRestnFnParamsCell=CreateCellFromParams(Parameters_temp,CondlRestnFnParamNames);
+
+                RestrictionValues=logical(EvalFnOnAgentDist_Grid(CondlRestnFn, CondlRestnFnParamsCell,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_temp));
+                RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp,1]);
             end
-            RestrictionValues=reshape(RestrictionValues,[N_a_temp*N_z_temp*N_j_temp,1]);
 
             RestrictedStationaryDistVec=StationaryDist_ii;
             RestrictedStationaryDistVec(~RestrictionValues)=0; % zero mass on all points that do not meet the restriction
@@ -376,24 +399,36 @@ for ii=1:N_i
         if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
 
             % Get parameter names for current FnsToEvaluate functions
-            tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+            % Get parameter names for current FnsToEvaluate functions
+            if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
+                tempfn=FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii});
+            else
+                tempfn=FnsToEvaluate.(FnsToEvalNames{ff});
+            end
+            tempnames=getAnonymousFnInputNames(tempfn);
             if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
                 FnsToEvaluateParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
             else
                 FnsToEvaluateParamNames={};
             end
-            if l_z_temp==0
-                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
+            if isfinite(N_j_temp)
+                if l_z_temp==0
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,2);
+                else
+                    CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
+                end
+                
+                %% We have set up the current PType, now do some calculations for it.
+                simoptions_temp.keepoutputasmatrix=1;
+                ValuesOnGrid_ii=EvalFnOnAgentDist_Grid_J(tempfn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
+                ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp*N_j_temp,1]);
+    
+                % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
             else
-                CellOverAgeOfParamValues=CreateCellOverAgeFromParams(Parameters_temp,FnsToEvaluateParamNames,N_j_temp,3);
+                FnToEvaluateParamsCell=CreateCellFromParams(Parameters_temp,FnsToEvaluateParamNames);
+                ValuesOnGrid_ii=EvalFnOnAgentDist_Grid(tempfn, FnToEvaluateParamsCell,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_temp);
+                ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp,1]);
             end
-            
-            %% We have set up the current PType, now do some calculations for it.
-            simoptions_temp.keepoutputasmatrix=1;
-            ValuesOnGrid_ii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
-            ValuesOnGrid_ii=reshape(ValuesOnGrid_ii,[N_a_temp*N_z_temp*N_j_temp,1]);
-
-            % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
 
             % Eliminate all the zero-weighted points (this doesn't really save runtime for the exact calculation and often can increase it, but
             % for the createDigest it slashes the runtime. So since we want it then we may as well do it now.)

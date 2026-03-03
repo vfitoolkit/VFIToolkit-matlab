@@ -9,7 +9,9 @@ if N_d==0
 else
     l_d=length(n_d);
 end
+l_a=length(n_a);
 l_aprime=length(n_a);
+l_z=length(n_z);
 
 %%
 % Shapes:
