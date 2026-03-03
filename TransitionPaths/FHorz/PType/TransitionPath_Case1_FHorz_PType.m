@@ -133,15 +133,43 @@ end
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 vfoptions.EVpre=0; % Not actually an option that can be used here
-if isfield(vfoptions,'lowmemory')==0
-    vfoptions.lowmemory=0;
+if ~isfield(vfoptions, 'experienceasset')
+    vfoptions.experienceasset=0;
+end
+if ~isfield(vfoptions,'lowmemory')
+    lowmemory_in_PType=0;
+    for ii=1:N_i
+        if isfield(vfoptions.Name_i{ii}, 'lowmemory')
+            lowmemory_in_PType=1;
+        elseif lowmemory_in_PType==1
+            vfoptions.Name_i{ii}.lowmemory=0;
+        end
+    end
+    if lowmemory_in_PType==0
+        vfoptions.lowmemory=0;
+    end
 end
 
 %% Get AgeWeights from Parameters   
-try
-    AgeWeights=Parameters.(AgeWeightsParamNames{1});
-catch
-    error(['Failed to find parameter ', AgeWeightsParamNames{1}])
+if isstruct(AgeWeightsParamNames)
+    for ii=1:N_i
+        try
+            AgeWeights=Parameters.(AgeWeightsParamNames.(Names_i{ii}){1});
+            if length(AgeWeights)~=N_j.(Names_i{ii})
+                error('Ageweights does not have age-like length')
+            else
+                break
+            end
+        catch
+            error(['Failed to find parameter ', AgeWeightsParamNames.(Names_i{ii}){1}])
+        end
+    end
+else
+    try
+        AgeWeights=Parameters.(AgeWeightsParamNames{1});
+    catch
+        error(['Failed to find parameter ', AgeWeightsParamNames{1}])
+    end
 end
 % Later, when creating PTypeStructure, we get the ptype-specific versions out of this and create an AgeWeights_T structure.
 
@@ -223,7 +251,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.divideandconquer=0; %default
     else
         if PTypeStructure.(iistr).vfoptions.divideandconquer==1
-            PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a/50); % default
+            PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a.(iistr)/50); % default
         end
     end
     if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')
@@ -261,7 +289,7 @@ for ii=1:PTypeStructure.N_i
     
     % Horizon is determined via N_j
     if isstruct(N_j)
-        PTypeStructure.(iistr).N_j=N_j.(Names_i{ii});
+        PTypeStructure.(iistr).N_j=N_j.(iistr);
     elseif isscalar(N_j)
         PTypeStructure.(iistr).N_j=N_j;
     else
@@ -269,7 +297,7 @@ for ii=1:PTypeStructure.N_i
     end
     
     if isa(n_d,'struct')
-        PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
+        PTypeStructure.(iistr).n_d=n_d.(iistr);
     else
         PTypeStructure.(iistr).n_d=n_d;
     end
@@ -281,7 +309,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_d=length(n_d);
     end
     if isa(n_a,'struct')
-        PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
+        PTypeStructure.(iistr).n_a=n_a.(iistr);
     else
         PTypeStructure.(iistr).n_a=n_a;
     end
@@ -293,7 +321,7 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).l_aprime=PTypeStructure.(iistr).l_aprime-1;
     end
     if isa(n_z,'struct')
-        PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
+        PTypeStructure.(iistr).n_z=n_z.(iistr);
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
@@ -313,17 +341,17 @@ for ii=1:PTypeStructure.N_i
     end
 
     if isa(d_grid,'struct')
-        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(Names_i{ii}));
+        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(iistr));
     else
         PTypeStructure.(iistr).d_grid=gpuArray(d_grid);
     end
     if isa(a_grid,'struct')
-        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(Names_i{ii}));
+        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(iistr));
     else
         PTypeStructure.(iistr).a_grid=gpuArray(a_grid);
     end
     if isa(z_grid,'struct')
-        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(Names_i{ii}));
+        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(iistr));
     else
         PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
     end
@@ -354,14 +382,14 @@ for ii=1:PTypeStructure.N_i
     % end
 
     if isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
+        PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     else
         PTypeStructure.(iistr).pi_z=pi_z;
     end
     
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
-        PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
+        PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
     end
     
     % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type). 
@@ -373,8 +401,8 @@ for ii=1:PTypeStructure.N_i
     for kField=1:nFields
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+            if isfield(Parameters.(FullParamNames{kField}),iistr)
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
@@ -398,7 +426,7 @@ for ii=1:PTypeStructure.N_i
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
+        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(iistr);
     end
 
     % Implement new way of handling ReturnFn inputs (note l_d, l_a, l_z are just created for this and then not used for anything else later)
@@ -440,7 +468,7 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for kk=1:PTypeStructure.numFnsToEvaluate
-        if isa(FnsToEvaluate.(FnNames{kk}),'struct')
+        if isstruct(FnsToEvaluate.(FnNames{kk}))
             if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
                 PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
                 % % Figure out FnsToEvaluateParamNames
@@ -486,32 +514,48 @@ for ii=1:PTypeStructure.N_i
     
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
-    if transpathoptions.fastOLG==0
+    if ~isfinite(PTypeStructure.(iistr).N_j)
         if N_z==0
             if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,1]);
             else
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e,N_j]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e]);
             end
         else
             if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
             else
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e]);
             end
         end
-    else
+    elseif transpathoptions.fastOLG==0
+        N_j_temp=PTypeStructure.(iistr).N_j;
         if N_z==0
             if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
             else
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j,N_e]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e,N_j_temp]);
             end
         else
             if N_e==0
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j,N_z]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j_temp]);
             else
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]);
+            end
+        end
+    else % transpathoptions.fastOLG==1
+        N_j_temp=PTypeStructure.(iistr).N_j;
+        if N_z==0
+            if N_e==0
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
+            else
+                V_final.(iistr)=reshape(permute(reshape(V_final.(iistr),[N_a,N_e,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_e]);
+            end
+        else
+            if N_e==0
+                V_final.(iistr)=reshape(permute(reshape(V_final.(iistr),[N_a,N_z,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_z]);
+            else
+                V_final.(iistr)=reshape(permute(reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
             end
         end
     end
@@ -608,13 +652,18 @@ for ii=1:PTypeStructure.N_i
             if N_e==0
                 jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,T]);
             else
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,T]); % simoptions.fastOLG==1
+                fprintf('Following error applies to agent permanent type: %s \n',iistr)
+                error('The age weights parameter seems to be the wrong size')
             end
-        else
-            if N_e==0
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,T]); % simoptions.fastOLG==1
+        else % not a structure, so must apply to all permanent types
+            if all(size(AgeWeights)==[N_j_temp,1])
+                % Does not depend on transition path period
+                AgeWeights_T.(iistr)=gather(AgeWeights.*ones(1,T));
+            elseif all(size(AgeWeights)==[1,N_j_temp])
+                % Does not depend on transition path period
+                AgeWeights_T.(iistr)=gather(AgeWeights'.*ones(1,T));
             else
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,T]); % simoptions.fastOLG==1
+                error('The age weights parameter seems to be the wrong size')
             end
         end
         PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
@@ -622,15 +671,18 @@ for ii=1:PTypeStructure.N_i
         transpathoptions.(iistr).trivialjequalonedist=1;
         if N_z==0
             if N_e==0
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,1]);
-            else
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,1]); % simoptions.fastOLG==1
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]); % if simoptions.fastOLG==0
+                if PTypeStructure.(iistr).simoptions.fastOLG==1
+                    AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a,1]);
+                end
             end
         else
             if N_e==0
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,1]); % simoptions.fastOLG==1
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,1]);
+            elseif simoptions.fastOLG==0
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z*N_e,1]);
             else
-                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,1]); % simoptions.fastOLG==1
+                AgentDist_init.(iistr)=reshape(AgentDist_init.(iistr),[N_a*N_z,N_e]);
             end
         end
         PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
@@ -726,7 +778,7 @@ transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,Price
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i);
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
@@ -783,7 +835,7 @@ end
 
 %% Shooting algorithm
 if transpathoptions.GEnewprice~=2
-    % For permanent type, there is just one shooting command,
+    % For permanent types, there is just one shooting command,
     % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
     [PricePath,GEcondnPathmatrix]=TransitionPath_Case1_FHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
 

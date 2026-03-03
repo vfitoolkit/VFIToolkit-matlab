@@ -16,26 +16,19 @@ ninputs=0;
 AggVarNames=fieldnames(FnsToEvaluate);
 PTypeAggVarNames=struct();
 for ff=1:length(AggVarNames)
-    if ~isempty(Names_i)
+    if exist('Names_i','var')
         temp={};
         for ii=1:length(Names_i)
             if isfield(FnsToEvaluate.(AggVarNames{ff}), Names_i{ii})
-                if ~isfield(PTypeAggVarNames, Names_i{ii})
-                    PTypeAggVarNames.(Names_i{ii})={};
-                    PTypeFnInputNames.(Names_i{ii})={};
-                end
-                PTypeAggVarNames.(Names_i{ii})=[PTypeAggVarNames.(Names_i{ii});AggVarNames{ff}];
                 temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}).(Names_i{ii}));
-                PTypeFnInputNames.(Names_i{ii})=[PTypeFnInputNames.(Names_i{ii});temp]; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
                 break
             end
         end
-        if isempty(temp)
+        if length(temp)==0
             error(['Could not find', AggVarNames{ff}, 'with PType in {', Names_i, '}'])
         end
     else
         temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-        FnInputNames={FnInputNames{:},temp{:}}; % Note, this will include the (d,aprime,a,z), but that is irrelevant to our current purposes
     end
     tempninputs=length(temp);
     ninputs=ninputs+tempninputs;
