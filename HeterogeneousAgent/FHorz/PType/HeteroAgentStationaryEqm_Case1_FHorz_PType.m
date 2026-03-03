@@ -160,9 +160,18 @@ else
     end
 end
 
-heteroagentoptions.useCustomModelStats=0;
-if isfield(heteroagentoptions,'CustomModelStats')
-    heteroagentoptions.useCustomModelStats=1;
+if ~isfield(heteroagentoptions,'useCustomModelStats')
+    heteroagentoptions.useCustomModelStats=0;
+    if isfield(heteroagentoptions,'CustomModelStats')
+        heteroagentoptions.useCustomModelStats=1;
+    else
+        for ii=1:length(Names_i)
+            if isfield(heteroagentoptions,Names_i{ii}) && isfield(heteroagentoptions.(Names_i{ii}),'CustomModelStats')
+                heteroagentoptions.useCustomModelStats=1;
+                break
+            end
+        end
+    end
 end
 
 if heteroagentoptions.fminalgo==0
@@ -319,9 +328,9 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.verbose=0;
     end
     
-    if exist('simoptions','var') % vfoptions.verbose (allowed to depend on permanent type)
+    if exist('simoptions','var') % simoptions.verbose (allowed to depend on permanent type)
         if ~isempty(simoptions)
-            PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some vfoptions will differ by permanent type, will clean these up as we go before they are passed
+            PTypeStructure.(iistr).simoptions=PType_Options(simoptions,Names_i,ii); % some simoptions will differ by permanent type, will clean these up as we go before they are passed
         else
             PTypeStructure.(iistr).simoptions.verbose=0;
         end
@@ -436,10 +445,10 @@ for ii=1:PTypeStructure.N_i
         end
     end
 
+    heteroagentoptions.gridsinGE(ii)=0;
     %% Set up exogenous shock grids now (so they can then just be reused every time)
     % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
     % parameter that is being determined in general eqm
-    heteroagentoptions.gridsinGE(ii)=0;
     if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
         tempExogShockFnParamNames=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.ExogShockFn);
         % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
@@ -454,57 +463,79 @@ for ii=1:PTypeStructure.N_i
             heteroagentoptions.gridsinGE(ii)=1;
         end
     end
-    % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
-    if heteroagentoptions.gridsinGE(ii)==0
-        % Some of the shock grids depend on parameters that are determined in general eqm
-        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
-        % Note: these are actually z_gridvals_J and pi_z_J
-        PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
-        PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
+    %% Handle below any infinite horizon cases mixed with our FHorz cases
+    if isfinite(PTypeStructure.(iistr).N_j)
+        % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
+        if heteroagentoptions.gridsinGE(ii)==0
+            % Some of the shock grids depend on parameters that are determined in general eqm
+            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+            % Note: these are actually z_gridvals_J and pi_z_J
+            PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
+            PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
+        else
+            PTypeStructure.(iistr).z_gridvals_J=[];
+            PTypeStructure.(iistr).pi_z_J=[];
+        end
+        PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'z_grid'); % Should not be used, as now have z_gridvals_J
+        PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'pi_z'); % Should not be used, as now have pi_z_J
+         
+        %%
+        if isstruct(jequaloneDist)
+            if isfield(jequaloneDist,PTypeStructure.Names_i{ii})
+                if isa(jequaloneDist, 'function_handle')
+                    [PTypeStructure.(iistr).jequaloneDist,~,PTypeStructure.(iistr).Parameters]=jequaloneDist_PType(jequaloneDist.(iistr),PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_i,PTypeStructure.(iistr).PTypeDistParamNames,0);
+                else
+                    PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(PTypeStructure.Names_i{ii});
+                end
+            else
+                if isfinite(PTypeStructure.(iistr).N_j)
+                    sprintf(['ERROR: You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
+                    dbstack
+                end
+            end
+        else
+            PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
+        end
+
+        % Handle age-dependent case in FHorz
+        PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames;
+        if isa(AgeWeightsParamNames,'struct')
+            if isfield(AgeWeightsParamNames,Names_i{ii})
+                PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames.(Names_i{ii});
+            else
+                if isfinite(PTypeStructure.(iistr).N_j)
+                    sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
+                    dbstack
+                end
+            end
+        end
+        % Move other, common PTypeStructure cases down below InfHorz code (just below)
     else
-        PTypeStructure.(iistr).z_gridvals_J=[];
-        PTypeStructure.(iistr).pi_z_J=[];
+        % If z (and e) are not determined in GE, then compute z_gridvals and pi_z
+        % Note that these names are distinct from z_gridvals_J and pi_z_J
+        % so we will catch when we are sending FHorz grids to InfHorz and
+        % vice-versa.
+        if heteroagentoptions.gridsinGE(ii)==0
+            % Some of the shock grids depend on parameters that are determined in general eqm
+            [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+            PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
+            PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
+        else
+            PTypeStructure.(iistr).z_gridvals=[];
+            PTypeStructure.(iistr).pi_z=[];
+        end
     end
+
+    % PTypeStructure cases common to FHorz and InfHorz from above...
     % Regardless of whether they are done here of in _subfn, they will be
     % precomputed by the time we get to the value fn, staty dist, etc. So
     PTypeStructure.(iistr).vfoptions.alreadygridvals=1;
     PTypeStructure.(iistr).simoptions.alreadygridvals=1;
-    PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'z_grid'); % Should not be used, as now have z_gridvals_J
-    PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'pi_z'); % Should not be used, as now have pi_z_J
-     
-    %%
-    if isstruct(jequaloneDist)
-        if isfield(jequaloneDist,PTypeStructure.Names_i{ii})
-            if isa(jequaloneDist, 'function_handle')
-                [PTypeStructure.(iistr).jequaloneDist,~,PTypeStructure.(iistr).Parameters]=jequaloneDist_PType(jequaloneDist.(iistr),PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_i,PTypeStructure.(iistr).PTypeDistParamNames,0);
-            else
-                PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(PTypeStructure.Names_i{ii});
-            end
-        else
-            if isfinite(PTypeStructure.(iistr).N_j)
-                sprintf(['ERROR: You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
-                dbstack
-            end
-        end
-    else
-        PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
-    end
-    
+
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
         PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
-    end
-    PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames;
-    if isa(AgeWeightsParamNames,'struct')
-        if isfield(AgeWeightsParamNames,Names_i{ii})
-            PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames.(Names_i{ii});
-        else
-            if isfinite(PTypeStructure.(iistr).N_j)
-                sprintf(['ERROR: You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
-            end
-        end
     end
     
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);

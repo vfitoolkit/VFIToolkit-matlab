@@ -11,13 +11,13 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 % jequaloneDist can either be same for all permanent types, or must be passed as a structure.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
-% The stationary distribution be a structure and will contain both the
+% The stationary distribution must be a structure and will contain both the
 % weights/distribution across the permenant types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
 % is to some extent left to the user. You can, for example, input
-% parameters that differ by permanent type as a vector with different rows f
+% parameters that differ by permanent type as a vector with different rows
 % for each type, or as a structure with different fields for each type.
 %
 % Any input that does not depend on the permanent type is just passed in
@@ -176,7 +176,12 @@ if any(computeForThesei==0)
             ii=ii+1;
             Names_i{ii}=Names_i2{ii2};
         else % tell the user about it
-            fprintf(['LifeCycleProfiles_FHorz_Case1_PType: Ignoring the ', num2str(ii2), '-th PType, ',Names_i2{ii2}, ' because it is infinite horizon \n']);
+            suffix='th';
+            if ii2<4 % Good up to 20 PTypes
+                suffix_cells={'st', 'nd', 'rd'};
+                suffix=suffix_cells{ii2};
+            end
+            fprintf(['LifeCycleProfiles_FHorz_Case1_PType: Ignoring the %d-%s PType { %s } because it is infinite horizon \n', ii2, suffix, Names_i2{ii2}]);
         end
     end   
     % Eliminate any no longer relevant functions from FnsToEvaluate (those which are only used for infinite horizon)
