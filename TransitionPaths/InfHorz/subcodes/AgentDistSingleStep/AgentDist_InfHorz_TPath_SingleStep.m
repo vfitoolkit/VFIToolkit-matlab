@@ -8,10 +8,6 @@ function AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,I
 
 % AgentDist is already sparse and on cpu
 
-if length(size(Policy_aprimez))>2
-    II1=repmat(II1,2,1);
-    IIones=repmat(IIones,2,1);
-end
 Gammatranspose=sparse(gather(Policy_aprimez),II1,IIones,N_a*N_z,N_a*N_z);
 
 % Two steps of the Tan improvement
