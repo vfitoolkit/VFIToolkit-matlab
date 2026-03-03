@@ -55,8 +55,13 @@ AgentDist=AgentDist_initial;
 AggVarsPath=zeros(length(FnsToEvaluate),T-1);
 
 % Precompute for later
-II1=gpuArray(1:1:N_a*N_z);
-IIones=ones(N_a*N_z,1,'gpuArray');
+if N_d>0
+    II1=gpuArray(repmat(1:1:N_a*N_z,size(PolicyIndexesPath,1),1));
+    IIones=ones(size(PolicyIndexesPath,1),N_a*N_z,1,'gpuArray');
+else
+    II1=gpuArray(1:1:N_a*N_z);
+    IIones=ones(N_a*N_z,1,'gpuArray');
+end
 
 for tt=1:T-1
     
