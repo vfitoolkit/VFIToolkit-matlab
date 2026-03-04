@@ -117,6 +117,7 @@ pi_z_big2=gpuArray(repmat(pi_z_big1,2,1)); % (a-z-2,zprime)
 
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1; % force going into the next while loop at least one iteration
+tempcounter=1; % reset tempcounter
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
 
