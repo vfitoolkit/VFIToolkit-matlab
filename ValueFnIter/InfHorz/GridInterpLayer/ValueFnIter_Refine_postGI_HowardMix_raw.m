@@ -116,6 +116,7 @@ pi_z_alt2=shiftdim(pi_z,-2);
 
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1; % force going into the next while loop at least one iteration
+tempcounter=1; % reset tempcounter
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
 
