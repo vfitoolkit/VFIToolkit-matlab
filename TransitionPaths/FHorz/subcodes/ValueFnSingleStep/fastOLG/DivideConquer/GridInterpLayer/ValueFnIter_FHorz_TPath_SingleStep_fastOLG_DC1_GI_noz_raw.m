@@ -51,7 +51,7 @@ end
 EVinterp=interp1(a_grid,EV,aprime_grid);
 
 DiscountedEV=repelem(shiftdim(DiscountFactorParamsVec.*EV,-1),N_d,1,1); % [N_d,N_a,1,N_j], singular first dimension for d
-DiscountedEVinterp=repelem(DiscountFactorParamsVec.*EVinterp,N_d,1,1); % [N_d*n2aprime,1,N_j], singular first dimension for d
+DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime,1,N_j], singular first dimension for d
 
 % n-Monotonicity
 ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn, n_d, N_j, d_gridvals, a_grid, a_grid(level1ii), ReturnFnParamsAgeMatrix,1);
@@ -90,8 +90,8 @@ midpoints_jj=max(min(midpoints_jj,n_a-1),2); % avoid the top end (inner), and av
 aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
 % aprime possibilities are n_d-by-n2long-by-n_a-by-N_j
 ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_noz_Par2(ReturnFn,n_d,N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid,ReturnFnParamsAgeMatrix,2);
-daprimej=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*n2aprime*jind;
-entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(daprimej(:)),[N_d*n2long,N_a,N_j]);
+aprimej=aprimeindexes+n2aprime*jind;
+entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[N_d*n2long,N_a,N_j]);
 [V,maxindexL2]=max(entireRHS_ii,[],1);
 V=squeeze(V);
 d_ind=rem(maxindexL2-1,N_d)+1;

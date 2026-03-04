@@ -67,8 +67,7 @@ EVinterp=interp1(a_grid,EV,aprime_grid);
 DiscountedEV=DiscountFactorParamsVec.*EV;
 DiscountedEV=repelem(shiftdim(DiscountedEV,-1),N_d,1,1); % [d,aprime,1,j]
 
-DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp;
-DiscountedEVinterp=repelem(shiftdim(DiscountedEVinterp,-1),N_d,1,1); % [d,aprime,1,j]
+DiscountedEVinterp=DiscountFactorParamsVec.*EVinterp; % [n2aprime fine,1,j,z]
 
 if vfoptions.lowmemory==0
     
@@ -109,8 +108,8 @@ if vfoptions.lowmemory==0
     aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
     % aprime possibilities are n_d-by-n2long-by-n_a-by-N_j-by-n_e
     ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn,n_d, n_e, N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid, e_gridvals_J, ReturnFnParamsAgeMatrix,2);
-    daprimej=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*n2aprime*jind;
-    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(daprimej(:)),[N_d*n2long,N_a,N_j,N_e]);
+    aprimej=aprimeindexes+n2aprime*jind;
+    entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[N_d*n2long,N_a,N_j,N_e]);
     [V,maxindexL2]=max(entireRHS_ii,[],1);
     V=reshape(V,[N_a*N_j,N_e]);
     d_ind=rem(maxindexL2-1,N_d)+1;
@@ -164,8 +163,8 @@ elseif vfoptions.lowmemory==1
         aprimeindexes=(midpoints_jj+(midpoints_jj-1)*n2short)+(-n2short-1:1:1+n2short); % aprime points either side of midpoint
         % aprime possibilities are n_d-by-n2long-by-n_a-by-N_j
         ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_fastOLG_DC1_Par2(ReturnFn,n_d, special_n_e, N_j,d_gridvals,aprime_grid(aprimeindexes),a_grid, e_vals, ReturnFnParamsAgeMatrix,2);
-        daprimej=(1:1:N_d)'+N_d*(aprimeindexes-1)+N_d*n2aprime*jind;
-        entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(daprimej(:)),[N_d*n2long,N_a,N_j]);
+        aprimej=aprimeindexes+n2aprime*jind;
+        entireRHS_ii=ReturnMatrix_ii+reshape(DiscountedEVinterp(aprimej(:)),[N_d*n2long,N_a,N_j]);
         [Vtemp,maxindexL2]=max(entireRHS_ii,[],1);
         V(:,e_c)=reshape(Vtemp,[N_a*N_j,1]);
         d_ind=rem(maxindexL2-1,N_d)+1;
