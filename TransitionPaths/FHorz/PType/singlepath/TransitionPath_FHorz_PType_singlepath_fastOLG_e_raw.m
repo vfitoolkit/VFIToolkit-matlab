@@ -12,6 +12,9 @@ end
 l_a=length(n_a);
 l_aprime=length(n_a);
 l_z=length(n_z);
+l_e=length(n_e);
+l_ze=l_z+l_e;
+N_ze=N_z*N_e;
 
 %%
 % fastOLG so everything is (a,j,z,e)

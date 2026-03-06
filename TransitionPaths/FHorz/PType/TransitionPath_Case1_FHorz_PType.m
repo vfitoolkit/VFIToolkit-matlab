@@ -450,6 +450,7 @@ for ii=1:PTypeStructure.N_i
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
     PTypeStructure.(iistr).FnsToEvaluate={};
+    PTypeStructure.(iistr).FnsToEvaluateParamNames={};
 
     FnNames=fieldnames(FnsToEvaluate);
     PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
@@ -692,7 +693,7 @@ for ii=1:PTypeStructure.N_i
                 AgeWeights_init.(iistr)=sum(AgentDist_init.(iistr),1); % [1,N_j]
                 if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
                     AgentDist_init.(iistr)=reshape(permute(reshape(AgentDist_init.(iistr),[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp*N_z,N_e]);
-                    AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+                    AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,N_e);
                 end
             end
         end
@@ -734,10 +735,18 @@ for ii=1:PTypeStructure.N_i
             % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
         end
         % Because ptypes hardcodes transpathoptions.ageweightstrivial=0 and fastOLG=1, we need
-        if N_z==0
-            AgeWeights_T.(iistr)=repelem(AgeWeights_T.(iistr),N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-        else
-            AgeWeights_T.(iistr)=repmat(repelem(AgeWeights_T.(iistr),N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+        if N_e==0
+            if N_z==0
+                AgeWeights_T.(iistr)=repelem(AgeWeights_T.(iistr),N_a,1); % simoptions.fastOLG=1 so this is N_a*N_j-by-T
+            else
+                AgeWeights_T.(iistr)=repmat(repelem(AgeWeights_T.(iistr),N_a,1),N_z,1); % simoptions.fastOLG=1 so this is N_a*N_j*N_z-by-T
+            end
+        else % N_e>0
+            if N_z==0
+                AgeWeights_T.(iistr)=repelem(reshape(AgeWeights_T.(iistr),[N_j.(iistr),1,T]),N_a,N_e); % [N_a*N_j,N_e,T]
+            else
+                AgeWeights_T.(iistr)=repmat(repelem(reshape(AgeWeights_T.(iistr),[N_j.(iistr),1,T]),N_a,1),N_z,N_e); % [N_a*N_j*N_z,N_e,T]
+            end
         end
     
         %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0 and simoptions.fastOLG=1]
