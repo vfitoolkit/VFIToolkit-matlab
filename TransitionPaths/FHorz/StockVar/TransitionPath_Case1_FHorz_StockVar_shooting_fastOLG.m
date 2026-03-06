@@ -141,7 +141,7 @@ end
 StockVarsPathNew=zeros(size(StockVarsPathOld));
 
 %%
-while max(PricePathDist,StockVarsPathDist)>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+while max(PricePathDist,StockVarsPathDist)>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter
     if N_d>0
         PolicyIndexesPath=zeros(2,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
     else

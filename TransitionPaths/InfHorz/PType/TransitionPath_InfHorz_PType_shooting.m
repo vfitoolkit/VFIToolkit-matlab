@@ -38,7 +38,7 @@ GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 %% Iterate on the transition path
 PricePathDist=Inf;
 pathcounter=1;
-while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiterations
+while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.maxiter
     
     % For each agent type, first go back through the value & policy fns.
     % Then forwards through agent dist and agg vars.
