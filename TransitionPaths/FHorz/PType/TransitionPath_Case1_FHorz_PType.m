@@ -186,11 +186,11 @@ end
 if isstruct(GeneralEqmEqns)
     if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
         fprintf('length(PricePathNames)=%i and length(fieldnames(GeneralEqmEqns))=%i (relates to following error) \n', length(PricePathNames), length(fieldnames(GeneralEqmEqns)))
-        error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
+        error('Initial PricePath contains fewer variables than GeneralEqmEqns (structure) \n')
     end
 else
     if length(PricePathNames)~=length(GeneralEqmEqns)
-        error('Initial PricePath contains less variables than GeneralEqmEqns')
+        error('Initial PricePath contains fewer variables than GeneralEqmEqns')
     end
 end
 
@@ -515,19 +515,8 @@ for ii=1:PTypeStructure.N_i
     %% Organise V_final and AgentDist_initial
     % Reshape V_final
     if ~isfinite(PTypeStructure.(iistr).N_j)
-        if N_z==0
-            if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,1]);
-            else
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e]);
-            end
-        else
-            if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
-            else
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e]);
-            end
-        end
+        % If no z, then N_z=1 here
+        V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
     elseif transpathoptions.fastOLG==0
         N_j_temp=PTypeStructure.(iistr).N_j;
         if N_z==0
@@ -776,9 +765,15 @@ end
 %% If using a shooting algorithm, set that up
 transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
 
-%% Check if using _tminus1 and/or _tplus1 variables.
+%% Check if using _tminus1 and/or _tplus1 variables, and update PTypeStructure
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
     [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i);
+    if isstruct(tminus1AggVarsNames)
+        AggVarsPTypes=fieldnames(tminus1AggVarsNames);
+        for ii=1:length(AggVarsPTypes)
+            PTypeStructure.(AggVarsPTypes{ii}).tminus1AggVarsNames=tminus1AggVarsNames.(AggVarsPTypes{ii});
+        end
+    end
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
@@ -812,9 +807,20 @@ end
 use_tminus1AggVars=0;
 if ~isempty(tminus1AggVarsNames)
     use_tminus1AggVars=1;
-    for ii=1:length(tminus1AggVarsNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+    if isstruct(tminus1AggVarsNames)
+        AggVarsPTypes=fieldnames(tminus1AggVarsNames);
+        for nn=1:length(AggVarsPTypes)
+            for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
+                if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
+                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+                end
+            end
+        end
+    else
+        for ii=1:length(tminus1AggVarsNames)
+            if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
+                error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+            end
         end
     end
 end

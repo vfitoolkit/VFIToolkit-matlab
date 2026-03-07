@@ -128,10 +128,11 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     % After that is finished we can put the AggVars together, evaluate GE conditions, and update price path
     AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T-1,N_i); % Does not include period T
     for ii=1:N_i
-        iistr=PTypeStructure.Names_i{ii};
-        
+        iistr=PTypeStructure.Names_i{ii};        
+
         % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
         % AgentDist=AgentDist_initial.(iistr);
+        % WARNING: The following would overwrite themselves next iteration
         % V_final=V_final.(iistr);
         % AgeWeights_T=AgeWeights_T.(iistr);
         % jequalOneDist_T=jequalOneDist_T.(iistr);
@@ -253,8 +254,24 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     
     %% Do the general eqm conditions and create PricePathNew based on these
     if all(transpathoptions.GEptype==0)
-        GEcondnPath=zeros(T,length(GEeqnNames));
-            
+        GECondnPath=zeros(T,length(GEeqnNames));
+
+        warning("do we need to do this for AggVars?")
+        % Restore all AggVarNames and tminus1AggVarsNames for GEeqns
+        AggVarNames=cell(1,N_i);
+        tminus1AggVarsNames=cell(1,N_i);
+        use_tminus1AggVars=0;
+        for ii=1:N_i
+            iistr=PTypeStructure.Names_i{ii};
+            AggVarNames{ii}=PTypeStructure.(iistr).AggVarNames;
+            if isfield(PTypeStructure.(iistr), 'tminus1AggVarsNames')
+                use_tminus1AggVars=1;
+                tminus1AggVarsNames{ii}=PTypeStructure.(iistr).tminus1AggVarsNames;
+            end
+        end
+        AggVarNames=vertcat(AggVarNames{:});
+        tminus1AggVarsNames=vertcat(tminus1AggVarsNames{:});
+        
         % Parameters that may be relevant to General Eqm
         Parameters=PTypeStructure.ParametersRaw;
 
@@ -332,7 +349,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             
         end % Done loop over tt, evaluating the GE conditions
     else % Some GE conditions depend on PType
-        GEcondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
+        GECondnPath=zeros(T,nGeneralEqmEqns_acrossptypes);
+        error("need to fit these loops together")
+
+        % Restore AggVarNames and tminus1AggVarsNames by PType for GEeqns
+        AggVarNames=cell(1,N_i);
+        tminus1AggVarsNames=cell(1,N_i);
+        use_tminus1AggVars=0;
+        for ii=1:N_i
+            iistr=PTypeStructure.Names_i{ii};
+            AggVarNames{ii}=PTypeStructure.(iistr).AggVarNames;
+            tminus1AggVarsNames{ii}=PTypeStructure.(iistr).tminus1AggVarsNames;
+            if ~isempty(tminus1AggVarsNames{ii})
+                use_tminus1AggVars=1;
+            end
+        end
+        AggVarNames=vertcat(AggVarNames{:});
+        tminus1AggVarsNames=vertcat(tminus1AggVarsNames{:});
         
         % Parameters that may be relevant to General Eqm
         Parameters=PTypeStructure.ParametersRaw;
