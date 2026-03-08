@@ -41,10 +41,7 @@ if ~isfield(options,'GEptype') % For models without permanent type
     for ii=1:length(GEeqnNames)
         for jj=1:size(temp,1)
             if strcmp(temp{jj,1},GEeqnNames{ii}) % Names match
-                options.GEnewprice3.howtoupdate{ii,1}=temp{jj,1};
-                options.GEnewprice3.howtoupdate{ii,2}=temp{jj,2};
-                options.GEnewprice3.howtoupdate{ii,3}=temp{jj,3};
-                options.GEnewprice3.howtoupdate{ii,4}=temp{jj,4};
+                options.GEnewprice3.howtoupdate{ii,1:4}=temp{jj,1:4};
             end
         end
     end
@@ -84,15 +81,16 @@ else
     for gg=1:nGeneralEqmEqns
         if options.GEptype(gg)==1
             for gg2=1:size(options.GEnewprice3.howtoupdate,1)
-                if strcmp(options.GEnewprice3.howtoupdate{gg2,1},GEPriceParamNames{gg})
+                if strcmp(options.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{gg})
                     pricename_gg=options.GEnewprice3.howtoupdate{gg2,2};
-                end
-            end
-            for pp=1:length(GEPriceParamNames)
-                if strcmp(pricename_gg,GEPriceParamNames{pp})
-                    if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
-                        fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},GEPriceParamNames{pp})
-                        error('You declared a GE condition to depend on permenent type, but the price that relates to it (in options.GEnewprice3.howtoupdate) does not depend on ptype')
+                    for pp=1:length(GEPriceParamNames)
+                        if strcmp(pricename_gg,GEPriceParamNames{pp})
+                            if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
+                                fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},GEPriceParamNames{pp})
+                                error('You declared a GE condition to depend on permenent type, but the price that relates to it (in options.GEnewprice3.howtoupdate) does not depend on ptype')
+                            end
+                            break
+                        end
                     end
                 end
             end
