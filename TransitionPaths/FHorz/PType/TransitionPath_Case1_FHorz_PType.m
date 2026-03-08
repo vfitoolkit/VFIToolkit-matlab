@@ -512,7 +512,7 @@ for ii=1:PTypeStructure.N_i
     % Convert z and e to age-dependent joint-grids and transtion matrix
     % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
     
-    %% Organise V_final and AgentDist_initial
+    %% Organise V_final, AgeWeights and AgentDist_init
     % Reshape V_final
     if ~isfinite(PTypeStructure.(iistr).N_j)
         % If no z, then N_z=1 here
@@ -676,7 +676,9 @@ for ii=1:PTypeStructure.N_i
         end
         PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
     end
-
+    AgentDist_initial.(iistr)=AgentDist_init;
+    clear AgentDist_init
+    
     %% Which parts of ParamPath and PricePath relate to ptype ii
     % Some ParamPath and PricePath parameters may depend on ptype
     PTypeStructure.(iistr).RelevantPricePath=ones(1,size(PricePath0,2)); % start will all relevant
