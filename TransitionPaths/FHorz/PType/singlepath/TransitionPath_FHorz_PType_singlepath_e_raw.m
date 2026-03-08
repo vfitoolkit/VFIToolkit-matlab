@@ -9,7 +9,10 @@ if N_d==0
 else
     l_d=length(n_d);
 end
-l_aprime=length(n_a);
+l_a=length(n_a);
+l_aprime=l_a;
+N_ze=prod(n_z)*prod(n_e);
+l_ze=length(n_z)+length(n_e);
 
 %%
 % Shapes:
