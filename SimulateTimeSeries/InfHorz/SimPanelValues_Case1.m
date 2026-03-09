@@ -249,11 +249,11 @@ else
     end
 end
 
-a_gridvals=CreateGridvals(n_a,a_grid,1); % 1 at end indicates output as matrices.
+a_gridvals=gpuArray(CreateGridvals(n_a,a_grid,1)); % 1 at end indicates output as matrices.
 if all(size(z_grid)==[prod(n_z),1])
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % 1 at end indicates output as matrices.
+    z_gridvals=gpuArray(CreateGridvals(n_z,z_grid,1)); % 1 at end indicates output as matrices.
 elseif all(size(z_grid)==[prod(n_z),length(n_z)])
-    z_gridvals=z_grid; % already gridvals
+    z_gridvals=gpuArray(z_grid); % already gridvals
 end
 
 %% Now switch everything to gpu so can use arrayfun() to evaluates all the FnsToEvaluate
