@@ -30,6 +30,13 @@ if ~isstruct(GeneralEqmEqns)
     error('Cannot call this unless GeneralEqmEqns is struct')
 end
 
+if size(options.GEnewprice3.howtoupdate,2)~=4
+    error('options.GEnewprice3.howtoupdate should have 4 columns: GECondnName, Price name, add, factor')
+end
+if size(options.GEnewprice3.howtoupdate,1)~=nGeneralEqmEqns
+    error('options.GEnewprice3.howtoupdate should have ones row for each general eqm eqn')
+end
+
 %%
 if ~isfield(options,'GEptype') % For models without permanent type
 

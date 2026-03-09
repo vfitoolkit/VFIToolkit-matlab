@@ -14,8 +14,7 @@ if vfoptions.lowmemory>0
     special_n_e=ones(1,length(n_e));
 end
 if vfoptions.lowmemory>1
-    l_z=length(n_z);
-    special_n_z=ones(1,l_z);
+    special_n_z=ones(1,length(n_z));
 end
 
 ambiguity_pi_e_J=shiftdim(ambiguity_pi_e_J,-2); % Move to third dimension for e_c=1:n_e

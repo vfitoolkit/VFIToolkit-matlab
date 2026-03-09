@@ -2,7 +2,6 @@ function Values=EvalFnOnSimPanelIndex(FnToEvaluate,ParamCell,daprime_val,a_val,z
 % Note: This also handles e and semiz, just put them together with the z as for this function there is no difference
 % Note: z_grid needs to be a joint-grid
 
-
 if l_daprime==1
     if l_a==1
         if l_z==0

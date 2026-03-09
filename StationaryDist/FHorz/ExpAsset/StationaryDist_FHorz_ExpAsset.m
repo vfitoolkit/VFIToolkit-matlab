@@ -95,8 +95,11 @@ for jj=1:N_j
     elseif l_a==3 % two other assets, then experience asset
         Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
         Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1)*n_a(2);
+    elseif l_a==4 % three other assets, then experience asset
+        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(shiftdim(Policy(l_d+3,:,:,jj),1)-1)+n_a(1)*n_a(2)*n_a(3)*(aprimeIndexes-1);
+        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1)*n_a(2)*n_a(3);
     else
-        error('Not yet implemented experience asset with length(n_a)>3')
+        error('Not yet implemented experience asset with length(n_a)>4')
     end
 
     PolicyProbs(:,:,1,jj)=aprimeProbs;

@@ -17,8 +17,7 @@ if vfoptions.lowmemory>0
     % e_gridvals is created below
 end
 if vfoptions.lowmemory>1
-    l_z=length(n_z);
-    special_n_z=ones(1,l_z);
+    special_n_z=ones(1,length(n_z));
     % z_gridvals is created below
 end
 
