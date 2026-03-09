@@ -173,9 +173,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         % simoptions.fastOLG=1 is hardcoded
         if simoptions.gridinterplayer==0
-            AgentDistnext=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,PolicyaprimejzPath(:,tt),N_a,N_z,N_e,N_j,pi_z_J_sim, pi_e_J_sim,II1orII,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % II1orII is II1
+            AgentDistnext=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,gather(PolicyaprimejzPath(:,tt)),N_a,N_z,N_e,N_j,pi_z_J_sim, pi_e_J_sim,II1orII,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % II1orII is II1
         elseif simoptions.gridinterplayer==1
-            AgentDistnext=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_e_raw(AgentDist,PolicyaprimejzPath(:,:,tt),PolicyProbsPath(:,:,tt),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II1orII,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % II1orII is II
+            AgentDistnext=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_e_raw(AgentDist,gather(PolicyaprimejzPath(:,:,tt)),gather(PolicyProbsPath(:,:,tt)),N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II1orII,exceptlastj,exceptfirstj,justfirstj,jequalOneDist); % II1orII is II
         end
 
         %% AggVars
