@@ -20,21 +20,23 @@ pi_semiz_J=gather(pi_semiz_J);
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z,N_probs,N_j]);
 PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
 
+pi_z_J=gather(pi_z_J);
+
 N_bothz=N_semiz*N_z;
 
 %% Use Tan improvement
 
 StationaryDist=zeros(N_a*N_semiz*N_z,N_j,'gpuArray'); % StationaryDist cannot be sparse
 StationaryDist(:,1)=jequaloneDistKron;
-StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
+StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
 
 % Precompute; II2 used only for sparse matrix creation...best done on CPU
 II2=repelem((1:1:N_a*N_semiz*N_z)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
 
 for jj=1:(N_j-1)
-
+    
     Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_bothz,N_a*N_bothz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
-
+    
     % First step of Tan improvement
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);
 
