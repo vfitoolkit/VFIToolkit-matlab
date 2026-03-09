@@ -309,6 +309,16 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
     
+    if vfoptions.experienceasset==1
+        if ~isfield(vfoptions,'l_dexperienceasset')
+            vfoptions.l_dexperienceasset=1; % by default, only one decision variable influences the experienceasset
+        end
+    elseif vfoptions.experienceassetu==1
+        if ~isfield(vfoptions,'l_dexperienceassetu')
+            vfoptions.l_dexperienceassetu=1; % by default, only one decision variable influences the experienceassetu
+        end
+    end
+
     if isfield(vfoptions,'n_semiz')
         % Split decision variables (other, semiexo, experienceasset)
         if length(n_d)>2
