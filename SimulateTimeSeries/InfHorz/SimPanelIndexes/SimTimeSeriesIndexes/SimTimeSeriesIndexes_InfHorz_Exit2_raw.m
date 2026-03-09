@@ -1,4 +1,4 @@
-function SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,cumsum_pi_z,burnin,seedpoint,simperiods,exitprobabilities)
+function SimTimeSeriesKron=SimTimeSeriesIndexes_InfHorz_Exit2_raw(PolicyIndexesKron, CondlProbOfSurvivalKron,cumsum_pi_z,seedpoint,simperiods,exitprobabilities)
 % Exit2 is same as Exit, but allowing for 'mix' of endogenous and exogenous exit.
 
 % burnin=simoptions.burnin;
@@ -22,24 +22,6 @@ SimTimeSeriesKron=nan(2,simperiods); % Will just leave the nan on exit/death
 currstate=seedpoint;
 % cumsum_pi_z=cumsum(pi_z,2);
 
-if burnin>0
-    for t=1:burnin
-
-        temp=rand(1,1);
-        if temp>exitprobabilities(1)+exitprobabilities(2) % exog exit
-            currstate(1)=0;
-            break
-        elseif temp>exitprobabilities(1) % endog exit (maybe, agent has to make decision))
-            if CondlProbOfSurvivalKron(currstate(1),currstate(2))>0 % agent chooses Death/Exit (Note that CondlProbOfSurvivalKron contains 1-ExitPolicy, so really checking for ExitPolicy==1)
-                currstate(1)=0;
-                break
-            end
-        end
-
-        currstate(1)=PolicyIndexesKron(currstate(1),currstate(2));
-        [~,currstate(2)]=max(cumsum_pi_z(currstate(2),:)>rand(1,1));
-    end
-end
 if currstate(1)>0 % Still alive
     for t=1:simperiods
         SimTimeSeriesKron(1,t)=currstate(1); %a_c
