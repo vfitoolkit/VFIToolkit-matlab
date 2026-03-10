@@ -1,4 +1,4 @@
-function CorrTransProbsPath=EvalFnOnTransPath_CorrTransProbs_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid, pi_z,simoptions)
+function CorrTransProbsPath=EvalFnOnTransPath_AutoCorrTransProbs_InfHorz(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid, pi_z,simoptions)
 % Returns stats on (auto) correlation and transition probabilities
 % You must input the names for the FnsToEvaluate that you want the transition probabilities for (by default it won't do any)
 % Done as simoptions.transprobs
