@@ -7,7 +7,7 @@ if ~exist('vfoptions','var')
 else
     vfoptions.tolerance=10^(-9);
     if isfield(vfoptions,'exoticpreferences')
-        error('ValueFnFromPolicy_Case1() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
+        error('ValueFnFromPolicy_InfHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
     end
 end
 
