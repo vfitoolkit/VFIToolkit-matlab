@@ -32,7 +32,8 @@ if any(heteroagentoptions.gridsinGE)
 end
 
 %%
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
+Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -52,29 +53,41 @@ for ii=1:PTypeStructure.N_i
 
     
     if isfinite(PTypeStructure.(iistr).N_j)
-        [~, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
+        [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
         StationaryDist_ii=StationaryDist_FHorz_Case1(PTypeStructure.(iistr).jequaloneDist,PTypeStructure.(iistr).AgeWeightParamNames,Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).simoptions);
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
         AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).N_j, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);
     else  % PType actually allows for infinite horizon as well
-        [~, Policy_ii]=ValueFnIter_Case1(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
-        StationaryDist_ii=StationaryDist_Case1(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
+        [V_ii, Policy_ii]=ValueFnIter_Case1(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);
+        StationaryDist_ii=StationaryDist_Case1(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
-        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);
+        AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).simoptions);
     end
-    
+    if heteroagentoptions.useCustomModelStats==1
+        Ptype_cells{ii}={V_ii,Policy_ii,StationaryDist_ii};
+    end
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
+    % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+    FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+    for jj=ii+1:PTypeStructure.N_i
+        jjstr=PTypeStructure.iistr{jj};
+        for aa=1:length(AggVars_ii)
+            PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
+        end
+    end
 end
-AggVars=gather(sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2));
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
 % Note: AggVars is a vector
 
 
 
-%% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+%% Put GE parameters and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
 % already did the basic GE params
 % for pp=1:nGEprices
 %     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 % end
+
+% We pushed AggVars down into the PTypeStructure parameters; this puts them into the unified Parameter structure
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
@@ -92,12 +105,27 @@ if heteroagentoptions.useintermediateEqns==1
 end
 
 %% Custom Model Stats
+customstatnames=struct();
 if heteroagentoptions.useCustomModelStats==1
-    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
-    % Note: anything else you want, just 'hide' it in heteroagentoptions
-    customstatnames=fieldnames(CustomStats);
-    for pp=1:length(customstatnames)
-        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    if isfield(heteroagentoptions, 'CustomModelStats')
+        error("Universal PType handler for CustomModelStats not yet implemented")
+    else
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.iistr{ii};
+            if ~isfield(heteroagentoptions, iistr) || ~isfield(heteroagentoptions.(iistr), 'CustomModelStats')
+                continue
+            end
+            if isfinite(PTypeStructure.(iistr).N_j)
+                CustomStats.(iistr)=heteroagentoptions.(iistr).CustomModelStats(Ptype_cells{ii}{1},Ptype_cells{ii}{2},Ptype_cells{ii}{3},PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).FnsToEvaluate,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,heteroagentoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+            else
+                CustomStats.(iistr)=heteroagentoptions.(iistr).CustomModelStats(Ptype_cells{ii}{1},Ptype_cells{ii}{2},Ptype_cells{ii}{3},PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).FnsToEvaluate,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).z_gridvals,PTypeStructure.(iistr).pi_z,heteroagentoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+            end
+            % Note: anything else you want, just 'hide' it in heteroagentoptions
+            customstatnames.(iistr)=fieldnames(CustomStats.(iistr));
+            for pp=1:length(customstatnames.(iistr))
+                PTypeStructure.(iistr).Parameters.(customstatnames.(iistr){pp})=CustomStats.(iistr).(customstatnames.(iistr){pp});
+            end
+        end
     end
 end
 
@@ -154,8 +182,13 @@ if heteroagentoptions.verbose>=1
     end
     if heteroagentoptions.useCustomModelStats==1
         fprintf('Current CustomModelStats variables: \n')
-        for ii=1:length(customstatnames)
-            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{ii},CustomStats.(customstatnames{ii}))
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.iistr{ii};
+            if isfield(customstatnames, iistr)
+                for pp=1:length(customstatnames.(iistr))
+                    fprintf(heteroagentoptions.verboseaccuracy1,customstatnames.(iistr){pp},CustomStats.(iistr).(customstatnames.(iistr){pp}))
+                end
+            end
         end
     end
     fprintf('Current GeneralEqmEqns: \n')
