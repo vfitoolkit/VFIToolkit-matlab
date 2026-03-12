@@ -32,11 +32,8 @@ end
 
 
 %%
-if heteroagentoptions.parallel==2
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
-else
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1); % numFnsToEvaluate is independent of the ptype
-end
+Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -59,22 +56,21 @@ for ii=1:PTypeStructure.N_i
     StationaryDist_ii=StationaryDist_Case1(Policy_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).simoptions,PTypeStructure.(iistr).Parameters);
     % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
     AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_grid, PTypeStructure.(iistr).simoptions);
-    
-    for kk=1:PTypeStructure.numFnsToEvaluate
-        jj=PTypeStructure.(iistr).WhichFnsForCurrentPType(kk);
-        if jj>0
-            AggVars(kk)=AggVars(kk)+PTypeStructure.(iistr).PTypeWeight*AggVars_ii(jj);
+    if heteroagentoptions.useCustomModelStats==1
+        Ptype_cells{ii}={V_ii,Policy_ii,StationaryDist_ii};
+    end
+    AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
+    % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+    FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+    for jj=ii+1:PTypeStructure.N_i
+        jjstr=PTypeStructure.iistr{jj};
+        for aa=1:length(AggVars_ii)
+            PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
         end
     end
-
-    % if heteroagentoptions.useCustomModelStats==1
-    %     % Need to keep a bunch of stuff just in case
-    %     V.(iistr)=V_ii;
-    %     Policy.(iistr)=Policy_ii;
-    %     StationaryDist.(iistr)=StationaryDist_ii;
-    % end
 end
-
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
+% Note: AggVars is a vector
 
 
 %% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
@@ -82,19 +78,10 @@ end
 % for pp=1:nGEprices
 %     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 % end
+
+% We pushed AggVars down into the PTypeStructure parameters; this puts them into the unified Parameter structure
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
-end
-
-%% Custom Model Stats
-if heteroagentoptions.useCustomModelStats==1
-    error('CustomModelStats not yet implemented for use with permanent types in InfHorz')
-    % CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
-    % % Note: anything else you want, just 'hide' it in heteroagentoptions
-    % customstatnames=fieldnames(CustomStats);
-    % for pp=1:length(customstatnames)
-    %     Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
-    % end
 end
 
 %% Intermediate Eqns
@@ -108,6 +95,29 @@ if heteroagentoptions.useintermediateEqns==1
         Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
     end
 end
+
+%% Custom Model Stats
+customstatnames=struct();
+if heteroagentoptions.useCustomModelStats==1
+    if isfield(heteroagentoptions, 'CustomModelStats')
+        error("Universal PType handler for CustomModelStats not yet implemented")
+    else
+        for ii=1:PTypeStructure.N_i
+            iistr=PTypeStructure.iistr{ii};
+            if ~isfield(heteroagentoptions, iistr) || ~isfield(heteroagentoptions.(iistr), 'CustomModelStats')
+                continue
+            end
+            CustomStats.(iistr)=heteroagentoptions.(iistr).CustomModelStats(Ptype_cells{ii}{1},Ptype_cells{ii}{2},Ptype_cells{ii}{3},PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).FnsToEvaluate,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).z_gridvals,PTypeStructure.(iistr).pi_z,heteroagentoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+            % Note: anything else you want, just 'hide' it in heteroagentoptions
+            customstatnames.(iistr)=fieldnames(CustomStats.(iistr));
+            for pp=1:length(customstatnames.(iistr))
+                PTypeStructure.(iistr).Parameters.(customstatnames.(iistr){pp})=CustomStats.(iistr).(customstatnames.(iistr){pp});
+            end
+        end
+    end
+end
+
+
 
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
