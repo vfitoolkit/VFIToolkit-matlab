@@ -166,7 +166,9 @@ if isstruct(AgeWeightsParamNames)
                 break
             end
         catch
-            error(['Failed to find parameter ', AgeWeightsParamNames.(Names_i{ii}){1}])
+            if ii==N_i
+                error(['Failed to find parameter ', AgeWeightsParamNames.(Names_i{ii}){1}])
+            end
         end
     end
 else
