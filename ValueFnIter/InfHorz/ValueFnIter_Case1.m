@@ -170,6 +170,15 @@ if vfoptions.parallel<2
     return
 end
 
+%% V0 (initial guess)
+if isfield(vfoptions,'V0')
+    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
+    vfoptions.actualV0=1;
+else
+    V0=zeros([N_a,N_z], 'gpuArray');
+    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
+end
+
 %% Check the sizes of some of the inputs
 if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'localpolicysearch')
     if N_d>0 && ~all(size(d_grid)==[sum(n_d), 1])
@@ -231,15 +240,6 @@ pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
-
-%% V0 (initial guess)
-if isfield(vfoptions,'V0')
-    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
-    vfoptions.actualV0=1;
-else
-    V0=zeros([N_a,N_z], 'gpuArray');
-    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
-end
 
 
 %% Switch to z_gridvals
