@@ -199,7 +199,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     if transpathoptions.verbose==1     
         disp('Old, New')
         % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
-        pathnametitles{:}
+        cellfun(@(x) x{1}, pathnametitles, 'UniformOutput', false)
         [PricePathOld,PricePathNew]
     end
     
