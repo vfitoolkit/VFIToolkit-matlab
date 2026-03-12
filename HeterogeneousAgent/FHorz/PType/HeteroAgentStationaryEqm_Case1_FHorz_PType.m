@@ -790,7 +790,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         z0.z=GEparamsvec0;
         [sol,GeneralEqmConditions]=solve(prob,z0);
         p_eqm_vec=sol.z;
-        % Note, doesn't really work as automattic differentiation is only for
+        % Note, doesn't really work as automatic differentiation is only for
         % supported functions, and the objective here is not a supported function
     elseif heteroagentoptions.fminalgo==3
         goal=zeros(length(GEparamsvec0),1);
