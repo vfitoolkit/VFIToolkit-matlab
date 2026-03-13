@@ -13,15 +13,9 @@ d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 r_grid=gpuArray(r_grid);
 
-if vfoptions.lowmemory>0
-    l_z=length(n_z);
+if vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 end
-if vfoptions.lowmemory>1
-    special_n_r=ones(1,length(n_r));
-    r_gridvals=CreateGridvals(n_r,r_grid,1); % The 1 at end indicates want output in form of matrix.
-end
-
 
 %% j=N_j
 
@@ -47,18 +41,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(:,:,z_c,N_j)=Vtemp;
             Policy(:,:,z_c,N_j)=maxindex;
         end
-
-    elseif vfoptions.lowmemory==2
-
-        for r_c=1:N_r
-            r_val=r_gridvals(r_c,:);
-            ReturnMatrix_rz=CreateReturnFnMatrix_ResidAsset_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_r, n_z, d_grid, a_grid, r_val, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_rz);
-            V(:,r_c,:,N_j)=Vtemp;
-            Policy(:,r_c,:,N_j)=maxindex;
-        end
-
     end
 else
     % Using V_Jplus1
@@ -92,39 +74,17 @@ else
         ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, n_z, d_grid, a_grid, r_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
         % (d,aprime,a,z)
         
-        if vfoptions.paroverz==1
-            
-            EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,3); % sum over z', leaving a singular second dimension
-            
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
+        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            
-            V(:,:,:,N_j)=shiftdim(Vtemp,1);
-            Policy(:,:,:,N_j)=shiftdim(maxindex,1);
-            
-            
-        elseif vfoptions.paroverz==0
-            
-            for z_c=1:N_z
-                ReturnMatrix_z=ReturnMatrix(:,:,:,z_c);
-                
-                % Use sparse for a few lines until sum over zprime
-                EV_z=V_Jplus1.*shiftdim(pi_z_J(z_c,:,N_j)',-2); % Note: shiftdim -3
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
-                
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
 
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                V(:,:,z_c,N_j)=Vtemp;
-                Policy(:,:,z_c,N_j)=maxindex;
-            end
-        end
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+
+        V(:,:,:,N_j)=shiftdim(Vtemp,1);
+        Policy(:,:,:,N_j)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -142,26 +102,6 @@ else
             V(:,:,z_c,N_j)=Vtemp;
             Policy(:,:,z_c,N_j)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        % Loop over r
-
-        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,3); % sum over z', leaving a singular second dimension
-
-        for r_c=1:N_r
-            r_val=r_gridvals(r_c,:);
-            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, special_n_r, n_z, d_grid, a_grid, r_val, z_gridvals_J(:,:,N_j), ReturnFnParamsVec,0);
-
-            entireRHS_r=ReturnMatrix_r+DiscountFactorParamsVec*reshape(EV,[N_d*N_a,N_a,1,N_z]);
-
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_r);
-            V(:,r_c,:,N_j)=Vtemp;
-            Policy(:,r_c,:,N_j)=maxindex;
-        end
-        
     end
 end
 
@@ -204,39 +144,18 @@ for reverse_j=1:N_j-1
         
         ReturnMatrix=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, n_z, d_grid, a_grid, r_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
         % (d,aprime,a,r,z)
+            
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
-        if vfoptions.paroverz==1
-            
-            EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,3); % sum over z', leaving a singular second dimension
-            
-            entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
 
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            
-            V(:,:,:,jj)=shiftdim(Vtemp,1);
-            Policy(:,:,:,jj)=shiftdim(maxindex,1);
-            
-        elseif vfoptions.paroverz==0
-            
-            for z_c=1:N_z
-                ReturnMatrix_z=ReturnMatrix(:,:,:,z_c);
-                
-                % Use sparse for a few lines until sum over zprime
-                EV_z=VKronNext_j.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
 
-                entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                V(:,:,z_c,jj)=Vtemp;
-                Policy(:,:,z_c,jj)=maxindex;
-            end
-        end
+        V(:,:,:,jj)=shiftdim(Vtemp,1);
+        Policy(:,:,:,jj)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -254,26 +173,6 @@ for reverse_j=1:N_j-1
             V(:,:,z_c,jj)=Vtemp;
             Policy(:,:,z_c,jj)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        % Loop over r
-
-        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-        EV=sum(EV,3); % sum over z', leaving a singular second dimension
-
-        for r_c=1:N_r
-            r_val=r_gridvals(r_c,:);
-            ReturnMatrix_r=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, special_n_r, n_z, d_grid, a_grid, r_val, z_gridvals_J(:,:,jj), ReturnFnParamsVec,0);
-
-            entireRHS_r=ReturnMatrix_r+DiscountFactorParamsVec*reshape(EV,[N_d*N_a,N_a,1,N_z]);
-
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS_r);
-            V(:,r_c,:,jj)=Vtemp;
-            Policy(:,r_c,:,jj)=maxindex;
-        end
-        
     end
 end
 

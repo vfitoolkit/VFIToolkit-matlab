@@ -1,7 +1,7 @@
 function StationaryDist=StationaryDist_FHorz_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
 %% Setup related to experience asset
-n_d2=n_d(end);
+n_d2=n_d(end-simoptions.l_dexperienceasset+1:end);
 % Split endogenous assets into the standard ones and the experience asset
 if isscalar(n_a)
     n_a1=0;
@@ -79,7 +79,7 @@ Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
 Policy_aprime=zeros(N_a,N_ze,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,2,N_j,'gpuArray'); % The fourth dimension is lower/upper grid point
-whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+whichisdforexpasset=length(n_d)-simoptions.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, d_grid, a2_grid, aprimeFnParamsVec);
@@ -95,13 +95,17 @@ for jj=1:N_j
     elseif l_a==3 % two other assets, then experience asset
         Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(aprimeIndexes-1);
         Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1)*n_a(2);
+    elseif l_a==4 % three other assets, then experience asset
+        Policy_aprime(:,:,1,jj)=shiftdim(Policy(l_d+1,:,:,jj),1)+n_a(1)*(shiftdim(Policy(l_d+2,:,:,jj),1)-1)+n_a(1)*n_a(2)*(shiftdim(Policy(l_d+3,:,:,jj),1)-1)+n_a(1)*n_a(2)*n_a(3)*(aprimeIndexes-1);
+        Policy_aprime(:,:,2,jj)=Policy_aprime(:,:,1,jj)+n_a(1)*n_a(2)*n_a(3);
     else
-        error('Not yet implemented experience asset with length(n_a)>3')
+        error('Not yet implemented experience asset with length(n_a)>4')
     end
 
     PolicyProbs(:,:,1,jj)=aprimeProbs;
     PolicyProbs(:,:,2,jj)=1-aprimeProbs;
 end
+
 
 
 %%

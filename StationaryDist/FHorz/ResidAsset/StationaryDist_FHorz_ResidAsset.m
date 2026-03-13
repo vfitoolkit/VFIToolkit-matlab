@@ -32,6 +32,12 @@ else
     rprimeFnParamNames={};
 end
 
+if isfield(simoptions,'n_e')
+    N_e=prod(simoptions.n_e);
+else
+    N_e=0;
+end
+
 %%
 if n_z(1)==0
     error('Not yet implemented n_z=0 with residualasset, (you can just pretend by using n_z=1 and pi_z=1, not using the value of z anywhere)')
@@ -90,16 +96,15 @@ Policy_arprime=zeros(N_a*N_r,N_ze,2,N_j,'gpuArray');
 Policy_arprime(:,:,1,:)=Policy_aprime+N_a*(Policy_rprime-1);
 Policy_arprime(:,:,2,:)=Policy_aprime+N_a*(Policy_rprime+1-1);
 
-
 %%
 if simoptions.gridinterplayer==0
     % Note: N_z=0 && N_e=0 is a different code
     if N_e==0 % just z
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a,N_z,N_j,pi_z_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a*N_r,N_z,N_j,pi_z_J,Parameters);
     elseif N_z==0 % just e
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a,N_e,N_j,simoptions.pi_e_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_noz_e_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a*N_r,N_e,N_j,simoptions.pi_e_J,Parameters);
     else % both z and e
-        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
+        StationaryDist=StationaryDist_FHorz_Iteration_nProbs_e_raw(jequaloneDist,AgeWeightParamNames,Policy_arprime,PolicyProbs,2,N_a*N_r,N_z,N_e,N_j,pi_z_J,simoptions.pi_e_J,Parameters);
     end
 elseif simoptions.gridinterplayer==1
     error('grid interpolation layer not yet implemented for residual assets (contact me)')

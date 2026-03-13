@@ -1,8 +1,9 @@
-function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, transpathoptions, options]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
+function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, options]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,options,gridpiboth)
 % Convert z and e to age-dependent joint-grids and transtion matrix
 % Can input vfoptions OR simoptions
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions, options
 % pi_z_J_sim and pi_e_J_sim are for simoptions.fastOLG=1 (otherwise omitted)
+% ze_gridvals_J_fastOLG is for the fastOLG version of AggVars
 
 % Sets up
 % transpathoptions.zpathtrivial=1; % z_gridvals_J and pi_z_J are not varying over the path
@@ -12,6 +13,8 @@ function [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, tr
 % and
 % transpathoptions.gridsinGE=1; % grids depend on a GE parameter and so need to be recomputed every iteration
 %                           =0; % grids are exogenous
+%
+% transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
 
 % gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_J_sim alternative transition probs
 % gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
@@ -41,6 +44,7 @@ transpathoptions.epathtrivial=1;  % will be overwritten if appropriate
 z_gridvals_J=[];
 pi_z_J=[];
 pi_z_J_sim=[];
+l_z=0;
 if N_z>0
     l_z=length(n_z);
 
@@ -227,6 +231,7 @@ end
 e_gridvals_J=[];
 pi_e_J=[];
 pi_e_J_sim=[];
+l_e=0;
 if N_e>0
     l_e=length(n_e);
     % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
@@ -298,60 +303,60 @@ if N_e>0
     else % Not ExogShockFn, or at least not any more
         if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
             if isfield(options,'e_grid')
-                if isscalar(n_e) % pointless manual hack because Matlab was shitting itself for no reason telling me it couldnt find CreateGridVals function
-                    e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
-                else
-                    e_gridvals_J=CreateGridVals(n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
-                end
-                options=rmfield(options,'e_grid');
-            elseif isfield(options,'e_grid_J')
-                if ndims(options.e_grid_J)==3 % already gridvals
-                    e_gridvals_J=gpuArray(options.e_grid_J);
-                elseif ndims(options.e_grid_J)==2
-                    e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
-                    for jj=1:N_j
-                        e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid_J(:,jj),1);
+                if ndims(options.e_grid)==3 % already age-dependent gridvals
+                    e_gridvals_J=gpuArray(options.e_grid);
+                elseif ndims(options.e_grid)==2
+                    % Could be be age-dependent e_grid_J or e_gridvals
+                    if size(options.e_grid,2)==N_j
+                        if l_e==1
+                            e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
+                        else
+                            e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
+                            for jj=1:N_j
+                                e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                            end
+                        end
+                    else
+                        e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
                     end
                 end
-                options=rmfield(options,'e_grid_J');
+                options=rmfield(options,'e_grid');
             end
         elseif gridpiboth==2 % For agent dist, we don't use grid
             if isfield(options,'pi_e')
-                pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
+                pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray'); % this works regardless of if pi_e depends on j or not
                 options=rmfield(options,'pi_e');
-            elseif isfield(options,'pi_e_J')
-                pi_e_J=gpuArray(options.pi_e_J);
-                options=rmfield(options,'pi_e_J');
             end
         elseif gridpiboth==3 || gridpiboth==4 % For value fn, both z_gridvals_J and pi_z_J
             if isfield(options,'pi_e')
-                if isscalar(n_e) % pointless manual hack because Matlab was shitting itself for no reason telling me it couldnt find CreateGridVals function
-                    e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
-                else
-                    e_gridvals_J=CreateGridVals(n_e,options.e_grid,1).*ones(1,1,N_j,'gpuArray');
-                end
-                pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');
-                options=rmfield(options,'e_grid');
-                options=rmfield(options,'pi_e');
-            elseif isfield(options,'pi_e_J')
-                if ndims(options.e_grid_J)==3 % already gridvals
-                    e_gridvals_J=gpuArray(options.e_grid_J);
-                elseif ndims(options.e_grid_J)==2
-                    e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
-                    for jj=1:N_j
-                        e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid_J(:,jj),1);
+                % Just assume there is also options.e_grid
+                if ndims(options.e_grid)==3 % already age-dependent gridvals
+                    e_gridvals_J=gpuArray(options.e_grid);
+                elseif ndims(options.e_grid)==2
+                    % Could be be age-dependent e_grid_J or e_gridvals
+                    if size(options.e_grid,2)==N_j
+                        if l_e==1
+                            e_gridvals_J=reshape(options.e_grid,[N_e,l_e,N_j]); % Avoid Matlab getting annoyed about CreateGridVals() for no apparent reason
+                        else
+                            e_gridvals_J=zeros(N_e,l_e,N_j,'gpuArray');
+                            for jj=1:N_j
+                                e_gridvals_J(:,:,jj)=CreateGridVals(n_e,options.e_grid(:,jj),1);
+                            end
+                        end
+                    else
+                        e_gridvals_J=options.e_grid.*ones(1,1,N_j,'gpuArray');
                     end
                 end
-                pi_e_J=gpuArray(options.pi_e_J);
-                options=rmfield(options,'e_grid_J');
-                options=rmfield(options,'pi_e_J');
+                options=rmfield(options,'e_grid');
+                pi_e_J=options.pi_e.*ones(1,N_j,'gpuArray');  % this works regardless of if pi_e depends on j or not
+                options=rmfield(options,'pi_e');
             end
         end
     end
     % Make sure they are on grid
     pi_e_J=gpuArray(pi_e_J);
     e_gridvals_J=gpuArray(e_gridvals_J);
-
+    
     % When using fastOLG we want an alternative version of pi_e_J that we use for the agent distribution, call it pi_e_J_sim
     if gridpiboth==2 || gridpiboth==4
         if options.fastOLG==1
@@ -361,7 +366,7 @@ if N_e>0
                 pi_e_J_sim=repelem(pi_e_J(:,2:end)',N_a,1); % (a,j)-by-e (but only for jj=2:end)
             else
                 % pi_e_J_sim maps (a,j,z)-to-e (but only for jj=2:end), is [N_a*(N_j-1)*N_z,N_e]
-                pi_e_J_sim=repmat(repelem(pi_e_J(:,2:end)',N_a,1),N_z,1); 
+                pi_e_J_sim=repmat(repelem(pi_e_J(:,2:end)',N_a,1),N_z,1); % (a,j,z)-by-e (but only for jj=2:end)
             end
         end
     end
@@ -480,6 +485,91 @@ if N_e>0
 end
 
 
+
+
+
+%% Create ze_gridvals_J_fastOLG, which is used for AggVars. Will be z_gridvals_J_fastOLG or e_gridvals_J_OLG if only one of them is used
+% gridpiboth=4: sometimes (trans path GE) we want both grid and transition probabilties, including pi_z_J_sim alternative transition probs
+% gridpiboth=3: sometimes (value fn iter) we want both grid and transition probabilties
+% gridpiboth=2: sometimes (agent dist)    we want just transition probabilties, including pi_z_J_sim alternative transition probs
+% gridpiboth=1: sometimes (FnsToEvaluate) we want just grid
+if gridpiboth==3 || gridpiboth==2
+    ze_gridvals_J_fastOLG=[];
+else
+    if transpathoptions.zpathtrivial==0 || transpathoptions.epathtrivial==0
+        transpathoptions.zepathtrivial=0;
+    else
+        transpathoptions.zepathtrivial=1;
+    end
+
+    if N_e==0 && N_z==0
+        ze_gridvals_J_fastOLG=[];
+    else
+        l_ze=l_z+l_e;
+        if l_z>0 && l_e>0
+            N_ze=N_z*N_e;
+            if transpathoptions.fastOLG==0
+                ze_gridvals_J=[repmat(z_gridvals_J,N_e,1),repelem(e_gridvals_J,N_z,1)];
+            elseif transpathoptions.fastOLG==1
+                ze_gridvals_J=zeros(N_j,N_ze,l_ze,'gpuArray');
+                ze_gridvals_J(:,:,1:l_z)=repmat(z_gridvals_J,1,N_e,1);
+                ze_gridvals_J(:,:,l_z+1:end)=repmat(squeeze(e_gridvals_J),1,N_z,1);
+            end
+        end
+
+        % Version that is used for model stats, good shape for calculating AggVars fast
+        if transpathoptions.fastOLG==0
+            if N_z>0 && N_e>0
+                ze_gridvals_J_fastOLG=shiftdim(permute(ze_gridvals_J,[3,1,2]),-1); % [1,N_j,N_ze,l_ze] need this for fastOLG agent dist (it is not used for value fn, so can overwrite)
+            elseif N_z>0
+                ze_gridvals_J_fastOLG=shiftdim(permute(z_gridvals_J,[3,1,2]),-1); % [1,N_j,N_z,l_z] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            elseif N_e>0
+                ze_gridvals_J_fastOLG=shiftdim(permute(e_gridvals_J,[3,1,2]),-1); % [1,N_j,N_e,l_e] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            end
+        else
+            if N_z>0 && N_e>0
+                ze_gridvals_J_fastOLG=shiftdim(ze_gridvals_J,-1); % [1,N_j,N_ze,l_ze] need this for fastOLG agent dist (it is not used for value fn, so can overwrite)
+            elseif N_z>0
+                ze_gridvals_J_fastOLG=shiftdim(z_gridvals_J,-1); % [1,N_j,N_z,l_z] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            elseif N_e>0
+                ze_gridvals_J_fastOLG=shiftdim(e_gridvals_J,-1); % [1,N_j,N_e,l_e] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            end
+        end
+    end
+
+    % If ze_gridvals_J_fastOLG depends on t, set up transpathoptions.ze_gridvals_J_T_fastOLG
+    if transpathoptions.zepathtrivial==0
+        if l_z>0 && l_e>0
+            N_ze=N_z*N_e;
+            if transpathoptions.fastOLG==0
+                ze_gridvals_J_T=[repmat(transpathoptions.z_gridvals_J_T,N_e,1,1),repelem(transpathoptions.e_gridvals_J_T,N_z,1,1)];
+            elseif transpathoptions.fastOLG==1
+                ze_gridvals_J_T=zeros(N_j,N_ze,l_ze,'gpuArray');
+                ze_gridvals_J_T(:,:,1:l_z,:)=repmat(transpathoptions.z_gridvals_J,1,N_e,1);
+                ze_gridvals_J_T(:,:,l_z+1:end,:)=repmat(squeeze(transpathoptions.e_gridvals_J),1,N_z,1);
+            end
+        end
+
+        if transpathoptions.fastOLG==0
+            if N_z>0 && N_e>0
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(permute(ze_gridvals_J_T,[3,1,2,4]),-1); % [1,N_j,N_ze,l_ze,T] need this for fastOLG agent dist (it is not used for value fn, so can overwrite)
+            elseif N_z>0
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(permute(transpathoptions.z_gridvals_J_T,[3,1,2,4]),-1); % [1,N_j,N_z,l_z,T] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            elseif N_e>0
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(permute(transpathoptions.e_gridvals_J_T,[3,1,2,4]),-1); % [1,N_j,N_e,l_e,T] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            end
+        else
+            if N_z>0 && N_e>0
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(transpathoptions.ze_gridvals_J_T,-1); % [1,N_j,N_ze,l_ze,T] need this for fastOLG agent dist (it is not used for value fn, so can overwrite)
+            elseif N_z>0
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(transpathoptions.z_gridvals_J_T,-1); % [1,N_j,N_z,l_z,T] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            elseif N_e>0
+                transpathoptions.ze_gridvals_J_T_fastOLG=shiftdim(transpathoptions.e_gridvals_J_T,-1); % [1,N_j,N_e,l_e,T] need this for fastOLG agent dist, but need the standard still for the value fn without fastOLG
+            end
+        end
+
+    end
+end
 
 
 end

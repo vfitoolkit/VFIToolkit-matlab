@@ -1,6 +1,6 @@
-function [VKron, Policy]=ValueFnIter_nod_Par1_raw(VKron, N_a, N_z, pi_z, beta, ReturnMatrix, Howards,Howards2, Tolerance) %Verbose
+function [VKron, Policy]=ValueFnIter_nod_Par1_raw(VKron, N_a, N_z, pi_z, beta, ReturnMatrix, Howards,Howards2, Tolerance, maxiter)
 
-PolicyIndexes=zeros(N_a,N_z);
+Policy=zeros(N_a,N_z);
 
 Ftemp=zeros(N_a,N_z);
 
@@ -9,7 +9,7 @@ pi_z_howards=repelem(pi_z,N_a,1);
 tempcounter=1;
 currdist=Inf;
 
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
 
     VKronold=VKron;
 
@@ -26,7 +26,7 @@ while currdist>Tolerance
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS);
         VKron(:,z_c)=Vtemp;
-        PolicyIndexes(:,z_c)=maxindex;
+        Policy(:,z_c)=maxindex;
 
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
@@ -37,7 +37,7 @@ while currdist>Tolerance
 
     if isfinite(currdist) && tempcounter<Howards2 %Use Howards Policy Fn Iteration Improvement
         for Howards_counter=1:Howards
-            EVKrontemp=VKron(PolicyIndexes,:);
+            EVKrontemp=VKron(Policy,:);
             
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
@@ -50,6 +50,11 @@ while currdist>Tolerance
 
 end
   
-Policy=PolicyIndexes;
+Policy=reshape(Policy,[1,N_a,N_z]);
+
+
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

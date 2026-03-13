@@ -49,103 +49,6 @@ end
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
 
-%% Set up GEnewprice==3 (if relevant) [More complex than normal as have to allow for transpathoptions.GEptype]
-if transpathoptions.GEnewprice==3
-    % Before starting, make sure that GE that depend on ptype match up with PricePaths that depend on ptype
-    for gg=1:nGeneralEqmEqns
-        if transpathoptions.GEptype(gg)==1
-            for gg2=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
-                if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{gg})
-                    pricename_gg=transpathoptions.GEnewprice3.howtoupdate{gg2,2};
-                end
-            end
-            for pp=1:length(PricePathNames)
-                if strcmp(pricename_gg,PricePathNames{pp})
-                    if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
-                        fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},PricePathNames{pp})
-                        error('You declared a GE condition to depend on permenent type, but the price that relates to it (in transpathoptions.GEnewprice3.howtoupdate) does not depend on ptype')
-                    end
-                end
-            end
-        end
-    end
-
-    transpathoptions.weightscheme=0;
-    
-    % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-    % Is same as order of fields in GeneralEqmEqns
-    % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-    temp=transpathoptions.GEnewprice3.howtoupdate;
-    % GEeqnNames=fieldnames(GeneralEqmEqns);
-    gg_index=zeros(1,nGeneralEqmEqns+(N_i-1)*sum(transpathoptions.GEptype==1));
-    gg_c=0;
-    for gg=1:nGeneralEqmEqns
-        for jj=1:size(temp,1)
-            if strcmp(temp{jj,1},GEeqnNames{gg}) % Names match
-                for ii=1:(1+transpathoptions.GEptype(gg)*(N_i-1)) % Note: 1 or N_i, depending on transpathoptions.GEptype(gg)
-                    gg_c=gg_c+1;
-                    transpathoptions.GEnewprice3.howtoupdate{gg_c,1}=temp{jj,1};
-                    transpathoptions.GEnewprice3.howtoupdate{gg_c,2}=temp{jj,2};
-                    transpathoptions.GEnewprice3.howtoupdate{gg_c,3}=temp{jj,3};
-                    transpathoptions.GEnewprice3.howtoupdate{gg_c,4}=temp{jj,4};
-                    gg_index(gg_c)=gg;
-                end
-            end
-        end
-    end
-    % Note: transpathoptions.GEnewprice3.howtoupdate will have extra repeated rows whenever transpathoptions.GEptype(gg)=1
-
-    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
-    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    tempweight=transpathoptions.oldpathweight;
-    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
-    for ii=1:length(transpathoptions.GEnewprice3.factor)
-        if transpathoptions.GEnewprice3.factor(ii)==Inf
-            transpathoptions.GEnewprice3.factor(ii)=1;
-            transpathoptions.GEnewprice3.keepold(ii)=0;
-            transpathoptions.oldpathweight(ii)=tempweight;
-        end
-    end
-    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns_acrossptypes
-        % do nothing, this is how things should be
-    else
-        error('transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions) \n')
-    end
-    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
-
-    gg_c=1;
-    for gg=1:nGeneralEqmEqns % number of GE conditions
-        if transpathoptions.GEptype(gg)==0
-            for pp=1:length(PricePathNames)
-                if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg_c,2},PricePathNames{pp}) % Take advantage that transpathoptions.GEnewprice3.howtoupdate has been set to same order as GEeqnNames
-                    transpathoptions.GEnewprice3.permute(PricePathSizeVec(1,pp))=gg_c;
-                end
-            end
-            gg_c=gg_c+1;
-        elseif transpathoptions.GEptype(gg)==1
-            for pp=1:length(PricePathNames)
-                if strcmp(transpathoptions.GEnewprice3.howtoupdate{gg_c,2},PricePathNames{pp}) % Take advantage that transpathoptions.GEnewprice3.howtoupdate has been set to same order as GEeqnNames
-                    for ii=PricePathSizeVec(1,pp):PricePathSizeVec(2,pp)
-                        transpathoptions.GEnewprice3.permute(PricePathSizeVec(1,pp):PricePathSizeVec(2,pp))=gg_c+(0:1:N_i-1);
-                    end
-                end
-            end
-            gg_c=gg_c+N_i;
-        end
-    end
-    
-    if isfield(transpathoptions,'updateaccuracycutoff')==0
-        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
-end
-% Note: if some GE conditions are done conditional on ptype then
-% transpathoptions.GEnewprice3.howtoupdate
-% transpathoptions.GEnewprice3.permute 
-% reflect this.
-
-
 %% Setup used for graphs
 % For graph of the Prices
 if length(PricePathNames)>12
@@ -252,17 +155,14 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         d_grid=PTypeStructure.(iistr).d_grid;
         a_grid=PTypeStructure.(iistr).a_grid;
         a_gridvals=PTypeStructure.(iistr).a_gridvals;
-        daprime_gridvals=PTypeStructure.(iistr).daprime_gridvals;
+        d_gridvals=PTypeStructure.(iistr).d_gridvals;
+        aprime_gridvals=PTypeStructure.(iistr).aprime_gridvals;
         if N_z>0
             z_gridvals_J=PTypeStructure.(iistr).z_gridvals_J;
             pi_z_J=PTypeStructure.(iistr).pi_z_J;
             pi_z_J_sim=PTypeStructure.(iistr).pi_z_J_sim;
-            exceptlastj=PTypeStructure.(iistr).exceptlastj;
-            exceptfirstj=PTypeStructure.(iistr).exceptfirstj;
-            justfirstj=PTypeStructure.(iistr).justfirstj;
         else
             z_gridvals_J=[]; pi_z_J=[]; pi_z_J_sim=[];
-            exceptlastj=[]; exceptfirstj=[]; justfirstj=[];
         end
         if N_e>0
             e_gridvals_J=PTypeStructure.(iistr).e_gridvals_J;
@@ -270,6 +170,17 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             pi_e_J_sim=PTypeStructure.(iistr).pi_e_J_sim;
         else
             e_gridvals_J=[]; pi_e_J=[]; pi_e_J_sim=[];
+        end
+        ze_gridvals_J_fastOLG=PTypeStructure.(iistr).ze_gridvals_J_fastOLG;
+        if transpathoptions.fastOLG==1
+            exceptlastj=PTypeStructure.(iistr).exceptlastj;
+            exceptfirstj=PTypeStructure.(iistr).exceptfirstj;
+            justfirstj=PTypeStructure.(iistr).justfirstj;
+            II1orII=PTypeStructure.(iistr).II1orII;
+            II2=PTypeStructure.(iistr).II2;
+        else
+            exceptlastj=[]; exceptfirstj=[]; justfirstj=[];
+            II1orII=[]; II2=[];
         end
         ReturnFn=PTypeStructure.(iistr).ReturnFn;
         Parameters=PTypeStructure.(iistr).Parameters;
@@ -295,9 +206,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % PricePathSizeVec_ii, ParamPathSizeVec_ii
         
         % For current ptype, do the backward iteration of V and Policy, then forward iterate agent dist and get the AggVarsPath
-        AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,daprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
+        AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
         % AggVarsPath=zeros(length(FnsToEvaluate),T-1);
-
+        
         AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath;
 
     end % done loop over ii
@@ -370,17 +281,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
 
-            if transpathoptions.GEnewprice==1 % The GeneralEqmEqns are not really general eqm eqns, but instead have been given in the form of GEprice updating formulae
-                PricePathNew(tt,:)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
-            % Note there is no GEnewprice==2, it uses a completely different code
-            elseif transpathoptions.GEnewprice==3 % Version of shooting algorithm where the new value is the current value +- fraction*(GECondn)
-                p_i=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters));
-                p_i=p_i(transpathoptions.GEnewprice3.permute); % Rearrange GeneralEqmEqns into the order of the relevant prices
-                I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
-                p_i=I_makescutoff.*p_i;
-                PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
-                GECondnPath(tt,:)=p_i;
-            end
+            %% General Eqm Eqns
+            % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
+            [PricePathNew_tt,~]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
+            PricePathNew(tt,:)=PricePathNew_tt;
             
         end % Done loop over tt, evaluating the GE conditions
     else % Some GE conditions depend on PType
@@ -567,13 +471,13 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
     end
     
+
     %% Now we just check for convergence, update prices, and give some feedback on progress
     % See how far apart the price paths are
     PricePathDist=max(abs(reshape(PricePathNew(1:T-1,:)-PricePathOld(1:T-1,:),[numel(PricePathOld(1:T-1,:)),1])));
     % Notice that the distance is always calculated ignoring the time t=T periods, as these needn't ever converges
     
     if transpathoptions.verbose==1     
-        pathcounter
         % Would be nice to have a way to get the iteration count without having the whole printout of path values (I think that would be useful?)
         pathnametitles
         [PricePathOld,PricePathNew]
@@ -611,7 +515,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
         end
     end
-    if transpathoptions.graphGEconditions==1
+    if transpathoptions.graphGEcondns==1
         % Do a graph of the General eqm conditions
         figure(3);
         for gg=1:length(GEeqnNames)
@@ -657,9 +561,9 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     if transpathoptions.verbose==1
         fprintf('Number of iterations on transition path: %i \n',pathcounter)
         fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
-        fprintf('Current distance to convergence: %.2f (convergence when reaches 1) \n',TransPathConvergence) %So when this gets to 1 we have convergence (uncomment when you want to see how the convergence isgoing)
+        fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1) \n',TransPathConvergence)
     end
-
+    
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations
         PricePathHistory{pathcounter,1}=PricePathDist;

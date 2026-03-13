@@ -140,6 +140,9 @@ end
 
 %% Non-standard endogenous states
 if simoptions.experienceasset==1
+    if ~isfield(simoptions,'l_dexperienceasset')
+        simoptions.l_dexperienceasset=1; % by default, only one decision variable influences the experienceasset
+    end
     if N_semiz==0
         StationaryDist=StationaryDist_FHorz_ExpAsset(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
         return
@@ -149,6 +152,9 @@ if simoptions.experienceasset==1
     end
 end
 if simoptions.experienceassetu==1
+    if ~isfield(simoptions,'l_dexperienceassetu')
+        simoptions.l_dexperienceassetu=1; % by default, only one decision variable influences the experienceasset
+    end
     if N_semiz==0
         StationaryDist=StationaryDist_FHorz_ExpAssetu(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
         return

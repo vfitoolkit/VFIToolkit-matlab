@@ -162,6 +162,7 @@ addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
 
 %% Now switch to considering the fine/interpolated aprime_grid
 currdist=1; % force going into the next while loop at least one iteration
+tempcounter=1; % reset tempcounter
 while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     VKronold=VKron;
     
@@ -286,6 +287,7 @@ while vfoptions.postGIrepeat>0
 
     %% Now switch to considering the fine/interpolated aprime_grid
     currdist=1; % force going into the next while loop at least one iteration
+    tempcounter=1; % reset tempcounter
     while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
         VKronold=VKron;
 
@@ -354,5 +356,9 @@ Policy(4,:,:)=reshape(L2,[1,N_a,N_z]);
 %% For refinement, add d back into Policy
 temppolicyindex=fineindex(:)+N_aprime*(0:1:N_a*N_z-1)';
 Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % note: dstar is defined on the fine grid
+
+if tempcounter>=vfoptions.maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end

@@ -1,26 +1,8 @@
-function varargout=TransitionPath_Case1_PType(PricePathOld, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
+function varargout=TransitionPath_Case1_PType(PricePath0, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
-
-% Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
-% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
-PricePathNames=fieldnames(PricePathOld);
-PricePathStruct=PricePathOld; 
-PricePathOld=zeros(T,length(PricePathNames));
-for ii=1:length(PricePathNames)
-    PricePathOld(:,ii)=PricePathStruct.(PricePathNames{ii});
-end
-ParamPathNames=fieldnames(ParamPath);
-ParamPathStruct=ParamPath; 
-ParamPath=zeros(T,length(ParamPathNames));
-for ii=1:length(ParamPathNames)
-    ParamPath(:,ii)=ParamPathStruct.(ParamPathNames{ii});
-end
-
-PricePath=struct();
-
 
 % PricePathOld, ParamPath, T, V_final, StationaryDist_init, GeneralEqmEqns, GeneralEqmEqnParamNames
 
@@ -132,6 +114,11 @@ if vfoptions.divideandconquer==1
         vfoptions.level1n=11;
     end
 end
+
+%% Internally PricePath is matrix of size T-by-'number of prices'.
+% ParamPath is matrix of size T-by-'number of parameters that change over the transition path'. 
+[PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec,PricePathSizeVec_ii,ParamPathSizeVec_ii]=PricePathParamPath_StructToMatrix(PricePath0,ParamPath,T, N_i);
+
 
 %% Create PTypeStructure
 
@@ -525,99 +512,39 @@ if transpathoptions.usestockvars==1
     error('transpathoptions.usestockvars=1 not yet implemented with PType \n')
 end
 
-if transpathoptions.verbose==1
-    fprintf('Completed setup, beginning transition computination \n')
-end
 
-%% Set up GEnewprice==3 (if relevant)
-if transpathoptions.GEnewprice==3
-    transpathoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
-    
-    if isstruct(GeneralEqmEqns) 
-        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-        % Is same as order of fields in GeneralEqmEqns
-        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-        temp=transpathoptions.GEnewprice3.howtoupdate;
-        GEeqnNames=fieldnames(GeneralEqmEqns);
-        for tt=1:length(GEeqnNames)
-            for jj=1:size(temp,1)
-                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
-                    transpathoptions.GEnewprice3.howtoupdate{tt,1}=temp{jj,1};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,2}=temp{jj,2};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,3}=temp{jj,3};
-                    transpathoptions.GEnewprice3.howtoupdate{tt,4}=temp{jj,4};
-                end
-            end
-        end
-        nGeneralEqmEqns=length(GEeqnNames);
-    else
-        nGeneralEqmEqns=length(GeneralEqmEqns);
-    end
-    transpathoptions.GEnewprice3.add=[transpathoptions.GEnewprice3.howtoupdate{:,3}];
-    transpathoptions.GEnewprice3.factor=[transpathoptions.GEnewprice3.howtoupdate{:,4}];
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    transpathoptions.GEnewprice3.keepold=ones(size(transpathoptions.GEnewprice3.factor));
-    tempweight=transpathoptions.oldpathweight;
-    transpathoptions.oldpathweight=zeros(size(transpathoptions.GEnewprice3.factor));
-    for tt=1:length(transpathoptions.GEnewprice3.factor)
-        if transpathoptions.GEnewprice3.factor(tt)==Inf
-            transpathoptions.GEnewprice3.factor(tt)=1;
-            transpathoptions.GEnewprice3.keepold(tt)=0;
-            transpathoptions.oldpathweight(tt)=tempweight;
-        end
-    end
-    if size(transpathoptions.GEnewprice3.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(PricePathNames)
-        % do nothing, this is how things should be
-    else
-        fprintf('ERROR: transpathoptions.GEnewprice3.howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
-    end
-    transpathoptions.GEnewprice3.permute=zeros(size(transpathoptions.GEnewprice3.howtoupdate,1),1);
-    for tt=1:size(transpathoptions.GEnewprice3.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(PricePathNames)
-            if strcmp(transpathoptions.GEnewprice3.howtoupdate{tt,2},PricePathNames{jj})
-                transpathoptions.GEnewprice3.permute(tt)=jj;
-            end
-        end
-    end
-    if isfield(transpathoptions,'updateaccuracycutoff')==0
-        transpathoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
-end
-
+%% If using a shooting algorithm, set that up
+transpathoptions=setupGEnewprice3_shooting(options,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
 
 %%
 if transpathoptions.verbose==1
     transpathoptions
+    fprintf('Completed setup, beginning transition computation \n')
 end
 
 %%
 if transpathoptions.GEnewprice~=2
-    if transpathoptions.parallel==2
-        if transpathoptions.usestockvars==0
-            if ~isfield(vfoptions,'n_e')
-                [PricePathOld,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
-            else
-                error('Cannot use e variables with infinite horizon (contact me if you need this)')
-                % PricePathOld=TransitionPath_Case1_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
-            end
+    if transpathoptions.usestockvars==0
+        if ~isfield(vfoptions,'n_e')
+            [PricePath,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+        else
+            error('Cannot use e variables with infinite horizon (contact me if you need this)')
+            % PricePathOld=TransitionPath_Case1_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
         end
-    else
-        error('transpathoptions can only be used on GPU (transpathoptions.parallel=2) \n')
     end
     % Switch the solution into structure for output.
     for ii=1:length(PricePathNames)
-        PricePath.(PricePathNames{ii})=PricePathOld(:,ii);
+        PricePathStruct.(PricePathNames{ii})=PricePath(:,ii);
     end
 
     if nargout==1
-        varargout={PricePath};
+        varargout={PricePathStruct};
     elseif nargout==2
-        varargout={PricePath,GEcondnPath};
+        varargout={PricePathStruct,GEcondnPath};
     end
 
     return
 end
-
 
 if transpathoptions.GEnewprice==2
     % NOT IMPLEMENTED

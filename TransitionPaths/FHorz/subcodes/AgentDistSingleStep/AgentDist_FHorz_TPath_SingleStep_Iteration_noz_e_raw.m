@@ -1,13 +1,17 @@
-function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J,jequaloneDist)
+function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J,II1,II2,jequaloneDist)
 % age weights are handled elsewhere, here all are normalized to one
 % AgentDist=reshape(AgentDist,[N_a*N_e,N_j]);
-% Policy_aprime=gather(reshape(Policy_aprime,[1,N_a*N_e,N_j]));
+% Policy_aprime=gather(reshape(Policy_aprime,[N_a*N_e,N_j]));
+
+% precomputed:
+% II1=1:1:N_a*N_e;
+% II2=ones(N_a*N_e,1);
 
 for jjr=1:(N_j-1)
     jj=N_j-jjr; % It is important that this is in reverse order (due to just overwriting AgentDist)
     AgentDist_jj=sparse(gather(AgentDist(:,jj)));
     
-    Gammatranspose=sparse(Policy_aprime(1,:,jj),1:1:N_a*N_e,ones(N_a*N_e,1),N_a,N_a*N_e);
+    Gammatranspose=sparse(Policy_aprime(:,jj),II1,II2,N_a,N_a*N_e);
 
     % Two steps of the Tan improvement
     AgentDist_jj=Gammatranspose*AgentDist_jj;

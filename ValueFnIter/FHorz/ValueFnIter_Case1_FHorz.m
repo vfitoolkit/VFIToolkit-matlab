@@ -273,7 +273,7 @@ end
 
 
 %% Print out vfoptions (if vfoptions.verbose=1)
-if vfoptions.verbose==1
+if vfoptions.verbose>=1
     vfoptions
 end
 
@@ -309,15 +309,35 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     % It is simply assumed that the experience asset is the last asset, and that the decision that influences it is the last decision.
     % When using both semiexo and experience asset, the last decision variable influences semi-exo and the second last decision variable influences the experience asset
     
+    if vfoptions.experienceasset==1
+        if ~isfield(vfoptions,'l_dexperienceasset')
+            vfoptions.l_dexperienceasset=1; % by default, only one decision variable influences the experienceasset
+        end
+    elseif vfoptions.experienceassetu==1
+        if ~isfield(vfoptions,'l_dexperienceassetu')
+            vfoptions.l_dexperienceassetu=1; % by default, only one decision variable influences the experienceassetu
+        end
+    end
+
+    if vfoptions.experienceasset==1
+        vfoptions.l_d2=vfoptions.l_dexperienceasset;
+    elseif vfoptions.experienceassetu==1
+        vfoptions.l_d2=vfoptions.l_dexperienceassetu;
+    end
+
     if isfield(vfoptions,'n_semiz')
+        if ~isfield(vfoptions,'l_dsemiz')
+            vfoptions.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
+        end
+
         % Split decision variables (other, semiexo, experienceasset)
-        if length(n_d)>2
-            n_d1=n_d(1:end-2);
+        if length(n_d)>(vfoptions.l_d2+vfoptions.l_dsemiz)
+            n_d1=n_d(1:end-vfoptions.l_d2-vfoptions.l_dsemiz);
         else
             n_d1=0;
         end
-        n_d2=n_d(end-1); % n_d2 is the decision variable that influences the experience asset
-        n_d3=n_d(end); % n_d3 is the decision variable that influences the transition probabilities of the semi-exogenous state
+        n_d2=n_d(end-vfoptions.l_d2-vfoptions.l_dsemiz+1:end-vfoptions.l_dsemiz); % n_d2 is the decision variable that influences the experience asset
+        n_d3=n_d(end-vfoptions.l_dsemiz+1:end); % n_d3 is the decision variable that influences the transition probabilities of the semi-exogenous state
         d1_grid=d_grid(1:sum(n_d1));
         d2_grid=d_grid(sum(n_d1)+1:sum(n_d1)+sum(n_d2));
         d3_grid=d_grid(sum(n_d1)+sum(n_d2)+1:end);
@@ -333,12 +353,12 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
 
     else % no semiz
         % Split decision variables into the standard ones and the one relevant to the experience asset
-        if isscalar(n_d)
-            n_d1=0;
-        else
+        if length(n_d)>vfoptions.l_d2
             n_d1=n_d(1:end-1);
+        else
+            n_d1=0;
         end
-        n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+        n_d2=n_d(end-vfoptions.l_d2+1:end); % n_d2 is the decision variable that influences next period vale of the experience asset
         d1_grid=d_grid(1:sum(n_d1));
         d2_grid=d_grid(sum(n_d1)+1:end);
         % Split endogenous assets into the standard ones and the experience asset
@@ -453,6 +473,8 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_SDVz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
@@ -476,6 +498,8 @@ if vfoptions.dynasty==1
     
     if N_d==0
         [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_Dynasty_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        % Policy without d
+        PolicyKron=shiftdim(PolicyKron,-1);
     else
         [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Dynasty_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     end
@@ -565,6 +589,8 @@ if N_d==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
+    % Policy without d
+    PolicyKron=shiftdim(PolicyKron,-1);
 else % N_d
     if isfield(vfoptions,'n_e')
         if N_z==0

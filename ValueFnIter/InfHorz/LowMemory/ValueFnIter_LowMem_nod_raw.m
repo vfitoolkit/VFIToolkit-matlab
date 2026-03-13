@@ -1,11 +1,11 @@
-function [VKron, Policy]=ValueFnIter_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) % Verbose, ReturnFnParamNames,
+function [VKron, Policy]=ValueFnIter_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_gridvals, pi_z, beta, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance, maxiter)
 
 l_z=length(n_z);
 
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-PolicyIndexes=zeros(N_a,N_z,'gpuArray');
+Policy=zeros(N_a,N_z,'gpuArray');
 
 Ftemp=zeros(N_a,N_z,'gpuArray');
 
@@ -16,7 +16,7 @@ special_n_z=ones(l_z,1);
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
     VKronold=VKron;
     
     for z_c=1:N_z
@@ -33,7 +33,7 @@ while currdist>Tolerance
         % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         VKron(:,z_c)=Vtemp;
-        PolicyIndexes(:,z_c)=maxindex;
+        Policy(:,z_c)=maxindex;
         
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
@@ -45,7 +45,7 @@ while currdist>Tolerance
         for Howards_counter=1:Howards
             VKrontemp=VKron;
             
-            EVKrontemp=VKrontemp(PolicyIndexes,:);
+            EVKrontemp=VKrontemp(Policy,:);
             EVKrontemp=EVKrontemp.*pi_z_howards;
             EVKrontemp(isnan(EVKrontemp))=0;
             EVKrontemp=reshape(sum(EVKrontemp,2),[N_a,N_z]);
@@ -56,8 +56,11 @@ while currdist>Tolerance
     tempcounter=tempcounter+1;
 end
 
-Policy=PolicyIndexes;
+Policy=reshape(Policy,[1,N_a,N_z]);
 
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 
 end

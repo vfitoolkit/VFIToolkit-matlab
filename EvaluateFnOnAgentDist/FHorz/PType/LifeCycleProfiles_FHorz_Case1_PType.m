@@ -11,13 +11,13 @@ function AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,
 % jequaloneDist can either be same for all permanent types, or must be passed as a structure.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
-% The stationary distribution be a structure and will contain both the
+% The stationary distribution must be a structure and will contain both the
 % weights/distribution across the permenant types, as well as a pdf for the
 % stationary distribution of each specific permanent type.
 %
 % How exactly to handle these differences between permanent (fixed) types
 % is to some extent left to the user. You can, for example, input
-% parameters that differ by permanent type as a vector with different rows f
+% parameters that differ by permanent type as a vector with different rows
 % for each type, or as a structure with different fields for each type.
 %
 % Any input that does not depend on the permanent type is just passed in
@@ -176,7 +176,12 @@ if any(computeForThesei==0)
             ii=ii+1;
             Names_i{ii}=Names_i2{ii2};
         else % tell the user about it
-            fprintf(['LifeCycleProfiles_FHorz_Case1_PType: Ignoring the ', num2str(ii2), '-th PType, ',Names_i2{ii2}, ' because it is infinite horizon \n']);
+            suffix='th';
+            if ii2<4 % Good up to 20 PTypes
+                suffix_cells={'st', 'nd', 'rd'};
+                suffix=suffix_cells{ii2};
+            end
+            fprintf('LifeCycleProfiles_FHorz_Case1_PType: Ignoring the %d%s PType { %s } because it is infinite horizon \n', ii2, suffix, Names_i2{ii2});
         end
     end   
     % Eliminate any no longer relevant functions from FnsToEvaluate (those which are only used for infinite horizon)
@@ -228,7 +233,7 @@ if isstruct(simoptions.agejshifter) % if using agejshifter
             end
         end
     end
-elseif length(simoptions.agejshifter)==1 % not using agejshifter
+elseif isscalar(simoptions.agejshifter) % not using agejshifter
     simoptions.agejshifter=zeros(N_i,1);
     N_j_max2=N_j_max;
 else % have inputed as a vector
@@ -563,7 +568,12 @@ if simoptions.lowmemory==0
             if FnsAndPTypeIndicator_ii(ff)==1 % If this function is relevant to this ptype
                 
                 % Get parameter names for current FnsToEvaluate functions
-                tempnames=getAnonymousFnInputNames(FnsToEvaluate.(FnsToEvalNames{ff}));
+                if isstruct(FnsToEvaluate.(FnsToEvalNames{ff}))
+                    tempfn=FnsToEvaluate.(FnsToEvalNames{ff}).(Names_i{ii});
+                else
+                    tempfn=FnsToEvaluate.(FnsToEvalNames{ff});
+                end
+                tempnames=getAnonymousFnInputNames(tempfn);
                 if length(tempnames)>(l_daprime_temp+l_a_temp+l_z_temp)
                     FnsToEvaluateParamNames={tempnames{l_daprime_temp+l_a_temp+l_z_temp+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 else
@@ -577,7 +587,7 @@ if simoptions.lowmemory==0
                 
                 %% We have set up the current PType, now do some calculations for it.
                 simoptions_temp.keepoutputasmatrix=2;
-                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(FnsToEvaluate.(FnsToEvalNames{ff}),CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
+                ValuesOnGrid_ffii=EvalFnOnAgentDist_Grid_J(tempfn,CellOverAgeOfParamValues,PolicyValuesPermute_temp,l_daprime_temp,n_a_temp,n_z_temp,a_gridvals_temp,z_gridvals_J_temp);
                 
                 ValuesOnGrid_ffii=reshape(ValuesOnGrid_ffii,[N_a_temp*N_z_temp,N_j_temp]);
                 % StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,N_j_temp]); % Note: does not impose *StationaryDist.ptweights(ii)
@@ -1193,37 +1203,37 @@ elseif simoptions.lowmemory==1
             % a structure is there a need to take just a specific part and send
             % only that to the 'non-PType' version of the command.
 
-            if isa(n_d,'struct')
+            if isstruct(n_d)
                 n_d_temp=n_d.(Names_i{ii});
             else
                 n_d_temp=n_d;
             end
-            if isa(n_a,'struct')
+            if isstruct(n_a)
                 n_a_temp=n_a.(Names_i{ii});
             else
                 n_a_temp=n_a;
             end
-            if isa(n_z,'struct')
+            if isstruct(n_z)
                 n_z_temp=n_z.(Names_i{ii});
             else
                 n_z_temp=n_z;
             end
-            if isa(N_j,'struct')
+            if isstruct(N_j)
                 N_j_temp=N_j.(Names_i{ii});
             else
                 N_j_temp=N_j;
             end
-            if isa(d_grid,'struct')
+            if isstruct(d_grid)
                 d_grid_temp=d_grid.(Names_i{ii});
             else
                 d_grid_temp=d_grid;
             end
-            if isa(a_grid,'struct')
+            if isstruct(a_grid)
                 a_grid_temp=a_grid.(Names_i{ii});
             else
                 a_grid_temp=a_grid;
             end
-            if isa(z_grid,'struct')
+            if isstruct(z_grid)
                 z_grid_temp=z_grid.(Names_i{ii});
             else
                 z_grid_temp=z_grid;
@@ -1236,7 +1246,7 @@ elseif simoptions.lowmemory==1
             FullParamNames=fieldnames(Parameters);
             nFields=length(FullParamNames);
             for kField=1:nFields
-                if isa(Parameters.(FullParamNames{kField}), 'struct') % Check for permanent type in structure form
+                if isstruct(Parameters.(FullParamNames{kField})) % Check for permanent type in structure form
                     names=fieldnames(Parameters.(FullParamNames{kField}));
                     for jj=1:length(names)
                         if strcmp(names{jj},Names_i{ii})

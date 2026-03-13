@@ -40,32 +40,34 @@ if isempty(n_p)
 end
 
 if ~exist('heteroagentoptions','var')
-    heteroagentoptions.multiGEcriterion=1;
-    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
+    heteroagentoptions.fminalgo=1; % =1 use fminsearch. Main alternatives: =4 is CMA-ES (robust but slow), =5 is shooting (you set update rules), =8 is lsqnonlin() fast but requires Matlab Optimization Toolbox (and often not quite high accuracy of results)
+    heteroagentoptions.multiGEcriterion=1; % How to combine multiple GE condns (default is sum-of-squares)
+    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % Weights on GECondns, when being combined
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
     heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm eqns
-    heteroagentoptions.fminalgo=1; % use fminsearch
-    heteroagentoptions.verbose=0;
-    heteroagentoptions.maxiter=1000; % =0 just evaluate (rather than solves for) GE condns
-    heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    heteroagentoptions.maxiter=1000; % maximum iterations of optimization routine
     % Constrain parameters
     heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     heteroagentoptions.constrain0to1={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
-    % heteroagentoptions.outputGEform=0; % For internal use only
+    % Verbose settings (feedback)
+    heteroagentoptions.verbose=0; % =1, give feedback
+    heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
+    heteroagentoptions.verboseaccuracy2=6; % number of decimal places for GECondns
+    heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    % For internal use only
+    % heteroagentoptions.outputGEform=0;
     heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     heteroagentoptions.outputgather=1; % output GE conditions on CPU [some optimization routines only work on CPU, some can handle GPU]
 else
+    if ~isfield(heteroagentoptions,'fminalgo')
+        heteroagentoptions.fminalgo=1; % use fminsearch
+    end
     if ~isfield(heteroagentoptions,'multiGEcriterion')
         heteroagentoptions.multiGEcriterion=1;
     end
     if ~isfield(heteroagentoptions,'multiGEweights')
         heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns)));
-    end
-    if N_p~=0
-        if ~isfield(heteroagentoptions,'pgrid')
-            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.pgrid')
-        end
     end
     if ~isfield(heteroagentoptions,'toleranceGEprices')
         heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
@@ -73,18 +75,15 @@ else
     if ~isfield(heteroagentoptions,'toleranceGEcondns')
         heteroagentoptions.toleranceGEcondns=10^(-4); % Accuracy of general eqm prices
     end
-    if ~isfield(heteroagentoptions,'verbose')
-        heteroagentoptions.verbose=0;
-    end
-    if ~isfield(heteroagentoptions,'fminalgo')
-        heteroagentoptions.fminalgo=1; % use fminsearch
-    end
     if ~isfield(heteroagentoptions,'maxiter')
         heteroagentoptions.maxiter=1000; % use fminsearch
     end
-    if ~isfield(heteroagentoptions,'pricehistory')
-        heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    if N_p~=0
+        if ~isfield(heteroagentoptions,'p_grid')
+            error('You have set n_p to a non-zero value, but not declared heteroagentoptions.p_grid')
+        end
     end
+    % Constrain parameters
     if ~isfield(heteroagentoptions,'constrainpositive')
         heteroagentoptions.constrainpositive={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
         % Convert constrained positive p into x=log(p) which is unconstrained.
@@ -104,7 +103,21 @@ else
             error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
         end
     end
-    % heteroagentoptions.outputGEform=0; % For internal use only
+    % Verbose settings (feedback)
+    if ~isfield(heteroagentoptions,'verbose')
+        heteroagentoptions.verbose=0;
+    end
+    if ~isfield(heteroagentoptions,'verboseaccuracy1')
+        heteroagentoptions.verboseaccuracy1=4; % number of decimal places for GEPrices (among others)
+    end
+    if ~isfield(heteroagentoptions,'verboseaccuracy2')
+        heteroagentoptions.verboseaccuracy2=6; % number of decimal places for GECondns
+    end
+    if ~isfield(heteroagentoptions,'pricehistory')
+        heteroagentoptions.pricehistory=0; % =1, saves the history of the GEPrices during the convergence
+    end
+    % For internal use only
+    % heteroagentoptions.outputGEform=0;
     if ~isfield(heteroagentoptions,'outputGEstruct')
         heteroagentoptions.outputGEstruct=1; % output GE conditions as a structure (=2 will output as a vector)
     end
@@ -137,6 +150,8 @@ if length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns))
     error('length(heteroagentoptions.multiGEweights)~=length(fieldnames(GeneralEqmEqns)) (the length of the GE weights is not equal to the number of general eqm equations')
 end
 
+heteroagentoptions.verboseaccuracy1=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy1),'f \n']; % set up a string
+heteroagentoptions.verboseaccuracy2=['	%s: %8.',num2str(heteroagentoptions.verboseaccuracy2),'f \n']; % set up a string
 
 nGEprices=length(GEPriceParamNames);
 GEeqnNames=fieldnames(GeneralEqmEqns);
@@ -304,54 +319,6 @@ end
 
 %% Enough setup, Time to do the actual finding the HeteroAgentStationaryEqm:
 
-%% If using fminalgo=5, then need some further setup
-
-if heteroagentoptions.fminalgo==5
-    heteroagentoptions.weightscheme=0; % Don't do any weightscheme, is already taken care of by GEnewprice=3
-    
-    if isstruct(GeneralEqmEqns) 
-        % Need to make sure that order of rows in transpathoptions.GEnewprice3.howtoupdate
-        % Is same as order of fields in GeneralEqmEqns
-        % I do this by just reordering rows of transpathoptions.GEnewprice3.howtoupdate
-        temp=heteroagentoptions.fminalgo5.howtoupdate;
-        GEeqnNames=fieldnames(GeneralEqmEqns);
-        for tt=1:length(GEeqnNames)
-            for jj=1:size(temp,1)
-                if strcmp(temp{jj,1},GEeqnNames{tt}) % Names match
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,1}=temp{jj,1};
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,2}=temp{jj,2};
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,3}=temp{jj,3};
-                    heteroagentoptions.fminalgo5.howtoupdate{tt,4}=temp{jj,4};
-                end
-            end
-        end
-        nGeneralEqmEqns=length(GEeqnNames);
-    else
-        nGeneralEqmEqns=length(GeneralEqmEqns);
-    end
-    heteroagentoptions.fminalgo5.add=[heteroagentoptions.fminalgo5.howtoupdate{:,3}];
-    heteroagentoptions.fminalgo5.factor=[heteroagentoptions.fminalgo5.howtoupdate{:,4}];
-    heteroagentoptions.fminalgo5.keepold=ones(size(heteroagentoptions.fminalgo5.factor));
-    
-    if size(heteroagentoptions.fminalgo5.howtoupdate,1)==nGeneralEqmEqns && nGeneralEqmEqns==length(GEPriceParamNames)
-        % do nothing, this is how things should be
-    else
-        fprintf('ERROR: heteroagentoptions.fminalgo5..howtoupdate does not fit with GeneralEqmEqns (different number of conditions/prices) \n')
-    end
-    heteroagentoptions.fminalgo5.permute=zeros(size(heteroagentoptions.fminalgo5.howtoupdate,1),1);
-    for tt=1:size(heteroagentoptions.fminalgo5.howtoupdate,1) % number of rows is the number of prices (and number of GE conditions)
-        for jj=1:length(GEPriceParamNames)
-            if strcmp(heteroagentoptions.fminalgo5.howtoupdate{tt,2},GEPriceParamNames{jj})
-                heteroagentoptions.fminalgo5.permute(tt)=jj;
-            end
-        end
-    end
-    if isfield(heteroagentoptions,'updateaccuracycutoff')==0
-        heteroagentoptions.updateaccuracycutoff=0; % No cut-off (only changes in the price larger in magnitude that this will be made (can be set to, e.g., 10^(-6) to help avoid changes at overly high precision))
-    end
-end
-
-
 %%
 if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     
@@ -375,13 +342,15 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter,'MaxIter',heteroagentoptions.maxiter);
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
     if N_p~=0 % Solving on p_grid
-        GeneralEqmConditions=zeros(size(heteroagentoptions.p_grid));
-        for pp_c=1:size(heteroagentoptions.p_grid,1)
-            pvec=heteroagentoptions.p_grid(pp_c,:);
+        p_gridvals=CreateGridvals(n_p,heteroagentoptions.p_grid,1);
+        GeneralEqmConditions=zeros(size(p_gridvals)); %
+        for pp_c=1:N_p
+            pvec=p_gridvals(pp_c,:);
             GeneralEqmConditions(pp_c,:)=GeneralEqmConditionsFnOpt(pvec);
         end
         [~,p_eqm_index]=max(sum(GeneralEqmConditions.^2,2));
-        p_eqm=heteroagentoptions.p_grid(p_eqm_index,:);
+        p_eqm_vec=p_gridvals(p_eqm_index,:);
+        heteroagentoptions.outputGEstruct=0; % Output the GeneralEqmConditions as a matrix
     elseif heteroagentoptions.fminalgo==0 % fzero, is based on root-finding so it needs just the vector of GEcondns, not the sum-of-squares (it is not a minimization routine)
         [p_eqm_vec,GeneralEqmConditions]=fzero(GeneralEqmConditionsFnOpt,GEparamsvec0,minoptions);
     elseif heteroagentoptions.fminalgo==1
@@ -424,6 +393,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         [p_eqm_vec,GeneralEqmConditions,counteval,stopflag,out,bestever] = cmaes_vfitoolkit(GeneralEqmConditionsFnOpt,GEparamsvec0,heteroagentoptions.insigma,heteroagentoptions.inopts); % ,varargin);
     elseif heteroagentoptions.fminalgo==5
         % Update based on rules in heteroagentoptions.fminalgo5.howtoupdate
+        % Set up the howtoupdate rules in the format needed
+        heteroagentoptions=setupGEnewprice3_shooting(heteroagentoptions,GeneralEqmEqns,GEPriceParamNames);
+        
         % Get initial prices, p
         p=nan(1,length(GEPriceParamNames));
         for ii=1:length(GEPriceParamNames)

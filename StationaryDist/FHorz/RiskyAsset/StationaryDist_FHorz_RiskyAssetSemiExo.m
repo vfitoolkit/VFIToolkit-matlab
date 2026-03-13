@@ -16,7 +16,11 @@ end
 if ~isfield(simoptions,'refine_d')
     error('Cannot use riskyasset+semiz without setting simoptions.refine_d')
 end
-if (sum(simoptions.refine_d)+simoptions.l_dsemiz)~=length(n_d)
+if length(simoptions.refine_d)>=4 && simoptions.refine_d(end)==simoptions.l_dsemiz
+    if sum(simoptions.refine_d)~=length(n_d)
+        error('simoptions.refine_d (and agreeing simoptions.l_dsemiz) should sum together to length(n_d)')
+    end
+elseif (sum(simoptions.refine_d)+simoptions.l_dsemiz)~=length(n_d)
     error('simoptions.refine_d and simoptions.l_dsemiz should all sum together to length(n_d)')
     % Don't actually need simoptions.l_dsemiz here, because it is just what is left over after simoptions.refine_d. But do this check anyway.
     % Need simoptions.l_dsemiz in all other situations with semi-exo states, so easier to just insist on it here as well.
@@ -40,6 +44,11 @@ a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
 
 
 %%
+if isfield(simoptions,'n_e')
+    N_e=prod(simoptions.n_e);
+else
+    N_e=0;
+end
 if ~isfield(simoptions,'n_u')
     error('To use an risky asset you must define simoptions.n_u')
 end

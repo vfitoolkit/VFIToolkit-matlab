@@ -42,12 +42,11 @@ while currdist>Tolerance && tempcounter<=maxiter
         tempmaxindex=maxindex+(0:1:N_a-1)*N_a;
         Ftemp(:,z_c)=ReturnMatrix_z(tempmaxindex); 
 
-    end %end z
+    end
     
     VKrondist=VKron(:)-VKronold(:);
     VKrondist(isnan(VKrondist))=0;
     currdist=max(abs(VKrondist));
-    %disp(currdist)
 
     % Use Howards Policy Fn Iteration Improvement 
     % (except for first few and last few iterations, as it is not a good idea there)
@@ -70,8 +69,11 @@ while currdist>Tolerance && tempcounter<=maxiter
     tempcounter=tempcounter+1;
 end
 
-Policy=reshape(Policy,[N_a,N_z]);
+Policy=reshape(Policy,[1,N_a,N_z]);
+
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 
-
-end %end function ValueFnIter_LowMem_nod_raw_sparse
+end

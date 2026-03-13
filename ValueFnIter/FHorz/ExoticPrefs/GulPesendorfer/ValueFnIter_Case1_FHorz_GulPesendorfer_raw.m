@@ -12,14 +12,8 @@ d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 
 if vfoptions.lowmemory>0
-    l_z=length(n_z);
     special_n_z=ones(1,length(n_z));
 end
-if vfoptions.lowmemory>1
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
-end
-
 
 %% j=N_j
 
@@ -58,28 +52,6 @@ if ~isfield(vfoptions,'V_Jplus1')
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-
-    elseif vfoptions.lowmemory==2
-
-        %if vfoptions.returnmatrix==2 % GPU
-        for z_c=1:N_z
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-
-                TemptationMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, TemptationFnParamsVec);
-                MostTempting_az=max(TemptationMatrix_az,[],1);
-                entireRHS_az=ReturnMatrix_az+TemptationMatrix_az-ones(N_d*N_a,1).*MostTempting_az;
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-
-            end
-        end
-
     end
 else
     % Using V_Jplus1
@@ -95,47 +67,21 @@ else
 
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
-        
-        if vfoptions.paroverz==1
-            
-            EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
-            
-            entireEV=kron(EV,ones(N_d,1));
-%             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
 
-            entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            
-            V(:,:,N_j)=shiftdim(Vtemp,1);
-            Policy(:,:,N_j)=shiftdim(maxindex,1);
-            
-            
-        elseif vfoptions.paroverz==0
-            
-            for z_c=1:N_z
-                ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-                TemptationMatrix_z=TemptationMatrix(:,:,z_c);
-                MostTempting_z=MostTempting(1,:,z_c);
-                
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-                
-                entireEV_z=kron(EV_z,ones(N_d,1));
+        EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-                entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
-                
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                V(:,z_c,N_j)=Vtemp;
-                Policy(:,z_c,N_j)=maxindex;
-            end
-        end
+        entireEV=kron(EV,ones(N_d,1));
+        %             entireEV=repelem(EV,N_d,1,1); % I tried this instead but appears repelem() is slower than kron()
+
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
+
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+
+        V(:,:,N_j)=shiftdim(Vtemp,1);
+        Policy(:,:,N_j)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -159,33 +105,6 @@ else
             V(:,z_c,N_j)=Vtemp;
             Policy(:,z_c,N_j)=maxindex;
         end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            entireEV_z=kron(EV_z,ones(N_d,1));
-            
-            z_val=z_gridvals_J(z_c,:,N_j);
-            for a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                TemptationMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, TemptationFnParamsVec);
-                MostTempting_az=max(TemptationMatrix_az,[],1);
-                entireRHS_az=ReturnMatrix_az+TemptationMatrix_az-ones(N_d*N_a,1).*MostTempting_az+DiscountFactorParamsVec*entireEV_z;
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,N_j)=Vtemp;
-                Policy(a_c,z_c,N_j)=maxindex;
-            end
-        end
-        
     end
 end
 
@@ -213,45 +132,19 @@ for reverse_j=1:N_j-1
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,jj), TemptationFnParamsVec);
         MostTempting=max(TemptationMatrix,[],1);
         
-        if vfoptions.paroverz==1
-            
-            EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV=sum(EV,2); % sum over z', leaving a singular second dimension
-            
-            entireEV=repelem(EV,N_d,1,1);
+        EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
+        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
-            entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
-            
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(entireRHS,[],1);
-            
-            V(:,:,jj)=shiftdim(Vtemp,1);
-            Policy(:,:,jj)=shiftdim(maxindex,1);
-            
-            
-        elseif vfoptions.paroverz==0
-            
-            for z_c=1:N_z
-                ReturnMatrix_z=ReturnMatrix(:,:,z_c);
-                TemptationMatrix_z=TemptationMatrix(:,:,z_c);
-                MostTempting_z=MostTempting(1,:,z_c);
-                
-                %Calc the condl expectation term (except beta), which depends on z but not on control variables
-                EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-                EV_z=sum(EV_z,2);
-                
-                entireEV_z=kron(EV_z,ones(N_d,1));
-                
-                entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_d*N_a,1).*MostTempting_z+DiscountFactorParamsVec*entireEV_z; %*ones(1,N_a,1);
-                
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_z,[],1);
-                V(:,z_c,jj)=Vtemp;
-                Policy(:,z_c,jj)=maxindex;
-            end
-        end
+        entireEV=repelem(EV,N_d,1,1);
+
+        entireRHS=ReturnMatrix+TemptationMatrix-ones(N_d*N_a,1).*MostTempting+DiscountFactorParamsVec*entireEV; %*repmat(entireEV,1,N_a,1);
+
+        %Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS,[],1);
+
+        V(:,:,jj)=shiftdim(Vtemp,1);
+        Policy(:,:,jj)=shiftdim(maxindex,1);
         
     elseif vfoptions.lowmemory==1
         for z_c=1:N_z
@@ -274,34 +167,7 @@ for reverse_j=1:N_j-1
             [Vtemp,maxindex]=max(entireRHS_z,[],1);
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
-        end
-        
-    elseif vfoptions.lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            entireEV_z=kron(EV_z,ones(N_d,1));
-            
-            z_val=z_gridvals_J(z_c,:,jj);
-            for a_c=1:N_a
-                a_val=a_gridvals(a_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                TemptationMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, TemptationFnParamsVec);
-                MostTempting_az=max(TemptationMatrix_az,[],1);
-                entireRHS_az=ReturnMatrix_az+TemptationMatrix_az-ones(N_d*N_a,1).*MostTempting_az+DiscountFactorParamsVec*entireEV_z;
-
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,jj)=Vtemp;
-                Policy(a_c,z_c,jj)=maxindex;
-            end
-        end
-        
+        end        
     end
 end
 

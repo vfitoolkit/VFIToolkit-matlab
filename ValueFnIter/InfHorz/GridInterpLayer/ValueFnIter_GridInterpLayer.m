@@ -133,7 +133,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_postGI_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    error('Not yet implemented')
+                    [V,Policy]=ValueFnIter_postGI_sparse_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_postGI_HowardGreedy_nod_raw(V0, n_a, n_z,  a_grid, z_gridvals, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions);
@@ -148,7 +148,7 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
                 if vfoptions.howardssparse==0
                     [V,Policy]=ValueFnIter_Refine_postGI_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 elseif vfoptions.howardssparse==1
-                    error('Not yet implemented')
+                    [V,Policy] = ValueFnIter_postGI_sparse_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
                 end
             elseif vfoptions.howardsgreedy==1
                 [V,Policy]=ValueFnIter_Refine_postGI_HowardGreedy_raw(V0, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, DiscountFactorParamsVec, ReturnFnParamsVec, vfoptions);
@@ -185,8 +185,25 @@ if vfoptions.preGI==0 % solve of rough grid, and then only consider +- a few apr
 end
 
 
-
 %% Reshape
+% Grid interp with 2 endo states leaves them separate, so first we have to
+% put them together before we can pass it to UnKronPolicyIndexes [nowadays
+% with divide-and-conquer and grid interpolation layer, this is common, so
+% maybe I should modify UnKronPolicyIndexes to just permit this as an
+% alternative case]
+if ~isscalar(n_a)
+    if N_d==0
+        Policy(1,:,:)=Policy(1,:,:)+n_a(1)*(Policy(2,:,:)-1); % aprime (both)
+        Policy(2,:,:)=Policy(3,:,:); % L2index
+        Policy=Policy(1:2,:,:);
+    else
+        % Policy(1,:,:)=Policy(1,:,:); % d
+        Policy(2,:,:)=Policy(2,:,:)+n_a(1)*(Policy(3,:,:)-1); % aprime (both)
+        Policy(3,:,:)=Policy(4,:,:); % L2index
+        Policy=Policy(1:3,:,:);
+    end
+end
+
 V=reshape(V,[n_a,n_z]);
 Policy=UnKronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,vfoptions);
 

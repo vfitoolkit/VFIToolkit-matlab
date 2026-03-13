@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_nod_Par0_raw(VKron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance) % Verbose
+function [VKron, Policy]=ValueFnIter_nod_Par0_raw(VKron, N_a, N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance,maxiter) % Verbose
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 
@@ -14,7 +14,7 @@ addindexforaz=N_a*(0:1:N_a-1)'+N_a*N_a*(0:1:N_z-1);
 %%
 tempcounter=1;
 currdist=Inf;
-while currdist>Tolerance
+while currdist>Tolerance && tempcounter<=maxiter
 
     VKronold=VKron;
 
@@ -54,6 +54,11 @@ while currdist>Tolerance
 
 end
   
-Policy=reshape(PolicyIndexes,[N_a,N_z]);
+Policy=reshape(PolicyIndexes,[1,N_a,N_z]);
+
+
+if tempcounter>=maxiter
+    warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
+end
 
 end
