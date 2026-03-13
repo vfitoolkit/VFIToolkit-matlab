@@ -181,7 +181,7 @@ if any(computeForThesei==0)
                 suffix_cells={'st', 'nd', 'rd'};
                 suffix=suffix_cells{ii2};
             end
-            fprintf(['LifeCycleProfiles_FHorz_Case1_PType: Ignoring the %d-%s PType { %s } because it is infinite horizon \n', ii2, suffix, Names_i2{ii2}]);
+            fprintf('LifeCycleProfiles_FHorz_Case1_PType: Ignoring the %d%s PType { %s } because it is infinite horizon \n', ii2, suffix, Names_i2{ii2});
         end
     end   
     % Eliminate any no longer relevant functions from FnsToEvaluate (those which are only used for infinite horizon)

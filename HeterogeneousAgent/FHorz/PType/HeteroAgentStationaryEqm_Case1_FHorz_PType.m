@@ -66,7 +66,7 @@ if isempty(n_p)
 end
 
 if exist('heteroagentoptions','var')==0
-    heteroagentoptions.fminalgo=1; % =1 use fminsearch. Main alternatives: =4 is shooting (you set update rules), =5 is CMA-ES (robust but slow), =8 is lsqnonlin() fast but requires Matlab Optimization Toolbox (and often not quite high accuracy of results)
+    heteroagentoptions.fminalgo=1; % =1 use fminsearch. Main alternatives: =4 is CMA-ES (robust but slow), =5 is shooting (you set update rules), =8 is lsqnonlin() fast but requires Matlab Optimization Toolbox (and often not quite high accuracy of results)
     heteroagentoptions.multiGEcriterion=1; % How to combine multiple GE condns (default is sum-of-squares)
     heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % Weights on GECondns, when being combined
     heteroagentoptions.toleranceGEprices=10^(-4); % Accuracy of general eqm prices
@@ -790,7 +790,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
         z0.z=GEparamsvec0;
         [sol,GeneralEqmConditions]=solve(prob,z0);
         p_eqm_vec=sol.z;
-        % Note, doesn't really work as automattic differentiation is only for
+        % Note, doesn't really work as automatic differentiation is only for
         % supported functions, and the objective here is not a supported function
     elseif heteroagentoptions.fminalgo==3
         goal=zeros(length(GEparamsvec0),1);
