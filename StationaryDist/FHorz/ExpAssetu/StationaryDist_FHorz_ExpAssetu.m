@@ -1,7 +1,7 @@
 function StationaryDist=StationaryDist_FHorz_ExpAssetu(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions)
 
 %% Setup related to experience asset
-n_d2=n_d(end);
+n_d2=n_d(end-simoptions.l_dexperienceassetu+1:end);
 % Split endogenous assets into the standard ones and the experience asset
 if isscalar(n_a)
     n_a1=0;
@@ -105,7 +105,7 @@ Policy=reshape(Policy,[size(Policy,1),N_a,N_ze,N_j]);
 % as that is what we need for simulation, and we can then just send it to standard Case1 commands.
 Policy_aprime=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % the lower grid point
 PolicyProbs=zeros(N_a,N_ze,N_u,2,N_j,'gpuArray'); % probabilities of grid points
-whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+whichisdforexpasset=length(n_d)-simoptions.l_dexperienceassetu+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
     [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAssetu_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze,n_u, d_grid, a2_grid,u_grid, aprimeFnParamsVec);
