@@ -150,7 +150,7 @@ end
 
 %%
 if simoptions.parallel==2
-    StationaryDist=gpuArray(full(StationaryDist)); % MATLAB 2025a supports reshaping sparse gpuarray, but not isnan(sparse(gpuarray))
+    StationaryDist=gpuArray(StationaryDist);
     Policy=gpuArray(Policy);
     n_d=gpuArray(n_d);
     n_a=gpuArray(n_a);
