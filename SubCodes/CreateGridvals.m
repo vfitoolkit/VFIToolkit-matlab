@@ -26,7 +26,7 @@ else
     elseif l_x==4
         x_gridvals=[repmat(x_grid(1:n_x(1)),n_x(2)*n_x(3)*n_x(4),1), repmat(repelem(x_grid(n_x(1)+1:n_x(1)+n_x(2)),n_x(1),1),n_x(3)*n_x(4),1), repmat(repelem(x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3)),n_x(1)*n_x(2),1),n_x(4),1), repelem(x_grid(n_x(1)+n_x(2)+n_x(3)+1:end),n_x(1)*n_x(2)*n_x(3),1)];
     elseif l_x==5
-        x_gridvals=[repmat(x_grid(1:n_x(1)),n_x(2)*n_x(3)*n_x(4)*n_x(5),1), repmat(repelem(x_grid(n_x(1)+1:n_x(1)+n_x(2)),n_x(1),1),n_x(3)*n_x(4)*n_x(5),1), repmat(repelem(x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3)),n_x(1)*n_x(2),1),n_x(4)*n_x(5),1), repmat(repelem(x_grid(n_x(1)+n_x(2)+n_x(3)+1:n_x(1)+n_x(2)+n_x(3)+n_x(4)),n_x(1)*n_x(2),1),n_x(4)*n_x(5),1), repelem(x_grid(n_x(1)+n_x(2)+n_x(3)+n_x(4)+1:end),n_x(1)*n_x(2)*n_x(3)*n_x(4),1)];
+        x_gridvals=[repmat(x_grid(1:n_x(1)),n_x(2)*n_x(3)*n_x(4)*n_x(5),1), repmat(repelem(x_grid(n_x(1)+1:n_x(1)+n_x(2)),n_x(1),1),n_x(3)*n_x(4)*n_x(5),1), repmat(repelem(x_grid(n_x(1)+n_x(2)+1:n_x(1)+n_x(2)+n_x(3)),n_x(1)*n_x(2),1),n_x(4)*n_x(5),1), repmat(repelem(x_grid(n_x(1)+n_x(2)+n_x(3)+1:n_x(1)+n_x(2)+n_x(3)+n_x(4)),n_x(1)*n_x(2)*n_x(3),1),n_x(5),1), repelem(x_grid(n_x(1)+n_x(2)+n_x(3)+n_x(4)+1:end),n_x(1)*n_x(2)*n_x(3)*n_x(4),1)];
     else
         error('Cannot handle length(n_x)>5. Please email me if you need this functionality')
     end
