@@ -59,7 +59,6 @@ end
 
 if l_d==1
     if l_a==1 && l_z==1
-        % d_gridvals(:,1)(1,1,1)=d_grid(1); % Requires special treatment
         Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1vals, z1vals,ReturnFnParamsCell{:});
     elseif l_a==1 && l_z==2
         Fmatrix=arrayfun(ReturnFn, d_gridvals(:,1), a1vals, z1vals,z2vals,ReturnFnParamsCell{:});

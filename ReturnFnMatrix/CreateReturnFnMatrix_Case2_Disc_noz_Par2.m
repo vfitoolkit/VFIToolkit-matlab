@@ -42,7 +42,6 @@ end
 
 
 if l_d==1 && l_a==1
-    d1vals(1,1,1)=d_gridvals(1); % Requires special treatment
     Fmatrix=arrayfun(ReturnFn, d1vals, a1vals, ReturnFnParamsCell{:});
 elseif l_d==1 && l_a==2
     Fmatrix=arrayfun(ReturnFn, d1vals, a1vals,a2vals, ReturnFnParamsCell{:});

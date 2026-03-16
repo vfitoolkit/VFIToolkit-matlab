@@ -30,7 +30,7 @@ if ~exist('whichstats','var')
     % 7th element: More Inequality
     % Note: RatioMeanToMedian is computed whenever both mean and median are
     %
-    % For 4th and 6th elements, setting whichstats(4)=2 and ichstats(6)=2
+    % For 4th and 6th elements, setting whichstats(4)=2 and whichstats(6)=2
     % switches to a faster but more memory intensive version.
 end
 

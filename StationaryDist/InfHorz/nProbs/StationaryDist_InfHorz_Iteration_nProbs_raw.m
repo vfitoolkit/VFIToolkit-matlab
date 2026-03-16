@@ -34,7 +34,7 @@ while currdist>simoptions.tolerance && counter<simoptions.maxit
     if rem(counter,simoptions.multiiter)==0
         StationaryDistOld=StationaryDist;
     elseif rem(counter,simoptions.multiiter)==10
-        currdist=max(abs(StationaryDist-StationaryDistOld));
+        currdist=max(abs(full(StationaryDist)-full(StationaryDistOld)));
     end
 
     counter=counter+1;
