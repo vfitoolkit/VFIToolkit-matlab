@@ -307,9 +307,121 @@ elseif l_daprime==5
     elseif l_a==4 && l_z==6
         Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
     end
+elseif l_daprime==6
+    if l_a==1 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),  a_gridvals(:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),  a_gridvals(:,1),a_gridvals(:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),  a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),  a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    end
 elseif l_daprime==7
-    if l_a==5 && l_z==1
-        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4),a_gridvals(:,5), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    if l_a==1 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),PolicyValuesPermute(:,:,7),  a_gridvals(:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==1 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),PolicyValuesPermute(:,:,7),  a_gridvals(:,1),a_gridvals(:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==2 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),PolicyValuesPermute(:,:,7),  a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==3 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==0
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,1),PolicyValuesPermute(:,:,2),PolicyValuesPermute(:,:,3),PolicyValuesPermute(:,:,4),PolicyValuesPermute(:,:,5),PolicyValuesPermute(:,:,6),PolicyValuesPermute(:,:,7),  a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==1
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==3
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==4
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==5
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5), CellOverAgeOfParamValues{:});
+    elseif l_a==4 && l_z==6
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6),PolicyValuesPermute(:,:,:,7), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J(1,:,:,1),z_gridvals_J(1,:,:,2),z_gridvals_J(1,:,:,3),z_gridvals_J(1,:,:,4),z_gridvals_J(1,:,:,5),z_gridvals_J(1,:,:,6), CellOverAgeOfParamValues{:});
     end
 end
 
