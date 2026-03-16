@@ -16,7 +16,7 @@ a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 if vfoptions.lowmemory==1
     special_n_z=ones(1,length(n_z));
 elseif vfoptions.lowmemory==2
-    error("There is no e to iterate; choose lowmemory=1 (iterate over z) or lowmemory=3 (iterate over z and ExpAsset)")
+    error("There is no e to iterate, so cannot set vfoptions.lowmemory=2")
 elseif vfoptions.lowmemory==3
     special_n_z=ones(1,length(n_z));
     special_n_ea=ones(1,length(n_a2));
