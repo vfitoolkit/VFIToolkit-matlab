@@ -19,6 +19,9 @@ if vfoptions.lowmemory==1
 elseif vfoptions.lowmemory==2
     special_n_e=ones(1,length(n_e));
     special_n_z=ones(1,length(n_z));
+elseif vfoptions.lowmemory==3
+    special_n_e=ones(1,length(n_e));
+    special_n_z=ones(1,length(n_z));
     special_n_ea=ones(1,length(n_a2));
 end
 
@@ -44,6 +47,18 @@ if ~isfield(vfoptions,'V_Jplus1')
             Policy(:,:,e_c,N_j)=maxindex;
         end
     elseif vfoptions.lowmemory==2
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,n_d2,n_a1,n_a1,n_a2, special_n_z, special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
+                % Calc the max and it's index
+                [Vtemp,maxindex]=max(ReturnMatrix_ze);
+                V(:,z_c,e_c,N_j)=Vtemp;
+                Policy(:,z_c,e_c,N_j)=maxindex;
+            end
+        end
+    elseif vfoptions.lowmemory==3
         for ea_c=1:N_a2
             ea_val=a2_gridvals(ea_c);
             for z_c=1:N_z
@@ -115,6 +130,23 @@ else
             Policy(:,:,e_c,N_j)=shiftdim(maxindex,1);
         end
     elseif vfoptions.lowmemory==2
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,N_j);
+            DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),N_d1,N_a1);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,N_j);
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
+
+                entireRHS=ReturnMatrix_ze+DiscountedEV_z;
+
+                % Calc the max and it's index
+                [Vtemp,maxindex]=max(entireRHS,[],1);
+
+                V(:,z_c,e_c,N_j)=shiftdim(Vtemp,1);
+                Policy(:,z_c,e_c,N_j)=shiftdim(maxindex,1);
+            end
+        end
+    elseif vfoptions.lowmemory==3
         for ea_c=1:N_a2
             ea_val=a2_gridvals(ea_c);
             for z_c=1:N_z
@@ -203,6 +235,24 @@ for reverse_j=1:N_j-1
             Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
         end
     elseif vfoptions.lowmemory==2
+        for z_c=1:N_z
+            z_val=z_gridvals_J(z_c,:,jj);
+            DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),N_d1,N_a1);
+            for e_c=1:N_e
+                e_val=e_gridvals_J(e_c,:,jj);
+
+                ReturnMatrix_ze=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2e(ReturnFn, n_d1,n_d2,n_a1,n_a1,n_a2,special_n_z,special_n_e, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, e_val, ReturnFnParamsVec,0,0);
+
+                entireRHS=ReturnMatrix_ze+DiscountedEV_z;
+
+                %Calc the max and it's index
+                [Vtemp,maxindex]=max(entireRHS,[],1);
+
+                V(:,z_c,e_c,jj)=shiftdim(Vtemp,1);
+                Policy(:,z_c,e_c,jj)=shiftdim(maxindex,1);
+            end
+        end
+    elseif vfoptions.lowmemory==3
         for ea_c=1:N_a2
             ea_val=a2_gridvals(ea_c);
             for z_c=1:N_z
