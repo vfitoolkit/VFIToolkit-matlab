@@ -38,12 +38,12 @@ for ii=1:N_i
             vfoptions_temp.verboseparams=0;
         end
         if ~isfield(vfoptions_temp,'ptypestorecpu')
-            vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+            vfoptions_temp.ptypestorecpu=0; % =1 can be used as GPU memory is limited, so switch solutions to the cpu
         end
     else
         vfoptions_temp.verbose=0;
         vfoptions_temp.verboseparams=0;
-        vfoptions_temp.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
+        vfoptions_temp.ptypestorecpu=0; % =1 can be used as GPU memory is limited, so switch solutions to the cpu
     end 
     
     if vfoptions_temp.verbose==1

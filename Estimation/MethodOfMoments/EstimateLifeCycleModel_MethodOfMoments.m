@@ -176,7 +176,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments(TargetMoments,0);
+[targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments_FHorz(TargetMoments,0);
 
 
 %% Now, a bunch of things to avoid redoing them every parameter vector we want to try

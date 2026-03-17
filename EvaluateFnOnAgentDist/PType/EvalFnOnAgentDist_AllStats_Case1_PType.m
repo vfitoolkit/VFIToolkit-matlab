@@ -179,13 +179,9 @@ for ii=1:N_i
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
     end
-
-    if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-        PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
-    else
-        PolicyIndexes_temp=Policy.(Names_i{ii});
-    end
-
+    
+    PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii}));
+    
     % Go through everything which might be dependent on permanent type (PType)
     % Notice that the way this is coded the grids (etc.) could be either
     % fixed, or a function (that depends on age, and possibly on permanent
@@ -309,12 +305,13 @@ for ii=1:N_i
         l_ze_temp=length(n_ze_temp);
     end
 
-    l_daprime_temp=size(PolicyIndexes_temp,1);
     % Switch to PolicyVals
     PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,simoptions_temp);
     permuteindexes=[1+(1:1:(l_a_temp+l_ze_temp)),1];
     PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_s,l_d+l_a]
-    
+
+    l_daprime_temp=size(PolicyValues_temp,1); % Note, do this off of value not indexes, so that things like gridinterplayer have already been handled
+
     a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
     [z_gridvals_temp, ~, simoptions_temp]=ExogShockSetup(n_z_temp,z_grid_temp,[],Parameters_temp,simoptions_temp,1);
     
