@@ -1,4 +1,4 @@
-function [targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments(TargetMoments,useptype)
+function [targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments_FHorz(TargetMoments,useptype)
 % useptype is 0 or 1
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)

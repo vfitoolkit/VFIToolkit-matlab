@@ -349,6 +349,9 @@ end
 
 %% Set up GEparamsvec0 and parameter constraints
 nGEParams=length(GEPriceParamNames);
+if nGEParams==0
+    error('GEPriceParamNames is empty, you must have a least one price to be determined in general eqm')
+end
 GEparamsvec0=zeros(nGEParams,1); % column vector
 if heteroagentoptions.maxiter>0
     for pp=1:nGEParams
@@ -404,7 +407,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     
     % Choosing algorithm for the optimization problem
     % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
-    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxFunEvals',heteroagentoptions.maxiter);
+    minoptions = optimset('TolX',heteroagentoptions.toleranceGEprices,'TolFun',heteroagentoptions.toleranceGEcondns,'MaxIter',heteroagentoptions.maxiter,'MaxFunEvals',10*heteroagentoptions.maxiter);
     p_eqm_index=nan; % If not using p_grid then this is irrelevant/useless
     if N_p~=0 % Solving on p_grid
         p_gridvals=CreateGridvals(n_p,heteroagentoptions.p_grid,1);
@@ -516,7 +519,7 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
     for ii=1:length(GEPriceParamNames)
         p_eqm.(GEPriceParamNames{ii})=p_eqm_vec(ii);
     end
-
+    
 %%
 elseif heteroagentoptions.maxiter==0 % Can use heteroagentoptions.maxiter=0 to just evaluate the current general eqm eqns
     % Just use the prices that are currently in Params

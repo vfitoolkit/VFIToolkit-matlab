@@ -34,6 +34,7 @@ end
 %%
 Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
+AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
 
 for ii=1:PTypeStructure.N_i
     

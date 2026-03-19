@@ -12,7 +12,7 @@ N_z=prod(n_z);
 if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.parallel=1+(gpuDeviceCount>0);
-    simoptions.maxit=10^6; % In my experience, after a simulation, if you need more than 10^6 iterations to reach the steady-state it is because something has gone wrong
+    simoptions.maxit=10^6; % In my experience if you need more than 10^6 iterations to reach the steady-state it is because something has gone wrong
     simoptions.tolerance=10^(-6); % I originally had this at 10^(-9) but this seems to have been overly strict as very hard to acheive and not needed for model accuracy, now set to 10^(-6) [note that this is the max of all error across the agent dist, the L-Infinity norm]
     simoptions.multiiter=50; % How many iteration steps before check tolerance
     % Options relating to simulation method
@@ -119,6 +119,9 @@ end
 %% Setup for Exogenous Shocks
 if simoptions.alreadygridvals==0
     if isfield(simoptions,'ExogShockFn')
+        if ~exist('Parameters','var')
+            error('When using ExogShockFn you must pass Params structure as an input to StationaryDist_Cast1 (it goes just after simoptions)')
+        end
         [~, pi_z, simoptions]=ExogShockSetup(n_z,[],pi_z,Parameters,simoptions,2);
     end
 end

@@ -64,7 +64,7 @@ else
 end
 
 if isfield(simoptions,'conditionalrestrictions')
-    warning('Have not yet implemented simoptions.conditionalrestrictions for CorrTransProbs_InfHorz, ask on forum if you need this')
+    warning('Have not yet implemented simoptions.conditionalrestrictions for CorrTransProbs_InfHorz so ignoring them, ask on forum if you need this')
 end
 
 N_d=prod(n_d);
