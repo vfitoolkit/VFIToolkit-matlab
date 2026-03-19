@@ -11,13 +11,9 @@ function AggVarsPath=TransitionPath_InfHorz_PType_singlepath(PricePathOld, Param
 
 % For this agent type, first go back through the value & policy fns.
 % Then forwards through agent dist and agg vars.
-if N_d>0
-    l_d=length(n_d);
-    PolicyIndexesPath=zeros(2,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-else
-    l_d=0;
-    PolicyIndexesPath=zeros(N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-end
+
+l_a=length(n_a);
+PolicyIndexesPath=zeros(l_d+l_a,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
 
 % This and much of the rest of this code borrowed from TransitionPath_InfHorz_shooting.m
 if simoptions.gridinterplayer==0
@@ -52,11 +48,7 @@ for ttr=1:T-1 %so t=T-i
     % The VKron input is next period value fn, the VKron output is this period.
     % Policy is kept in the form where it is just a single-value in (d,a')
 
-    if N_d>0
-        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
-    else
-        PolicyIndexesPath(:,:,T-ttr)=Policy;
-    end
+    PolicyIndexesPath(:,:,:,T-ttr)=Policy;
     Vnext=V;
     
 end

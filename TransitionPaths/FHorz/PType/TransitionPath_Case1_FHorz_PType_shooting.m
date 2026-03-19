@@ -204,6 +204,27 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         ReturnFnParamNames=PTypeStructure.(iistr).ReturnFnParamNames;
         vfoptions=PTypeStructure.(iistr).vfoptions;
         simoptions=PTypeStructure.(iistr).simoptions;
+        if vfoptions.experienceasset
+            n_d1=PTypeStructure.(iistr).n_d1; N_d1=prod(n_d1); l_d1=length(n_d1);
+            n_d2=PTypeStructure.(iistr).n_d2; N_d2=prod(n_d2); l_d2=length(n_d2);
+            n_a1=PTypeStructure.(iistr).n_a1; N_a1=prod(n_a1);
+            n_a2=PTypeStructure.(iistr).n_a2; N_a2=prod(n_a2);
+            d1_grid=PTypeStructure.(iistr).d1_grid;
+            d2_grid=PTypeStructure.(iistr).d2_grid;
+            a1_grid=PTypeStructure.(iistr).a1_grid;
+            a2_grid=PTypeStructure.(iistr).a2_grid;
+            aprimeFn=vfoptions.aprimeFn;
+            aprimeFnParamNames=PTypeStructure.(iistr).aprimeFnParamNames;
+
+            if N_a1>0
+                a1_gridvals=CreateGridvals(n_a1,a1_grid,1);
+            end
+            if N_d1==0
+                d_gridvals=CreateGridvals(n_d2,d2_grid,1);
+            else
+                d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
+            end
+        end
         FnsToEvaluate=PTypeStructure.(iistr).FnsToEvaluate;
         FnsToEvaluateParamNames=PTypeStructure.(iistr).FnsToEvaluateParamNames;
         AggVarNames=PTypeStructure.(iistr).AggVarNames;
@@ -230,12 +251,17 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % For current ptype, do the backward iteration of V and Policy, then forward iterate agent dist and get the AggVarsPath
         if isfinite(PTypeStructure.(iistr).N_j)
             if vfoptions.experienceasset==1
-                AggVarsPath=TransitionPath_FHorz_PType_ExpAsset_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
+                AggVarsPath=TransitionPath_FHorz_PType_ExpAsset_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,n_d1,n_d2,n_a1,n_a2,N_z,n_z,N_e,n_e,N_j,d2_grid,a1_gridvals,a2_grid,d_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, aprimeFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
             else
                 AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
             end
         else
-            AggVarsPath=TransitionPath_InfHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_grid, pi_z,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
+            if vfoptions.experienceasset==1
+                error("not yet implemented")
+                AggVarsPath=TransitionPath_InfHorz_PType_ExpAsset_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_grid, pi_z,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
+            else
+                AggVarsPath=TransitionPath_InfHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_grid, pi_z,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
+            end
         end
         % AggVarsPath=zeros(length(FnsToEvaluate),T-1);
         
