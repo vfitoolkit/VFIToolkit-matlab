@@ -41,7 +41,6 @@ if ~exist('vfoptions','var')
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     % Other options
-    vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
     vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
@@ -120,9 +119,6 @@ else
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     % Other options
-    if ~isfield(vfoptions,'polindorval')
-        vfoptions.polindorval=1;
-    end
     if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
     end
@@ -168,6 +164,15 @@ if vfoptions.parallel<2
     [V,Policy]=ValueFnIter_InfHorz_CPU(n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V,Policy};
     return
+end
+
+%% V0 (initial guess)
+if isfield(vfoptions,'V0')
+    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
+    vfoptions.actualV0=1;
+else
+    V0=zeros([N_a,N_z], 'gpuArray');
+    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
 end
 
 %% Check the sizes of some of the inputs
@@ -231,16 +236,6 @@ pi_z=gpuArray(pi_z);
 d_grid=gpuArray(d_grid);
 a_grid=gpuArray(a_grid);
 z_grid=gpuArray(z_grid);
-
-%% V0 (initial guess)
-if isfield(vfoptions,'V0')
-    V0=reshape(gpuArray(vfoptions.V0),[N_a,N_z]);
-    vfoptions.actualV0=1;
-else
-    V0=zeros([N_a,N_z], 'gpuArray');
-    vfoptions.actualV0=0; % DC2 has different way of creating inital guess so this will be ignored
-end
-
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0

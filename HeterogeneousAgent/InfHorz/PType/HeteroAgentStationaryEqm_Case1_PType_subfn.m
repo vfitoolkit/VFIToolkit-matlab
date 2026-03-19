@@ -32,11 +32,7 @@ end
 
 
 %%
-if heteroagentoptions.parallel==2
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
-else
-    AggVars=zeros(PTypeStructure.numFnsToEvaluate,1); % numFnsToEvaluate is independent of the ptype
-end
+AggVars=zeros(PTypeStructure.numFnsToEvaluate,1,'gpuArray'); % numFnsToEvaluate is independent of the ptype
 
 for ii=1:PTypeStructure.N_i
     
