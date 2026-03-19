@@ -128,7 +128,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     % After that is finished we can put the AggVars together, evaluate GE conditions, and update price path
     AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T-1,N_i); % Does not include period T
     for ii=1:N_i
-        iistr=PTypeStructure.Names_i{ii};        
+        iistr=PTypeStructure.Names_i{ii};
 
         % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
         % AgentDist=AgentDist_initial.(iistr);

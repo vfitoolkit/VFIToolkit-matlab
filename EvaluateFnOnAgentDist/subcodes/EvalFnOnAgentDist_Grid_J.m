@@ -664,6 +664,8 @@ elseif l_daprime==7
 elseif l_daprime==6
     if l_a==5 && l_z==1
         Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4),a_gridvals(:,5), z_gridvals_J(1,:,:,1), CellOverAgeOfParamValues{:});
+    elseif l_a==5 && l_z==2
+        Values=arrayfun(FnToEvaluate, PolicyValuesPermute(:,:,:,1),PolicyValuesPermute(:,:,:,2),PolicyValuesPermute(:,:,:,3),PolicyValuesPermute(:,:,:,4),PolicyValuesPermute(:,:,:,5),PolicyValuesPermute(:,:,:,6), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4),a_gridvals(:,5), z_gridvals_J(1,:,:,1), z_gridvals_J(1,:,:,2), CellOverAgeOfParamValues{:});
     end
 end
 

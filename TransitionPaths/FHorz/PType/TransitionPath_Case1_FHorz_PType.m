@@ -133,20 +133,35 @@ end
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 vfoptions.EVpre=0; % Not actually an option that can be used here
-if ~isfield(vfoptions, 'experienceasset')
-    vfoptions.experienceasset=0;
+if ~isfield(vfoptions,'verbose')
+    vfoptions.verbose=0;
 end
-if ~isfield(vfoptions,'lowmemory')
-    lowmemory_in_PType=0;
+if ~isfield(vfoptions,'experienceasset')
     for ii=1:N_i
-        if isfield(vfoptions.Name_i{ii}, 'lowmemory')
-            lowmemory_in_PType=1;
-        elseif lowmemory_in_PType==1
-            vfoptions.Name_i{ii}.lowmemory=0;
+        vfoptions.experienceasset.(Names_i{ii})=0;
+    end
+else
+    % User created vfoptions.PType.experienceasset; we have Names_i
+    for ii=1:N_i
+        if isfield(vfoptions.experienceasset, Names_i{ii})
+            if ~isfield(vfoptions, 'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
+                error('To use an experience asset you must define vfoptions.aprimeFn')
+            end
+        else
+            vfoptions.experienceasset.(Names_i{ii})=0;
         end
     end
-    if lowmemory_in_PType==0
-        vfoptions.lowmemory=0;
+end
+if ~isfield(vfoptions,'lowmemory')
+    for ii=1:N_i
+        vfoptions.lowmemory.(Names_i{ii})=0;
+    end
+else
+    % User created vfoptions.PType.lowmemory; we have Names_i
+    for ii=1:N_i
+        if ~isfield(vfoptions.lowmemory, Names_i{ii})
+            vfoptions.lowmemory.(Names_i{ii})=0;
+        end
     end
 end
 
@@ -308,7 +323,7 @@ for ii=1:PTypeStructure.N_i
     if N_d==0
         PTypeStructure.(iistr).l_d=0;
     else
-        PTypeStructure.(iistr).l_d=length(n_d);
+        PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
     end
     if isa(n_a,'struct')
         PTypeStructure.(iistr).n_a=n_a.(iistr);
@@ -357,31 +372,92 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
     end
-    % to be able to EvalFnsOnAgentDist using fastOLG we also need
-    PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
-    % use fine grid for aprime_gridvals
-    if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
-        PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
-    elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
-        if isscalar(PTypeStructure.(iistr).n_a)
-            n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
-            aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
-            PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+
+    if PTypeStructure.(iistr).vfoptions.experienceasset
+        % Borrowed from TransitionPaths/InfHorz/TransitionPath_Case1.m
+        % Split decision variables into the standard ones and the one relevant to the experience asset
+        if isscalar(PTypeStructure.(iistr).n_d)
+            PTypeStructure.(iistr).n_d1=0;
         else
-            a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
-            n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
-            n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
-            a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
-            aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
-            PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            PTypeStructure.(iistr).n_d1=PTypeStructure.(iistr).n_d(1:end-1);
         end
+        PTypeStructure.(iistr).n_d2=PTypeStructure.(iistr).n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
+        PTypeStructure.(iistr).d1_grid=PTypeStructure.(iistr).d_grid(1:sum(PTypeStructure.(iistr).n_d1));
+        PTypeStructure.(iistr).d2_grid=PTypeStructure.(iistr).d_grid(sum(PTypeStructure.(iistr).n_d1)+1:end);
+        % Split endogenous assets into the standard ones and the experience asset
+        if isscalar(PTypeStructure.(iistr).n_a)
+            PTypeStructure.(iistr).n_a1=0;
+        else
+            PTypeStructure.(iistr).n_a1=PTypeStructure.(iistr).n_a(1:end-1);
+        end
+        PTypeStructure.(iistr).n_a2=PTypeStructure.(iistr).n_a(end); % n_a2 is the experience asset
+        PTypeStructure.(iistr).a1_grid=PTypeStructure.(iistr).a_grid(1:sum(PTypeStructure.(iistr).n_a1));
+        PTypeStructure.(iistr).a2_grid=PTypeStructure.(iistr).a_grid(sum(PTypeStructure.(iistr).n_a1)+1:end);
+
+        % aprimeFnParamNames in same fashion
+        l_d2=length(PTypeStructure.(iistr).n_d2);
+        l_a2=length(PTypeStructure.(iistr).n_a2);
+        temp=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.aprimeFn);
+        if length(temp)>(l_d2+l_a2)
+            PTypeStructure.(iistr).aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+        else
+            PTypeStructure.(iistr).aprimeFnParamNames={};
+        end
+
+        PTypeStructure.(iistr).N_a1=prod(PTypeStructure.(iistr).n_a1);
+
+        % to be able to EvalFnsOnAgentDist using fastOLG we also need
+        PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
+        % use fine grid for aprime_gridvals
+        if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
+            PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
+        elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
+            if isscalar(PTypeStructure.(iistr).n_a)
+                n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+                aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
+                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            else
+                a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
+                n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+                n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
+                a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
+                aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
+                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            end
+        end
+        PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
+        % if N_d==0
+        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
+        % else
+        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+        % end
+    else
+        % to be able to EvalFnsOnAgentDist using fastOLG we also need
+        PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
+        % use fine grid for aprime_gridvals
+        if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
+            PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
+        elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
+            if isscalar(PTypeStructure.(iistr).n_a)
+                n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+                aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
+                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            else
+                a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
+                n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+                n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
+                a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
+                aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
+                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
+            end
+        end
+        PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
+        % if N_d==0
+        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
+        % else
+        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+        % end
     end
-    PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
-    % if N_d==0
-    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
-    % else
-    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-    % end
 
     if isa(pi_z,'struct')
         PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
@@ -437,7 +513,13 @@ for ii=1:PTypeStructure.N_i
     else
         l_d=length(PTypeStructure.(iistr).n_d);
     end
-    l_a=length(PTypeStructure.(iistr).n_a);
+    if PTypeStructure.(iistr).vfoptions.experienceasset
+        l_aprime=length(PTypeStructure.(iistr).n_a1);
+        l_a=l_aprime+length(PTypeStructure.(iistr).n_a2);
+    else
+        l_aprime=length(PTypeStructure.(iistr).n_a);
+        l_a=l_aprime;
+    end
     l_z=length(PTypeStructure.(iistr).n_z);
     if PTypeStructure.(iistr).n_z(1)==0
         l_z=0;
@@ -451,13 +533,8 @@ for ii=1:PTypeStructure.N_i
             l_e=length(PTypeStructure.(iistr).vfoptions.n_e);
         end
     end
-    % Figure out ReturnFnParamNames from ReturnFn
-    temp=getAnonymousFnInputNames(PTypeStructure.(iistr).ReturnFn);
-    if length(temp)>(l_d+l_a+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
-        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
-    else
-        ReturnFnParamNames={};
-    end
+    %% Implement new way of handling ReturnFn inputs
+    ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,Parameters);
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
     
 
@@ -487,7 +564,7 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk});
             % Figure out FnsToEvaluateParamNames
             temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}));
-            PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+            PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_aprime+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
             PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
             PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
         end

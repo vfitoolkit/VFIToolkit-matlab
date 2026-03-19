@@ -986,6 +986,8 @@ elseif l_daprime==7
 elseif l_daprime==6
     if l_a==5 && l_z==1
         Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals,daprime6vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4),a_gridvals(:,5), z_gridvals(1,:,1), FnToEvaluateParamsCell{:});
+    elseif l_a==5 && l_z==2
+        Values=arrayfun(FnToEvaluate, daprime1vals,daprime2vals,daprime3vals,daprime4vals,daprime5vals,daprime6vals, a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4),a_gridvals(:,5), z_gridvals(1,:,1),z_gridvals(1,:,2), FnToEvaluateParamsCell{:});
     end
 end
 
