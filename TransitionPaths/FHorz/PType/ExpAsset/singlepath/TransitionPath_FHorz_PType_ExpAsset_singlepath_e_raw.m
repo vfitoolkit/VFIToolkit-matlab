@@ -17,7 +17,7 @@ N_ze=N_z*N_e;
 l_aprime=length(n_a1);
 l_a=l_aprime+length(n_a2);
 l_z=length(n_z);
-l_ze=l_z*length(n_e);
+l_ze=l_z+length(n_e);
 
 %%
 % Shapes:
