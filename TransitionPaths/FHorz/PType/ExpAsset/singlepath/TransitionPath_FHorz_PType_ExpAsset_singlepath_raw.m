@@ -1,18 +1,20 @@
-function AggVarsPath=TransitionPath_FHorz_PType_ExpAsset_singlepath_raw(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist_initial,jequalOneDist_T,AgeWeights_T,l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,z_gridvals_J_fastOLG,ReturnFn, FnsToEvaluateCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions)
+function AggVarsPath=TransitionPath_FHorz_PType_ExpAsset_singlepath_raw(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist_initial,jequalOneDist_T,AgeWeights_T, ...
+    l_d,n_d1,n_d2,n_a1,n_a2,N_z,n_z,N_j,d2_grid,a1_gridvals,a2_grid,d_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,z_gridvals_J_fastOLG, ...
+    ReturnFn, aprimeFn, FnsToEvaluateCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, ...
+    use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, ...
+    II1orII, II2, exceptlastj,exceptfirstj,justfirstj, ...
+    transpathoptions, vfoptions, simoptions)
 % When doing shooting alogrithm on TPath FHorz PType, this is for a given ptype, and does the steps of back-iterate to get policy, then forward to get agent dist and agg vars.
 % The only output is the agg vars path.
 
-error("these are not yet the droids you are looking for")
-
 AggVarsPath=zeros(length(FnsToEvaluateCell),T-1,'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
-if N_d==0
-    l_d=0;
-else
-    l_d=length(n_d);
-end
-l_a=length(n_a);
-l_aprime=length(n_a);
+N_a1=prod(n_a1);
+N_a2=prod(n_a2);
+N_a=N_a1*N_a2;
+
+l_aprime=length(n_a1);
+l_a=l_aprime+length(n_a2);
 l_z=length(n_z);
 
 %%
@@ -68,7 +70,7 @@ for ttr=1:T-1 %so tt=T-ttr
         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
     end
 
-    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep(V,n_d,n_a,n_z,N_j,d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_FHorz_TPath_ExpAsset_SingleStep(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     % The V input is next period value fn, the V output is this period.
     % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -79,14 +81,14 @@ end
 % Create version of PolicyIndexesPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
 % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
 % When using grid interpolation layer also PolicyProbsPath
-if isscalar(n_a)
+if isscalar(n_a1)
     PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,T-1]); % aprime index
-elseif length(n_a)==2
-    PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T-1]);
-elseif length(n_a)==3
-    PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T-1]);
-elseif length(n_a)==4
-    PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyIndexesPath(l_d+2,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyIndexesPath(l_d+3,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyIndexesPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T-1]);
+elseif length(n_a1)==2
+    PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T-1]);
+elseif length(n_a1)==3
+    PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,1:N_j-1,:)-1)+prod(n_a1(1:2))*(PolicyIndexesPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T-1]);
+elseif length(n_a1)==4
+    PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,1:N_j-1,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,1:N_j-1,:)-1)+prod(n_a1(1:2))*(PolicyIndexesPath(l_d+3,:,:,1:N_j-1,:)-1)+prod(n_a1(1:3))*(PolicyIndexesPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T-1]);
 end
 if simoptions.fastOLG==0
     PolicyaprimezPath_slowOLG=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
@@ -105,7 +107,7 @@ elseif simoptions.fastOLG==1
     end
 end
 % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
-PolicyValuesPath=PolicyInd2Val_FHorz_TPath(PolicyIndexesPath,n_d,n_a,n_z,N_j,T-1,d_grid,a_grid,vfoptions,1,0);
+PolicyValuesPath=PolicyInd2Val_FHorz_TPath(PolicyIndexesPath,[n_d1,n_d2],[n_a1,n_a2],n_z,N_j,T-1,d_gridvals,a_gridvals,vfoptions,1,0);
 PolicyValuesPath=permute(PolicyValuesPath,[2,4,3,1,5]); %[N_a,N_j,N_z,l_d+l_aprime,T-1] % fastOLG ordering is needed for AggVars
 
 %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
@@ -170,14 +172,11 @@ for tt=1:T-1
         end
     end
 
-    if simoptions.fastOLG==0
-        AgeWeights=AgeWeights_T(:,:,tt);
-    else % simoptions.fastOLG==1
-        AgeWeights=AgeWeights_T(:,tt);
-    end
+    AgeWeights=AgeWeights_T(:,:,tt); % by coincidence this is for fastOLG=0,1
 
     jequalOneDist=jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
 
+    % No specialization for ExpAsset needed here!
     if simoptions.fastOLG==0
         AgentDistnext=AgentDist_FHorz_TPath_SingleStep_Iteration_raw(AgentDist,PolicyaprimezPath_slowOLG(:,:,tt),N_a,N_z,N_j,pi_z_J,II1,II2,jequalOneDist);
     else % simoptions.fastOLG==1
@@ -189,7 +188,7 @@ for tt=1:T-1
     end
 
     %% AggVars
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_z,N_a,N_z,a_gridvals,z_gridvals_J_fastOLG,1);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_ExpAsset_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,N_a,N_z,a_gridvals,z_gridvals_J_fastOLG,1);
     for ff=1:length(AggVarNames)
         Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;
     end
