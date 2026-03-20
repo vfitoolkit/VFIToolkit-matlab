@@ -116,7 +116,7 @@ for ii=1:N_i
     DiscountFactorParamNames_temp=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
         names=fieldnames(DiscountFactorParamNames);
-        DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{ii});
+        DiscountFactorParamNames_temp=DiscountFactorParamNames.(Names_i{ii});
     end
     
     if vfoptions_temp.verboseparams==1
