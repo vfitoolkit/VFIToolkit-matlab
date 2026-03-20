@@ -76,6 +76,13 @@ for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars.(AggVarNames{aa}).Mean;
 end
 
+% might need to deal with intermediateEqns
+if heteroagentoptions.useintermediateEqns==1
+    for aa=1:heteroagentoptions.nIntermediateEqns
+        Parameters.(heteroagentoptions.intermediateEqnNames{aa})=real(GeneralEqmConditions_Case1_v3(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(aa).Names,Parameters));
+    end
+end
+
 % Evaluate General Eqm Eqns
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
 for gg=1:length(GEeqnNames)
@@ -239,6 +246,12 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     for ii=1:length(AggVarNames)
         fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
     end
+    if heteroagentoptions.useintermediateEqns==1
+        fprintf('Current intermediateEqn variables: \n')
+        for aa=1:length(heteroagentoptions.intermediateEqnNames)
+            fprintf('	%s: %8.4f \n',heteroagentoptions.intermediateEqnNames{aa},Parameters.(heteroagentoptions.intermediateEqnNames{aa})) % Note, this is done differently here because AggVars itself has been set as a matrix
+        end
+    end
     fprintf('Current GeneralEqmEqns: \n')
     for ii=1:length(GEeqnNames)
         fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(ii))
@@ -264,6 +277,12 @@ elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
     fprintf('Current aggregate variables: \n')
     for ii=1:length(AggVarNames)
         fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
+    end
+    if heteroagentoptions.useintermediateEqns==1
+        fprintf('Current intermediateEqn variables: \n')
+        for aa=1:length(heteroagentoptions.intermediateEqnNames)
+            fprintf('	%s: %8.4f \n',heteroagentoptions.intermediateEqnNames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+        end
     end
     fprintf('Current GeneralEqmEqns: \n')
     for ii=1:length(GEeqnNames)

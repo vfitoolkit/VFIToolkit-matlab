@@ -153,6 +153,23 @@ for pp=1:nGEParams
     end
 end
 
+
+if isfield(heteroagentoptions,'intermediateEqns')
+    heteroagentoptions.useintermediateEqns=1;
+    heteroagentoptions.intermediateEqnNames=fieldnames(heteroagentoptions.intermediateEqns);
+    heteroagentoptions.nIntermediateEqns=length(heteroagentoptions.intermediateEqnNames);
+
+    heteroagentoptions.intermediateEqnsCell=cell(1,heteroagentoptions.nIntermediateEqns);
+    for gg=1:heteroagentoptions.nIntermediateEqns
+        temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg}));
+        heteroagentoptions.intermediateEqnParamNames(gg).Names=temp;
+        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg});
+    end
+else
+    heteroagentoptions.useintermediateEqns=0;
+end
+
+
 %% Setup for which parameters are being calibrated
 nCalibParams=length(CalibParamNames);
 
@@ -285,15 +302,16 @@ if isstruct(caliboptions.logmoments)
     % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
     if any(fieldnames(logmomentnames),'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
+        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(allstatmomentnames,1)
             caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
     if any(fieldnames(logmomentnames),'AgeConditionalStats')
-        caliboptions.logmoments(1:acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
+        sofar=allstatcummomentsizes(end);
+        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
         end
     end
 
