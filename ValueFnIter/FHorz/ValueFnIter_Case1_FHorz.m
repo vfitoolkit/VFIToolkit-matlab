@@ -242,18 +242,18 @@ if vfoptions.alreadygridvals==0
     % Check pi_z_J: that all elements are positive, and that the rows sum to one
     if N_z>0
         if ~all(pi_z_J(:)>=0)
-            error('Some elements of pi_z_J, the exogenous markov transition probabilities matrix, are negative')
+            warning('Some elements of pi_z_J, the exogenous markov transition probabilities matrix, are negative')
         end
         if ~all(all(squeeze(sum(pi_z_J,2))-1 <1e-13)) % sum of row must be within 1e-13 of 1
-            error('Some rows of pi_z_J, the exogenous markov transition probabilities matrix, do not sum to one')
+            warning('Some rows of pi_z_J, the exogenous markov transition probabilities matrix, do not sum to one')
         end
     end
     if isfield(vfoptions,'pi_e_J')
         if ~all(vfoptions.pi_e_J(:)>=0)
-            error('Some elements of pi_e_J, the exogenous i.i.d. probabilities matrix, are negative')
+            warning('Some elements of pi_e_J, the exogenous i.i.d. probabilities matrix, are negative')
         end
         if ~all(squeeze(sum(vfoptions.pi_e_J,1))-1 <1e-13) % sum of row must be within 1e-13 of 1
-            error('Some columns of pi_e_J, the exogenous i.i.d. probabilities matrix, do not sum to one')
+            warning('Some columns of pi_e_J, the exogenous i.i.d. probabilities matrix, do not sum to one')
         end
     end
 elseif vfoptions.alreadygridvals==1
