@@ -23,7 +23,7 @@ if ~isfield(caliboptions,'constrainAtoB')
     caliboptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
     % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
-else
+elseif ~isempty(caliboptions.constrainAtoB)
     if ~isfield(caliboptions,'constrainAtoBlimits')
         error('You have used caliboptions.constrainAtoB, but are missing caliboptions.constrainAtoBlimits')
     end
@@ -56,8 +56,23 @@ if ~isfield(caliboptions,'fminalgo')
     % Currently, all the caliboptions.metric choices can be done as setup as least-squares residuals problems
     % caliboptions.fminalgo=4; % CMA-ES, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
-caliboptions.simulatemoments=0; % Not needed here (the objectivefn is shared with other estimation commands)
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
+
+caliboptions.useCustomModelStats=0;
+if isfield(caliboptions,'CustomModelStats')
+    caliboptions.useCustomModelStats=1;
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % So that user gets exactly what they input, not any internally reworked things
+    caliboptions.CustomModelStatsInputs.z_grid=z_grid;
+    caliboptions.CustomModelStatsInputs.pi_z=pi_z;
+    % Need the following two as otherwise they would contain alreadygridvals=1
+    caliboptions.CustomModelStatsInputs.vfoptions=vfoptions;
+    caliboptions.CustomModelStatsInputs.simoptions=simoptions;
+end
+
+if isfield(caliboptions,'simulatemoments')
+    error('simulatemoments=1 option is not supported for OLG models')
+end
 
 
 
@@ -81,6 +96,19 @@ end
 if ~isfield(heteroagentoptions,'constrainAtoB')
     heteroagentoptions.constrainAtoB={}; % names of parameters to be constrainted between A and B (gets converted to a binary-valued vector below)
 end
+
+heteroagentoptions.useCustomModelStats=0;
+if isfield(heteroagentoptions,'CustomModelStats')
+    heteroagentoptions.useCustomModelStats=1;
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % So that user gets exactly what they input, not any internally reworked things
+    heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
+    heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    % Need the following two as otherwise they would contain alreadygridvals=1
+    heteroagentoptions.CustomModelStatsInputs.vfoptions=vfoptions;
+    heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
+end
+
 % GE eqns, switch from structure to cell setup
 GEeqnNames=fieldnames(GeneralEqmEqns);
 nGeneralEqmEqns=length(GEeqnNames);
@@ -103,55 +131,30 @@ end
 % This is done below while setting up calibration parameters
 
 nGEParams=length(GEPriceParamNames);
-% Backup the parameter constraint names, so I can replace them with vectors
-heteroagentoptions.constrainpositivenames=heteroagentoptions.constrainpositive;
-heteroagentoptions.constrainpositive=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be positive
-heteroagentoptions.constrain0to1names=heteroagentoptions.constrain0to1;
-heteroagentoptions.constrain0to1=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
-heteroagentoptions.constrainAtoBnames=heteroagentoptions.constrainAtoB;
-heteroagentoptions.constrainAtoB=zeros(nGEParams,1); % if equal 1, then that parameter is constrained to be 0 to 1
-if ~isempty(heteroagentoptions.constrainAtoBnames)
-    heteroagentoptions.constrainAtoBlimitsnames=heteroagentoptions.constrainAtoBlimits;
-    heteroagentoptions.constrainAtoBlimits=zeros(nGEParams,2); % rows are parameters, column is lower (A) and upper (B) bounds [row will be [0,0] is unconstrained]
-end
 GEparamsvec0=zeros(length(GEPriceParamNames),1); % column vector
 for pp=1:nGEParams
     GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
-
-    % First, check the name, and convert it if relevant
-    if any(strcmp(heteroagentoptions.constrainpositivenames,GEPriceParamNames{pp}))
-        heteroagentoptions.constrainpositive(pp)=1;
-    end
-    if any(strcmp(heteroagentoptions.constrain0to1names,GEPriceParamNames{pp}))
-        heteroagentoptions.constrain0to1(pp)=1;
-    end
-    if any(strcmp(heteroagentoptions.constrainAtoBnames,GEPriceParamNames{pp}))
-        % For parameters A to B, I convert via 0 to 1
-        heteroagentoptions.constrain0to1(pp)=1;
-        heteroagentoptions.constrainAtoB(pp)=1;
-        heteroagentoptions.constrainAtoBlimits(pp,:)=heteroagentoptions.constrainAtoBlimitsnames.(GEPriceParamNames{pp});
-    end
-    if heteroagentoptions.constrainpositive(pp)==1
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        GEparamsvec0(pp)=max(log(GEparamsvec0(pp)),-49.99);
-        % Note, the max() is because otherwise p=0 returns -Inf. [Matlab evaluates exp(-50) as about 10^-22, I overrule and use exp(-50) as zero, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-    end
-    if heteroagentoptions.constrainAtoB(pp)==1
-        % Constraint parameter to be A to B (by first converting to 0 to 1, and then treating it as contraint 0 to 1)
-        GEparamsvec0(pp)=(GEparamsvec0(pp)-caliboptions.constrainAtoBlimits(pp,1))/(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1));
-        % x=(y-A)/(B-A), converts A-to-B y, into 0-to-1 x
-        % And then the next if-statement converts this 0-to-1 into unconstrained
-    end
-    if heteroagentoptions.constrain0to1(pp)==1
-        % Constrain parameter to be 0 to 1 (be working with log(p/(1-p)), where p is parameter) then always take exp()/(1+exp()) before inputting to model
-        GEparamsvec0(pp)=min(49.99,max(-49.99,  log(GEparamsvec0(pp)/(1-GEparamsvec0(pp))) ));
-        % Note: the max() and min() are because otherwise p=0 or 1 returns -Inf or Inf [Matlab evaluates 1/(1+exp(-50)) as one, and 1/(1+exp(50)) as about 10^-22, so I overrule them as 1 and 0, so I set -49.99 here so solver can realise the boundary is there; not sure if this setting -49.99 instead of my -50 cutoff actually helps, but seems like it might so I have done it here].
-    end
-    if heteroagentoptions.constrainpositive(pp)==1 && heteroagentoptions.constrain0to1(pp)==1 % Double check of inputs
-        fprinf(['Relating to following error message: Parameter ',num2str(pp),' of ',num2str(length(GEPriceParamNames))])
-        error('You cannot constrain parameter twice (you are constraining one of the parameters using both heteroagentoptions.constrainpositive and in one of heteroagentoptions.constrain0to1 and heteroagentoptions.constrainAtoB')
-    end
 end
+% If the parameter is constrained in some way then we need to transform it
+[GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,0:1:nGEParams,GEPriceParamNames,heteroagentoptions,1);
+% Also converts the constraints info in estimoptions to be a vector rather than by name.
+
+
+if isfield(heteroagentoptions,'intermediateEqns')
+    heteroagentoptions.useintermediateEqns=1;
+    heteroagentoptions.intermediateEqnNames=fieldnames(heteroagentoptions.intermediateEqns);
+    heteroagentoptions.nIntermediateEqns=length(heteroagentoptions.intermediateEqnNames);
+
+    heteroagentoptions.intermediateEqnsCell=cell(1,heteroagentoptions.nIntermediateEqns);
+    for gg=1:heteroagentoptions.nIntermediateEqns
+        temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg}));
+        heteroagentoptions.intermediateEqnParamNames(gg).Names=temp;
+        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg});
+    end
+else
+    heteroagentoptions.useintermediateEqns=0;
+end
+
 
 %% Setup for which parameters are being calibrated
 nCalibParams=length(CalibParamNames);
@@ -226,8 +229,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments_FHorz(TargetMoments,1);
-
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats, cmsmomentnames,cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1);
 
 
 %% Set-up/check caliboptions.weights
@@ -285,15 +287,16 @@ if isstruct(caliboptions.logmoments)
     % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
     if any(fieldnames(logmomentnames),'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1);
+        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(allstatmomentnames,1)
             caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
     if any(fieldnames(logmomentnames),'AgeConditionalStats')
-        caliboptions.logmoments(1:acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1);
+        sofar=allstatcummomentsizes(end);
+        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(acscummomentsizes(ii-1)+1:acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
         end
     end
 
@@ -335,22 +338,22 @@ end
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.jointoptimization==0
     if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
     elseif caliboptions.fminalgo==8
         caliboptions.vectoroutput=2;
         weightsbackup=caliboptions.weights;
         caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
         caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 elseif caliboptions.jointoptimization==1
     if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
     elseif caliboptions.fminalgo==8
         caliboptions.vectoroutput=2;
         weightsbackup=caliboptions.weights;
         caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
         caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 end
@@ -416,20 +419,10 @@ end
 
 %% Clean up output
 for pp=1:nCalibParams
-    % If parameter is constrained, switch it back to the unconstrained value
-    if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
-    elseif caliboptions.constrain0to1(pp)==1
-        % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
-    end
-    % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-    if caliboptions.constrainAtoB(pp)==1
-        % Constrain parameter to be A to B
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=caliboptions.constrainAtoBlimits(pp,1)+(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1))*calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-        % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
+    % If the parameter is constrained in some way then we need to un-transform it
+    [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
+    if sum(penalty)>0
+        warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
     end
 
     % Now store the unconstrained values

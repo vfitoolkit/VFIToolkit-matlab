@@ -134,9 +134,11 @@ else
         heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
         % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
         % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
-    else
-        if ~isfield(heteroagentoptions,'constrainAtoBlimits')
-            error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
+    elseif ~isempty(heteroagentoptions.constrainAtoB)
+        if prod(heteroagentoptions.constrainAtoB)>0
+            if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+                error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
+            end
         end
     end
     % Verbose settings (feedback)
@@ -165,7 +167,14 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % So that user gets exactly what they input, not any internally reworked things
+    heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
+    heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    heteroagentoptions.CustomModelStatsInputs.vfoptions=vfoptions;
+    heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
 end
+
 
 if heteroagentoptions.fminalgo==0
     heteroagentoptions.outputGEform=1;

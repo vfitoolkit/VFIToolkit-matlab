@@ -42,6 +42,16 @@ for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
 
+%% Custom Model Stats
+if heteroagentoptions.useCustomModelStats==1
+    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    end
+end
+
 %% Intermediate Eqns
 if heteroagentoptions.useintermediateEqns==1
     % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
@@ -51,16 +61,6 @@ if heteroagentoptions.useintermediateEqns==1
     for gg=1:length(intEqnnames)
         intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg).Names, Parameters));
         Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
-    end
-end
-
-%% Custom Model Stats
-if heteroagentoptions.useCustomModelStats==1
-    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions);
-    % Note: anything else you want, just 'hide' it in heteroagentoptions
-    customstatnames=fieldnames(CustomStats);
-    for pp=1:length(customstatnames)
-        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
     end
 end
 

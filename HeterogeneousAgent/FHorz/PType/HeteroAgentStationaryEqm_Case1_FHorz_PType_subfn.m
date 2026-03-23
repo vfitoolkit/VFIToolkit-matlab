@@ -31,6 +31,7 @@ if any(heteroagentoptions.gridsinGE)
     end
 end
 
+
 %%
 Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
@@ -74,6 +75,11 @@ for ii=1:PTypeStructure.N_i
         for aa=1:length(AggVars_ii)
             PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
         end
+
+    if heteroagentoptions.useCustomModelStats==1
+        V.(iistr)=V_ii;
+        Policy.(iistr)=Policy_ii;
+        StationaryDist.(iistr)=StationaryDist_ii;
     end
 end
 AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
@@ -92,6 +98,19 @@ for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
 
+%% Custom Model Stats
+if heteroagentoptions.useCustomModelStats==1
+    StationaryDist.ptweights=PTypeStructure.ptweights;
+    % A bunch of the inputs are stashed in heteroagentoptions.CustomModelStatsInputs
+    % Note: CustomStats deliberately does not get AgeWeightParamNames and PTypeDistParamNames, user will anyway know them
+    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    end
+end
+
 %% Intermediate Eqns
 if heteroagentoptions.useintermediateEqns==1
     % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
@@ -105,6 +124,7 @@ if heteroagentoptions.useintermediateEqns==1
 end
 
 %% Custom Model Stats
+error("sort this")
 customstatnames=struct();
 if heteroagentoptions.useCustomModelStats==1
     if isfield(heteroagentoptions, 'CustomModelStats')
@@ -128,7 +148,6 @@ if heteroagentoptions.useCustomModelStats==1
         end
     end
 end
-
 
 
 %% Evaluate General Eqm Eqns

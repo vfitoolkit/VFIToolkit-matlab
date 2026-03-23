@@ -1,4 +1,4 @@
-function VPath=ValueFnFromPolicyOnTransPath_InfHorz(PolicyPath,V_final,ParamPath,PricePath,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
+function VPath=ValueFnFromPolicyOnTransPath_InfHorz(PolicyPath,V_final,ParamPath,PricePath,T,n_d,n_a,n_z,d_grid,a_grid,z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions)
 
 if isfield(vfoptions,'exoticpreferences')
     error('ValueFnFromPolicyOnTransPath_InfHorz() does not yet work with exotic preferences. Please ask on forum if you want/need this feature. \n');
@@ -103,6 +103,6 @@ for ttr=1:T-1
 
 end
 
-VPath=reshape(VKron,[n_a,n_z,T]);
+VPath=reshape(VPath,[n_a,n_z,T]);
 
 end

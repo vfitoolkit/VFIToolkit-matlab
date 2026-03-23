@@ -1,7 +1,9 @@
-function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateBIHAModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
-% LifeCycleProfiles. Lastly there is caliboptions.
+% AutoCorrTransProbs and CrossSecCovarCorr. Lastly there is caliboptions.
+
+% Nested: General Eqm is the inner loop, calibration is the outer-loop.
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
@@ -47,6 +49,7 @@ for pp=1:nCalibParams
     end
 end
 
+
 %% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
 if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
@@ -54,31 +57,48 @@ end
 
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
-    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_gridvals_J,pi_z_J,N_j,Names_i,Parameters,vfoptions,3);
-    % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
-    simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
-    simoptions.pi_e_J=vfoptions.pi_e_J;
+    % Internally, only ever use joint-grids (makes all the code much easier to write)
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
+    % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
+    simoptions.e_gridvals=vfoptions.e_gridvals;
+    simoptions.pi_e=vfoptions.pi_e;
 end
 
 %% Solve the model and calculate the stats
-[V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1_PType(n_d, n_a, n_z, Names_i, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
 
-StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z_J,Parameters,simoptions);
+for pp=1:length(GEPriceParamNames)
+    Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
+end
+
+if usingcustomstats==1
+    % Keep V
+    [V, Policy]=ValueFnIter_Case1_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+else
+    [~, Policy]=ValueFnIter_Case1_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+end
+
+StationaryDist=StationaryDist_Case1_PType(PTypeDistParamNames,Policy,n_d,n_a,n_z,Names_i,pi_z,Parameters,simoptions);
 
 %% Custom Model Stats
 if usingcustomstats==1
-    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,Names_i,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
 end
 
-%% Calculate model stats
+%% Model Moments
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
+    AllStats=EvalFnOnAgentDist_AllStats_Case1_PType(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
 end
-if usinglcp==1
-    simoptions.whichstats=ACStats_whichstats;
-    AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
+if usingautocorr==1
+    error('Have not yet implemented EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType; ask on forum if you want/need this')
+    % simoptions.whichstats=AutoCorrStats_whichstats;
+    % AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,pi_z,simoptions);
+end
+if usingcrosssec==1
+    error('Have not yet implemented EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType; ask on forum if you want/need this')
+    % simoptions.whichstats=CrossSecStats_whichstats;
+    % CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
 end
 
 
@@ -107,31 +127,42 @@ if usingallstats==1
         end
     end
 end
-if usinglcp==1
+if usingautocorr==1
     sofar=allstatcummomentsizes(end);
-    if isempty(acsmomentnames{1,3})
-        currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
+    if isempty(autocorrmomentnames{1,3})
+        currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2});
     else
-        if isempty(acsmomentnames{1,4})
-            currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3});
+        currentmomentvec(sofar+1:sofar+autocorrcummomentsizes(1))=AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2}).(autocorrmomentnames{1,3});
+    end
+    for cc=2:size(autocorrmomentnames,1)
+        if isempty(autocorrmomentnames{cc,3})
+            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=AutoCorrTransProbs.(autocorrmomentnames{cc,1}).(autocorrmomentnames{cc,2});
         else
-            currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3}).(acsmomentnames{1,4});
+            currentmomentvec(sofar+autocorrcummomentsizes(cc-1)+1:sofar+autocorrcummomentsizes(cc))=AutoCorrTransProbs.(autocorrmomentnames{cc,1}).(autocorrmomentnames{cc,2}).(autocorrmomentnames{cc,3});
         end
     end
-    for cc=2:size(acsmomentnames,1)
-        if isempty(acsmomentnames{cc,3})
-            currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
+end
+if usingcrosssec==1
+    sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
+    if isempty(crosssecmomentnames{1,3})
+        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3});
+    elseif isempty(crosssecmomentnames{1,4})
+        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3});
+    else
+        currentmomentvec(sofar+1:sofar+crossseccummomentsizes(1))=CrossSectionCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3}).(crosssecmomentnames{1,4});
+    end
+    for cc=2:size(crosssecmomentnames,1)
+        if isempty(crosssecmomentnames{cc,3})
+            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2});
+        elseif isempty(crosssecmomentnames{cc,4})
+            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2}).(crosssecmomentnames{cc,3});
         else
-            if isempty(acsmomentnames{cc,4})
-                currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3});
-            else
-                currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3}).(acsmomentnames{cc,4});
-            end
+            currentmomentvec(sofar+crossseccummomentsizes(cc-1)+1:sofar+crossseccummomentsizes(cc))=CrossSectionCovarCorr.(crosssecmomentnames{cc,1}).(crosssecmomentnames{cc,2}).(crosssecmomentnames{cc,3}).(crosssecmomentnames{cc,4});
         end
     end
 end
 if usingcustomstats==1
-    sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
+    sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end)+crossseccummomentsizes(end);
     currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
     for cc=2:size(cmsmomentnames,1)
         currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
@@ -146,6 +177,8 @@ end
 
 
 %% Evaluate the objective function (which is being minimized)
+% Create Obj1 for calib targets, then Obj2 for general eqm conditions.
+% These are then combined for Obj
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
@@ -178,6 +211,9 @@ elseif caliboptions.vectoroutput==0 % scalar output
             Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
         end
     end
+
+    Obj=Obj;
+
 elseif caliboptions.vectoroutput==2
     % Weighted vector (for use with least-squares residuals algorithms)
     % Note: the outer-layers of code already took 'square root' of the weights
@@ -190,6 +226,7 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
+    
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
@@ -197,7 +234,7 @@ end
 %% Verbose
 if caliboptions.verbose==1
     if usingcustomstats==1
-        fprintf('Current CustomModelStats variables: \n')
+        fprintf('Current CustomModelStats variables (from caliboptions): \n')
         for ii=1:length(cmsmomentnames)
             fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
         end
@@ -207,7 +244,7 @@ if caliboptions.verbose==1
     if caliboptions.vectoroutput==0
         fprintf('Current objective fn value is %8.12f \n', Obj)
     elseif caliboptions.vectoroutput==2
-        fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+        fprintf('Current and target moments (first row is current, second row is target) \n')
     end
     if penalty>0
         if Obj>0

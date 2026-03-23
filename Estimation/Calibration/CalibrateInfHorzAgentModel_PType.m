@@ -1,8 +1,7 @@
-function [CalibParams,calibsummary]=CalibrateOLGModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, heteroagentoptions, caliboptions, vfoptions,simoptions)
+function [CalibParams,calibsummary]=CalibrateInfHorzAgentModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
-
 
 %% Setup caliboptions
 if ~isfield(caliboptions,'verbose')
@@ -55,6 +54,7 @@ if ~isfield(caliboptions,'fminalgo')
     % Currently, all the caliboptions.metric choices can be done as setup as least-squares residuals problems
     % caliboptions.fminalgo=4; % CMA-ES, I tried fminsearch() by default but it regularly fails to converge to a decent solution
 end
+caliboptions.simulatemoments=0; % Not needed here (the objectivefn is shared with other estimation commands)
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
 
 caliboptions.useCustomModelStats=0;
@@ -67,97 +67,6 @@ if isfield(caliboptions,'CustomModelStats')
     % Need the following two as otherwise they would contain alreadygridvals=1
     caliboptions.CustomModelStatsInputs.vfoptions=vfoptions;
     caliboptions.CustomModelStatsInputs.simoptions=simoptions;
-end
-
-if isfield(caliboptions,'simulatemoments')
-    error('simulatemoments=1 option is not supported for OLG models')
-end
-
-%% For the General Eqm we add
-heteroagentoptions.outputGEstruct=2; % GE conditions as a vector
-if ~isfield(caliboptions,'relativeGEweight')
-    caliboptions.relativeGEweight=10;
-end
-if ~isfield(caliboptions,'jointoptimization')
-    caliboptions.jointoptimization=1; % default is joint-optimization, =0 does nested optimization (GE as inner-loop, Calib targets as outer-loop)
-end
-if ~isfield(heteroagentoptions,'multiGEweights')
-    heteroagentoptions.multiGEweights=ones(1,length(fieldnames(GeneralEqmEqns))); % GE conditions as a vector
-end
-if ~isfield(heteroagentoptions,'constrainpositive')
-    heteroagentoptions.constrainpositive={}; % names of parameters to be constrainted to be positive (gets converted to a binary-valued vector below)
-end
-if ~isfield(heteroagentoptions,'constrain0to1')
-    heteroagentoptions.constrain0to1={}; % names of parameters to be constrainted between 0 and 1 (gets converted to a binary-valued vector below)
-end
-if ~isfield(heteroagentoptions,'constrainAtoB')
-    heteroagentoptions.constrainAtoB={}; % names of parameters to be constrainted between A and B (gets converted to a binary-valued vector below)
-end
-
-heteroagentoptions.useCustomModelStats=0;
-if isfield(heteroagentoptions,'CustomModelStats')
-    heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
-    % So that user gets exactly what they input, not any internally reworked things
-    heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate=FnsToEvaluate;
-    heteroagentoptions.CustomModelStatsInputs.n_d=n_d;
-    heteroagentoptions.CustomModelStatsInputs.n_a=n_a;
-    heteroagentoptions.CustomModelStatsInputs.n_z=n_z;
-    heteroagentoptions.CustomModelStatsInputs.N_j=N_j;
-    heteroagentoptions.CustomModelStatsInputs.d_grid=d_grid;
-    heteroagentoptions.CustomModelStatsInputs.a_grid=a_grid;
-    heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
-    heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
-    heteroagentoptions.CustomModelStatsInputs.vfoptions=vfoptions;
-    heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
-end
-
-
-% GE eqns, switch from structure to cell setup
-GEeqnNames=fieldnames(GeneralEqmEqns);
-nGeneralEqmEqns=length(GEeqnNames);
-
-GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
-for gg=1:nGeneralEqmEqns
-    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
-    GeneralEqmEqnParamNames(gg).Names=temp;
-    GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
-end
-% Now:
-%  GeneralEqmEqns is still the structure
-%  GeneralEqmEqnsCell is cell
-%  GeneralEqmEqnParamNames(ff).Names contains the names
-% Note:
-% joint optimization uses cell and names
-% nested optimization uses structure
-
-
-% And for joint optimization we put the GeneralEqmParamNames into CalibParamNames
-% This is done below while setting up calibration parameters
-
-nGEParams=length(GEPriceParamNames);
-GEparamsvec0=zeros(length(GEPriceParamNames),1); % column vector
-for pp=1:nGEParams
-    GEparamsvec0(pp)=Parameters.(GEPriceParamNames{pp});
-end
-% If the parameter is constrained in some way then we need to transform it
-[GEparamsvec0,heteroagentoptions]=ParameterConstraints_TransformParamsToUnconstrained(GEparamsvec0,0:1:nGEParams,GEPriceParamNames,heteroagentoptions,1);
-% Also converts the constraints info in estimoptions to be a vector rather than by name.
-
-
-if isfield(heteroagentoptions,'intermediateEqns')
-    heteroagentoptions.useintermediateEqns=1;
-    heteroagentoptions.intermediateEqnNames=fieldnames(heteroagentoptions.intermediateEqns);
-    heteroagentoptions.nIntermediateEqns=length(heteroagentoptions.intermediateEqnNames);
-
-    heteroagentoptions.intermediateEqnsCell=cell(1,heteroagentoptions.nIntermediateEqns);
-    for gg=1:heteroagentoptions.nIntermediateEqns
-        temp=getAnonymousFnInputNames(heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg}));
-        heteroagentoptions.intermediateEqnParamNames(gg).Names=temp;
-        heteroagentoptions.intermediateEqnsCell{gg}=heteroagentoptions.intermediateEqns.(heteroagentoptions.intermediateEqnNames{gg});
-    end
-else
-    heteroagentoptions.useintermediateEqns=0;
 end
 
 
@@ -197,6 +106,10 @@ for pp=1:length(CalibParamNames)
         nCalibParamsFinder(nCalibParams,2)=0;
     end
 end
+if nCalibParams<length(CalibParamNames)
+    warning('Guessing you accidently input N_i instead of Names_i to CalibrateLifeCycleModel_PType()?')
+end
+
 
 % Sometimes we want to omit parameters
 if isfield(caliboptions,'omitcalibparam')
@@ -206,9 +119,9 @@ else
 end
 calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
-calibparamssizes=zeros(nCalibParams,1); % with PType, some parameters may be matrices (depend on both j and i)
+calibparamssizes=zeros(nCalibParams,2); % with PType, some parameters may be matrices (depend on both j and i)
 calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
-calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omited values of a parameter
 for pp=1:nCalibParams
     if nCalibParamsFinder(pp,2)==0 % Doesn't depend on ptype
         currentparameter=Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)});
@@ -259,27 +172,11 @@ end
 [calibparamsvec0,caliboptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(calibparamsvec0,calibparamsvecindex,CalibParamNames,nCalibParamsFinder,caliboptions,1);
 % Also converts the constraints info in caliboptions to be a vector rather than by name.
 
-if caliboptions.jointoptimization==1
-    % Add the General Eqm price params into the list of parameters to be calibrated
-    calibparamsvec0=[calibparamsvec0; GEparamsvec0];
-    for pp=1:length(GEPriceParamNames)
-        CalibParamNames{nCalibParams+pp}=GEPriceParamNames{pp};
-    end
-    caliboptions.constrainpositive=[caliboptions.constrainpositive; heteroagentoptions.constrainpositive];
-    caliboptions.constrainAtoB=[caliboptions.constrainAtoB; heteroagentoptions.constrainAtoB];
-    caliboptions.constrain0to1=[caliboptions.constrain0to1; heteroagentoptions.constrain0to1];
-    calibparamsvecindex=[calibparamsvecindex; calibparamsvecindex(end)+(1:1:length(GEPriceParamNames))'];
-    calibparamssizes=[calibparamssizes; ones(length(GEPriceParamNames),2)];
-    calibomitparams_counter=[calibomitparams_counter; zeros(length(GEPriceParamNames),1)];
-    nCalibParamsFinder(nCalibParams+1:nCalibParams+length(GEPriceParamNames),1)=nCalibParams+(1:1:length(GEPriceParamNames))';
-    nCalibParamsFinder(nCalibParams+1:nCalibParams+length(GEPriceParamNames),2)=0;
-    
-    nCalibParams=nCalibParams+length(GEPriceParamNames);
-end
+
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats, cmsmomentnames,cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1);
+[targetmomentvec,usingallstats,usingautocorr,usingcrosssec,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, autocorrmomentnames, autocorrcummomentsizes, AutoCorrStats_whichstats, FnsToEvaluate_AutoCorrStats, crosssecmomentnames, crossseccummomentsizes, CrossSecStats_whichstats, FnsToEvaluate_CrossSecStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_InfHorz(TargetMoments,FnsToEvaluate,0);
 
 
 %% Set-up/check caliboptions.weights
@@ -320,10 +217,12 @@ elseif isfield(vfoptions,'EiidShockFn')
 end
 if caliboptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
-    % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
-    simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
-    simoptions.pi_e_J=vfoptions.pi_e_J;
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+    % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
+    simoptions.e_gridvals=vfoptions.e_gridvals;
+    simoptions.pi_e=vfoptions.pi_e;
+else
+    z_gridvals=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, staty dist, etc. So
@@ -343,13 +242,21 @@ if isstruct(caliboptions.logmoments)
             caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+    if any(fieldnames(logmomentnames),'AutoCorrTransProbs')
         sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+        caliboptions.logmoments(sofar+1:sofar+autocorrcummomentsizes(1))=caliboptions.logmoments.AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2})*ones(autocorrcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        for ii=2:size(autocorrmomentnames,1)
+            caliboptions.logmoments(sofar+autocorrcummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AutoCorrTransProbs.(autocorrmomentnames{ii,1}).(autocorrmomentnames{ii,2})*ones(autocorrcummomentsizes(ii)-autocorrcummomentsizes(ii-1),1);
         end
     end
+    if any(fieldnames(logmomentnames),'CrossSecCovarCorr')
+        sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
+        caliboptions.logmoments(sofar+1:sofar+crossseccummomentsizes(1))=caliboptions.logmoments.AutoCorrTransProbs.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3})*ones(crossseccummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        for ii=2:size(crosssecmomentnames,1)
+            caliboptions.logmoments(sofar+crossseccummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AutoCorrTransProbs.(crosssecmomentnames{ii,1}).(crosssecmomentnames{ii,2}).(crosssecmomentnames{ii,3})*ones(crossseccummomentsizes(ii)-crossseccummomentsizes(ii-1),1);
+        end
+    end
+
 
 % If caliboptions.logmoments is not a structure, then...
 % caliboptions.logmoments will either be scalar, or a vector of zeros and ones
@@ -391,29 +298,18 @@ if ~isfield(simoptions,'warnjequaloneptypeasdim')
 end
 
 %% Set up the objective function and the initial calibration parameter vector
-if caliboptions.jointoptimization==0
-    if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
-    elseif caliboptions.fminalgo==8
-        caliboptions.vectoroutput=2;
-        weightsbackup=caliboptions.weights;
-        caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
-        caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
-    end
-elseif caliboptions.jointoptimization==1
-    if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
-    elseif caliboptions.fminalgo==8
-        caliboptions.vectoroutput=2;
-        weightsbackup=caliboptions.weights;
-        caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
-        caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
-    end
+if caliboptions.fminalgo~=8
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateInfHorzAgentModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
+elseif caliboptions.fminalgo==8
+    caliboptions.vectoroutput=2;
+    weightsbackup=caliboptions.weights;
+    caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateInfHorzAgentModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions);
+    caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
 end
+
 % calibparamsvec0 is our initial guess for calibparamsvec
-calibparamsvec0=gather(calibparamsvec0);
+
 
 %% Choosing algorithm for the optimization problem
 % https://au.mathworks.com/help/optim/ug/choosing-the-algorithm.html#bscj42s
