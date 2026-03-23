@@ -313,7 +313,7 @@ for ii=1:N_i
     l_daprime_temp=size(PolicyValues_temp,1); % Note, do this off of value not indexes, so that things like gridinterplayer have already been handled
 
     a_gridvals_temp=CreateGridvals(n_a_temp,a_grid_temp,1);
-    [z_gridvals_temp, ~, simoptions_temp]=ExogShockSetup(n_z_temp,z_grid_temp,[],Parameters_temp,simoptions_temp,1);
+    [z_gridvals_temp, ~, simoptions_temp]=ExogShockSetup_InfHorz(n_z_temp,z_grid_temp,[],Parameters_temp,simoptions_temp,1);
     
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_ze_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
