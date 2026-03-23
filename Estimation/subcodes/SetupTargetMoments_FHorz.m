@@ -1,4 +1,4 @@
-function [targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments_FHorz(TargetMoments,useptype)
+function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,useptype)
 % useptype is 0 or 1
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
@@ -12,8 +12,13 @@ if isfield(TargetMoments,'AgeConditionalStats')
 else
     usinglcp=0;
 end
+if isfield(TargetMoments,'CustomModelStats')
+    usingcustomstats=1;
+else
+    usingcustomstats=0;
+end
 
-if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AgeConditionalStats') )
+if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AgeConditionalStats') .* ~strcmp(fieldnames(TargetMoments),'CustomModelStats'))
     warning('TargetMoments seems to be set up incorrect: it has a field which is neither AllStats nor AgeConditionalStats')
 end
 
@@ -399,6 +404,26 @@ elseif useptype==1
 end
 
 
+%% Custom Model Stats
+if usingcustomstats==1
+    % You just have to give a dedicated name to each CustomModelStat
+    cmsmomentnames=fieldnames(TargetMoments.CustomModelStats);
+    cmsmomentsizes=0;
+    for a1=1:length(cmsmomentnames)
+        if size(TargetMoments.CustomModelStats.(cmsmomentnames{a1}),2)==1 % already column vector
+            targetmomentvec=[targetmomentvec; TargetMoments.CustomModelStats.(cmsmomentnames{a1})]; % append to end
+        else
+            targetmomentvec=[targetmomentvec; TargetMoments.CustomModelStats.(cmsmomentnames{a1})']; % transpose, then append to end
+        end
+
+        cmsmomentsizes(a1)=length(TargetMoments.CustomModelStats.(cmsmomentnames{a1}));
+    end
+    cmscummomentsizes=cumsum(cmsmomentsizes); % Note: this is zero if CustomModelStats is unused
+else
+    % Placeholders
+    cmsmomentnames=cell(1,1);
+    cmscummomentsizes=0;
+end
 
 end
 

@@ -1,4 +1,4 @@
-function Obj=CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
+function Obj=CalibrateOLGModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -47,16 +47,26 @@ if caliboptions.calibrateshocks==1
 end
 
 %% Solve the model and calculate the stats
-[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1_FHorz(jequaloneDist, AgeWeightParamNames,n_d, n_a, n_z, N_j, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, [], [], [], GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
+[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1_FHorz(jequaloneDist, AgeWeightParamNames,n_d, n_a, n_z, N_j, [], pi_z_J, d_grid, a_grid, z_gridvals_J, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, [], [], [], GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
 
 for pp=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
 end
 
-[~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
-
+if usingcustomstats==1
+    % Keep V
+    [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
+else
+    [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
+end
 StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
 
+%% Custom Model Stats
+if usingcustomstats==1
+    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+end
+
+%% Calculate model stats
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
     AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
@@ -65,11 +75,6 @@ if usinglcp==1
     simoptions.whichstats=ACStats_whichstats;
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
 end
-
-if caliboptions.simulatemoments==1
-    error('simulatemoments=1 option is not supported for OLG models')
-end
-
 
 %% Get current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
@@ -101,6 +106,14 @@ if usinglcp==1
         end
     end
 end
+if usingcustomstats==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
+    currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
+    for cc=2:size(cmsmomentnames,1)
+        currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
+    end
+end
+
 
 
 %% Option to log moments (if targets are log, then this will have been already applied)
@@ -165,21 +178,20 @@ end
 
 
 %% Verbose
-if caliboptions.verbose==1 && caliboptions.vectoroutput==0
-    fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
-    fprintf('Current objective fn value is %8.12f \n', Obj)
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+if caliboptions.verbose==1
+    if usingcustomstats==1
+        fprintf('Current CustomModelStats variables (from caliboptions): \n')
+        for ii=1:length(cmsmomentnames)
+            fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
         end
     end
-elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
     fprintf('Current and target moments (first row is current, second row is target) \n')
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
-    fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+    if caliboptions.vectoroutput==0
+        fprintf('Current objective fn value is %8.12f \n', Obj)
+    elseif caliboptions.vectoroutput==2
+        fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+    end
     if penalty>0
         if Obj>0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)

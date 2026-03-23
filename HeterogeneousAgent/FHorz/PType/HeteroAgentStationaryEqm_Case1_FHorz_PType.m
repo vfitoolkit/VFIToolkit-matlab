@@ -132,9 +132,11 @@ else
         heteroagentoptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
         % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
         % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
-    else
-        if ~isfield(heteroagentoptions,'constrainAtoBlimits')
-            error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
+    elseif ~isempty(heteroagentoptions.constrainAtoB)
+        if prod(heteroagentoptions.constrainAtoB)>0
+            if ~isfield(heteroagentoptions,'constrainAtoBlimits')
+                error('You have used heteroagentoptions.constrainAtoB, but are missing heteroagentoptions.constrainAtoBlimits')
+            end
         end
     end
     % Verbose settings (feedback)
@@ -160,18 +162,22 @@ else
     end
 end
 
-if ~isfield(heteroagentoptions,'useCustomModelStats')
-    heteroagentoptions.useCustomModelStats=0;
-    if isfield(heteroagentoptions,'CustomModelStats')
-        heteroagentoptions.useCustomModelStats=1;
-    else
-        for ii=1:length(Names_i)
-            if isfield(heteroagentoptions,Names_i{ii}) && isfield(heteroagentoptions.(Names_i{ii}),'CustomModelStats')
-                heteroagentoptions.useCustomModelStats=1;
-                break
-            end
-        end
-    end
+heteroagentoptions.useCustomModelStats=0;
+if isfield(heteroagentoptions,'CustomModelStats')
+    heteroagentoptions.useCustomModelStats=1;
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % So that user gets exactly what they input, not any internally reworked things
+    heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate=FnsToEvaluate;
+    heteroagentoptions.CustomModelStatsInputs.n_d=n_d;
+    heteroagentoptions.CustomModelStatsInputs.n_a=n_a;
+    heteroagentoptions.CustomModelStatsInputs.n_z=n_z;
+    heteroagentoptions.CustomModelStatsInputs.N_j=N_j;
+    heteroagentoptions.CustomModelStatsInputs.d_grid=d_grid;
+    heteroagentoptions.CustomModelStatsInputs.a_grid=a_grid;
+    heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
+    heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    heteroagentoptions.CustomModelStatsInputs.vfoptions=vfoptions;
+    heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
 end
 
 if heteroagentoptions.fminalgo==0
@@ -553,7 +559,7 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
 
     % Ptype masses
-    PTypeStructure.ptweights(1,ii)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
+    PTypeStructure.ptweights(ii,1)=PTypeStructure.(iistr).Parameters.(PTypeDistParamNames{1});
 end
 
 

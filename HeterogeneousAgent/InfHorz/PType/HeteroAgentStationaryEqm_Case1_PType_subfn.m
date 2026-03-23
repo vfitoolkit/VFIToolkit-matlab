@@ -63,12 +63,11 @@ for ii=1:PTypeStructure.N_i
         end
     end
 
-    % if heteroagentoptions.useCustomModelStats==1
-    %     % Need to keep a bunch of stuff just in case
-    %     V.(iistr)=V_ii;
-    %     Policy.(iistr)=Policy_ii;
-    %     StationaryDist.(iistr)=StationaryDist_ii;
-    % end
+    if heteroagentoptions.useCustomModelStats==1
+        V.(iistr)=V_ii;
+        Policy.(iistr)=Policy_ii;
+        StationaryDist.(iistr)=StationaryDist_ii;
+    end
 end
 
 
@@ -84,13 +83,15 @@ end
 
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
-    error('CustomModelStats not yet implemented for use with permanent types in InfHorz')
-    % CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,heteroagentoptions,vfoptions,simoptions);
-    % % Note: anything else you want, just 'hide' it in heteroagentoptions
-    % customstatnames=fieldnames(CustomStats);
-    % for pp=1:length(customstatnames)
-    %     Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
-    % end
+    StationaryDist.ptweights=PTypeStructure.ptweights;
+    % A bunch of the inputs are stashed in heteroagentoptions.CustomModelStatsInputs
+    % Note: CustomStats deliberately does not get AgeWeightParamNames and PTypeDistParamNames, user will anyway know them
+    CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats.(customstatnames{pp});
+    end
 end
 
 %% Intermediate Eqns
