@@ -21,7 +21,7 @@ if ~isfield(caliboptions,'constrainAtoB')
     caliboptions.constrainAtoB={}; % names of parameters to constrained to be positive (gets converted to binary-valued vector below)
     % Handle A to B constraints by converting y=(p-A)/(B-A) which is 0 to 1, and then treating as constrained 0 to 1 y (so convert to unconstrained x using log-odds function)
     % Once we have the 0 to 1 y (by converting unconstrained x with the logistic sigmoid function), we convert to p=A+(B-a)*y
-else
+elseif ~isempty(caliboptions.constrainAtoB)
     if ~isfield(caliboptions,'constrainAtoBlimits')
         error('You have used caliboptions.constrainAtoB, but are missing caliboptions.constrainAtoBlimits')
     end
@@ -57,6 +57,17 @@ end
 caliboptions.simulatemoments=0; % Not needed here (the objectivefn is shared with other estimation commands)
 caliboptions.vectoroutput=0; % Not needed here (the objectivefn is shared with other estimation commands)
 
+caliboptions.useCustomModelStats=0;
+if isfield(caliboptions,'CustomModelStats')
+    caliboptions.useCustomModelStats=1;
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % So that user gets exactly what they input, not any internally reworked things
+    caliboptions.CustomModelStatsInputs.z_grid=z_grid;
+    caliboptions.CustomModelStatsInputs.pi_z=pi_z;
+    % Need the following two as otherwise they would contain alreadygridvals=1
+    caliboptions.CustomModelStatsInputs.vfoptions=vfoptions;
+    caliboptions.CustomModelStatsInputs.simoptions=simoptions;
+end
 
 
 %% Set up Names_i and N_i
@@ -165,7 +176,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats]=SetupTargetMoments_FHorz(TargetMoments,1);
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats, cmsmomentnames,cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1);
 
 
 %% Set-up/check caliboptions.weights
@@ -283,12 +294,12 @@ end
 
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.fminalgo~=8
-    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
 elseif caliboptions.fminalgo==8
     caliboptions.vectoroutput=2;
     weightsbackup=caliboptions.weights;
     caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
+    CalibrationObjectiveFn=@(calibparamsvec) CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions, simoptions);
     caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
 end
 
@@ -354,20 +365,10 @@ end
 
 %% Clean up output
 for pp=1:nCalibParams
-    % If parameter is constrained, switch it back to the unconstrained value
-    if caliboptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-        % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=exp(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)));
-    elseif caliboptions.constrain0to1(pp)==1
-        % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=1/(1+exp(-calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))));
-    end
-    % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-    if caliboptions.constrainAtoB(pp)==1
-        % Constrain parameter to be A to B
-        calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))=caliboptions.constrainAtoBlimits(pp,1)+(caliboptions.constrainAtoBlimits(pp,2)-caliboptions.constrainAtoBlimits(pp,1))*calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-        % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
+    % If the parameter is constrained in some way then we need to un-transform it
+    [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
+    if sum(penalty)>0
+        warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
     end
 
     % Now store the unconstrained values

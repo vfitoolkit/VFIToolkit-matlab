@@ -1,4 +1,4 @@
-function Obj=CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
+function Obj=CalibrateOLGModel_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -44,7 +44,12 @@ if caliboptions.calibrateshocks==1
 end
 
 %% Solve the model and calculate the stats
-[~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
+if usingcustomstats==1
+    % Keep V
+    [V, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
+else
+    [~, Policy]=ValueFnIter_Case1_FHorz(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
+end
 
 StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z_J,Parameters,simoptions);
 
@@ -57,21 +62,35 @@ for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars.(AggVarNames{aa}).Mean;
 end
 
-% might need to deal with intermediateEqns
+%% Custom Model Stats
+if usingcustomstats==1
+    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+end
+if heteroagentoptions.useCustomModelStats==1
+    CustomStats2=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,d_grid,a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);
+    % Note: anything else you want, just 'hide' it in heteroagentoptions
+    customstatnames=fieldnames(CustomStats2);
+    for pp=1:length(customstatnames)
+        Parameters.(customstatnames{pp})=CustomStats2.(customstatnames{pp});
+    end
+end
+
+%% intermediateEqns
 if heteroagentoptions.useintermediateEqns==1
     for aa=1:heteroagentoptions.nIntermediateEqns
         Parameters.(heteroagentoptions.intermediateEqnNames{aa})=real(GeneralEqmConditions_Case1_v3(heteroagentoptions.intermediateEqnsCell{aa},heteroagentoptions.intermediateEqnParamNames(aa).Names,Parameters));
     end
 end
 
-% Evaluate General Eqm Eqns
+%% Evaluate General Eqm Eqns
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
 for gg=1:length(GEeqnNames)
     % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
     GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
 end
 
-%% Model moments
+
+%% Calculate model stats
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
     AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1(StationaryDist,Policy, FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
@@ -80,11 +99,6 @@ if usinglcp==1
     simoptions.whichstats=ACStats_whichstats;
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
 end
-
-if caliboptions.simulatemoments==1
-    error('simulatemoments=1 option is not supported for OLG models')
-end
-
 
 %% Get current values of the target moments as a vector
 currentmomentvec=zeros(size(targetmomentvec));
@@ -116,6 +130,14 @@ if usinglcp==1
         end
     end
 end
+if usingcustomstats==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
+    currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
+    for cc=2:size(cmsmomentnames,1)
+        currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
+    end
+end
+
 
 
 %% Option to log moments (if targets are log, then this will have been already applied)
@@ -189,10 +211,27 @@ end
 
 
 %% Verbose
-if caliboptions.verbose==1 && caliboptions.vectoroutput==0
+if caliboptions.verbose==1
+    if usingcustomstats==1
+        fprintf('Current CustomModelStats variables (from caliboptions): \n')
+        for ii=1:length(cmsmomentnames)
+            fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
+        end
+    end
+    if heteroagentoptions.useCustomModelStats==1
+        fprintf('Current CustomModelStats variables (from heteroagentoptions): \n')
+        for ii=1:length(customstatnames)
+            fprintf('	%s: %8.4f \n',customstatnames{ii},CustomStats2.(customstatnames{ii}))
+        end
+    end
     fprintf('Current and target moments (first row is current, second row is target) \n')
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
-    fprintf('Current objective fn value is %8.12f \n', Obj)
+    if caliboptions.vectoroutput==0
+        fprintf('Current objective fn value is %8.12f \n', Obj)
+        fprintf('Current objective fn value breakdown: Obj1=%8.6f and Obj2=%8.6f (with caliboptions.relativeGEweight=%8.6f) \n', Obj1, Obj2)
+    elseif caliboptions.vectoroutput==2
+        fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+    end
     if penalty>0
         if Obj>0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
@@ -200,7 +239,6 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
         end
     end
-    fprintf('Current objective fn value breakdown: Obj1=%8.6f and Obj2=%8.6f (with caliboptions.relativeGEweight=%8.6f) \n', Obj1, Obj2)
 
     fprintf(' \n')
     fprintf('Current GE prices (this is just repeat of part of current calibration params): \n')
@@ -221,40 +259,7 @@ if caliboptions.verbose==1 && caliboptions.vectoroutput==0
     for ii=1:length(GEeqnNames)
         fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(ii))
     end
-
-elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
-    fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
-    fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
-        end
-    end
-
-    fprintf(' \n')
-    fprintf('Current GE prices (this is just repeat of part of current calibration params): \n')
-    for ii=1:length(GEPriceParamNames)
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{ii},Parameters.(GEPriceParamNames{ii}))
-    end
-    fprintf('Current aggregate variables: \n')
-    for ii=1:length(AggVarNames)
-        fprintf('	%s: %8.4f \n',AggVarNames{ii},Parameters.(AggVarNames{ii})) % Note, this is done differently here because AggVars itself has been set as a matrix
-    end
-    if heteroagentoptions.useintermediateEqns==1
-        fprintf('Current intermediateEqn variables: \n')
-        for aa=1:length(heteroagentoptions.intermediateEqnNames)
-            fprintf('	%s: %8.4f \n',heteroagentoptions.intermediateEqnNames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
-        end
-    end
-    fprintf('Current GeneralEqmEqns: \n')
-    for ii=1:length(GEeqnNames)
-        fprintf('	%s: %8.4f \n',GEeqnNames{ii},GeneralEqmConditionsVec(ii))
-    end
 end
-
 
 
 

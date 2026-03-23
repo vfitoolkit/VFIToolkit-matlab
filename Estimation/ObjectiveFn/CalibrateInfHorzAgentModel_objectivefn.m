@@ -1,9 +1,7 @@
-function Obj=CalibrateBIHAModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
+function Obj=CalibrateInfHorzAgentModel_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, ReturnFnParamNames, Parameters, DiscountFactorParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
-% needed to be able to run ValueFnIter, StationaryDist, AllStats
-% AutoCorrTransProbs and CrossSecCovarCorr. Lastly there is caliboptions.
-
-% Nested: General Eqm is the inner loop, calibration is the outer-loop.
+% needed to be able to run ValueFnIter, StationaryDist, AllStats and
+% LifeCycleProfiles. Lastly there is caliboptions.
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
@@ -21,7 +19,7 @@ if caliboptions.verbose==1
     end
 end
 
-for pp=1:nCalibParams
+for pp=1:length(CalibParamNames)
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
@@ -31,8 +29,7 @@ for pp=1:nCalibParams
     end
 end
 
-
-%% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
+%% ParametrizeParamsFn can be used to parametrize the parameters
 if ~isempty(ParametrizeParamsFn)
     Parameters=ParametrizeParamsFn(Parameters);
 end
@@ -46,28 +43,18 @@ if caliboptions.calibrateshocks==1
     simoptions.pi_e=vfoptions.pi_e;
 end
 
-%% Solve the model and calculate the stats
-[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1(n_d, n_a, n_z, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, [], [], [], GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
 
-for pp=1:length(GEPriceParamNames)
-    Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
-end
-
-if usingcustomstats==1
-    % Keep V
-    [V, Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
-else
-    [~, Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
-end
+%% Solve the model
+[V, Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
 StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
 
 %% Custom Model Stats
 if usingcustomstats==1
-    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,vfoptions,simoptions);
+    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
 end
 
-%% Model Moments
+%% Calculate model stats
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
     AllStats=EvalFnOnAgentDist_AllStats_Case1(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
@@ -80,6 +67,7 @@ if usingcrosssec==1
     simoptions.whichstats=CrossSecStats_whichstats;
     CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
 end
+
 
 
 %% Get current values of the target moments as a vector
@@ -140,18 +128,14 @@ if usingcustomstats==1
     end
 end
 
-
 %% Option to log moments (if targets are log, then this will have been already applied)
 if any(caliboptions.logmoments>0) % need to log some moments
     currentmomentvec=(1-caliboptions.logmoments).*currentmomentvec + caliboptions.logmoments.*log(currentmomentvec.*caliboptions.logmoments+(1-caliboptions.logmoments)); % Note: take log, and for those we don't log I end up taking log(1) (which becomes zero and so disappears)
 end
 
-
 %% Evaluate the objective function (which is being minimized)
-% Create Obj1 for calib targets, then Obj2 for general eqm conditions.
-% These are then combined for Obj
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
-if caliboptions.vectoroutput==1
+if caliboptions.vectoroutput==1 % vector output
     % Output the vector of currentmomentvec
     % Main use it for computing derivatives of moments with respect to parameters
     Obj=currentmomentvec(actualtarget);
@@ -160,12 +144,12 @@ elseif caliboptions.vectoroutput==0 % scalar output
     % targetmomentvec is the target moment values
     % Both are column vectors
 
-    % Note: MethodOfMoments and sum_squared are doing the same calculation, I
-    % just write them in ways that make it more obvious that they do what they say.
+    % Note: MethodOfMoments and sum_squared are doing essentially the same calculation (only different is size of weights, 
+    % which will be a matrix for MethodOfMoments but a vector for sum_squared), I just write them in ways that make it more 
+    % obvious that they do what they say.
     if strcmp(caliboptions.metric,'MethodOfMoments')
         % Obj=(targetmomentvec-currentmomentvec)'*caliboptions.weights*(targetmomentvec-currentmomentvec);
-        % For the purpose of doing log(moments) I switched to the following
-        % (otherwise getting silly current moments can seem attractive)
+        % For the purpose of doing log(moments) I switched to the following (otherwise getting silly current moments can seem attractive)
         Obj=(currentmomentvec(actualtarget)-targetmomentvec(actualtarget))'*caliboptions.weights*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget));
     elseif strcmp(caliboptions.metric,'sum_squared')
         Obj=sum(caliboptions.weights.*(currentmomentvec(actualtarget)-targetmomentvec(actualtarget)).^2,'omitnan');
@@ -182,9 +166,6 @@ elseif caliboptions.vectoroutput==0 % scalar output
             Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
         end
     end
-
-    Obj=Obj;
-
 elseif caliboptions.vectoroutput==2
     % Weighted vector (for use with least-squares residuals algorithms)
     % Note: the outer-layers of code already took 'square root' of the weights
@@ -197,15 +178,14 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
 
 %% Verbose
-if caliboptions.verbose==1 
+if caliboptions.verbose==1
     if usingcustomstats==1
-        fprintf('Current CustomModelStats variables (from caliboptions): \n')
+        fprintf('Current CustomModelStats variables: \n')
         for ii=1:length(cmsmomentnames)
             fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
         end
@@ -225,6 +205,10 @@ if caliboptions.verbose==1
         end
     end
 end
+
+
+
+
 
 
 

@@ -1,4 +1,4 @@
-function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats, usinglcp,targetmomentvec, allstatmomentnames, acsmomentnames, allstatcummomentsizes, acscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
+function Obj=CalibrateLifeCycleModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist,AgeWeightParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -62,10 +62,16 @@ if caliboptions.calibrateshocks==1
 end
 
 %% Solve the model and calculate the stats
-[~, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+[V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
 
 StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z_J,Parameters,simoptions);
 
+%% Custom Model Stats
+if usingcustomstats==1
+    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
+end
+
+%% Calculate model stats
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
     AllStats=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
@@ -73,10 +79,6 @@ end
 if usinglcp==1
     simoptions.whichstats=ACStats_whichstats;
     AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_gridvals_J,simoptions);
-end
-
-if caliboptions.simulatemoments==1
-    error('simulatemoments=1 option is not supported for PType')
 end
 
 
@@ -106,25 +108,33 @@ if usingallstats==1
     end
 end
 if usinglcp==1
+    sofar=allstatcummomentsizes(end);
     if isempty(acsmomentnames{1,3})
-        currentmomentvec(allstatcummomentsizes(end)+1:allstatcummomentsizes(end)+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
+        currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2});
     else
         if isempty(acsmomentnames{1,4})
-            currentmomentvec(allstatcummomentsizes(end)+1:allstatcummomentsizes(end)+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3});
+            currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3});
         else
-            currentmomentvec(allstatcummomentsizes(end)+1:allstatcummomentsizes(end)+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3}).(acsmomentnames{1,4});
+            currentmomentvec(sofar+1:sofar+acscummomentsizes(1))=AgeConditionalStats.(acsmomentnames{1,1}).(acsmomentnames{1,2}).(acsmomentnames{1,3}).(acsmomentnames{1,4});
         end
     end
     for cc=2:size(acsmomentnames,1)
         if isempty(acsmomentnames{cc,3})
-            currentmomentvec(allstatcummomentsizes(end)+acscummomentsizes(cc-1)+1:allstatcummomentsizes(end)+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
+            currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2});
         else
             if isempty(acsmomentnames{cc,4})
-                currentmomentvec(allstatcummomentsizes(end)+acscummomentsizes(cc-1)+1:allstatcummomentsizes(end)+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3});
+                currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3});
             else
-                currentmomentvec(allstatcummomentsizes(end)+acscummomentsizes(cc-1)+1:allstatcummomentsizes(end)+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3}).(acsmomentnames{cc,4});
+                currentmomentvec(sofar+acscummomentsizes(cc-1)+1:sofar+acscummomentsizes(cc))=AgeConditionalStats.(acsmomentnames{cc,1}).(acsmomentnames{cc,2}).(acsmomentnames{cc,3}).(acsmomentnames{cc,4});
             end
         end
+    end
+end
+if usingcustomstats==1
+    sofar=allstatcummomentsizes(end)+acscummomentsizes(end);
+    currentmomentvec(sofar+1:sofar+cmscummomentsizes(1))=CustomStats.(cmsmomentnames{1,1});
+    for cc=2:size(cmsmomentnames,1)
+        currentmomentvec(sofar+cmscummomentsizes(cc-1)+1:sofar+cmscummomentsizes(cc))=CustomStats.(cmsmomentnames{cc,1});
     end
 end
 
@@ -185,21 +195,20 @@ end
 
 
 %% Verbose
-if caliboptions.verbose==1 && caliboptions.vectoroutput==0
-    fprintf('Current and target moments (first row is current, second row is target) \n')
-    [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
-    fprintf('Current objective fn value is %8.12f \n', Obj)
-    if penalty>0
-        if Obj>0
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)
-        else  % Obj is negative, so penalty is to reduce magnitude
-            fprintf('Current penalty is to multiply objective fn by %8.2f \n', 0.8*(1/penalty) )
+if caliboptions.verbose==1
+    if usingcustomstats==1
+        fprintf('Current CustomModelStats variables: \n')
+        for ii=1:length(cmsmomentnames)
+            fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
         end
     end
-elseif caliboptions.verbose==1 && caliboptions.vectoroutput==2
     fprintf('Current and target moments (first row is current, second row is target) \n')
     [currentmomentvec(actualtarget)'; targetmomentvec(actualtarget)'] % these are columns, so transpose into rows
-    fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+    if caliboptions.vectoroutput==0
+        fprintf('Current objective fn value is %8.12f \n', Obj)
+    elseif caliboptions.vectoroutput==2
+        fprintf('Current (sum-of-squares of) objective fn value is %8.12f \n', Obj'*Obj)
+    end
     if penalty>0
         if Obj>0
             fprintf('Current penalty is to multiply objective fn by %8.2f \n', 1.2*penalty)

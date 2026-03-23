@@ -1,22 +1,30 @@
-function Obj=CalibrateBIHAModel_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, calibparamsvecindex, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions)
+function Obj=CalibrateInfHorzAgentModel_PType_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
-% needed to be able to run ValueFnIter, StationaryDist, AllStats
-% AutoCorrTransProbs and CrossSecCovarCorr. Lastly there is caliboptions.
-
-% Nested: General Eqm is the inner loop, calibration is the outer-loop.
+% needed to be able to run ValueFnIter, StationaryDist, AllStats and
+% LifeCycleProfiles. Lastly there is caliboptions.
 
 % Untransform the parameters (when dealing with constraints the inputs are the transformed parameters, so want to switch them back to original model parameters)
 [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
+% Note: ptype makes no difference to this.
 
 if caliboptions.verbose==1
     fprintf(' \n')
     fprintf('Current parameter values: \n')
-    for pp=1:length(CalibParamNames)
-        if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
-            fprintf(['    ',CalibParamNames{pp},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
-        else
-            fprintf(['    ',CalibParamNames{pp},'=  \n'])
-            calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
+    for pp=1:nCalibParams
+        if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
+            if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+            else
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'=  \n'])
+                calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
+            end
+        else  % parameter depends on ptype
+            if calibparamsvecindex(pp+1)-calibparamsvecindex(pp)==1
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'.',Names_i{nCalibParamsFinder(pp,2)},'= %8.6f \n'],calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)))
+            else
+                fprintf(['    ',CalibParamNames{nCalibParamsFinder(pp,1)},'.',Names_i{nCalibParamsFinder(pp,2)},'=  \n'])
+                calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1))' % want the output as a row
+            end
         end
     end
 end
@@ -25,12 +33,19 @@ for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        Parameters.(CalibParamNames{pp})=currparamraw;
+        if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(currparamraw,calibparamssizes(pp,:));
+        else
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(currparamraw,calibparamssizes(pp,:));
+        end
     else
-        Parameters.(CalibParamNames{pp})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        if nCalibParamsFinder(pp,2)==0 % parameter does not depend on ptype
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
+        else
+            Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1)),calibparamssizes(pp,:));
+        end
     end
 end
-
 
 %% ParametrizeParamsFn can be used to parametrize the parameters (including the distribution of permanent types)
 if ~isempty(ParametrizeParamsFn)
@@ -47,38 +62,29 @@ if caliboptions.calibrateshocks==1
 end
 
 %% Solve the model and calculate the stats
-[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1(n_d, n_a, n_z, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, [], [], [], GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
+[V, Policy]=ValueFnIter_Case1_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
 
-for pp=1:length(GEPriceParamNames)
-    Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
-end
-
-if usingcustomstats==1
-    % Keep V
-    [V, Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
-else
-    [~, Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames,[], vfoptions);
-end
-
-StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
+StationaryDist=StationaryDist_Case1_PType(PTypeDistParamNames,Policy,n_d,n_a,n_z,Names_i,pi_z,Parameters,simoptions);
 
 %% Custom Model Stats
 if usingcustomstats==1
-    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,vfoptions,simoptions);
+    CustomStats=caliboptions.CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,Names_i,d_grid,a_grid,caliboptions.CustomModelStatsInputs.z_grid,caliboptions.CustomModelStatsInputs.pi_z,caliboptions,caliboptions.CustomModelStatsInputs.vfoptions,caliboptions.CustomModelStatsInputs.simoptions);
 end
 
-%% Model Moments
+%% Calculate model stats
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_Case1(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
+    AllStats=EvalFnOnAgentDist_AllStats_Case1_PType(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
 end
 if usingautocorr==1
-    simoptions.whichstats=AutoCorrStats_whichstats;
-    AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,pi_z,simoptions);
+    error('Have not yet implemented EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType; ask on forum if you want/need this')
+    % simoptions.whichstats=AutoCorrStats_whichstats;
+    % AutoCorrTransProbs=EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_AutoCorrStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,pi_z,simoptions);
 end
 if usingcrosssec==1
-    simoptions.whichstats=CrossSecStats_whichstats;
-    CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
+    error('Have not yet implemented EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType; ask on forum if you want/need this')
+    % simoptions.whichstats=CrossSecStats_whichstats;
+    % CrossSectionCovarCorr=EvalFnOnAgentDist_CrossSectionCovarCorr_InfHorz_PType(StationaryDist,Policy,FnsToEvaluate_CrossSecStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
 end
 
 
@@ -88,13 +94,21 @@ if usingallstats==1
     if isempty(allstatmomentnames{1,3})
         currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2});
     else
-        currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3});
+        if isempty(allstatmomentnames{1,4})
+            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3});
+        else
+            currentmomentvec(1:allstatcummomentsizes(1))=AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2}).(allstatmomentnames{1,3}).(allstatmomentnames{1,4});        
+        end
     end
     for cc=2:size(allstatmomentnames,1)
         if isempty(allstatmomentnames{cc,3})
             currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2});
         else
-            currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3});
+            if isempty(allstatmomentnames{cc,4})
+                currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3});
+            else
+                currentmomentvec(allstatcummomentsizes(cc-1)+1:allstatcummomentsizes(cc))=AllStats.(allstatmomentnames{cc,1}).(allstatmomentnames{cc,2}).(allstatmomentnames{cc,3}).(allstatmomentnames{cc,4});
+            end
         end
     end
 end
@@ -148,8 +162,6 @@ end
 
 
 %% Evaluate the objective function (which is being minimized)
-% Create Obj1 for calib targets, then Obj2 for general eqm conditions.
-% These are then combined for Obj
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
 if caliboptions.vectoroutput==1
     % Output the vector of currentmomentvec
@@ -182,9 +194,6 @@ elseif caliboptions.vectoroutput==0 % scalar output
             Obj=0.8*(1/penalty)*Obj; % 20% penalty for being too far in violation of restrictions
         end
     end
-
-    Obj=Obj;
-
 elseif caliboptions.vectoroutput==2
     % Weighted vector (for use with least-squares residuals algorithms)
     % Note: the outer-layers of code already took 'square root' of the weights
@@ -197,15 +206,14 @@ elseif caliboptions.vectoroutput==2
         Obj=caliboptions.weights.*log(currentmomentvec(actualtarget)./targetmomentvec(actualtarget));
         % Note: This does the same as using sum_squared together with caliboptions.logmoments=1
     end
-    
     Obj=gather(Obj); % lsqnonlin() doesn't work with gpu, so have to gather()
 end
 
 
 %% Verbose
-if caliboptions.verbose==1 
+if caliboptions.verbose==1
     if usingcustomstats==1
-        fprintf('Current CustomModelStats variables (from caliboptions): \n')
+        fprintf('Current CustomModelStats variables: \n')
         for ii=1:length(cmsmomentnames)
             fprintf('	%s: %8.4f \n',cmsmomentnames{ii},CustomStats.(cmsmomentnames{ii}))
         end
@@ -225,6 +233,8 @@ if caliboptions.verbose==1
         end
     end
 end
+
+
 
 
 

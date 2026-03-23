@@ -1,4 +1,4 @@
-function [targetmomentvec,usingallstats,usingautocorr,usingcrosssec, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, autocorrmomentnames, autocorrcummomentsizes, AutoCorrStats_whichstats, FnsToEvaluate_AutoCorrStats, crosssecmomentnames, crossseccummomentsizes, CrossSecStats_whichstats, FnsToEvaluate_CrossSecStats]=SetupTargetMoments_InfHorz(TargetMoments,FnsToEvaluate,useptype)
+function [targetmomentvec,usingallstats,usingautocorr,usingcrosssec,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, autocorrmomentnames, autocorrcummomentsizes, AutoCorrStats_whichstats, FnsToEvaluate_AutoCorrStats, crosssecmomentnames, crossseccummomentsizes, CrossSecStats_whichstats, FnsToEvaluate_CrossSecStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_InfHorz(TargetMoments,FnsToEvaluate,useptype)
 % useptype is 0 or 1
 % Also divides FnsToEvaluate up into separate versions for each command
 
@@ -18,8 +18,14 @@ if isfield(TargetMoments,'CrossSectionCovarCorr')
 else
     usingcrosssec=0;
 end
+if isfield(TargetMoments,'CustomModelStats')
+    usingcustomstats=1;
+else
+    usingcustomstats=0;
+end
 
-if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AutoCorrTransProbs')  .* ~strcmp(fieldnames(TargetMoments),'CrossSectionCovarCorr') )
+
+if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AutoCorrTransProbs')  .* ~strcmp(fieldnames(TargetMoments),'CrossSectionCovarCorr') .* ~strcmp(fieldnames(TargetMoments),'CustomModelStats') )
     warning('TargetMoments seems to be set up incorrect: it has a field which is neither AllStats nor AutoCorrTransProbs nor CrossSectionCovarCorr')
 end
 
@@ -576,6 +582,28 @@ elseif useptype==1
     end
 end
 
+
+
+%% Custom Model Stats
+if usingcustomstats==1
+    % You just have to give a dedicated name to each CustomModelStat
+    cmsmomentnames=fieldnames(TargetMoments.CustomModelStats);
+    cmsmomentsizes=0;
+    for a1=1:length(cmsmomentnames)
+        if size(TargetMoments.CustomModelStats.(cmsmomentnames{a1}),2)==1 % already column vector
+            targetmomentvec=[targetmomentvec; TargetMoments.CustomModelStats.(cmsmomentnames{a1})]; % append to end
+        else
+            targetmomentvec=[targetmomentvec; TargetMoments.CustomModelStats.(cmsmomentnames{a1})']; % transpose, then append to end
+        end
+
+        cmsmomentsizes(a1)=length(TargetMoments.CustomModelStats.(cmsmomentnames{a1}));
+    end
+    cmscummomentsizes=cumsum(cmsmomentsizes); % Note: this is zero if CustomModelStats is unused
+else
+    % Placeholders
+    cmsmomentnames=cell(1,1);
+    cmscummomentsizes=0;
+end
 
 
 end

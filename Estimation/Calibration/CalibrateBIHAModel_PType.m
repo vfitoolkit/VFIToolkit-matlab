@@ -1,4 +1,4 @@
-function [CalibParams,calibsummary]=CalibrateOLGModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, heteroagentoptions, caliboptions, vfoptions,simoptions)
+function [CalibParams,calibsummary]=CalibrateBIHAModel_PType(CalibParamNames,TargetMoments,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, heteroagentoptions, caliboptions, vfoptions,simoptions)
 % Note: Inputs are CalibParamNames,TargetMoments, and then everything
 % needed to be able to run ValueFnIter, StationaryDist, AllStats and
 % LifeCycleProfiles. Lastly there is caliboptions.
@@ -103,7 +103,6 @@ if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.CustomModelStatsInputs.n_d=n_d;
     heteroagentoptions.CustomModelStatsInputs.n_a=n_a;
     heteroagentoptions.CustomModelStatsInputs.n_z=n_z;
-    heteroagentoptions.CustomModelStatsInputs.N_j=N_j;
     heteroagentoptions.CustomModelStatsInputs.d_grid=d_grid;
     heteroagentoptions.CustomModelStatsInputs.a_grid=a_grid;
     heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
@@ -208,7 +207,7 @@ calibparamsvec0=[]; % column vector
 calibparamsvecindex=zeros(nCalibParams+1,1); % Note, first element remains zero
 calibparamssizes=zeros(nCalibParams,1); % with PType, some parameters may be matrices (depend on both j and i)
 calibomitparams_counter=zeros(nCalibParams,1); % column vector: calibomitparamsvec allows omiting the parameter for certain ages
-calibomitparamsmatrix=zeros(N_j,1); % Each row is of size N_j-by-1 and holds the omited values of a parameter
+calibomitparamsmatrix=zeros(1,1); % Each row is of size 1-by-1 and holds the omited values of a parameter
 for pp=1:nCalibParams
     if nCalibParamsFinder(pp,2)==0 % Doesn't depend on ptype
         currentparameter=Parameters.(CalibParamNames{nCalibParamsFinder(pp,1)});
@@ -278,8 +277,8 @@ if caliboptions.jointoptimization==1
 end
 
 %% Setup for which moments are being targeted
-% Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats, cmsmomentnames,cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1);
+% Only calculate each of AllStats, AutoCorrTransProbs and CrossSectionCovarCorr when being used (so as faster when not using all)
+[targetmomentvec,usingallstats,usingautocorr,usingcrosssec,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, autocorrmomentnames, autocorrcummomentsizes, AutoCorrStats_whichstats, FnsToEvaluate_AutoCorrStats, crosssecmomentnames, crossseccummomentsizes, CrossSecStats_whichstats, FnsToEvaluate_CrossSecStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_InfHorz(TargetMoments,FnsToEvaluate,0);
 
 
 %% Set-up/check caliboptions.weights
@@ -301,6 +300,7 @@ end
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
+
 %% Set up exogenous shock grids now (so they can then just be reused every time)
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
 % parameter that is being calibrated
@@ -320,10 +320,12 @@ elseif isfield(vfoptions,'EiidShockFn')
 end
 if caliboptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
-    % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
-    simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
-    simoptions.pi_e_J=vfoptions.pi_e_J;
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+    % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
+    simoptions.e_gridvals=vfoptions.e_gridvals;
+    simoptions.pi_e=vfoptions.pi_e;
+else
+    z_gridvals=[];
 end
 % Regardless of whether they are done here of in _objectivefn, they will be
 % precomputed by the time we get to the value fn, staty dist, etc. So
@@ -343,11 +345,18 @@ if isstruct(caliboptions.logmoments)
             caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+    if any(fieldnames(logmomentnames),'AutoCorrTransProbs')
         sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
-        for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+        caliboptions.logmoments(sofar+1:sofar+autocorrcummomentsizes(1))=caliboptions.logmoments.AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2})*ones(autocorrcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        for ii=2:size(autocorrmomentnames,1)
+            caliboptions.logmoments(sofar+autocorrcummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AutoCorrTransProbs.(autocorrmomentnames{ii,1}).(autocorrmomentnames{ii,2})*ones(autocorrcummomentsizes(ii)-autocorrcummomentsizes(ii-1),1);
+        end
+    end
+    if any(fieldnames(logmomentnames),'CrossSecCovarCorr')
+        sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
+        caliboptions.logmoments(sofar+1:sofar+crossseccummomentsizes(1))=caliboptions.logmoments.AutoCorrTransProbs.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3})*ones(crossseccummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        for ii=2:size(crosssecmomentnames,1)
+            caliboptions.logmoments(sofar+crossseccummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AutoCorrTransProbs.(crosssecmomentnames{ii,1}).(crosssecmomentnames{ii,2}).(crosssecmomentnames{ii,3})*ones(crossseccummomentsizes(ii)-crossseccummomentsizes(ii-1),1);
         end
     end
 
@@ -393,22 +402,22 @@ end
 %% Set up the objective function and the initial calibration parameter vector
 if caliboptions.jointoptimization==0
     if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
     elseif caliboptions.fminalgo==8
         caliboptions.vectoroutput=2;
         weightsbackup=caliboptions.weights;
         caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_PType_Nested_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqns, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
         caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 elseif caliboptions.jointoptimization==1
     if caliboptions.fminalgo~=8
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
     elseif caliboptions.fminalgo==8
         caliboptions.vectoroutput=2;
         weightsbackup=caliboptions.weights;
         caliboptions.weights=sqrt(caliboptions.weights); % To use a weighting matrix in lsqnonlin(), we work with the square-roots of the weights
-        CalibrationObjectiveFn=@(calibparamsvec) CalibrateOLGModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, jequaloneDist, AgeWeightParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usinglcp,usingcustomstats, targetmomentvec, allstatmomentnames, acsmomentnames, cmsmomentnames,allstatcummomentsizes, acscummomentsizes,cmscummomentsizes, AllStats_whichstats, ACStats_whichstats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions, simoptions);
+        CalibrationObjectiveFn=@(calibparamsvec) CalibrateBIHAModel_PType_Joint_objectivefn(calibparamsvec, CalibParamNames,n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, GEPriceParamNames, PTypeDistParamNames, ParametrizeParamsFn, FnsToEvaluate, GeneralEqmEqnsCell, GEeqnNames, GeneralEqmEqnParamNames, usingallstats,usingautocorr,usingcrosssec,usingcustomstats, targetmomentvec, allstatmomentnames,autocorrmomentnames,crosssecmomentnames,cmsmomentnames, allstatcummomentsizes,autocorrcummomentsizes,crossseccummomentsizes,cmscummomentsizes, AllStats_whichstats,AutoCorrStats_whichstats,CrossSecStats_whichstats, FnsToEvaluate_AllStats, FnsToEvaluate_AutoCorrStats, FnsToEvaluate_CrossSecStats, nCalibParams, nCalibParamsFinder, calibparamsvecindex, calibparamssizes, calibomitparams_counter, calibomitparamsmatrix, caliboptions, heteroagentoptions, vfoptions,simoptions);
         caliboptions.weights=weightsbackup; % change it back now that we have set up CalibrateLifeCycleModel_objectivefn()
     end
 end
