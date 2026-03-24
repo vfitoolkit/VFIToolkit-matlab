@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1(AgentDist_initial, PolicyPath,n_d,n_a,n_z,pi_z,T,simoptions,Parameters,PricePath,ParamPath)
+function AgentDistPath=AgentDistOnTransPath_Case1(AgentDist_initial,PricePath,ParamPath,PolicyPath,n_d,n_a,n_z,pi_z,T,Parameters,simoptions)
 n_e=0; % NOT YET IMPLEMENTED FOR TRANSITION PATHS
 
 N_d=prod(n_d);

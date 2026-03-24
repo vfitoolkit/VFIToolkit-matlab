@@ -3,6 +3,31 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(G
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
 [GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
+if heteroagentoptions.verbose>0
+    GEpricesvec_tminus1=zeros(nGEprices,1);
+    AggVars_tminus1=NaN(length(AggVarNames),1);
+
+    for pp=1:nGEprices
+        GEpricesvec_tminus1(pp)=Parameters.(GEPriceParamNames{pp});
+    end
+    GEpricesvec_delta=GEpricesvec-GEpricesvec_tminus1; % Compute this to show max change per round
+    for aa=1:length(AggVarNames)
+        if isfield(Parameters,AggVarNames{aa})
+            AggVars_tminus1(aa)=Parameters.(AggVarNames{aa});
+        end
+    end
+    if heteroagentoptions.useintermediateEqns==1
+        intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
+        intermediateEqns_tminus1=zeros(length(intEqnnames),1);
+        for aa=1:length(intEqnnames)
+            if isfield(Parameters,intEqnnames{aa})
+                intEqns_tminus1(aa)=Parameters.(intEqnnames{aa});
+            end
+        end
+    end
+    % We don't do anything special for CustomModelStats, which are not as easily done as others above.
+end
+
 if heteroagentoptions.verbose==2
     fprintf(' \n')
     fprintf('Current GE prices: \n')
@@ -33,7 +58,7 @@ end
 
 
 %%
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -82,12 +107,12 @@ for ii=1:PTypeStructure.N_i
         StationaryDist.(iistr)=StationaryDist_ii;
     end
 end
-AggVars=gather(sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2));
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights',2);
 % Note: AggVars is a vector
 
 
 
-%% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+%% Put GE parameters and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
 % already did the basic GE params
 % for pp=1:nGEprices
 %     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
@@ -172,8 +197,8 @@ if heteroagentoptions.verbose>=1
     end
     if heteroagentoptions.useCustomModelStats==1
         fprintf('Current CustomModelStats variables: \n')
-        for ii=1:length(customstatnames)
-            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{ii},CustomStats.(customstatnames{ii}))
+        for aa=1:length(customstatnames)
+            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{aa},CustomStats.(customstatnames{aa}))
         end
     end
     fprintf('Current GeneralEqmEqns: \n')

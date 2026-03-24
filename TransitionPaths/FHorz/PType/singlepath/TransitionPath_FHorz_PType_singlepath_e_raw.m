@@ -9,7 +9,10 @@ if N_d==0
 else
     l_d=length(n_d);
 end
-l_aprime=length(n_a);
+l_a=length(n_a);
+l_aprime=l_a;
+N_ze=prod(n_z)*prod(n_e);
+l_ze=length(n_z)+length(n_e);
 
 %%
 % Shapes:
@@ -192,7 +195,7 @@ for tt=1:T-1
     end
 
     %% AggVars
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_ze,N_a,N_ze,a_gridvals,ze_gridvals_J_fastOLG,1);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_ze,N_a,N_ze,a_gridvals,ze_gridvals_J_fastOLG,1);
     for ff=1:length(AggVarNames)
         Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;
     end
