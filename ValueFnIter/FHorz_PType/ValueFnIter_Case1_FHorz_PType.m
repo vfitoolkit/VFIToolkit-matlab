@@ -54,52 +54,65 @@ for ii=1:N_i
     
     % Go through everything which might be dependent on fixed type (PType)
     % [THIS could be better coded, 'names' are same for all these and just need to be found once outside of ii loop]
-    if isa(n_d,'struct')
+    if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
         n_d_temp=n_d;
     end
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         n_a_temp=n_a.(Names_i{ii});
     else
         n_a_temp=n_a;
     end
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         n_z_temp=n_z.(Names_i{ii});
     else
         n_z_temp=n_z;
     end
-    if isa(N_j,'struct')
+    if isstruct(N_j)
         N_j_temp=N_j.(Names_i{ii});
     else
         N_j_temp=N_j;
     end
-    if isa(d_grid,'struct')
+    if isstruct(d_grid)
         d_grid_temp=d_grid.(Names_i{ii});
     else
         d_grid_temp=d_grid;
     end
-    if isa(a_grid,'struct')
+    if isstruct(a_grid)
         a_grid_temp=a_grid.(Names_i{ii});
     else
         a_grid_temp=a_grid;
     end
-    if isa(z_grid,'struct')
+    if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
-        z_grid_temp=z_grid;
+        nn=size(z_grid,ndims(z_grid));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(z_grid)-1);
+            z_grid_temp=z_grid(otherdims{:},ii);
+        else
+            z_grid_temp=z_grid;
+        end
     end
-    if isa(pi_z,'struct')
+    if isstruct(pi_z)
         pi_z_temp=pi_z.(Names_i{ii});
     else
-        pi_z_temp=pi_z;
+        nn=size(pi_z,ndims(pi_z));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(pi_z)-1);
+            pi_z_temp=pi_z(otherdims{:},ii);
+        else
+            pi_z_temp=pi_z;
+        end
     end
-    if isa(ReturnFn,'struct')
+    if isstruct(ReturnFn)
         ReturnFn_temp=ReturnFn.(Names_i{ii});
     else
         ReturnFn_temp=ReturnFn;
     end
-
+    
+    
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.

@@ -1,4 +1,4 @@
-function [z_gridvals, pi_z, options]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,options,gridpiboth)
+function [z_gridvals, pi_z, options]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,options,gridpiboth)
 % Convert z and e to joint-grids and transtion matrix
 % options will either be vfoptions or simoptions
 % output: z_gridvals, pi_z, options.e_gridvals, options.pi_e

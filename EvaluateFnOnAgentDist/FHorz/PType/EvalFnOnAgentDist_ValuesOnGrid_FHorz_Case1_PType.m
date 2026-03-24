@@ -117,57 +117,44 @@ for ii=1:N_i % First set up simoptions
         N_j_temp=N_j(ii);
     end
     
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
+    if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-        end
+        n_d_temp=n_d;
     end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         n_a_temp=n_a.(Names_i{ii});
     else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_a_temp=n_a;
     end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         n_z_temp=n_z.(Names_i{ii});
     else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            sprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_z_temp=n_z;
     end
     
     
-    if isa(d_grid,'struct')
+    if isstruct(d_grid)
         d_grid_temp=d_grid.(Names_i{ii});
     else
         d_grid_temp=d_grid;
     end
-    if isa(a_grid,'struct')
+    if isstruct(a_grid)
         a_grid_temp=a_grid.(Names_i{ii});
     else
         a_grid_temp=a_grid;
     end
-    if isa(z_grid,'struct')
+
+    if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
-        z_grid_temp=z_grid;
+        nn=size(z_grid,ndims(z_grid));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(z_grid)-1);
+            z_grid_temp=z_grid(otherdims{:},ii);
+        else
+            z_grid_temp=z_grid;
+        end
     end
     
     % Parameters are allowed to be given as structure, or as vector/matrix

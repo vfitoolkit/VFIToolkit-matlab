@@ -49,7 +49,7 @@ if simoptions.alreadygridvals==0
     if simoptions.parallel<2
         z_gridvals=z_grid; % On cpu, only basics are allowed. No e.
     else
-        [z_gridvals, ~, simoptions]=ExogShockSetup(n_z,z_grid,[],Parameters,simoptions,1);
+        [z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
     end
 elseif simoptions.alreadygridvals==1
     z_gridvals=z_grid;

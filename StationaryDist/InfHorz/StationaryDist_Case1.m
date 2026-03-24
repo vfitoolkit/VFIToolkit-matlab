@@ -122,7 +122,7 @@ if simoptions.alreadygridvals==0
         if ~exist('Parameters','var')
             error('When using ExogShockFn you must pass Params structure as an input to StationaryDist_Cast1 (it goes just after simoptions)')
         end
-        [~, pi_z, simoptions]=ExogShockSetup(n_z,[],pi_z,Parameters,simoptions,2);
+        [~, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,[],pi_z,Parameters,simoptions,2);
     end
 end
 
