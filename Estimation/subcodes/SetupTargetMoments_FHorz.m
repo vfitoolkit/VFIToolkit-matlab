@@ -1,4 +1,4 @@
-function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, acsmomentnames, acscummomentsizes, ACStats_whichstats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,useptype)
+function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,useptype)
 % useptype is 0 or 1
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
@@ -98,6 +98,14 @@ if useptype==0
                 AllStats_whichstats(7)=1;
             end
         end
+        % To do AllStats faster, just evaluate the relevant functions
+        FnsToEvaluate_AllStats=struct();
+        % Put a1vec and a2vec together, then find just those which are in FnsToEvaluate
+        a12vec=[a1vec;a2vec];
+        a12vec=intersect(a12vec,fieldnames(FnsToEvaluate));
+        for ff=1:length(a12vec)
+            FnsToEvaluate_AllStats.(a12vec{ff})=FnsToEvaluate.(a12vec{ff});
+        end
         % % all stats should be of length 1 [actually, no, they might be, e.g., QuantileMeans]
         % for ii=1:length(allstatmomentsizes)
         %     if allstatmomentsizes(ii)~=1
@@ -110,6 +118,7 @@ if useptype==0
         allstatmomentnames=cell(1,3);
         allstatcummomentsizes=0;
         AllStats_whichstats=zeros(7,1);
+        FnsToEvaluate_AllStats=struct();
     end
 
 
@@ -181,6 +190,14 @@ if useptype==0
                 ACStats_whichstats(7)=1;
             end
         end
+        % To do AgeConditionalStats faster, just evaluate the relevant functions
+        FnsToEvaluate_ACStats=struct();
+        % Put a1vec and a2vec together, then find just those which are in FnsToEvaluate
+        a12vec=[a1vec;a2vec];
+        a12vec=intersect(a12vec,fieldnames(FnsToEvaluate));
+        for ff=1:length(a12vec)
+            FnsToEvaluate_ACStats.(a12vec{ff})=FnsToEvaluate.(a12vec{ff});
+        end
         % % age-conditional stats should be of length N_j [actually, no, they might be, e.g., QuantileMeans]
         % for ii=1:length(acsmomentsizes)
         %     if acsmomentsizes(ii)~=N_j
@@ -193,6 +210,7 @@ if useptype==0
         acsmomentnames=cell(1,3);
         acscummomentsizes=0;
         ACStats_whichstats=zeros(7,1);
+        FnsToEvaluate_ACStats=struct();
     end
 
 elseif useptype==1
@@ -286,6 +304,14 @@ elseif useptype==1
             if any(strcmp(allstatmomentnames(:,aa),'MoreInequality'))
                 AllStats_whichstats(7)=1;
             end
+        end
+        % To do AllStats faster, just evaluate the relevant functions
+        FnsToEvaluate_AllStats=struct();
+        % Put a1vec and a2vec together, then find just those which are in FnsToEvaluate
+        a123vec=[a1vec;a2vec;a3vec];
+        a123vec=intersect(a123vec,fieldnames(FnsToEvaluate));
+        for ff=1:length(a123vec)
+            FnsToEvaluate_AllStats.(a123vec{ff})=FnsToEvaluate.(a123vec{ff});
         end
         % % all stats should be of length 1 [actually, no, they might be, e.g., QuantileMeans]
         % for ii=1:length(allstatmomentsizes)
@@ -387,6 +413,14 @@ elseif useptype==1
                 ACStats_whichstats(7)=1;
             end
         end
+        % To do AgeConditionalStats faster, just evaluate the relevant functions
+        FnsToEvaluate_ACStats=struct();
+        % Put a1vec and a2vec together, then find just those which are in FnsToEvaluate
+        a123vec=[a1vec;a2vec;a3vec];
+        a123vec=intersect(a123vec,fieldnames(FnsToEvaluate));
+        for ff=1:length(a123vec)
+            FnsToEvaluate_ACStats.(a123vec{ff})=FnsToEvaluate.(a123vec{ff});
+        end
         % % age-conditional stats should be of length N_j [actually, no, they might be, e.g., QuantileMeans]
         % for ii=1:length(acsmomentsizes)
         %     if acsmomentsizes(ii)~=N_j
@@ -399,6 +433,7 @@ elseif useptype==1
         acsmomentnames=cell(1,4);
         acscummomentsizes=0;
         ACStats_whichstats=zeros(7,1);
+        FnsToEvaluate_ACStats=struct();
     end
 
 end

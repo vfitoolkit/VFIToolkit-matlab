@@ -98,10 +98,17 @@ for ii=1:N_i
     else
         N_j_temp=N_j;
     end
+
     if isa(pi_z,'struct')
         pi_z_temp=pi_z.(Names_i{ii});
     else
-        pi_z_temp=pi_z;
+        nn=size(pi_z,ndims(pi_z));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(pi_z)-1);
+            pi_z_temp=pi_z(otherdims{:},ii);
+        else
+            pi_z_temp=pi_z;
+        end
     end
     
     % Parameters are allowed to be given as structure, or as vector/matrix

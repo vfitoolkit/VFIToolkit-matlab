@@ -70,22 +70,22 @@ for ii=1:N_i
     % type), or they could be a structure. Only in the case where they are
     % a structure is there a need to take just a specific part and send
     % only that to the 'non-PType' version of the command.
-    if isa(n_d,'struct')
+    if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
         n_d_temp=n_d;
     end
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         n_a_temp=n_a.(Names_i{ii});
     else
         n_a_temp=n_a;
     end
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         n_z_temp=n_z.(Names_i{ii});
     else
         n_z_temp=n_z;
     end
-    if isa(pi_z,'struct')
+    if isstruct(pi_z)
         pi_z_temp=pi_z.(Names_i{ii});
     else
         pi_z_temp=pi_z;

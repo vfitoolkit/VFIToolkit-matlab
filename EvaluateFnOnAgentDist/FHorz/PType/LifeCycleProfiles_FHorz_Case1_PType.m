@@ -450,7 +450,13 @@ if simoptions.lowmemory==0
         if isstruct(z_grid)
             z_grid_temp=z_grid.(Names_i{ii});
         else
-            z_grid_temp=z_grid;
+            nn=size(z_grid,ndims(z_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(z_grid)-1);
+                z_grid_temp=z_grid(otherdims{:},ii);
+            else
+                z_grid_temp=z_grid;
+            end
         end
 
         % Parameters are allowed to be given as structure, or as vector/matrix

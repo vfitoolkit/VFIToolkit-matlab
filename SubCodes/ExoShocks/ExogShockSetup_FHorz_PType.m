@@ -14,6 +14,9 @@ function [z_gridvals_J, pi_z_J, options]=ExogShockSetup_FHorz_PType(n_z,z_grid,p
 zdependsonptype=0;
 if isstruct(z_grid) || isstruct(pi_z)
     zdependsonptype=1;
+elseif size(z_grid,ndims(z_grid))==length(Names_i) || size(pi_z,ndims(pi_z))==length(Names_i) % last dimension of z_grid/pi_z is of length N_
+    zdependsonptype=2;
+    N_i=length(Names_i);
 end
 if isfield(options,'ExogShockFn')
     if isstruct(options.ExogShockFn)
@@ -178,8 +181,8 @@ elseif zdependsonptype==1
         
 
         if prod(n_z_temp)==0
-            z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
-            pi_z_J.(Names_i{ii})=pi_z_J_temp;
+            z_gridvals_J.(Names_i{ii})=[];
+            pi_z_J.(Names_i{ii})=[];
         else
             if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
                 pi_z_J.(Names_i{ii})=[];
@@ -270,6 +273,179 @@ elseif zdependsonptype==1
                 elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
                     z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
                     pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
+                end
+                z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
+                pi_z_J.(Names_i{ii})=pi_z_J_temp;
+            end
+        end
+    end
+
+elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for z_grid &/or pi_z
+
+    for ii=1:length(Names_i)
+        if ~isstruct(n_z)
+            n_z_temp=n_z;
+        else
+            n_z_temp=n_z.(Names_i{ii});
+        end
+        if ~isstruct(N_j)
+            N_j_temp=N_j;
+        else
+            N_j_temp=N_j.(Names_i{ii});
+        end
+        if ~isstruct(z_grid)
+            z_grid_temp=z_grid;
+        else
+            z_grid_temp=z_grid.(Names_i{ii});
+        end
+        if ~isstruct(pi_z)
+            pi_z_temp=pi_z;
+        else
+            pi_z_temp=pi_z.(Names_i{ii});
+        end
+        
+
+        if prod(n_z_temp)==0
+            z_gridvals_J.(Names_i{ii})=[];
+            pi_z_J.(Names_i{ii})=[];
+        else
+            if gridpiboth==1 % for most FnsToEvaluate, we don't use pi_z
+                pi_z_J.(Names_i{ii})=[];
+                % Now just do z_gridvals_J
+                z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),'gpuArray');
+                if isfield(options,'ExogShockFn')
+                    for jj=1:N_j_temp
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for pp=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
+                        end
+                        temp=options.ExogShockFn.(Names_i{ii});
+                        [z_grid_temp,~]=temp(ExogShockFnParamsCell{:});
+                        if all(size(z_grid_temp)==[sum(n_z_temp),1])
+                            z_gridvals_J_temp(:,:,jj)=gpuArray(CreateGridvals(n_z_temp,z_grid_temp,1));
+                        else % already joint-grid
+                            z_gridvals_J_temp(:,:,jj)=gpuArray(z_grid_temp,1);
+                        end
+                    end
+                elseif ndims(z_grid_temp)==4 % already an age-dependent joint-grid with ptype dependence
+                    if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp,N_i])
+                        z_gridvals_J_temp=z_grid_temp(:,:,:,ii);
+                    end
+                elseif ndims(z_grid_temp)==3
+                    if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp]) % already an age-dependent joint-grid
+                        z_gridvals_J_temp=z_grid_temp;
+                    elseif all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp,N_i]) % age-dependent grid
+                        for jj=1:N_j_temp
+                            z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj,ii),1);
+                        end
+                    elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_i]) % joint-grid, depend on ptype
+                        z_gridvals_J_temp=z_grid_temp(:,:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                    end
+                elseif ndims(z_grid_temp)==2
+                    if all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp]) % age-dependent grid
+                        for jj=1:N_j_temp
+                            z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj),1);
+                        end
+                    elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp)]) % joint grid
+                        z_gridvals_J_temp=z_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
+                    elseif all(size(z_grid_temp)==[prod(n_z_temp),N_i])
+                        z_gridvals_J_temp=z_grid_temp(:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                    elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
+                        z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                    end
+                end
+                z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
+            elseif gridpiboth==2 % For agent dist, we don't use grid
+                z_gridvals_J.(Names_i{ii})=[];
+                % Now just do pi_z_J
+                pi_z_J_temp=zeros(prod(n_z_temp),prod(n_z_temp),'gpuArray');
+                if isfield(options,'ExogShockFn')
+                    for jj=1:N_j_temp
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for pp=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
+                        end
+                        temp=options.ExogShockFn.(Names_i{ii});
+                        [~,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
+                    end
+                elseif size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
+                    otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
+                    pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
+                else
+                    % whether or not pi_z depends on age, we can just do
+                    pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
+                end
+                pi_z_J.(Names_i{ii})=pi_z_J_temp;
+            elseif gridpiboth==3
+                % For value fn, both z_gridvals_J and pi_z_J
+                z_gridvals_J_temp=zeros(prod(n_z_temp),length(n_z_temp),'gpuArray');
+                pi_z_J_temp=zeros(prod(n_z_temp),prod(n_z_temp),'gpuArray');
+                if isfield(options,'ExogShockFn')
+                    for jj=1:N_j_temp
+                        ExogShockFnParamsVec=CreateVectorFromParams(Parameters, options.ExogShockFnParamNames.(Names_i{ii}),jj);
+                        ExogShockFnParamsCell=cell(length(ExogShockFnParamsVec),1);
+                        for pp=1:length(ExogShockFnParamsVec)
+                            ExogShockFnParamsCell(pp,1)={ExogShockFnParamsVec(pp)};
+                        end
+                        temp=options.ExogShockFn.(Names_i{ii});
+                        [z_grid_temp,pi_z_temp]=temp(ExogShockFnParamsCell{:});
+                        pi_z_J_temp(:,:,jj)=gpuArray(pi_z_temp);
+                        if all(size(z_grid_temp)==[sum(n_z_temp),1])
+                            z_gridvals_J_temp(:,:,jj)=gpuArray(CreateGridvals(n_z_temp,z_grid_temp,1));
+                        else % already joint-grid
+                            z_gridvals_J_temp(:,:,jj)=gpuArray(z_grid_temp,1);
+                        end
+                    end
+                elseif ndims(z_grid_temp)==4 % already an age-dependent joint-grid with ptype dependence
+                    if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp,N_i])
+                        z_gridvals_J_temp=z_grid_temp(:,:,:,ii);
+                    end
+                    if size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
+                        otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
+                        pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
+                    else
+                        % whether or not pi_z depends on age, we can just do
+                        pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
+                    end
+                elseif ndims(z_grid_temp)==3
+                    if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp]) % already an age-dependent joint-grid
+                        z_gridvals_J_temp=z_grid_temp;
+                    elseif all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp,N_i]) % age-dependent grid
+                        for jj=1:N_j_temp
+                            z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj,ii),1);
+                        end
+                    elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_i]) % joint-grid, depend on ptype
+                        z_gridvals_J_temp=z_grid_temp(:,:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                    end
+                    if size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
+                        otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
+                        pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
+                    else
+                        % whether or not pi_z depends on age, we can just do
+                        pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
+                    end
+                elseif ndims(z_grid_temp)==2
+                    if all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp]) % age-dependent grid
+                        for jj=1:N_j_temp
+                            z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj),1);
+                        end
+                    elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp)]) % joint grid
+                        z_gridvals_J_temp=z_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
+                    elseif all(size(z_grid_temp)==[prod(n_z_temp),N_i])
+                        z_gridvals_J_temp=z_grid_temp(:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                    elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
+                        z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                    end
+                    if size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
+                        otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
+                        pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
+                    else
+                        % whether or not pi_z depends on age, we can just do
+                        pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
+                    end
                 end
                 z_gridvals_J.(Names_i{ii})=z_gridvals_J_temp;
                 pi_z_J.(Names_i{ii})=pi_z_J_temp;

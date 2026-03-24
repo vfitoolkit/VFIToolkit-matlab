@@ -239,7 +239,7 @@ z_grid=gpuArray(z_grid);
 
 %% Switch to z_gridvals
 if vfoptions.alreadygridvals==0
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_grid,pi_z,Parameters,vfoptions,3);
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,vfoptions,3);
 elseif vfoptions.alreadygridvals==1
     z_gridvals=z_grid;
 end
