@@ -31,7 +31,6 @@ for pp=1:nGEprices % Not sure this is needed, have it just in case they are used
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
 end
 
-Ptype_cells=cell(1,PTypeStructure.N_i); % Hold results in case needed for CustomStats
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
@@ -77,9 +76,6 @@ for ii=1:PTypeStructure.N_i
         AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).simoptions);     
     end
 
-    if heteroagentoptions.useCustomModelStats==1
-        Ptype_cells{ii}={V_ii,Policy_ii,StationaryDist_ii};
-    end
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
 
     if heteroagentoptions.useCustomModelStats==1
