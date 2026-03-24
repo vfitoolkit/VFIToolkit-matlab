@@ -417,8 +417,8 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).a_grid=a_grid.(Names_i{ii});
     else
         PTypeStructure.(iistr).a_grid=a_grid;
-    end
-    
+    end    
+
     %% Parameter Structure
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
