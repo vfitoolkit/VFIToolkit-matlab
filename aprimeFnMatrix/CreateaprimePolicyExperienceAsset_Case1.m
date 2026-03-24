@@ -114,7 +114,7 @@ end
 
 
 %% Calcuate grid indexes and probs from the values
-if N_z<2
+if N_z==0
     a2primeVals=reshape(a2primeVals,[1,N_a]);
 else
     a2primeVals=reshape(a2primeVals,[1,N_a*N_z]);
@@ -131,7 +131,7 @@ a2primeIndexes(offBottomOfGrid)=1; % Has already been handled
 % Those points which tried to leave the top of the grid have probability 1 of the 'upper' point (0 of lower point)
 offTopOfGrid=(a2primeVals>=a2_grid(end));
 a2primeIndexes(offTopOfGrid)=n_a2-1; % lower grid point is the one before the end point
-if N_z<2
+if N_z==0
     a2primeIndexes=reshape(a2primeIndexes,[N_a,1]);
 else
     a2primeIndexes=reshape(a2primeIndexes,[N_a*N_z,1]);
@@ -145,7 +145,7 @@ a2primeProbs=1-aprime_residual./a2_griddiff(a2primeIndexes);
 a2primeProbs(offBottomOfGrid)=1;
 a2primeProbs(offTopOfGrid)=0;
 
-if N_z<2
+if N_z==0
     a2primeIndexes=reshape(a2primeIndexes,[N_a,1]); % Index of lower grid point
     a2primeProbs=reshape(a2primeProbs,[N_a,1]); % Probability of lower grid point
 else
