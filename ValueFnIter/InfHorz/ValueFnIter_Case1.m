@@ -41,6 +41,7 @@ if ~exist('vfoptions','var')
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     % Other options
+    vfoptions.polindorval=1;
     vfoptions.policy_forceintegertype=0;
     vfoptions.piz_strictonrowsaddingtoone=0;
     vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
@@ -119,6 +120,9 @@ else
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
     % Other options
+    if ~isfield(vfoptions,'polindorval')
+        vfoptions.polindorval=1;
+    end
     if ~isfield(vfoptions,'policy_forceintegertype')
         vfoptions.policy_forceintegertype=0;
     end

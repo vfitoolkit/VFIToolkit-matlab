@@ -1,6 +1,8 @@
-function AggVarsPath=TransitionPath_FHorz_PType_singlepath_fastOLG_e_raw(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist_initial,jequalOneDist_T,AgeWeights_T,l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, FnsToEvaluateCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions)
+function AggVarsPath=TransitionPath_FHorz_PType_ExpAsset_singlepath_fastOLG_e_raw(PricePathOld, ParamPath, PricePathNames,ParamPathNames,T,V_final,AgentDist_initial,jequalOneDist_T,AgeWeights_T,l_d1,l_d2,N_d1,N_d2,n_d1,n_d2,N_a1,N_a2,n_a1,n_a2,N_z,n_z,N_e,n_e,N_j,d1_grid,d2_grid,a1_grid,a2_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, aprimeFn, FnsToEvaluateCell, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec, ParamPathSizeVec, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions)
 % When doing shooting alogrithm on TPath FHorz PType, this is for a given ptype, and does the steps of back-iterate to get policy, then forward to get agent dist and agg vars.
 % The only output is the agg vars path.
+
+error("these are not yet the droids you are looking for")
 
 AggVarsPath=zeros(length(FnsToEvaluateCell),T-1,'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 
@@ -161,7 +163,7 @@ for tt=1:T-1
     end
     
     %% AggVars
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_ze,N_a,N_ze,a_gridvals,ze_gridvals_J_fastOLG,1);
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_fastOLG(AgentDist.*AgeWeights, PolicyValuesPath(:,:,:,1:l_d,tt), PolicyValuesPath(:,:,:,l_d+1:end,tt), FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_a,l_a,l_ze,N_a,N_ze,a_gridvals,ze_gridvals_J_fastOLG,1);
     for ff=1:length(AggVarNames)
         Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;
     end

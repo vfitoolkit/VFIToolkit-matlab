@@ -31,7 +31,7 @@ for pp=1:nGEprices % Not sure this is needed, have it just in case they are used
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
 end
 
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -67,6 +67,13 @@ for ii=1:PTypeStructure.N_i
     end
 
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
+    % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+    FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+    for jj=ii+1:PTypeStructure.N_i
+        jjstr=PTypeStructure.iistr{jj};
+        for aa=1:length(AggVars_ii)
+            PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
+        end
 
     if heteroagentoptions.useCustomModelStats==1
         V.(iistr)=V_ii;
@@ -79,11 +86,13 @@ AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights,2);
 
 
 
-%% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+%% Put GE parameters and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
 % already did the basic GE params
 % for pp=1:nGEprices
 %     Parameters.(GEPriceParamNames{pp})=GEprices(GEpriceindexes(pp,1):GEpriceindexes(pp,2));
 % end
+
+% We pushed AggVars down into the PTypeStructure parameters; this puts them into the unified Parameter structure
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
@@ -157,6 +166,7 @@ if isfield(heteroagentoptions,'intermediateEqns')
         end
     end
 end
+
 
 
 %% Evaluate the General Eqm Eqns

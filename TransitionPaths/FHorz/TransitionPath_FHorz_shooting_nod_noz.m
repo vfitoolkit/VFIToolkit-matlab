@@ -60,19 +60,19 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     %% First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step. 
     % Since we won't need to keep the value functions for anything later we just store the current one in V
     V=V_final;
-    for tt=1:T-1 %so t=T-i   
+    for ttr=1:T-1 %so ttr=T-i   
         for kk=1:length(PricePathNames)
-            Parameters.(PricePathNames{kk})=PricePathOld(T-tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            Parameters.(PricePathNames{kk})=PricePathOld(T-ttr,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
         end
         for kk=1:length(ParamPathNames)
-            Parameters.(ParamPathNames{kk})=ParamPath(T-tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
         end
         
         [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_noz(V,0,n_a,N_j,[], a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The V input is next period value fn, the V output is this period.
         % Policy is kept in the form where it is just a single-value in (d,a')
         
-        PolicyIndexesPath(:,:,:,T-tt)=Policy;
+        PolicyIndexesPath(:,:,:,T-ttr)=Policy;
     end
     
     
