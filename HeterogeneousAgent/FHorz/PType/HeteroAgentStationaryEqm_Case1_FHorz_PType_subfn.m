@@ -10,7 +10,7 @@ if heteroagentoptions.verbose>0
     for pp=1:nGEprices
         GEpricesvec_tminus1(pp)=Parameters.(GEPriceParamNames{pp});
     end
-    GEpricesvec_delta=GEpricesvec-GEpricesvec_tminus1;
+    GEpricesvec_delta=GEpricesvec-GEpricesvec_tminus1; % Compute this to show max change per round
     for aa=1:length(AggVarNames)
         if isfield(Parameters,AggVarNames{aa})
             AggVars_tminus1(aa)=Parameters.(AggVarNames{aa});
@@ -63,7 +63,7 @@ end
 
 
 %%
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     

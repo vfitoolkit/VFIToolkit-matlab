@@ -170,7 +170,7 @@ else
     end
 end
 
-%% Get AgeWeights from Parameters   
+%% Get AgeWeights from Parameters
 if isstruct(AgeWeightsParamNames)
     for ii=1:N_i
         try
@@ -969,9 +969,20 @@ end
 use_tminus1price=0;
 if ~isempty(tminus1priceNames)
     use_tminus1price=1;
-    for ii=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
+    if isstruct(tminus1AggVarsNames)
+        AggVarsPTypes=fieldnames(tminus1AggVarsNames);
+        for nn=1:length(AggVarsPTypes)
+            for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
+                if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
+                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+                end
+            end
+        end
+    else
+        for ii=1:length(tminus1AggVarsNames)
+            if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
+                error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+            end
         end
     end
 end
