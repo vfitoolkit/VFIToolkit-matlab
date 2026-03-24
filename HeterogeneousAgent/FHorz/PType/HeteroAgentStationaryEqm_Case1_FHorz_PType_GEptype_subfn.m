@@ -188,31 +188,6 @@ if isfield(heteroagentoptions,'intermediateEqns')
     end
 end
 
-%% Custom Model Stats
-customstatnames=struct();
-if heteroagentoptions.useCustomModelStats==1
-    if isfield(heteroagentoptions, 'CustomModelStats')
-        error("Universal PType handler for CustomModelStats not yet implemented")
-    else
-        for ii=1:PTypeStructure.N_i
-            iistr=PTypeStructure.iistr{ii};
-            if ~isfield(heteroagentoptions, iistr) || ~isfield(heteroagentoptions.(iistr), 'CustomModelStats')
-                continue
-            end
-            if isfinite(PTypeStructure.(iistr).N_j)
-                CustomStats.(iistr)=heteroagentoptions.(iistr).CustomModelStats(Ptype_cells{ii}{1},Ptype_cells{ii}{2},Ptype_cells{ii}{3},PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).FnsToEvaluate,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,heteroagentoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
-            else
-                CustomStats.(iistr)=heteroagentoptions.(iistr).CustomModelStats(Ptype_cells{ii}{1},Ptype_cells{ii}{2},Ptype_cells{ii}{3},PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).FnsToEvaluate,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).z_gridvals,PTypeStructure.(iistr).pi_z,heteroagentoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
-            end
-            % Note: anything else you want, just 'hide' it in heteroagentoptions
-            customstatnames.(iistr)=fieldnames(CustomStats.(iistr));
-            for pp=1:length(customstatnames.(iistr))
-                PTypeStructure.(iistr).Parameters.(customstatnames.(iistr){pp})=CustomStats.(iistr).(customstatnames.(iistr){pp});
-            end
-        end
-    end
-end
-
 
 
 %% Evaluate the General Eqm Eqns
