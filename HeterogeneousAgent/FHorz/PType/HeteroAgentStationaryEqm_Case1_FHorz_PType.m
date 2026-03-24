@@ -454,7 +454,7 @@ for ii=1:PTypeStructure.N_i
         % If z (and e) are not determined in GE, then compute z_gridvals_J and pi_z_J now (and e_gridvals_J and pi_e_J)
         if heteroagentoptions.gridsinGE(ii)==0
             % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_j,Parameters,PTypeStructure.(iistr).vfoptions,3);
             % Note: these are actually z_gridvals_J and pi_z_J
             PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
             PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
@@ -467,7 +467,7 @@ for ii=1:PTypeStructure.N_i
     else % InfHorz
         if heteroagentoptions.gridsinGE(ii)==0
             % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
+            [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,Parameters,PTypeStructure.(iistr).vfoptions,3);
             PTypeStructure.(iistr).simoptions.e_gridvals=PTypeStructure.(iistr).vfoptions.e_gridvals; % Note, will be [] if no e
             PTypeStructure.(iistr).simoptions.pi_e=PTypeStructure.(iistr).vfoptions.pi_e; % Note, will be [] if no e
         else
@@ -492,7 +492,7 @@ for ii=1:PTypeStructure.N_i
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
-    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
+    PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,Parameters);
     
     %% Parameter Structure
     % Parameters are allowed to be given as structure, or as vector/matrix
