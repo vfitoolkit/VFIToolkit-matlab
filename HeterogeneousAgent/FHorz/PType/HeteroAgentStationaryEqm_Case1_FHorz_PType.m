@@ -162,25 +162,12 @@ else
     end
 end
 
-error("sort this")
-if ~isfield(heteroagentoptions,'useCustomModelStats')
-    heteroagentoptions.useCustomModelStats=0;
-    if isfield(heteroagentoptions,'CustomModelStats')
-        heteroagentoptions.useCustomModelStats=1;
-    else
-        for ii=1:length(Names_i)
-            if isfield(heteroagentoptions,Names_i{ii}) && isfield(heteroagentoptions.(Names_i{ii}),'CustomModelStats')
-                heteroagentoptions.useCustomModelStats=1;
-                break
-            end
-        end
-    end
-
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overwrite).
     % So that user gets exactly what they input, not any internally reworked things
+    % In this (PType) context, these assignments are typically structs that each have all the PType fields within them
     heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate=FnsToEvaluate;
     heteroagentoptions.CustomModelStatsInputs.n_d=n_d;
     heteroagentoptions.CustomModelStatsInputs.n_a=n_a;

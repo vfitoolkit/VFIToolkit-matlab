@@ -133,6 +133,7 @@ if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
     % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
     % So that user gets exactly what they input, not any internally reworked things
+    % In this (non-PType) context, these assignments are arrays or other simple types
     heteroagentoptions.CustomModelStatsInputs.z_grid=z_grid;
     heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
     % Need the following two as otherwise they would contain alreadygridvals=1
