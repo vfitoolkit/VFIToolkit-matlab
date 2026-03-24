@@ -63,7 +63,7 @@ end
 
 
 %%
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -160,7 +160,6 @@ if heteroagentoptions.useintermediateEqns==1
     end
 end
 
-
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
@@ -228,7 +227,7 @@ if heteroagentoptions.verbose>=1
     if heteroagentoptions.useCustomModelStats==1
         fprintf('Current CustomModelStats variables: \n')
         for aa=1:length(customstatnames)
-            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{aa},CustomStats.(customstatnames{aa})) % Note, this is done differently here because AggVars itself has been set as a matrix
+            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{aa},CustomStats.(customstatnames{aa}))
         end
     end
     fprintf('Current GeneralEqmEqns: \n')

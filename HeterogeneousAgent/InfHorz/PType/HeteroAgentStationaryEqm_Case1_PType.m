@@ -360,6 +360,7 @@ for ii=1:PTypeStructure.N_i
     else
         PTypeStructure.(iistr).l_e=0;
     end
+    
     if isstruct(d_grid)
         PTypeStructure.(iistr).d_grid=d_grid.(Names_i{ii});
     else
