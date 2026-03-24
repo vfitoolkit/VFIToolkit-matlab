@@ -165,8 +165,9 @@ end
 heteroagentoptions.useCustomModelStats=0;
 if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.useCustomModelStats=1;
-    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overright).
+    % Stash some of the inputs so they can be passed to CustomModelStats later (only things we otherwise overwrite).
     % So that user gets exactly what they input, not any internally reworked things
+    % In this (PType) context, these assignments are typically structs that each have all the PType fields within them
     heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate=FnsToEvaluate;
     heteroagentoptions.CustomModelStatsInputs.n_d=n_d;
     heteroagentoptions.CustomModelStatsInputs.n_a=n_a;
@@ -431,6 +432,32 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).pi_z=pi_z;
     end
 
+    %% Parameter Structure
+    % Parameters are allowed to be given as structure, or as vector/matrix
+    % (in terms of their dependence on permanent type). So go through each of
+    % these in term.
+    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
+    % Need to establish this in PTypeStructure before we use it below.
+    PTypeStructure.(iistr).Parameters=Parameters;
+    FullParamNames=fieldnames(Parameters); % all the different parameters
+    nFields=length(FullParamNames);
+    for kField=1:nFields
+        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
+            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+            end
+        elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
+            temp=Parameters.(FullParamNames{kField});
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
+            if ptypedim==1
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(ii,:);
+            elseif ptypedim==2
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(:,ii);
+            end
+        end
+    end
+
     % Check if using ExogShockFn or EiidShockFn, and if so, do these use a parameter that is being determined in general eqm
     heteroagentoptions.gridsinGE(ii)=0;
     if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
@@ -493,34 +520,8 @@ for ii=1:PTypeStructure.N_i
     end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).Parameters);
     
-    %% Parameter Structure
-    % Parameters are allowed to be given as structure, or as vector/matrix
-    % (in terms of their dependence on permanent type). So go through each of
-    % these in term.
-    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
-    PTypeStructure.(iistr).Parameters=Parameters;
-    FullParamNames=fieldnames(Parameters); % all the different parameters
-    nFields=length(FullParamNames);
-    for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
-            end
-        elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
-            temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
-            if ptypedim==1
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(ii,:);
-            elseif ptypedim==2
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
-
     %% jequaloneDist and AgeWeightsParamNames
     if isfinite(PTypeStructure.(iistr).N_j) % FHorz
-
         if isstruct(jequaloneDist)
             if isfield(jequaloneDist,PTypeStructure.Names_i{ii})
                 if isa(jequaloneDist, 'function_handle')
@@ -529,9 +530,7 @@ for ii=1:PTypeStructure.N_i
                     PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(PTypeStructure.Names_i{ii});
                 end
             else
-                if isfinite(PTypeStructure.(iistr).N_j)
-                    error(['You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
-                end
+                error(['You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
             end
         else
             PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
@@ -542,9 +541,7 @@ for ii=1:PTypeStructure.N_i
             if isfield(AgeWeightsParamNames,Names_i{ii})
                 PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightsParamNames.(Names_i{ii});
             else
-                if isfinite(PTypeStructure.(iistr).N_j)
-                    error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-                end
+                error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
             end
         end
     end
