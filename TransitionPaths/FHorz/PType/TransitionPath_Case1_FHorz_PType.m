@@ -165,7 +165,7 @@ else
     end
 end
 
-%% Get AgeWeights from Parameters   
+%% Get AgeWeights from Parameters
 if isstruct(AgeWeightsParamNames)
     for ii=1:N_i
         try
@@ -660,33 +660,17 @@ for ii=1:PTypeStructure.N_i
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
             end
         end
-    end
-    % Get AgeWeights and switch into the transpathoptions.ageweightstrivial=0 setup (and this is what subfns hardcode when doing PTypes)
-    % It is assumed there is only one Age Weight Parameter (name))
-    % AgeWeights_T is (a,j,z)-by-T (create as j-by-T to start, then switch)
-    if isstruct(AgeWeights)
-        AgeWeights_ii=AgeWeights.(iistr);
-        if all(size(AgeWeights_ii)==[N_j,1])
+        if all(size(AgeWeights_ii)==[N_j_temp,1])
             % Does not depend on transition path period
             PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights_ii.*ones(1,T));
         elseif all(size(AgeWeights)==[1,N_j])
             % Does not depend on transition path period
             PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights_ii'.*ones(1,T));
         else
-            fprintf('Following error applies to agent permanent type: %s \n',Names_i{ii})
+            fprintf('Following error applies to agent permanent type: %s \n',iistr)
             error('The age weights parameter seems to be the wrong size')
         end
-    else % not a structure, so must apply to all permanent types
-        if all(size(AgeWeights)==[N_j,1])
-            % Does not depend on transition path period
-            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights.*ones(1,T));
-        elseif all(size(AgeWeights)==[1,N_j])
-            % Does not depend on transition path period
-            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights'.*ones(1,T));
-        else
-            error('The age weights parameter seems to be the wrong size')
-        end
-    end
+
     % Check ParamPath to see if the AgeWeights vary over the transition
     % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
     temp=strcmp(ParamPathNames,AgeWeightsParamNames{1});
@@ -755,6 +739,7 @@ for ii=1:PTypeStructure.N_i
         end
         PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
     end
+
     AgentDist_initial.(iistr)=AgentDist_init;
     clear AgentDist_init
     
@@ -870,9 +855,20 @@ end
 use_tminus1price=0;
 if ~isempty(tminus1priceNames)
     use_tminus1price=1;
-    for ii=1:length(tminus1priceNames)
-        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
+    if isstruct(tminus1AggVarsNames)
+        AggVarsPTypes=fieldnames(tminus1AggVarsNames);
+        for nn=1:length(AggVarsPTypes)
+            for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
+                if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
+                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+                end
+            end
+        end
+    else
+        for ii=1:length(tminus1AggVarsNames)
+            if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
+                error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+            end
         end
     end
 end

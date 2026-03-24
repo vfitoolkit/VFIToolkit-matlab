@@ -12,7 +12,6 @@ else
         transpathoptions.verbose=0;
     end
 end
-
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.experienceasset=0;

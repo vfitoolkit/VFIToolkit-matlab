@@ -596,7 +596,6 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.alreadygridvals_semiexo=1;
         PTypeStructure.(iistr).simoptions.alreadygridvals_semiexo=1;
     end
-        
 
     %% DiscountFactor and ReturnFn
     % The parameter names can be made to depend on the permanent-type
@@ -615,7 +614,6 @@ for ii=1:PTypeStructure.N_i
     
     %% jequaloneDist and AgeWeightsParamNames
     if isfinite(PTypeStructure.(iistr).N_j) % FHorz
-
         if isstruct(jequaloneDist)
             if isfield(jequaloneDist,PTypeStructure.Names_i{ii})
                 if isa(jequaloneDist, 'function_handle')
@@ -624,9 +622,7 @@ for ii=1:PTypeStructure.N_i
                     PTypeStructure.(iistr).jequaloneDist=jequaloneDist.(PTypeStructure.Names_i{ii});
                 end
             else
-                if isfinite(PTypeStructure.(iistr).N_j)
-                    error(['You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
-                end
+                error(['You must input jequaloneDist for permanent type ', PTypeStructure.Names_i{ii}, ' \n'])
             end
         else
             PTypeStructure.(iistr).jequaloneDist=jequaloneDist;
@@ -637,9 +633,7 @@ for ii=1:PTypeStructure.N_i
             if isfield(AgeWeightParamNames,Names_i{ii})
                 PTypeStructure.(iistr).AgeWeightParamNames=AgeWeightParamNames.(Names_i{ii});
             else
-                if isfinite(PTypeStructure.(iistr).N_j)
-                    error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
-                end
+                error(['You must input AgeWeightParamNames for permanent type ', Names_i{ii}, ' \n'])
             end
         end
     end
