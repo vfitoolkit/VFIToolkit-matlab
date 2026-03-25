@@ -99,7 +99,8 @@ for ii=1:N_i
         N_j_temp=N_j;
     end
 
-    if isa(pi_z,'struct')
+    %% Exogenous shocks
+    if isstruct(pi_z)
         pi_z_temp=pi_z.(Names_i{ii});
     else
         nn=size(pi_z,ndims(pi_z));
@@ -110,7 +111,48 @@ for ii=1:N_i
             pi_z_temp=pi_z;
         end
     end
+
+    % e
+    if isfield(simoptions_temp,'n_e')
+        % If vfoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.pi_e)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.pi_e,ndims(simoptions_temp.pi_e));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.pi_e)-1);
+                simoptions_temp.pi_e=simoptions_temp.pi_e(otherdims{:},ii);
+            end
+        end
+    end
+
+    % semiz
+    if isfield(simoptions_temp,'n_semiz')
+        % Might use SemiExoShockFn or pi_semiz, if the later we need to deal with it
+        if isfield(simoptions_temp,'pi_semiz')
+        % If simoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
+            if ~isstruct(simoptions.pi_semiz)
+                % So just need to check if last dimension is of length N_i
+                nn=size(simoptions_temp.pi_semiz,ndims(simoptions_temp.pi_semiz));
+                if nn==N_i
+                    otherdims = repmat({':'},1,ndims(simoptions_temp.pi_semiz)-1);
+                    simoptions_temp.pi_semiz=simoptions_temp.pi_semiz(otherdims{:},ii);
+                end
+            end
+        else
+            % To evaluate SemiExoShockFn, we still require semiz_grid
+            % If vfoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
+            if ~isstruct(simoptions.semiz_grid)
+                % So just need to check if last dimension is of length N_i
+                nn=size(simoptions_temp.semiz_grid,ndims(simoptions_temp.semiz_grid));
+                if nn==N_i
+                    otherdims = repmat({':'},1,ndims(simoptions_temp.semiz_grid)-1);
+                    simoptions_temp.semiz_grid=simoptions_temp.semiz_grid(otherdims{:},ii);
+                end
+            end
+        end
+    end
     
+    %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.

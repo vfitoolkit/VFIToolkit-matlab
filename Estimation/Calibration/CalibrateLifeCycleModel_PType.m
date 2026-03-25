@@ -176,7 +176,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1)
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1);
 
 
 %% Set-up/check caliboptions.weights
@@ -230,6 +230,8 @@ end
 % precomputed by the time we get to the value fn, staty dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
+
+% Same for semi-exogenous shocks
 
 
 %% 

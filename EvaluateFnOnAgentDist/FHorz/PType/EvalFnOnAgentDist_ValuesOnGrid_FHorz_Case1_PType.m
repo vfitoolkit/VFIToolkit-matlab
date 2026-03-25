@@ -145,6 +145,8 @@ for ii=1:N_i % First set up simoptions
         a_grid_temp=a_grid;
     end
 
+
+    %% Exogenous shocks
     if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
@@ -156,7 +158,34 @@ for ii=1:N_i % First set up simoptions
             z_grid_temp=z_grid;
         end
     end
-    
+
+    % e
+    if isfield(simoptions_temp,'n_e')
+        % If simoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.e_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.e_grid,ndims(simoptions_temp.e_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.e_grid)-1);
+                simoptions_temp.e_grid=simoptions_temp.e_grid(otherdims{:},ii);
+            end
+        end
+    end
+
+    % semiz
+    if isfield(simoptions_temp,'n_semiz')
+        % If simoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.semiz_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.semiz_grid,ndims(simoptions_temp.semiz_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.semiz_grid)-1);
+                simoptions_temp.semiz_grid=simoptions_temp.semiz_grid(otherdims{:},ii);
+            end
+        end
+    end
+
+    %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.

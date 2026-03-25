@@ -38,9 +38,10 @@ if ~exist('simoptions','var')
     simoptions.npoints=100; % number of points for lorenz curve (note this lorenz curve is also used to calculate the gini coefficient
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes 
-    % When calling as a subcommand, the following is used internally
     simoptions.gridinterplayer=0;
+    % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
 else
     %Check options for missing fields, if there are some fill them with the defaults
     if isgpuarray(StationaryDist) % simoptions.parallel is overwritten based on StationaryDist
@@ -77,12 +78,15 @@ else
             simoptions.whichstats=[1,1,1,2,1,2,1]; % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
         end
     end
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
-    if ~isfield(simoptions,'gridinterplayer')
-        simoptions.gridinterplayer=0;
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
     end
 end
 
