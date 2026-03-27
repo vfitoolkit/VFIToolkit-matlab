@@ -399,47 +399,35 @@ elseif zdependsonptype==2 % dependence of ptype via last dimension of matrix for
                             z_gridvals_J_temp(:,:,jj)=gpuArray(z_grid_temp,1);
                         end
                     end
-                elseif ndims(z_grid_temp)==4 % already an age-dependent joint-grid with ptype dependence
-                    if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp,N_i])
-                        z_gridvals_J_temp=z_grid_temp(:,:,:,ii);
-                    end
-                    if size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
-                        otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
-                        pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
-                    else
-                        % whether or not pi_z depends on age, we can just do
-                        pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
-                    end
-                elseif ndims(z_grid_temp)==3
-                    if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp]) % already an age-dependent joint-grid
-                        z_gridvals_J_temp=z_grid_temp;
-                    elseif all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp,N_i]) % age-dependent grid
-                        for jj=1:N_j_temp
-                            z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj,ii),1);
+                else
+                    if ndims(z_grid_temp)==4 % already an age-dependent joint-grid with ptype dependence
+                        if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp,N_i])
+                            z_gridvals_J_temp=z_grid_temp(:,:,:,ii);
                         end
-                    elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_i]) % joint-grid, depend on ptype
-                        z_gridvals_J_temp=z_grid_temp(:,:,ii).*ones(1,1,N_j_temp,'gpuArray');
-                    end
-                    if size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
-                        otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
-                        pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
-                    else
-                        % whether or not pi_z depends on age, we can just do
-                        pi_z_J_temp=pi_z_temp.*ones(1,1,N_j_temp,'gpuArray');
-                    end
-                elseif ndims(z_grid_temp)==2
-                    if all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp]) % age-dependent grid
-                        for jj=1:N_j_temp
-                            z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj),1);
+                    elseif ndims(z_grid_temp)==3
+                        if all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_j_temp]) % already an age-dependent joint-grid
+                            z_gridvals_J_temp=z_grid_temp;
+                        elseif all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp,N_i]) % age-dependent grid
+                            for jj=1:N_j_temp
+                                z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj,ii),1);
+                            end
+                        elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp),N_i]) % joint-grid, depend on ptype
+                            z_gridvals_J_temp=z_grid_temp(:,:,ii).*ones(1,1,N_j_temp,'gpuArray');
                         end
-                    elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp)]) % joint grid
-                        z_gridvals_J_temp=z_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
-                    elseif all(size(z_grid_temp)==[prod(n_z_temp),N_i])
-                        z_gridvals_J_temp=z_grid_temp(:,ii).*ones(1,1,N_j_temp,'gpuArray');
-                    elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
-                        z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                    elseif ndims(z_grid_temp)==2
+                        if all(size(z_grid_temp)==[sum(n_z_temp),N_j_temp]) % age-dependent grid
+                            for jj=1:N_j_temp
+                                z_gridvals_J_temp(:,:,jj)=CreateGridvals(n_z_temp,z_grid_temp(:,jj),1);
+                            end
+                        elseif all(size(z_grid_temp)==[prod(n_z_temp),length(n_z_temp)]) % joint grid
+                            z_gridvals_J_temp=z_grid_temp.*ones(1,1,N_j_temp,'gpuArray');
+                        elseif all(size(z_grid_temp)==[prod(n_z_temp),N_i])
+                            z_gridvals_J_temp=z_grid_temp(:,ii).*ones(1,1,N_j_temp,'gpuArray');
+                        elseif all(size(z_grid_temp)==[sum(n_z_temp),1]) % basic grid
+                            z_gridvals_J_temp=CreateGridvals(n_z_temp,z_grid_temp,1).*ones(1,1,N_j_temp,'gpuArray');
+                        end
                     end
-                    if size(pi_z_J_temp,ndims(pi_z_J_temp))==N_i
+                    if size(pi_z_temp,ndims(pi_z_temp))==N_i
                         otherdims = repmat({':'},1,ndims(pi_z_temp)-1);
                         pi_z_J_temp=pi_z_temp(otherdims{:},ii).*ones(1,1,N_j_temp,'gpuArray');
                     else

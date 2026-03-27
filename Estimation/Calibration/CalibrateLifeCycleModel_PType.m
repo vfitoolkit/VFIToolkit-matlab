@@ -176,7 +176,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1)
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1);
 
 
 %% Set-up/check caliboptions.weights
@@ -198,7 +198,7 @@ end
 ReturnFnParamNames=[];
 FnsToEvaluateParamNames=[];
 
-%% Set up exogenous shock grids now (so they can then just be reused every time)
+%% Set up exogenous shock grids now (so they can then just be reused every time) [This should be done per-ptype, but is currently just done for all ptypes at once]
 % Check if using ExogShockFn or EiidShockFn, and if so, do these use a
 % parameter that is being calibrated
 caliboptions.calibrateshocks=0; % set to one if need to redo shocks for each new calib parameter vector
@@ -230,6 +230,26 @@ end
 % precomputed by the time we get to the value fn, staty dist, etc. So
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
+
+% Same for semi-exogenous shocks
+caliboptions.calibsemiexo=0; % use =0 to also cover models without semi-exogenous shocks
+if isfield(vfoptions,'n_semiz')
+    if isfield(vfoptions,'SemiExoShockFn')
+        tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.SemiExoShockFn);
+        % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+        if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
+            caliboptions.calibsemiexo=1;
+        end
+    end
+    
+    vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,2,3);
+    simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
+    simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+
+    % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, staty dist, etc. So
+    vfoptions.alreadygridvals_semiexo=1;
+    simoptions.alreadygridvals_semiexo=1;
+end
 
 
 %% 

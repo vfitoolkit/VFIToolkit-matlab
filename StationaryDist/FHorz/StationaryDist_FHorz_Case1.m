@@ -13,6 +13,7 @@ if exist('simoptions','var')==0
     simoptions.parallel=1+(gpuDeviceCount>0);
     simoptions.outputkron=0; % If 1 then leave output in Kron form
     simoptions.alreadygridvals=0; % =1 when calling as a subcommand
+    simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
 else
     %Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'gridinterplayer')
@@ -45,6 +46,9 @@ else
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0; % =1 when calling as a subcommand
     end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0; % =1 when calling as a subcommand
+    end
 end
 
 %% Check for the age weights parameter, and make sure it is a row vector
@@ -60,7 +64,14 @@ end
 %% 
 if simoptions.parallel==2
    % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   % Nothing to actually do here
+   % Some things require simoptions.d_grid or simoptions.a_grid, make sure
+   % they are on GPU if they are used
+   if isfield(simoptions,'d_grid')
+       simoptions.d_grid=gpuArray(simoptions.d_grid);
+   end
+   if isfield(simoptions,'a_grid')
+       simoptions.a_grid=gpuArray(simoptions.a_grid);
+   end
 else
    % CPU can be used, but only for the basics. Is kept separate here so that the rest of the codes can just assume you have GPU and work with it.
    StationaryDist=StationaryDist_FHorz_CPU(jequaloneDist,AgeWeightParamNames,Policy,n_d,n_a,n_z,N_j,pi_z,Parameters,simoptions);
@@ -86,15 +97,16 @@ elseif simoptions.alreadygridvals==1
 end
 
 %% Semi-exogenous shock gridvals and pi 
-if isfield(simoptions,'n_semiz')
-    % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1);
-    % output: simoptions.semiz_gridvals_J, simoptions.pi_semiz_J
-    % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
-    % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
-    % If no semiz, then simoptions just does not contain these field
+if simoptions.alreadygridvals_semiexo==0
+    if isfield(simoptions,'n_semiz')
+        % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
+        simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,1,2);
+        % output: simoptions.semiz_gridvals_J, simoptions.pi_semiz_J
+        % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
+        % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
+        % If no semiz, then simoptions just does not contain these field
+    end
 end
-
 
 %% If age one distribution is input as a function, then evaluate it
 % Note: we might need to update z_grid based on ExogShockFn, so this has to come after the pi_z section
