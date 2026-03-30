@@ -53,6 +53,7 @@ if ~exist('simoptions','var')
         % lowmemory=0 has outerloop over ptype and inner loop of fnstoeval; lowmemory=1 has outerloop over fnstoeval, inner loop over ptype
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.alreadygridvals_semiexo=0;
     defaultagegroupings=1;
     if isstruct(N_j)
         N_j_max=0;
@@ -159,6 +160,9 @@ else
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
@@ -1658,3 +1662,4 @@ end
 
 
 end
+

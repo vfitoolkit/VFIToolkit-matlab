@@ -26,7 +26,8 @@ II2=repelem((1:1:N_a*N_semiz)',1,N_semiz);
 %%
 for jj=1:(N_j-1)
 
-    semiztransitions=gather(pi_semiz_J(semizindex(:,:,jj)));
+    pi_semiz_J_jj = pi_semiz_J(:,:,:,jj);
+    semiztransitions=gather(pi_semiz_J_jj(semizindex(:,:,jj)));
     Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,semiztransitions,N_a*N_semiz,N_a*N_semiz); % From (a,semiz) to (a',semiz')
 
     % No z, so just one-step for iteration
