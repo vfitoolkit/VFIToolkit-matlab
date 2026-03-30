@@ -231,17 +231,18 @@ for ii=1:N_i % First set up simoptions
     
     ValuesOnGrid_ii=EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
     
-    if isfield(simoptions_temp,'n_e') && isfield(simoptions_temp,'n_semiz')
-        n_ze_temp=[simoptions_temp.n_semiz,n_z_temp,simoptions_temp.n_e];
-    elseif isfield(simoptions_temp,'n_e')
-        n_ze_temp=[n_z_temp,simoptions_temp.n_e];
-    elseif isfield(simoptions_temp,'n_semiz')
-        n_ze_temp=[simoptions_temp.n_semiz,n_z_temp];
-    else
-        n_ze_temp=n_z_temp;
+    n_ze_temp=[];
+    if isfield(simoptions_temp,'n_semiz') && prod(simoptions_temp.n_semiz)>0
+        n_ze_temp=[n_ze_temp,simoptions_temp.n_semiz];
+    end
+    if prod(n_z_temp)>0
+        n_ze_temp=[n_ze_temp,n_z_temp];
+    end
+    if isfield(simoptions_temp,'n_e') && prod(simoptions_temp.n_e)>0
+        n_ze_temp=[n_ze_temp,simoptions_temp.n_e];
     end
     
-    if prod(n_ze_temp)==0 % no exogenous states
+    if isempty(n_ze_temp) % no exogenous states
         if isstruct(FnsToEvaluate)
             FnNames=fieldnames(FnsToEvaluate);
             for kk=1:numFnsToEvaluate
