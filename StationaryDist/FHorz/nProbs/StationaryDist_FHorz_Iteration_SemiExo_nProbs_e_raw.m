@@ -1,4 +1,4 @@
-function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_probs,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,pi_e_J,Parameters)
+function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_e_raw(jequaloneDistKron,AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,PolicyProbs,N_probs,N_dsemiz,N_a,N_semiz,N_z,N_e,N_j,pi_semiz_J,pi_z_J,pi_e_J,Parameters)
 % 'nProbs' refers to N_probs probabilities.
 % Policy_aprime has an additional dimension of length N_probs which is the N_probs points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these N_probs.
@@ -13,12 +13,14 @@ Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z*N_e,N
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_z*N_e,1,N_j]);
 
 % precompute; Don't want `PolicyProbs` on GPU anyway, so leave these in CPU RAM
-semizindex=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1)); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+semizindex=repmat(repelem((1:1:N_semiz)',N_a,1),N_z*N_e,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1))+(N_semiz*N_semiz*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
 pi_semiz_J=gather(pi_semiz_J);
 % semizindex is [N_a*N_semiz*N_z*N_e,N_semiz,N_j]
+% used to index pi_semiz_J which is [N_semiz,N_semiz,N_dsemiz,N_j]
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z*N_e,N_probs,N_j]);
 PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
+% WHY DONT I CREATE PolicyProbs ON GPU, THEN gather()? UNLESS IT RUNS OUT OF GPU MEMORY THIS SHOULD BE FASTER?
 
 
 N_bothz=N_semiz*N_z;

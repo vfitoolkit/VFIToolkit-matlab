@@ -1,4 +1,4 @@
-function StationaryDistKron=StationaryDist_FHorz_Iteration_SemiExo_noz_e_raw(jequaloneDistKron, AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters)
+function StationaryDistKron=StationaryDist_FHorz_Iteration_SemiExo_noz_e_raw(jequaloneDistKron, AgeWeightParamNames,Policy_dsemiexo,Policy_aprime,N_dsemiz,N_a,N_semiz,N_e,N_j,pi_semiz_J,pi_e_J,Parameters)
 % Will treat the agents as being on a continuum of mass 1.
 
 % When we use semiz, we need to use a different shape for Policy_aprime.
@@ -11,8 +11,9 @@ Policy_aprimesemiz=gather(Policy_aprimesemiz); % [N_a*N_semiz*N_e,N_semiz,N_j]
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz*N_e,1,N_j]);
 % precompute
-semizindex=repmat(repelem(gpuArray(1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*gpuArray(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+semizindex=repmat(repelem(gpuArray(1:1:N_semiz)',N_a,1),N_e,1)+N_semiz*gpuArray(0:1:N_semiz-1)+(N_semiz*N_semiz)*(Policy_dsemiexo-1)+(N_semiz*N_semiz*N_dsemiz)*shiftdim(gpuArray(0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
 % semizindex is [N_a*N_semiz*N_e,N_semiz,N_j]
+% used to index pi_semiz_J which is [N_semiz,N_semiz,N_dsemiz,N_j]
 
 %% No z, so no Tan improvement
 
