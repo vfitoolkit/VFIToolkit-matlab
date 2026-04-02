@@ -1111,16 +1111,17 @@ if simoptions.lowmemory==0
                             if simoptions.groupusingtdigest==1 % using t-Digests
                                 error('You should not be able to get here in the code')
                             elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
-                                % [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
-                                AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(sum(restrictedsamplemass(:,j1:jend,rr),2)),[],@sum);
-                                AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj(:));
+                                AllValues_rrffjj=gather(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj})(:));
+                                AllRestrictedWeights_rrffjj=gather(AllRestrictedWeights.(CondlRestnFnNames{rr}).(FnsToEvalNames{ff}).(jgroupstr{jj})(:));
+                                [AllValues_rrffjj,~,sortindex]=unique(AllValues_rrffjj);
+                                AllRestrictedWeights_rrffjj=accumarray(sortindex,AllRestrictedWeights_rrffjj,[],@sum);
                                 
                                 % AllRestrictedWeights_rrffjj will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
                                 if sum(AllRestrictedWeights_rrffjj)>0
                                     AllRestrictedWeights_rrffjj=AllRestrictedWeights_rrffjj/sum(AllRestrictedWeights_rrffjj);
                                 end
                                 
-                                tempStats2=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                                tempStats2=StatsFromWeightedGrid(AllValues_rrffjj,AllRestrictedWeights_rrffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                             end
                             % Store them in AgeConditionalStats
                             if simoptions.whichstats(1)==1
