@@ -48,7 +48,7 @@ end
 
 Policy=reshape(Policy,[1,N_a,N_z]);
 
-if tempcounter>=maxiter
+if tempcounter>maxiter && currdist>Tolerance
     warning('Value fn iteration has stopped due to reaching the maximum number of iterations (not due to convergence); can be set by vfoptions.maxiter.')
 end
 

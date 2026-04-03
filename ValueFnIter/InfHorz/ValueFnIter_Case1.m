@@ -40,11 +40,12 @@ if ~exist('vfoptions','var')
     vfoptions.inheritanceasset=0;
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
-    % Other options
-    vfoptions.policy_forceintegertype=0;
-    vfoptions.piz_strictonrowsaddingtoone=0;
-    vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
-    vfoptions.outputkron=0;
+     % Other options
+     vfoptions.policy_forceintegertype=0;
+     vfoptions.polindorval=1;
+     vfoptions.piz_strictonrowsaddingtoone=0;
+     vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
+     vfoptions.outputkron=0;
     % When calling as a subcommand, the following is used internally
     vfoptions.alreadygridvals=0;
 else
@@ -118,13 +119,16 @@ else
     end
 %     vfoptions.exoticpreferences % default is not to declare it
 %     vfoptions.SemiEndogShockFn % default is not to declare it    
-    % Other options
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
-    end
-    if ~isfield(vfoptions,'piz_strictonrowsaddingtoone')
-        vfoptions.piz_strictonrowsaddingtoone=0;
-    end
+     % Other options
+     if ~isfield(vfoptions,'policy_forceintegertype')
+         vfoptions.policy_forceintegertype=0;
+     end
+     if ~isfield(vfoptions,'polindorval')
+         vfoptions.polindorval=1;
+     end
+     if ~isfield(vfoptions,'piz_strictonrowsaddingtoone')
+         vfoptions.piz_strictonrowsaddingtoone=0;
+     end
     if ~isfield(vfoptions,'separableReturnFn')
         vfoptions.separableReturnFn=0; % advanced option to split ReturnFn into two parts (ReturnFn.R1 and ReturnFn.R2)
     end
