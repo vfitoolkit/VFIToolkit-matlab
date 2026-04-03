@@ -441,7 +441,7 @@ for ii=1:PTypeStructure.N_i
     FullParamNames=fieldnames(Parameters); % all the different parameters
     nFields=length(FullParamNames);
     for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
+        if isstruct(Parameters.(FullParamNames{kField})) % Check the current parameter for permanent type in structure form            
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
             if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
                 PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
@@ -473,6 +473,8 @@ for ii=1:PTypeStructure.N_i
     PTypeStructure.(iistr).FnsToEvaluate=FnsToEvaluate_temp;
     PTypeStructure.(iistr).FnsToEvaluateParamNames=FnsToEvaluateParamNames_temp;
     PTypeStructure.(iistr).WhichFnsForCurrentPType=WhichFnsForCurrentPType;
+    % Copied from FHorz/PType version for consistency
+    PTypeStructure.(iistr).FnsAndPTypeIndicator_ii=FnsAndPTypeIndicator_ii;
     
     %% PType masses
     if isa(PTypeDistParamNames, 'array')

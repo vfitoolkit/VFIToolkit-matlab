@@ -4,8 +4,8 @@ function [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep(VKron,n_d,n_a,
 % vfoptions must be already fully set up (this command is for internal use only so it should be)
 
 N_d=prod(n_d);
-% N_a=prod(n_a);
-% N_z=prod(n_z);
+N_a=prod(n_a);
+N_z=prod(n_z);
 
 %% 
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
@@ -21,9 +21,11 @@ end
 if vfoptions.gridinterplayer==0
     if vfoptions.divideandconquer==0
         if N_d==0
-            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_nod_raw(VKron,n_a, n_z, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            PolicyKron=reshape(Policy,[size(Policy,1),N_a,N_z]);
         else
-            [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_raw(VKron,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            PolicyKron=reshape(Policy2,[size(Policy2,1),N_a,N_z]);
         end
     elseif vfoptions.divideandconquer==1
         if isscalar(n_a)
