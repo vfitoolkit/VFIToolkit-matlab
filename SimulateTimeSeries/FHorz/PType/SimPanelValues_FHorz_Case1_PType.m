@@ -110,6 +110,7 @@ SimPanelValues=nan(length(FnsToEvaluate),simoptions.simperiods,simoptions.number
 for ii=1:N_i
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii); % Note: already check for existence of simoptions and created it if it was not inputted
+    simoptions_temp=local_extract_ptype_semiexo_inputs(simoptions_temp,simoptions,Names_i,ii,N_i);
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
@@ -302,6 +303,33 @@ for ff=1:length(FnNames)
     SimPanelValues.(FnNames{ff})=shiftdim(SimPanelValues2(ff,:,:),1);
 end
 
+
+end
+
+function simoptions_temp=local_extract_ptype_semiexo_inputs(simoptions_temp,simoptions,Names_i,ii,N_i)
+
+if isfield(simoptions,'semiz_grid')
+    simoptions_temp.semiz_grid=local_extract_ptype_lastdim(simoptions.semiz_grid,Names_i,ii,N_i);
+end
+
+if isfield(simoptions,'pi_semiz')
+    simoptions_temp.pi_semiz=local_extract_ptype_lastdim(simoptions.pi_semiz,Names_i,ii,N_i);
+end
+
+end
+
+function value_ii=local_extract_ptype_lastdim(value,Names_i,ii,N_i)
+
+value_ii=value;
+if isstruct(value)
+    if isfield(value,Names_i{ii})
+        value_ii=value.(Names_i{ii});
+    end
+elseif ~isscalar(value) && ndims(value)>=2 && size(value,ndims(value))==N_i
+    index=repmat({':'},1,ndims(value));
+    index{end}=ii;
+    value_ii=value(index{:});
+end
 
 end
 
