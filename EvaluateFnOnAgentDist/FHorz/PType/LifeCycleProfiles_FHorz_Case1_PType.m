@@ -1012,15 +1012,17 @@ if simoptions.lowmemory==0
                     
                     tempStats=StatsFromWeightedGrid(C_ff,digestweights_ff,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 elseif simoptions.ptypestorecpu==0 % just using unique() of the values and weights
-                    [AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),~,sortindex]=unique(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}));
-                    AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=accumarray(sortindex,AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),[],@sum);
+                    AllValues_ffjj=AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj});
+                    AllWeights_ffjj=AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj});
+                    [AllValues_ffjj,~,sortindex]=unique(AllValues_ffjj);
+                    AllWeights_ffjj=accumarray(sortindex,AllWeights_ffjj,[],@sum);
 
-                    % AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}) will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
-                    if sum(AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}))>0
-                        AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})=AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj})/sum(AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}));
+                    % AllWeights_ffjj will sum to one, except if using different agejshifter across PTypes, so need to add a renormalization in case that is happening
+                    if sum(AllWeights_ffjj)>0
+                        AllWeights_ffjj=AllWeights_ffjj/sum(AllWeights_ffjj);
                     end
 
-                    tempStats=StatsFromWeightedGrid(AllValues.(FnsToEvalNames{ff}).(jgroupstr{jj}),AllWeights.(FnsToEvalNames{ff}).(jgroupstr{jj}),simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
+                    tempStats=StatsFromWeightedGrid(AllValues_ffjj,AllWeights_ffjj,simoptions.npoints,simoptions.nquantiles,simoptions.tolerance,1,simoptions.whichstats);
                 end
                 % Store them in AgeConditionalStats
                 if simoptions.whichstats(1)==1
