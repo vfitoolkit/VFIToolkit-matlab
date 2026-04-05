@@ -70,7 +70,7 @@ for ttr=1:T-1 %so tt=T-ttr
         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,T-ttr);
     end
 
-    [V, Policy]=ValueFnIter_FHorz_TPath_ExpAsset_SingleStep(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
     % The V input is next period value fn, the V output is this period.
     % Policy is kept in the form where it is just a single-value in (d,a')
 

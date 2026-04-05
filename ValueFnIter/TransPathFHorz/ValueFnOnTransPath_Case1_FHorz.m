@@ -91,7 +91,7 @@ else
     l_d=length(n_d);
 end
 l_a=length(n_a);
-l_aprime=l_a;
+l_aprime=l_a-vfoptions.experienceasset;
 
 
 %% Implement new way of handling ReturnFn inputs
@@ -157,7 +157,11 @@ else
             Policy_final=reshape(permute(Policy_final,[1,2,4,3]),[size(Policy_final,1),N_a,N_j,N_e]);
         end
     else
-        Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
+        if vfoptions.experienceasset
+            Policy_final=KronPolicyIndexes_FHorz_Case1_ExpAsset_e(Policy_final,n_d,n_a(1:end-1),n_a(end),n_z,n_e,N_j, vfoptions);
+        else
+            Policy_final=KronPolicyIndexes_FHorz_Case1_e(Policy_final,n_d,n_a,n_z,n_e,N_j, vfoptions);
+        end
         if N_d==0 && vfoptions.gridinterplayer==0
             Policy_final=reshape(Policy_final,[1,N_a,N_z,N_e,N_j]);
         end

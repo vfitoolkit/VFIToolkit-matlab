@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_ExpAsset_SingleStep_e(VKron,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_e(VKron,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 
 N_d1=prod(n_d1);
@@ -12,9 +12,9 @@ if vfoptions.divideandconquer==0
     if vfoptions.gridinterplayer==0
         if N_d1==0
             error("not implemented")
-            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_ExpAsset_SingleStep_nod_e_raw(VKron,n_a, n_z,n_e, N_j, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_nod_e_raw(VKron,n_a, n_z,n_e, N_j, a_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_ExpAsset_SingleStep_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         end
     else
         error('Have not yet implemented grid interpolation layer for FHorz TPath without fastOLG=1. Ask on forum if you need this.')

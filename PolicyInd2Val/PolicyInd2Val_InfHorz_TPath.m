@@ -15,6 +15,9 @@ N_z=prod(n_z);
 l_aprime=length(n_a);
 if vfoptions.experienceasset==1
     l_aprime=l_aprime-1;
+    if n_d(1)==0
+        n_d=n_d(2:end);
+    end
 end
 
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
