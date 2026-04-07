@@ -56,7 +56,7 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use joint-grids (makes all the code much easier to write)
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
     % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
     simoptions.e_gridvals=vfoptions.e_gridvals;
     simoptions.pi_e=vfoptions.pi_e;

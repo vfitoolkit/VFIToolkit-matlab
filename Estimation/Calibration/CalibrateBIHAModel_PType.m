@@ -339,24 +339,24 @@ if isstruct(caliboptions.logmoments)
     logmomentnames=caliboptions.logmoments;
     % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
-    if any(fieldnames(logmomentnames),'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+    if isfield(logmomentnames,'AllStats')
+        caliboptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(allstatmomentnames,1)
-            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'AutoCorrTransProbs')
+    if isfield(logmomentnames,'AutoCorrTransProbs')
         sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+autocorrcummomentsizes(1))=caliboptions.logmoments.AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2})*ones(autocorrcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        caliboptions.logmoments(sofar+1:sofar+autocorrcummomentsizes(1))=logmomentnames.AutoCorrTransProbs.(autocorrmomentnames{1,1}).(autocorrmomentnames{1,2})*ones(autocorrcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(autocorrmomentnames,1)
-            caliboptions.logmoments(sofar+autocorrcummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AutoCorrTransProbs.(autocorrmomentnames{ii,1}).(autocorrmomentnames{ii,2})*ones(autocorrcummomentsizes(ii)-autocorrcummomentsizes(ii-1),1);
+            caliboptions.logmoments(sofar+autocorrcummomentsizes(ii-1)+1:sofar+autocorrcummomentsizes(ii))=logmomentnames.AutoCorrTransProbs.(autocorrmomentnames{ii,1}).(autocorrmomentnames{ii,2})*ones(autocorrcummomentsizes(ii)-autocorrcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'CrossSecCovarCorr')
+    if isfield(logmomentnames,'CrossSecCovarCorr')
         sofar=allstatcummomentsizes(end)+autocorrcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+crossseccummomentsizes(1))=caliboptions.logmoments.AutoCorrTransProbs.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3})*ones(crossseccummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        caliboptions.logmoments(sofar+1:sofar+crossseccummomentsizes(1))=logmomentnames.CrossSecCovarCorr.(crosssecmomentnames{1,1}).(crosssecmomentnames{1,2}).(crosssecmomentnames{1,3})*ones(crossseccummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(crosssecmomentnames,1)
-            caliboptions.logmoments(sofar+crossseccummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AutoCorrTransProbs.(crosssecmomentnames{ii,1}).(crosssecmomentnames{ii,2}).(crosssecmomentnames{ii,3})*ones(crossseccummomentsizes(ii)-crossseccummomentsizes(ii-1),1);
+            caliboptions.logmoments(sofar+crossseccummomentsizes(ii-1)+1:sofar+crossseccummomentsizes(ii))=logmomentnames.CrossSecCovarCorr.(crosssecmomentnames{ii,1}).(crosssecmomentnames{ii,2}).(crosssecmomentnames{ii,3})*ones(crossseccummomentsizes(ii)-crossseccummomentsizes(ii-1),1);
         end
     end
 
@@ -482,13 +482,12 @@ end
 
 
 %% Clean up output
+% If the parameter is constrained in some way then we need to un-transform it
+[calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
+if sum(penalty)>0
+    warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
+end
 for pp=1:nCalibParams
-    % If the parameter is constrained in some way then we need to un-transform it
-    [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
-    if sum(penalty)>0
-        warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
-    end
-
     % Now store the unconstrained values
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
