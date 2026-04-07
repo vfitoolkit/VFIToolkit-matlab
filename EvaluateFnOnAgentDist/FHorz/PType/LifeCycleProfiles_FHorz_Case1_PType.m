@@ -560,11 +560,7 @@ if simoptions.lowmemory==0
         %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
         if useCondlRest==1
             RestrictionStruct_ii=struct();
-
-            l_daprime_temp=size(PolicyValues_temp,1);
-            permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
-            PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a]
-
+            
             % For each conditional restriction, create a 'restricted stationary distribution'
             for rr=1:length(CondlRestnFnNames)
                 % The current conditional restriction function

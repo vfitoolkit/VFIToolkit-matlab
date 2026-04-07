@@ -72,7 +72,7 @@ else
         simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     end
     if ~isfield(simoptions,'verboseparams')
-        simoptions.verboseparams=100;
+        simoptions.verboseparams=0;
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
@@ -363,12 +363,7 @@ for ii=1:N_i
     %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
     if useCondlRest==1
         RestrictionStruct_ii=struct();
-
-        % ARE THE NEXT THREE LINES NEEDED????
-        l_daprime_temp=size(PolicyValues_temp,1);
-        permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
-        PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a]
-
+        
         % For each conditional restriction, create a 'restricted stationary distribution'
         for rr=1:length(CondlRestnFnNames)
             % The current conditional restriction function
