@@ -61,9 +61,10 @@ if ~exist('simoptions','var')
     simoptions.verbose=0;
     simoptions.verboseparams=0;
     simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
-    % When calling as a subcommand, the following is used internally
     simoptions.gridinterplayer=0;
+    % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
 else
     if ~isfield(simoptions,'numbersims')
         simoptions.numbersims=10^5;
@@ -80,12 +81,15 @@ else
     if ~isfield(simoptions,'ptypestorecpu')
         simoptions.ptypestorecpu=1; % GPU memory is limited, so switch solutions to the cpu
     end
-    % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     end
-    if ~isfield(simoptions, 'alreadygridvals')
+    % When calling as a subcommand, the following is used internally
+    if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
     end
 end
 simoptions.outputasstructure=0; % SimPanelValues as matrix
@@ -133,92 +137,129 @@ for ii=1:N_i
     % infinite horizon and a finite number for any other finite horizon.
     % First, check if it is a structure, and otherwise just get the
     % relevant value.
-    
-    % Horizon is determined via N_j
-    if isstruct(N_j)
-        N_j_temp=N_j.(Names_i{ii});
-    elseif isscalar(N_j)
-        N_j_temp=N_j;
-    else % is a vector
-        N_j_temp=N_j(ii);
-    end
-    
-    n_d_temp=n_d;
-    if isa(n_d,'struct')
+       
+    if isstruct(n_d)
         n_d_temp=n_d.(Names_i{ii});
     else
-        temp=size(n_d);
-        if temp(1)>1 % n_d depends on fixed type
-            n_d_temp=n_d(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            fprintf('Possible Warning: Number of columns of n_d is the same as the number of permanent types. \n This may just be coincidence as number of d variables is equal to number of permanent types. \n If they are intended to be permanent types then n_d should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_d_temp=n_d;
     end
-    n_a_temp=n_a;
-    if isa(n_a,'struct')
+    if isstruct(n_a)
         n_a_temp=n_a.(Names_i{ii});
     else
-        temp=size(n_a);
-        if temp(1)>1 % n_a depends on fixed type
-            n_a_temp=n_a(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_a happens to coincide with number of permanent types, then just let user know
-            fprintf('Possible Warning: Number of columns of n_a is the same as the number of permanent types. \n This may just be coincidence as number of a variables is equal to number of permanent types. \n If they are intended to be permanent types then n_a should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_a_temp=n_a;
     end
-    n_z_temp=n_z;
-    if isa(n_z,'struct')
+    if isstruct(n_z)
         n_z_temp=n_z.(Names_i{ii});
     else
-        temp=size(n_z);
-        if temp(1)>1 % n_z depends on fixed type
-            n_z_temp=n_z(ii,:);
-        elseif temp(2)==N_i % If there is one row, but number of elements in n_d happens to coincide with number of permanent types, then just let user know
-            fprintf('Possible Warning: Number of columns of n_z is the same as the number of permanent types. \n This may just be coincidence as number of z variables is equal to number of permanent types. \n If they are intended to be permanent types then n_z should have them as different rows (not columns). \n')
-            dbstack
-        end
+        n_z_temp=n_z;
     end
-    
-
-    if isa(d_grid,'struct')
+    if isstruct(N_j)
+        N_j_temp=N_j.(Names_i{ii});
+    else
+        N_j_temp=N_j;
+    end
+    if isstruct(d_grid)
         d_grid_temp=d_grid.(Names_i{ii});
     else
         d_grid_temp=d_grid;
     end
-    if isa(a_grid,'struct')
+    if isstruct(a_grid)
         a_grid_temp=a_grid.(Names_i{ii});
     else
         a_grid_temp=a_grid;
     end
-    if isa(z_grid,'struct')
+
+
+    %% Exogenous shocks
+    if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
-        z_grid_temp=z_grid;
+        nn=size(z_grid,ndims(z_grid));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(z_grid)-1);
+            z_grid_temp=z_grid(otherdims{:},ii);
+        else
+            z_grid_temp=z_grid;
+        end
     end
-    if isa(pi_z,'struct')
-        names=fieldnames(pi_z);
-        pi_z_temp=pi_z.(names{ii});
+    if isstruct(pi_z)
+        pi_z_temp=pi_z.(Names_i{ii});
     else
-        pi_z_temp=pi_z;
+        nn=size(pi_z,ndims(pi_z));
+        if nn==N_i
+            otherdims = repmat({':'},1,ndims(pi_z)-1);
+            pi_z_temp=pi_z(otherdims{:},ii);
+        else
+            pi_z_temp=pi_z;
+        end
+    end
+
+    % e
+    if isfield(simoptions_temp,'n_e')
+        % If simoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.e_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.e_grid,ndims(simoptions_temp.e_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.e_grid)-1);
+                simoptions_temp.e_grid=simoptions_temp.e_grid(otherdims{:},ii);
+            end
+        end
+        % If simoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.pi_e)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.pi_e,ndims(simoptions_temp.pi_e));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.pi_e)-1);
+                simoptions_temp.pi_e=simoptions_temp.pi_e(otherdims{:},ii);
+            end
+        end
+    end
+
+    % semiz
+    if isfield(simoptions_temp,'n_semiz')
+        % If simoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.semiz_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.semiz_grid,ndims(simoptions_temp.semiz_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.semiz_grid)-1);
+                simoptions_temp.semiz_grid=simoptions_temp.semiz_grid(otherdims{:},ii);
+            end
+        end
+        % Might use SemiExoShockFn or pi_semiz, if the later we need to deal with it
+        if isfield(simoptions_temp,'pi_semiz')
+            % If simoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
+            if ~isstruct(simoptions.pi_semiz)
+                % So just need to check if last dimension is of length N_i
+                nn=size(simoptions_temp.pi_semiz,ndims(simoptions_temp.pi_semiz));
+                if nn==N_i
+                    otherdims = repmat({':'},1,ndims(simoptions_temp.pi_semiz)-1);
+                    simoptions_temp.pi_semiz=simoptions_temp.pi_semiz(otherdims{:},ii);
+                end
+            end
+        end
     end
     
+    
+    %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
-    % ie. Parameters.alpha=[0;1]; or Parameters.alpha.ptype1=0; Parameters.alpha.ptype2=1;
     Parameters_temp=Parameters;
-    FullParamNames=fieldnames(Parameters); % all the different parameters
+    FullParamNames=fieldnames(Parameters);
     nFields=length(FullParamNames);
     for kField=1:nFields
-        if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
-            % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
-                Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
+        if isstruct(Parameters.(FullParamNames{kField})) % Check for permanent type in structure form
+            names=fieldnames(Parameters.(FullParamNames{kField}));
+            for jj=1:length(names)
+                if strcmp(names{jj},Names_i{ii})
+                    Parameters_temp.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(names{jj});
+                end
             end
-        elseif sum(size(Parameters.(FullParamNames{kField}))==N_i)>=1 % Check for permanent type in vector/matrix form.
+        elseif any(size(Parameters.(FullParamNames{kField}))==N_i) % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
-            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType, it should be the row dimension, if it is not then give a warning.
+            [~,ptypedim]=max(size(Parameters.(FullParamNames{kField}))==N_i); % Parameters as vector/matrix can be at most two dimensional, figure out which relates to PType.
             if ptypedim==1
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
@@ -226,13 +267,49 @@ for ii=1:N_i
             end
         end
     end
-    % THIS TREATMENT OF PARAMETERS COULD BE IMPROVED TO BETTER DETECT INPUT SHAPE ERRORS.
-    
+
     if simoptions_temp.verboseparams==1
         fprintf('Parameter values for the current permanent type \n')
         Parameters_temp
     end
+
+
+    %% jequaloneDist
+    if isa(jequaloneDist,'struct')
+        if isfield(jequaloneDist,Names_i{ii})
+            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
+            % jequaloneDist_temp must be of mass one for the codes to work.
+            if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
+                fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)
+                error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
+            end
+        else
+            if isfinite(N_j_temp)
+                error(['You must input a jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
+            end
+        end
+    else
+        % Note: when jequaloneDist is not a structure all ptypes must have the same grids
+        if idiminj1dist==0 % ptype is not a dimension
+            jequaloneDist_temp=jequaloneDist;
+        else % idminj1dist==1
+            % ptype is a dimension, so need to get the jequaloneDist for ii and also normalize mass conditional on ptype to be one
+            if ndims(jequaloneDist)==5 % has all three of semiz,z,e [other two are a and i]
+                jequaloneDist_temp=jequaloneDist(:,:,:,:,ii)/sum(sum(jequaloneDist(:,:,:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            elseif ndims(jequaloneDist)==4 % has two of semiz,z,e
+                jequaloneDist_temp=jequaloneDist(:,:,:,ii)/sum(sum(jequaloneDist(:,:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            elseif ndims(jequaloneDist)==3 % has one of semiz,z,e
+                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(sum(jequaloneDist(:,:,ii))); % includes renormalizing so mass of one conditional on ptype
+            elseif ndims(jequaloneDist)==2 % has none of semiz,z,e
+                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
+            end
+        end
+        if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
+            error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}, ' \n'])
+        end
+    end
     
+    %%
     % Figure out which functions are actually relevant to the present PType. Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluate and FnsToEvaluateFnParamNames are necessarily the same.
     % Allows for FnsToEvaluate as structure.
@@ -246,35 +323,6 @@ for ii=1:N_i
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, WhichFnsForCurrentPType,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
     
-    if isa(jequaloneDist,'struct')
-        if isfield(jequaloneDist,Names_i{ii})
-            jequaloneDist_temp=jequaloneDist.(Names_i{ii});
-            % jequaloneDist_temp must be of mass one for the codes to work.
-            if abs(sum(jequaloneDist_temp(:))-1)>10^(-15) % jequaloneDist_temp(:))~=1, but allowing for small numerical errors
-                fprintf('Info for following error: sum(jequaloneDist_temp(:))-1=%8.16f (should be zero) \n', sum(jequaloneDist_temp(:))-1)
-                error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}])
-            end
-        else
-            if isfinite(N_j_temp)
-                sprintf(['ERROR: You must input jequaloneDist for permanent type ', Names_i{ii}, ' \n'])
-                dbstack
-            end
-        end
-    else
-        % Note: when jequaloneDist is not a structure all ptypes must have the same grids
-        if idiminj1dist==0
-            jequaloneDist_temp=jequaloneDist;
-        else % idminj1dist==1
-            if prod(n_z_temp)==0
-                jequaloneDist_temp=jequaloneDist(:,ii)/sum(jequaloneDist(:,ii)); % includes renormalizing so mass of one conditional on ptype
-            else
-                jequaloneDist_temp=jequaloneDist(:,:,ii)/sum(sum(jequaloneDist(:,:,ii))); % includes renormalizing so mass of one conditional on ptype
-            end
-        end
-        if abs(sum(jequaloneDist_temp(:))-1)>10^(-12)
-            error(['The jequaloneDist must be of mass one for each type i (it is not for type ',Names_i{ii}, ' \n'])
-        end
-    end
     
     simoptions_temp.keepoutputasmatrix=1;
     if simoptions_temp.numbersims>0

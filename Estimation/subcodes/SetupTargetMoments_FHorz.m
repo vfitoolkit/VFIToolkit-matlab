@@ -326,6 +326,7 @@ elseif useptype==1
         allstatmomentnames=cell(1,3);
         allstatcummomentsizes=0;
         AllStats_whichstats=zeros(7,1);
+        FnsToEvaluate_AllStats=struct();
     end
 
 

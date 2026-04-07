@@ -183,6 +183,7 @@ for ii=1:N_i
         Parameters_temp
     end
     
+    %% jequaloneDist
     if isa(jequaloneDist,'struct')
         if isfield(jequaloneDist,Names_i{ii})
             jequaloneDist_temp=jequaloneDist.(Names_i{ii});
@@ -217,6 +218,7 @@ for ii=1:N_i
         end
     end
     
+    %%
     AgeWeightParamNames_temp=AgeWeightsParamNames;
     if isa(AgeWeightsParamNames,'struct')
         if isfield(AgeWeightsParamNames,Names_i{ii})
