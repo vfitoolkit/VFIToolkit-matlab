@@ -67,7 +67,7 @@ else
         simoptions.verbose=1;
     end
     if ~isfield(simoptions,'verboseparams')
-        simoptions.verboseparams=1;
+        simoptions.verboseparams=0;
     end
 end
 % Note: pass to subcommand EvalFnOnAgentDist_ValuesOnGrid_FHorz_Case1(), so no need to handle alreadygridvals and the like as those can be done there.

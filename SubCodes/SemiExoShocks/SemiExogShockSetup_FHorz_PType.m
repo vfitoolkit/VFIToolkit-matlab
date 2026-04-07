@@ -65,18 +65,21 @@ for ii=1:N_i
         SemiExoStateFn_ii=[];
     end
 
-    pi_semiz_ii=[];
-    if isstruct(options.pi_semiz)
-        if isfield(options.pi_semiz,Names_i{ii})
-            pi_semiz_ii=options.pi_semiz.(Names_i{ii});
+    if isfield(options,'pi_semiz_ii')
+        if isstruct(options.pi_semiz)
+            if isfield(options.pi_semiz,Names_i{ii})
+                pi_semiz_ii=options.pi_semiz.(Names_i{ii});
+            end
+        else
+            if size(options.pi_semiz,ndims(options.pi_semiz))==N_i
+                otherdims = repmat({':'},1,ndims(options.pi_semiz)-1);
+                pi_semiz_ii=options.pi_semiz(otherdims{:},ii);
+            else
+                pi_semiz_ii=options.pi_semiz;
+            end
         end
     else
-        if size(options.pi_semiz,ndims(options.pi_semiz))==N_i
-            otherdims = repmat({':'},1,ndims(options.pi_semiz)-1);
-            pi_semiz_ii=options.pi_semiz(otherdims{:},ii);
-        else
-            pi_semiz_ii=options.pi_semiz;
-        end
+        pi_semiz_ii=[];
     end
 
     if gridpiboth==3 || gridpiboth==2
