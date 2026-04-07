@@ -142,7 +142,7 @@ elseif simoptions.experienceasset==1
     end
 
 end
-z_gridvals=CreateGridvals(n_z,z_grid,1);
+[z_gridvals, ~, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,[],Parameters,simoptions,1);
 
 
 %% If there are any conditional restrictions, set up for these
@@ -161,7 +161,7 @@ end
 
 
 %%
-PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_gridvals,aprime_gridvals,simoptions,1);
+PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_grid,aprime_gridvals,simoptions,1);
 AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
 
 % preallocate
@@ -176,6 +176,7 @@ for ff=1:length(FnsToEvaluateNames)
     AllStatsPath.(FnsToEvaluateNames{ff}).QuantileCutoffs=zeros(simoptions.nquantiles+1,T);
     AllStatsPath.(FnsToEvaluateNames{ff}).QuantileMeans=zeros(simoptions.nquantiles,T);
 end
+
 
 %%
 for tt=1:T
@@ -206,6 +207,12 @@ for tt=1:T
     
     AllStats=EvalFnOnAgentDist_InfHorz_TPath_SingleStep_AllStats(AgentDist(:), PolicyValues, FnsToEvaluateCell, Parameters, FnsToEvaluateParamNames,FnsToEvaluateNames, n_a, n_z, a_gridvals, z_gridvals,simoptions);
     
+    if useCondlRest==1
+        for rr=1:length(CondlRestnFnNames)
+            AllStatsPath.(CondlRestnFnNames{rr}).RestrictedSampleMass(tt)=AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass;
+        end
+    end
+        
     for ff=1:length(FnsToEvaluateNames)
         AllStatsPath.(FnsToEvaluateNames{ff}).Mean(tt)=AllStats.(FnsToEvaluateNames{ff}).Mean;
         AllStatsPath.(FnsToEvaluateNames{ff}).Median(tt)=AllStats.(FnsToEvaluateNames{ff}).Median;
@@ -216,11 +223,9 @@ for tt=1:T
         AllStatsPath.(FnsToEvaluateNames{ff}).Gini(tt)=AllStats.(FnsToEvaluateNames{ff}).Gini;
         AllStatsPath.(FnsToEvaluateNames{ff}).QuantileCutoffs(:,tt)=AllStats.(FnsToEvaluateNames{ff}).QuantileCutoffs;
         AllStatsPath.(FnsToEvaluateNames{ff}).QuantileMeans(:,tt)=AllStats.(FnsToEvaluateNames{ff}).QuantileMeans;
-
+        
         if useCondlRest==1
             for rr=1:length(CondlRestnFnNames)
-                AllStatsPath.(CondlRestnFnNames{rr}).RestrictedSampleMass(tt)=AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass;
-
                 if AllStats.(CondlRestnFnNames{rr}).RestrictedSampleMass>0
                     AllStatsPath.(CondlRestnFnNames{rr}).(FnsToEvaluateNames{ff}).Mean(tt)=AllStats.(CondlRestnFnNames{rr}).(FnsToEvaluateNames{ff}).Mean;
                     AllStatsPath.(CondlRestnFnNames{rr}).(FnsToEvaluateNames{ff}).Median(tt)=AllStats.(CondlRestnFnNames{rr}).(FnsToEvaluateNames{ff}).Median;
