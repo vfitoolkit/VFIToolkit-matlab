@@ -89,8 +89,24 @@ else
 end
 
 if N_bothze==0
-    Policy_aprime=KronPolicyIndexes_Case1_noz(Policy_aprime,0,n_a,simoptions);
-    if simoptions.gridinterplayer==1
+    if simoptions.gridinterplayer==0
+        if l_a==1
+            Policy_aprime=reshape(Policy_aprime,[N_a,1]);
+        else %l_a>1
+            temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
+            temp2=gpuArray(cumprod(n_a')); % column vector
+            PolicyTemp=(reshape(Policy_aprime,[l_a,N_a])-temp*ones(1,N_a,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a,'gpuArray'));
+            Policy_aprime=reshape(sum(PolicyTemp,1),[N_a,1]);
+        end
+    elseif simoptions.gridinterplayer==1
+        if l_a==1
+            Policy_aprime=reshape(Policy_aprime,[2,N_a]);
+        else %l_a>1
+            temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
+            temp2=gpuArray(cumprod(n_a')); % column vector
+            PolicyTemp=(reshape(Policy_aprime(1:end-1,:,:),[l_a,N_a])-temp*ones(1,N_a,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a,'gpuArray'));
+            Policy_aprime=[reshape(sum(PolicyTemp,1),[1,N_a]); Policy_aprime(end,:)];
+        end
         CumPolicyProbs=ones([N_a,2]);
         CumPolicyProbs(:,1)=reshape(Policy_aprime(2,:),[N_a,1]); % L2 index
         CumPolicyProbs(:,1)=1-(CumPolicyProbs(:,1)-1)/(simoptions.ngridinterp+1); % prob of lower index
@@ -99,8 +115,24 @@ if N_bothze==0
         Policy_aprime(:,2)=Policy_aprime(:,2)+1; % upper grid index
     end
 else
-    Policy_aprime=KronPolicyIndexes_Case1(Policy_aprime,0,n_a,N_bothze,simoptions);
-    if simoptions.gridinterplayer==1
+    if simoptions.gridinterplayer==0
+        if l_a==1
+            Policy_aprime=reshape(Policy_aprime,[N_a,N_bothze]);
+        else %l_a>1
+            temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
+            temp2=gpuArray(cumprod(n_a')); % column vector
+            PolicyTemp=(reshape(Policy_aprime,[l_a,N_a,N_bothze])-temp*ones(1,N_a,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a,'gpuArray'));
+            Policy_aprime=reshape(sum(PolicyTemp,1),[N_a,N_bothze]);
+        end
+    elseif simoptions.gridinterplayer==1
+        if l_a==1
+            Policy_aprime=reshape(Policy_aprime,[2,N_a,N_bothze]);
+        else %l_a>1
+            temp=ones(l_a,1,'gpuArray')-eye(l_a,1,'gpuArray');
+            temp2=gpuArray(cumprod(n_a')); % column vector
+            PolicyTemp=(reshape(Policy_aprime(1:end-1,:,:,:),[l_a,N_a*N_bothze])-temp*ones(1,N_a*N_bothze,'gpuArray')).*([1;temp2(1:end-1)]*ones(1,N_a*N_bothze,'gpuArray'));
+            Policy_aprime=[reshape(sum(PolicyTemp,1),[1,N_a,N_bothze]); Policy_aprime(end,:,:)];
+        end
         CumPolicyProbs=ones([N_a,N_bothze,2]);
         CumPolicyProbs(:,:,1)=reshape(Policy_aprime(2,:,:),[N_a,N_bothze,1]); % L2 index
         CumPolicyProbs(:,:,1)=1-(CumPolicyProbs(:,:,1)-1)/(simoptions.ngridinterp+1); % prob of lower index
@@ -204,7 +236,7 @@ if exitinpanel==0
                 Policy_aprime=reshape(Policy_aprime,[N_a,N_z,2]);
                 CumPolicyProbs=reshape(CumPolicyProbs,[N_a,N_z,2]);
             end
-
+            
             % simoptions.simpanelindexkron==1 % Create the simulated data in kron form
             SimPanel=nan(2,simoptions.simperiodsfinal,simoptions.numbersims); % (a,z)
             if simoptions.gridinterplayer==0
@@ -336,5 +368,9 @@ else
     end
 end
 
+
+
+
+end
 
 

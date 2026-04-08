@@ -36,7 +36,6 @@ StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
 II2=repelem((1:1:N_a*N_semiz*N_z)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
 
 for jj=1:(N_j-1)
-    
     Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_bothz,N_a*N_bothz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]
     
     % First step of Tan improvement

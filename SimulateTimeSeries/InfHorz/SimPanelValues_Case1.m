@@ -318,7 +318,6 @@ if simoptions.agententryandexit==0
         end
     end
 
-
     %% Rest are with entry and exit
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0
     % Need to add check for nan relating to a_ind and z_ind around entry/exit
