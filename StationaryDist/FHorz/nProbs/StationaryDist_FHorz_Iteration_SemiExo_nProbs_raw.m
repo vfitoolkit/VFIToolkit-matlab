@@ -7,6 +7,7 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_raw(jequal
 % sparse() limits us to 2-D, and we need to get in a semiz' dimension. So I
 % put a&semiz&z together into the 1st dim, semiz'&nprobs into the 2nd dim.
 
+
 %%
 % It is likely that most of the elements in pi_semiz_J are zero, we can
 % take advantage of this to speed things up. Ignore for a moment the
@@ -38,17 +39,16 @@ PolicyProbs=repelem(gather(PolicyProbs),1,N_semizshort,1).*repmat(pi_semiz_J_sho
 % WHY DONT I CREATE PolicyProbs ON GPU, THEN gather()? UNLESS IT RUNS OUT OF GPU MEMORY THIS SHOULD BE FASTER?
 
 pi_z_J=gather(pi_z_J);
-
+N_bothz=N_semiz*N_z;
 
 %% Use Tan improvement
 
-StationaryDist=zeros(N_a*N_semiz*N_z,N_j,'gpuArray'); % StationaryDist cannot be sparse
+StationaryDist=zeros(N_a*N_bothz,N_j,'gpuArray'); % StationaryDist cannot be sparse
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(gather(jequaloneDistKron)); % use sparse matrix
 
 % Precompute; II2 used only for sparse matrix creation...best done on CPU
-II2=repelem((1:1:N_a*N_semiz*N_z)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_probs-copies
-N_bothz=N_semiz*N_z;
+II2=repelem((1:1:N_a*N_bothz)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_probs-copies
 
 for jj=1:(N_j-1)
     Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,PolicyProbs(:,:,jj),N_a*N_bothz,N_a*N_bothz); % Note: sparse() will accumulate at repeated indices [only relevant at grid end points]

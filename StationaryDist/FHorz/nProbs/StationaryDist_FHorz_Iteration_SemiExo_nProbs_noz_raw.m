@@ -3,25 +3,35 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_noz_raw(je
 % Policy_aprime has an additional dimension of length 4 which is the four points (and contains only the aprime indexes, no d indexes as would usually be the case). 
 % PolicyProbs are the corresponding probabilities of each of these four
 
-% When we use semiz, we need to use a different shape for Policy_aprime.
-% sparse() limits us to 2-D, and we need to get in a semiz' dimension. So I
-% put a&semiz together into the 1st dim, semiz'&nprobs into the 2nd dim.
+%%
+% It is likely that most of the elements in pi_semiz_J are zero, we can
+% take advantage of this to speed things up. Ignore for a moment the
+% dependence on d and j, and pretend it is just a N_semiz-by-N_semiz
+% matrix. Then we can calculate N_semizshort=max(sum((pi_semiz>0),2)), the
+% maximum number of non-zeros in any row of pi_semiz. And we then use this
+% in place of N_semiz as the second dimension.
 
-% Policy_aprime is currently [N_a,N_semiz,N_probs,N_j]
-Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]),1,N_semiz)+repmat(N_a*(0:1:N_semiz-1),1,N_probs); % Note: add semiz' index following the semiz' dimension
+N_semizshort=max(max(max(sum((pi_semiz_J>0),2))));
+% Create smaller version of pi_semiz_J that eliminates as many non-zeros as possible
+[pi_semiz_J_short, idx] = sort(pi_semiz_J,2); % puts all the zeros on the left of the matrix
+
+pi_semiz_J_short=pi_semiz_J_short(:,end-N_semizshort+1:end,:,:);
+idxshort=idx(:,end-N_semizshort+1:end,:,:);
 
 Policy_dsemiexo=reshape(Policy_dsemiexo,[N_a*N_semiz,1,N_j]);
+semizindex_short=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semizshort-1)+gather((N_semiz*N_semizshort)*(Policy_dsemiexo-1))+(N_semiz*N_semizshort*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
+pi_semiz_J_short=gather(pi_semiz_J_short);
+% semizindex_short is [N_a*N_semiz,N_semizshort,N_j]
+% used to index pi_semiz_J_short which is [N_semiz,N_semizshort,N_dsemiz,N_j]
+% and also to index the corresponding idxshort which is [N_semiz,N_semizshort,N_dsemiz,N_j]
 
-% precompute; Don't want `PolicyProbs` on GPU anyway, so leave these in CPU RAM
-semizindex=repelem((1:1:N_semiz)',N_a,1)+N_semiz*(0:1:N_semiz-1)+gather((N_semiz*N_semiz)*(Policy_dsemiexo-1))+(N_semiz*N_semiz*N_dsemiz)*shiftdim((0:1:N_j-1),-1); % index for semiz, plus that for semiz' (in the semiz' dim) and dsemiexo; their indexes in pi_semiz_J
-pi_semiz_J=gather(pi_semiz_J);
-% semizindex is [N_a*N_semiz,N_semiz,N_j]
-% used to index pi_semiz_J which is [N_semiz,N_semiz,N_dsemiz,N_j]
+% Policy_aprime is currently [N_a,N_semiz,N_probs,N_j]
+Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,N_probs,N_j]),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1); % Note: add semiz' index following the semiz' dimension
+% Policy_aprimesemiz is currently [N_a,N_semiz,N_probs*N_semizshort,N_j]
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz,N_probs,N_j]);
-PolicyProbs=repelem(gather(PolicyProbs),1,N_semiz).*repmat(pi_semiz_J(semizindex),1,N_probs);
+PolicyProbs=repelem(gather(PolicyProbs),1,N_semizshort,1).*repmat(pi_semiz_J_short(semizindex_short),1,N_probs,1); % is of size [N_a*N_semiz,N_probs*N_semiz,N_j]
 % WHY DONT I CREATE PolicyProbs ON GPU, THEN gather()? UNLESS IT RUNS OUT OF GPU MEMORY THIS SHOULD BE FASTER?
-clear semizindex;
 
 %% Use Tan improvement
 
@@ -56,5 +66,6 @@ if size(AgeWeights,2)==1 % If it seems to be a column vector, then transpose it
 end
 
 StationaryDist=StationaryDist.*AgeWeights;
+
 
 end
