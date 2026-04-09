@@ -186,12 +186,12 @@ if vfoptions.gridinterplayer
     error("gridinterp not implemented with ExpAsset yet")
 end
 if N_d1==0
-    Policy3=zeros(2,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z
+    Policy3=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z
     Policy3(1,:,:,:,:)=1; % is meaningless anyway
     Policy3(2,:,:,:,:)=shiftdim(rem(Policy-1,N_d2)+1,-1);
     Policy3(3,:,:,:,:)=shiftdim(ceil(Policy/N_d2),-1);
 else
-    Policy2=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for (d1,d2,aprime) rest of dimensions a,z
+    Policy3=zeros(3,N_a,N_z,N_e,N_j,'gpuArray'); % first dim indexes the optimal choice for (d1,d2,aprime) rest of dimensions a,z
                                                  % second dim indexes the optimal choice for (d2,aprime) rest of dimensions a,z
     Policy3(1,:,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % one of these is wrong
     Policy3(2,:,:,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % one of these is wrong

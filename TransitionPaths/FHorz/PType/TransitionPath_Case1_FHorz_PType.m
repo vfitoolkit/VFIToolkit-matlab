@@ -18,7 +18,7 @@ end
 %% PType hardcodes some things that are options when not using PTypes
 % Namely, 
 % hardcodes simoptions.fastOLG=1
-% hardcodes transpathoptions.ageweightstrivial=0 (don't overwrite 
+% hardcodes transpathoptions.ageweightstrivial=0 (don't overwrite ???)
 % In both cases, mainly done so I don't have to handle this differing by PType
 
 %% Check which transpathoptions have been used, set all others to defaults 
