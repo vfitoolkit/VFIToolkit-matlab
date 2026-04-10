@@ -4,13 +4,24 @@ function sub=ind2sub_vec_homemade(sizeA, indexvec)
 
 % indexvec should be a column vector
 
-nindex=size(indexvec,1); % Number of rows in indexvec (which is a column vector)
+if isgpuarray(indexvec)
+    nindex=size(indexvec,1); % Number of rows in indexvec (which is a column vector)
 
-sub=zeros(nindex,length(sizeA));
-sub(:,1)=rem(indexvec-1,sizeA(1))+1;
-for ii=2:length(sizeA)-1
-    sub(:,ii)=rem(ceil(indexvec/prod(sizeA(1:ii-1)))-1,sizeA(ii))+1;
+    sub=zeros(nindex,length(sizeA),'gpuArray');
+    sub(:,1)=rem(indexvec-1,sizeA(1))+1;
+    for ii=2:length(sizeA)-1
+        sub(:,ii)=rem(ceil(indexvec/prod(sizeA(1:ii-1)))-1,sizeA(ii))+1;
+    end
+    sub(:,length(sizeA))=ceil(indexvec/prod(sizeA(1:length(sizeA)-1)));
+else
+    nindex=size(indexvec,1); % Number of rows in indexvec (which is a column vector)
+
+    sub=zeros(nindex,length(sizeA));
+    sub(:,1)=rem(indexvec-1,sizeA(1))+1;
+    for ii=2:length(sizeA)-1
+        sub(:,ii)=rem(ceil(indexvec/prod(sizeA(1:ii-1)))-1,sizeA(ii))+1;
+    end
+    sub(:,length(sizeA))=ceil(indexvec/prod(sizeA(1:length(sizeA)-1)));
 end
-sub(:,length(sizeA))=ceil(indexvec/prod(sizeA(1:length(sizeA)-1)));
 
 end

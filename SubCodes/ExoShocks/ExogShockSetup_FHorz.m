@@ -44,7 +44,7 @@ else
                 if all(size(z_grid)==[sum(n_z),1])
                     z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
                 else % already joint-grid
-                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid);
                 end
             end
         elseif ndims(z_grid)==3 % already an age-dependent joint-grid
@@ -94,7 +94,7 @@ else
                 if all(size(z_grid)==[sum(n_z),1])
                     z_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(n_z,z_grid,1));
                 else % already joint-grid
-                    z_gridvals_J(:,:,jj)=gpuArray(z_grid,1);
+                    z_gridvals_J(:,:,jj)=gpuArray(z_grid);
                 end
             end
         elseif ndims(z_grid)==3 % already an age-dependent joint-grid
@@ -145,7 +145,7 @@ else
                 if all(size(options.e_grid)==[sum(options.n_e),1])
                     options.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(options.n_e,options.e_grid,1));
                 else % already joint-grid
-                    options.e_gridvals_J(:,:,jj)=gpuArray(options.e_grid,1);
+                    options.e_gridvals_J(:,:,jj)=gpuArray(options.e_grid);
                 end
             end
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid
@@ -195,7 +195,7 @@ else
                 if all(size(options.e_grid)==[sum(options.n_e),1])
                     options.e_gridvals_J(:,:,jj)=gpuArray(CreateGridvals(options.n_e,options.e_grid,1));
                 else % already joint-grid
-                    options.e_gridvals_J(:,:,jj)=gpuArray(options.e_grid,1);
+                    options.e_gridvals_J(:,:,jj)=gpuArray(options.e_grid);
                 end
             end
         elseif ndims(options.e_grid)==3 % already an age-dependent joint-grid

@@ -95,7 +95,7 @@ if vfoptions.divideandconquer==1
             fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
         end
     end
-    vfoptions.level1n=min(vfoptions.level1n,n_a); % Otherwise causes errors
+    vfoptions.level1n=min(vfoptions.level1n,n_a(1)); % Otherwise causes errors
 end
 
 
@@ -198,7 +198,7 @@ if vfoptions.experienceasset==0
         for kk=1:length(ParamPathNames)
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
         end
-
+        
         [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 

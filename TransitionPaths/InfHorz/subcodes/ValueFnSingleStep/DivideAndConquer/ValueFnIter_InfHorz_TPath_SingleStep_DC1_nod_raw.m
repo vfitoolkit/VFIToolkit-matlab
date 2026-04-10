@@ -62,6 +62,6 @@ for ii=1:(vfoptions.level1n-1)
 end
 
 %% Policy in transition paths
-Policy=UnKronPolicyIndexes_Case1(shiftdim(Policy,-1),n_d,n_a,n_z,vfoptions);
+Policy=reshape(ind2sub_vec_homemade(n_a,Policy(:))',[length(n_a),N_a,N_z]);
 
 end
