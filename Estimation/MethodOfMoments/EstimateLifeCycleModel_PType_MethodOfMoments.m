@@ -152,9 +152,23 @@ for pp=1:length(EstimParamNames)
             end
         end
     else
-        nEstimParams=nEstimParams+1;
-        nEstimParamsFinder(nEstimParams,1)=pp;
-        nEstimParamsFinder(nEstimParams,2)=0;
+        if any(size(Parameters.(EstimParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+            temp=Parameters.(EstimParamNames{pp});
+            if size(temp,1)==N_i
+                temp=temp';
+            end
+            Parameters=rmfield(Parameters,(EstimParamNames{pp}));
+            for ii=1:N_i
+                nEstimParams=nEstimParams+1;
+                nEstimParamsFinder(nEstimParams,1)=pp;
+                nEstimParamsFinder(nEstimParams,2)=ii;
+                Parameters.(EstimParamNames{pp}).(Names_i{ii})=temp(:,ii);
+            end
+        else % parameter does not depend on ptype
+            nEstimParams=nEstimParams+1;
+            nEstimParamsFinder(nEstimParams,1)=pp;
+            nEstimParamsFinder(nEstimParams,2)=0;
+        end
     end
 end
 

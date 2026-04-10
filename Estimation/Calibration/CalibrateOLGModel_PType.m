@@ -192,9 +192,23 @@ for pp=1:length(CalibParamNames)
             end
         end
     else
-        nCalibParams=nCalibParams+1;
-        nCalibParamsFinder(nCalibParams,1)=pp;
-        nCalibParamsFinder(nCalibParams,2)=0;
+        if any(size(Parameters.(CalibParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+            temp=Parameters.(CalibParamNames{pp});
+            if size(temp,1)==N_i
+                temp=temp';
+            end
+            Parameters=rmfield(Parameters,(CalibParamNames{pp}));
+            for ii=1:N_i
+                nCalibParams=nCalibParams+1;
+                nCalibParamsFinder(nCalibParams,1)=pp;
+                nCalibParamsFinder(nCalibParams,2)=ii;
+                Parameters.(CalibParamNames{pp}).(Names_i{ii})=temp(:,ii);
+            end
+        else % parameter does not depend on ptype
+            nCalibParams=nCalibParams+1;
+            nCalibParamsFinder(nCalibParams,1)=pp;
+            nCalibParamsFinder(nCalibParams,2)=0;
+        end
     end
 end
 

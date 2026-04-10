@@ -92,7 +92,7 @@ end
 nCalibParams=0;
 nCalibParamsFinder=[]; % rows are the nCalibParams, first column is pp, second column is ii
 for pp=1:length(CalibParamNames)
-    if isstruct(Parameters.(CalibParamNames{pp}))
+    if isstruct(Parameters.(CalibParamNames{pp})) % parameter depends on ptype, as struct
         for ii=1:N_i
             if isfield(Parameters.(CalibParamNames{pp}),Names_i{ii})
                 nCalibParams=nCalibParams+1;
@@ -101,9 +101,23 @@ for pp=1:length(CalibParamNames)
             end
         end
     else
-        nCalibParams=nCalibParams+1;
-        nCalibParamsFinder(nCalibParams,1)=pp;
-        nCalibParamsFinder(nCalibParams,2)=0;
+        if any(size(Parameters.(CalibParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+            temp=Parameters.(CalibParamNames{pp});
+            if size(temp,1)==N_i
+                temp=temp';
+            end 
+            Parameters=rmfield(Parameters,(CalibParamNames{pp}));
+            for ii=1:N_i
+                nCalibParams=nCalibParams+1;
+                nCalibParamsFinder(nCalibParams,1)=pp;
+                nCalibParamsFinder(nCalibParams,2)=ii;
+                Parameters.(CalibParamNames{pp}).(Names_i{ii})=temp(:,ii);
+            end
+        else % parameter does not depend on ptype
+            nCalibParams=nCalibParams+1;
+            nCalibParamsFinder(nCalibParams,1)=pp;
+            nCalibParamsFinder(nCalibParams,2)=0;
+        end
     end
 end
 if nCalibParams<length(CalibParamNames)
@@ -166,7 +180,6 @@ for pp=1:nCalibParams
         calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(currentparameter);
     end
 end
-
 
 % If the parameter is constrained in some way then we need to transform it
 [calibparamsvec0,caliboptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(calibparamsvec0,calibparamsvecindex,CalibParamNames,nCalibParamsFinder,caliboptions,1);

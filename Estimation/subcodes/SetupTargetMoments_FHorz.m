@@ -369,6 +369,7 @@ elseif useptype==1
                         end
                     end
                 else
+                    a3vec={};
                     acsmomentcounter=acsmomentcounter+1;
                     if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
                         targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end
