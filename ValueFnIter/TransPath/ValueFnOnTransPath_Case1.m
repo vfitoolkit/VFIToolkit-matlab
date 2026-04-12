@@ -95,7 +95,7 @@ if vfoptions.divideandconquer==1
             fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
         end
     end
-    vfoptions.level1n=min(vfoptions.level1n,n_a); % Otherwise causes errors
+    vfoptions.level1n=min(vfoptions.level1n,n_a(1)); % Otherwise causes errors
 end
 
 
