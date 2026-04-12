@@ -1,4 +1,4 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,transpathoptions,simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,simoptions,transpathoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
 
 %% Check which transpathoptions have been used, set all others to defaults 
