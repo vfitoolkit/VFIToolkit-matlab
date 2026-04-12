@@ -7,7 +7,6 @@ function StationaryDist=StationaryDist_FHorz_Iteration_SemiExo_nProbs_raw(jequal
 % sparse() limits us to 2-D, and we need to get in a semiz' dimension. So I
 % put a&semiz&z together into the 1st dim, semiz'&nprobs into the 2nd dim.
 
-
 %%
 % It is likely that most of the elements in pi_semiz_J are zero, we can
 % take advantage of this to speed things up. Ignore for a moment the
@@ -33,6 +32,8 @@ pi_semiz_J_short=gather(pi_semiz_J_short);
 % Policy_aprime is currently [N_a,N_semiz*N_z,N_probs,N_j]
 Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,N_probs,N_j]),1,N_semizshort)+repmat(N_a*(idxshort(semizindex_short)-1),1,N_probs,1)+repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1); % Note: add semiz' index following the semiz' dimension, add z' index following the z dimension for Tan improvement
 % Policy_aprimesemizz is currently [N_a,N_semiz*N_z,N_probs*N_semizshort,N_j]
+
+% clear Policy_dsemiexo idxshort Policy_aprime semizindex_short
 
 PolicyProbs=reshape(PolicyProbs,[N_a*N_semiz*N_z,N_probs,N_j]);
 PolicyProbs=repelem(gather(PolicyProbs),1,N_semizshort,1).*repmat(pi_semiz_J_short(semizindex_short),1,N_probs,1); % is of size [N_a*N_semiz*N_z,N_probs*N_semiz,N_j]

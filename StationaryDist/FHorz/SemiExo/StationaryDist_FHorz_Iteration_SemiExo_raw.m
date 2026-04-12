@@ -31,6 +31,8 @@ pi_semiz_J_short=gather(pi_semiz_J_short);
 Policy_aprimesemizz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz*N_z,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1)+repelem(N_a*N_semiz*(0:1:N_z-1)',N_a*N_semiz,1); % Note: add semiz' index following the semiz' dimension, add z' index following the z dimension for Tan improvement
 % Policy_aprimesemizz is currently [N_a,N_semiz*N_z,N_semizshort,N_j]
 
+semiztransitions=gather(pi_semiz_J_short(semizindex_short));
+
 pi_z_J=gather(pi_z_J);
 N_bothz=N_semiz*N_z;
 
@@ -47,8 +49,7 @@ II2=repelem((1:1:N_a*N_bothz)',1,N_semizshort);
 
 for jj=1:(N_j-1)
 
-    semiztransitions=gather(pi_semiz_J_short(semizindex_short(:,:,jj)));
-    Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,semiztransitions,N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
+    Gammatranspose=sparse(Policy_aprimesemizz(:,:,jj),II2,semiztransitions(:,:,jj),N_a*N_bothz,N_a*N_bothz); % From (a,semiz,z) to (a',semiz',z)
 
     % First step of Tan improvment
     StationaryDist_jj=reshape(Gammatranspose*StationaryDist_jj,[N_a*N_semiz,N_z]);

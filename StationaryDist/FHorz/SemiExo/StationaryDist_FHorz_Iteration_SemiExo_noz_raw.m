@@ -31,19 +31,20 @@ pi_semiz_J_short=gather(pi_semiz_J_short);
 Policy_aprimesemiz=repelem(reshape(gather(Policy_aprime),[N_a*N_semiz,1,N_j]),1,N_semizshort)+N_a*(idxshort(semizindex_short)-1); % Note: add semiz' index following the semiz' dimension
 % Policy_aprimesemiz is currently [N_a,N_semiz,N_semizshort,N_j]
 
+semiztransitions=gather(pi_semiz_J_short(semizindex_short));
+
 %% No z, so no Tan improvement
 
 StationaryDist=zeros(N_a*N_semiz,N_j,'gpuArray');
 StationaryDist(:,1)=jequaloneDistKron;
 StationaryDistKron_jj=sparse(gather(jequaloneDistKron));
 
-II2=repelem((1:1:N_a*N_semiz)',1,N_semiz);
+II2=repelem((1:1:N_a*N_semiz)',1,N_semizshort);
 
 %%
 for jj=1:(N_j-1)
     
-    semiztransitions=gather(pi_semiz_J_short(semizindex_short(:,:,jj)));
-    Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,semiztransitions,N_a*N_semiz,N_a*N_semiz); % From (a,semiz) to (a',semiz')
+    Gammatranspose=sparse(Policy_aprimesemiz(:,:,jj),II2,semiztransitions(:,:,jj),N_a*N_semiz,N_a*N_semiz); % From (a,semiz) to (a',semiz')
     
     % No z, so just one-step for iteration
     StationaryDistKron_jj=Gammatranspose*StationaryDistKron_jj;
