@@ -433,23 +433,8 @@ if estimoptions.bootstrapStdErrors==0
     modelestimparamsvecdown=zeros(size(modelestimparamsvec));
     violateconstrainttop=zeros(size(modelestimparamsvec)); %=1 means use a one-sided (down) finite-difference because 'adding epsilon' would lead to a parameter value that violates the constraint
     violateconstraintbottom=zeros(size(modelestimparamsvec)); %=1 means use a one-sided (up) finite-difference because 'subtracting epsilon' would lead to a parameter value that violates the constraint
-    % Switch modelestimparamsvec to the constrained (model) parameters
-    for pp=1:length(EstimParamNames)
-        if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        elseif estimoptions.constrain0to1(pp)==1
-            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
-        end
-        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-        if estimoptions.constrainAtoB(pp)==1
-            % Constrain parameter to be A to B
-            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
-        end
-    end
+    % Switch modelestimparamsvec to the constrained (original) parameters
+    [modelestimparamsvec,~]=ParameterConstraints_TransformParamsToOriginal(modelestimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
     % Now, multiply by (1+-epsilon)
     for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
@@ -685,30 +670,20 @@ end
 %% Clean up the first two outputs
 for pp=1:length(EstimParamNames)
     if estimoptions.skipestimation==0
-        % If parameter is constrained, switch it back to the unconstrained value
-        if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        elseif estimoptions.constrain0to1(pp)==1
-            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
-        end
-        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-        if estimoptions.constrainAtoB(pp)==1
-            % Constrain parameter to be A to B
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
-        end
-   
+        % If parameter is constrained, switch it back to the original value
+        [estimparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
+        if sum(penalty)>0
+            warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
+        end  
         % Now store the unconstrained values
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
             currparamraw(isnan(currparamraw))=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            EstimParams.(EstimParamNames{pp})=currparamraw;
         else
-            EstimParams.(EstimParamNames{pp})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            currparamraw=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
         end
+        EstimParams.(EstimParamNames{pp})=currparamraw;
+
     else
         EstimParams.(EstimParamNames{pp})=Parameters.(EstimParamNames{pp}); % When skipping estimation, just returns the same parameters as you input
     end

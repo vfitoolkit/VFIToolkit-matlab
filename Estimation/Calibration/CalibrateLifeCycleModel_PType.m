@@ -91,8 +91,10 @@ end
 % First figure out how many parameters there are (tricky as they can be dependent on ptype)
 nCalibParams=0;
 nCalibParamsFinder=[]; % rows are the nCalibParams, first column is pp, second column is ii
+nCalibParams_PTypeMatrix=[]; % records which ptype parameters are set up as matrix, only use is in setting up the final output, =1 means N_i is first dim, =2 means N_i is second dim
 for pp=1:length(CalibParamNames)
     if isstruct(Parameters.(CalibParamNames{pp})) % parameter depends on ptype, as struct
+        nCalibParams_PTypeMatrix(pp,1)=0;
         for ii=1:N_i
             if isfield(Parameters.(CalibParamNames{pp}),Names_i{ii})
                 nCalibParams=nCalibParams+1;
@@ -104,8 +106,11 @@ for pp=1:length(CalibParamNames)
         if any(size(Parameters.(CalibParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
             temp=Parameters.(CalibParamNames{pp});
             if size(temp,1)==N_i
+                nCalibParams_PTypeMatrix(pp,1)=1;
                 temp=temp';
-            end 
+            else
+                nCalibParams_PTypeMatrix(pp,1)=2;
+            end
             Parameters=rmfield(Parameters,(CalibParamNames{pp}));
             for ii=1:N_i
                 nCalibParams=nCalibParams+1;
@@ -114,6 +119,7 @@ for pp=1:length(CalibParamNames)
                 Parameters.(CalibParamNames{pp}).(Names_i{ii})=temp(:,ii);
             end
         else % parameter does not depend on ptype
+            nCalibParams_PTypeMatrix(pp,1)=0;
             nCalibParams=nCalibParams+1;
             nCalibParamsFinder(nCalibParams,1)=pp;
             nCalibParamsFinder(nCalibParams,2)=0;
@@ -407,16 +413,18 @@ for pp=1:nCalibParams
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
-        else % depends on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
-        end
     else
-        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        else
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        currparamraw=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+    end
+    if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
+        CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
+    else % depends on ptype
+        if nCalibParams_PTypeMatrix(pp)==0
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
+        elseif nCalibParams_PTypeMatrix(pp)==1 % N_i as first dim
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(currparamraw,[N_i,numel(currparamraw)/N_i]);
+        elseif nCalibParams_PTypeMatrix(pp)==2 % N_i as second dim
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(currparamraw,[numel(currparamraw)/N_i,N_i]);
         end
     end
 end
