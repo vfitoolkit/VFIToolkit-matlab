@@ -281,6 +281,7 @@ if Parallel~=2
             PolicyValues(end,:)=temp_a_grid(Policy(end,:));
         end
         PolicyValues=reshape(PolicyValues,[l_a,n_a,n_z]);
+
     else
         Policy=reshape(Policy,[l_d+l_a,N_a*N_z]);
         PolicyValues=zeros(l_d+l_a,N_a*N_z);

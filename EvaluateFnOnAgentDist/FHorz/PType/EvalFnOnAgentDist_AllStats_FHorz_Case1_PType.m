@@ -57,9 +57,10 @@ if ~exist('simoptions','var')
     simoptions.tolerance=10^(-12); % Numerical tolerance used when calculating min and max values.
     simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    simoptions.gridinterplayer=0;
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
-    simoptions.gridinterplayer=0;
+    simoptions.alreadygridvals_semiexo=0;
 else
     if ~isfield(simoptions,'groupptypesforstats')
         simoptions.groupptypesforstats=1;
@@ -71,7 +72,7 @@ else
         simoptions.groupusingtdigest=0; % if you are ptypestorecpu=1 and groupptypesforstats=1, you might also need to use groupusingtdigest=1 if you get out of memory errors
     end
     if ~isfield(simoptions,'verboseparams')
-        simoptions.verboseparams=100;
+        simoptions.verboseparams=0;
     end
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=100;
@@ -91,12 +92,15 @@ else
         simoptions.whichstats=ones(7,1); % See StatsFromWeightedGrid(), zeros skip some stats and can be used to reduce runtimes
     end
     % simoptions.conditionalrestrictions  % Evaluate AllStats, but conditional on the restriction being equal to one (not zero).
+    if ~isfield(simoptions,'gridinterplayer')
+        simoptions.gridinterplayer=0;
+    end
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
     end
-    if ~isfield(simoptions,'gridinterplayer')
-        simoptions.gridinterplayer=0;
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
     end
 end
 
@@ -251,6 +255,7 @@ for ii=1:N_i
         a_grid_temp=a_grid;
     end
 
+    %% Exogenous shocks
     if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
@@ -263,6 +268,33 @@ for ii=1:N_i
         end
     end
 
+    % e
+    if isfield(simoptions_temp,'n_e')
+        % If simoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.e_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.e_grid,ndims(simoptions_temp.e_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.e_grid)-1);
+                simoptions_temp.e_grid=simoptions_temp.e_grid(otherdims{:},ii);
+            end
+        end
+    end
+
+    % semiz
+    if isfield(simoptions_temp,'n_semiz')
+        % If simoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(simoptions.semiz_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(simoptions_temp.semiz_grid,ndims(simoptions_temp.semiz_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(simoptions_temp.semiz_grid)-1);
+                simoptions_temp.semiz_grid=simoptions_temp.semiz_grid(otherdims{:},ii);
+            end
+        end
+    end
+    
+    %% Parameters
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on permanent type). So go through each of
     % these in term.
@@ -314,7 +346,7 @@ for ii=1:N_i
     if N_z_temp==0
         N_z_temp=1; % Just makes things easier below
     end
-
+    
     % Switch to PolicyVals
     if isfinite(N_j_temp)
         PolicyValues_temp=PolicyInd2Val_FHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
@@ -334,7 +366,7 @@ for ii=1:N_i
         StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
     end
     l_daprime_temp=size(PolicyValues_temp,1);
-    
+
     [~,~,~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
     FnsAndPTypeIndicator(:,ii)=FnsAndPTypeIndicator_ii;
 
@@ -347,11 +379,7 @@ for ii=1:N_i
     %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
     if useCondlRest==1
         RestrictionStruct_ii=struct();
-
-        l_daprime_temp=size(PolicyValues_temp,1);
-        permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
-        PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a]
-
+        
         % For each conditional restriction, create a 'restricted stationary distribution'
         for rr=1:length(CondlRestnFnNames)
             % The current conditional restriction function

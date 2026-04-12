@@ -224,25 +224,20 @@ while vfoptions.postGIrepeat>0
 
     % First, we switch Policy_a to be the nearest point on the rough grid
     Policy_a=reshape(Policy_a,[1,N_a,N_z]); % Howards can mess with the size
-    Policy_a1=rem(Policy_a-1,N_a1)+1;
-    % Policy_a2=ceil(Policy/N_a1);
-
+    Policy_a1=rem(Policy_a-1,N_a1prime)+1;
+    % Policy_a2=ceil(Policy/N_a1prime);
     Policy_a1=ceil((Policy_a1-1)/(n2short+1))-vfoptions.maxaprimediff+a1primeshifter;
     % ceil((Policy_a1-1)/(n2short+1))-vfoptions.maxaprimediff ranges -vfoptions.maxaprimediff:1:vfoptions.maxaprimediff
 
+    % Note: as 'postGIrepeat', we only need to do the lines of setup code that have changed.
+
     % First, create an a1prime_grid that is just the +-vfoptions.maxaprimediff
     % Note: this code is for models with a single endogenous state
-    n_a1primediff=1+2*vfoptions.maxaprimediff;
-    N_a1primediff=prod(n_a1primediff);
     a1primeshifter=min(max(Policy_a1,1+vfoptions.maxaprimediff),N_a1-vfoptions.maxaprimediff);
     a1primeindex=(-vfoptions.maxaprimediff:1:vfoptions.maxaprimediff)' +a1primeshifter; % size n_aprime-by-n_a
     a1prime_grid=a1_grid(a1primeindex);
     % Second, interpolate this
     % Grid interpolation
-    % vfoptions.ngridinterp=9;
-    n2short=vfoptions.ngridinterp; % number of (evenly spaced) points to put between each grid point (not counting the two points themselves)
-    n_a1prime=n_a1primediff+(n_a1primediff-1)*vfoptions.ngridinterp;
-    N_a1prime=prod(n_a1prime);
     a1prime_grid=interp1((1:1:N_a1primediff)',a1prime_grid,linspace(1,N_a1primediff,N_a1primediff+(N_a1primediff-1)*vfoptions.ngridinterp)');
     % Note: a1prime_grid is N_a1prime-by-N_a-by-N_z
 
@@ -251,8 +246,6 @@ while vfoptions.postGIrepeat>0
     EVinterpindex1=(1:1:N_a1primediff)';
     EVinterpindex2=linspace(1,N_a1primediff,N_a1primediff+(N_a1primediff-1)*vfoptions.ngridinterp)';
 
-    N_aprime=N_a1prime*N_a2;
-    N_aprimediff=N_a1primediff*N_a2;
     aprimeindex=repmat(a1primeindex,N_a2,1,1)+N_a1*repelem((0:1:N_a2-1)',N_a1primediff,1,1);
 
     if vfoptions.lowmemory==0
@@ -278,13 +271,8 @@ while vfoptions.postGIrepeat>0
             dstar(:,:,z_c)=shiftdim(dstar_z,1);
         end
     end
-
-    pi_z_alt2=shiftdim(pi_z,-2);
-
-    % For Howards we need
-    addindexforazfine=gpuArray(N_aprime*(0:1:N_a-1)'+N_aprime*N_a*(0:1:N_z-1));
-
-
+    
+    
     %% Now switch to considering the fine/interpolated aprime_grid
     currdist=1; % force going into the next while loop at least one iteration
     tempcounter=1; % reset tempcounter

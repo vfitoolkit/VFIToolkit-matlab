@@ -84,6 +84,8 @@ for ii=1:N_i
     else
         a_grid_temp=a_grid;
     end
+
+    %% Exogenous shocks
     if isstruct(z_grid)
         z_grid_temp=z_grid.(Names_i{ii});
     else
@@ -106,13 +108,73 @@ for ii=1:N_i
             pi_z_temp=pi_z;
         end
     end
+
+    % e
+    if isfield(vfoptions_temp,'n_e')
+        % If vfoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(vfoptions.e_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(vfoptions_temp.e_grid,ndims(vfoptions_temp.e_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(vfoptions_temp.e_grid)-1);
+                vfoptions_temp.e_grid=vfoptions_temp.e_grid(otherdims{:},ii);
+            end
+        end
+        % If vfoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(vfoptions.pi_e)
+            % So just need to check if last dimension is of length N_i
+            nn=size(vfoptions_temp.pi_e,ndims(vfoptions_temp.pi_e));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(vfoptions_temp.pi_e)-1);
+                vfoptions_temp.pi_e=vfoptions_temp.pi_e(otherdims{:},ii);
+            end
+        end
+    end
+
+    % semiz
+    if isfield(vfoptions_temp,'n_semiz')
+        % If vfoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
+        if ~isstruct(vfoptions.semiz_grid)
+            % So just need to check if last dimension is of length N_i
+            nn=size(vfoptions_temp.semiz_grid,ndims(vfoptions_temp.semiz_grid));
+            if nn==N_i
+                otherdims = repmat({':'},1,ndims(vfoptions_temp.semiz_grid)-1);
+                vfoptions_temp.semiz_grid=vfoptions_temp.semiz_grid(otherdims{:},ii);
+            end
+        end
+        % Might use SemiExoShockFn or pi_semiz, if the later we need to deal with it
+        if isfield(vfoptions_temp,'pi_semiz')
+            % If vfoptions_temp.pi_semiz is a structure that was already dealt with by PType_Options() command
+            if ~isstruct(vfoptions.pi_semiz)
+                % So just need to check if last dimension is of length N_i
+                nn=size(vfoptions_temp.pi_semiz,ndims(vfoptions_temp.pi_semiz));
+                if nn==N_i
+                    otherdims = repmat({':'},1,ndims(vfoptions_temp.pi_semiz)-1);
+                    vfoptions_temp.pi_semiz=vfoptions_temp.pi_semiz(otherdims{:},ii);
+                end
+            end
+        end
+    end
+
+
+    %%
+    DiscountFactorParamNames_temp=DiscountFactorParamNames;
+    if isstruct(DiscountFactorParamNames)
+        names=fieldnames(DiscountFactorParamNames);
+        for jj=1:length(names)
+            if strcmp(names{jj},Names_i{ii})
+                DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{jj});
+            end
+        end
+    end
+
     if isstruct(ReturnFn)
         ReturnFn_temp=ReturnFn.(Names_i{ii});
     else
         ReturnFn_temp=ReturnFn;
     end
     
-    
+    %%
     % Parameters are allowed to be given as structure, or as vector/matrix
     % (in terms of their dependence on fixed type). So go through each of
     % these in term.
@@ -134,15 +196,6 @@ for ii=1:N_i
                 Parameters_temp.(FullParamNames{kField})=temp(ii,:);
             elseif ptypedim==2
                 Parameters_temp.(FullParamNames{kField})=temp(:,ii);
-            end
-        end
-    end
-    DiscountFactorParamNames_temp=DiscountFactorParamNames;
-    if isa(DiscountFactorParamNames,'struct')
-        names=fieldnames(DiscountFactorParamNames);
-        for jj=1:length(names)
-            if strcmp(names{jj},Names_i{ii})
-                DiscountFactorParamNames_temp=DiscountFactorParamNames.(names{jj});
             end
         end
     end

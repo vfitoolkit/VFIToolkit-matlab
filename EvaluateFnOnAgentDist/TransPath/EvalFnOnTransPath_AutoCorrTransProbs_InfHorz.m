@@ -17,10 +17,11 @@ function CorrTransProbsPath=EvalFnOnTransPath_AutoCorrTransProbs_InfHorz(FnsToEv
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.parallel=1+(gpuDeviceCount>0);
-    simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
+    simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1); % intended that user inputs names, and this is converted to vector internally
     simoptions.gridinterplayer=0;
     % Model setup
     simoptions.experienceasset=0;
+    simoptions.inheritanceasset=0;
     simoptions.n_e=0;
     simoptions.n_semiz=0;
     % Internal options
@@ -31,7 +32,7 @@ else
         simoptions.parallel=1+(gpuDeviceCount>0);
     end
     if ~isfield(simoptions, 'transprobs')
-        simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1);
+        simoptions.transprobs=zeros(length(fieldnames(FnsToEvaluate)),1); % intended that user inputs names, and this is converted to vector internally
     end
     % Model solution
     if ~isfield(simoptions, 'gridinterplayer')
@@ -40,6 +41,9 @@ else
     % Model setup
     if ~isfield(simoptions,'experienceasset')
         simoptions.experienceasset=0;
+    end
+    if ~isfield(simoptions,'inheritanceasset')
+        simoptions.inheritanceasset=0;
     end
     if ~isfield(simoptions,'n_e')
         simoptions.n_e=0;
@@ -99,7 +103,6 @@ if iscell(simoptions.transprobs)
         end
     end
 end
-
 
 %% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate)
@@ -166,15 +169,16 @@ elseif simoptions.experienceasset==1
     end
 
 end
-z_gridvals=CreateGridvals(n_z,z_grid,1);
+[z_gridvals, pi_z, simoptions]=ExogShockSetup_InfHorz(n_z,z_grid,pi_z,Parameters,simoptions,3);
 
 
 %%
 PolicyPath=reshape(PolicyPath,[size(PolicyPath,1),N_a,N_z,T]);
 PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyPath,n_d,n_a,n_z,T,d_gridvals,aprime_gridvals,simoptions,1);
+l_daprime=size(PolicyValuesPath,1);
 PolicyValuesPermutePath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T]
 
-AgentDistPath=reshape(AgentDistPath,[N_a,N_z,T]);
+AgentDistPath=reshape(AgentDistPath,[N_a*N_z,T]);
 
 % preallocate
 for ff=1:length(FnsToEvalNames)
@@ -212,10 +216,10 @@ for tt=1:T
     end
     
     PolicyValuesPermute=PolicyValuesPermutePath(:,:,:,tt);
-    AgentDist=AgentDistPath(:,:,tt);
+    AgentDist=AgentDistPath(:,tt); % [N_a*N_z,T]
 
     if tt>1
-        AgentDist_lag=AgentDistPath(:,:,tt-1);
+        AgentDist_lag=AgentDistPath(:,tt-1);
     end
 
     %% Create big transition matrix P
@@ -224,7 +228,7 @@ for tt=1:T
     pi_semiz=[];
     pi_e=[];
     if tt>1
-        P_lag=CreatePTransitionMatrix(PolicyPath(:,:,:,tt-1),l_d,l_a,N_a,N_semiz,N_z,N_e,pi_semiz,pi_z,pi_e,simoptions);
+        P_lag=CreatePTransitionMatrix(PolicyPath(:,:,:,tt-1),l_d,l_a,n_d,n_a,n_z,N_a,N_semiz,N_z,N_e,pi_semiz,pi_z,pi_e,Parameters,simoptions);
         % Note: I suspect keeping P and P_lag would run out of memory.
         % This only works because Parameters is not used here as it would contain tt
     end
@@ -236,9 +240,9 @@ for tt=1:T
             meanV_lag=meanV;
             stddevV_lag=stddevV;
         end
-
+        
         FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
-        Values=EvalFnOnAgentDist_Grid(FnsToEvaluate{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
+        Values=EvalFnOnAgentDist_Grid(FnsToEvaluateCell{ff}, FnToEvaluateParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_gridvals,z_gridvals);
         Values=reshape(Values,[N_a*N_z,1]);
 
         
@@ -283,9 +287,9 @@ for tt=1:T
                     end
 
                     if tt==2
-                        CorrTransProbs.(FnsToEvalNames{ff}).TransitionProbs=repmat(P_v,1,1,T-1);
+                        CorrTransProbsPath.(FnsToEvalNames{ff}).TransitionProbs=repmat(P_v,1,1,T-1);
                     else
-                        CorrTransProbs.(FnsToEvalNames{ff}).TransitionProbs(:,:,tt-1)=P_v;
+                        CorrTransProbsPath.(FnsToEvalNames{ff}).TransitionProbs(:,:,tt-1)=P_v;
                     end
                 end
             end

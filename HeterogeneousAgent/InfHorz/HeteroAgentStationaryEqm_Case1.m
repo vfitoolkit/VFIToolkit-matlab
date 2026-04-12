@@ -175,7 +175,6 @@ if isfield(heteroagentoptions,'CustomModelStats')
     heteroagentoptions.CustomModelStatsInputs.simoptions=simoptions;
 end
 
-
 if heteroagentoptions.fminalgo==0
     heteroagentoptions.outputGEform=1;
 elseif heteroagentoptions.fminalgo==5

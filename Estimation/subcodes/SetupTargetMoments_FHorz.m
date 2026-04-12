@@ -1,4 +1,4 @@
-function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,useptype)
+function [targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,useptype)
 % useptype is 0 or 1
 
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
@@ -259,6 +259,7 @@ elseif useptype==1
                         end
                     end
                 else
+                    a3vec={};
                     allstatmomentcounter=allstatmomentcounter+1;
                     if size(TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
                         targetmomentvec=[targetmomentvec; TargetMoments.AllStats.(a1vec{a1}).(a2vec{a2})]; % append to end
@@ -325,6 +326,7 @@ elseif useptype==1
         allstatmomentnames=cell(1,3);
         allstatcummomentsizes=0;
         AllStats_whichstats=zeros(7,1);
+        FnsToEvaluate_AllStats=struct();
     end
 
 
@@ -367,6 +369,7 @@ elseif useptype==1
                         end
                     end
                 else
+                    a3vec={};
                     acsmomentcounter=acsmomentcounter+1;
                     if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
                         targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end

@@ -250,7 +250,7 @@ else
 end
 
 a_gridvals=gpuArray(CreateGridvals(n_a,a_grid,1)); % 1 at end indicates output as matrices.
-if all(size(z_grid)==[prod(n_z),1])
+if all(size(z_grid)==[sum(n_z),1])
     z_gridvals=gpuArray(CreateGridvals(n_z,z_grid,1)); % 1 at end indicates output as matrices.
 elseif all(size(z_grid)==[prod(n_z),length(n_z)])
     z_gridvals=gpuArray(z_grid); % already gridvals
@@ -317,7 +317,6 @@ if simoptions.agententryandexit==0
 
         end
     end
-
 
     %% Rest are with entry and exit
 elseif simoptions.agententryandexit==1 && simoptions.endogenousexit==0

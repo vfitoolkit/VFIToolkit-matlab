@@ -46,21 +46,6 @@ for pp=1:nGEprices
     Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
 end
 
-% If z (and e) are determined in GE
-if any(heteroagentoptions.gridsinGE)
-    for ii=1:PTypeStructure.N_i
-        if heteroagentoptions.gridsinGE(ii)==1
-            iistr=PTypeStructure.iistr{ii};
-            % Some of the shock grids depend on parameters that are determined in general eqm
-            [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
-            % Note: these are actually z_gridvals and pi_z
-            PTypeStructure.(iistr).vfoptions
-            PTypeStructure.(iistr).simoptions.e_gridvals_J=PTypeStructure.(iistr).vfoptions.e_gridvals_J; % Note, will be [] if no e
-            PTypeStructure.(iistr).simoptions.pi_e_J=PTypeStructure.(iistr).vfoptions.pi_e_J; % Note, will be [] if no e
-        end
-    end
-end
-
 
 %%
 AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
@@ -71,7 +56,7 @@ for ii=1:PTypeStructure.N_i
     for pp=1:length(GEPriceParamNames)
         PTypeStructure.(iistr).Parameters.(GEPriceParamNames{pp})=GEpricesvec(pp);
     end
-
+    
     if heteroagentoptions.gridsinGE(ii)==1
         if isfinite(PTypeStructure.(iistr).N_j)
             % Some of the shock grids depend on parameters that are determined in general eqm
@@ -91,6 +76,17 @@ for ii=1:PTypeStructure.N_i
         end
     end
     
+    % If semiz is determined in GE
+    if heteroagentoptions.gridsinGE_semiexo(ii)==1
+        if isfinite(PTypeStructure.(iistr).N_j)
+            % Some of the shock grids depend on parameters that are determined in general eqm
+            PTypeStructure.(iistr).vfoptions=SemiExogShockSetup_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,2,3);
+            PTypeStructure.(iistr).simoptions.semiz_gridvals_J=PTypeStructure.(iistr).vfoptions.semiz_gridvals_J;
+            PTypeStructure.(iistr).simoptions.pi_semiz_J=PTypeStructure.(iistr).vfoptions.pi_semiz_J;
+        else
+            error('Semiexog in InfHorz not yet implemented')
+        end
+    end
     
     if isfinite(PTypeStructure.(iistr).N_j)
         [V_ii, Policy_ii]=ValueFnIter_Case1_FHorz(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).ReturnFn, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, PTypeStructure.(iistr).vfoptions);

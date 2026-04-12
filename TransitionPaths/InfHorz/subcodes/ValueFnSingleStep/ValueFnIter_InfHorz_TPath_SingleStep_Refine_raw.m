@@ -95,10 +95,9 @@ elseif vfoptions.lowmemory==1 || vfoptions.lowmemory==2
     end
 end
 
-%%
-Policy=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy(2,:,:)=shiftdim(Policy_a,-1); % aprime
-temppolicyindex=reshape(Policy_a,[1,N_a*N_z])+(0:1:N_a*N_z-1)*N_a;
-Policy(1,:,:)=reshape(dstar(temppolicyindex),[N_a,N_z]); % d
+%% Policy in transition paths
+Policy=reshape(dstar(temppolicyindex),[N_a,N_z])+N_d*(Policy_a-1);
+Policy=reshape(ind2sub_vec_homemade([n_d,n_a],Policy(:))',[length(n_d)+length(n_a),N_a,N_z]);
+
 
 end

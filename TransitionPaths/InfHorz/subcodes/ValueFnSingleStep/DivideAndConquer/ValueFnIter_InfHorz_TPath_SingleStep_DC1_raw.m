@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -73,13 +73,8 @@ for ii=1:(vfoptions.level1n-1)
 end
 
 
-%%
-Policy2=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % d
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1); % aprime
-
 %% Policy in transition paths
-Policy2=UnKronPolicyIndexes_Case1(Policy2,n_d,n_a,n_z,vfoptions);
+Policy=reshape(ind2sub_vec_homemade([n_d,n_a],Policy(:))',[length(n_d)+length(n_a),N_a,N_z]);
 
 
 end

@@ -182,8 +182,10 @@ end
 % First figure out how many parameters there are (tricky as they can be dependent on ptype)
 nCalibParams=0;
 nCalibParamsFinder=[]; % rows are the nCalibParams, first column is pp, second column is ii
+nCalibParams_PTypeMatrix=[]; % records which ptype parameters are set up as matrix, only use is in setting up the final output, =1 means N_i is first dim, =2 means N_i is second dim
 for pp=1:length(CalibParamNames)
     if isstruct(Parameters.(CalibParamNames{pp}))
+        nCalibParams_PTypeMatrix(pp,1)=0;
         for ii=1:N_i
             if isfield(Parameters.(CalibParamNames{pp}),Names_i{ii})
                 nCalibParams=nCalibParams+1;
@@ -192,9 +194,27 @@ for pp=1:length(CalibParamNames)
             end
         end
     else
-        nCalibParams=nCalibParams+1;
-        nCalibParamsFinder(nCalibParams,1)=pp;
-        nCalibParamsFinder(nCalibParams,2)=0;
+        if any(size(Parameters.(CalibParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+            temp=Parameters.(CalibParamNames{pp});
+            if size(temp,1)==N_i
+                nCalibParams_PTypeMatrix(pp,1)=1;
+                temp=temp';
+            else
+                nCalibParams_PTypeMatrix(pp,1)=2;
+            end
+            Parameters=rmfield(Parameters,(CalibParamNames{pp}));
+            for ii=1:N_i
+                nCalibParams=nCalibParams+1;
+                nCalibParamsFinder(nCalibParams,1)=pp;
+                nCalibParamsFinder(nCalibParams,2)=ii;
+                Parameters.(CalibParamNames{pp}).(Names_i{ii})=temp(:,ii);
+            end
+        else % parameter does not depend on ptype
+            nCalibParams_PTypeMatrix(pp,1)=0;
+            nCalibParams=nCalibParams+1;
+            nCalibParamsFinder(nCalibParams,1)=pp;
+            nCalibParamsFinder(nCalibParams,2)=0;
+        end
     end
 end
 
@@ -279,7 +299,7 @@ end
 
 %% Setup for which moments are being targeted
 % Only calculate each of AllStats and LifeCycleProfiles when being used (so as faster when not using both)
-[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,1);
+[targetmomentvec,usingallstats,usinglcp,usingcustomstats, allstatmomentnames,allstatcummomentsizes,AllStats_whichstats, FnsToEvaluate_AllStats, acsmomentnames, acscummomentsizes, ACStats_whichstats, FnsToEvaluate_ACStats,cmsmomentnames, cmscummomentsizes]=SetupTargetMoments_FHorz(TargetMoments,FnsToEvaluate,1);
 
 %% Set-up/check caliboptions.weights
 actualtarget=(~isnan(targetmomentvec)); % I use NaN to omit targets
@@ -319,7 +339,7 @@ elseif isfield(vfoptions,'EiidShockFn')
 end
 if caliboptions.calibrateshocks==0
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_grid,pi_z,N_j,Names_i,Parameters,vfoptions,3);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
@@ -329,6 +349,26 @@ end
 vfoptions.alreadygridvals=1;
 simoptions.alreadygridvals=1;
 
+% Same for semi-exogenous shocks
+caliboptions.calibsemiexo=0; % use =0 to also cover models without semi-exogenous shocks
+if isfield(vfoptions,'n_semiz')
+    if isfield(vfoptions,'SemiExoShockFn')
+        tempExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.SemiExoShockFn);
+        % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
+        if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
+            caliboptions.calibsemiexo=1;
+        end
+    end
+    
+    vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,2,3);
+    simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
+    simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+
+    % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, staty dist, etc. So
+    vfoptions.alreadygridvals_semiexo=1;
+    simoptions.alreadygridvals_semiexo=1;
+end
+
 
 %% 
 % caliboptions.logmoments can be specified by names
@@ -336,17 +376,17 @@ if isstruct(caliboptions.logmoments)
     logmomentnames=caliboptions.logmoments;
     % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
-    if any(fieldnames(logmomentnames),'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+    if isfield(logmomentnames,'AllStats')
+        caliboptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(allstatmomentnames,1)
-            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+    if isfield(logmomentnames,'AgeConditionalStats')
         sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=logmomentnames.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=logmomentnames.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
         end
     end
 
@@ -472,27 +512,40 @@ end
 
 
 %% Clean up output
+% If the parameter is constrained in some way then we need to un-transform it
+[calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
+if sum(penalty)>0
+    warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
+end
 for pp=1:nCalibParams
-    % If the parameter is constrained in some way then we need to un-transform it
-    [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
-    if sum(penalty)>0
-        warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
-    end
-
     % Now store the unconstrained values
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
-        else % depends on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
-        end
     else
-        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        else
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        currparamraw=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+    end
+    if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
+        CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
+    else % depends on ptype
+        if nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==0
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
+        elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==1 % N_i as first dim
+            if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
+                temp=CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)});
+            else
+                temp=zeros(N_i,length(currparamraw));
+            end
+            temp(ii,:)=currparamraw';
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
+        elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==2 % N_i as second dim
+            if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
+                temp=CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)});
+            else
+                temp=zeros(length(currparamraw),N_i);
+            end
+            temp(:,ii)=currparamraw;
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
         end
     end
 end

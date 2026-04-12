@@ -59,7 +59,7 @@ AgeWeights_T=repmat(repelem(ones(T,1,'gpuArray'),N_a,1),N_z,1);
 % Or we can take the fastOLG style approach
 %  - Parallel oever t=2:T, we create Phi_t^{i+1} from Phi_{t-1}^{i}
 % For now I just use the fastOLG style approach
-fastOLGtheAgentDist=1
+fastOLGtheAgentDist=1;
 % But setting this to zero will do the time-loop version that Lee uses.
 
 %% Create the initial guess

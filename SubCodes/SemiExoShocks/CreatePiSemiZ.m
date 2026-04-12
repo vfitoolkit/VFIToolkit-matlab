@@ -23,20 +23,20 @@ N_d=prod(n_d);
 
 % joint semiz_grid is hardcoded
 if l_semiz>=1
-    z1vals=semiz_grid(:,1);
-    z1primevals=shiftdim(z1vals,-1);
+    semiz1vals=semiz_grid(:,1);
+    semiz1primevals=shiftdim(semiz1vals,-1);
     if l_semiz>=2
-        z2vals=semiz_grid(:,2);
-        z2primevals=shiftdim(z2vals,-1);
+        semiz2vals=semiz_grid(:,2);
+        semiz2primevals=shiftdim(semiz2vals,-1);
         if l_semiz>=3
-            z3vals=semiz_grid(:,3);
-            z3primevals=shiftdim(z3vals,-1);
+            semiz3vals=semiz_grid(:,3);
+            semiz3primevals=shiftdim(semiz3vals,-1);
             if l_semiz>=4
-                z4vals=semiz_grid(:,4);
-                z4primevals=shiftdim(z4vals,-1);
+                semiz4vals=semiz_grid(:,4);
+                semiz4primevals=shiftdim(semiz4vals,-1);
                 if l_semiz>=5
-                    z5vals=semiz_grid(:,5);
-                    z5primevals=shiftdim(z5vals,-1);
+                    semiz5vals=semiz_grid(:,5);
+                    semiz5primevals=shiftdim(semiz5vals,-1);
                 end
             end
         end
@@ -63,51 +63,51 @@ end
 % SemiExoStateFn(z,zprime,d,paremeters)
 if l_d==1
     if l_semiz==1
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, d1vals, ParamCell{:}); % Note: z1primevals is just z1vals
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals, semiz1primevals, d1vals, ParamCell{:}); % Note: z1primevals is just z1vals
     elseif l_semiz==2
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, d1vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals, semiz1primevals,semiz2primevals, d1vals, ParamCell{:});
     elseif l_semiz==3
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, d1vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals, semiz1primevals,semiz2primevals,semiz3primevals, d1vals, ParamCell{:});
     elseif l_semiz==4
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, d1vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals, d1vals, ParamCell{:});
     elseif l_semiz==5
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, d1vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals,semiz5vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals,semiz5primevals, d1vals, ParamCell{:});
     end
 elseif l_d==2 % Note, I am just going to create an N_d dimension
     if l_semiz==1
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, d1vals,d2vals, ParamCell{:}); % Note: z1primevals is just z1vals
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals, semiz1primevals, d1vals,d2vals, ParamCell{:}); % Note: z1primevals is just z1vals
     elseif l_semiz==2
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, d1vals,d2vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals, semiz1primevals,semiz2primevals, d1vals,d2vals, ParamCell{:});
     elseif l_semiz==3
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, d1vals,d2vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals, semiz1primevals,semiz2primevals,semiz3primevals, d1vals,d2vals, ParamCell{:});
     elseif l_semiz==4
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, d1vals,d2vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals, d1vals,d2vals, ParamCell{:});
     elseif l_semiz==5
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, d1vals,d2vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals,semiz5vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals,semiz5primevals, d1vals,d2vals, ParamCell{:});
     end
 elseif l_d==3 % Note, I am just going to create an N_d dimension
     if l_semiz==1
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, d1vals,d2vals,d3vals, ParamCell{:}); % Note: z1primevals is just z1vals
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals, semiz1primevals, d1vals,d2vals,d3vals, ParamCell{:}); % Note: z1primevals is just z1vals
     elseif l_semiz==2
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, d1vals,d2vals,d3vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals, semiz1primevals,semiz2primevals, d1vals,d2vals,d3vals, ParamCell{:});
     elseif l_semiz==3
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, d1vals,d2vals,d3vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals, semiz1primevals,semiz2primevals,semiz3primevals, d1vals,d2vals,d3vals, ParamCell{:});
     elseif l_semiz==4
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, d1vals,d2vals,d3vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals, d1vals,d2vals,d3vals, ParamCell{:});
     elseif l_semiz==5
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, d1vals,d2vals,d3vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals,semiz5vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals,semiz5primevals, d1vals,d2vals,d3vals, ParamCell{:});
     end
 elseif l_d==4 % Note, I am just going to create an N_d dimension
     if l_semiz==1
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals, z1primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:}); % Note: z1primevals is just z1vals
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals, semiz1primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:}); % Note: z1primevals is just z1vals
     elseif l_semiz==2
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals, z1primevals,z2primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals, semiz1primevals,semiz2primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
     elseif l_semiz==3
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals, z1primevals,z2primevals,z3primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals, semiz1primevals,semiz2primevals,semiz3primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
     elseif l_semiz==4
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals, z1primevals,z2primevals,z3primevals,z4primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
     elseif l_semiz==5
-        pi_semiz=arrayfun(SemiExoStateFn, z1vals,z2vals,z3vals,z4vals,z5vals, z1primevals,z2primevals,z3primevals,z4primevals,z5primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
+        pi_semiz=arrayfun(SemiExoStateFn, semiz1vals,semiz2vals,semiz3vals,semiz4vals,semiz5vals, semiz1primevals,semiz2primevals,semiz3primevals,semiz4primevals,semiz5primevals, d1vals,d2vals,d3vals,d4vals, ParamCell{:});
     end
 end
 pi_semiz=reshape(pi_semiz,[N_semiz,N_semiz,N_d]); % I think this reshape is actually superflous, so can probably comment it out

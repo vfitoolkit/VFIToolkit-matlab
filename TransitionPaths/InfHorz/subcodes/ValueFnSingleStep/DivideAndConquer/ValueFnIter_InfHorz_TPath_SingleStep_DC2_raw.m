@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC2_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC2_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % DC2B: two endogenous states, divide-and-conquer on the first endo state, but not on the second endo state
 
 N_d=prod(n_d);
@@ -150,9 +150,7 @@ end
 V=reshape(V,[N_a1*N_a2,N_z]);
 Policy=reshape(Policy,[N_a1*N_a2,N_z]);
 
-%%
-Policy2=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % d
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1); % aprime
+%% Policy in transition paths
+Policy=reshape(ind2sub_vec_homemade([n_d,n_a],Policy(:))',[length(n_d)+length(n_a),N_a,N_z]);
 
 end

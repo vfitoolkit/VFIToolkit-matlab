@@ -56,11 +56,19 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz(n_z,z_grid,pi_z,N_j,Parameters,vfoptions,3);
+    [z_gridvals_J, pi_z_J, vfoptions]=ExogShockSetup_FHorz_PType(n_z,z_gridvals_J,pi_z_J,N_j,Names_i,Parameters,vfoptions,3);
     % output: z_gridvals_J, pi_z_J, vfoptions.e_gridvals_J, vfoptions.pi_e_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J;
     simoptions.pi_e_J=vfoptions.pi_e_J;
 end
+
+% Same for semi-exogenous shocks
+if caliboptions.calibsemiexo==1
+    vfoptions=SemiExogShockSetup_FHorz_PType(n_d,N_j,Names_i,d_grid,Parameters,vfoptions,2,3);
+    simoptions.semiz_gridvals_J=vfoptions.semiz_gridvals_J;
+    simoptions.pi_semiz_J=vfoptions.pi_semiz_J;
+end
+
 
 %% Solve the model and calculate the stats
 if usingcustomstats==1

@@ -53,6 +53,7 @@ if ~exist('simoptions','var')
         % lowmemory=0 has outerloop over ptype and inner loop of fnstoeval; lowmemory=1 has outerloop over fnstoeval, inner loop over ptype
     simoptions.verbose=0;
     simoptions.verboseparams=0;
+    simoptions.alreadygridvals_semiexo=0;
     defaultagegroupings=1;
     if isstruct(N_j)
         N_j_max=0;
@@ -159,6 +160,9 @@ else
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions,'alreadygridvals')
         simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions,'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
@@ -403,7 +407,7 @@ if simoptions.lowmemory==0
             fprintf('Permanent type: %i of %i \n',ii, N_i)
         end
         if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-            PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
+            PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming simoptions.ptypestorecpu=1 as well
             % StationaryDist_temp=gpuArray(StationaryDist.(Names_i{ii}));
         else
             PolicyIndexes_temp=Policy.(Names_i{ii});
@@ -447,6 +451,8 @@ if simoptions.lowmemory==0
         else
             a_grid_temp=a_grid;
         end
+
+        %% Exogenous shocks
         if isstruct(z_grid)
             z_grid_temp=z_grid.(Names_i{ii});
         else
@@ -459,6 +465,33 @@ if simoptions.lowmemory==0
             end
         end
 
+        % e
+        if isfield(simoptions_temp,'n_e')
+            % If simoptions_temp.e_grid is a structure that was already dealt with by PType_Options() command
+            if ~isstruct(simoptions.e_grid)
+                % So just need to check if last dimension is of length N_i
+                nn=size(simoptions_temp.e_grid,ndims(simoptions_temp.e_grid));
+                if nn==N_i
+                    otherdims = repmat({':'},1,ndims(simoptions_temp.e_grid)-1);
+                    simoptions_temp.e_grid=simoptions_temp.e_grid(otherdims{:},ii);
+                end
+            end
+        end
+
+        % semiz
+        if isfield(simoptions_temp,'n_semiz')
+            % If simoptions_temp.semiz_grid is a structure that was already dealt with by PType_Options() command
+            if ~isstruct(simoptions.semiz_grid)
+                % So just need to check if last dimension is of length N_i
+                nn=size(simoptions_temp.semiz_grid,ndims(simoptions_temp.semiz_grid));
+                if nn==N_i
+                    otherdims = repmat({':'},1,ndims(simoptions_temp.semiz_grid)-1);
+                    simoptions_temp.semiz_grid=simoptions_temp.semiz_grid(otherdims{:},ii);
+                end
+            end
+        end
+
+        %% Parameters
         % Parameters are allowed to be given as structure, or as vector/matrix
         % (in terms of their dependence on permanent type). So go through each of
         % these in term.
@@ -527,11 +560,7 @@ if simoptions.lowmemory==0
         %% Evaluate conditional restrictions for this PType (note: these use simoptions not simoptions_temp)
         if useCondlRest==1
             RestrictionStruct_ii=struct();
-
-            l_daprime_temp=size(PolicyValues_temp,1);
-            permuteindexes=[1+(1:1:(l_a_temp+l_z_temp)),1];
-            PolicyValuesPermute_temp=permute(PolicyValues_temp,permuteindexes); %[n_a,n_z,l_d+l_a]
-
+            
             % For each conditional restriction, create a 'restricted stationary distribution'
             for rr=1:length(CondlRestnFnNames)
                 % The current conditional restriction function
@@ -1195,7 +1224,7 @@ elseif simoptions.lowmemory==1
                 fprintf('Permanent type: %i of %i \n',ii, N_i)
             end
             if simoptions_temp.ptypestorecpu==1 % Things are being stored on cpu but solved on gpu
-                PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming vfoptions.ptypestorecpu=1 as well
+                PolicyIndexes_temp=gpuArray(Policy.(Names_i{ii})); % Essentially just assuming simoptions.ptypestorecpu=1 as well
                 StationaryDist_ii=gpuArray(StationaryDist.(Names_i{ii}));
             else
                 PolicyIndexes_temp=Policy.(Names_i{ii});
@@ -1629,3 +1658,4 @@ end
 
 
 end
+

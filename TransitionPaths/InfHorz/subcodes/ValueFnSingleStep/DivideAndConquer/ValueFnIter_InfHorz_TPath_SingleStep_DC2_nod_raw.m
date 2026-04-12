@@ -133,6 +133,8 @@ end
 
 %% Reshape output
 V=reshape(V,[N_a1*N_a2,N_z]);
+%% Policy in transition paths
+Policy=reshape(ind2sub_vec_homemade(n_a,Policy(:))',[length(n_a),N_a,N_z]);
 Policy=reshape(Policy,[N_a1*N_a2,N_z]);
 
 end
