@@ -48,10 +48,10 @@ if ~isfield(options,'GEptype') % For models without permanent type
     for ii=1:length(GEeqnNames)
         for jj=1:size(temp,1)
             if strcmp(temp{jj,1},GEeqnNames{ii}) % Names match
-                options.GEnewprice3.howtoupdate{ii,1}=temp{jj,1};
-                options.GEnewprice3.howtoupdate{ii,2}=temp{jj,2};
-                options.GEnewprice3.howtoupdate{ii,3}=temp{jj,3};
-                options.GEnewprice3.howtoupdate{ii,4}=temp{jj,4};
+                options.GEnewprice3.howtoupdate{ii,1}=temp{jj,1}; % general eqm eqn name
+                options.GEnewprice3.howtoupdate{ii,2}=temp{jj,2}; % general eqm price name
+                options.GEnewprice3.howtoupdate{ii,3}=temp{jj,3}; % add(/subtract)
+                options.GEnewprice3.howtoupdate{ii,4}=temp{jj,4}; % factor
             end
         end
     end
