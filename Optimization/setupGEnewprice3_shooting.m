@@ -91,7 +91,7 @@ else
     for gg=1:nGeneralEqmEqns
         if options.GEptype(gg)==1
             for gg2=1:size(options.GEnewprice3.howtoupdate,1)
-                if strcmp(options.GEnewprice3.howtoupdate{gg2,2},GEPriceParamNames{gg})
+                if strcmp(options.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{gg})
                     pricename_gg=options.GEnewprice3.howtoupdate{gg2,2};
                 end
             end
