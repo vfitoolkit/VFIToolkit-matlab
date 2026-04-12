@@ -528,12 +528,24 @@ for pp=1:nCalibParams
     if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
         CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
     else % depends on ptype
-        if nCalibParams_PTypeMatrix(pp)==0
+        if nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==0
             CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
-        elseif nCalibParams_PTypeMatrix(pp)==1 % N_i as first dim
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(currparamraw,[N_i,numel(currparamraw)/N_i]);
-        elseif nCalibParams_PTypeMatrix(pp)==2 % N_i as second dim
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=reshape(currparamraw,[numel(currparamraw)/N_i,N_i]);
+        elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==1 % N_i as first dim
+            if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
+                temp=CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)});
+            else
+                temp=zeros(N_i,length(currparamraw));
+            end
+            temp(ii,:)=currparamraw';
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
+        elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==2 % N_i as second dim
+            if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
+                temp=CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)});
+            else
+                temp=zeros(length(currparamraw),N_i);
+            end
+            temp(:,ii)=currparamraw;
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
         end
     end
 end

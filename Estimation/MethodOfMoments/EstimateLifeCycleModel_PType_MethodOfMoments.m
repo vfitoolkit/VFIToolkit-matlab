@@ -706,12 +706,24 @@ for pp=1:length(estimparamsvec)
         if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
             EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=currparamraw;
         else % depends on ptype
-            if nEstimParams_PTypeMatrix(pp)==0
+            if nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==0
                 EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=currparamraw;
-            elseif nEstimParams_PTypeMatrix(pp)==1 % N_i as first dim
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=reshape(currparamraw,[N_i,numel(currparamraw)/N_i]);
-            elseif nEstimParams_PTypeMatrix(pp)==2 % N_i as second dim
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=reshape(currparamraw,[numel(currparamraw)/N_i,N_i]);
+            elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==1 % N_i as first dim
+                if isfield(EstimParams,EstimParamNames{nEstimParamsFinder(pp,1)})
+                    temp=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)});
+                else
+                    temp=zeros(N_i,length(currparamraw));
+                end
+                temp(ii,:)=currparamraw';
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=temp;
+            elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==2 % N_i as second dim
+                if isfield(EstimParams,EstimParamNames{nEstimParamsFinder(pp,1)})
+                    temp=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)});
+                else
+                    temp=zeros(length(currparamraw),N_i);
+                end
+                temp(:,ii)=currparamraw;
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=temp;
             end
         end
     else
