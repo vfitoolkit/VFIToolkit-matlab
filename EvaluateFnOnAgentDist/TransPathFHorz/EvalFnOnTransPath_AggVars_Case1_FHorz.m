@@ -28,11 +28,11 @@ end
 if exist('simoptions','var')==0
     simoptions.parallel=2;
     simoptions.verbose=0;
-    simoptions.iterate=1;
     simoptions.tolerance=10^(-9);
-    simoptions.policy_forceintegertype=0;
     simoptions.fastOLG=1; % parallel over j, faster but uses more memory
     simoptions.gridinterplayer=0;
+    % Model setup
+    simoptions.experienceasset=0;
 else
     %Check simoptions for missing fields, if there are some fill them with
     %the defaults
@@ -45,12 +45,6 @@ else
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
     end
-    if ~isfield(simoptions,'iterate')
-        simoptions.iterate=1;
-    end
-    if ~isfield(simoptions,'policy_forceintegertype')
-        simoptions.policy_forceintegertype=1;
-    end
     if ~isfield(simoptions,'fastOLG')
         simoptions.fastOLG=1; % parallel over j, faster but uses more memory
     end
@@ -60,6 +54,9 @@ else
         if ~isfield(simoptions,'ngridinterp')
             error('You have simoptions.gridinterplayer, so must also set simoptions.ngridinterp')
         end
+    end
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
     end
 end
 
