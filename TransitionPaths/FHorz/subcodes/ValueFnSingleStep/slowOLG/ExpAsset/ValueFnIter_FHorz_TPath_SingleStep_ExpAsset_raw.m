@@ -1,4 +1,4 @@
-function [V,Policy3]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_raw(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_raw(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -138,17 +138,6 @@ end
 if vfoptions.gridinterplayer
     error("gridinterp not implemented with ExpAsset yet")
 end
-if N_d1==0
-    Policy3=zeros(2,N_a,N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for d2 and aprime rest of dimensions a,z
-    Policy3(1,:,:,:)=1; % is meaningless anyway
-    Policy3(2,:,:,:)=shiftdim(rem(Policy-1,N_d2)+1,-1);
-    Policy3(3,:,:,:)=shiftdim(ceil(Policy/N_d2),-1);
-else
-    Policy3=zeros(3,N_a,N_z,N_j,'gpuArray'); % first dim indexes the optimal choice for (d1,d2,aprime) rest of dimensions a,z
-                                                 % second dim indexes the optimal choice for (d2,aprime) rest of dimensions a,z
-    Policy3(1,:,:,:)=shiftdim(rem(Policy-1,N_d1)+1,-1); % one of these is wrong
-    Policy3(2,:,:,:)=shiftdim(ceil(Policy/N_d1),-1);    % one of these is wrong
-    Policy3(3,:,:,:)=shiftdim(ceil(Policy/N_d),-1);     % this may be wrong
-end
+
 
 end

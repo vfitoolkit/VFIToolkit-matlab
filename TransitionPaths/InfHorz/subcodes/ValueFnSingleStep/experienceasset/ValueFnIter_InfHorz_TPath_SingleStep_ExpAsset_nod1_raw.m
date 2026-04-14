@@ -58,7 +58,7 @@ if vfoptions.lowmemory==0
     Policy(1,:,:)=rem(maxindex-1,N_d2)+1;
     Policy(2,:,:)=ceil(maxindex/N_d2);
 
-elseif vfoptions.lowmemory==1
+elseif vfoptions.lowmemory>=1
 
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
