@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_grid, aprimeFnParams, aprimeIndexAsColumn)
+function [a2primeIndexes,a2primeProbs]=CreateaprimeFnMatrix_RiskyAsset(aprimeFn, n_d, n_a2, n_u, d_grid, a2_grid, u_gridvals, aprimeFnParams, aprimeIndexAsColumn)
 % Note: a2primeIndex is [N_a2*N_u,1], whereas a2primeProbs is [N_a2,N_u]
 %
 % Creates the grid points and their 'interpolation' probabilities
@@ -48,39 +48,22 @@ if l_d>=1
         end
     end
 end
-if all(size(u_grid)==[sum(n_u),1]) % kroneker product u_grid
-    if l_u>=1
-        u1vals=shiftdim(u_grid(1:n_u(1)),-l_d);
-        if l_u>=2
-            u2vals=shiftdim(u_grid(n_u(1)+1:n_u(1)+n_u(2)),-l_d-1);
-            if l_u>=3
-                u3vals=shiftdim(u_grid(sum(n_u(1:2))+1:sum(n_u(1:3))),-l_d-2);
-                if l_u>=4
-                    u4vals=shiftdim(u_grid(sum(n_u(1:3))+1:sum(n_u(1:4))),-l_d-3);
-                    if l_u>=5
-                        u5vals=shiftdim(u_grid(sum(n_u(1:4))+1:sum(n_u(1:5))),-l_d-4);
-                    end
-                end
-            end
-        end
-    end
-elseif all(size(u_grid)==[prod(n_u),l_u]) % joint u_grid
-    if l_u>=1
-        u1vals=shiftdim(u_grid(:,1),-l_d);
-        if l_u>=2
-            u2vals=shiftdim(u_grid(:,2),-l_d);
-            if l_u>=3
-                u3vals=shiftdim(u_grid(:,3),-l_d);
-                if l_u>=4
-                    u4vals=shiftdim(u_grid(:,4),-l_d);
-                    if l_u>=5
-                        u5vals=shiftdim(u_grid(:,5),-l_d);
-                    end
+if l_u>=1
+    u1vals=shiftdim(u_gridvals(:,1),-l_d);
+    if l_u>=2
+        u2vals=shiftdim(u_gridvals(:,2),-l_d);
+        if l_u>=3
+            u3vals=shiftdim(u_gridvals(:,3),-l_d);
+            if l_u>=4
+                u4vals=shiftdim(u_gridvals(:,4),-l_d);
+                if l_u>=5
+                    u5vals=shiftdim(u_gridvals(:,5),-l_d);
                 end
             end
         end
     end
 end
+
 
 if l_d==1
     if l_u==1

@@ -1,4 +1,4 @@
-function [V,Policy]=ValueFnIter_FHorz_ExpAssetu_noa1_noz_e_raw(n_d1,n_d2,n_a2,n_e,n_u, N_j, d_gridvals, d2_grid, a2_grid, e_gridvals_J, u_grid, pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_ExpAssetu_noa1_noz_e_raw(n_d1,n_d2,n_a2,n_e,n_u, N_j, d_gridvals, d2_gridvals, a2_grid, e_gridvals_J, u_gridvals, pi_e_J, pi_u, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -11,7 +11,7 @@ V=zeros(N_a,N_e,N_j,'gpuArray');
 Policy=zeros(N_a,N_e,N_j,'gpuArray'); %first dim indexes the optimal choice for d and a1prime rest of dimensions a,z
 
 %%
-d2_grid=gpuArray(d2_grid);
+d2_gridvals=gpuArray(d2_gridvals);
 a2_grid=gpuArray(a2_grid);
 
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
@@ -49,7 +49,7 @@ else
     EVpre=sum(pi_e_J(:,N_j)'.*reshape(vfoptions.V_Jplus1,[N_a,N_e]),2); % First, switch V_Jplus1 into Kron form
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
     Vlower=reshape(EVpre(a2primeIndex(:)),[N_d2,N_a2,N_u]);
@@ -104,7 +104,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_grid, a2_grid, u_grid, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,2); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2,N_a2,N_u], whereas aprimeProbs is [N_d2,N_a2,N_u]
 
     EVpre=sum(pi_e_J(:,jj)'.*V(:,:,jj+1),2);

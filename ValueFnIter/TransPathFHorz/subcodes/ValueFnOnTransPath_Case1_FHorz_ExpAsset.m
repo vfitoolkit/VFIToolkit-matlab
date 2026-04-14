@@ -9,12 +9,10 @@ else
     n_d1=0;
 end
 n_d2=n_d(end-vfoptions.l_dexperienceasset+1:end);
-if prod(n_d1)==0
-    d2_grid=d_grid(sum(n_d1)+1:end);
-    d_gridvals=CreateGridvals(n_d2,d2_grid,1);
-else
+d2_grid=d_grid(sum(n_d1)+1:end);
+d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
+if prod(n_d1)>0
     % d1_grid=d_grid(1:sum(n_d1));
-    d2_grid=d_grid(sum(n_d1)+1:end);
     d_gridvals=CreateGridvals(n_d,d_grid,1);
 end
 % Split endogneous states into the standard ones and the experience asset
@@ -71,7 +69,7 @@ if N_e==0
                     Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz(V,n_d1,n_d2,n_a1,n_a2,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz(V,n_d1,n_d2,n_a1,n_a2,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -96,7 +94,7 @@ if N_e==0
                     Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_noz(V,n_d1,n_d2,n_a1,n_a2,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_noz(V,n_d1,n_d2,n_a1,n_a2,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -132,7 +130,7 @@ if N_e==0
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -167,7 +165,7 @@ if N_e==0
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
                 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
                 
@@ -202,7 +200,7 @@ else % N_e
                     e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz_e(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_noz_e(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -237,7 +235,7 @@ else % N_e
                     e_gridvals_J=transpathoptions.e_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_noz_e(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_noz_e(V,n_d1,n_d2,n_a1,n_a2,n_e,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, e_gridvals_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 
@@ -273,7 +271,7 @@ else % N_e
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 
@@ -311,7 +309,7 @@ else % N_e
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e, N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e, N_j,d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
 

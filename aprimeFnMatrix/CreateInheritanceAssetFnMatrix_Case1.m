@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateInheritanceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, n_z, n_zprime, d_grid, a2_grid, z_gridvals, zprime_gridvals, aprimeFnParams)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
+function [a2primeIndexes,a2primeProbs]=CreateInheritanceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, n_z, n_zprime, d_gridvals, a2_grid, z_gridvals, zprime_gridvals, aprimeFnParams)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % Note: aprimeIndex is [N_d,N_zprime,N_z], and aprimeProbs is [N_d,N_zprime,N_z]
 %
 % Creates the grid points and their 'interpolation' probabilities
@@ -38,13 +38,13 @@ if nargin(aprimeFn)~=l_d+l_z+l_z+length(aprimeFnParams)
 end
 
 if l_d>=1
-    d1vals=d_grid(1:n_d(1));
+    d1vals=d_gridvals(:,1);
     if l_d>=2
-        d2vals=shiftdim(d_grid(n_d(1)+1:sum(n_d(1:2))),-1);
+        d2vals=d_gridvals(:,2);
         if l_d>=3
-            d3vals=shiftdim(d_grid(sum(n_d(1:2))+1:sum(n_d(1:3))),-2);
+            d3vals=d_gridvals(:,3);
             if l_d>=4
-                d4vals=shiftdim(d_grid(sum(n_d(1:3))+1:sum(n_d(1:4))),-3);
+                d4vals=d_gridvals(:,4);
             end
         end
     end
