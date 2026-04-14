@@ -11,6 +11,7 @@ function AggVarsPath=TransitionPath_InfHorz_PType_ExpAsset_singlepath(PricePathO
 % For this agent type, first go back through the value & policy fns.
 % Then forwards through agent dist and agg vars.
 
+N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
@@ -81,7 +82,11 @@ if simoptions.gridinterplayer==1
     PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
 end
 % Create PolicyValuesPath from PolicyIndexesPath for use in calculating model stats
-PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,[n_d1,n_d2],[n_a1,n_a2],n_z,T-1,d_gridvals,a_gridvals,vfoptions,1);
+if N_d1==0
+    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,n_d2,[n_a1,n_a2],n_z,T-1,d_gridvals,a_gridvals,vfoptions,1);
+else
+    PolicyValuesPath=PolicyInd2Val_InfHorz_TPath(PolicyIndexesPath,[n_d1,n_d2],[n_a1,n_a2],n_z,T-1,d_gridvals,a_gridvals,vfoptions,1);
+end
 PolicyValuesPath=permute(reshape(PolicyValuesPath,[size(PolicyValuesPath,1),N_a,N_z,T-1]),[2,3,1,4]); %[N_a,N_z,l_d+l_a,T-1]
 
 %Now we have the full PolicyIndexesPath, we go forward in time from 1
