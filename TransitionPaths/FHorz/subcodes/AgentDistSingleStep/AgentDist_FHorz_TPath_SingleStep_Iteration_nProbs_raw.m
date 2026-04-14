@@ -1,0 +1,33 @@
+function AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_raw(AgentDist,Policy_aprimez,PolicyProbs,N_a,N_z,N_j,pi_z_J,II1,jequalOneDist)
+% age weights are handled elsewhere, here all are normalized to one
+
+% AgentDist=reshape(AgentDist,[N_a*N_z,N_j]);
+% Policy_aprimez=gather(reshape(Policy_aprimez,[N_a*N_z,N_j,N_probs]));
+% PolicyProbs=gather(reshape(PolicyProbs,[N_a*N_z,N_j,N_probs]));
+
+% precomputed: 
+% II1=repelem((1:1:N_a*N_z)',1,N_probs);
+
+pi_z_J=gather(pi_z_J);
+
+for jjr=1:(N_j-1)
+    jj=N_j-jjr; % It is important that this is in reverse order (due to just overwriting AgentDist)
+    AgentDist_jj=sparse(gather(AgentDist(:,jj)));
+    pi_z=sparse(pi_z_J(:,:,jj));
+
+    % Tan improvement
+    Gammatranspose=sparse(Policy_aprimez(:,jj,:),II1,PolicyProbs(:,jj,:),N_a*N_z,N_a*N_z);
+
+     % Two steps of the Tan improvement
+    AgentDist_jj=reshape(Gammatranspose*AgentDist_jj,[N_a,N_z]); %No point checking distance every single iteration. Do 100, then check.
+    AgentDist_jj=reshape(AgentDist_jj*pi_z,[N_a*N_z,1]);
+
+    AgentDist(:,jj+1)=full(AgentDist_jj);
+end
+% Move result to gpu
+AgentDist=gpuArray(AgentDist);
+% Note: sparse gpu matrices do exist in matlab, but cannot index nor reshape() them. So cannot do Tan improvement with them.
+AgentDist(:,1)=jequalOneDist;
+
+
+end
