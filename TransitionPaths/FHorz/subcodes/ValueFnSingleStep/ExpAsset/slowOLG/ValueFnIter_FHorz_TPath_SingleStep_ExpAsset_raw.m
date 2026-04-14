@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_raw(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_raw(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 
 N_d1=prod(n_d1);
 N_d2=prod(n_d2);
@@ -12,7 +12,7 @@ Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for 
 %%
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 
-if vfoptions.lowmemory==1
+if vfoptions.lowmemory>=1
     special_n_z=ones(1,length(n_z));
 end
 
@@ -30,7 +30,7 @@ if vfoptions.lowmemory==0
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
     V(:,:,N_j)=Vtemp;
     Policy(:,:,N_j)=maxindex;
-elseif vfoptions.lowmemory==1
+elseif vfoptions.lowmemory>=1
     for z_c=1:N_z
         z_val=z_gridvals_J(z_c,:,N_j);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
@@ -96,7 +96,8 @@ for reverse_j=1:N_j-1
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
+        special_n_z=ones(1,length(n_z),'gpuArray');
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             DiscountedEV_z=DiscountedEV(:,:,z_c);

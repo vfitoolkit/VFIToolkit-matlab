@@ -61,7 +61,7 @@ if vfoptions.lowmemory==0
     V=shiftdim(Vtemp,1);
     PolicyTemp=maxindex;
 
-elseif vfoptions.lowmemory==1
+elseif vfoptions.lowmemory>=1
 
     for z_c=1:N_z
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);

@@ -193,7 +193,7 @@ for ii=1:N_i
     if isfinite(N_j_temp)
         [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1_FHorz(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp,z_grid_temp,pi_z_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
     else
-        [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, pi_z_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
+        [VPath_ii,PolicyPath_ii]=ValueFnOnTransPath_Case1(PricePath_temp, ParamPath_temp, T, V_final_temp, Policy_final_temp, Parameters_temp, n_d_temp, n_a_temp, n_z_temp, pi_z_temp, d_grid_temp, a_grid_temp,z_grid_temp, DiscountFactorParamNames_temp, ReturnFn_temp, transpathoptions_temp, vfoptions_temp);
     end
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 

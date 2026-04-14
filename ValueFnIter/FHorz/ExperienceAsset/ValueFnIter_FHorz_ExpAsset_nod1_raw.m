@@ -30,7 +30,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
@@ -79,7 +79,7 @@ else
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
@@ -147,7 +147,7 @@ for reverse_j=1:N_j-1
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
 
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
