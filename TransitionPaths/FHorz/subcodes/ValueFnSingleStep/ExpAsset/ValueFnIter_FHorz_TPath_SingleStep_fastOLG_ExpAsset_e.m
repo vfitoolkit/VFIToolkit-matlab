@@ -1,4 +1,4 @@
-function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_e(VKron,n_d,n_a,n_z,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_e(VKron,n_d,n_a,n_z,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % The VKron input is next period value fn, the VKron output is this period.
 % 'fastOLG' just means parallelizing across all of the "ages" (j) at once.
 
@@ -19,31 +19,31 @@ if strcmp(vfoptions.exoticpreferences,'None')
         if vfoptions.gridinterplayer==0
             error('None of these are implemented yet')
             if N_d1==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else % vfoptions.gridinterplayer==1
             error('None of these are implemented yet')
             if N_d1==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_GI_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_GI_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn,  aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_GI_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_GI_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     else % vfoptions.divideandconquer==1
         error('None of these are implemented yet')
         if vfoptions.gridinterplayer==0
             if N_d1==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         else % vfoptions.gridinterplayer==1
             if N_d1==0
-                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_GI_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron,PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_GI_nod1_e_raw(VKron,n_d2,n_a1,n_a2, n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_GI_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+                [VKron, PolicyKron]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_DC1_GI_e_raw(VKron,n_d1,n_d2,n_a1,n_a2,n_z, n_e, N_j, d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
             end
         end
     end

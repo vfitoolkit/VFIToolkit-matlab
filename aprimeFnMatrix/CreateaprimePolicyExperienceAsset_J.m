@@ -1,4 +1,4 @@
-function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, N_j, d_grid, a2_grid, aprimeFnParams)
+function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, N_j, d_grid, a2_grid, aprimeFnParams)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % The input Policy will contain aprime (except for the experience asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the experience asset). As well as the

@@ -45,9 +45,6 @@ else
     aprimeFnParamNames={};
 end
 
-if transpathoptions.fastOLG==1
-    error('Not yet implemented fastOLG with experienceasset, ask on forum if you need/want this')
-end
 if prod(n_a1)==0
     error('Not yet implemented transpath with experienceasset, without a standard endogenous state')
 end
@@ -173,7 +170,7 @@ if N_e==0
                 [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy in fastOLG is [1,N_a*N_j*N_z] and contains the joint-index for (d,aprime)
-
+                
                 PolicyPath(:,:,:,:,T-ttr)=Policy; % fastOLG: so (a,j)-by-z
                 VPath(:,:,T-ttr)=V;
             end

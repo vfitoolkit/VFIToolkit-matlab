@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateInheritanceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, n_z, n_zprime, d_grid, a2_grid, z_gridvals, zprime_gridvals, aprimeFnParams)
+function [a2primeIndexes,a2primeProbs]=CreateInheritanceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, n_z, n_zprime, d_grid, a2_grid, z_gridvals, zprime_gridvals, aprimeFnParams)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % Note: aprimeIndex is [N_d,N_zprime,N_z], and aprimeProbs is [N_d,N_zprime,N_z]
 %
 % Creates the grid points and their 'interpolation' probabilities
