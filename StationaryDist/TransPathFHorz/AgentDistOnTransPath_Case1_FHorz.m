@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial, jequalOneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,pi_z, T,Parameters, transpathoptions, simoptions)
+function AgentDistPath=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial, jequaloneDist, PricePath, ParamPath, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,pi_z, T,Parameters, transpathoptions, simoptions)
 % Note: PricePath is not used, it is just there for legacy compatibility
 % jequalOneDist can be a jequalOneDistPath
 
@@ -12,13 +12,19 @@ else
 end
 N_e=prod(n_e);
 
-l_a=length(n_a);
-if N_d==0
-    l_d=0;
+if N_z==0
+    if N_e==0
+        N_ze=0;
+    else
+        N_ze=N_e;
+    end
 else
-    l_d=length(n_d);
+    if N_e==0
+        N_ze=N_z;
+    else
+        N_ze=N_z*N_e;
+    end
 end
-l_aprime=l_a;
 
 
 %% Check which transpathoptions have been used, set all others to defaults 
@@ -36,21 +42,14 @@ end
 %% Check which simoptions have been used, set all others to defaults 
 if exist('simoptions','var')==0
     simoptions.verbose=0;
-    simoptions.iterate=1;
-    simoptions.tolerance=10^(-9);
     simoptions.fastOLG=1; % parallel over j, faster but uses more memory
     simoptions.gridinterplayer=0;
+    % Model setup
+    simoptions.experienceasset=0;
 else
-    %Check simoptions for missing fields, if there are some fill them with
-    %the defaults
-    if ~isfield(simoptions,'tolerance')
-        simoptions.tolerance=10^(-9);
-    end
+    % Check simoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
         simoptions.verbose=0;
-    end
-    if ~isfield(simoptions,'iterate')
-        simoptions.iterate=1;
     end
     if ~isfield(simoptions,'fastOLG')
         if isfield(transpathoptions,'fastOLG')
@@ -65,6 +64,10 @@ else
         if ~isfield(simoptions,'ngridinterp')
             error('You have simoptions.gridinterplayer, so must also set simoptions.ngridinterp')
         end
+    end
+    % Model setup
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
     end
 end
 
@@ -175,7 +178,21 @@ end
 %%
 N_probs=1; % Not using N_probs
 if simoptions.gridinterplayer==1
-    N_probs=2;
+    N_probs=N_probs*2;
+end
+if simoptions.experienceasset==1
+    N_probs=N_probs*2;
+end
+
+l_a=length(n_a);
+if N_d==0
+    l_d=0;
+else
+    l_d=length(n_d);
+end
+l_aprime=l_a;
+if simoptions.experienceasset==1
+    l_aprime=l_aprime-1;
 end
 
 %% Reorganize PolicyPath to get just what we need, and in the shape needed
@@ -189,22 +206,106 @@ else
     if N_z==0
         PolicyPath=reshape(PolicyPath, [size(PolicyPath,1),N_a,N_e,N_j,T]);
     else
-        PolicyPath=reshape(PolicyPath, [size(PolicyPath,1),N_a,N_z,N_e,N_j,T]);
+        PolicyPath=reshape(PolicyPath, [size(PolicyPath,1),N_a,N_z*N_e,N_j,T]);
     end
 end
+
+n_aprime=n_a;
+if simoptions.experienceasset==1
+    if ~isfield(simoptions,'l_dexperienceasset')
+        simoptions.l_dexperienceasset=1;
+    end
+    n_aprime=n_aprime(1:end-1);
+    n_a1=n_a(1:end-1);
+    n_a2=n_a(end);
+    N_a1=prod(n_a1);
+    n_d2=n_d(end-simoptions.l_dexperienceasset+1:end);
+
+    a2_grid=simoptions.a_grid(sum(n_a1)+1:end);
+
+    if ~isfield(simoptions,'aprimeFn')
+        error('To use an experience asset you must define simoptions.aprimeFn')
+    end
+    
+    % aprimeFnParamNames in same fashion
+    l_d2=length(n_d2);
+    l_a2=length(n_a2);
+    temp=getAnonymousFnInputNames(simoptions.aprimeFn);
+    if length(temp)>(l_d2+l_a2)
+        aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
+    else
+        aprimeFnParamNames={};
+    end
+    
+    a2primeIndexesPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
+    a2primeProbsPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
+    
+    whichisdforexpasset=length(n_d)-simoptions.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
+    if N_e==0 && N_z==0
+        for tt=1:T
+            aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
+            % [N_j,number of params]
+
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec);
+            % Note: a2primeIndexes and a2primeProbs are both [N_a,N_j]
+            % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+            a2primeIndexesPath(:,:,tt)=a2primeIndexes(:,1:end-1);
+            a2primeProbsPath(:,:,tt)=a2primeProbs(:,1:end-1);
+        end
+    else
+        for tt=1:T
+            aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
+            % [N_j,number of params]
+            
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec);
+            % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j]
+            % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
+            a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);
+            a2primeProbsPath(:,:,:,tt)=a2primeProbs(:,:,1:end-1);
+        end
+    end
+    
+    if N_e==0 && N_z==0
+        a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,N_j-1,1,T]);
+        a2primeIndexesPath=repmat(a2primeIndexesPath,1,1,2,1);
+        a2primeIndexesPath(:,:,2,:)=a2primeIndexesPath(:,:,2,:)+1; % upper index
+        a2primeProbsPath=reshape(a2primeProbsPath,[N_a,N_j-1,1,T]);
+        a2primeProbsPath=repmat(a2primeProbsPath,1,1,2,1);
+        a2primeProbsPath(:,:,2,:)=1-a2primeProbsPath(:,:,2,:); % upper prob
+        if simoptions.fastOLG==1
+            a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a*(N_j-1),2,T]);
+            a2primeProbsPath=reshape(a2primeProbsPath,[N_a*(N_j-1),2,T]);
+        end
+    else
+        a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,N_ze,N_j-1,1,T]);
+        a2primeIndexesPath=repmat(a2primeIndexesPath,1,1,1,2,1);
+        a2primeIndexesPath(:,:,:,2,:)=a2primeIndexesPath(:,:,:,2,:)+1; % upper index
+        a2primeProbsPath=reshape(a2primeProbsPath,[N_a,N_ze,N_j-1,1,T]);
+        a2primeProbsPath=repmat(a2primeProbsPath,1,1,1,2,1);
+        a2primeProbsPath(:,:,:,2,:)=1-a2primeProbsPath(:,:,:,2,:); % upper prob
+        if simoptions.fastOLG==0
+            a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a*N_ze,N_j-1,2,T]);
+            a2primeProbsPath=reshape(a2primeProbsPath,[N_a*N_ze,N_j-1,2,T]);
+        elseif simoptions.fastOLG==1
+            a2primeIndexesPath=reshape(permute(a2primeIndexesPath,[1,3,2,4,5]),[N_a*(N_j-1)*N_ze,2,T]);
+            a2primeProbsPath=reshape(permute(a2primeProbsPath,[1,3,2,4,5]),[N_a*(N_j-1)*N_ze,2,T]);
+        end
+    end
+end
+
 if N_e==0
     if N_z==0 % no z, no e
         % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
         % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
         % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_a)
+        if isscalar(n_aprime)
             PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:),[N_a,N_j-1,T]); % aprime index
-        elseif length(n_a)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
-        elseif length(n_a)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
-        elseif length(n_a)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyPath(l_d+4,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
+        elseif length(n_aprime)==2
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
+        elseif length(n_aprime)==3
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
+        elseif length(n_aprime)==4
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,1:N_j-1,:)-1),[N_a,N_j-1,T]);
         end
         if simoptions.fastOLG==0
             % PolicyaprimePath=PolicyaprimePath;
@@ -222,18 +323,27 @@ if N_e==0
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
+        if simoptions.experienceasset==1
+            if simoptions.fastOLG==0
+                PolicyaprimePath=reshape(PolicyaprimePath,[N_a,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
+                PolicyProbsPath=a2primeProbsPath;
+            elseif simoptions.fastOLG==1
+                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            end
+        end
     else % z, no e
         % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
         % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
         % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_a)
+        if isscalar(n_aprime)
             PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_z,N_j-1,T]); % aprime index
-        elseif length(n_a)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
-        elseif length(n_a)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
-        elseif length(n_a)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
+        elseif length(n_aprime)==2
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
+        elseif length(n_aprime)==3
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
+        elseif length(n_aprime)==4
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z,N_j-1,T]);
         end
         if simoptions.fastOLG==0
             PolicyaprimezPath=PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1);
@@ -251,20 +361,29 @@ if N_e==0
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
+        if simoptions.experienceasset==1
+            if simoptions.fastOLG==0
+                PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
+                PolicyProbsPath=a2primeProbsPath;
+            elseif simoptions.fastOLG==1
+                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            end
+        end
     end
 else
     if N_z==0 % no z, e
         % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
         % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
         % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_a)
+        if isscalar(n_aprime)
             PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_e,N_j-1,T]); % aprime index
-        elseif length(n_a)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
-        elseif length(n_a)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
-        elseif length(n_a)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
+        elseif length(n_aprime)==2
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
+        elseif length(n_aprime)==3
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
+        elseif length(n_aprime)==4
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_e,N_j-1,T]);
         end
         if simoptions.fastOLG==0
             % PolicyaprimePath=PolicyaprimePath;
@@ -282,18 +401,27 @@ else
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
+        if simoptions.experienceasset==1
+            if simoptions.fastOLG==0
+                PolicyaprimePath=reshape(PolicyaprimePath,[N_a*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
+                PolicyProbsPath=a2primeProbsPath;
+            elseif simoptions.fastOLG==1
+                PolicyaprimejPath=repmat(PolicyaprimejPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            end
+        end
     else % z, e
         % Create version of PolicyPath called PolicyaprimePath, which only tracks aprime and has j=1:N_j-1 as we don't use N_j to iterate agent dist (there is no N_j+1)
         % For fastOLG we use PolicyaprimejPath, if there is z then PolicyaprimejzPath
         % When using grid interpolation layer also PolicyProbsPath
-        if isscalar(n_a)
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,T]); % aprime index
-        elseif length(n_a)==2
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
-        elseif length(n_a)==3
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
-        elseif length(n_a)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,:,1:N_j-1,:)+n_a(1)*(PolicyPath(l_d+2,:,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*(PolicyPath(l_d+3,:,:,:,1:N_j-1,:)-1)+n_a(1)*n_a(2)*n_a(3)*(PolicyPath(l_d+4,:,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
+        if isscalar(n_aprime)
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:),[N_a*N_z*N_e,N_j-1,T]); % aprime index
+        elseif length(n_aprime)==2
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
+        elseif length(n_aprime)==3
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
+        elseif length(n_aprime)==4
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
         end
         if simoptions.fastOLG==0
             PolicyaprimezPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1);
@@ -301,7 +429,7 @@ else
             PolicyaprimePath=reshape(permute(reshape(PolicyaprimePath,[N_a,N_z*N_e,N_j-1,T]),[1,3,2,4]),[N_a*(N_j-1)*N_z*N_e,T]);
             PolicyaprimejzPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:(N_j-1)*N_z-1)',N_a,1),N_e,1);
             if simoptions.gridinterplayer==1
-                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,N_j,T]
+                L2index=reshape(PolicyPath(l_d+l_aprime+1,:,:,1:N_j-1,:),[1,N_a,N_z*N_e,N_j-1,T]); % PolicyPath is of size [l_d+l_aprime+1,N_a,N_z,N_e,N_j,T]
                 L2index=reshape(permute(L2index,[2,4,3,1,5]),[N_a*(N_j-1)*N_z*N_e,1,T]);
                 PolicyaprimejzPath=reshape(PolicyaprimejzPath,[N_a*(N_j-1)*N_z*N_e,1,T]); % reinterpret this as lower grid index
                 PolicyaprimejzPath=repelem(PolicyaprimejzPath,1,2,1); % create copy that will be the upper grid index
@@ -311,49 +439,42 @@ else
                 PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
             end
         end
+        if simoptions.experienceasset==1
+            if simoptions.fastOLG==0
+                PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z*N_e,(N_j-1),1,T])+N_a1*(a2primeIndexesPath-1);
+                PolicyProbsPath=a2primeProbsPath;
+            elseif simoptions.fastOLG==1
+                PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(N_a1*(a2primeIndexesPath-1),1,2,1);
+                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+            end
+        end
     end
 end
 
 
 %% Check if jequalOneDistPath is a path or not (and reshape appropriately)
-jequalOneDist=gpuArray(jequalOneDist);
-temp=size(jequalOneDist);
+jequaloneDist=gpuArray(jequaloneDist);
+temp=size(jequaloneDist);
 % Note: simoptions.fastOLG is handled via 'justfirstj', rather than via shape of jequalOneDist
 if temp(end)==T % jequalOneDist depends on T
     transpathoptions.trivialjequalonedist=0;
-    if N_z==0
-        if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a,T]);
-        else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_e,T]);
-        end
+    if N_z==0 && N_e==0
+        jequaloneDist=reshape(jequaloneDist,[N_a,T]);
     else
-        if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z,T]);
-        else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,T]);
-        end
+        jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,T]);
     end
 else
     transpathoptions.trivialjequalonedist=1;
-    if N_z==0
-        if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a,1]);
-        else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_e,1]);
-        end
+    if N_z==0 && N_e==0
+        jequaloneDist=reshape(jequaloneDist,[N_a,1]);
     else
-        if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z,1]);
-        else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,1]);
-        end
+        jequaloneDist=reshape(jequaloneDist,[N_a*N_ze,1]);
     end
 end
 
 if transpathoptions.trivialjequalonedist==0
-    jequalOneDist_T=jequalOneDist;
-    jequalOneDist=jequalOneDist_T(:,1);
+    jequalOneDist_T=jequaloneDist;
+    jequaloneDist=jequalOneDist_T(:,1);
 end
 
 
@@ -374,11 +495,11 @@ if N_probs==1 % Not using N_probs
                 AgentDistPath(:,:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprime=PolicyaprimePath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_raw(AgentDist,Policy_aprime,N_a,N_j,II1,II2,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_raw(AgentDist,Policy_aprime,N_a,N_j,II1,II2,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -391,11 +512,11 @@ if N_probs==1 % Not using N_probs
                 AgentDistPath(:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimej=PolicyaprimejPath(:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprimej,N_a,N_j,II1,II2,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_raw(AgentDist,Policy_aprimej,N_a,N_j,II1,II2,jequaloneDist);
                     AgentDistPath(:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repelem(AgeWeights_T,N_a,1); % put in the age weights
@@ -414,11 +535,11 @@ if N_probs==1 % Not using N_probs
                         pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimez=PolicyaprimezPath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_raw(AgentDist,Policy_aprimez,N_a,N_z,N_j,pi_z_J,II1,II2,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_raw(AgentDist,Policy_aprimez,N_a,N_z,N_j,pi_z_J,II1,II2,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -438,11 +559,11 @@ if N_probs==1 % Not using N_probs
                         pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimejz=PolicyaprimejzPath(:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_raw(AgentDist,Policy_aprimejz,N_a,N_z,N_j,pi_z_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_raw(AgentDist,Policy_aprimejz,N_a,N_z,N_j,pi_z_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequaloneDist);
                     AgentDistPath(:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % put in the age weights
@@ -462,11 +583,11 @@ if N_probs==1 % Not using N_probs
                         pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprime=PolicyaprimePath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J,II1,II2,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_noz_e_raw(AgentDist,Policy_aprime,N_a,N_e,N_j,pi_e_J,II1,II2,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -486,11 +607,11 @@ if N_probs==1 % Not using N_probs
                         pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimej=PolicyaprimejPath(:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_aprimej,N_a,N_e,N_j,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_noz_e_raw(AgentDist,Policy_aprimej,N_a,N_e,N_j,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1); % put in the age weights
@@ -512,11 +633,11 @@ if N_probs==1 % Not using N_probs
                         simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimez=PolicyaprimezPath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_e_raw(AgentDist,Policy_aprimez,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,II1,II2,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_e_raw(AgentDist,Policy_aprimez,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,II1,II2,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
@@ -538,11 +659,11 @@ if N_probs==1 % Not using N_probs
                         pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimejz=PolicyaprimejzPath(:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,Policy_aprimejz,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_e_raw(AgentDist,Policy_aprimejz,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_z,1); % put in the age weights
@@ -557,7 +678,21 @@ else
         if N_z==0 % no z, no e
             if simoptions.fastOLG==0
                 %% fastOLG=0, no z, no e, N_probs
-                error('Not yet implemented')
+                II1=repelem((1:1:N_a)',1,N_probs);
+                AgentDistPath=zeros(N_a,N_j,T,'gpuArray');
+                AgentDist=AgentDist_initial./AgeWeights_initial; % remove age weights
+                AgentDistPath(:,:,1)=AgentDist;
+                for tt=1:T-1
+                    if transpathoptions.trivialjequalonedist==0
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                    end
+                    % Get the current optimal policy
+                    Policy_aprime=PolicyaprimePath(:,:,:,tt);
+                    PolicyProbs=PolicyProbsPath(:,:,:,tt);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_noz_raw(AgentDist,Policy_aprime,PolicyProbs,N_a,N_j,II1,jequaloneDist);
+                    AgentDistPath(:,:,tt+1)=AgentDist;
+                end
+                AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
             else
                 %% fastOLG=1, no z, no e, N_probs
                 II=repelem((1:1:N_a*(N_j-1))',1,N_probs);
@@ -566,12 +701,12 @@ else
                 AgentDistPath(:,1)=AgentDist;
                 for tt=1:T-1
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimej=PolicyaprimejPath(:,:,tt);
                     PolicyProbs=PolicyProbsPath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_noz_raw(AgentDist,Policy_aprimej,PolicyProbs,N_a,N_j,II,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_noz_raw(AgentDist,Policy_aprimej,PolicyProbs,N_a,N_j,II,jequaloneDist);
                     AgentDistPath(:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repelem(AgeWeights_T,N_a,1); % put in the age weights
@@ -580,7 +715,24 @@ else
         else % z, no e
             if simoptions.fastOLG==0
                 %% fastOLG=0, z, no e, N_probs
-                error('Not yet implemented')
+                II1=repelem((1:1:N_a*N_z)',1,N_probs);
+                AgentDistPath=zeros(N_a*N_z,N_j,T,'gpuArray');
+                AgentDist=AgentDist_initial./AgeWeights_initial; % remove age weights
+                AgentDistPath(:,:,1)=AgentDist;
+                for tt=1:T-1
+                    if transpathoptions.zpathtrivial==0
+                        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                    end
+                    if transpathoptions.trivialjequalonedist==0
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                    end
+                    % Get the current optimal policy
+                    Policy_aprimez=PolicyaprimezPath(:,:,:,tt);
+                    PolicyProbs=PolicyProbsPath(:,:,:,tt);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_raw(AgentDist,Policy_aprimez,PolicyProbs,N_a,N_z,N_j,pi_z_J,II1,jequaloneDist);
+                    AgentDistPath(:,:,tt+1)=AgentDist;
+                end
+                AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights
             else
                 %% fastOLG=1, z, no e, N_probs
                 % AgentDist is [N_a*N_j*N_z,1]
@@ -596,12 +748,12 @@ else
                         pi_z_J_sim=transpathoptions.pi_z_J_sim_T(:,:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimejz=PolicyaprimejzPath(:,:,tt);
                     PolicyProbs=PolicyProbsPath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_raw(AgentDist,Policy_aprimejz,PolicyProbs,N_a,N_z,N_j,pi_z_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_raw(AgentDist,Policy_aprimejz,PolicyProbs,N_a,N_z,N_j,pi_z_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequaloneDist);
                     AgentDistPath(:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repmat(repelem(AgeWeights_T,N_a,1),N_z,1); % put in the age weights
@@ -612,7 +764,24 @@ else
         if N_z==0 % no z, e
             if simoptions.fastOLG==0
                 %% fastOLG=0, no z, e, N_probs
-                error('Not yet implemented')
+                II1=repelem((1:1:N_a*N_e)',1,N_probs);
+                AgentDistPath=zeros(N_a*N_e,N_j,T,'gpuArray');
+                AgentDist=AgentDist_initial./AgeWeights_initial; % remove age weights
+                AgentDistPath(:,:,1)=AgentDist;
+                for tt=1:T-1
+                    if transpathoptions.epathtrivial==0
+                        pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+                    end
+                    if transpathoptions.trivialjequalonedist==0
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                    end
+                    % Get the current optimal policy
+                    Policy_aprime=PolicyaprimePath(:,:,:,tt);
+                    PolicyProbs=PolicyProbsPath(:,:,:,tt);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_noz_e_raw(AgentDist,Policy_aprime,PolicyProbs,N_a,N_e,N_j,pi_e_J,II1,jequaloneDist);
+                    AgentDistPath(:,:,tt+1)=AgentDist;
+                end
+                AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights                  %% fastOLG=0, no z, e
             else
                 %% fastOLG=1, no z, e, N_probs
                 II=repelem((1:1:N_a*(N_j-1)*N_e)',1,N_probs);
@@ -627,12 +796,12 @@ else
                         pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimej=PolicyaprimejPath(:,:,tt);
                     PolicyProbs=PolicyProbsPath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_noz_e_raw(AgentDist,Policy_aprimej,PolicyProbs,N_a,N_e,N_j,pi_e_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_noz_e_raw(AgentDist,Policy_aprimej,PolicyProbs,N_a,N_e,N_j,pi_e_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1); % put in the age weights
@@ -641,7 +810,27 @@ else
         else % z and e
             if simoptions.fastOLG==0
                 %% fastOLG=0, z, e, N_probs
-                error('Not yet implemented')
+                II1=repelem((1:1:N_a*N_z*N_e)',1,N_probs);
+                AgentDistPath=zeros(N_a*N_z*N_e,N_j,T,'gpuArray'); % Whether or not using simoptions.fastOLG
+                AgentDist=AgentDist_initial./AgeWeights_initial; % remove age weights
+                AgentDistPath(:,:,1)=AgentDist;
+                for tt=1:T-1
+                    if transpathoptions.zpathtrivial==0
+                        pi_z_J=transpathoptions.pi_z_J_T(:,:,:,tt);
+                    end
+                    if transpathoptions.epathtrivial==0
+                        simoptions.pi_e_J=transpathoptions.pi_e_J_T(:,:,tt);
+                    end
+                    if transpathoptions.trivialjequalonedist==0
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                    end
+                    % Get the current optimal policy
+                    Policy_aprimez=PolicyaprimezPath(:,:,:,tt);
+                    PolicyProbs=PolicyProbsPath(:,:,:,tt);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_Iteration_nProbs_e_raw(AgentDist,Policy_aprimez,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J,pi_e_J,II1,jequaloneDist);
+                    AgentDistPath(:,:,tt+1)=AgentDist;
+                end
+                AgentDistPath=AgentDistPath.*shiftdim(AgeWeights_T,-1); % put in the age weights 
             else
                 %% fastOLG=1, z, e, N_probs
                 II=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,N_probs);
@@ -659,12 +848,12 @@ else
                         pi_e_J_sim=transpathoptions.pi_e_J_sim_T(:,:,tt);
                     end
                     if transpathoptions.trivialjequalonedist==0
-                        jequalOneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
+                        jequaloneDist=jequalOneDist_T(:,tt+1); % Note: t+1 as we are about to create the next period AgentDist
                     end
                     % Get the current optimal policy
                     Policy_aprimejz=PolicyaprimejzPath(:,:,tt);
                     PolicyProbs=PolicyProbsPath(:,:,tt);
-                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_e_raw(AgentDist,Policy_aprimejz,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequalOneDist);
+                    AgentDist=AgentDist_FHorz_TPath_SingleStep_IterFast_nProbs_e_raw(AgentDist,Policy_aprimejz,PolicyProbs,N_a,N_z,N_e,N_j,pi_z_J_sim,pi_e_J_sim,II,exceptlastj,exceptfirstj,justfirstj,jequaloneDist);
                     AgentDistPath(:,:,tt+1)=AgentDist;
                 end
                 AgentDistPath=AgentDistPath.*repmat(repelem(reshape(AgeWeights_T,[N_j,1,T]),N_a,1),N_z,1); % put in the age weights
