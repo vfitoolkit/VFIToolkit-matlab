@@ -3,6 +3,8 @@ function Policy=UnKronPolicyIndexes_Case2(PolicyKron, n_d, n_a, n_z,vfoptions)
 % Can input vfoptions OR simoptions
 % Input: PolicyKron=zeros(N_a,N_z); % indexes the optimal choice for d
 % Output: Policy is (l_d,n_a,n_z);
+%
+% Note: if you input (Policy,n_d,N_a,N_z,vfoptions) then the output only unpacks the first dimension and is (l_d,N_a,N_z)
 
 N_a=prod(n_a);
 N_z=prod(n_z);
