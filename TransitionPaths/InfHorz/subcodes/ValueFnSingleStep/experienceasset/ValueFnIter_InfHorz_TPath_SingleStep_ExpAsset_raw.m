@@ -16,8 +16,13 @@ a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 % n_a1prime=n_a1;
 % a1prime_gridvals=a1_gridvals;
 
-if vfoptions.lowmemory>0
-    special_n_z=ones(1,length(n_z));
+if vfoptions.lowmemory==1
+    special_n_z=ones(1,length(n_z),'gpuArray');
+elseif vfoptions.lowmemory==2
+    error("There is no e to iterate, so cannot set vfoptions.lowmemory=2")
+elseif vfoptions.lowmemory==3
+    special_n_z=ones(1,length(n_z),'gpuArray');
+    special_n_ea=ones(1,length(n_a2),'gpuArray');
 end
 
 % Create a vector containing all the return function parameters (in order)
@@ -61,22 +66,43 @@ if vfoptions.lowmemory==0
     V=shiftdim(Vtemp,1);
     PolicyTemp=maxindex;
 
-elseif vfoptions.lowmemory>=1
+elseif vfoptions.lowmemory==1
 
     for z_c=1:N_z
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
-
+        z_val=z_gridvals(z_c,:);
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*shiftdim(pi_z(z_c,:)',-2);
         EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,3);
 
-        entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,N_d1,N_a1,1);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1,n_d2, n_a1, n_a1,n_a2,special_n_z, d_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);
+
+        entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*repelem(EV_z,N_d1,N_a1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS_z,[],1);
         V(:,z_c)=Vtemp;
         PolicyTemp(1,:,z_c)=maxindex;
+    end
+
+elseif vfoptions.lowmemory==3
+
+    for z_c=1:N_z
+        z_val=z_gridvals(z_c,:);
+        % Calc the condl expectation term (except beta), which depends on z but not on control variables
+        EV_z=EV.*shiftdim(pi_z(z_c,:)',-2);
+        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z=sum(EV_z,3);
+        for ea_c=1:N_a2
+            ea_val=a2_gridvals(ea_c);
+            ReturnMatrix_ea_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,special_n_ea, special_n_z, d_gridvals, a1_gridvals, a1_gridvals, ea_val, z_val, ReturnFnParamsVec,0,0);
+
+            entireRHS_ea_z=ReturnMatrix_ea_z+DiscountFactorParamsVec*repelem(EV_z,1,N_a1);
+            % Calc the max and its index
+            [Vtemp,maxindex]=max(entireRHS_ea_z,[],1);
+            V(1+(ea_c-1)*N_a1:ea_c*N_a1,z_c)=Vtemp;
+            PolicyTemp(1,1+(ea_c-1)*N_a1:ea_c*N_a1,z_c)=maxindex;
+        end
     end
 end
 

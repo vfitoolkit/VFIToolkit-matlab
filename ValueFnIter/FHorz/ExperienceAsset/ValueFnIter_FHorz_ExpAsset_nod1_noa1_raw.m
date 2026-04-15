@@ -13,7 +13,11 @@ d2_gridvals=gpuArray(d2_gridvals);
 a2_grid=gpuArray(a2_grid);
 
 if vfoptions.lowmemory==1
-    special_n_z=ones(1,length(n_z));
+    special_n_z=ones(1,length(n_z),'gpuArray');
+elseif vfoptions.lowmemory==2
+    error("There is no e to iterate, so cannot set vfoptions.lowmemory=2")
+elseif vfoptions.lowmemory==3
+    error("There is no a1 to iterate, so cannot set vfoptions.lowmemory=3")
 end
 
 %% j=N_j
