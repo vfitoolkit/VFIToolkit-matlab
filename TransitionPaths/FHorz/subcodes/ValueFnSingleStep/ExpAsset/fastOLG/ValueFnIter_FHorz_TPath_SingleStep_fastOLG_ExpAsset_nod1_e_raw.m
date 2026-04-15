@@ -1,21 +1,21 @@
-function [V,Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_raw(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_nod1_e_raw(V,n_d2,n_a1,n_a2,n_z,n_e,N_j, d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J,e_gridvals_J, pi_z_J,pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
-% fastOLG is done as (a,j,z), rather than standard (a,z,j)
-% V is (a,j)-by-z
-% Policy is (a,j,z)
+% fastOLG is done as (a,j,z,e), rather than standard (a,z,e,j)
+% V is (a,j)-by-z-by-e
 % pi_z_J is (j,z',z) for fastOLG
 % z_gridvals_J is (j,N_z,l_z) for fastOLG
+% pi_e_J is (j,e') for fastOLG
+% e_gridvals_J is (j,N_e,l_e) for fastOLG
 
-N_d1=prod(n_d1);
 N_d2=prod(n_d2);
-% N_d=N_d1*N_d2;
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
 N_z=prod(n_z);
+N_e=prod(n_e);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
-
+e_gridvals_J=shiftdim(e_gridvals_J,-5); % [1,1,1,1,1,N_j,N_e,l_e]
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
@@ -37,7 +37,7 @@ if vfoptions.EVpre==0
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_j,N_z]
 
-    EVpre=[V(N_a+1:end,:); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
+    EVpre=[sum(V(N_a+1:end,:).*replem(reshape(pi_e_J,[N_j,1,N_e]),N_a-1,1),3); zeros(N_a,N_z,'gpuArray')]; % I use zeros in j=N_j so that can just use pi_z_J to create expectations
 
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-z
     Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
@@ -63,9 +63,11 @@ elseif vfoptions.EVpre==1
     aprimeplus1Index=repelem((1:1:N_a1)',N_d2,1,1)+N_a1*repmat(a2primeIndex,N_a1,1,1); % [N_d2*N_a1,N_a2,N_j], autofill the [1,N_a1,N_j] dimensions for the first part
     aprimeProbs=repmat(a2primeProbs,N_a1,1,1,N_z);  % [N_d2*N_a1,N_a2,N_j,N_z]
 
+    EVpre=sum(V.*replem(reshape(pi_e_J,[N_j,1,N_e]),N_a,1,1),3);
+
     % Need to add the indexes for j to the aprimeIndex, remember fastOLG so V is (a,j)-by-z
-    Vlower=reshape(V(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
-    Vupper=reshape(V(aprimeplus1Index+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
+    Vlower=reshape(EVpre(aprimeIndex+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
+    Vupper=reshape(EVpre(aprimeplus1Index+shiftdim(N_a*gpuArray(0:1:N_j-1),-1),:),[N_d2*N_a1,N_a2,N_j,N_z]);
     % Skip interpolation when upper and lower are equal (otherwise can cause numerical rounding errors)
     skipinterp=(Vlower==Vupper);
     aprimeProbs(skipinterp)=0; % effectively skips interpolation
@@ -79,10 +81,10 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
+DiscountedEV=DiscountFactorParamsVec.*repelem(EV,1,N_a1,1,1);
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,0,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z,n_e,N_j, d2_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_gridvals_J, ReturnFnParamsAgeMatrix,0,0);
 
     entireRHS=ReturnMatrix+DiscountedEV;
 
@@ -93,22 +95,44 @@ if vfoptions.lowmemory==0
     Policy=shiftdim(maxindex,1);
 
 elseif vfoptions.lowmemory==1
+    special_n_e=ones(1,length(n_e),'gpuArray');
+    V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+    Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+
+    for e_c=1:N_e
+        e_val=e_gridvals_J(:,e_c,:);
+
+        ReturnMatrix_e=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z,special_n_e,N_j, d2_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, e_val, ReturnFnParamsAgeMatrix,0,0);
+
+        entireRHS_e=ReturnMatrix_e+DiscountedEV;
+
+        % Calc the max and it's index
+        [Vtemp,maxindex]=max(entireRHS_e,[],1);
+        V(:,:,e_c)=Vtemp;
+        Policy(:,:,e_c)=maxindex;
+    end
+elseif vfoptions.lowmemory==2
     special_n_z=ones(1,length(n_z),'gpuArray');
-    V=zeros(N_a*N_j,N_z,'gpuArray');
-    Policy=zeros(N_a*N_j,N_z,'gpuArray');
+    special_n_e=ones(1,length(n_e),'gpuArray');
+    V=zeros(N_a*N_j,N_z,N_e,'gpuArray');
+    Policy=zeros(N_a*N_j,N_z,N_e,'gpuArray');
 
     for z_c=1:N_z
         z_val=z_gridvals_J(:,z_c,:);
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,0,0);
+        for e_c=1:N_e
+            e_val=e_gridvals_J(:,e_c,:);
 
-        entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
+            ReturnMatrix_ze=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2e(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z,special_n_e,N_j, d2_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, e_val, ReturnFnParamsAgeMatrix,0,0);
 
-        % Calc the max and it's index
-        [Vtemp,maxindex]=max(entireRHS_z,[],1);
-        V(:,z_c)=Vtemp;
-        Policy(:,z_c)=maxindex;
+            entireRHS_ze=ReturnMatrix_ze+DiscountedEV_z;
+
+            % Calc the max and it's index
+            [Vtemp,maxindex]=max(entireRHS_ze,[],1);
+            V(:,z_c,e_c)=Vtemp;
+            Policy(:,z_c,e_c)=maxindex;
+        end
     end
 end
 
@@ -119,7 +143,6 @@ end
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point
-
 
 
 end
