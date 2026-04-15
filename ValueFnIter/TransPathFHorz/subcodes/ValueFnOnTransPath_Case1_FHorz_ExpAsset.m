@@ -273,7 +273,7 @@ else % N_e
                     z_gridvals_J=transpathoptions.z_gridvals_J_T(:,:,:,T-ttr);
                 end
 
-                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_ExpAsset_e(V,n_d1,n_d2,n_a1,n_a2,n_z,n_e,N_j,d_gridvals,d2_grid,a1_gridvals,a2_grid, z_gridvals_J, e_gridvals_J, pi_z_J, pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
                 % The VKron input is next period value fn, the VKron output is this period.
                 % Policy is kept in the form where it is just a single-value in (d,a')
 

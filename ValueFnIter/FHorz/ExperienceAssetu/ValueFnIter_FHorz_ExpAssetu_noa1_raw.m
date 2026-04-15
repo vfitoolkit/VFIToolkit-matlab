@@ -17,7 +17,11 @@ a2_grid=gpuArray(a2_grid);
 pi_u=shiftdim(pi_u,-2); % put it into third dimension
 
 if vfoptions.lowmemory==1
-    special_n_z=ones(1,length(n_z));
+    special_n_z=ones(1,length(n_z),'gpuArray');
+elseif vfoptions.lowmemory==2
+    error("There is no e to iterate, so cannot set vfoptions.lowmemory=2")
+elseif vfoptions.lowmemory==3
+    error("There is no a1 to iterate, so cannot set vfoptions.lowmemory=3")
 end
 
 %% j=N_j
@@ -32,7 +36,7 @@ if ~isfield(vfoptions,'V_Jplus1')
         [Vtemp,maxindex]=max(ReturnMatrix,[],1);
         V(:,:,N_j)=Vtemp;
         Policy(:,:,N_j)=maxindex;
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, d_gridvals, a2_grid, z_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
@@ -69,23 +73,21 @@ else
     EV=squeeze(sum(EV,3));
     % EV is over (d2,a1prime,a2,z)
 
-    DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,1);
-
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, d_gridvals, a2_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-        entireRHS=ReturnMatrix+DiscountedEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,N_j)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
-            DiscountedEV_z=DiscountedEV(:,:,z_c);
+            DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),N_d1,1);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, d_gridvals, a2_grid, z_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
@@ -134,23 +136,21 @@ for reverse_j=1:N_j-1
     EV=squeeze(sum(EV,3));
     % EV is over (d2,a1prime,a2,z)
 
-    DiscountedEV=DiscountFactorParamsVec*repelem(EV,N_d1,1);
-
     if vfoptions.lowmemory==0
 
         ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, n_z, d_gridvals, a2_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-        entireRHS=ReturnMatrix+DiscountedEV;
+        entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d1,1);
 
         %Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         V(:,:,jj)=shiftdim(Vtemp,1);
         Policy(:,:,jj)=shiftdim(maxindex,1);
 
-    elseif vfoptions.lowmemory==1
+    elseif vfoptions.lowmemory>=1
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
-            DiscountedEV_z=DiscountedEV(:,:,z_c);
+            DiscountedEV_z=DiscountFactorParamsVec*repelem(EV(:,:,z_c),N_d1,1);
 
             ReturnMatrix_z=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn,[n_d1,n_d2], n_a2, special_n_z, d_gridvals, a2_grid, z_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
