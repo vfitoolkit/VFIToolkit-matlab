@@ -14,6 +14,8 @@ d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 if prod(n_d1)>0
     % d1_grid=d_grid(1:sum(n_d1));
     d_gridvals=CreateGridvals(n_d,d_grid,1);
+else
+    d_gridvals=[]; % wont be used
 end
 % Split endogneous states into the standard ones and the experience asset
 if isscalar(n_a)
