@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, d_grid, a2_grid, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
+function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % Note: aprimeIndex is [N_d*N_a2,1], whereas aprimeProbs is [N_d,N_a2]
 %
 % Creates the grid points and their 'interpolation' probabilities
@@ -32,18 +32,18 @@ if nargin(aprimeFn)~=l_d+l_a2+length(aprimeFnParams)
 end
 
 if l_d>=1
-    d1vals=d_grid(1:n_d(1));
+    d1vals=d_gridvals(:,1);
     if l_d>=2
-        d2vals=shiftdim(d_grid(n_d(1)+1:sum(n_d(1:2))),-1);
+        d2vals=d_gridvals(:,2);
         if l_d>=3
-            d3vals=shiftdim(d_grid(sum(n_d(1:2))+1:sum(n_d(1:3))),-2);
+            d3vals=d_gridvals(:,3);
             if l_d>=4
-                d4vals=shiftdim(d_grid(sum(n_d(1:3))+1:sum(n_d(1:4))),-3);
+                d4vals=d_gridvals(:,4);
             end
         end
     end
 end
-a2vals=shiftdim(a2_grid(1:n_a2(1)),-l_d);
+a2vals=shiftdim(a2_grid(1:n_a2(1)),-1);
 
 if l_d==1
     % d1vals(1,1,1,1)=d_grid(1); % Requires special treatment

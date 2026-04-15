@@ -1,17 +1,21 @@
-function [V, Policy]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_nod1_raw(V,n_d2,n_a1,n_a2,n_z,N_j, d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J,pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_FHorz_TPath_SingleStep_fastOLG_ExpAsset_raw(V,n_d1,n_d2,n_a1,n_a2,n_z,N_j, d_gridvals,d2_gridvals,a1_gridvals,a2_grid, z_gridvals_J, pi_z_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions)
 % fastOLG just means parallelize over "age" (j)
 % fastOLG is done as (a,j,z), rather than standard (a,z,j)
 % V is (a,j)-by-z
+% Policy is (a,j,z)
 % pi_z_J is (j,z',z) for fastOLG
 % z_gridvals_J is (j,N_z,l_z) for fastOLG
 
+N_d1=prod(n_d1);
 N_d2=prod(n_d2);
+N_d=N_d1*N_d2;
 N_a1=prod(n_a1);
 N_a2=prod(n_a2);
 N_a=N_a1*N_a2;
 N_z=prod(n_z);
 
 z_gridvals_J=shiftdim(z_gridvals_J,-4); % [1,1,1,1,N_j,N_z,l_z]
+
 
 %% First, create the big 'next period (of transition path) expected value fn.
 % fastOLG will be N_d*N_aprime by N_a*N_j*N_z (note: N_aprime is just equal to N_a)
@@ -75,10 +79,10 @@ elseif vfoptions.EVpre==1
     EV=reshape(sum(EV,4),[N_d2*N_a1,N_a2,N_j,N_z]); % (aprime,1,j,z), 2nd dim will be autofilled with a
 end
 
-DiscountedEV=DiscountFactorParamsVec.*repelem(EV,1,N_a1,1,1);
+DiscountedEV=DiscountFactorParamsVec.*repelem(EV,N_d1,N_a1,1,1);
 
 if vfoptions.lowmemory==0
-    ReturnMatrix=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z,N_j, d2_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,0,0);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_gridvals_J, ReturnFnParamsAgeMatrix,0,0);
 
     entireRHS=ReturnMatrix+DiscountedEV;
 
@@ -97,7 +101,7 @@ elseif vfoptions.lowmemory==1
         z_val=z_gridvals_J(:,z_c,:);
         DiscountedEV_z=DiscountedEV(:,:,:,z_c);
 
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d2_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,0,0);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_fastOLG_ExpAsset_Disc_Par2(ReturnFn, n_d1, n_d2, n_a1, n_a1,n_a2, special_n_z,N_j, d_gridvals, a1_gridvals, a1_gridvals, a2_grid, z_val, ReturnFnParamsAgeMatrix,0,0);
 
         entireRHS_z=ReturnMatrix_z+DiscountedEV_z;
 
@@ -115,6 +119,7 @@ end
 
 %% Output shape for policy
 Policy=shiftdim(Policy,-1); % so first dim is just one point
+
 
 
 end
