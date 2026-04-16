@@ -705,17 +705,17 @@ for ii=1:PTypeStructure.N_i
             if N_e==0
                 V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
             else
-                V_final.(iistr)=reshape(permute(reshape(V_final.(iistr),[N_a,N_e,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_e]);
+                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_e]);
             end
         else
             if N_e==0
-                V_final.(iistr)=reshape(permute(reshape(V_final.(iistr),[N_a,N_z,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_z]);
+                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_z]);
             else
-                V_final.(iistr)=reshape(permute(reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
+                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
             end
         end
     end
-    % Reshape AgentDist_init and turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
+    % Reshape AgentDist_initial and turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
     % Note when simoptions.fastOLG==1 we have shapes of [N_a*N_j_temp*whatever,1-or-N_e] intead of [N_a,whatever-and-maybe-N_e,N_j_temp]
     AgentDist_init=AgentDist_initial.(iistr);
     if isfinite(PTypeStructure.(iistr).N_j)
@@ -885,6 +885,7 @@ for ii=1:PTypeStructure.N_i
         % If no z, then N_z=1 here
         AgentDist_init=reshape(AgentDist_init,[N_a*N_z,1]);
     end
+
     AgentDist_initial.(iistr)=AgentDist_init;
     clear AgentDist_init
     

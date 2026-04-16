@@ -444,7 +444,6 @@ for ii=1:PTypeStructure.N_i
         end
     end
 
-
     %% Set up exogenous shock grids now (so they can then just be reused every time)
 
     if isstruct(z_grid)
