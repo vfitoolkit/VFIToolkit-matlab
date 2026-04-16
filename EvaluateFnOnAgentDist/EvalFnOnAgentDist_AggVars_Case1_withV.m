@@ -16,10 +16,10 @@ l_z=length(n_z);
 N_a=prod(n_a);
 N_z=prod(n_z);
 
-% l_daprime=size(Policy,1);
-% if simoptions.gridinterplayer==1
-%     l_daprime=l_daprime-1;
-% end
+l_daprime=size(Policy,1);
+if simoptions.gridinterplayer==1
+    l_daprime=l_daprime-1;
+end
 
 
 %% Output as structure
@@ -42,9 +42,9 @@ if Parallel==2
 
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
-    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
+    PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_z,l_d+l_a]
     
     for i=1:length(FnsToEvaluate)
         % Includes check for cases in which no parameters are actually required
@@ -187,12 +187,12 @@ if isfield(simoptions,'conditionalrestrictions')
         for kk=1:length(CondlRestnFnNames)
             % Includes check for cases in which no parameters are actually required
             if isempty(CondlRestnFnParamNames(kk).Names) % check for '={}'
-                CondlRestnFnParamsVec=[];
+                CondlRestnFnParamsCell={};
             else
-                CondlRestnFnParamsVec=CreateVectorFromParams(Parameters,CondlRestnFnParamNames(kk).Names);
+                CondlRestnFnParamsCell=CreateCellFromParams(Parameters,CondlRestnFnParamNames(kk).Names);
             end
             
-            Values=EvalFnOnAgentDist_Grid_Case1(CondlRestnFns{kk}, CondlRestnFnParamsVec,PolicyValuesPermute,n_d,n_a,n_z,a_grid,z_grid,simoptions.parallel);
+            Values=EvalFnOnAgentDist_Grid(CondlRestnFns{kk}, CondlRestnFnParamsCell,PolicyValuesPermute,l_daprime,n_a,n_z,a_grid,z_grid);
             Values=reshape(Values,[N_a*N_z,1]);
             
             RestrictedStationaryDistVec=StationaryDistVec;
