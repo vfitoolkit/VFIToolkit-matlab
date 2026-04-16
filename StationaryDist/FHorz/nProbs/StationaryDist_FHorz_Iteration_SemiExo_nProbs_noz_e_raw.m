@@ -43,7 +43,7 @@ StationaryDist(:,1)=jequaloneDistKron;
 StationaryDist_jj=sparse(jequaloneDistKron); % use sparse matrix
 
 % Precompute; II2 used only for sparse matrix creation...best done on CPU
-II2=repelem((1:1:N_a*N_semiz*N_e)',1,N_semiz*N_probs); % Index for this period (a,semiz), note the N_probs-copies
+II2=repelem((1:1:N_a*N_semiz*N_e)',1,N_semizshort*N_probs); % Index for this period (a,semiz), note the N_semizshort*N_probs-copies
 
 for jj=1:(N_j-1)
 
