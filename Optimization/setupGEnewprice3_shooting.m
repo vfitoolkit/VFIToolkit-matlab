@@ -93,13 +93,14 @@ else
             for gg2=1:size(options.GEnewprice3.howtoupdate,1)
                 if strcmp(options.GEnewprice3.howtoupdate{gg2,1},GEeqnNames{gg})
                     pricename_gg=options.GEnewprice3.howtoupdate{gg2,2};
-                end
-            end
-            for pp=1:length(GEPriceParamNames)
-                if strcmp(pricename_gg,GEPriceParamNames{pp})
-                    if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
-                        fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},GEPriceParamNames{pp})
-                        error('You declared a GE condition to depend on permenent type, but the price that relates to it (in options.GEnewprice3.howtoupdate) does not depend on ptype')
+                    for pp=1:length(GEPriceParamNames)
+                        if strcmp(pricename_gg,GEPriceParamNames{pp})
+                            if PricePathSizeVec(2,pp)-PricePathSizeVec(1,pp)+1~=N_i
+                                fprintf('Following error relates to GE condition %s and to price %s \n',GEeqnNames{gg},GEPriceParamNames{pp})
+                                error('You declared a GE condition to depend on permenent type, but the price that relates to it (in options.GEnewprice3.howtoupdate) does not depend on ptype')
+                            end
+                            break
+                        end
                     end
                 end
             end

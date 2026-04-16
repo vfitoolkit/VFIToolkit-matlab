@@ -28,7 +28,7 @@ if vfoptions.divideandconquer==0
         error('Not yet implemented InfHorz TPath with experienceasset without a second standard endogenous state')
     else % N_a1
         if N_d1==0
-            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_nod1_raw(VKron, n_d2, n_a1, n_a2, n_z, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_nod1_raw(VKron, n_d2, n_a1, n_a2, n_z, d2_grid, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         else
             [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_raw(VKron, n_d1, n_d2, n_a1, n_a2, n_z, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         end
@@ -38,7 +38,7 @@ elseif vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==0
         error('Not yet implemented InfHorz TPath with experienceasset and divide-and-conquer without a second standard endogenous state')
     else % N_a1
         if N_d1==0
-            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_DC1_nod1_raw(VKron,n_d2, n_a1, n_a2, n_z, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            [VKron,PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_DC1_nod1_raw(VKron,n_d2, n_a1, n_a2, n_z, d2_grid, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         else
             [VKron, PolicyKron]=ValueFnIter_InfHorz_TPath_SingleStep_ExpAsset_DC1_raw(VKron,n_d1, n_d2, n_a1, n_a2, n_z, d_gridvals, d2_grid, a1_gridvals, a2_grid, z_gridvals, pi_z, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
         end

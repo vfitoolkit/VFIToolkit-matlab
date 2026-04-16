@@ -421,7 +421,7 @@ else
         elseif length(n_aprime)==3
             PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
         elseif length(n_aprime)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
         end
         if simoptions.fastOLG==0
             PolicyaprimezPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1);

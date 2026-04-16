@@ -15,7 +15,7 @@ if exist('transpathoptions','var')==0
     transpathoptions.oldpathweight=0.9; % default =0.9
     transpathoptions.weightscheme=1; % default =1
     transpathoptions.Ttheta=1;
-    transpathoptions.maxiterations=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
+    transpathoptions.maxiter=500; % Based on personal experience anything that hasn't converged well before this is just hung-up on trying to get the 4th decimal place (typically because the number of grid points was not large enough to allow this level of accuracy).
     transpathoptions.verbose=0;
     transpathoptions.verbosegraphs=0;
     transpathoptions.graphpricepath=0; % 1: creates a graph of the 'current' price path which updates each iteration.
@@ -42,8 +42,8 @@ else
     if isfield(transpathoptions,'Ttheta')==0
         transpathoptions.Ttheta=1;
     end
-    if isfield(transpathoptions,'maxiterations')==0
-        transpathoptions.maxiterations=500;
+    if isfield(transpathoptions,'maxiter')==0
+        transpathoptions.maxiter=500;
     end
     if isfield(transpathoptions,'verbose')==0
         transpathoptions.verbose=0;

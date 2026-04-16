@@ -14,11 +14,13 @@ d2_gridvals=gpuArray(d2_gridvals);
 a2_grid=gpuArray(a2_grid);
 
 
-if vfoptions.lowmemory>1
-    special_n_e=ones(1,length(n_e));
-end
-if vfoptions.lowmemory==2
-    special_n_z=ones(1,length(n_z));
+if vfoptions.lowmemory==1
+    special_n_e=ones(1,length(n_e),'gpuArray');
+elseif vfoptions.lowmemory==2
+    special_n_e=ones(1,length(n_e),'gpuArray');
+    special_n_z=ones(1,length(n_z),'gpuArray');
+elseif vfoptions.lowmemory==3
+    error("There is no a1 to iterate, so cannot set vfoptions.lowmemory=3")
 end
 
 
@@ -90,12 +92,13 @@ else
         V(:,:,:,N_j)=shiftdim(Vtemp,1);
         Policy(:,:,:,N_j)=shiftdim(maxindex,1);
     elseif vfoptions.lowmemory==1
+        DiscountedEV=DiscountFactorParamsVec*EV;
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,N_j);
 
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,N_j), e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*EV;
+            entireRHS=ReturnMatrix_e+DiscountedEV;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -173,12 +176,14 @@ for reverse_j=1:N_j-1
         Policy(:,:,:,jj)=shiftdim(maxindex,1);
 
     elseif vfoptions.lowmemory==1
+
+        DiscountedEV=DiscountFactorParamsVec*EV;
         for e_c=1:N_e
             e_val=e_gridvals_J(e_c,:,jj);
 
             ReturnMatrix_e=CreateReturnFnMatrix_Case2_Disc_Par2e(ReturnFn,n_d2, n_a2, n_z, special_n_e, d2_gridvals, a2_grid, z_gridvals_J(:,:,jj), e_val, ReturnFnParamsVec); % with only the experience asset, can just use Case2 command
 
-            entireRHS=ReturnMatrix_e+DiscountFactorParamsVec*EV;
+            entireRHS=ReturnMatrix_e+DiscountedEV;
 
             %Calc the max and it's index
             [Vtemp,maxindex]=max(entireRHS,[],1);
@@ -186,7 +191,7 @@ for reverse_j=1:N_j-1
             V(:,:,e_c,jj)=shiftdim(Vtemp,1);
             Policy(:,:,e_c,jj)=shiftdim(maxindex,1);
         end
-    elseif vfoptions.lowmemory==2
+    elseif vfoptions.lowmemory>=2
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,jj);
             EV_z=EV(:,:,z_c);

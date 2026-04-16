@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1(AgentDist_initial, PolicyPath,n_d,n_a,n_z,pi_z,T,simoptions,Parameters,PricePath,ParamPath)
+function AgentDistPath=AgentDistOnTransPath_Case1(AgentDist_initial,PolicyPath,n_d,n_a,n_z,pi_z,T,simoptions,Parameters,PricePath,ParamPath)
 n_e=0; % NOT YET IMPLEMENTED FOR TRANSITION PATHS
 
 N_d=prod(n_d);
@@ -173,8 +173,8 @@ elseif simoptions.experienceasset==1
                 Policy_aprime(:,:,2)=reshape(Policy(ndvars+1,:,:),[N_a,N_z,1])+n_a1*Policy_a2prime(:,:,1); % Note: upper grid point minus 1 is anyway just lower grid point
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
-            
-            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            PolicyProbs_2D=reshape(PolicyProbs,[N_a*N_z,2]); % sparse matricies are limited to 2D; match PolicyaprimezPath shape
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs_2D,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
 

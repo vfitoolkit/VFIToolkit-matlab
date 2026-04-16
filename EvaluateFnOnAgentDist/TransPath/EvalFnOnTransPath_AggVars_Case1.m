@@ -1,6 +1,17 @@
-function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,simoptions)
+function AggVarsPath=EvalFnOnTransPath_AggVars_Case1(FnsToEvaluate,AgentDistPath,PolicyPath,PricePath,ParamPath, Parameters, T, n_d, n_a, n_z, d_grid, a_grid,z_grid,transpathoptions,simoptions)
 % AggVarsPath is T periods long (periods 0 (before the reforms are announced) & T are the initial and final values).
 
+%% Check which transpathoptions have been used, set all others to defaults 
+if exist('transpathoptions','var')==0
+    disp('No transpathoptions given, using defaults')
+    % If transpathoptions is not given, just use all the defaults
+    transpathoptions.verbose=0;
+else
+    % Check transpathoptions for missing fields, if there are some fill them with the defaults
+    if ~isfield(transpathoptions,'verbose')
+        transpathoptions.verbose=0;
+    end
+end
 if ~exist('simoptions','var')
     % If simoptions is not given, just use all the defaults
     simoptions.experienceasset=0;
@@ -28,6 +39,7 @@ if n_d(1)==0
     l_d=0;
 end
 l_a=length(n_a);
+l_aprime=l_a-simoptions.experienceasset;
 l_z=length(n_z);
 
 % N_d=prod(n_d);
@@ -43,8 +55,8 @@ N_z=prod(n_z);
 AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_aprime+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_aprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end

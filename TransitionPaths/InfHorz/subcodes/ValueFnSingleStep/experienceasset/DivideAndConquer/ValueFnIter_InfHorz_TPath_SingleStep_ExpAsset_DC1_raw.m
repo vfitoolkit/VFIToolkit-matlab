@@ -15,10 +15,10 @@ Policy=zeros(3,N_a,N_z,'gpuArray'); % d1, d2, a1prime
 a2_gridvals=CreateGridvals(n_a2,a2_grid,1);
 n_a1prime=n_a1;
 
-if vfoptions.lowmemory==1
-    special_n_z=ones(1,length(n_z));
+if vfoptions.lowmemory>=1
+    special_n_z=ones(1,length(n_z),'gpuArray');
 else
-    % precompute
+    % precompute; we don't special-case ExpAsset looping in DC1 case
     zind=shiftdim((0:1:N_z-1),-1); % already includes -1
 end
 
@@ -114,7 +114,7 @@ if vfoptions.lowmemory==0
         end
     end
 
-elseif vfoptions.lowmemory==1
+elseif vfoptions.lowmemory>=1
 
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);

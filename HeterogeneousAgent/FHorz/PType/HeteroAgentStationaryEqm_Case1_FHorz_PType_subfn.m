@@ -3,11 +3,41 @@ function GeneralEqmConditions=HeteroAgentStationaryEqm_Case1_FHorz_PType_subfn(G
 heteroagentparamsvecindex=0:1:length(GEpricesvec);
 [GEpricesvec,penalty]=ParameterConstraints_TransformParamsToOriginal(GEpricesvec,heteroagentparamsvecindex,GEPriceParamNames,heteroagentoptions);
 
+if heteroagentoptions.verbose>0
+    GEpricesvec_tminus1=zeros(nGEprices,1);
+    AggVars_tminus1=NaN(length(AggVarNames),1);
+
+    for pp=1:nGEprices
+        GEpricesvec_tminus1(pp)=Parameters.(GEPriceParamNames{pp});
+    end
+    GEpricesvec_delta=GEpricesvec-GEpricesvec_tminus1; % Compute this to show max change per round
+    for aa=1:length(AggVarNames)
+        if isfield(Parameters,AggVarNames{aa})
+            AggVars_tminus1(aa)=Parameters.(AggVarNames{aa});
+        end
+    end
+    if heteroagentoptions.useintermediateEqns==1
+        intEqnnames=fieldnames(heteroagentoptions.intermediateEqns);
+        intermediateEqns_tminus1=zeros(length(intEqnnames),1);
+        for aa=1:length(intEqnnames)
+            if isfield(Parameters,intEqnnames{aa})
+                intEqns_tminus1(aa)=Parameters.(intEqnnames{aa});
+            end
+        end
+    end
+    % We don't do anything special for CustomModelStats, which are not as easily done as others above.
+end
+
 if heteroagentoptions.verbose==2
+    [~,maxidx]=max(GEpricesvec_delta.^2);
     fprintf(' \n')
     fprintf('Current GE prices: \n')
     for pp=1:nGEprices
-        fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEpricesvec(pp))
+        if pp==maxidx
+            cprintf('err','	%s: %8.4f \n',GEPriceParamNames{pp},GEpricesvec(pp))
+        else
+            fprintf('	%s: %8.4f \n',GEPriceParamNames{pp},GEpricesvec(pp))
+        end
     end
 end
 
@@ -18,7 +48,7 @@ end
 
 
 %%
-AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i,'gpuArray'); % Create AggVars conditional on ptype.
+AggVars_ConditionalOnPType=zeros(PTypeStructure.numFnsToEvaluate,PTypeStructure.N_i); % Create AggVars conditional on ptype.
 
 for ii=1:PTypeStructure.N_i
     
@@ -69,8 +99,15 @@ for ii=1:PTypeStructure.N_i
         % PTypeStructure.(iistr).simoptions.outputasstructure=0; % Want AggVars_ii as matrix to make it easier to add them across the PTypes (is set outside this script)
         AggVars_ii=EvalFnOnAgentDist_AggVars_Case1(StationaryDist_ii, Policy_ii, PTypeStructure.(iistr).FnsToEvaluate, PTypeStructure.(iistr).Parameters, PTypeStructure.(iistr).FnsToEvaluateParamNames, PTypeStructure.(iistr).n_d, PTypeStructure.(iistr).n_a, PTypeStructure.(iistr).n_z, PTypeStructure.(iistr).d_grid, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).simoptions);
     end
-    
     AggVars_ConditionalOnPType(PTypeStructure.(iistr).FnsAndPTypeIndicator_ii,ii)=AggVars_ii;
+    % Put updated AggVars into subsequent PTypeStructure Parameters, so they can be used for subsequent PType evaluations
+    FnsToEvaluate_aa=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+    for jj=ii+1:PTypeStructure.N_i
+        jjstr=PTypeStructure.iistr{jj};
+        for aa=1:length(AggVars_ii)
+            PTypeStructure.(jjstr).Parameters.(FnsToEvaluate_aa{aa})=AggVars_ii(aa);
+        end
+    end
 
     if heteroagentoptions.useCustomModelStats==1
         V.(iistr)=V_ii;
@@ -78,16 +115,18 @@ for ii=1:PTypeStructure.N_i
         StationaryDist.(iistr)=StationaryDist_ii;
     end
 end
-AggVars=gather(sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights',2));
+AggVars=sum(AggVars_ConditionalOnPType.*PTypeStructure.ptweights',2);
 % Note: AggVars is a vector
 
 
 
-%% Put GE parameters  and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
+%% Put GE parameters and AggVars in structure, so they can be used for intermediateEqns and GeneralEqmEqns
 % already did the basic GE params
 % for pp=1:nGEprices
 %     Parameters.(GEPriceParamNames{pp})=GEprices(pp);
 % end
+
+% We pushed AggVars down into the PTypeStructure parameters; this puts them into the unified Parameter structure
 for aa=1:length(AggVarNames)
     Parameters.(AggVarNames{aa})=AggVars(aa);
 end
@@ -149,32 +188,52 @@ end
 
 %% Feedback on progress
 if heteroagentoptions.verbose==1 % When=2, we report these earlier
+    [~,maxidx]=max(GEpricesvec_delta.^2);
     fprintf(' \n')
     fprintf('Current GE prices: \n')
     for pp=1:nGEprices
-        fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(pp))
+        if pp==maxidx
+            cprintf('err',heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(pp))
+        else
+            fprintf(heteroagentoptions.verboseaccuracy1,GEPriceParamNames{pp},GEpricesvec(pp))
+        end
     end
 end
 if heteroagentoptions.verbose>=1
     fprintf('Current aggregate variables: \n')
     for aa=1:length(AggVarNames)
-        fprintf(heteroagentoptions.verboseaccuracy1,AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+        if ~isnan(AggVars_tminus1(aa))
+            cprintf('comment',heteroagentoptions.verboseaccuracy1,AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+        else
+            fprintf(heteroagentoptions.verboseaccuracy1,AggVarNames{aa},AggVars(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+        end
     end
     if heteroagentoptions.useintermediateEqns==1
+        intEqns_delta=intermediateEqnsVec-intermediateEqns_tminus1;
+        [~,maxidx]=max(intEqns_delta.^2);
         fprintf('Current intermediateEqn variables: \n')
         for aa=1:length(intEqnnames)
-            fprintf(heteroagentoptions.verboseaccuracy1,intEqnnames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+            if aa==maxidx
+                cprintf('err',heteroagentoptions.verboseaccuracy1,intEqnnames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+            else
+                fprintf(heteroagentoptions.verboseaccuracy1,intEqnnames{aa},intermediateEqnsVec(aa)) % Note, this is done differently here because AggVars itself has been set as a matrix
+            end
         end
     end
     if heteroagentoptions.useCustomModelStats==1
         fprintf('Current CustomModelStats variables: \n')
-        for ii=1:length(customstatnames)
-            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{ii},CustomStats.(customstatnames{ii}))
+        for aa=1:length(customstatnames)
+            fprintf(heteroagentoptions.verboseaccuracy1,customstatnames{aa},CustomStats.(customstatnames{aa}))
         end
     end
     fprintf('Current GeneralEqmEqns: \n')
+    [~,maxidx]=max(GeneralEqmConditionsVec.^2);
     for gg=1:length(GEeqnNames)
-        fprintf(heteroagentoptions.verboseaccuracy2,GEeqnNames{gg},GeneralEqmConditionsVec(gg))
+        if gg==maxidx
+            cprintf('err', heteroagentoptions.verboseaccuracy2,GEeqnNames{gg},GeneralEqmConditionsVec(gg))
+        else
+            fprintf(heteroagentoptions.verboseaccuracy2,GEeqnNames{gg},GeneralEqmConditionsVec(gg))
+        end
     end
 end
 
