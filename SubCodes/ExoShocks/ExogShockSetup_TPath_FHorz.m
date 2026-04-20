@@ -218,6 +218,10 @@ if N_z>0
         end
     end
 
+    if ~isfield(transpathoptions,'zpathtrivial')
+        transpathoptions.zpathtrivial=1;
+    end
+
     z_gridvals_J=gpuArray(z_gridvals_J);
     pi_z_J=gpuArray(pi_z_J);
     % z_gridvals_J is [N_z,l_z,N_j] if transpathoptions.fastOLG=0
@@ -225,6 +229,7 @@ if N_z>0
     % pi_z_J is [N_z,N_z,N_j]       if transpathoptions.fastOLG=0 (j,z,z')
     % pi_z_J is [N_j,N_z,N_z]       if transpathoptions.fastOLG=1 (j,z',z)
     % pi_z_J and z_gridvals_J are both gpuArrays
+
 end
 
 %% If using e variables do the same for e as we just did for z
@@ -466,6 +471,10 @@ if N_e>0
                 end
             end
         end
+    end
+
+    if ~isfield(transpathoptions,'epathtrivial')
+        transpathoptions.epathtrivial=1;
     end
 
     e_gridvals_J=gpuArray(e_gridvals_J);

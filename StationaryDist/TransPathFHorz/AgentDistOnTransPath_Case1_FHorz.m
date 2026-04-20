@@ -451,6 +451,7 @@ else
     end
 end
 
+clear a2primeIndexesPath a2primeProbsPath PolicyPath L2index % Free up some memory
 
 %% Check if jequalOneDistPath is a path or not (and reshape appropriately)
 jequaloneDist=gpuArray(jequaloneDist);
