@@ -26,9 +26,9 @@ AggVarsPath=zeros(T-1,length(FnsToEvaluateCell),'gpuArray'); % Note: does not in
 GEcondnPath=zeros(T-1,length(GeneralEqmEqnsCell),'gpuArray');
 
 % Setup, the shapes of various of these objects vary depending on the setting
-[PolicyIndexesPath,PolicyProbsPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_shooting_main_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions);
+[PolicyIndexesPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_shooting_main_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions);
 % Note: some of these outputs are empty, depending on the setting
-% Both PolicyIndexesPath and PolicyProbsPath are just pre-allocating matrices of the appropriate size, they contain zeros
+% PolicyIndexesPath is just pre-allocating matrices of the appropriate size, contains zeros
 
 %%
 PricePathDist=Inf;
@@ -37,10 +37,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
     %% Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
     [~,PolicyIndexesPath]=TransitionPath_FHorz_shooting_main_Step1_ValueFnIter(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,n_d,n_a,n_z,n_e,N_j,N_z,N_e,d_gridvals, a_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,DiscountFactorParamNames, ReturnFnParamNames, transpathoptions,vfoptions);
-
-    %% Modify PolicyIndexesPath into forms needed for forward iteration
-    [PolicyPath_ForAgentDistIter,PolicyProbsPath, PolicyValuesPath]=TransitionPath_FHorz_shooting_main_Step2_AdjustPolicy(PolicyIndexesPath,PolicyProbsPath,T,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
     
+    %% Modify PolicyIndexesPath into forms needed for forward iteration
+    [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_FHorz_shooting_main_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,N_j,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
+
     %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
@@ -103,12 +103,29 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AgeWeights=AgeWeights_T(:,tt);
         end
 
-        AgentDistnext=TransitionPath_FHorz_shooting_main_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist,transpathoptions,simoptions);
+        AgentDistnext=TransitionPath_FHorz_shooting_main_Step3tt_IterAgentDist(AgentDist,PolicyPath_ForAgentDistIter,PolicyProbsPath,tt,N_a,N_z,N_e,N_j,N_probs,pi_z_J,pi_z_J_sim,pi_e_J,pi_e_J_sim,II1,II2,exceptlastj,exceptfirstj,justfirstj,jequalOneDist,transpathoptions,simoptions);
         
-        %% AggVars        
-        AggVars=TransitionPath_FHorz_shooting_main_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath,tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
+        %% AggVars
+        if N_z==0 && N_e==0
+            AggVars=TransitionPath_FHorz_shooting_main_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
+        else
+            AggVars=TransitionPath_FHorz_shooting_main_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
+        end
+        
         for ii=1:length(AggVarNames)
             Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+        end
+
+        %% Intermediate Eqns
+        if transpathoptions.useintermediateEqns==1
+            % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
+            intEqnnames=fieldnames(transpathoptions.intermediateEqns);
+            intermediateEqnsVec=zeros(1,length(intEqnnames));
+            % Do the intermediateEqns, in order
+            for gg=1:length(intEqnnames)
+                intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+                Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
+            end
         end
         
         %% General Eqm Eqns
@@ -174,7 +191,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         fprintf('Current distance between old and new price path (in L-Infinity norm): %8.6f \n', PricePathDist)
         fprintf('Ratio of current distance to the convergence tolerance: %.2f (convergence when reaches 1) \n',TransPathConvergence)
     end
-
+    
     if transpathoptions.historyofpricepath==1
         % Store the whole history of the price path and save it every ten iterations
         PricePathHistory{pathcounter,1}=PricePathDist;

@@ -2,6 +2,11 @@ function [VPath,PolicyIndexesPath]=TransitionPath_FHorz_shooting_main_Step1_Valu
 % VPath is empty, but I am setting it up so that it can be included as an option later on.
 VPath=[];
 
+if vfoptions.experienceasset==1
+    [VPath,PolicyIndexesPath]=TransitionPath_FHorz_Step1_ValueFnIter_ExpAsset(T,PolicyIndexesPath,V_final,Parameters,PricePathOld,ParamPath,PricePathSizeVec,ParamPathSizeVec,PricePathNames,ParamPathNames,vfoptions.setup_experienceasset.n_d1,vfoptions.setup_experienceasset.n_d2,vfoptions.setup_experienceasset.n_a1,vfoptions.setup_experienceasset.n_a2,n_z,n_e,N_j,N_z,N_e,d_gridvals, vfoptions.setup_experienceasset.d2_gridvals,vfoptions.setup_experienceasset.a1_gridvals,vfoptions.setup_experienceasset.a2_grid, z_gridvals_J,e_gridvals_J,pi_z_J,pi_e_J,ReturnFn,vfoptions.setup_experienceasset.aprimeFn,DiscountFactorParamNames,ReturnFnParamNames,vfoptions.setup_experienceasset.aprimeFnParamNames,transpathoptions,vfoptions);
+    return
+end
+
 if transpathoptions.fastOLG==0
     if N_z==0 && N_e==0
         % First, go from T-1 to 1 calculating the Value function and Optimal policy function at each step.

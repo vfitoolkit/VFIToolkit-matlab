@@ -237,27 +237,29 @@ if simoptions.experienceasset==1
         aprimeFnParamNames={};
     end
     
-    a2primeIndexesPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
-    a2primeProbsPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
     
     whichisdforexpasset=length(n_d)-simoptions.l_dexperienceasset+1:length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
     if N_e==0 && N_z==0
+        a2primeIndexesPath=zeros(N_a,N_j-1,T,'gpuArray');
+        a2primeProbsPath=zeros(N_a,N_j-1,T,'gpuArray');
         for tt=1:T
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
 
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec);
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
             a2primeIndexesPath(:,:,tt)=a2primeIndexes(:,1:end-1);
             a2primeProbsPath(:,:,tt)=a2primeProbs(:,1:end-1);
         end
     else
+        a2primeIndexesPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
+        a2primeProbsPath=zeros(N_a,N_ze,N_j-1,T,'gpuArray');
         for tt=1:T
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
             
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec);
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
             a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);

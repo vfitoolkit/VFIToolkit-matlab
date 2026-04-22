@@ -1,12 +1,14 @@
-function [PolicyIndexesPath,PolicyProbsPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_shooting_main_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions)
+function [PolicyIndexesPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_shooting_main_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions)
 % Note: N_d is not relevant here
 % Note: simoptions.fastOLG=0: II1 will be II, everything after it will be empty
 % If not using d, set l_d=0 as input
 
-if simoptions.gridinterplayer==0
-    N_probs=1; % not used
-elseif simoptions.gridinterplayer==1
-    N_probs=2;
+N_probs=1; % Not using N_probs
+if simoptions.gridinterplayer==1
+    N_probs=N_probs*2;
+end
+if simoptions.experienceasset==1
+    N_probs=N_probs*2;
 end
 
 
@@ -37,7 +39,6 @@ if transpathoptions.fastOLG==0
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
-                PolicyProbsPath=zeros(N_a*(N_j-1),N_probs,T-1,'gpuArray'); % preallocate
                 II1=repelem((1:1:N_a*(N_j-1))',1,N_probs);
                 II2=[];
                 exceptlastj=[];
@@ -70,7 +71,6 @@ if transpathoptions.fastOLG==0
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
-                PolicyProbsPath=zeros(N_a*(N_j-1)*N_z,N_probs,T-1,'gpuArray'); % preallocate
                 II1=repelem((1:1:N_a*(N_j-1)*N_z)',1,N_probs);
                 II2=[];
                 exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
@@ -103,7 +103,6 @@ if transpathoptions.fastOLG==0
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
-                PolicyProbsPath=zeros(N_a*(N_j-1)*N_e,N_probs,T-1,'gpuArray'); % preallocate
                 II1=repelem((1:1:N_a*(N_j-1)*N_e)',1,N_probs);
                 II2=[];
                 exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
@@ -136,7 +135,6 @@ if transpathoptions.fastOLG==0
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
-                PolicyProbsPath=zeros(N_a*(N_j-1)*N_z*N_e,N_probs,T-1,'gpuArray'); % preallocate
                 II1=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,N_probs);
                 II2=[];
                 exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
@@ -153,7 +151,6 @@ elseif transpathoptions.fastOLG==1
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
-            PolicyProbsPath=zeros(N_a*(N_j-1),N_probs,T-1,'gpuArray'); % preallocate
         end
         if simoptions.gridinterplayer==0
             II1=1:1:N_a*(N_j-1);
@@ -173,7 +170,6 @@ elseif transpathoptions.fastOLG==1
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
-            PolicyProbsPath=zeros(N_a*(N_j-1)*N_z,N_probs,T-1,'gpuArray'); % preallocate
         end
         if simoptions.gridinterplayer==0
             II1=1:1:N_a*(N_j-1)*N_z;
@@ -193,7 +189,6 @@ elseif transpathoptions.fastOLG==1
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
-            PolicyProbsPath=zeros(N_a*(N_j-1)*N_e,N_probs,T-1,'gpuArray'); % preallocate
         end
         if simoptions.gridinterplayer==0
             II1=1:1:N_a*(N_j-1)*N_e;
@@ -213,7 +208,6 @@ elseif transpathoptions.fastOLG==1
             PolicyIndexesPath=zeros(l_d+l_aprime,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
-            PolicyProbsPath=zeros(N_a*(N_j-1)*N_z*N_e,N_probs,T-1,'gpuArray'); % preallocate
         end
         if simoptions.gridinterplayer==0
             II1=1:1:N_a*(N_j-1)*N_z*N_e;
@@ -237,9 +231,6 @@ if simoptions.fastOLG==0
     exceptlastj=[];
     exceptfirstj=[];
     justfirstj=[];
-end
-if simoptions.gridinterplayer==0 || simoptions.fastOLG==0
-    PolicyProbsPath=[];
 end
 if simoptions.gridinterplayer==0
     N_probs=[];

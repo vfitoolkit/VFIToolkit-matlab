@@ -98,6 +98,7 @@ if exist('vfoptions','var')==0
     vfoptions.verbose=0;
     % Model setup
     vfoptions.exoticpreferences='None';
+    vfoptions.experienceasset=0;
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(vfoptions,'divideandconquer')
@@ -124,6 +125,9 @@ else
     % Model setup
     if ~isfield(vfoptions,'exoticpreferences')
         vfoptions.exoticpreferences='None';
+    end
+    if ~isfield(vfoptions,'experienceasset')
+        vfoptions.experienceasset=0;
     end
 end
 vfoptions.parallel=2; % transition path is GPU only
@@ -204,6 +208,9 @@ else
 end
 l_a=length(n_a);
 l_aprime=l_a;
+if vfoptions.experienceasset==1
+    l_aprime=l_aprime-1;
+end
 if N_z==0
     l_z=0;
 else
@@ -233,6 +240,9 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Param
 %                           =0; % grids are exogenous
 %
 % transpathoptions.zepathtrivial=0 when either of zpathtrival and epathtrivial both are zero
+
+%% If using any non-standard endogenous states, setup for those
+[vfoptions,simoptions]=SetupNonStandardEndoStates_FHorz_TPath(n_d,n_a,d_grid,a_grid,vfoptions,simoptions);
 
 %% Setup for V_final
 % Note: I keep Policy as having a first dimension (even if it is just 1)
@@ -447,6 +457,9 @@ end
 
 %% Change to FnsToEvaluate as cell so that it is not being recomputed all the time
 l_daprime=l_d+l_a;
+if vfoptions.experienceasset==1
+    l_daprime=l_daprime-1;
+end
 
 AggVarNames=fieldnames(FnsToEvaluate);
 FnsToEvaluateCell=cell(1,length(AggVarNames));
@@ -503,6 +516,7 @@ end
 %  GeneralEqmEqnsCell is cell
 %  GeneralEqmEqnParamNames(ff).Names contains the names
 
+
 %% If using intermediateEqns, switch from structure to cell setup
 transpathoptions.useintermediateEqns=0;
 if isfield(transpathoptions,'intermediateEqns')
@@ -520,8 +534,6 @@ if isfield(transpathoptions,'intermediateEqns')
     %  transpathoptions.intermediateEqns is still the structure
     %  transpathoptions.intermediateEqnsCell is cell
     %  transpathoptions.intermediateEqnParamNames(gg).Names contains the names
-
-    error('Have not yet implemented intermediateEqns for FHorz TPath, ask on forum if you need it')
 end
 
 
