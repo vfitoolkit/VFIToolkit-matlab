@@ -509,7 +509,7 @@ elseif simoptions.fastOLG==1
     end
 end
 
-if N_probs==0
+if N_probs==1 % =1 means not being used
     PolicyProbsPath=[];
 end
 

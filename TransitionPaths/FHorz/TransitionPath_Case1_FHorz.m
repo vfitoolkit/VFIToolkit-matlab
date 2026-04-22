@@ -143,6 +143,8 @@ if exist('simoptions','var')==0
     simoptions.verbose=0;
     simoptions.fastOLG=1;
     simoptions.gridinterplayer=0;
+    % Model setup
+    simoptions.experienceasset=0;
 else
     % Check vfoptions for missing fields, if there are some fill them with the defaults
     if ~isfield(simoptions,'verbose')
@@ -153,6 +155,10 @@ else
     end
     if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
+    end
+    % Model setup
+    if ~isfield(simoptions,'experienceasset')
+        simoptions.experienceasset=0;
     end
 end
 
