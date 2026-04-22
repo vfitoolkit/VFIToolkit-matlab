@@ -1,4 +1,4 @@
-function [PolicyIndexesPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_shooting_main_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions)
+function [PolicyIndexesPath,N_probs,II1,II2,exceptlastj,exceptfirstj,justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,N_j,T,transpathoptions,vfoptions,simoptions)
 % Note: N_d is not relevant here
 % Note: simoptions.fastOLG=0: II1 will be II, everything after it will be empty
 % If not using d, set l_d=0 as input
