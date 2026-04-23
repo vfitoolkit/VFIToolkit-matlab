@@ -5,7 +5,11 @@ function StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeight
 % simoptions.verbose=1 will give feedback
 % simoptions.verboseparams=1 will give further feedback on the param values of each permanent type
 %
-% jequaloneDist can either be same for all permanent types, or must be passed as a structure.
+% jequaloneDist can be set up in one of three ways
+% i) Input jequaloneDist as [n_a,n_z], this will be interpreted as applying to all N_i permanent types
+% ii) Input jequaloneDist as [n_a,n_z,N_i], this will be interpreted as that the last dimension indexes the N_i permanent types.
+% iii) Input jequaloneDist as a structure, the fieldnames should match Names_i, and each one of the fields should be a matrix of [n_a,n_z]
+% Note that if you have a model where the state space differs by permanent type, obviously only the third of these is usable.
 % AgeWeightParamNames is either same for all permanent types, or must be passed as a structure.
 %
 %
