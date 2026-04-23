@@ -427,15 +427,15 @@ if temp(end)==T % jequalOneDist depends on T
     transpathoptions.trivialjequalonedist=0;
     if N_z==0
         if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a,T]);
+            jequalOneDist_T=reshape(jequalOneDist,[N_a,T]);
         else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_e,T]);
+            jequalOneDist_T=reshape(jequalOneDist,[N_a*N_e,T]);
         end
     else
         if N_e==0
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z,T]);
+            jequalOneDist_T=reshape(jequalOneDist,[N_a*N_z,T]);
         else
-            jequalOneDist=reshape(jequalOneDist,[N_a*N_z*N_e,T]);
+            jequalOneDist_T=reshape(jequalOneDist,[N_a*N_z*N_e,T]);
         end
     end
 else
@@ -456,8 +456,7 @@ else
 end
 
 if transpathoptions.trivialjequalonedist==0
-    jequalOneDist_T=jequalOneDist;
-    jequalOneDist=jequalOneDist_T(:,1);
+    jequalOneDist=jequalOneDist_T;
 end
 
 

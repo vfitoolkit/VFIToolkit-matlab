@@ -14,6 +14,7 @@ end
 %%
 % interpret jequalOneDist input
 if transpathoptions.trivialjequalonedist==0
+    % the jequalOneDist input is actually jequalOneDist_T
     jequalOneDist_T=jequalOneDist;
     jequalOneDist=jequalOneDist_T(:,1);
 end
@@ -112,8 +113,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
         end
         
-        for ii=1:length(AggVarNames)
-            Parameters.(AggVarNames{ii})=AggVars.(AggVarNames{ii}).Mean;
+        for ff=1:length(AggVarNames)
+            Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;
         end
 
         %% Intermediate Eqns
