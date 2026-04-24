@@ -5,6 +5,7 @@ N_z=prod(n_z);
 
 d_gridvals=CreateGridvals(n_d,d_grid,1);
 
+
 if ~isfield(vfoptions,'level1n')
     if isscalar(n_a)
         vfoptions.level1n=max(ceil(n_a(1)/50),5); % minimum of 5
@@ -12,13 +13,17 @@ if ~isfield(vfoptions,'level1n')
             error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
         end
     elseif length(n_a)==2
-        vfoptions.level1n=[max(ceil(n_a(1)/50),5),n_a(2)]; % default is DC2B, min of 5 points in level1 for a1
+        vfoptions.level1n=[max(ceil(sqrt(n_a(1))),5),n_a(2)]; % default is DC2B, min of 5 points in level1 for a1
         if n_a(1)<5
             error('cannot use vfoptions.divideandconquer=1 with less than 5 points in the a variable (you need to turn off divide-and-conquer, or put more points into the a variable)')
         end
     end
     if vfoptions.verbose==1
         fprintf('Suggestion: When using vfoptions.divideandconquer it will be faster or slower if you set different values of vfoptions.level1n (for smaller models 7 or 9 is good, but for larger models something 15 or 21 can be better) \n')
+    end
+else
+    if ~isscalar(n_a) && isscalar(vfoptions.level1n)
+        vfoptions.level1n=[vfoptions.level1n,n_a(2:end)]; % user only needs to declare level1n for first dimension. Fill out the rest with n_a(2:end).
     end
 end
 vfoptions.level1n=min(vfoptions.level1n,n_a); % Otherwise causes errors
