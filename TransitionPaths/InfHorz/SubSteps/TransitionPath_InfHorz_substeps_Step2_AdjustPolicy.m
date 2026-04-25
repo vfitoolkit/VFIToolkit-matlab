@@ -256,11 +256,10 @@ elseif N_z>0
     PolicyPath_ForAgentDistIter=PolicyaprimezPath;
 end
 
+
 if N_probs==1 % =1 means not being used
     PolicyProbsPath=[];
 end
-
-
 
 
 

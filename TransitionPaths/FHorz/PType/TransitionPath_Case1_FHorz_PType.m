@@ -274,6 +274,9 @@ for ii=1:PTypeStructure.N_i
     if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')
         PTypeStructure.(iistr).vfoptions.gridinterplayer=0; %default
     end
+    if ~isfield(PTypeStructure.(iistr).simoptions,'gridinterplayer')
+        PTypeStructure.(iistr).simoptions.gridinterplayer=0; %default
+    end
     % Model setup
     if ~isfield(PTypeStructure.(iistr).vfoptions,'exoticpreferences')
         PTypeStructure.(iistr).vfoptions.exoticpreferences='None'; % not yet implemented, so hardcodes None
@@ -354,7 +357,7 @@ for ii=1:PTypeStructure.N_i
     if N_e==0
         PTypeStructure.(iistr).l_e=0;
     else
-        PTypeStructure.(iistr).l_e=length(n_e);
+        PTypeStructure.(iistr).l_e=length(PTypeStructure.(iistr).n_e);
     end
 
     if isa(d_grid,'struct')
@@ -587,9 +590,16 @@ for ii=1:PTypeStructure.N_i
 
 
     %% Set up exogenous shock processes
-    [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
-    % Convert z and e to age-dependent joint-grids and transtion matrix
-    % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
+    if isfinite(PTypeStructure.(iistr).N_j)
+        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
+        % Convert z and e to age-dependent joint-grids and transtion matrix
+        % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
+    else
+        [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
+    end
+
+    %% If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
+    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
     
     %% Organise V_final, AgeWeights and AgentDist_init
     % Reshape V_final
@@ -652,6 +662,7 @@ for ii=1:PTypeStructure.N_i
                 AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j*N_z,1]);
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
             end
+            PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
         else
             AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
             AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
@@ -659,6 +670,7 @@ for ii=1:PTypeStructure.N_i
                 AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j*N_z,N_e]);
                 AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
             end
+            PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
         end
         if all(size(AgeWeights_ii)==[N_j_temp,1])
             % Does not depend on transition path period
@@ -671,22 +683,24 @@ for ii=1:PTypeStructure.N_i
             error('The age weights parameter seems to be the wrong size')
         end
 
-    % Check ParamPath to see if the AgeWeights vary over the transition
-    % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
-    temp=strcmp(ParamPathNames,AgeWeightsParamNames{1});
-    if any(temp)
-        transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
-        [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
-        % Create AgeWeights_T
-        PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
-        % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
-    end
-    % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
-    if PTypeStructure.(iistr).simoptions.fastOLG==1
-        if N_z==0
-            PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-        else
-            PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+        % Check ParamPath to see if the AgeWeights vary over the transition
+        % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
+        temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
+        if any(temp)
+            transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
+            [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
+            % Create AgeWeights_T
+            PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
+            % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
+        end
+
+        % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
+        if PTypeStructure.(iistr).simoptions.fastOLG==1
+            if N_z==0
+                PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+            else
+                PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+            end
         end
     end
 
@@ -860,7 +874,7 @@ if ~isempty(tminus1priceNames)
         for nn=1:length(AggVarsPTypes)
             for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
                 if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
-                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
                 end
             end
         end
@@ -889,7 +903,7 @@ if ~isempty(tminus1AggVarsNames)
         for nn=1:length(AggVarsPTypes)
             for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
                 if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
-                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
+                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
                 end
             end
         end

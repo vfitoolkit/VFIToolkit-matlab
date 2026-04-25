@@ -110,7 +110,11 @@ end
 %%
 for ii=1:N_i
     iistr=PTypeStructure.Names_i{ii};
-    [PTypeStructure.(iistr).PolicyIndexesPath,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,T,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    if isfinite(PTypeStructure.(iistr).N_j)
+        [PTypeStructure.(iistr).PolicyIndexesPath,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,T,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    else
+        [PTypeStructure.(iistr).PolicyIndexesPath,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2]=TransitionPath_InfHorz_substeps_Step0_setup(PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,T,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+    end
 end
 
 %%
@@ -181,12 +185,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             end
             % Get t-1 AggVars before we update them
             if use_tminus1AggVars==1
-                for pp=1:length(tminus1AggVarsNames)
+                for pp=1:length(tminus1AggVarsNames.(iistr))
                     if tt>1
                         % The AggVars have not yet been updated, so they still contain previous period values
-                        Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
+                        Parameters.([tminus1AggVarsNames.(iistr){pp},'_tminus1'])=Parameters.(tminus1AggVarsNames.(iistr){pp});
                     else
-                        Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+                        Parameters.([tminus1AggVarsNames.(iistr){pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames.(iistr){pp});
                     end
                 end
             end
@@ -241,7 +245,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
 
         end
 
-        AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath_ii;
+        AggVarsFullPath(logical(PTypeStructure.(iistr).WhichFnsForCurrentPType),:,ii)=AggVarsPath_ii;
 
     end % done loop over ii
     
@@ -476,7 +480,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
 
-            % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
+            % Update current AggVars [we have to add this when doing ptype as GE conditions are in a separate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
                 % Keep the AggVars conditional on ptype for all the AggVars; overkill but that is fine
