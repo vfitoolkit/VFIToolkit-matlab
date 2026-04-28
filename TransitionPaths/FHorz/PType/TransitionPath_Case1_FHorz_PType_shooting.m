@@ -224,6 +224,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             else
                 AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
             end
+            % Uncommenting this allows you to do _tminus1 for AggVars, but only conditional on ptype [not yet possible without conditioning on ptype]
             % for ff=1:length(AggVarNames)
             %     Parameters.(AggVarNames{ff})=AggVars_ii.(AggVarNames{ff}).Mean;
             % end
@@ -236,6 +237,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             %% GE EQNS THAT DEPEND ON PTYPE SHOULD BE DONE HERE!!!
 
             AgentDist_ii=AgentDistnext_ii;
+
         end
 
         AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath_ii;

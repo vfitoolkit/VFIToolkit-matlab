@@ -254,8 +254,12 @@ if recursiveeqmoptions.verbose==2
     fprintf('Number of instances of each S (multidimensional index) \n')
     sum(SSmask_T,2)
     figure(10)
-    plot(1:1:T,ss_ind_T)
-    title('Time series for S index in the Generalized Transition Fn (including burnin)')
+    plot(-recursiveeqmoptions.burnin+1:1:T-recursiveeqmoptions.burnin,ss_ind_T)
+    title('Time series for S index in the Generalized Transition Fn (shaded area is burnin)')
+    hold on
+    patch([-recursiveeqmoptions.burnin+1 0 0 -recursiveeqmoptions.burnin+1],[1 1 2 2],'r', 'FaceAlpha', 0.2, 'EdgeColor', 'none');
+    hold off
+    xlim([-recursiveeqmoptions.burnin+1,T-recursiveeqmoptions.burnin])
 end
 
 %% Setup path for idiosyncratic shocks

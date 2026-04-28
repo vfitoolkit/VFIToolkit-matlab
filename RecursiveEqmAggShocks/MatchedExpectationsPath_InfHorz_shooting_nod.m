@@ -50,6 +50,54 @@ end
 % entry-exit models where you would want this to change over time.
 AgeWeights_T=repmat(repelem(ones(T,1,'gpuArray'),N_a,1),N_z,1);
 
+
+%% Setup for Matching Expectations
+recursiveeqmoptions.matchE_nnearest=1; % How many 'nearest' agent distributions to use when constructing expectations
+ % =1 Match Sprime based on Distances
+ % =2 Match (S,Sprime) based on Distances
+ % Note: =1 is standard, but when pi(z,zprime) is conditional on both S and Sprime it will instead use =2
+recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
+ % =1 is Kolmogorov-Smirnoff distance, not yet implemented
+ % =2 is Mean of (next period) Endogenous and (this period) Exogenous States
+
+if recursiveeqmoptions.matchE_distmeasure==2
+    % Create FnsToEvaluate the are the endogenous state and exogenous state
+    nfinput = l_aprime+l_a+l_z; % Variable number of inputs (this is the nod code)
+    inputNames = compose('x%d', 1:nfinput); % Create {'x1', 'x2', ..., 'x5'}
+    argStr = strjoin(inputNames, ','); % Create 'x1,x2,x3,x4,x5'
+    % Endogenous states
+    if l_a==1
+        FnsToEvaluate.EndoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+1)]);
+    elseif l_a==2
+        FnsToEvaluate.EndoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+2)]);
+    elseif l_a==3
+        FnsToEvaluate.EndoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+3)]);
+    else
+        error('Have not implemented expectations matching for lenght(n_a)>3')
+    end
+    % Exogenous states
+    if l_z==1
+        FnsToEvaluate.ExoState1=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+1)]);
+    elseif l_z==2
+        FnsToEvaluate.ExoState2=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+2)]);
+    elseif l_z==3
+        FnsToEvaluate.ExoState3=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+3)]);
+    elseif l_z==4
+        FnsToEvaluate.ExoState4=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+4)]);
+    elseif l_z==5
+        FnsToEvaluate.ExoState5=str2func(['@(', argStr, ') ', 'x',num2str(l_aprime+l_a+5)]);
+    else
+        error('Have not implemented expectations matching for lenght(n_z)>5')
+    end
+
+    %% HACK
+    AggVarNames{3}='EndoState1'
+    AggVarNames{4}='ExoState1'
+    %% UPDATE FNSTOEVALUATECELL AND PARAMNAMES
+
+    %% MOVE THIS WHOLE THING OUT ONE LEVEL INTO RecursiveGeneralEqmWithAggShocks_InfHorz [put l_d into FnsToEvaluate setup]
+end
+
 %% How to update the agent dist?
 % Iteration i and time period t, call agent dist Phi_t^i
 % There are two ways we could update this:
@@ -80,6 +128,9 @@ end
 l_p=length(GEPriceParamNames);
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
 
+%% DEBUG
+FnsToEvaluate
+AggVarsPath
 
 %% We do the time periods tt=1:T all in parallel
 % This leverages the fastOLG commands, which use a different shape
@@ -125,8 +176,6 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
 
     %% Match Expectations (construct next period value fn)
     tic;
-    recursiveeqmoptions.matchE_nnearest=1; % How many 'nearest' agent distributions to use when constructing expectations
-    recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
 
     % Note: this is only taking expectations over the aggregate shocks, not over the idiosyncratic shocks
     
@@ -156,7 +205,9 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
             Distances(tt1,tt1)=Inf;
         end
     elseif recursiveeqmoptions.matchE_distmeasure==2 % Distance of first moments
-        Distances=abs(AggVarsPath.K.Mean'-AggVarsPath.K.Mean);
+        Distances_EndoState=100*abs(AggVarsPath.EndoState1.Mean'-AggVarsPath.EndoState1.Mean)./AggVarsPath.EndoState1.Mean; % percentage difference
+        Distances_ExoState=100*abs(AggVarsPath.ExoState1.Mean'-AggVarsPath.ExoState1.Mean)./AggVarsPath.ExoState1.Mean; % percentage difference
+        Distances=Distances_EndoState+Distances_ExoState;
     end
     Distances=gpuArray(Distances);
     % Put indicators on the closest ones and store them in
@@ -423,6 +474,25 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     
     % Create plots of the transition path (before we update pricepath)
     createTPathFeedbackPlots(PricePathNames,AggVarNames,GEeqnNames,PricePathOld,AggVarsPath,GEcondnPath,recursiveeqmoptions);
+
+    % Create a plot about the matching process (omit period T)
+    matchingmap=zeros(T-1,T-1);
+    for S_c=1:N_S
+        for tt=1:T-1
+        % ind=(1:1:T-1)+T*(DistMatches(1:end-1,S_c,1,1)-1);
+        matchingmap(tt,DistMatches(tt,S_c,1,1))=1;
+        end
+    end
+    figure(4)
+    maprange=floor(T/2):1:floor(T/2)+19;
+    subplot(2,1,1); heatmap(matchingmap(maprange,maprange))
+    title('Heatmap of the Matches (for 20 time periods)')
+    matchingAggEndoState=zeros(T-1,N_S);
+    for S_c=1:N_S
+        matchingAggEndoState(:,S_c)=AggVarsPath.K.Mean(DistMatches(1:end-1,S_c,1,1));
+    end
+    subplot(2,1,2); plot(1:1:T-1,matchingAggEndoState)
+    title('Aggregate value of endogenous state in each match (one line for each S value)')
     
     % Update PricePathOld
     % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).

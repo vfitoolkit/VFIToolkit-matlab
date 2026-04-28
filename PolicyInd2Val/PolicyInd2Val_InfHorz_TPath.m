@@ -35,6 +35,7 @@ if n_d(1)==0
     end
 else
     l_d=length(n_d);
+
     PolicyValuesPath=zeros(l_d+l_aprime,N_a,N_z,T,'gpuArray');
     PolicyValuesPath(1,:,:,:)=d_grid(PolicyPath(1,:,:,:));
     if l_d>1
