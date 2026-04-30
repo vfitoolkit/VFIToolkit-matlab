@@ -58,17 +58,20 @@ if heteroagentoptions.useintermediateEqns==1
     intermediateEqnsVec=zeros(1,length(intEqnnames));
     % Do the intermediateEqns, in order
     for gg=1:length(intEqnnames)
-        intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg).Names, Parameters));
+        % intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg).Names, Parameters));
+        intermediateEqnsVec(gg)=GeneralEqmConditions_Case1_v3g(heteroagentoptions.intermediateEqnsCell{gg}, heteroagentoptions.intermediateEqnParamNames(gg).Names, Parameters);
         Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
     end
 end
 
 %% Evaluate General Eqm Eqns
 % use of real() is a hack that could disguise errors, but I couldn't find why matlab was treating output as complex
+% use of real() has been disabled, see how it goes without
 GeneralEqmConditionsVec=zeros(1,length(GEeqnNames));
 for gg=1:length(GEeqnNames)
     % Note: _v3 rather than _v3g, so on CPU rather than GPU
-    GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    % GeneralEqmConditionsVec(gg)=real(GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters));
+    GeneralEqmConditionsVec(gg)=GeneralEqmConditions_Case1_v3(GeneralEqmEqnsCell{gg}, GeneralEqmEqnParamNames(gg).Names, Parameters);
 end
 
 %% We might want to output GE conditions as a vector or structure
