@@ -929,6 +929,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             p=p_new;
             itercounter=itercounter+1; % increment iteration counter
         end
+        if itercounter>=heteroagentoptions.maxiter
+            warning('HeteroAgentStationaryEqm stopped due to reaching maximum number of iterations (you can control using heteroagentoptions.maxiter)')
+        end
         p_eqm_vec=p_new; % Need to put it in p_eqm_vec so that it can be used to create the final output
     elseif heteroagentoptions.fminalgo==6
         if ~isfield(heteroagentoptions,'lb') || ~isfield(heteroagentoptions,'ub')
