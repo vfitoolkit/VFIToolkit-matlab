@@ -320,7 +320,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
             end
             
-            % Update current AggVars [we have to add this as GE conditions are in a seperate tt loop to the AggVars]
+            % Update current AggVars [we have to add this as GE conditions are in a separate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
             end

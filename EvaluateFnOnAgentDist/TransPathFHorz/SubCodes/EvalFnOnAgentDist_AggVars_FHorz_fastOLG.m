@@ -253,6 +253,8 @@ for ff=1:length(FnsToEvaluate)
                     Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1),PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1),PolicyValues_aprime(:,:,:,2),PolicyValues_aprime(:,:,:,3), a_gridvals(:,1),a_gridvals(:,2), z_gridvals_J_fastOLG(1,:,:,1),z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
                 elseif l_a==3
                     Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1),PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1),PolicyValues_aprime(:,:,:,2),PolicyValues_aprime(:,:,:,3), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3), z_gridvals_J_fastOLG(1,:,:,1),z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
+                elseif l_a==4
+                    Values=arrayfun(FnsToEvaluate{ff}, PolicyValues_d(:,:,:,1),PolicyValues_d(:,:,:,2), PolicyValues_aprime(:,:,:,1),PolicyValues_aprime(:,:,:,2),PolicyValues_aprime(:,:,:,3), a_gridvals(:,1),a_gridvals(:,2),a_gridvals(:,3),a_gridvals(:,4), z_gridvals_J_fastOLG(1,:,:,1),z_gridvals_J_fastOLG(1,:,:,2), ParamCell{:});
                 end
             end
         elseif l_d==3
