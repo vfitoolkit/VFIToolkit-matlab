@@ -1,4 +1,4 @@
-function ProbDensityFns=EvalFnOnAgentDist_pdf_InfHorz_Mass(StationaryDistpdf,StationaryDistmass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,FnsToEvaluateStruct)
+function ProbDensityFns=EvalFnOnAgentDist_ProbDensityFn_InfHorz_Mass(StationaryDistpdf,StationaryDistmass, Policy, FnsToEvaluate, Parameters, FnsToEvaluateParamNames,EntryExitParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, Parallel,simoptions,FnsToEvaluateStruct)
 % Evaluates the aggregate value (weighted sum/integral) for each element of FnsToEvaluate
 
 if ~isfield(simoptions,'endogenousexit')
@@ -83,7 +83,7 @@ if Parallel==2
     
     ProbDensityFns=zeros(N_a*N_z,length(FnsToEvaluate),'gpuArray');
     
-    PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+    PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
     PolicyValues=reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]);
     % permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     % PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]

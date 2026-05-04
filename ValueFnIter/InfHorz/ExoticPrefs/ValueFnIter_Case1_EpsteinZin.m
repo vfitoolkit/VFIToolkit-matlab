@@ -31,9 +31,6 @@ if isfield(vfoptions,'survivalprobability') || isfield(vfoptions,'WarmGlowBeques
     error('Epstein-Zin preferences in infinite-horizon do not support vfoptions.survivalprobability nor vfoptions.WarmGlowBequestsFn')
 end
 
-if gpuDeviceCount==0
-    error('Epstein-Zin preferences are only available with GPU (you dont have one, or at least Matlab cannot see it)')
-end
 
 %% Based on the settings, define a bunch of variables that are used to implement the EZ preferences
 % Note that the discount factor and survival probabilities can depend on jj (age/period)
@@ -98,6 +95,8 @@ if length(DiscountFactorParamsVec)>3
     DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
 end
 
+N_d=prod(n_d);
+
 %%
 if vfoptions.lowmemory==0
     
@@ -121,8 +120,9 @@ if vfoptions.lowmemory==0
     end
         
     %%    
-    if n_d(1)==0
+    if N_d==0
         [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+        Policy=shiftdim(Policy,-1);
     else
         [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
     end
@@ -134,8 +134,9 @@ elseif vfoptions.lowmemory==1
         tic;
     end
 
-    if n_d(1)==0
+    if N_d==0
         [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+        Policy=shiftdim(Policy,-1);
     else
         [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
     end

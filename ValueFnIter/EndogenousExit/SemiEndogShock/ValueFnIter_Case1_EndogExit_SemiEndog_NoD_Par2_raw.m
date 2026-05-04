@@ -56,15 +56,7 @@ while currdist>Tolerance
         end
     end
 
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
-
 end
 
 if keeppolicyonexit==0 % This is default
