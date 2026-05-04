@@ -31,6 +31,10 @@ if isfield(vfoptions,'survivalprobability') || isfield(vfoptions,'WarmGlowBeques
     error('Epstein-Zin preferences in infinite-horizon do not support vfoptions.survivalprobability nor vfoptions.WarmGlowBequestsFn')
 end
 
+if gpuDeviceCount==0
+    error('Epstein-Zin preferences are only available with GPU (you dont have one, or at least Matlab cannot see it)')
+end
+
 %% Based on the settings, define a bunch of variables that are used to implement the EZ preferences
 % Note that the discount factor and survival probabilities can depend on jj (age/period)
 % But the 'relative risk aversion' and 'elasticity of intertemporal substititution' cannot depend on jj
@@ -107,13 +111,7 @@ if vfoptions.lowmemory==0
         tic;
     end
     
-    if vfoptions.returnmatrix==0
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, vfoptions.parallel);
-    elseif vfoptions.returnmatrix==1
-        ReturnMatrix=ReturnFn;
-    elseif vfoptions.returnmatrix==2 % GPU
-        ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
-    end
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
     
     if vfoptions.verbose==1
         time=toc;
@@ -123,12 +121,10 @@ if vfoptions.lowmemory==0
     end
         
     %%    
-    if vfoptions.parallel==2 % On GPU (Only implemented for GPU)
-        if n_d(1)==0
-            [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
-        else
-            [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
-        end
+    if n_d(1)==0
+        [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+    else
+        [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
     end
     
 elseif vfoptions.lowmemory==1    
@@ -138,16 +134,11 @@ elseif vfoptions.lowmemory==1
         tic;
     end
 
-    if vfoptions.parallel==2 % On GPU
-        if n_d(1)==0
-            [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
-        else
-            [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
-        end
+    if n_d(1)==0
+        [VKron,Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
+    else
+        [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7);
     end
-    
-elseif vfoptions.lowmemory==2  
-    error('lowmemory=2 is not an option for Epstein-Zin preferences in infinite horizon')
 end
 
 if vfoptions.verbose==1
@@ -163,10 +154,6 @@ Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 if vfoptions.verbose==1
     time=toc;
     fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-end
-
-if vfoptions.polindorval==2
-    Policy=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,vfoptions.parallel);
 end
     
 

@@ -28,6 +28,7 @@ if ~exist('simoptions','var')
     simoptions.n_e=0;
     % When calling as a subcommand, the following is used internally
     simoptions.alreadygridvals=0;
+    simoptions.alreadygridvals_semiexo=0;
     % For internal use only
     simoptions.keepoutputasmatrix=0;
     simoptions.simpanelindexkron=0;
@@ -62,6 +63,9 @@ else
     % When calling as a subcommand, the following is used internally
     if ~isfield(simoptions, 'alreadygridvals')
         simoptions.alreadygridvals=0;
+    end
+    if ~isfield(simoptions, 'alreadygridvals_semiexo')
+        simoptions.alreadygridvals_semiexo=0;
     end
     % For internal use only
     if ~isfield(simoptions,'keepoutputasmatrix')

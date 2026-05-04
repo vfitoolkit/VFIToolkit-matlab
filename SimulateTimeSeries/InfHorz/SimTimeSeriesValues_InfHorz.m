@@ -22,6 +22,6 @@ InitialDist=zeros([N_a,N_z]);
 InitialDist(simoptions.seedpoint(1),simoptions.seedpoint(2))=1;
 
 
-TimeSeries=SimPanelValues_Case1(InitialDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions);
+TimeSeries=SimPanelValues_InfHorz(InitialDist,Policy,FnsToEvaluate,[],Parameters,n_d,n_a,n_z,d_grid,a_grid,z_grid,pi_z, simoptions);
 
 end
