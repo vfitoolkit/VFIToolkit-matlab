@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_NoD_Par2_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_nod_raw(VKron, n_a, n_z, a_grid, z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
 %Does pretty much exactly the same as ValueFnIter_Case1, only without any decision variable (n_d=0)
 
 N_a=prod(n_a);

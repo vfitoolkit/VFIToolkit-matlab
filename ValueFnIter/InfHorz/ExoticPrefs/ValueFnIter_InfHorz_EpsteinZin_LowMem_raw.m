@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_EpsteinZin_LowMem_Par2_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
+function [VKron, Policy]=ValueFnIter_InfHorz_EpsteinZin_LowMem_raw(VKron, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z,DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, Howards,Howards2,Tolerance, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7)
 
 N_d=prod(n_d);
 N_a=prod(n_a);

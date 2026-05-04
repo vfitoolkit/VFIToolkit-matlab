@@ -1,4 +1,4 @@
-function [VKron, Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_NoD_Par2_raw(VKron, n_a, n_z, pi_z, beta0beta, ReturnMatrix) 
+function [VKron, Policy]=ValueFnIter_InfHorz_QuasiHyperbolicNaive_nod_raw(VKron, n_a, n_z, pi_z, beta0beta, ReturnMatrix)
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % Let V_j be the standard (exponential discounting) solution to the value fn problem
