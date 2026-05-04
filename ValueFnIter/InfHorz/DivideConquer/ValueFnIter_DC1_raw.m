@@ -41,7 +41,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vold.*Epi_z;
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1),[N_d,N_a,1,N_z]);

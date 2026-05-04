@@ -148,7 +148,7 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % n-Monotonicity
@@ -203,7 +203,7 @@ else
             pi_semiz=pi_semiz_J(:,:,d2_c,N_j);
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             for e_c=1:N_e
@@ -280,7 +280,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             % n-Monotonicity
@@ -335,7 +335,7 @@ for reverse_j=1:N_j-1
             pi_semiz=pi_semiz_J(:,:,d2_c,jj); % reverse order
 
             EV_d2=EV.*shiftdim(pi_semiz',-1);
-            EV_d2(isnan(EV_d2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_d2(isnan(EV_d2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_d2=sum(EV_d2,2); % sum over z', leaving a singular second dimension
 
             for e_c=1:N_e

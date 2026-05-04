@@ -94,7 +94,7 @@ else
         % (d,aprime,a,z,e)
         
         EV=V_Jplus1.*shiftdim(pi_z_J',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         entireEV=repelem(EV,N_d,1,1);
@@ -111,7 +111,7 @@ else
 
     elseif vfoptions.lowmemory==1
         EV=V_Jplus1.*shiftdim(pi_z_J',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         entireEV=repelem(EV,N_d,1,1);
@@ -138,7 +138,7 @@ else
             
             %Calc the condl expectation term (except beta) which depends on z but not control variables
             EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             entireEV_z=kron(EV_z,ones(N_d,1));
 
@@ -184,7 +184,7 @@ for reverse_j=1:N_j-1
         % (d,aprime,a,z,e)
         
         EV=VKronNext_j.*shiftdim(pi_z_J',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         entireEV=repelem(EV,N_d,1,1);
@@ -201,7 +201,7 @@ for reverse_j=1:N_j-1
 
     elseif vfoptions.lowmemory==1
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         entireEV=repelem(EV,N_d,1,1);
@@ -228,7 +228,7 @@ for reverse_j=1:N_j-1
             
             %Calc the condl expectation term (except beta) which depends on z but not control variables
             EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             entireEV_z=kron(EV_z,ones(N_d,1));
 

@@ -33,7 +33,7 @@ while currdist>Tolerance
         pi_z_semiendog_z=pi_z_semiendog2(:,:,z_c);
 
         EV_z=VKronold.*pi_z_semiendog_z; %squeeze(pi_z_semiendog(:,z_c,:));
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
         for a_c=1:N_a

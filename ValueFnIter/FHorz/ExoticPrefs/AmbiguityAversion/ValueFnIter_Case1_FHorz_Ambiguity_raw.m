@@ -56,7 +56,7 @@ else
         ambEV=zeros(N_a,1,N_z,n_ambiguity(N_j)); % aprime, nothing, z, prior
         for amb_c=1:n_ambiguity(N_j) % Evaluate expections under each of the multiple priors
             EV=V_Jplus1.*shiftdim(ambiguity_pi_z_J(:,:,N_j,amb_c)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
             ambEV(:,:,:,amb_c)=EV;
         end
@@ -83,7 +83,7 @@ else
             for amb_c=1:n_ambiguity(N_j) % Evaluate expections under each of the multiple priors
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*ambiguity_pi_z_J(z_c,:,N_j,amb_c));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 ambEV_z(:,amb_c)=EV_z;
             end
@@ -126,7 +126,7 @@ for reverse_j=1:N_j-1
         ambEV=zeros(N_a,1,N_z,n_ambiguity(jj)); % aprime, nothing, z, prior
         for amb_c=1:n_ambiguity(jj) % Evaluate expections under each of the multiple priors
             EV=VKronNext_j.*shiftdim(ambiguity_pi_z_J(:,:,jj,amb_c)',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
             ambEV(:,:,:,amb_c)=EV;
         end
@@ -153,7 +153,7 @@ for reverse_j=1:N_j-1
             for amb_c=1:n_ambiguity(jj) % Evaluate expections under each of the multiple priors
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*ambiguity_pi_z_J(z_c,:,jj,amb_c));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
                 ambEV_z(:,amb_c)=EV_z;
             end

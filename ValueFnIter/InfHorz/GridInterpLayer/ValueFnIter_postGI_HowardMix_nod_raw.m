@@ -29,7 +29,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*pi_z_alt;
-    EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; % aprime by a by z
@@ -109,7 +109,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     EVpre=reshape(VKron(aprimeindex,:),[N_aprimediff,N_a,N_z,N_z]); % last dimension is zprime    
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EVpre.*pi_z_alt2;
-    EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,4)); % sum over z', leaving a singular second dimension
     % EV is now [N_aprimediff,N_a,N_z]
     % Interpolate EV over aprime_grid

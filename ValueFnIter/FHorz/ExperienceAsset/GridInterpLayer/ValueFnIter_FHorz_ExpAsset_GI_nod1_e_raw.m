@@ -137,7 +137,7 @@ else
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-2);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_z]);
@@ -263,7 +263,7 @@ for reverse_j=1:N_j-1
     % Already applied the probabilities from interpolating onto grid
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-2);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
 
     DiscountedEV=DiscountFactorParamsVec*reshape(EV,[N_d2,N_a1,1,N_a2,N_z]);

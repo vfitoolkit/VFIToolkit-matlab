@@ -25,7 +25,7 @@ for z_c=1:N_z
     %Calc the condl expectation term (except beta), which depends on z but
     %not on control variables
     EV_z=VKronold.*(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-    EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV_z=sum(EV_z,2);
     
     entireRHS=ReturnMatrix_z+beta0beta*EV_z*ones(1,N_a);%,1); %aprime by 1

@@ -44,7 +44,7 @@ EV=aprimeProbs.*Vlower+(1-aprimeProbs).*Vupper; % (d2,a1prime,a2,zprime)
 if vfoptions.lowmemory==0
 
     EV=EV.*shiftdim(pi_z',-2);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular third dimension
 
     ReturnMatrix=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, n_z, d2_gridvals, a1_gridvals, a1_gridvals, a2_gridvals, z_gridvals, ReturnFnParamsVec,0,0);
@@ -64,7 +64,7 @@ elseif vfoptions.lowmemory==1
         z_val=z_gridvals(z_c,:);
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=EV.*shiftdim(pi_z(z_c,:)',-2);
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,3);
 
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_ExpAsset_Disc_Par2(ReturnFn, 0, n_d2, n_a1, n_a1,n_a2, special_n_z, d2_grid, a1_gridvals, a1_gridvals, a2_gridvals, z_val, ReturnFnParamsVec,0,0);

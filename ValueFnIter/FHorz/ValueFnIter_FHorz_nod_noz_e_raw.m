@@ -197,7 +197,7 @@ else
             ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,N_j), e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
 
             EV_e2=EV.*pi_e1_J(1,:,N_j);
-            EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_e2(isnan(EV_e2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
             entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2; %.*ones(1,N_a,1);
@@ -233,7 +233,7 @@ else
             ReturnMatrix_e2=CreateReturnFnMatrix_Case1_Disc_Par2e(ReturnFn, 0, n_a, n_e1, special_n_e2, 0, a_grid, e1_gridvals_J(:,:,jj), e2_val, ReturnFnParamsVec); % Just treat e1 as z and e2 as e
 
             EV_e2=EV.*pi_e1_J(1,:,jj);
-            EV_e2(isnan(EV_e2))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_e2(isnan(EV_e2))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_e2=sum(EV_e2,2); % sum over z', leaving a singular second dimension
 
             entireRHS_e2=ReturnMatrix_e2+DiscountFactorParamsVec*EV_e2; %.*ones(1,N_a,1);

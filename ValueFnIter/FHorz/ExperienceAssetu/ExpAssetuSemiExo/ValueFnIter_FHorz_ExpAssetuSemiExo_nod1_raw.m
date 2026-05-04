@@ -100,7 +100,7 @@ else
             % (d,aprime,a,z)
 
             EV=EVpre.*shiftdim(pi_bothz_d3',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -139,7 +139,7 @@ else
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=EVpre.*(ones(N_a,1,'gpuArray')*pi_bothz_d3(z_c,:));
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a
@@ -216,7 +216,7 @@ for reverse_j=1:N_j-1
             % (d,aprime,a,z)
 
             EV=EVpre.*shiftdim(pi_bothz_d3',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Switch EV from being in terms of aprime to being in terms of d and a
@@ -254,7 +254,7 @@ for reverse_j=1:N_j-1
 
                 %Calc the condl expectation term (except beta), which depends on z but not on control variables
                 EV_z=EVpre.*shiftdim(pi_bothz_d3(z_c,:)',-1);
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
                 % Switch EV_z from being in terms of aprime to being in terms of d and a

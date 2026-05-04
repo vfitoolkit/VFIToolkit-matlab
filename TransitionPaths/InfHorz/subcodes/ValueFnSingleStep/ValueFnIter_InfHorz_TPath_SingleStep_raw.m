@@ -25,7 +25,7 @@ if vfoptions.lowmemory==0
     
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vnext.*shiftdim(pi_z',-1);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1,1);
@@ -41,7 +41,7 @@ elseif vfoptions.lowmemory==1
         
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=Vnext.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
         entireEV_z=kron(EV_z,ones(N_d,1));
