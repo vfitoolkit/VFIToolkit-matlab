@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+=======
+function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+>>>>>>> 8f64e227 (Version 2.5: switch to _InfHorz)
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 if prod(n_z)>1 && all(size(d_grid)==[prod(n_z),prod(n_z)])
