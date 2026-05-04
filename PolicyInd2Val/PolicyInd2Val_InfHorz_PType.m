@@ -44,7 +44,7 @@ for ii=1:N_i
         end
     end
 
-    PolicyValues.(Names_i{ii})=PolicyInd2Val_Case1(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,vfoptions_temp);
+    PolicyValues.(Names_i{ii})=PolicyInd2Val_InfHorz(PolicyIndexes.(Names_i{ii}),n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,vfoptions_temp);
 end
 
 

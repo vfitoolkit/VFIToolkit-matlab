@@ -42,7 +42,7 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Paramet
 % So figure out which setup we have, and get the relevant ReturnFnParamNames
 
 %% Calculate FofPolicy (the return fn evaluated at the Policy)
-PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid, vfoptions);
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid, vfoptions);
 PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
 ReturnFnParamsCell=CreateCellFromParams(Parameters,ReturnFnParamNames);
