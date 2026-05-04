@@ -84,7 +84,7 @@ if isfield(simoptions,'outputasstructure')
 end
 
 
-%% Check for functions that use value function and send these off to a subversion called EvalFnOnAgentDist_AggVars_Case1_withV()
+%% Check for functions that use value function and send these off to a subversion called EvalFnOnAgentDist_AggVars_InfHorz_withV()
 if isfield(simoptions,'eval_valuefn')
     AggVarsExtra=struct();
     for ff=1:length(FnsToEvalNames)
@@ -96,7 +96,7 @@ if isfield(simoptions,'eval_valuefn')
                 if length(FnsToEvaluateParamNames(ff).Names)>1
                     tempFnsToEvaluateParamNames(ff).Names=FnsToEvaluateParamNames(ff).Names{2:end};
                 end
-                AggVarsExtra=EvalFnOnAgentDist_AggVars_Case1_withV(simoptions.eval_valuefn,StationaryDist, Policy, {FnsToEvaluate{ff}}, {FnsToEvalNames{ff}}, Parameters, tempFnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions);
+                AggVarsExtra=EvalFnOnAgentDist_AggVars_InfHorz_withV(simoptions.eval_valuefn,StationaryDist, Policy, {FnsToEvaluate{ff}}, {FnsToEvalNames{ff}}, Parameters, tempFnsToEvaluateParamNames, n_d, n_a, n_z, d_grid, a_grid, z_grid, simoptions.parallel, simoptions);
                 FnsToEvaluate2=FnsToEvaluate; FnsToEvaluateParamNames2=FnsToEvaluateParamNames;
                 clear FnsToEvaluateParamNames
                 FnsToEvaluate={}; % Note: there may be no other FnsToEvaluate

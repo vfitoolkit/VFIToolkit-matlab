@@ -132,7 +132,7 @@ StationaryDist=gpuArray(StationaryDist);
 Policy=gpuArray(Policy);
 
 % Switch to PolicyValues, and permute
-PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 PolicyValuesPermute=permute(reshape(PolicyValues,[size(PolicyValues,1),N_a,N_z]),[2,3,1]); %[N_a,N_z,l_d+l_a]
 
 %% Create big transition matrix P

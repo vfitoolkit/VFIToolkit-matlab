@@ -87,7 +87,7 @@ StationaryDistVec=reshape(StationaryDist,[N_a*N_z,1]);
 
 CrossSectionCorr=struct();
 
-PolicyValues=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
+PolicyValues=PolicyInd2Val_InfHorz(Policy,n_d,n_a,n_z,d_grid,a_grid,simoptions);
 permuteindexes=[1+(1:1:(l_a+l_z)),1];
 PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
 
