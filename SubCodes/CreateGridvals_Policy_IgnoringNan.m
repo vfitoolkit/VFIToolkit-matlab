@@ -15,7 +15,8 @@ function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_Ignorin
 %
 % If either of d or aprime is not relevant, then a value of nan will be returned for the corresponding gridvals output.
 
-warning('I intend to disable this because it is slow: please tell me if it is still being used by something')
+% warning('I intend to disable this because it is slow: please tell me if it is still being used by something')
+% Note to SELF: Is used by HopenhaynRogerson1993_Example, in SimPanelValues_InfHorz command
 dbstack
 % NOTE TO SELF: THE CPU VERSION COULD CERTAINLY BE SPED UP BY BETTER USE OF VECTORIZATION.
 
