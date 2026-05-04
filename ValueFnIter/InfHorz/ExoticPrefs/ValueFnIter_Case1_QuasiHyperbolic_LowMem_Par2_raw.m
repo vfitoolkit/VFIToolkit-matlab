@@ -1,4 +1,4 @@
-function [Vhat, Policy]=ValueFnIter_Case1_QuasiHyperbolic_LowMem_Par2_raw(Vunderbar, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
+function [Vhat, Policy]=ValueFnIter_Case1_QuasiHyperbolic_LowMem_Par2_raw(Vunderbar, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParams, Howards,Howards2,Tolerance) %Verbose,
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 % The 'Sophisticated' quasi-hyperbolic solution takes into account the time-inconsistent behaviour of their future self.
@@ -22,8 +22,8 @@ aaa=reshape(ccc,[N_a*N_z,N_z]);
 %
 Vhat=zeros(N_a,N_z,'gpuArray');
 
-beta=prod(DiscountFactorParamsVec(1:end-1)); % Discount rate between two future periods
-beta0beta=prod(DiscountFactorParamsVec); % Discount rate between present period and next period
+beta=prod(DiscountFactorParamsVec); % Discount rate between two future periods
+beta0beta=beta0*beta; % Discount rate between present period and next period
 
 
 l_z=length(n_z);

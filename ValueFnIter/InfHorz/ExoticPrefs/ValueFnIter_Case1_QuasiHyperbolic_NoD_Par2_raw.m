@@ -1,4 +1,4 @@
-function [Vhat, Policyhat]=ValueFnIter_Case1_QuasiHyperbolic_NoD_Par2_raw(Vunderbar, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, Howards,Howards2,Tolerance, maxiter) % Verbose, a_grid, z_grid, 
+function [Vhat, Policyhat]=ValueFnIter_Case1_QuasiHyperbolic_NoD_Par2_raw(Vunderbar, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, Howards,Howards2,Tolerance, maxiter) % Verbose, a_grid, z_grid, 
 % (last two entries of) DiscountFactorParamNames contains the names for the two parameters relating to
 % Quasi-hyperbolic preferences.
 %
@@ -21,8 +21,8 @@ aaa=reshape(ccc,[N_a*N_z,N_z]);
 %
 Vhat=zeros(N_a,N_z,'gpuArray');
 
-beta=prod(DiscountFactorParamsVec(1:end-1)); % Discount rate between two future periods
-beta0beta=prod(DiscountFactorParamsVec); % Discount rate between present period and next period
+beta=prod(DiscountFactorParamsVec); % Discount rate between two future periods
+beta0beta=beta0*beta; % Discount rate between present period and next period
 
 %%
 tempcounter=1;

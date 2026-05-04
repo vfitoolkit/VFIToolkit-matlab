@@ -15,8 +15,8 @@ V=nan; % The value function of the quasi-hyperbolic agent
 Policy=nan; % The value function of the quasi-hyperbolic agent
 
 N_d=prod(n_d);
-N_a=prod(n_a);
-N_z=prod(n_z);
+% N_a=prod(n_a);
+% N_z=prod(n_z);
 
 if ~isfield(vfoptions,'quasi_hyperbolic')
     vfoptions.quasi_hyperbolic='Naive'; % This is the default, alternative is 'Sophisticated'.
@@ -33,105 +33,77 @@ elseif ~strcmp(vfoptions.quasi_hyperbolic,'Naive') && ~strcmp(vfoptions.quasi_hy
     error('vfoptions.quasi_hyperbolic must be either Naive or Sophisticated (check spelling and capital letter) \n')
 end
 
+if ~isfield(vfoptions,'QHadditionaldiscount')
+    error('You must declare vfoptions.QHadditionaldiscount when using quasi-hyperbolic discouting (you have vfoptions.exoticpreferences set to QuasiHyperbolic)')
+end
+
 %%
 
 % Create a vector containing all the return function parameters (in order)
 ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames);
 DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNames);
-if length(DiscountFactorParamsVec)>3
-    DiscountFactorParamsVec=[prod(DiscountFactorParamsVec(1:end-2));DiscountFactorParamsVec(end-1);DiscountFactorParamsVec(end)];
-end
+beta0=Parameters.(vfoptions.QHadditionaldiscount);
 
 %%
 if vfoptions.lowmemory==0
     
     %% CreateReturnFnMatrix_Case1_Disc creates a matrix of dimension (d and aprime)-by-a-by-z.
-    % Since the return function is independent of time creating it once and
-    % then using it every iteration is good for speed, but it does use a
-    % lot of memory.
-
-    if vfoptions.verbose==1
-        disp('Creating return fn matrix')
-        tic;
-    end
+    % Since the return function is independent of time creating it once and then using it every iteration is good 
+    % for speed, but it does use a lot of memory.
     
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid,ReturnFnParamsVec);
-    
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create return fn matrix: %8.4f \n', time)
-        disp('Starting Value Function')
-        tic;
-    end
         
     %%
     if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.
         if N_d==0
             % First calculate the exponential discounting solution
-            [V,~]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec(1:end-1)), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            [V,~]=ValueFnIter_nod_raw(V0, n_a, n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             % Then the Naive quasi-hyperbolic from this
-            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_NoD_Par2_raw(V, n_a, n_z, pi_z, DiscountFactorParamsVec(end), ReturnMatrix);
+            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_NoD_Par2_raw(V, n_a, n_z, pi_z, beta0, ReturnMatrix);
             Policy=shiftdim(Policy,-1);
         else
             % First calculate the exponential discounting solution
-            [V, ~]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec(1:end-1)), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            [V, ~]=ValueFnIter_raw(V0, n_d,n_a,n_z, pi_z, prod(DiscountFactorParamsVec), ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
             % Then the Naive quasi-hyperbolic from this
-            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_Par2_raw(V, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec(end), ReturnMatrix);
+            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_Par2_raw(V, n_d,n_a,n_z, pi_z, beta0, ReturnMatrix);
         end
     elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % For Naive, just solve the standard value function problem, and then just one step following that.
         if N_d==0
-            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolic_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
+            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolic_NoD_Par2_raw(V0, n_a, n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.maxiter);
             Policy=shiftdim(Policy,-1);
         else
-            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
+            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic_Par2_raw(V0, n_d,n_a,n_z, pi_z, DiscountFactorParamsVec, beta0, ReturnMatrix,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.maxiter);
         end
     end
     
 elseif vfoptions.lowmemory==1    
-    
-    if vfoptions.verbose==1
-        disp('Starting Value Function')
-        tic;
-    end
 
     if strcmp(vfoptions.quasi_hyperbolic,'Naive') % For Naive, just solve the standard value function problem, and then just one step following that.
         if N_d==0
             % First calculate the exponential discounting solution
-            [V,~]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, prod(DiscountFactorParamsVec(1:end-1)), ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            [V,~]=ValueFnIter_Case1_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, prod(DiscountFactorParamsVec), ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             % Then the Naive quasi-hyperbolic from this
-            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_LowMem_NoD_Par2_raw(V, n_a, n_z, pi_z, DiscountFactorParamsVec(end), ReturnFn, ReturnFnParamsVec);
+            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_LowMem_NoD_Par2_raw(V, n_a, n_z, pi_z, beta0, ReturnFn, ReturnFnParamsVec);
             Policy=shiftdim(Policy,-1);
         else
             % First calculate the exponential discounting solution
-            [V, ~]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, prod(DiscountFactorParamsVec(1:end-1)), ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            [V, ~]=ValueFnIter_Case1_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, prod(DiscountFactorParamsVec), ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
             % Then the Naive quasi-hyperbolic from this
-            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_LowMem_Par2_raw(V, n_d, n_a, n_z, pi_z, DiscountFactorParamsVec(end), ReturnFn, ReturnFnParamsVec);
+            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolicNaive_LowMem_Par2_raw(V, n_d, n_a, n_z, pi_z, beta0, ReturnFn, ReturnFnParamsVec);
         end
     elseif strcmp(vfoptions.quasi_hyperbolic,'Sophisticated') % For Naive, just solve the standard value function problem, and then just one step following that.
         if N_d==0
-            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolic_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
+            [V,Policy]=ValueFnIter_Case1_QuasiHyperbolic_LowMem_NoD_Par2_raw(V0, n_a, n_z, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance);
             Policy=shiftdim(Policy,-1);
         else
-            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
+            [V, Policy]=ValueFnIter_Case1_QuasiHyperbolic_LowMem_Par2_raw(V0, n_d,n_a,n_z, d_grid, a_grid, z_grid, pi_z, DiscountFactorParamsVec, beta0, ReturnFn, ReturnFnParamsVec,vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance);
         end
     end
 end
 
 
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to solve for Value Fn and Policy: %8.4f \n', time)
-    disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
-    tic;
-end
-
 %%
 V=reshape(V,[n_a,n_z]);
-Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-end
-    
+Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);    
 
 end
