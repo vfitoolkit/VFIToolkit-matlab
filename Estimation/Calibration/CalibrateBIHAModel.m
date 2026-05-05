@@ -237,6 +237,7 @@ else % Make sure it is a column vector
     end
 end
 if length(caliboptions.weights)~=length(targetmomentvec(actualtarget))
+    fprintf('Info relevant to following error: number of target moments=%i (number of scalars) \n',length(targetmomentvec(actualtarget)))
     error('caliboptions.weights is not the length same as number of target moments (ignoring any NaN)')
 end
 
