@@ -17,7 +17,7 @@ PricePathNew(T,:)=PricePathOld(T,:);
 AggVarsPath=zeros(T-1,length(AggVarNames),'gpuArray'); % Note: does not include the final AggVars, might be good to add them later as a way to make if obvious to user it things are incorrect
 GEcondnPath=zeros(T-1,length(GEeqnNames),'gpuArray');
 
-% Setup, the shapes of verious of these objects vary depending on the setting 
+% Setup, the shapes of various of these objects vary depending on the setting 
 [PolicyIndexesPath,N_probs,II1,II2]=TransitionPath_InfHorz_substeps_Step0_setup(l_d,l_aprime,N_a,N_z,N_e,T,transpathoptions,vfoptions,simoptions);
 
 %%
@@ -31,7 +31,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<transpathoptions.m
     %% Modify PolicyIndexesPath into forms needed for forward iteration
     [PolicyPath_ForAgentDistIter,PolicyProbsPath,PolicyValuesPath]=TransitionPath_InfHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath,T,Parameters,n_d,n_a,n_z,n_e,l_d,l_aprime,N_a,N_z,N_e,N_probs,d_gridvals,aprime_gridvals,transpathoptions,vfoptions,simoptions);
     
-   %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
+    %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
