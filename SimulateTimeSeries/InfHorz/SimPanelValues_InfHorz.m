@@ -157,6 +157,9 @@ if simoptions.agententryandexit==1
     CondlProbOfSurvival=gather(Parameters.(EntryExitParamNames.CondlProbOfSurvival{1}));
     RelativeMassOfEntrants=Parameters.(EntryExitParamNames.MassOfNewAgents{1})/InitialDist.mass;
 
+    % In case a function depends on 'agentmass'
+    Parameters.agentmass=InitialDist.mass;
+
     % Rather than create a whole new function for Entry, just deal with it
     % by making repeated use of SimPanelIndexes_InfHorz(). This could be sped
     % up with better use of precomputing certain objects, but is easy.

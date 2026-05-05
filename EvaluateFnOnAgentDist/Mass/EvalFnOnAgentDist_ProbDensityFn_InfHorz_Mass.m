@@ -94,8 +94,8 @@ if Parallel==2
             FnToEvaluateParamsCell=cell(0);
         else
             if strcmp(FnsToEvaluateParamNames(ff).Names{1},'agentmass')
-                if length(FnsToEvaluateParamNames(ff).Names)==1
-                    FnToEvaluateParamsCell=CreateCellFromParams(Parameters,FnsToEvaluateParamNames(ff).Names);
+                if isscalar(FnsToEvaluateParamNames(ff).Names)
+                    FnToEvaluateParamsCell={StationaryDistmass};
                 else
                     FnToEvaluateParamsCell=cell(1,length(FnsToEvaluateParamNames(ff).Names));
                     FnToEvaluateParamsCell(1)={StationaryDistmass};

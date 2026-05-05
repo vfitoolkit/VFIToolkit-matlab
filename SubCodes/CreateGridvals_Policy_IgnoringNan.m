@@ -17,7 +17,7 @@ function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_Ignorin
 
 % warning('I intend to disable this because it is slow: please tell me if it is still being used by something')
 % Note to SELF: Is used by HopenhaynRogerson1993_Example, in SimPanelValues_InfHorz command
-dbstack
+% dbstack
 % NOTE TO SELF: THE CPU VERSION COULD CERTAINLY BE SPED UP BY BETTER USE OF VECTORIZATION.
 
 if n_d(1)==0
