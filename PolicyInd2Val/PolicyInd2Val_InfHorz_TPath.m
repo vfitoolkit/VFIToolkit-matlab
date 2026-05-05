@@ -37,15 +37,25 @@ else
     l_d=length(n_d);
 
     PolicyValuesPath=zeros(l_d+l_aprime,N_a,N_z,T,'gpuArray');
-    PolicyValuesPath(1,:,:,:)=d_grid(PolicyPath(1,:,:,:));
-    if l_d>1
-        if l_d>2
-            for ii=2:l_d-1
-                PolicyValuesPath(ii,:,:,:)=d_grid(sum(n_d(1:ii-1))+PolicyPath(ii,:,:,:));
+    if size(d_grid,2)==1
+        PolicyValuesPath(1,:,:,:)=d_grid(PolicyPath(1,:,:,:));
+        if l_d>1
+            if l_d>2
+                for ii=2:l_d-1
+                    PolicyValuesPath(ii,:,:,:)=d_grid(sum(n_d(1:ii-1))+PolicyPath(ii,:,:,:));
+                end
             end
+            PolicyValuesPath(l_d,:,:,:)=d_grid(sum(n_d(1:end-1))+PolicyPath(l_d,:,:,:));
         end
-        PolicyValuesPath(l_d,:,:,:)=d_grid(sum(n_d(1:end-1))+PolicyPath(l_d,:,:,:));
+    else % using d_gridvals (and must be that l_d>1)
+        d_gridvals=gpuArray(d_grid);
+        n_d_cumprod=cumprod(n_d);
+        djointindex=shiftdim(sum([1;n_d_cumprod(1:end-1)'].*(PolicyPath-[0;ones(l_d-1,1)]),1),1);
+        for ii=1:l_d
+            PolicyValuesPath(ii,:,:,:)=d_gridvals(djointindex,ii);
+        end
     end
+    
     if vfoptions.gridinterplayer==0
         PolicyValuesPath(l_d+1,:,:,:)=a_grid(PolicyPath(l_d+1,:,:,:));
     elseif vfoptions.gridinterplayer==1

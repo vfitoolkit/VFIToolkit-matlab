@@ -1,10 +1,8 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % Preallocate
 if vfoptions.lowmemory==0

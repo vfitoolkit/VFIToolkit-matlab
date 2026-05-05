@@ -14,10 +14,8 @@ if vfoptions.divideandconquer==1
 end
 
 if strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    dbstack
     error('QuasiHyperbolic Preferences Not yet supported')
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin')
-    dbstack
     error('EpsteinZin Preferences Not yet supported')
 end
 

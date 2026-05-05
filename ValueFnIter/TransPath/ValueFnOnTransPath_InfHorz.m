@@ -130,9 +130,12 @@ end
 ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,0,vfoptions,Parameters);
 
 %%
-d_grid=gpuArray(d_grid);
+if size(d_grid,2)==1
+    d_gridvals=CreateGridvals(n_d,gpuArray(d_grid),1);
+else % already gridvals
+    d_gridvals=gpuArray(d_grid);
+end
 a_grid=gpuArray(a_grid);
-z_grid=gpuArray(z_grid);
 pi_z=gpuArray(pi_z);
 PricePath=gpuArray(PricePath);
 
@@ -164,9 +167,9 @@ VKronPath(:,:,T)=V_final;
 %% Switch to z_gridvals
 l_z=length(n_z);
 if all(size(z_grid)==[sum(n_z),1])
-    z_gridvals=CreateGridvals(n_z,z_grid,1); % The 1 at end indicates want output in form of matrix.
+    z_gridvals=CreateGridvals(n_z,gpuArray(z_grid),1); % The 1 at end indicates want output in form of matrix.
 elseif all(size(z_grid)==[prod(n_z),l_z])
-    z_gridvals=z_grid;
+    z_gridvals=gpuArray(z_grid);
 end
 
 %%
@@ -199,7 +202,7 @@ if vfoptions.experienceasset==0
             Parameters.(ParamPathNames{kk})=ParamPath(T-ttr,kk);
         end
         
-        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [V, Policy]=ValueFnIter_InfHorz_TPath_SingleStep(Vnext,n_d,n_a,n_z,d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % The VKron input is next period value fn, the VKron output is this period. Policy is kept in the form where it is just a single-value in (d,a')
 
         PolicyIndexesPath(:,:,:,T-ttr)=Policy;

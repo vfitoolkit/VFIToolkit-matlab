@@ -436,9 +436,9 @@ end
 
 
 %%
-if length(n_d)>1
+if size(d_grid,2)==1
     d_gridvals=CreateGridvals(n_d,d_grid,1);
-else
+else % already d_gridvals
     d_gridvals=d_grid;
 end
 

@@ -1,4 +1,4 @@
-function AgentDistPath=AgentDistOnTransPath_Case1(AgentDist_initial, PolicyPath,n_d,n_a,n_z,pi_z,T,simoptions,Parameters,PricePath,ParamPath)
+function AgentDistPath=AgentDistOnTransPath_InfHorz(AgentDist_initial, PolicyPath,n_d,n_a,n_z,pi_z,T,simoptions,Parameters,PricePath,ParamPath)
 n_e=0; % NOT YET IMPLEMENTED FOR TRANSITION PATHS
 
 N_d=prod(n_d);
@@ -46,7 +46,7 @@ end
 AgentDistPath=zeros(N_a*N_z,T,'gpuArray');
 % Call AgentDist the current periods distn
 AgentDist=gather(sparse(reshape(AgentDist_initial,[N_a*N_z,1])));
-pi_z_sparse=sparse(pi_z);
+pi_z_sparse=sparse(gather(pi_z));
 AgentDistPath(:,1)=gpuArray(full(AgentDist));
 
 if simoptions.experienceasset==0
