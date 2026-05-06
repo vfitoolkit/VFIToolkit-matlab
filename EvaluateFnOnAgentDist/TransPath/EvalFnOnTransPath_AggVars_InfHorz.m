@@ -28,6 +28,7 @@ if n_d(1)==0
     l_d=0;
 end
 l_a=length(n_a);
+l_aprime=l_a-simoptions.experienceasset;
 l_z=length(n_z);
 
 % N_d=prod(n_d);
@@ -43,8 +44,8 @@ N_z=prod(n_z);
 AggVarNames=fieldnames(FnsToEvaluate);
 for ff=1:length(AggVarNames)
     temp=getAnonymousFnInputNames(FnsToEvaluate.(AggVarNames{ff}));
-    if length(temp)>(l_d+l_a+l_a+l_z)
-        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_a+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    if length(temp)>(l_d+l_aprime+l_a+l_z)
+        FnsToEvaluateParamNames(ff).Names={temp{l_d+l_aprime+l_a+l_z+1:end}}; % the first inputs will always be (d,aprime,a,z)
     else
         FnsToEvaluateParamNames(ff).Names={};
     end
@@ -74,8 +75,7 @@ if ~isempty(tminus1priceNames)
     use_tminus1price=1;
     for tt=1:length(tminus1priceNames)
         if ~isfield(simoptions.initialvalues,tminus1priceNames{tt})
-            dbstack
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
+            error('Using %s as an input (to FnsToEvaluate) but it is not in simoptions.initialvalues \n',tminus1priceNames{tt})
         end
     end
 end

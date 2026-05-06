@@ -1,4 +1,4 @@
-function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_grid,a_grid,z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
+function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, AgentDist_initial, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, vfoptions, simoptions, EntryExitParamNames)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -9,6 +9,10 @@ function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, Age
 % transpathoptions is not a required input.
 
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
+
+if all(size(d_grid)==[prod(n_z),prod(n_z)])
+    error('Check input order: pi_z comes after z_grid')
+end
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
@@ -205,9 +209,8 @@ N_d=prod(n_d);
 N_z=prod(n_z);
 
 if N_d>0
-    if any(size(d_grid)~=[sum(n_d), 1])
+    if any(size(d_grid)~=[sum(n_d), 1]) && any(size(d_grid)~=[prod(n_d), length(n_d)]) % stacked-column-grid or joint-grid
         fprintf('d_grid is of size: %i by % i, while sum(n_d) is %i \n',size(d_grid,1),size(d_grid,2),sum(n_d))
-        dbstack
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1) \n')
     end
 end
@@ -389,7 +392,11 @@ if transpathoptions.GEnewprice~=2
         if N_d==0
             [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_nod(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_a, n_z, pi_z, a_grid,z_gridvals, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions);
         else
-            d_gridvals=CreateGridvals(n_d,gpuArray(d_grid),1);
+            if all(size(d_grid)==[sum(n_d),1]) % if stacked-column grid
+                d_gridvals=CreateGridvals(n_d,gpuArray(d_grid),1);
+            elseif all(size(d_grid)==[prod(n_d),length(n_d)]) % if joint-grid
+                d_gridvals=d_grid;
+            end
             [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d, n_a, n_z, pi_z, d_gridvals,a_grid,z_gridvals, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions);
         end
     elseif vfoptions.experienceasset==1

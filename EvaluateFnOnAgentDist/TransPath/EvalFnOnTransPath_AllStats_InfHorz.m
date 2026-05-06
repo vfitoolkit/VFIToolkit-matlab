@@ -97,8 +97,7 @@ if ~isempty(tminus1priceNames)
     use_tminus1price=1;
     for tt=1:length(tminus1priceNames)
         if ~isfield(simoptions.initialvalues,tminus1priceNames{tt})
-            dbstack
-            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{tt})
+            error('Using %s as an input (to FnsToEvaluate) but it is not in simoptions.initialvalues \n',tminus1priceNames{tt})
         end
     end
 end

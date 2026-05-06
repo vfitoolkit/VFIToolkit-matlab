@@ -1,4 +1,4 @@
-function varargout=TransitionPath_InfHorz_PType(PricePath0, ParamPath, T, V_final, StationaryDist_init, n_d, n_a, n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
+function varargout=TransitionPath_InfHorz_PType(PricePath0, ParamPath, T, V_final, StationaryDist_init, n_d,n_a,n_z, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Parameters, DiscountFactorParamNames, transpathoptions, simoptions, vfoptions)
 % PricePathOld is a structure with fields names being the Prices and each field containing a T-by-1 path.
 % ParamPath is a structure with fields names being the parameter names of those parameters which change over the path and each field containing a T-by-1 path.
 

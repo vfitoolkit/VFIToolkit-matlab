@@ -1,5 +1,9 @@
-function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d, n_a, n_z, pi_z, d_grid, a_grid,z_grid, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
+function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, V_final, Policy_final, Parameters, n_d,n_a,n_z, d_grid,a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions)
 % transpathoptions, vfoptions and simoptions are optional inputs
+
+if all(size(d_grid)==[prod(n_z),prod(n_z)])
+    error('Check input order: pi_z comes after z_grid')
+end
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if ~exist('transpathoptions','var')
