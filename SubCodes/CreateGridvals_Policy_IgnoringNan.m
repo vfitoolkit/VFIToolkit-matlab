@@ -33,6 +33,10 @@ N_z=prod(n_z);
 % Create d_gridvals and aprime_gridvals as appropriate.
 aprime_val=zeros(l_aprime,1);
 
+if size(d_grid,2)>1
+    error('cannot yet handle d_gridvals (joint-grids)')
+end
+
 % Now create those of d_gridvals and aprime_gridvals that are needed
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals
 if Case1orCase2==1

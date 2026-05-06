@@ -241,10 +241,8 @@ if Parallel==2
                 end
             else % using d_gridvals (and must be that l_d>1)
                 d_gridvals=gpuArray(d_grid);
-                n_d_cumprod=cumprod(n_d);
-                djointindex=shiftdim(sum([1;n_d_cumprod(1:end-1)'].*(Policy-[0;ones(l_d-1,1)]),1),1);
                 for ii=1:l_d
-                    PolicyValues(ii,:)=d_gridvals(djointindex,ii);
+                    PolicyValues(ii,:)=d_gridvals(Policy(1,:),ii);
                 end
             end
             

@@ -49,10 +49,8 @@ else
         end
     else % using d_gridvals (and must be that l_d>1)
         d_gridvals=gpuArray(d_grid);
-        n_d_cumprod=cumprod(n_d);
-        djointindex=shiftdim(sum([1;n_d_cumprod(1:end-1)'].*(PolicyPath-[0;ones(l_d-1,1)]),1),1);
         for ii=1:l_d
-            PolicyValuesPath(ii,:,:,:)=d_gridvals(djointindex,ii);
+            PolicyValuesPath(ii,:,:,:)=reshape(d_gridvals(PolicyPath(1,:,:,:),ii),[1,N_a,N_z,T]);
         end
     end
     

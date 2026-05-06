@@ -34,16 +34,21 @@ else
     l_d=length(n_d);
     Policy=zeros(l_d+l_aprime+extra,N_a,N_z,'gpuArray');
 
-    Policy(1,:,:)=rem(PolicyKron(1,:,:)-1,n_d(1))+1;
-    if l_d>1
-        if l_d>2
-            for ii=2:l_d-1
-                Policy(ii,:,:)=rem(ceil(PolicyKron(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+    if l_d>1 && all(n_d(2:end)==1) % using d_gridvals
+        Policy(1,:,:)=PolicyKron(1,:,:);
+        Policy(2:l_d,:,:)=ones(l_d-1,N_a,N_z,'gpuArray');
+    else
+        Policy(1,:,:)=rem(PolicyKron(1,:,:)-1,n_d(1))+1;
+        if l_d>1
+            if l_d>2
+                for ii=2:l_d-1
+                    Policy(ii,:,:)=rem(ceil(PolicyKron(1,:,:)/prod(n_d(1:ii-1)))-1,n_d(ii))+1;
+                end
             end
+            Policy(l_d,:,:)=ceil(PolicyKron(1,:,:)/prod(n_d(1:l_d-1)));
         end
-        Policy(l_d,:,:)=ceil(PolicyKron(1,:,:)/prod(n_d(1:l_d-1)));
     end
-
+    
     Policy(l_d+1,:,:)=rem(PolicyKron(2,:,:)-1,n_aprime(1))+1;
     if l_aprime>1
         if l_aprime>2

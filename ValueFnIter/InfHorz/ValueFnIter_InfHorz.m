@@ -177,7 +177,7 @@ end
 
 %% Check the sizes of some of the inputs
 if strcmp(vfoptions.solnmethod,'purediscretization') || strcmp(vfoptions.solnmethod,'purediscretization_refinement') || strcmp(vfoptions.solnmethod,'localpolicysearch')
-    if N_d>0 && ~all(size(d_grid)==[sum(n_d), 1])
+    if N_d>0 && ~all(size(d_grid)==[sum(n_d), 1]) && ~all(size(d_grid)==[prod(n_d), length(n_d)]) % if you are using d, then should be stacked-column d_grid or joint-grid d_gridvals
         error('d_grid is not the correct shape (should be of size sum(n_d)-by-1)')
     elseif ~all(size(a_grid)==[sum(n_a), 1])
         error('a_grid is not the correct shape (should be of size sum(n_a)-by-1)')
