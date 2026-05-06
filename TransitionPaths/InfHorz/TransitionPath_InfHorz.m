@@ -11,7 +11,7 @@ function varargout=TransitionPath_InfHorz(PricePath0, ParamPath, T, V_final, Age
 % Remark to self: No real need for T as input, as this is anyway the length of PricePathOld
 
 if all(size(d_grid)==[prod(n_z),prod(n_z)])
-    error('Check input order: pi_z comes after z_grid') % Keep this error message until end of 2007, can remove after that
+    error('Check input order: pi_z comes after z_grid') % Keep this error message until end of 2027, can remove after that
 end
 
 %% Check which transpathoptions have been used, set all others to defaults 
