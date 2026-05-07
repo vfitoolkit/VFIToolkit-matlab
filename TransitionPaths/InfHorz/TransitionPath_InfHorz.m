@@ -202,7 +202,7 @@ else
         simoptions.experienceasset=0;
     end
     % Algorithm to use
-        if ~isfield(simoptions,'gridinterplayer')
+    if ~isfield(simoptions,'gridinterplayer')
         simoptions.gridinterplayer=0;
     elseif simoptions.gridinterplayer==1
         if ~isfield(simoptions,'ngridinterp')
@@ -219,22 +219,19 @@ N_z=prod(n_z);
 if N_d>0
     if any(size(d_grid)~=[sum(n_d), 1]) && any(size(d_grid)~=[prod(n_d), length(n_d)]) % stacked-column-grid or joint-grid
         fprintf('d_grid is of size: %i by % i, while sum(n_d) is %i \n',size(d_grid,1),size(d_grid,2),sum(n_d))
-        error('d_grid is not the correct shape (should be of size sum(n_d)-by-1) \n')
+        error('d_grid is not the correct shape [should be stacked-column of size sum(n_d)-by-1), or a joint-grid of size prod(n_z)-by-length(n_z) ] \n')
     end
 end
 if any(size(a_grid)~=[sum(n_a), 1])
     fprintf('a_grid is of size: %i by % i, while sum(n_a) is %i \n',size(a_grid,1),size(a_grid,2),sum(n_a))
-    dbstack
     error('a_grid is not the correct shape (should be of size sum(n_a)-by-1) \n')
 % check z_grid below when converting to z_gridvals
 elseif any(size(pi_z)~=[N_z, N_z])
     fprintf('pi is of size: %i by % i, while N_z is %i \n',size(pi_z,1),size(pi_z,2),N_z)
-    dbstack
     error('pi is not of size N_z-by-N_z \n')
 end
 if length(fieldnames(PricePath0))~=length(fieldnames(GeneralEqmEqns))
     fprintf('PricePath has %i prices and GeneralEqmEqns is % i eqns \n',length(fieldnames(PricePath0)), length(fieldnames(GeneralEqmEqns)))
-    dbstack
     error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
 end
 
@@ -506,56 +503,14 @@ end
 
 %%
 if transpathoptions.GEnewprice~=2
-    if vfoptions.experienceasset==0
-        [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions);
-    elseif vfoptions.experienceasset==1
-        % Split decision variables into the standard ones and the one relevant to the experience asset
-        if isscalar(n_d)
-            n_d1=0;
-        else
-            n_d1=n_d(1:end-1);
-        end
-        n_d2=n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
-        d1_grid=d_grid(1:sum(n_d1));
-        d2_grid=d_grid(sum(n_d1)+1:end);
-        % Split endogenous assets into the standard ones and the experience asset
-        if isscalar(n_a)
-            n_a1=0;
-        else
-            n_a1=n_a(1:end-1);
-        end
-        n_a2=n_a(end); % n_a2 is the experience asset
-        a1_grid=a_grid(1:sum(n_a1));
-        a2_grid=a_grid(sum(n_a1)+1:end);
-
-        if isfield(vfoptions,'aprimeFn')
-            aprimeFn=vfoptions.aprimeFn;
-        else
-            error('To use an experience asset you must define vfoptions.aprimeFn')
-        end
-
-        % aprimeFnParamNames in same fashion
-        l_d2=length(n_d2);
-        l_a2=length(n_a2);
-        temp=getAnonymousFnInputNames(aprimeFn);
-        if length(temp)>(l_d2+l_a2)
-            aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
-        else
-            aprimeFnParamNames={};
-        end
-
-        N_a1=prod(n_a1);
-        if N_a1==0
-            error('Have not yet implemented TPath for InfHorz with experienceasset and no other (standard) asset, contact me if you want/need this')
-        else
-            [PricePath,GEcondnPath]=TransitionPath_InfHorz_shooting_ExpAsset(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d1, n_d2, n_a1, n_a2, n_z, pi_z, d1_grid, d2_grid, a1_grid, a2_grid,z_gridvals, ReturnFn, vfoptions.aprimeFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions);
-        end
-    end
-
-
+    [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_shooting(PricePath0, PricePathNames, PricePathSizeVec, ParamPath, ParamPathNames, ParamPathSizeVec, T, V_final, AgentDist_initial, n_d,n_a,n_z,n_e, N_d,N_a,N_z,N_e, l_d,l_aprime,l_a,l_z,l_e, d_gridvals,aprime_gridvals,a_gridvals,a_grid,z_gridvals,e_gridvals,ze_gridvals,pi_z,pi_z_sparse,pi_e, ReturnFn, FnsToEvaluateCell, AggVarNames, FnsToEvaluateParamNames, GEeqnNames, GeneralEqmEqnsCell, GeneralEqmEqnParamNames, Parameters, DiscountFactorParamNames, ReturnFnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, vfoptions, simoptions,transpathoptions);
+    
     % Switch to structure for output
     for pp=1:length(PricePathNames)
         PricePathStruct.(PricePathNames{pp})=PricePath(:,pp)';
+    end
+    for gg=1:length(GEeqnNames)
+        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
     end
 
 end

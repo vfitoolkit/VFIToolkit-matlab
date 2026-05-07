@@ -515,6 +515,7 @@ end
 
 %% If using a shooting algorithm, set that up
 transpathoptions=setupGEnewprice3_shooting(options,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
+GEeqnNames=fieldnames(GeneralEqmEqns);
 
 %%
 if transpathoptions.verbose==1
@@ -526,7 +527,7 @@ end
 if transpathoptions.GEnewprice~=2
     if transpathoptions.usestockvars==0
         if ~isfield(vfoptions,'n_e')
-            [PricePath,GEcondnPath]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
+            [PricePath,GEcondnPathmatrix]=TransitionPath_InfHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
         else
             error('Cannot use e variables with infinite horizon (contact me if you need this)')
             % PricePathOld=TransitionPath_InfHorz_PType_e_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, StationaryDist_init, FnsToEvaluate, GeneralEqmEqns, transpathoptions, PTypeStructure);
@@ -536,6 +537,10 @@ if transpathoptions.GEnewprice~=2
     for ii=1:length(PricePathNames)
         PricePathStruct.(PricePathNames{ii})=PricePath(:,ii);
     end
+    for gg=1:length(GEeqnNames)
+        GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
+    end
+
 
     if nargout==1
         varargout={PricePathStruct};
