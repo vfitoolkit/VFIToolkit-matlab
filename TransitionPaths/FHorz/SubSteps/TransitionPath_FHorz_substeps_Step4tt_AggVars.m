@@ -6,7 +6,7 @@ if N_z>0 && N_e>0 && transpathoptions.zepathtrivial==0
 elseif N_z>0 && transpathoptions.zpathtrivial==0
     ze_gridvals_J_fastOLG=transpathoptions.z_gridvals_J_fastOLG(:,:,:,tt);
 elseif N_e>0 && transpathoptions.epathtrivial==0
-    ze_gridvals_J_fastOLG=transpathoptions.z_gridvals_J_fastOLG(:,:,:,tt);
+    ze_gridvals_J_fastOLG=transpathoptions.e_gridvals_J_fastOLG(:,:,:,tt);
 end
 
 if N_z==0 && N_e==0

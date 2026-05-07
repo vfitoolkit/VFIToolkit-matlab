@@ -2,7 +2,7 @@ function [VPath,PolicyPath]=ValueFnOnTransPath_InfHorz(PricePath, ParamPath, T, 
 % transpathoptions, vfoptions and simoptions are optional inputs
 
 if all(size(d_grid)==[prod(n_z),prod(n_z)])
-    error('Check input order: pi_z comes after z_grid')
+    error('Check input order: pi_z comes after z_grid') % Keep this error message until end of 2007, can remove after that
 end
 
 %% Check which transpathoptions have been used, set all others to defaults 

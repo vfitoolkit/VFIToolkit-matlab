@@ -6,7 +6,7 @@ N_z=prod(n_z);
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,n_a,vfoptions.level1n));
-% level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
+level1iidiff=level1ii(2:end)-level1ii(1:end-1)-1;
 
 V=zeros(N_a,N_z,'gpuArray');
 Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for aprime rest of dimensions a,z
@@ -52,12 +52,12 @@ for ii=1:(vfoptions.level1n-1)
     else
         loweredge=maxindex1(1,ii,:);
         % Just use aprime(ii) for everything
-        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, a_grid(loweredge), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
+        ReturnMatrix_ii=CreateReturnFnMatrix_Case1_Disc_DC1_nod_Par2(ReturnFn, n_z, reshape(a_grid(loweredge),[size(loweredge)]), a_grid(level1ii(ii)+1:level1ii(ii+1)-1), z_gridvals, ReturnFnParamsVec,2);
         aprimez=loweredge+N_a*shiftdim((0:1:N_z-1),-1); % the current aprimeii(ii):aprimeii(ii+1)
         entireRHS_ii=ReturnMatrix_ii+DiscountedEV(aprimez); % autofill level1iidiff(ii) in 2nd dimension
-        % can skip mmax() over as just a single point
+        % can skip max() over as just a single point
         V(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(entireRHS_ii,1);
-        Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(ones(size(maxindex1))+loweredge-1,1);
+        Policy(level1ii(ii)+1:level1ii(ii+1)-1,:)=shiftdim(ones([1,level1iidiff(ii),1])+loweredge-1,1);
     end
 end
 

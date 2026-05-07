@@ -232,9 +232,6 @@ if simoptions.fastOLG==0
     exceptfirstj=[];
     justfirstj=[];
 end
-if simoptions.gridinterplayer==0
-    N_probs=[];
-end
 
 
 

@@ -233,7 +233,7 @@ ReturnFnParamNames=ReturnFnParamNamesFn(ReturnFn,n_d,n_a,n_z,N_j,vfoptions,Param
 
 %% Set up exogenous shock processes
 [z_gridvals_J, pi_z_J, pi_z_J_sim, e_gridvals_J, pi_e_J, pi_e_J_sim, ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(n_z,z_grid,pi_z,N_a,N_j,Parameters,PricePathNames,ParamPathNames,transpathoptions,simoptions,4);
-% Convert z and e to age-dependent joint-grids and transtion matrix
+% Convert z and e to age-dependent joint-grids and transition matrix
 % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
 % Sets up
@@ -480,14 +480,20 @@ end
 % Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
 simoptions.outputasstructure=1;
 
-%% Set up some things for the FnsToEvaluate
+%% Set up Gridvals (used by FnsToEvaluate, among others)
 a_gridvals=CreateGridvals(n_a,a_grid,1); % a_gridvals is [N_a,l_a]
-% with fastOLG also need d_gridvals and aprime_gridvals
+
 if N_d>0
-    d_gridvals=CreateGridvals(n_d,d_grid,1);
+    % Gridvals: switch to joint-grids
+    if all(size(d_grid)==[sum(n_d),1]) % if stacked-column grid
+        d_gridvals=CreateGridvals(n_d,gpuArray(d_grid),1);
+    elseif all(size(d_grid)==[prod(n_d),length(n_d)]) % if joint-grid
+        d_gridvals=gpuArray(d_grid);
+    end
 else
     d_gridvals=[];
 end
+
 if vfoptions.gridinterplayer==0
     aprime_gridvals=a_gridvals;
 elseif vfoptions.gridinterplayer==1

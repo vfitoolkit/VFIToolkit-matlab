@@ -46,7 +46,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
     AgentDist=AgentDist_initial;
     for tt=1:T-1
-        
+        %% Setup the Parameters for period tt
+
         % Get t-1 PricePath and ParamPath before we update them
         if use_tminus1price==1
             for pp=1:length(tminus1priceNames)
@@ -113,10 +114,10 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             AggVars=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist,AgeWeights,PolicyValuesPath(:,:,:,:,tt),tt,FnsToEvaluateCell,FnsToEvaluateParamNames,AggVarNames,Parameters,N_j,l_d,l_aprime,l_a,l_z,l_e,N_d,N_a,N_z,N_e,a_gridvals,ze_gridvals_J_fastOLG,transpathoptions);
         end
         
-        for ff=1:length(AggVarNames)
+        for ff=1:length(AggVarNames) % Note: needed for _tminus1 as well as GeneralEqmEqns
             Parameters.(AggVarNames{ff})=AggVars.(AggVarNames{ff}).Mean;
         end
-
+        
         %% Intermediate Eqns
         if transpathoptions.useintermediateEqns==1
             % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().

@@ -364,7 +364,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
             for tt=1:T-1
                 Policy_aprimez=reshape(PolicyaprimePath(:,tt,:),[N_a*N_z,1])+N_a*repelem((0:1:N_z-1)',N_a,1);
                 % AgentDist=sparse(reshape(AgentDistPathPre(:,tt,:),[N_a*N_z,1])); % CHECK THAT THEY GIVE THE SAME THING
-                AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1b,IIones,N_a,N_z,sparse(squeeze(pi_z_T(tt,:,:))')); % pi_z_T(tt,:,:)' as pi_z_T has shape designed for fastOLG
+                AgentDist=AgentDist_InfHorz_TPath_SingleStep_raw(AgentDist,Policy_aprimez,II1b,IIones,N_a,N_z,sparse(squeeze(pi_z_T(tt,:,:))')); % pi_z_T(tt,:,:)' as pi_z_T has shape designed for fastOLG
                 AgentDistPath(:,tt+1)=AgentDist;
             end
             AgentDistPath=reshape(permute(reshape(AgentDistPath,[N_a,N_z,T]),[1,3,2]),[N_a*T*N_z,1]); % fastOLG shape for use in AggVars

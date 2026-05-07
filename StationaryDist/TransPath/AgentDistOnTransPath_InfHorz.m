@@ -68,7 +68,7 @@ if simoptions.experienceasset==0
         II1=(1:1:N_a*N_z); % Index for this period (a,z)
         IIones=ones(N_a*N_z,1); % Next period 'probabilities'
         for tt=1:T-1
-            AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_raw(AgentDist,PolicyaprimezPath(:,tt),II1,IIones,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     elseif simoptions.gridinterplayer==1
@@ -83,7 +83,7 @@ if simoptions.experienceasset==0
         PolicyProbsPath(:,1,:)=1-PolicyProbsPath(:,2,:); % probability of lower grid point
 
         for tt=1:T-1
-            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs_raw(AgentDist,PolicyaprimezPath(:,:,tt),II2,PolicyProbsPath(:,:,tt),N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
     end
@@ -158,7 +158,7 @@ elseif simoptions.experienceasset==1
 
             whichisdforexpasset=length(n_d);  % is just saying which is the decision variable that influences the experience asset (it is the 'last' decision variable)
             aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames);
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParamsVec);
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset(Policy,simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, d_grid, a2_grid, aprimeFnParamsVec);
             % Note: aprimeIndexes and aprimeProbs are both [N_a,N_z]
             % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
             Policy_a2prime(:,:,1)=a2primeIndexes; % lower grid point
@@ -174,7 +174,7 @@ elseif simoptions.experienceasset==1
             end
             PolicyaprimezPath=reshape(Policy_aprime+N_a*(0:1:N_z-1),[N_a*N_z,2]);
             
-            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
+            AgentDist=AgentDist_InfHorz_TPath_SingleStep_nProbs_raw(AgentDist,PolicyaprimezPath,II2,PolicyProbs,N_a,N_z,pi_z_sparse);
             AgentDistPath(:,tt+1)=gpuArray(full(AgentDist));
         end
 
