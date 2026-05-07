@@ -20,6 +20,9 @@ for ff=1:length(FnsToEvaluateNames)
     Values=reshape(Values,[N_a*N_z,1]);
     % When evaluating value function (which may sometimes give -Inf values) on StationaryDistVec (which at those points will be 0) we get 'NaN'. Use temp as intermediate variable just eliminate those.
     temp=Values.*AgentDist;
+    if issparse(temp)
+        temp=gather(temp);
+    end
     val=sum(temp(~isnan(temp)));
     
     if outputastruct==0

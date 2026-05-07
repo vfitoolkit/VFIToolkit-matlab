@@ -988,7 +988,6 @@ if transpathoptions.GEnewprice~=2
         GEcondnPath.(GEeqnNames{gg})=GEcondnPathmatrix(:,gg)';
     end
 
-
     if nargout==1
         varargout={PricePathStruct};
     elseif nargout==2

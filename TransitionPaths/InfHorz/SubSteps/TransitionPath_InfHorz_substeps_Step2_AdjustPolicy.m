@@ -257,7 +257,7 @@ elseif N_z>0
 end
 
 
-if N_probs==1 % =1 means not being used
+if isempty(N_probs) || N_probs==1 % =1 means not being used
     PolicyProbsPath=[];
 end
 
