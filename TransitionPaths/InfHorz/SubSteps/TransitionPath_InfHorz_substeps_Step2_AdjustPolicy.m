@@ -39,7 +39,7 @@ if simoptions.experienceasset==1
             a2primeProbsPath(:,:,tt)=a2primeProbs;
         end
     end
-    
+
     if N_e==0 && N_z==0
         a2primeIndexesPath=reshape(a2primeIndexesPath,[N_a,1,T-1]);
         a2primeIndexesPath=repmat(a2primeIndexesPath,1,2,1);
@@ -129,6 +129,7 @@ elseif N_z>0 && N_e==0
         PolicyaprimePath=reshape(PolicyIndexesPath(l_d+1,:,:,:)+n_a1(1)*(PolicyIndexesPath(l_d+2,:,:,:)-1)+n_a1(1)*n_a1(2)*(PolicyIndexesPath(l_d+3,:,:,:)-1)+n_a1(1)*n_a1(2)*n_a1(3)*(PolicyIndexesPath(l_d+4,:,:,:)-1),[N_a*N_z,T-1]);
     end
     PolicyaprimezPath=gather(PolicyaprimePath+repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1));
+
     if simoptions.gridinterplayer==1
         L2index=reshape(PolicyIndexesPath(l_d+l_aprime+1,:,:,:),[N_a*N_z,1,T-1]); % PolicyIndexesPath is of size [l_d+l_aprime+1,N_a,N_z,N_j,T]
         PolicyaprimezPath=reshape(PolicyaprimezPath,[N_a*N_z,1,T-1]); % reinterpret this as lower grid index
@@ -256,8 +257,7 @@ elseif N_z>0
     PolicyPath_ForAgentDistIter=PolicyaprimezPath;
 end
 
-
-if isempty(N_probs) || N_probs==1 % =1 means not being used
+if N_probs==1 % =1 means not being used
     PolicyProbsPath=[];
 end
 
