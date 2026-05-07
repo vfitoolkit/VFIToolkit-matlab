@@ -78,8 +78,8 @@ elseif N_z>0 && N_e>0
         II1=1:1:N_a*N_z*N_e;
         II2=ones(N_a*N_z*N_e,1);
     elseif simoptions.gridinterplayer==1
-        II1=repelem((1:1:N_a*N_z*N_e)',1,N_probs);
-        II2=[];
+        II2=repelem((1:1:N_a*N_z*N_e)',1,N_probs);
+        II1=[];
     end
 end
 

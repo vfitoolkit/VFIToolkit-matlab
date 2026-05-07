@@ -231,7 +231,7 @@ if isfield(vfoptions,'ExogShockFn')
     % can just leave action space in here as we only use it to see if GEPriceParamNames is part of it
     if ~isempty(intersect(tempExogShockFnParamNames,GEPriceParamNames))
         heteroagentoptions.gridsinGE=1;
-    end        
+    end
 end
 if isfield(vfoptions,'EiidShockFn')
     tempEiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
@@ -253,6 +253,13 @@ if heteroagentoptions.gridsinGE==0
         % Note: these are actually z_gridvals and pi_z
         simoptions.e_gridvals=vfoptions.e_gridvals; % Note, will be [] if no e
         simoptions.pi_e=vfoptions.pi_e; % Note, will be [] if no e
+        if isfield(simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz() removed ExogShockFn from vfoptions but not from simoptions
+            if heteroagentoptions.useCustomModelStats==1
+                heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
+                heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+            end
+            simoptions=rmfield(simoptions,'ExogShockFn');
+        end
     end
 else
     z_gridvals=[];
