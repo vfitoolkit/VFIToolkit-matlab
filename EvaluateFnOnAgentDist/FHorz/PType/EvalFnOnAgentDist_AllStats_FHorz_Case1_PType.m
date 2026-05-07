@@ -357,7 +357,7 @@ for ii=1:N_i
         end
         StationaryDist_ii=reshape(StationaryDist.(Names_i{ii}),[N_a_temp*N_z_temp*N_j_temp,1]); % Note: does not impose *StationaryDist.ptweights(ii)
     else
-        PolicyValues_temp=PolicyInd2Val_Case1(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
+        PolicyValues_temp=PolicyInd2Val_InfHorz(PolicyIndexes_temp,n_d_temp,n_a_temp,n_z_temp,d_grid_temp,a_grid_temp,simoptions_temp,1);
         if l_z_temp==0
             PolicyValuesPermute_temp=permute(PolicyValues_temp,[2,1]); % (N_a,l_daprime)
         else
