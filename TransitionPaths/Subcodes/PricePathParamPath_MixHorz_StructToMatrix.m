@@ -1,4 +1,4 @@
-function varargout=PricePathParamPath_FHorz_StructToMatrix(PricePathStruct,ParamPathStruct,N_j,T,N_i)
+function varargout=PricePathParamPath_MixHorz_StructToMatrix(PricePathStruct,ParamPathStruct,N_j,T,N_i)
 % varargout={PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec}
 % but for models with permanent types, include N_i as input and get
 % varargout={PricePath,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec,PricePathSizeVec_ii,ParamPathSizeVec_ii}
@@ -82,7 +82,7 @@ else
             PricePathSizeVec(pp)=length(tempptypenames)*tempsize(tempsize~=T); % Get the dimension which is not T
             for ii=1:N_i
                 N_j_temp=N_j.(Names_i{ii});
-                if ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp,N_i*N_j_temp])
+                if isfinite(N_j_temp) && ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp,N_i*N_j_temp])
                     error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
                 end
             end
@@ -92,7 +92,7 @@ else
             PricePathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
             for ii=1:N_i
                 N_j_temp=N_j.(Names_i{ii});
-                if ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp])
+                if isfinite(N_j_temp) && ~any(PricePathSizeVec(pp)==[1,N_i,N_j_temp])
                     error(['PricePath for ', PricePathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
                 end
             end
@@ -145,7 +145,7 @@ else
             ParamPathSizeVec(pp)=length(tempptypenames)*tempsize(tempsize~=T); % Get the dimension which is not T
             for ii=1:N_i
                 N_j_temp=N_j.(Names_i{ii});
-                if ~any(ParamPathSizeVec(pp)==[1,N_i,N_j_temp,N_i*N_j_temp])
+                if isfinite(N_j_temp) && ~any(ParamPathSizeVec(pp)==[1,N_i,N_j_temp,N_i*N_j_temp])
                     error(['ParamPath for ', ParamPathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
                 end
             end
@@ -155,7 +155,7 @@ else
             ParamPathSizeVec(pp)=tempsize(tempsize~=T); % Get the dimension which is not T
             for ii=1:N_i
                 N_j_temp=N_j.(Names_i{ii});
-                if ~any(ParamPathSizeVec(pp)==[1,N_i,N_j_temp])
+                if isfinite(N_j_temp) && ~any(ParamPathSizeVec(pp)==[1,N_i,N_j_temp])
                     error(['ParamPath for ', ParamPathNames{pp}, ' appears to be the wrong size (should be 1-by-T or N_j-by-T or N_i-by-T)'])
                 end
             end
