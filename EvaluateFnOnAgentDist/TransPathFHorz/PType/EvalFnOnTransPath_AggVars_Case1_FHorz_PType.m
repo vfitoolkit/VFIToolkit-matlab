@@ -186,6 +186,7 @@ for ii=1:N_i
 
     AggVarsPath_ii=EvalFnOnTransPath_AggVars_Case1_FHorz(FnsToEvaluate_temp, AgentDistPath_temp, PolicyPath_temp, PricePath_temp, ParamPath_temp, Parameters_temp, T, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp,z_grid_temp, transpathoptions_temp, simoptions_temp);
 
+
     FnNames_temp=fieldnames(FnsToEvaluate_temp);
     for ff=1:length(FnNames_temp)
         % Keep the ptype-conditional values
