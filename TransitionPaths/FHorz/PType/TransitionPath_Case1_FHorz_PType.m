@@ -590,23 +590,16 @@ for ii=1:PTypeStructure.N_i
 
 
     %% Set up exogenous shock processes
-    if isfinite(PTypeStructure.(iistr).N_j)
-        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
-        % Convert z and e to age-dependent joint-grids and transtion matrix
-        % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
-    else
-        [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
-    end
+    [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, PTypeStructure.(iistr).simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
+    % Convert z and e to age-dependent joint-grids and transtion matrix
+    % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
     %% If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
     [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
     
     %% Organise V_final, AgeWeights and AgentDist_init
     % Reshape V_final
-    if ~isfinite(PTypeStructure.(iistr).N_j)
-        % If no z, then N_z=1 here
-        V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
-    elseif transpathoptions.fastOLG==0
+    if transpathoptions.fastOLG==0
         N_j_temp=PTypeStructure.(iistr).N_j;
         if N_z==0
             if N_e==0
@@ -637,74 +630,73 @@ for ii=1:PTypeStructure.N_i
             end
         end
     end
-    % Reshape AgentDist_initial
+
+    % Reshape AgentDist_initial and turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
+    % Note when simoptions.fastOLG==1 we have shapes of [N_a*N_j_temp*whatever,1-or-N_e] instead of [N_a,whatever-and-maybe-N_e,N_j_temp]
+    AgentDist_init=AgentDist_initial.(iistr);
+    N_j_temp=PTypeStructure.(iistr).N_j;
     if N_z==0
         if N_e==0
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a,N_j]); % if simoptions.fastOLG==0
-            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
-            if PTypeStructure.(iistr).simoptions.fastOLG==1
-                AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_j,1]);
-                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            AgentDist_init=reshape(AgentDist_init,[N_a,N_j_temp]); % if simoptions.fastOLG==0
+            AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG
+                AgentDist_init=reshape(AgentDist_init,[N_a*N_j_temp,1]);
+                AgeWeights_init=repelem(AgeWeights_init',N_a,1);
             end
         else
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_e,N_j]); % if simoptions.fastOLG==0
-            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
-            if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j*N_e,1]);
-                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            AgentDist_init=reshape(AgentDist_init,[N_a*N_e,N_j_temp]); % if simoptions.fastOLG==0
+            AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_e,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_e]);
+                AgeWeights_init=repelem(AgeWeights_init',N_a,1);
             end
         end
     else
         if N_e==0
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,N_j]); % if simoptions.fastOLG==0
-            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
-            if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j*N_z,1]);
-                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            AgentDist_init=reshape(AgentDist_init,[N_a*N_z,N_j_temp]); % if simoptions.fastOLG==0
+            AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_z,N_j_temp]),[1,3,2]),[N_a*N_j_temp*N_z,1]);
+                AgeWeights_init=repelem(AgeWeights_init',N_a,1);
             end
-            PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
         else
-            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
-            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
-            if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
-                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j*N_z,N_e]);
-                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            AgentDist_init=reshape(AgentDist_init,[N_a*N_z*N_e,N_j_temp]); % if simoptions.fastOLG==0
+            AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp*N_z,N_e]);
+                AgeWeights_init=repelem(AgeWeights_init',N_a,1);
             end
-            PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
         end
+    end
+
+    % Get AgeWeights and switch into the transpathoptions.ageweightstrivial=0 setup (and this is what subfns hardcode when doing PTypes)
+    % It is assumed there is only one Age Weight Parameter (name))
+    % AgeWeights_T is (a,j,z)-by-T (create as N_j-by-T to start, then switch)
+    if isstruct(AgeWeights)
+        AgeWeights_ii=AgeWeights.(iistr);
         if all(size(AgeWeights_ii)==[N_j_temp,1])
             % Does not depend on transition path period
             PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights_ii.*ones(1,T));
-        elseif all(size(AgeWeights)==[1,N_j])
+        elseif all(size(AgeWeights)==[1,N_j_temp])
             % Does not depend on transition path period
             PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights_ii'.*ones(1,T));
         else
             fprintf('Following error applies to agent permanent type: %s \n',iistr)
             error('The age weights parameter seems to be the wrong size')
         end
-
-        % Check ParamPath to see if the AgeWeights vary over the transition
-        % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
-        temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
-        if any(temp)
-            transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
-            [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
-            % Create AgeWeights_T
-            PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
-            % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
-        end
-
-        % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
-        if PTypeStructure.(iistr).simoptions.fastOLG==1
-            if N_z==0
-                PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
-            else
-                PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
-            end
+    else % not a structure, so must apply to all permanent types
+        if all(size(AgeWeights)==[N_j_temp,1])
+            % Does not depend on transition path period
+            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights.*ones(1,T));
+        elseif all(size(AgeWeights)==[1,N_j_temp])
+            % Does not depend on transition path period
+            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights'.*ones(1,T));
+        else
+            error('The age weights parameter seems to be the wrong size')
         end
     end
 
-    %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0 and simoptions.fastOLG=1]
+    %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0]
     if ~isstruct(jequalOneDist)
         jequalOneDist_temp=gpuArray(jequalOneDist);
     else % jequalOneDist is a structure
@@ -718,19 +710,51 @@ for ii=1:PTypeStructure.N_i
             if N_e==0
                 jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,T]);
             else
-                fprintf('Following error applies to agent permanent type: %s \n',iistr)
-                error('The age weights parameter seems to be the wrong size')
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,T]); % simoptions.fastOLG==1
             end
-        else % not a structure, so must apply to all permanent types
-            if all(size(AgeWeights)==[N_j_temp,1])
-                % Does not depend on transition path period
-                AgeWeights_T.(iistr)=gather(AgeWeights.*ones(1,T));
-            elseif all(size(AgeWeights)==[1,N_j_temp])
-                % Does not depend on transition path period
-                AgeWeights_T.(iistr)=gather(AgeWeights'.*ones(1,T));
+        else
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,T]); % simoptions.fastOLG==1
             else
-                error('The age weights parameter seems to be the wrong size')
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,T]); % simoptions.fastOLG==1
             end
+        end
+        PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
+    else
+        transpathoptions.(iistr).trivialjequalonedist=1;
+        if N_z==0
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,1]);
+            else
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,1]); % simoptions.fastOLG==1
+            end
+        else
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,1]); % simoptions.fastOLG==1
+            else
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,1]); % simoptions.fastOLG==1 (how different than simoptions.fastOLG==0?)
+            end
+        end
+        PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
+    end
+
+    % Check ParamPath to see if the AgeWeights vary over the transition
+    % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
+    temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
+    if any(temp)
+        transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
+        [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
+        % Create AgeWeights_T
+        PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
+        % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
+    end
+
+    % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
+    if PTypeStructure.(iistr).simoptions.fastOLG==1
+        if N_z==0
+            PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+        else
+            PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
         end
         PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
     else
