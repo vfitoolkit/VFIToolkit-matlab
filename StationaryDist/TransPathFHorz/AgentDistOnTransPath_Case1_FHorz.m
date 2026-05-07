@@ -259,7 +259,7 @@ if simoptions.experienceasset==1
             aprimeFnParamsVec=CreateAgeMatrixFromParams(Parameters,aprimeFnParamNames,N_j);
             % [N_j,number of params]
             
-            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
+            [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset_J(PolicyPath(:,:,:,:,tt),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_ze, N_j, simoptions.d_grid, a2_grid, aprimeFnParamsVec,0);
             % Note: a2primeIndexes and a2primeProbs are both [N_a,N_z,N_j]
             % Note: a2primeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the a2primeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
             a2primeIndexesPath(:,:,:,tt)=a2primeIndexes(:,:,1:end-1);
@@ -423,7 +423,7 @@ else
         elseif length(n_aprime)==3
             PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
         elseif length(n_aprime)==4
-            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
+            PolicyaprimePath=reshape(PolicyPath(l_d+1,:,:,1:N_j-1,:)+n_aprime(1)*(PolicyPath(l_d+2,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*(PolicyPath(l_d+3,:,:,1:N_j-1,:)-1)+n_aprime(1)*n_aprime(2)*n_aprime(3)*(PolicyPath(l_d+4,:,:,1:N_j-1,:)-1),[N_a*N_z*N_e,N_j-1,T]);
         end
         if simoptions.fastOLG==0
             PolicyaprimezPath=PolicyaprimePath+repmat(repelem(N_a*gpuArray(0:1:N_z-1)',N_a,1),N_e,1);
