@@ -129,17 +129,15 @@ for ii=1:N_i
     else
         AgentDist_initial_temp=AgentDist_initial; % NEED TO DEAL WITH THIS PROPERLY
     end
-    if isfinite(N_j_temp)
-        if isstruct(AgeWeightsParamNames)
-            AgeWeightsParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
-        else
-            AgeWeightsParamNames_temp=AgeWeightsParamNames;
-        end
-        if isstruct(jequalOneDist)
-            jequalOneDist_temp=jequalOneDist.(Names_i{ii});
-        else
-            jequalOneDist_temp=jequalOneDist;
-        end
+    if isstruct(AgeWeightsParamNames)
+        AgeWeightsParamNames_temp=AgeWeightsParamNames.(Names_i{ii});
+    else
+        AgeWeightsParamNames_temp=AgeWeightsParamNames;
+    end
+    if isstruct(jequalOneDist)
+        jequalOneDist_temp=jequalOneDist.(Names_i{ii});
+    else
+        jequalOneDist_temp=jequalOneDist;
     end
     
 
@@ -179,11 +177,7 @@ for ii=1:N_i
     
     
     % Compute the agent distribution path for permanent type ii
-    if isfinite(N_j_temp)
-        AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
-    else
-        AgentDistPath_ii=AgentDistOnTransPath_Case1(AgentDist_initial_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, n_d_temp,n_a_temp,n_z_temp,pi_z_temp,T,Parameters_temp,simoptions_temp);
-    end
+    AgentDistPath_ii=AgentDistOnTransPath_Case1_FHorz(AgentDist_initial_temp, jequalOneDist_temp, PricePath_temp, ParamPath_temp, PolicyPath_temp, AgeWeightsParamNames_temp,n_d_temp,n_a_temp,n_z_temp,N_j_temp,pi_z_temp, T,Parameters_temp, transpathoptions_temp, simoptions_temp);
     % Note: T cannot depend on ptype, nor can PricePath depend on ptype
 
     AgentDistPath.(Names_i{ii})=AgentDistPath_ii;

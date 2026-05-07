@@ -129,7 +129,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     AggVarsFullPath=zeros(PTypeStructure.numFnsToEvaluate,T-1,N_i); % Does not include period T
     for ii=1:N_i
         iistr=PTypeStructure.Names_i{ii};
-        
 
         % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
         % AgentDist=AgentDist_initial.(iistr);
@@ -142,7 +141,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % Get just the values that correspond to the current ptype
         PricePathOld_ii=PricePathOld(:,PTypeStructure.(iistr).RelevantPricePath);
         ParamPath_ii=ParamPath(:,PTypeStructure.(iistr).RelevantParamPath);
-
         % Have not yet set up the following to allow dependence on ptype (should do this at some point)
         PricePathNames_ii=PricePathNames;
         ParamPathNames_ii=ParamPathNames;

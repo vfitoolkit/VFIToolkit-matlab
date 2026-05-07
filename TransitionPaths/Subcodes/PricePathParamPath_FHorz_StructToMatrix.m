@@ -71,7 +71,6 @@ else
     % Note: Internally PricePathOld is matrix of size T-by-'number of prices'.
     % ParamPath is matrix of size T-by-'number of parameters that change over the transition path'.
     % Actually, some of those prices are 1-by-N_j or N_i or both, so is more subtle than this.
-    Names_i=fieldnames(N_j);
     PricePathNames=fieldnames(PricePathStruct);
     PricePathSizeVec=zeros(1,length(PricePathNames)); % Allows for a given price param to depend on age (or permanent type)
     if isstruct(N_j)
