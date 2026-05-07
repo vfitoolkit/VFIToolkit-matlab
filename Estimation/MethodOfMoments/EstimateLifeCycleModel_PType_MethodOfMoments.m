@@ -142,8 +142,10 @@ end
 % First figure out how many parameters there are (tricky as they can be dependent on ptype)
 nEstimParams=0;
 nEstimParamsFinder=[]; % rows are the nEstimParams, first column is pp, second column is ii
+nEstimParams_PTypeMatrix=[]; % records which ptype parameters are set up as matrix, only use is in setting up the final output, =1 means N_i is first dim, =2 means N_i is second dim
 for pp=1:length(EstimParamNames)
     if isstruct(Parameters.(EstimParamNames{pp}))
+        nEstimParams_PTypeMatrix(pp,1)=0;
         for ii=1:N_i
             if isfield(Parameters.(EstimParamNames{pp}),Names_i{ii})
                 nEstimParams=nEstimParams+1;
@@ -152,9 +154,27 @@ for pp=1:length(EstimParamNames)
             end
         end
     else
-        nEstimParams=nEstimParams+1;
-        nEstimParamsFinder(nEstimParams,1)=pp;
-        nEstimParamsFinder(nEstimParams,2)=0;
+        if any(size(Parameters.(EstimParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+            temp=Parameters.(EstimParamNames{pp});
+            if size(temp,1)==N_i
+                temp=temp';
+                nEstimParams_PTypeMatrix(pp,1)=1;
+            else
+                nEstimParams_PTypeMatrix(pp,1)=2;
+            end
+            Parameters=rmfield(Parameters,(EstimParamNames{pp}));
+            for ii=1:N_i
+                nEstimParams=nEstimParams+1;
+                nEstimParamsFinder(nEstimParams,1)=pp;
+                nEstimParamsFinder(nEstimParams,2)=ii;
+                Parameters.(EstimParamNames{pp}).(Names_i{ii})=temp(:,ii);
+            end
+        else % parameter does not depend on ptype
+            nEstimParams_PTypeMatrix(pp,1)=0;
+            nEstimParams=nEstimParams+1;
+            nEstimParamsFinder(nEstimParams,1)=pp;
+            nEstimParamsFinder(nEstimParams,2)=0;
+        end
     end
 end
 
@@ -455,23 +475,8 @@ if estimoptions.bootstrapStdErrors==0
     modelestimparamsvecdown=zeros(size(modelestimparamsvec));
     violateconstrainttop=zeros(size(modelestimparamsvec)); %=1 means use a one-sided (down) finite-difference because 'adding epsilon' would lead to a parameter value that violates the constraint
     violateconstraintbottom=zeros(size(modelestimparamsvec)); %=1 means use a one-sided (up) finite-difference because 'subtracting epsilon' would lead to a parameter value that violates the constraint
-    % Switch modelestimparamsvec to the constrained (model) parameters
-    for pp=1:length(EstimParamNames)
-        if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        elseif estimoptions.constrain0to1(pp)==1
-            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
-        end
-        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-        if estimoptions.constrainAtoB(pp)==1
-            % Constrain parameter to be A to B
-            modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*modelestimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
-        end
-    end
+    % Switch modelestimparamsvec to the constrained (original) parameters
+    [modelestimparamsvec,~]=ParameterConstraints_TransformParamsToOriginal(modelestimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
     % Now, multiply by (1+-epsilon)
     for ee=1:length(epsilonmodvec)
         epsilon=epsilonmodvec(ee)*epsilonraw;
@@ -686,36 +691,39 @@ end
 %% Clean up the first two outputs
 for pp=1:length(estimparamsvec)
     if estimoptions.skipestimation==0
-        % If parameter is constrained, switch it back to the unconstrained value
-        if estimoptions.constrainpositive(pp)==1 % Forcing this parameter to be positive
-            % Constrain parameter to be positive (be working with log(parameter) and then always take exp() before inputting to model)
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=exp(estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1)));
-        elseif estimoptions.constrain0to1(pp)==1
-            % Constrain parameter to be 0 to 1 (be working with x=log(p/(1-p)), where p is parameter) then always take 1/(1+exp(-x)) before inputting to model
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=1/(1+exp(-estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))));
+        % Switch estimparamsvec to the constrained (original) parameters
+        [estimparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(estimparamsvec,estimparamsvecindex,EstimParamNames,estimoptions);
+        if sum(penalty)>0
+            warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
         end
-        % Note: sometimes, need to do both of constrainAtoB and constrain0to1, so cannot use elseif
-        if estimoptions.constrainAtoB(pp)==1
-            % Constrain parameter to be A to B
-            estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1))=estimoptions.constrainAtoBlimits(pp,1)+(estimoptions.constrainAtoBlimits(pp,2)-estimoptions.constrainAtoBlimits(pp,1))*estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            % Note, this parameter will have first been converted to 0 to 1 already, so just need to further make it A to B
-            % y=A+(B-A)*x, converts 0-to-1 x, into A-to-B y
-        end
-
         % Now store the unconstrained values
         if estimomitparams_counter(pp)>0
             currparamraw=estimomitparamsmatrix(:,sum(estimomitparams_counter(1:pp)));
             currparamraw(isnan(currparamraw))=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=currparamraw;
-            else % depends on ptype
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=currparamraw;                
-            end
         else
-            if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
-            else
-                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+            currparamraw=estimparamsvec(estimparamsvecindex(pp)+1:estimparamsvecindex(pp+1));
+        end
+        if nEstimParamsFinder(pp,2)==0 % does not depend on ptype
+            EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=currparamraw;
+        else % depends on ptype
+            if nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==0
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)}).(Names_i{nEstimParamsFinder(pp,2)})=currparamraw;
+            elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==1 % N_i as first dim
+                if isfield(EstimParams,EstimParamNames{nEstimParamsFinder(pp,1)})
+                    temp=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)});
+                else
+                    temp=zeros(N_i,length(currparamraw));
+                end
+                temp(ii,:)=currparamraw';
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=temp;
+            elseif nEstimParams_PTypeMatrix(nEstimParamsFinder(pp,1))==2 % N_i as second dim
+                if isfield(EstimParams,EstimParamNames{nEstimParamsFinder(pp,1)})
+                    temp=EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)});
+                else
+                    temp=zeros(length(currparamraw),N_i);
+                end
+                temp(:,ii)=currparamraw;
+                EstimParams.(EstimParamNames{nEstimParamsFinder(pp,1)})=temp;
             end
         end
     else

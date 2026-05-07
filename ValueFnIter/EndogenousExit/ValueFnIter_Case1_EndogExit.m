@@ -79,6 +79,8 @@ if vfoptions.lowmemory==0
                 [VKron,Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_NoD_Par2_raw(V0Kron, n_a, n_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards, vfoptions.tolerance, vfoptions.keeppolicyonexit); %  a_grid, z_grid,
             end
         end
+
+        Policy=shiftdim(Policy,-1);
     else
         if vfoptions.parallel==0 % On CPU
             [VKron, Policy,ExitPolicy]=ValueFnIter_Case1_EndogExit_raw(V0Kron, N_d,N_a,N_z, pi_z, DiscountFactorParamsVec, ReturnMatrix, ReturnToExitMatrix, vfoptions.howards, vfoptions.maxhowards,vfoptions.tolerance, vfoptions.keeppolicyonexit);
@@ -90,14 +92,9 @@ if vfoptions.lowmemory==0
     end
     
 elseif vfoptions.lowmemory==1    
-    fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=1, please contact robertdkirkby@gmail.com if this is something you want/need \n');
-    dbstack
-    return
-elseif vfoptions.lowmemory==2
-    fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=2, please contact robertdkirkby@gmail.com if this is something you want/need \n');
-    dbstack
-    return
+    error('endogenousexit does allow for vfoptions.lowmemory=1 \n');
 end
+
 
 
 %% Cleaning up the output

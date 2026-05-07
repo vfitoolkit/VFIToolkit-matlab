@@ -45,9 +45,9 @@ end
 
 
 %% Solve the model
-[V, Policy]=ValueFnIter_Case1(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+[V, Policy]=ValueFnIter_InfHorz(n_d,n_a,n_z,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
 
-StationaryDist=StationaryDist_Case1(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
+StationaryDist=StationaryDist_InfHorz(Policy,n_d,n_a,n_z,pi_z,simoptions,Parameters);
 
 %% Custom Model Stats
 if usingcustomstats==1
@@ -57,7 +57,7 @@ end
 %% Calculate model stats
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_Case1(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
+    AllStats=EvalFnOnAgentDist_AllStats_InfHorz(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,[],n_d,n_a,n_z,d_grid,a_grid,z_gridvals,simoptions);
 end
 if usingautocorr==1
     simoptions.whichstats=AutoCorrStats_whichstats;

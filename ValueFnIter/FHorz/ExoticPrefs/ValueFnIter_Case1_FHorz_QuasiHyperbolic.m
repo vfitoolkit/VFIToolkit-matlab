@@ -11,11 +11,11 @@ function varargout=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_gri
 % V_sophisticated_j=u_t+beta_0*E[Vhat_{j+1}]
 % See documentation for a fuller explanation of this.
 
-V=nan; % The value function of the quasi-hyperbolic agent
-Policy=nan; % The value function of the quasi-hyperbolic agent
+% V=nan; % The value function of the quasi-hyperbolic agent
+% Policy=nan; % The value function of the quasi-hyperbolic agent
 
 N_d=prod(n_d);
-N_a=prod(n_a);
+% N_a=prod(n_a);
 N_z=prod(n_z);
 
 if ~isfield(vfoptions,'quasi_hyperbolic')
@@ -63,8 +63,6 @@ if vfoptions.parallel==2
             end
         end
     end
-elseif vfoptions.parallel==0 || vfoptions.parallel==1
-    error('Quasi-Hyperbolic is only implemented for Parallel=2')
 end
 
 %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form

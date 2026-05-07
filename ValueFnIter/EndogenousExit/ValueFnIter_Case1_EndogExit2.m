@@ -59,14 +59,6 @@ if vfoptions.lowmemory==0
     % Since the return function is independent of time creating it once and
     % then using it every iteration is good for speed, but it does use a
     % lot of memory.
-
-    if vfoptions.verbose==1
-        disp('Creating return fn matrix')
-        tic;
-        if vfoptions.returnmatrix==0
-            fprintf('NOTE: When using CPU you can speed things up by giving return fn as a matrix; see vfoptions.returnmatrix=1 in VFI Toolkit documentation. \n')
-        end
-    end
     
     % Because exit is not until the end of period the return to exit is allowed to depend on aprime, and d.
     if vfoptions.returnmatrix==0
@@ -78,13 +70,6 @@ if vfoptions.lowmemory==0
     elseif vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
         ReturnToExitMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(vfoptions.ReturnToExitFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnToExitFnParamsVec);
-    end
-        
-    if vfoptions.verbose==1
-        time=toc;
-        fprintf('Time to create return fn matrix: %8.4f \n', time)
-        disp('Starting Value Function')
-        tic;
     end
         
     %%
@@ -109,47 +94,11 @@ if vfoptions.lowmemory==0
         end
     end
     
-    
-elseif vfoptions.lowmemory==1    
-    fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=1, please contact robertdkirkby@gmail.com if this is something you want/need \n');
-    dbstack
-    return
-elseif vfoptions.lowmemory==2
-    fprintf('ERROR: endogenousexit does not yet allow for vfoptions.lowmemory=2, please contact robertdkirkby@gmail.com if this is something you want/need \n');
-    dbstack
-    return
-end
 
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to solve for Value Fn and Policy: %8.4f \n', time)
-    disp('Transforming Value Fn and Optimal Policy matrices back out of Kronecker Form')
-    tic;
-end
 %% Cleaning up the output
 V=reshape(VKron,[n_a,n_z]);
 ExitPolicy=reshape(ExitPolicy,[n_a,n_z]);
 Policy=UnKronPolicyIndexes_Case1(Policy, n_d, n_a, n_z,vfoptions);
 PolicyWhenExit=UnKronPolicyIndexes_Case1(PolicyWhenExit, n_d, n_a, n_z,vfoptions);
-if vfoptions.verbose==1
-    time=toc;
-    fprintf('Time to create UnKron Value Fn and Policy: %8.4f \n', time)
-end
-
-if vfoptions.polindorval==2
-    Policy=PolicyInd2Val_Case1(Policy,n_d,n_a,n_z,d_grid,vfoptions.parallel);
-    PolicyWhenExit=PolicyInd2Val_Case1(PolicyWhenExit,n_d,n_a,n_z,d_grid,vfoptions.parallel);
-end
-
-% Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-% that Policy is not integer valued. The following corrects this by converting to int64 and then
-% makes the output back into double as Matlab otherwise cannot use it in
-% any arithmetical expressions.
-if vfoptions.policy_forceintegertype==1
-    Policy=uint64(Policy);
-    Policy=double(Policy);
-    PolicyWhenExit=uint64(PolicyWhenExit);
-    PolicyWhenExit=double(PolicyWhenExit);
-end
 
 end

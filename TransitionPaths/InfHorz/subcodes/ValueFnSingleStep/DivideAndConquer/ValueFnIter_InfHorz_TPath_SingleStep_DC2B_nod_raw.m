@@ -5,7 +5,7 @@ N_a=prod(n_a);
 N_z=prod(n_z);
 
 N_a1=n_a(1);
-N_a2=n_a(2);
+N_a2=prod(n_a(2:end));
 a1_grid=a_grid(1:N_a1);
 a2_grid=a_grid(N_a1+1:end);
 
@@ -26,7 +26,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
 % n-Monotonicity
@@ -90,7 +90,6 @@ for ii=1:(vfoptions.level1n-1)
 end
 
 %% Policy in transition paths
-Policy=UnKronPolicyIndexes_Case1(Policy,n_d,n_a,n_z,vfoptions);
-
+Policy=reshape(ind2sub_vec_homemade(n_a,Policy(:))',[length(n_a),N_a,N_z]);
 
 end

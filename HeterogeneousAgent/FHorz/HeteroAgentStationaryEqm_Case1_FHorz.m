@@ -212,6 +212,13 @@ if heteroagentoptions.gridsinGE==0
     % Note: these are actually z_gridvals_J and pi_z_J
     simoptions.e_gridvals_J=vfoptions.e_gridvals_J; % Note, will be [] if no e
     simoptions.pi_e_J=vfoptions.pi_e_J; % Note, will be [] if no e
+    if isfield(simoptions,'ExogShockFn') % Note: ExogShockSetup_FHorz() removed ExogShockFn from vfoptions but not from simoptions
+        if heteroagentoptions.useCustomModelStats==1
+            heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals_J;
+            heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z_J;
+        end
+        simoptions=rmfield(simoptions,'ExogShockFn');
+    end
 end
 % Regardless of whether they are done here of in _subfn, they will be
 % precomputed by the time we get to the value fn, staty dist, etc. So
@@ -446,6 +453,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             % Update p for next iteration
             p=p_new;
             itercounter=itercounter+1; % increment iteration counter
+        end
+        if itercounter>=heteroagentoptions.maxiter
+            warning('HeteroAgentStationaryEqm stopped due to reaching maximum number of iterations (you can control using heteroagentoptions.maxiter)')
         end
         p_eqm_vec=p_new; % Need to put it in p_eqm_vec so that it can be used to create the final output
     elseif heteroagentoptions.fminalgo==6

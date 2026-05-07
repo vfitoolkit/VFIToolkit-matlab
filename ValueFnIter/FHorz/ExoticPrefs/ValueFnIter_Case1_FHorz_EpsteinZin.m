@@ -7,7 +7,7 @@ V=nan;
 Policy=nan;
 
 N_d=prod(n_d);
-N_a=prod(n_a);
+% N_a=prod(n_a);
 N_z=prod(n_z);
 
 %% Some Epstein-Zin specific options need to be set if they are not already declared
@@ -169,40 +169,36 @@ end
 
 
 %% Just do the standard case
-if vfoptions.parallel==2
-    if N_d==0
-        if isfield(vfoptions,'n_e')
-            if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
-            else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
-            end
+if N_d==0
+    if isfield(vfoptions,'n_e')
+        if N_z==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         else
-            if N_z==0
-                error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
-            else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
-            end
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         end
-        % Policy without d
-        PolicyKron=shiftdim(PolicyKron,-1);
     else
-        if isfield(vfoptions,'n_e')
-            if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
-            else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
-            end
+        if N_z==0
+            error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
         else
-            if N_z==0
-                error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
-            else
-                [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
-            end
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
         end
     end
-elseif vfoptions.parallel==0 || vfoptions.parallel==1
-    error('Epstein-Zin only implemented for Parallel=2 (gpu)')
+    % Policy without d
+    PolicyKron=shiftdim(PolicyKron,-1);
+else
+    if isfield(vfoptions,'n_e')
+        if N_z==0
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_noz_e_raw(n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+        else
+            [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_e_raw(n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+        end
+    else
+        if N_z==0
+            error('Cannot use Epstein-Zin preferences without any shocks (what is the point?); you have n_z=0 and no e variables')
+        else
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_EpsteinZin_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions, sj, warmglow, ezc1,ezc2,ezc3,ezc4,ezc5,ezc6,ezc7,ezc8);
+        end
+    end
 end
 
 if vfoptions.outputkron==0

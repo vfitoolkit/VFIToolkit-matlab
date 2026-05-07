@@ -1,4 +1,4 @@
-function [PricePathOld,GECondnPath]=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_init, jequalOneDist_T, AgeWeights_T, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure)
+function [PricePathOld,GEcondnPath]=TransitionPath_Case1_FHorz_PType_shooting(PricePathOld, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FullFnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure)
 % This code will work for all transition paths except those that involve at
 % change in the transition matrix pi_z (can handle a change in pi_z, but
 % only if it is a 'surprise', not anticipated changes) 
@@ -25,29 +25,7 @@ if transpathoptions.verbose==1
     pathnametitles=pathnametitles{1};
     pathnametitles=pathnametitles(1:end-2);
 end
-if transpathoptions.verbose>1
-    DiscountFactorParamNames
-    ReturnFnParamNames
-    ParamPathNames
-    PricePathNames
-end
 
-
-%% GE eqns, switch from structure to cell setup
-GEeqnNames=fieldnames(GeneralEqmEqns);
-nGeneralEqmEqns=length(GEeqnNames);
-nGeneralEqmEqns_acrossptypes=sum(transpathoptions.GEptype==0)+N_i*sum(transpathoptions.GEptype==1);
-
-GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
-for gg=1:nGeneralEqmEqns
-    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
-    GeneralEqmEqnParamNames(gg).Names=temp;
-    GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
-end
-% Now: 
-%  GeneralEqmEqns is still the structure
-%  GeneralEqmEqnsCell is cell
-%  GeneralEqmEqnParamNames(ff).Names contains the names
 
 %% Setup used for graphs
 % For graph of the Prices
@@ -129,12 +107,18 @@ for gg=1:length(GEeqnNames)
     end
 end
 
+%%
+for ii=1:N_i
+    iistr=PTypeStructure.Names_i{ii};
+    [PTypeStructure.(iistr).PolicyIndexesPath,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj]=TransitionPath_FHorz_substeps_Step0_setup(PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,T,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+end
 
 %%
 PricePathDist=Inf;
 pathcounter=1;
 
 PricePathNew=zeros(size(PricePathOld),'gpuArray'); PricePathNew(T,:)=PricePathOld(T,:);
+
 
 
 %%
@@ -146,73 +130,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
     for ii=1:N_i
         iistr=PTypeStructure.Names_i{ii};
         
-        % Grab everything relevant out of PTypeStructure
-        n_d=PTypeStructure.(iistr).n_d; N_d=PTypeStructure.(iistr).N_d; l_d=PTypeStructure.(iistr).l_d;
-        n_a=PTypeStructure.(iistr).n_a; N_a=PTypeStructure.(iistr).N_a;
-        n_z=PTypeStructure.(iistr).n_z; N_z=PTypeStructure.(iistr).N_z;
-        n_e=PTypeStructure.(iistr).n_e; N_e=PTypeStructure.(iistr).N_e;
-        N_j=PTypeStructure.(iistr).N_j;
-        d_grid=PTypeStructure.(iistr).d_grid;
-        a_grid=PTypeStructure.(iistr).a_grid;
-        a_gridvals=PTypeStructure.(iistr).a_gridvals;
-        d_gridvals=PTypeStructure.(iistr).d_gridvals;
-        aprime_gridvals=PTypeStructure.(iistr).aprime_gridvals;
-        if isfinite(N_j)
-            if N_z>0
-                z_gridvals_J=PTypeStructure.(iistr).z_gridvals_J;
-                pi_z_J=PTypeStructure.(iistr).pi_z_J;
-                pi_z_J_sim=PTypeStructure.(iistr).pi_z_J_sim;
-            else
-                z_gridvals_J=[]; pi_z_J=[]; pi_z_J_sim=[];
-            end
-            if N_e>0
-                e_gridvals_J=PTypeStructure.(iistr).e_gridvals_J;
-                pi_e_J=PTypeStructure.(iistr).pi_e_J;
-                pi_e_J_sim=PTypeStructure.(iistr).pi_e_J_sim;
-            else
-                e_gridvals_J=[]; pi_e_J=[]; pi_e_J_sim=[];
-            end
-            ze_gridvals_J_fastOLG=PTypeStructure.(iistr).ze_gridvals_J_fastOLG;
-        else
-            if N_z>0
-                z_grid=PTypeStructure.(iistr).z_grid;
-                pi_z=PTypeStructure.(iistr).pi_z;
-            else
-                z_grid=[]; pi_z=[];
-            end
-            if N_e>0
-                e_gridvals=PTypeStructure.(iistr).e_gridvals;
-                pi_e=PTypeStructure.(iistr).pi_e;
-            else
-                e_gridvals=[]; pi_e=[];
-            end
-            % ze_gridvals_fastOLG=PTypeStructure.(iistr).ze_gridvals_fastOLG;
-        end
-        if transpathoptions.fastOLG==1
-            exceptlastj=PTypeStructure.(iistr).exceptlastj;
-            exceptfirstj=PTypeStructure.(iistr).exceptfirstj;
-            justfirstj=PTypeStructure.(iistr).justfirstj;
-            II1orII=PTypeStructure.(iistr).II1orII;
-            II2=PTypeStructure.(iistr).II2;
-        else
-            exceptlastj=[]; exceptfirstj=[]; justfirstj=[];
-            II1orII=[]; II2=[];
-        end
-        ReturnFn=PTypeStructure.(iistr).ReturnFn;
-        Parameters=PTypeStructure.(iistr).Parameters;
-        DiscountFactorParamNames=PTypeStructure.(iistr).DiscountFactorParamNames;
-        ReturnFnParamNames=PTypeStructure.(iistr).ReturnFnParamNames;
-        vfoptions=PTypeStructure.(iistr).vfoptions;
-        simoptions=PTypeStructure.(iistr).simoptions;
-        FnsToEvaluate=PTypeStructure.(iistr).FnsToEvaluate;
-        FnsToEvaluateParamNames=PTypeStructure.(iistr).FnsToEvaluateParamNames;
-        AggVarNames=PTypeStructure.(iistr).AggVarNames;
-        if isfield(PTypeStructure.(iistr), 'tminus1AggVarsNames')
-            use_tminus1AggVars=1;
-            tminus1AggVarsNames=PTypeStructure.(iistr).tminus1AggVarsNames;
-        else
-            use_tminus1AggVars=0;
-        end
 
         % Following few lines I would normally do outside of the while loop, but have to set them for each ptype
         % AgentDist=AgentDist_initial.(iistr);
@@ -225,40 +142,124 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         % Get just the values that correspond to the current ptype
         PricePathOld_ii=PricePathOld(:,PTypeStructure.(iistr).RelevantPricePath);
         ParamPath_ii=ParamPath(:,PTypeStructure.(iistr).RelevantParamPath);
-        % PricePathSizeVec_ii, ParamPathSizeVec_ii
-        
-        % For current ptype, do the backward iteration of V and Policy, then forward iterate agent dist and get the AggVarsPath
-        if isfinite(PTypeStructure.(iistr).N_j)
-            if vfoptions.experienceasset==1
-                AggVarsPath=TransitionPath_FHorz_PType_ExpAsset_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,n_d1,n_d2,n_a1,n_a2,N_z,n_z,N_e,n_e,N_j,d2_grid,a1_gridvals,a2_grid,d_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, aprimeFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
-            else
-                AggVarsPath=TransitionPath_FHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),jequalOneDist_T.(iistr),AgeWeights_T.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,N_e,n_e,N_j,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_gridvals_J, pi_z_J,pi_z_J_sim,e_gridvals_J,pi_e_J,pi_e_J_sim,ze_gridvals_J_fastOLG,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, II1orII, II2, exceptlastj,exceptfirstj,justfirstj, transpathoptions, vfoptions, simoptions);
+
+        % Have not yet set up the following to allow dependence on ptype (should do this at some point)
+        PricePathNames_ii=PricePathNames;
+        ParamPathNames_ii=ParamPathNames;
+
+        PolicyIndexesPath_ii=PTypeStructure.(iistr).PolicyIndexesPath;
+
+        %% Go from T-1 to 1 calculating the Value function and Optimal policy function at each step.
+        [~,PolicyIndexesPath_ii]=TransitionPath_FHorz_substeps_Step1_ValueFnIter(T,PolicyIndexesPath_ii,V_final.(iistr),PTypeStructure.(iistr).Parameters,PricePathOld_ii,ParamPath_ii,PricePathSizeVec_ii,ParamPathSizeVec_ii,PricePathNames_ii,ParamPathNames_ii,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).d_gridvals, PTypeStructure.(iistr).a_grid, PTypeStructure.(iistr).z_gridvals_J,PTypeStructure.(iistr).e_gridvals_J,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).pi_e_J,PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).DiscountFactorParamNames, PTypeStructure.(iistr).ReturnFnParamNames, transpathoptions,PTypeStructure.(iistr).vfoptions);
+
+        %% Modify PolicyIndexesPath into forms needed for forward iteration
+        [PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,PolicyValuesPath_ii]=TransitionPath_FHorz_substeps_Step2_AdjustPolicy(PolicyIndexesPath_ii,T,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).d_gridvals,PTypeStructure.(iistr).aprime_gridvals,transpathoptions,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+
+        %% Iterate forward over t: iterate agent dist, calculate aggvars, evaluate general eqm
+        % Call AgentDist the current periods distn and AgentDistnext the next periods distn which we must calculate
+        AgentDist_ii=AgentDist_initial.(iistr);
+        AggVarNames_ii=PTypeStructure.(iistr).AggVarNames;
+        AggVarsPath_ii=zeros(length(AggVarNames_ii),T-1);
+        for tt=1:T-1
+
+            % Get t-1 PricePath and ParamPath before we update them
+            if use_tminus1price==1
+                for pp=1:length(tminus1priceNames)
+                    if tt>1
+                        Parameters.([tminus1priceNames{pp},'_tminus1'])=Parameters.(tminus1priceNames{pp});
+                    else
+                        Parameters.([tminus1priceNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1priceNames{pp});
+                    end
+                end
             end
-        else
-            if vfoptions.experienceasset==1
-                error("not yet implemented")
-                AggVarsPath=TransitionPath_InfHorz_PType_ExpAsset_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_grid, pi_z,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
-            else
-                AggVarsPath=TransitionPath_InfHorz_PType_singlepath(PricePathOld_ii, ParamPath_ii, PricePathNames,ParamPathNames,T,V_final.(iistr),AgentDist_init.(iistr),l_d,N_d,n_d,N_a,n_a,N_z,n_z,d_grid,a_grid,d_gridvals,aprime_gridvals,a_gridvals,z_grid, pi_z,ReturnFn, FnsToEvaluate, Parameters, DiscountFactorParamNames, ReturnFnParamNames, FnsToEvaluateParamNames, AggVarNames, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, vfoptions, simoptions);
+            if use_tminus1params==1
+                for pp=1:length(tminus1paramNames)
+                    if tt>1
+                        Parameters.([tminus1paramNames{pp},'_tminus1'])=Parameters.(tminus1paramNames{pp});
+                    else
+                        Parameters.([tminus1paramNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1paramNames{pp});
+                    end
+                end
             end
+            % Get t-1 AggVars before we update them
+            if use_tminus1AggVars==1
+                for pp=1:length(tminus1AggVarsNames)
+                    if tt>1
+                        % The AggVars have not yet been updated, so they still contain previous period values
+                        Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=Parameters.(tminus1AggVarsNames{pp});
+                    else
+                        Parameters.([tminus1AggVarsNames{pp},'_tminus1'])=transpathoptions.initialvalues.(tminus1AggVarsNames{pp});
+                    end
+                end
+            end
+
+            % Update current PricePath and ParamPath
+            for kk=1:length(PricePathNames)
+                Parameters.(PricePathNames{kk})=PricePathOld_ii(tt,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk));
+            end
+            for kk=1:length(ParamPathNames)
+                Parameters.(ParamPathNames{kk})=ParamPath_ii(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
+            end
+
+            % Get t+1 PricePath
+            if use_tplus1price==1
+                for pp=1:length(tplus1priceNames)
+                    kk=tplus1pricePathkk(pp);
+                    Parameters.([tplus1priceNames{pp},'_tplus1'])=PricePathOld_ii(tt+1,PricePathSizeVec(1,kk):PricePathSizeVec(2,kk)); % Make is so that the time t+1 variables can be used
+                end
+            end
+
+            %% Get the current optimal policy, and iterate the agent dist
+            if transpathoptions.(iistr).trivialjequalonedist==0
+                PTypeStructure.(iistr).jequalOneDist=PTypeStructure.(iistr).jequalOneDist_T(:,tt+1);  % Note: t+1 as we are about to create the next period AgentDist
+            end
+            if PTypeStructure.(iistr).simoptions.fastOLG==0 || PTypeStructure.(iistr).N_e>0
+                AgeWeights_ii=PTypeStructure.(iistr).AgeWeights_T(:,:,tt);
+            else % simoptions.fastOLG==1
+                AgeWeights_ii=PTypeStructure.(iistr).AgeWeights_T(:,tt);
+            end
+
+            AgentDistnext_ii=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).pi_z_J_sim,PTypeStructure.(iistr).pi_e_J,PTypeStructure.(iistr).pi_e_J_sim,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj,PTypeStructure.(iistr).jequalOneDist,transpathoptions,PTypeStructure.(iistr).simoptions);
+
+            %% AggVars
+            if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
+                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+            else
+                AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PolicyValuesPath_ii(:,:,:,:,tt),tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
+            end
+            % Uncommenting this allows you to do _tminus1 for AggVars, but only conditional on ptype [not yet possible without conditioning on ptype]
+            % for ff=1:length(AggVarNames)
+            %     Parameters.(AggVarNames{ff})=AggVars_ii.(AggVarNames{ff}).Mean;
+            % end
+
+            % Keep AggVars in the AggVarsPath
+            for ff=1:length(AggVarNames_ii)
+                AggVarsPath_ii(ff,tt)=AggVars_ii.(AggVarNames_ii{ff}).Mean;
+            end
+
+            %% GE EQNS THAT DEPEND ON PTYPE SHOULD BE DONE HERE!!!
+
+            AgentDist_ii=AgentDistnext_ii;
+
         end
-        % AggVarsPath=zeros(length(FnsToEvaluate),T-1);
-        
-        AggVarsFullPath(logical(PTypeStructure.(iistr).WhichFnsForCurrentPType),:,ii)=AggVarsPath;
+
+        AggVarsFullPath(PTypeStructure.(iistr).WhichFnsForCurrentPType,:,ii)=AggVarsPath_ii;
 
     end % done loop over ii
     
     
-    %% Note: Cannot do transition paths in which the mass of each agent type changes.
+    %% Note: Cannot yet do transition paths in which the mass of each agent type changes.
     % AggVarsPooledPath=sum(reshape(PTypeStructure.FnsAndPTypeIndicator,[PTypeStructure.numFnsToEvaluate,1,PTypeStructure.N_i]).*AggVarsFullPath.*shiftdim(AgentDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
     % Note: don't need the above line, as I already dealt with PTypeStructure.FnsAndPTypeIndicator when creating AggVarsFullPath
-    AggVarsPooledPath=sum(AggVarsFullPath.*shiftdim(AgentDist_init.ptweights,-2),3); % Weighted sum over agent type dimension
-
+    AggVarsPooledPath=sum(AggVarsFullPath.*shiftdim(AgentDist_initial.ptweights,-2),3); % Weighted sum over agent type dimension
+    
+    
     %% Do the general eqm conditions and create PricePathNew based on these
     if all(transpathoptions.GEptype==0)
         GECondnPath=zeros(T,length(GEeqnNames));
 
         % Restore all AggVarNames and tminus1AggVarsNames for GEeqns
+        warning("do we need this restore here?")
         AggVarNames=cell(1,N_i);
         tminus1AggVarsNames=cell(1,N_i);
         use_tminus1AggVars=0;
@@ -272,7 +273,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         end
         AggVarNames=vertcat(AggVarNames{:});
         tminus1AggVarsNames=vertcat(tminus1AggVarsNames{:});
-        
+
         % Parameters that may be relevant to General Eqm
         Parameters=PTypeStructure.ParametersRaw;
 
@@ -316,13 +317,12 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
             for kk=1:length(ParamPathNames)
                 Parameters.(ParamPathNames{kk})=ParamPath(tt,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk));
             end
-
-            % Update current AggVars [we have to add this when doing ptype as GE conditions are in a seperate tt loop to the AggVars]
+            
+            % Update current AggVars [we have to add this as GE conditions are in a seperate tt loop to the AggVars]
             for ff=1:length(FullAggVarNames)
                 Parameters.(FullAggVarNames{ff})=AggVarsPooledPath(ff,tt);
-                % No need for AggVars by ptype here, as the GE conditions do not depend on 
             end
-
+            
             % Get t+1 PricePath
             if use_tplus1price==1
                 for pp=1:length(tplus1priceNames)
@@ -331,10 +331,23 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
 
+            %% Intermediate Eqns
+            if transpathoptions.useintermediateEqns==1
+                % Note: intermediateEqns just take in things from the Parameters structure, as do GeneralEqmEqns (AggVars get put into structure), hence just use the GeneralEqmConditions_Case1_v3g().
+                intEqnnames=fieldnames(transpathoptions.intermediateEqns);
+                intermediateEqnsVec=zeros(1,length(intEqnnames));
+                % Do the intermediateEqns, in order
+                for gg=1:length(intEqnnames)
+                    intermediateEqnsVec(gg)=real(GeneralEqmConditions_Case1_v3g(transpathoptions.intermediateEqnsCell{gg}, transpathoptions.intermediateEqnParamNames(gg).Names, Parameters));
+                    Parameters.(intEqnnames{gg})=intermediateEqnsVec(gg);
+                end
+            end
+
             %% General Eqm Eqns
             % Evaluate the general eqm conditions, and based on them create PricePathNew (interpretation depends on transpathoptions)
-            [PricePathNew_tt,~]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
+            [PricePathNew_tt,GEcondnPath_tt]=updatePricePathNew_TPath_tt(Parameters,GeneralEqmEqnsCell,GeneralEqmEqnParamNames,PricePathOld(tt,:),transpathoptions);
             PricePathNew(tt,:)=PricePathNew_tt;
+            GEcondnPath(tt,:)=GEcondnPath_tt;
             
         end % Done loop over tt, evaluating the GE conditions
     else % Some GE conditions depend on PType
@@ -530,7 +543,7 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 I_makescutoff=(abs(p_i)>transpathoptions.updateaccuracycutoff);
                 p_i=I_makescutoff.*p_i;
                 PricePathNew(tt,:)=(PricePathOld(tt,:).*transpathoptions.GEnewprice3.keepold)+transpathoptions.GEnewprice3.add.*transpathoptions.GEnewprice3.factor.*p_i-(1-transpathoptions.GEnewprice3.add).*transpathoptions.GEnewprice3.factor.*p_i;
-                GECondnPath(tt,:)=p_i;
+                GEcondnPath(tt,:)=p_i;
             end
 
         end % Done loop over tt, evaluating the GE conditions
@@ -549,55 +562,8 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
         [PricePathOld,PricePathNew]
     end
     
-    if transpathoptions.graphpricepath==1
-        % Do a graph of the GE prices
-        figure(1);
-        for pp=1:length(PricePathNames)
-            if PTypeStructure.PricePath_Idependsonptype(pp)==0
-                subplot(nrows_pricepath,ncolumns_pricepath,pp); plot(1:1:T,PricePathOld(:,pp_indexinpricepath(pp)))
-            else
-                subplot(nrows_pricepath,ncolumns_pricepath,pp); plot(1:1:T,PricePathOld(:,pp_indexinpricepath(pp)))
-                hold on
-                for ii=2:N_i
-                    subplot(nrows_pricepath,ncolumns_pricepath,pp); plot(1:1:T,PricePathOld(:,pp_indexinpricepath(pp)+ii-1))
-                end
-                hold off
-            end
-            title(PricePathNames{pp})
-        end
-    end
-    if transpathoptions.graphaggvarspath==1
-        % Do a graph of the AggVar paths
-        figure(2);
-        for aa=1:length(FullAggVarNames)
-            subplot(nrows_aggvars,ncolumns_aggvars,aa); plot(1:1:T-1,AggVarsPooledPath(aa,:))
-            title(FullAggVarNames{aa})
-            if aa_aggvarbyptype(aa)==1 % We care about the value conditional on ptype
-                hold on
-                for ii=1:N_i
-                    subplot(nrows_aggvars,ncolumns_aggvars,aa); plot(1:1:T-1,AggVarsFullPath(aa,:,ii),'-')
-                end
-                hold off
-            end
-        end
-    end
-    if transpathoptions.graphGEcondns==1
-        % Do a graph of the General eqm conditions
-        figure(3);
-        for gg=1:length(GEeqnNames)
-            if transpathoptions.GEptype(gg)==0
-                subplot(nrows_GEcondns,ncolumns_GEcondns,gg); plot(1:1:T,GECondnPath(:,gg_indexinGEcondns(gg)))
-            else
-                subplot(nrows_GEcondns,ncolumns_GEcondns,gg); plot(1:1:T,GECondnPath(:,gg_indexinGEcondns(gg)))
-                hold on
-                for ii=2:N_i
-                    subplot(nrows_GEcondns,ncolumns_GEcondns,gg); plot(1:1:T,GECondnPath(:,gg_indexinGEcondns(gg)+ii-1))
-                end
-                hold off
-            end
-            title(GEeqnNames{gg})
-        end
-    end
+    % Create plots of the transition path (before we update pricepath)
+    createTPathFeedbackPlots(PricePathNames,FullAggVarNames,GEeqnNames,PricePathOld,AggVarsPooledPath,GEcondnPath,transpathoptions);
     
     % Set price path to be 9/10ths the old path and 1/10th the new path (but making sure to leave prices in periods 1 & T unchanged).
     if transpathoptions.weightscheme==0

@@ -382,7 +382,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
     else % no semiz
         % Split decision variables into the standard ones and the one relevant to the experience asset
         if length(n_d)>vfoptions.l_d2
-            n_d1=n_d(1:end-1);
+            n_d1=n_d(1:end-vfoptions.l_d2);
         else
             n_d1=0;
         end

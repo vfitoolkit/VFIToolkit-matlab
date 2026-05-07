@@ -56,7 +56,7 @@ AgeWeights_T=repmat(repelem(ones(T,1,'gpuArray'),N_a,1),N_z,1);
 % Or we can take the fastOLG style approach
 %  - Parallel oever t=2:T, we create Phi_t^{i+1} from Phi_{t-1}^{i}
 % For now I just use the fastOLG style approach
-fastOLGtheAgentDist=1
+fastOLGtheAgentDist=1;
 % But setting this to zero will do the time-loop version that Lee uses.
 
 %% Create the initial guess
@@ -99,6 +99,10 @@ end
 
 AgentDistt0index=repmat(gpuArray(1:1:N_a)',N_z,1)+repelem(N_a*T*gpuArray(0:1:N_z-1)',N_a,1);
 
+%% Setup for the matching-expecations step
+recursiveeqmoptions.matchE_nnearest=1; % How many 'nearest' agent distributions to use when constructing expectations
+recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
+
 %% Solve using the matched-expecations path algorithm
 if recursiveeqmoptions.verbose==1
     fprintf('Start solving the matched expectations path \n')
@@ -120,11 +124,9 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
     % Currently I don't do this, but in principle the AgentDist_initial comes from the stationary eqm of the model without aggregate shocks, and this is not the same as the mean of the model with shocks
     
     %% Match Expectations (construct next period value fn)
-    tic;
-    recursiveeqmoptions.matchE_nnearest=1; % How many 'nearest' agent distributions to use when constructing expectations
-    recursiveeqmoptions.matchE_distmeasure=2; % How to measure the distance between agent distributions
-    
     % Note: this is only taking expectations over the aggregate shocks, not over the idiosyncratic shocks
+    
+    tic;
     
     % Note: fastOLG, so VPath is (a,j)-by-z
     VPath=reshape(VPath,[N_a,T,N_z]);
@@ -143,15 +145,10 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
             end
             Distances(tt1,tt2)=dist;
         end
-        % Fill in the lower triangular (distance is symmetric), put Inf on diagonal 
-        % PARALLELIZE THIS
-        for tt1=1:T
-            for tt2=1:tt1-1
-                Distances(tt1,tt2)=Distances(tt2,tt1);
-            end
-            Distances(tt1,tt1)=Inf;
-        end
-    elseif recursiveeqmoptions.matchE_distmeasure==2 % Distance of first moments
+        % Fill in the lower triangular (distance is symmetric)
+        Distances=triu(Distances)+triu(Distances,1)';
+        Distances(logical(eye(T,T)))=Inf; % Set diagonals to Inf (as we never want them to be used as matches)
+    elseif recursiveeqmoptions.matchE_distmeasure==2 % Distance of first moments [Not needed because the mask eliminates this possibility anyway]
         Distances=abs(AggVarsPath.K.Mean'-AggVarsPath.K.Mean);
     elseif recursiveeqmoptions.matchE_distmeasure==3 % Distance of first moments
         Distances=abs(AggVarsPath.K.Mean'-AggVarsPath.K.Mean)+abs(AggVarsPath.L.Mean'-AggVarsPath.L.Mean);
@@ -367,7 +364,7 @@ while TransPathConvergence>1 && pathcounter<recursiveeqmoptions.maxiter
             for tt=1:T-1
                 Policy_aprimez=reshape(PolicyaprimePath(:,tt,:),[N_a*N_z,1])+N_a*repelem((0:1:N_z-1)',N_a,1);
                 % AgentDist=sparse(reshape(AgentDistPathPre(:,tt,:),[N_a*N_z,1])); % CHECK THAT THEY GIVE THE SAME THING
-                AgentDist=AgentDist_InfHorz_TPath_SingleStep(AgentDist,Policy_aprimez,II1b,IIones,N_a,N_z,sparse(squeeze(pi_z_T(tt,:,:))')); % pi_z_T(tt,:,:)' as pi_z_T has shape designed for fastOLG
+                AgentDist=AgentDist_InfHorz_TPath_SingleStep_raw(AgentDist,Policy_aprimez,II1b,IIones,N_a,N_z,sparse(squeeze(pi_z_T(tt,:,:))')); % pi_z_T(tt,:,:)' as pi_z_T has shape designed for fastOLG
                 AgentDistPath(:,tt+1)=AgentDist;
             end
             AgentDistPath=reshape(permute(reshape(AgentDistPath,[N_a,N_z,T]),[1,3,2]),[N_a*T*N_z,1]); % fastOLG shape for use in AggVars

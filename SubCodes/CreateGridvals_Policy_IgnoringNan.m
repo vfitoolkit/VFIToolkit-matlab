@@ -15,8 +15,9 @@ function [dPolicy_gridvals, aprimePolicy_gridvals]=CreateGridvals_Policy_Ignorin
 %
 % If either of d or aprime is not relevant, then a value of nan will be returned for the corresponding gridvals output.
 
-warning('I intend to disable this because it is slow: please tell me if it is still being used by something')
-dbstack
+% warning('I intend to disable this because it is slow: please tell me if it is still being used by something')
+% Note to SELF: Is used by HopenhaynRogerson1993_Example, in SimPanelValues_InfHorz command
+% dbstack
 % NOTE TO SELF: THE CPU VERSION COULD CERTAINLY BE SPED UP BY BETTER USE OF VECTORIZATION.
 
 if n_d(1)==0
@@ -31,6 +32,10 @@ N_z=prod(n_z);
 
 % Create d_gridvals and aprime_gridvals as appropriate.
 aprime_val=zeros(l_aprime,1);
+
+if size(d_grid,2)>1
+    error('cannot yet handle d_gridvals (joint-grids)')
+end
 
 % Now create those of d_gridvals and aprime_gridvals that are needed
 % Check if doing Case1 or Case2, and if Case1, then check if need d_gridvals

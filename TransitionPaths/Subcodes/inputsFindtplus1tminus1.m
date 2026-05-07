@@ -135,7 +135,7 @@ if isempty(Names_i)
         end
     end
     % Return the array of tminus1AggVarsNames
-else
+elseif ntminus1>0
     for ii=1:ntminus1
         for nn=1:length(Names_i)
             AggVarNames_nn=PTypeAggVarNames.(Names_i{nn});

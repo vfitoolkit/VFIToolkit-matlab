@@ -18,8 +18,14 @@ else
     usingcustomstats=0;
 end
 
-if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AgeConditionalStats') .* ~strcmp(fieldnames(TargetMoments),'CustomModelStats'))
-    warning('TargetMoments seems to be set up incorrect: it has a field which is neither AllStats nor AgeConditionalStats')
+temp=fieldnames(TargetMoments);
+for a1=1:length(temp)
+    if ~isempty(setdiff(temp{a1}, {'AllStats','AgeConditionalStats','CustomModelStats'}))
+        fprintf(' \n')
+        fprintf(' \n')
+        fprintf('The following error is because %s is a field in TargetMoments but does not fit allowed formats (e.g., AllStats, etc.) \n', temp{a1})
+        error('TargetMoments contains a field with a problematic name (see line above)')
+    end
 end
 
 if useptype==0
@@ -326,6 +332,7 @@ elseif useptype==1
         allstatmomentnames=cell(1,3);
         allstatcummomentsizes=0;
         AllStats_whichstats=zeros(7,1);
+        FnsToEvaluate_AllStats=struct();
     end
 
 
@@ -368,6 +375,7 @@ elseif useptype==1
                         end
                     end
                 else
+                    a3vec={};
                     acsmomentcounter=acsmomentcounter+1;
                     if size(TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2}),2)==1 % already column vector
                         targetmomentvec=[targetmomentvec; TargetMoments.AgeConditionalStats.(a1vec{a1}).(a2vec{a2})]; % append to end

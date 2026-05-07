@@ -1,10 +1,8 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC1_GI_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-
-d_gridvals=CreateGridvals(n_d,d_grid,1);
 
 % Preallocate
 if vfoptions.lowmemory==0
@@ -48,7 +46,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 entireEV=repmat(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
 

@@ -15,11 +15,6 @@ else
     N_i=Names_i;
 end
 
-%% PType hardcodes some things that are options when not using PTypes
-% Namely, 
-% hardcodes simoptions.fastOLG=1
-% hardcodes transpathoptions.ageweightstrivial=0 (don't overwrite 
-% In both cases, mainly done so I don't have to handle this differing by PType
 
 %% Check which transpathoptions have been used, set all others to defaults 
 if exist('transpathoptions','var')==0
@@ -138,65 +133,17 @@ end
 
 %% Some internal commands require a few vfoptions and simoptions to be set
 vfoptions.EVpre=0; % Not actually an option that can be used here
-if ~isfield(vfoptions,'verbose')
-    vfoptions.verbose=0;
-end
-if ~isfield(vfoptions,'experienceasset')
-    for ii=1:N_i
-        vfoptions.experienceasset.(Names_i{ii})=0;
-    end
-else
-    % User created vfoptions.PType.experienceasset; we have Names_i
-    for ii=1:N_i
-        if isfield(vfoptions.experienceasset, Names_i{ii})
-            if ~isfield(vfoptions, 'aprimeFn') || ~isfield(vfoptions.aprimeFn, Names_i{ii})
-                error('To use an experience asset you must define vfoptions.aprimeFn')
-            end
-        else
-            vfoptions.experienceasset.(Names_i{ii})=0;
-        end
-    end
-end
-if ~isfield(vfoptions,'lowmemory')
-    for ii=1:N_i
-        vfoptions.lowmemory.(Names_i{ii})=0;
-    end
-else
-    % User created vfoptions.PType.lowmemory; we have Names_i
-    for ii=1:N_i
-        if ~isfield(vfoptions.lowmemory, Names_i{ii})
-            vfoptions.lowmemory.(Names_i{ii})=0;
-        end
-    end
+if isfield(vfoptions,'lowmemory')==0
+    vfoptions.lowmemory=0;
 end
 
-%% Get AgeWeights from Parameters
-if isstruct(AgeWeightsParamNames)
-    for ii=1:N_i
-        try
-            AgeWeights=Parameters.(AgeWeightsParamNames.(Names_i{ii}){1});
-            if length(AgeWeights)~=N_j.(Names_i{ii})
-                error('Ageweights does not have age-like length')
-            else
-                break
-            end
-        catch
-            if ii==N_i
-                error(['Failed to find parameter ', AgeWeightsParamNames.(Names_i{ii}){1}])
-            end
-        end
-    end
-else
-    try
-        AgeWeights=Parameters.(AgeWeightsParamNames{1});
-    catch
-        error(['Failed to find parameter ', AgeWeightsParamNames{1}])
-    end
+%% Get AgeWeights from Parameters   
+try
+    AgeWeights=Parameters.(AgeWeightsParamNames{1});
+catch
+    error(['Failed to find parameter ', AgeWeightsParamNames{1}])
 end
 % Later, when creating PTypeStructure, we get the ptype-specific versions out of this and create an AgeWeights_T structure.
-
-%% ptype just hardcodes that this is non-trivial, so I will use
-jequalOneDist_T=struct();
 
 %%
 [PricePath0,ParamPath,PricePathNames,ParamPathNames,PricePathSizeVec,ParamPathSizeVec,PricePathSizeVec_ii,ParamPathSizeVec_ii]=PricePathParamPath_FHorz_StructToMatrix(PricePath0,ParamPath,N_j,T,N_i);
@@ -211,11 +158,11 @@ end
 if isstruct(GeneralEqmEqns)
     if length(PricePathNames)~=length(fieldnames(GeneralEqmEqns))
         fprintf('length(PricePathNames)=%i and length(fieldnames(GeneralEqmEqns))=%i (relates to following error) \n', length(PricePathNames), length(fieldnames(GeneralEqmEqns)))
-        error('Initial PricePath contains fewer variables than GeneralEqmEqns (structure) \n')
+        error('Initial PricePath contains less variables than GeneralEqmEqns (structure) \n')
     end
 else
     if length(PricePathNames)~=length(GeneralEqmEqns)
-        error('Initial PricePath contains fewer variables than GeneralEqmEqns')
+        error('Initial PricePath contains less variables than GeneralEqmEqns')
     end
 end
 
@@ -266,7 +213,6 @@ for ii=1:PTypeStructure.N_i
     % Need to fill in some defaults
     PTypeStructure.(iistr).vfoptions.parallel=2; % hardcode
     PTypeStructure.(iistr).simoptions.parallel=2; % hardcode
-    PTypeStructure.(iistr).simoptions.iterate=1; % hardcode
     PTypeStructure.(iistr).simoptions.fastOLG=1; % hardcode 
     if ~isfield(PTypeStructure.(iistr).vfoptions,'n_e')
         PTypeStructure.(iistr).n_e=0;
@@ -277,18 +223,25 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).vfoptions.divideandconquer=0; %default
     else
         if PTypeStructure.(iistr).vfoptions.divideandconquer==1
-            PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a.(iistr)/50); % default
+            PTypeStructure.(iistr).vfoptions.level1n=ceil(n_a/50); % default
         end
     end
     if ~isfield(PTypeStructure.(iistr).vfoptions,'gridinterplayer')
         PTypeStructure.(iistr).vfoptions.gridinterplayer=0; %default
     end
+    % Model setup
     if ~isfield(PTypeStructure.(iistr).vfoptions,'exoticpreferences')
         PTypeStructure.(iistr).vfoptions.exoticpreferences='None'; % not yet implemented, so hardcodes None
     else
         if ~strcmp(PTypeStructure.(iistr).vfoptions.exoticpreferences,'None')
             error('transition paths cannot yet handle exoticpreferences')
         end
+    end
+    if ~isfield(PTypeStructure.(iistr).vfoptions,'experienceasset')
+        PTypeStructure.(iistr).vfoptions.experienceasset=0;
+    end
+    if ~isfield(PTypeStructure.(iistr).simoptions,'experienceasset')
+        PTypeStructure.(iistr).simoptions.experienceasset=0;
     end
 
     % Go through everything which might be dependent on permanent type (PType)
@@ -308,7 +261,7 @@ for ii=1:PTypeStructure.N_i
     
     % Horizon is determined via N_j
     if isstruct(N_j)
-        PTypeStructure.(iistr).N_j=N_j.(iistr);
+        PTypeStructure.(iistr).N_j=N_j.(Names_i{ii});
     elseif isscalar(N_j)
         PTypeStructure.(iistr).N_j=N_j;
     else
@@ -316,7 +269,7 @@ for ii=1:PTypeStructure.N_i
     end
     
     if isa(n_d,'struct')
-        PTypeStructure.(iistr).n_d=n_d.(iistr);
+        PTypeStructure.(iistr).n_d=n_d.(Names_i{ii});
     else
         PTypeStructure.(iistr).n_d=n_d;
     end
@@ -325,41 +278,52 @@ for ii=1:PTypeStructure.N_i
     if N_d==0
         PTypeStructure.(iistr).l_d=0;
     else
-        PTypeStructure.(iistr).l_d=length(PTypeStructure.(iistr).n_d);
+        PTypeStructure.(iistr).l_d=length(n_d);
     end
     if isa(n_a,'struct')
-        PTypeStructure.(iistr).n_a=n_a.(iistr);
+        PTypeStructure.(iistr).n_a=n_a.(Names_i{ii});
     else
         PTypeStructure.(iistr).n_a=n_a;
     end
     N_a=prod(PTypeStructure.(iistr).n_a);
     PTypeStructure.(iistr).N_a=N_a;
+    PTypeStructure.(iistr).l_a=length(PTypeStructure.(iistr).n_a);
+    PTypeStructure.(iistr).l_aprime=PTypeStructure.(iistr).l_a;
+    if PTypeStructure.(iistr).vfoptions.experienceasset==1
+        PTypeStructure.(iistr).l_aprime=PTypeStructure.(iistr).l_aprime-1;
+    end
     if isa(n_z,'struct')
-        PTypeStructure.(iistr).n_z=n_z.(iistr);
+        PTypeStructure.(iistr).n_z=n_z.(Names_i{ii});
     else
         PTypeStructure.(iistr).n_z=n_z;
     end
     N_z=prod(PTypeStructure.(iistr).n_z);
     PTypeStructure.(iistr).N_z=N_z;
-    if N_z==0 && ~isfinite(PTypeStructure.(iistr).N_j)
-        % This simplifies InfoHorz conditional logic for the purposes of this function
-        N_z=1;
+    if N_z==0
+        PTypeStructure.(iistr).l_z=0;
+    else
+        PTypeStructure.(iistr).l_z=length(n_z);
     end
     N_e=prod(PTypeStructure.(iistr).n_e);
     PTypeStructure.(iistr).N_e=N_e;
+    if N_e==0
+        PTypeStructure.(iistr).l_e=0;
+    else
+        PTypeStructure.(iistr).l_e=length(n_e);
+    end
 
     if isa(d_grid,'struct')
-        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(iistr));
+        PTypeStructure.(iistr).d_grid=gpuArray(d_grid.(Names_i{ii}));
     else
         PTypeStructure.(iistr).d_grid=gpuArray(d_grid);
     end
     if isa(a_grid,'struct')
-        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(iistr));
+        PTypeStructure.(iistr).a_grid=gpuArray(a_grid.(Names_i{ii}));
     else
         PTypeStructure.(iistr).a_grid=gpuArray(a_grid);
     end
     if isa(z_grid,'struct')
-        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(iistr));
+        PTypeStructure.(iistr).z_grid=gpuArray(z_grid.(Names_i{ii}));
     else
         PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
     end
@@ -390,14 +354,14 @@ for ii=1:PTypeStructure.N_i
     % end
 
     if isa(pi_z,'struct')
-        PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
+        PTypeStructure.(iistr).pi_z=pi_z.(Names_i{ii}); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     else
         PTypeStructure.(iistr).pi_z=pi_z;
     end
     
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
-        PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
+        PTypeStructure.(iistr).ReturnFn=ReturnFn.(Names_i{ii});
     end
     
     % Parameters are allowed to be given as structure, or as vector/matrix (in terms of their dependence on permanent type). 
@@ -409,8 +373,8 @@ for ii=1:PTypeStructure.N_i
     for kField=1:nFields
         if isa(Parameters.(FullParamNames{kField}), 'struct') % Check the current parameter for permanent type in structure form
             % Check if this parameter is used for the current permanent type (it may or may not be, some parameters are only used be a subset of permanent types)
-            if isfield(Parameters.(FullParamNames{kField}),iistr)
-                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(iistr);
+            if isfield(Parameters.(FullParamNames{kField}),Names_i{ii})
+                PTypeStructure.(iistr).Parameters.(FullParamNames{kField})=Parameters.(FullParamNames{kField}).(Names_i{ii});
             end
         elseif sum(size(Parameters.(FullParamNames{kField}))==PTypeStructure.N_i)>=1 % Check for permanent type in vector/matrix form.
             temp=Parameters.(FullParamNames{kField});
@@ -434,7 +398,7 @@ for ii=1:PTypeStructure.N_i
     % The parameter names can be made to depend on the permanent-type
     PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames;
     if isa(DiscountFactorParamNames,'struct')
-        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(iistr);
+        PTypeStructure.(iistr).DiscountFactorParamNames=DiscountFactorParamNames.(Names_i{ii});
     end
 
     % Implement new way of handling ReturnFn inputs (note l_d, l_a, l_z are just created for this and then not used for anything else later)
@@ -457,28 +421,31 @@ for ii=1:PTypeStructure.N_i
             l_e=length(PTypeStructure.(iistr).vfoptions.n_e);
         end
     end
-    %% Implement new way of handling ReturnFn inputs
-    ReturnFnParamNames=ReturnFnParamNamesFn(PTypeStructure.(iistr).ReturnFn,PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).vfoptions,Parameters);
+    % Figure out ReturnFnParamNames from ReturnFn
+    temp=getAnonymousFnInputNames(PTypeStructure.(iistr).ReturnFn);
+    if length(temp)>(l_d+l_a+l_a+l_z+l_e) % This is largely pointless, the ReturnFn is always going to have some parameters
+        ReturnFnParamNames={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+    else
+        ReturnFnParamNames={};
+    end
     PTypeStructure.(iistr).ReturnFnParamNames=ReturnFnParamNames;
     
 
-    %% Figure out which functions are actually relevant to the present PType. 
+    %% Figure out which functions are actually relevant to the present PType. And then change to FnsToEvaluate as cell so that it is not being recomputed all the time 
     % Only the relevant ones need to be evaluated.
     % The dependence of FnsToEvaluateFn and FnsToEvaluateFnParamNames are necessarily the same.
-    PTypeStructure.(iistr).FnsToEvaluate={};
-    PTypeStructure.(iistr).FnsToEvaluateParamNames={};
 
     FnNames=fieldnames(FnsToEvaluate);
     PTypeStructure.numFnsToEvaluate=length(fieldnames(FnsToEvaluate));
     PTypeStructure.(iistr).WhichFnsForCurrentPType=zeros(PTypeStructure.numFnsToEvaluate,1);
     jj=1; % jj indexes the FnsToEvaluate that are relevant to the current PType
     for kk=1:PTypeStructure.numFnsToEvaluate
-        if isstruct(FnsToEvaluate.(FnNames{kk}))
-            if isfield(FnsToEvaluate.(FnNames{kk}), iistr)
-                PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate.(FnNames{kk}).(iistr);
-                % Figure out FnsToEvaluateParamNames
-                temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(iistr));
-                PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        if isa(FnsToEvaluate.(FnNames{kk}),'struct')
+            if isfield(FnsToEvaluate.(FnNames{kk}), Names_i{ii})
+                PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk}).(Names_i{ii});
+                % % Figure out FnsToEvaluateParamNames
+                % temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}).(Names_i{ii}));
+                % PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
                 PTypeStructure.(iistr).WhichFnsForCurrentPType(kk)=jj; jj=jj+1;
                 PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
                 % else
@@ -487,7 +454,7 @@ for ii=1:PTypeStructure.N_i
             end
         else
             % If the Fn is not a structure (if it is a function) it is assumed to be relevant to all PTypes.
-            PTypeStructure.(iistr).FnsToEvaluate{jj}=FnsToEvaluate.(FnNames{kk});
+            PTypeStructure.(iistr).FnsToEvaluate.(FnNames{kk})=FnsToEvaluate.(FnNames{kk});
             % Figure out FnsToEvaluateParamNames
             temp=getAnonymousFnInputNames(FnsToEvaluate.(FnNames{kk}));
             PTypeStructure.(iistr).FnsToEvaluateParamNames(jj).Names={temp{l_d+l_a+l_a+l_z+l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
@@ -495,333 +462,180 @@ for ii=1:PTypeStructure.N_i
             PTypeStructure.FnsAndPTypeIndicator(kk,ii)=1;
         end
     end
-    PTypeStructure.(iistr).AggVarNames=FnNames(logical(PTypeStructure.FnsAndPTypeIndicator(:,ii)));
+    % Now that all the relevant FnsToEvaluate for type ii are in PTypeStructure.(iistr).FnsToEvaluate
+    PTypeStructure.(iistr).l_daprime=PTypeStructure.(iistr).l_d+PTypeStructure.(iistr).l_aprime;
+    PTypeStructure.(iistr).AggVarNames=fieldnames(PTypeStructure.(iistr).FnsToEvaluate);
+    PTypeStructure.(iistr).FnsToEvaluateCell=cell(1,length(PTypeStructure.(iistr).AggVarNames));
+    for ff=1:length(PTypeStructure.(iistr).AggVarNames)
+        temp=getAnonymousFnInputNames(PTypeStructure.(iistr).FnsToEvaluate.(PTypeStructure.(iistr).AggVarNames{ff}));
+        if length(temp)>(PTypeStructure.(iistr).l_daprime+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e)
+            PTypeStructure.(iistr).FnsToEvaluateParamNames(ff).Names={temp{PTypeStructure.(iistr).l_daprime+PTypeStructure.(iistr).l_a+PTypeStructure.(iistr).l_z+PTypeStructure.(iistr).l_e+1:end}}; % the first inputs will always be (d,aprime,a,z)
+        else
+            PTypeStructure.(iistr).FnsToEvaluateParamNames(ff).Names={};
+        end
+        PTypeStructure.(iistr).FnsToEvaluateCell{ff}=PTypeStructure.(iistr).FnsToEvaluate.(PTypeStructure.(iistr).AggVarNames{ff});
+    end
+    % Change FnsToEvaluate out of structure form, but want to still create AggVars as a structure
+    PTypeStructure.(iistr).simoptions.outputasstructure=1;
 
 
     %% Set up exogenous shock processes
-    if isfinite(PTypeStructure.(iistr).N_j)
-        [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
-        % Convert z and e to age-dependent joint-grids and transtion matrix
-        % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
-    end
-
-    %% We can precompute some things that the fastOLG needs for the agent dist
-    % But only bother with this when using fastOLG=1
-    if transpathoptions.fastOLG==1 && isfinite(PTypeStructure.(iistr).N_j)
-        N_j_temp=PTypeStructure.(iistr).N_j;
-        if PTypeStructure.(iistr).simoptions.gridinterplayer==1
-            N_probs=2;
-        else
-            N_probs=1;
-        end
-        if N_z==0
-            if N_e==0 % no z, no e
-                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-                    II1=1:1:N_a*(N_j_temp-1);
-                    PTypeStructure.(iistr).II2=ones(N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',N_j_temp-1,1)+repelem(N_a*(0:1:N_j_temp-2)',N_a,1); % Note: there is one use of N_j which is because we want to index AgentDist
-                    PTypeStructure.(iistr).exceptfirstj=[]; % not needed
-                    PTypeStructure.(iistr).justfirstj=[]; % not needed
-                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-                    II=repelem((1:1:N_a*(N_j_temp-1))',1,N_probs);
-                    PTypeStructure.(iistr).exceptlastj=[]; % not needed
-                    PTypeStructure.(iistr).exceptfirstj=[]; % not needed
-                    PTypeStructure.(iistr).justfirstj=[]; % not needed
-                end
-            else % no z, yes e
-                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-                    II1=1:1:N_a*(N_j_temp-1)*N_e;
-                    PTypeStructure.(iistr).II2=ones(N_a*(N_j_temp-1)*N_e,1);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j_temp-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j_temp-2)',N_a,1),N_e,1)+repelem(N_a*N_j_temp*(0:1:N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j_temp-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j_temp-1)',N_a,1),N_e,1)+repelem(N_a*N_j_temp*(0:1:N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_e,1)+N_a*N_j_temp*repelem((0:1:N_e-1)',N_a,1);
-                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-                    II=repelem((1:1:N_a*(N_j_temp-1)*N_e)',1,N_probs);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j_temp-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j_temp-2)',N_a,1),N_e,1)+repelem(N_a*N_j_temp*(0:1:N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j_temp-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j_temp-1)',N_a,1),N_e,1)+repelem(N_a*N_j_temp*(0:1:N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_e,1)+N_a*N_j_temp*repelem((0:1:N_e-1)',N_a,1);
-                end
-            end
-        else % N_z>0
-            if N_e==0 % z, no e
-                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-                    II1=1:1:N_a*(N_j_temp-1)*N_z;
-                    PTypeStructure.(iistr).II2=ones(N_a*(N_j_temp-1)*N_z,1);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j_temp-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j_temp-2)',N_a,1),N_z,1)+repelem(N_a*N_j_temp*(0:1:N_z-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j_temp-1)*N_z,1)+repmat(repelem(N_a*(1:1:N_j_temp-1)',N_a,1),N_z,1)+repelem(N_a*N_j_temp*(0:1:N_z-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z,1)+N_a*N_j_temp*repelem((0:1:N_z-1)',N_a,1);
-                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-                    II=repelem((1:1:N_a*(N_j_temp-1)*N_z)',1,N_probs);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j_temp-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j_temp-2)',N_a,1),N_z,1)+repelem(N_a*N_j_temp*(0:1:N_z-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j_temp-1)*N_z,1)+repmat(repelem(N_a*(1:1:N_j_temp-1)',N_a,1),N_z,1)+repelem(N_a*N_j_temp*(0:1:N_z-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z,1)+N_a*N_j_temp*repelem((0:1:N_z-1)',N_a,1);
-                end
-            else % z and e
-                if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-                    II1=1:1:N_a*(N_j_temp-1)*N_z*N_e;
-                    PTypeStructure.(iistr).II2=ones(N_a*(N_j_temp-1)*N_z*N_e,1);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j_temp-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j_temp-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j_temp*(0:1:N_z*N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j_temp-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j_temp-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j_temp*(0:1:N_z*N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j_temp*repelem((0:1:N_z*N_e-1)',N_a,1);
-                elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-                    II=repelem((1:1:N_a*(N_j_temp-1)*N_z*N_e)',1,N_probs);
-                    PTypeStructure.(iistr).exceptlastj=repmat((1:1:N_a)',(N_j_temp-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j_temp-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j_temp*(0:1:N_z*N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).exceptfirstj=repmat((1:1:N_a)',(N_j_temp-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j_temp-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j_temp*(0:1:N_z*N_e-1)',N_a*(N_j_temp-1),1);
-                    PTypeStructure.(iistr).justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j_temp*repelem((0:1:N_z*N_e-1)',N_a,1);
-                end
-            end
-        end
-        % To keep inputs simpler
-        if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-            PTypeStructure.(iistr).II1orII=II1;
-        elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-            PTypeStructure.(iistr).II1orII=II;
-            PTypeStructure.(iistr).II2=[];
-        end
-    elseif transpathoptions.fastOLG==1 % && ~isfinite(PTypeStructure.(iistr).N_j)
-        if PTypeStructure.(iistr).simoptions.gridinterplayer==1
-            N_probs=2;
-        else
-            N_probs=1;
-        end
-        if N_z==0 % Never N_e in InfHorz
-            if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-                II1=1:1:N_a;
-                PTypeStructure.(iistr).II2=ones(N_a,1);
-            elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-                II=repelem((1:1:N_a)',1,N_probs);
-            end
-        else % N_z>0, no N_e to worry about
-            if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-                II1=1:1:N_a*N_z;
-                PTypeStructure.(iistr).II2=ones(N_a*N_z,1);
-            elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-                II=repelem((1:1:N_a*N_z)',1,N_probs);
-            end
-        end
-        PTypeStructure.(iistr).exceptlastj=[]; % not needed
-        PTypeStructure.(iistr).exceptfirstj=[]; % not needed
-        PTypeStructure.(iistr).justfirstj=[]; % not needed
-        % To keep inputs simpler
-        if PTypeStructure.(iistr).simoptions.gridinterplayer==0
-            PTypeStructure.(iistr).II1orII=II1;
-        elseif PTypeStructure.(iistr).simoptions.gridinterplayer==1
-            PTypeStructure.(iistr).II1orII=II;
-            PTypeStructure.(iistr).II2=[];
-        end        
-    end
-
+    [PTypeStructure.(iistr).z_gridvals_J, PTypeStructure.(iistr).pi_z_J, PTypeStructure.(iistr).pi_z_J_sim, PTypeStructure.(iistr).e_gridvals_J, PTypeStructure.(iistr).pi_e_J, PTypeStructure.(iistr).pi_e_J_sim, PTypeStructure.(iistr).ze_gridvals_J_fastOLG, transpathoptions, simoptions]=ExogShockSetup_TPath_FHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).Parameters,PricePathNames,ParamPathNames,transpathoptions,PTypeStructure.(iistr).simoptions,4);
+    % Convert z and e to age-dependent joint-grids and transtion matrix
+    % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
     
-    %% Organise V_final, AgeWeights and AgentDist_initial
+    %% Organise V_final and AgentDist_initial
     % Reshape V_final
-    if ~isfinite(PTypeStructure.(iistr).N_j)
-        % If no z, then N_z=1 here
-        V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z]);
-    elseif transpathoptions.fastOLG==0
-        N_j_temp=PTypeStructure.(iistr).N_j;
+    if transpathoptions.fastOLG==0
         if N_z==0
             if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j]);
             else
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e,N_j_temp]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_e,N_j]);
             end
         else
             if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j_temp]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_j]);
             else
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j_temp]);
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_z,N_e,N_j]);
             end
-        end
-    else % transpathoptions.fastOLG==1
-        N_j_temp=PTypeStructure.(iistr).N_j;
-        if N_z==0
-            if N_e==0
-                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
-            else
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_e]);
-            end
-        else
-            if N_e==0
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j_temp,N_z]);
-            else
-                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j_temp,N_z,N_e]);
-            end
-        end
-    end
-    % Reshape AgentDist_initial and turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
-    % Note when simoptions.fastOLG==1 we have shapes of [N_a*N_j_temp*whatever,1-or-N_e] intead of [N_a,whatever-and-maybe-N_e,N_j_temp]
-    AgentDist_init=AgentDist_initial.(iistr);
-    if isfinite(PTypeStructure.(iistr).N_j)
-        N_j_temp=PTypeStructure.(iistr).N_j;
-        if N_z==0
-            if N_e==0
-                AgentDist_init=reshape(AgentDist_init,[N_a,N_j_temp]);
-                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
-                if simoptions.fastOLG
-                    AgentDist_init=reshape(AgentDist_init,[N_a*N_j_temp,1]);
-                end
-            else
-                AgentDist_init=reshape(AgentDist_init,[N_a*N_e,N_j_temp]);
-                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
-                if simoptions.fastOLG
-                    AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_e,N_j_temp]),[1,3,2]),[N_a*N_j_temp,N_e]);
-                end
-            end
-        else
-            if N_e==0
-                AgentDist_init=reshape(AgentDist_init,[N_a*N_z,N_j_temp]);
-                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
-                if simoptions.fastOLG
-                    AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_z,N_j_temp]),[1,3,2]),[N_a*N_j_temp*N_z,1]);
-                end
-            else
-                AgentDist_init=reshape(AgentDist_init,[N_a*N_z*N_e,N_j_temp]);
-                AgeWeights_init=sum(AgentDist_init,1); % [1,N_j]
-                if simoptions.fastOLG
-                    AgentDist_init=reshape(permute(reshape(AgentDist_init,[N_a,N_z,N_e,N_j_temp]),[1,4,2,3]),[N_a*N_j_temp*N_z,N_e]);
-                end
-            end
-        end
-
-        % Get AgeWeights and switch into the transpathoptions.ageweightstrivial=0 setup (and this is what subfns hardcode when doing PTypes)
-        % It is assumed there is only one Age Weight Parameter (name))
-        % AgeWeights_T is (a,j,z)-by-T (create as N_j-by-T to start, then switch)
-        if isstruct(AgeWeights)
-            AgeWeights_ii=AgeWeights.(iistr);
-        else
-            % not a structure, so must apply to all permanent types
-            AgeWeights_ii=AgeWeights;
-        end
-        if all(size(AgeWeights_ii)==[N_j_temp,1])
-            % Does not depend on transition path period
-        elseif all(size(AgeWeights_ii)==[1,N_j_temp])
-            % Does not depend on transition path period
-            % Make AgeWeights a column vector
-            AgeWeights_ii=AgeWeights_ii';
-        else
-            fprintf('Following error applies to agent permanent type: %s \n',iistr)
-            error('The age weights parameter seems to be the wrong size')
-        end
-        clear AgeWeights
-        
-        % Check ParamPath to see if the AgeWeights vary over the transition
-        % (and overwrite AgeWeights_T.(iistr) if it does)
-        temp=strcmp(ParamPathNames,AgeWeightsParamNames.(iistr){1});
-        if any(temp)
-            transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
-            [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
-            % Create AgeWeights_T
-            AgeWeights_T.(iistr)=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
-            % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
-        else
-            AgeWeights_T.(iistr)=repelem(AgeWeights_ii,1,T); % N_j-by-T
-        end
-        clear AgeWeights_ii
-
-        % Turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
-        % Currently it is N_j-by-T
-
-        % PTypes hardcodes transpathoptions.ageweightstrivial=0, we need
-        if simoptions.fastOLG==0
-            if N_e==0
-                if N_z==0
-                    AgeWeights_T.(iistr)=repelem(shiftdim(AgeWeights_T.(iistr),-1),N_a,1,1); % [N_a,N_j,T]
-                else
-                    AgeWeights_T.(iistr)=repelem(shiftdim(AgeWeights_T.(iistr),-1),N_a*N_z,1,1); % [N_a*N_z,N_j,T]
-                end
-            else % N_e>0
-                if N_z==0
-                    AgeWeights_T.(iistr)=repelem(shiftdim(AgeWeights_T.(iistr),-1),N_a*N_e,1,1); % [N_a*N_e,N_j,T]
-                else
-                    AgeWeights_T.(iistr)=repelem(shiftdim(AgeWeights_T.(iistr),-1),N_a*N_z*N_e,1,1); % [N_a*N_z*N_e,N_j,T]
-                end
-            end
-        else
-            if N_e==0
-                if N_z==0
-                    AgeWeights_T.(iistr)=repelem(AgeWeights_T.(iistr),N_a,1); % simoptions.fastOLG=1 so this is N_a*N_j-by-T
-                else
-                    AgeWeights_T.(iistr)=repmat(repelem(AgeWeights_T.(iistr),N_a,1),N_z,1); % simoptions.fastOLG=1 so this is N_a*N_j*N_z-by-T
-                end
-            else % N_e>0
-                if N_z==0
-                    AgeWeights_T.(iistr)=repelem(reshape(AgeWeights_T.(iistr),[N_j.(iistr),1,T]),N_a,N_e); % [N_a*N_j,N_e,T]
-                else
-                    AgeWeights_T.(iistr)=repmat(repelem(reshape(AgeWeights_T.(iistr),[N_j.(iistr),1,T]),N_a,1),N_z,N_e); % [N_a*N_j*N_z,N_e,T]
-                end
-            end
-        end
-
-        %% Remove the age weights and do all the iterations. Only put the age weights back in when performing FnsToEvaluate (faster as saves putting weights in and then removing them T times)
-        % Weights are all in AgeWeights_T
-        if simoptions.fastOLG==0
-            AgentDist_init=AgentDist_init./AgeWeights_init; % AgentDist_init conveniently shaped as whatever-by-N_j
-        else
-            if N_e==0
-                if N_z==0
-                    AgentDist_init=AgentDist_init./repelem(AgeWeights_init',N_a,1); % remove age weights
-                else % N_e>0
-                    AgentDist_init=AgentDist_init./repmat(repelem(AgeWeights_init',N_a,1),N_z,1); % remove age weights
-                end
-            else % N_e>0
-                if N_z==0
-                    AgentDist_init=AgentDist_init./repelem(AgeWeights_init',N_a,1); % remove age weights
-                else % N_e>0
-                    AgentDist_init=AgentDist_init./repmat(repelem(AgeWeights_init',N_a,1),N_z,1); % remove age weights
-                end
-            end
-        end
-        clear AgeWeights_init
-
-    
-        %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0]
-        if ~isstruct(jequalOneDist)
-            jequalOneDist_temp=gpuArray(jequalOneDist);
-        else % jequalOneDist is a structure
-            jequalOneDist_temp=gpuArray(jequalOneDist.(iistr));
-        end
-        % Check if jequalOneDistPath is a path or not (and reshape appropriately)
-        temp=size(jequalOneDist_temp);
-        if temp(end)==T % jequalOneDist depends on T
-            % transpathoptions.trivialjequalonedist=0; hardcoded for ptypes
-            if N_z==0
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,T]);
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,T]); % simoptions.fastOLG==1
-                end
-            else
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,T]); % simoptions.fastOLG==1
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,T]); % simoptions.fastOLG==1
-                end
-            end
-            jequalOneDist_T.(iistr)=jequalOneDist_temp;
-        else
-            if N_z==0
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,1]);
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,1]); % simoptions.fastOLG==1
-                end
-            else
-                if N_e==0
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,1]); % simoptions.fastOLG==1
-                else
-                    jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,1]); % simoptions.fastOLG==1 (how different than simoptions.fastOLG==0?)
-                end
-            end
-            jequalOneDist_T.(iistr)=jequalOneDist_temp.*ones(1,T,'gpuArray');
         end
     else
-        % If no z, then N_z=1 here
-        AgentDist_init=reshape(AgentDist_init,[N_a*N_z,1]);
+        if N_z==0
+            if N_e==0
+                V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j]);
+            else
+                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j,N_e]);
+            end
+        else
+            if N_e==0
+                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,3,2]),[N_a*N_j,N_z]);
+            else
+                V_final.(iistr)=reshape(permute(V_final.(iistr),[1,4,2,3]),[N_a*N_j,N_z,N_e]);
+            end
+        end
+    end
+    % Reshape AgentDist_initial
+    if N_z==0
+        if N_e==0
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a,N_j]); % if simoptions.fastOLG==0
+            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG==1
+                AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_j,1]);
+                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            end
+        else
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_e,N_j]); % if simoptions.fastOLG==0
+            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_e,N_j]),[1,3,2]),[N_a*N_j*N_e,1]);
+                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            end
+        end
+    else
+        if N_e==0
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z,N_j]); % if simoptions.fastOLG==0
+            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_j]),[1,3,2]),[N_a*N_j*N_z,1]);
+                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            end
+        else
+            AgentDist_initial.(iistr)=reshape(AgentDist_initial.(iistr),[N_a*N_z*N_e,N_j]); % if simoptions.fastOLG==0
+            AgeWeights_init.(iistr)=sum(AgentDist_initial.(iistr),1); % [1,N_j]
+            if PTypeStructure.(iistr).simoptions.fastOLG==1 % simoptions.fastOLG==1, so AgentDist is treated as : (a,j,z)-by-1
+                AgentDist_initial.(iistr)=reshape(permute(reshape(AgentDist_initial.(iistr),[N_a,N_z,N_e,N_j]),[1,4,2,3]),[N_a*N_j*N_z,N_e]);
+                AgeWeights_init.(iistr)=repelem(AgeWeights_init.(iistr)',N_a,1);
+            end
+        end
+    end
+    % Get AgeWeights and switch into the transpathoptions.ageweightstrivial=0 setup (and this is what subfns hardcode when doing PTypes)
+    % It is assumed there is only one Age Weight Parameter (name))
+    % AgeWeights_T is (a,j,z)-by-T (create as j-by-T to start, then switch)
+    if isstruct(AgeWeights)
+        AgeWeights_ii=AgeWeights.(iistr);
+        if all(size(AgeWeights_ii)==[N_j,1])
+            % Does not depend on transition path period
+            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights_ii.*ones(1,T));
+        elseif all(size(AgeWeights)==[1,N_j])
+            % Does not depend on transition path period
+            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights_ii'.*ones(1,T));
+        else
+            fprintf('Following error applies to agent permanent type: %s \n',Names_i{ii})
+            error('The age weights parameter seems to be the wrong size')
+        end
+    else % not a structure, so must apply to all permanent types
+        if all(size(AgeWeights)==[N_j,1])
+            % Does not depend on transition path period
+            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights.*ones(1,T));
+        elseif all(size(AgeWeights)==[1,N_j])
+            % Does not depend on transition path period
+            PTypeStructure.(iistr).AgeWeights_T=gather(AgeWeights'.*ones(1,T));
+        else
+            error('The age weights parameter seems to be the wrong size')
+        end
+    end
+    % Check ParamPath to see if the AgeWeights vary over the transition
+    % (and overwrite PTypeStructure.(iistr).AgeWeights_T if it does)
+    temp=strcmp(ParamPathNames,AgeWeightsParamNames{1});
+    if any(temp)
+        transpathoptions.ageweightstrivial=0; % AgeWeights vary over the transition
+        [~,kk]=max(temp); % Get index for the AgeWeightsParamNames{1} in ParamPathNames
+        % Create AgeWeights_T
+        PTypeStructure.(iistr).AgeWeights_T=ParamPath(:,ParamPathSizeVec(1,kk):ParamPathSizeVec(2,kk))'; % This will always be N_j-by-T (as transpose)
+        % Note: still leave it in ParamPath just in case it is used in AggVars or somesuch
+    end
+    % Because ptypes hardcodes transpathoptions.ageweightstrivial=0, we need
+    if PTypeStructure.(iistr).simoptions.fastOLG==1
+        if N_z==0
+            PTypeStructure.(iistr).AgeWeights_T=repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1); % simoptions.fastOLG=1 so this is (a,j)-by-1
+        else
+            PTypeStructure.(iistr).AgeWeights_T=repmat(repelem(PTypeStructure.(iistr).AgeWeights_T,N_a,1),N_z,1); % simoptions.fastOLG=1 so this is (a,j,z)-by-1
+        end
     end
 
-    AgentDist_initial.(iistr)=AgentDist_init;
-    clear AgentDist_init
-    
+    %% Set up jequalOneDist_T.(iistr) [hardcodes transpathoptions.trivialjequalonedist=0 and simoptions.fastOLG=1]
+    if ~isstruct(jequalOneDist)
+        jequalOneDist_temp=gpuArray(jequalOneDist);
+    else % jequalOneDist is a structure
+        jequalOneDist_temp=gpuArray(jequalOneDist.(iistr));
+    end
+    % Check if jequalOneDistPath is a path or not (and reshape appropriately)
+    temp=size(jequalOneDist_temp);
+    if temp(end)==T % jequalOneDist depends on T
+        transpathoptions.(iistr).trivialjequalonedist=0;
+        if N_z==0
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,T]);
+            else
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,T]); % simoptions.fastOLG==1
+            end
+        else
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,T]); % simoptions.fastOLG==1
+            else
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,T]); % simoptions.fastOLG==1
+            end
+        end
+        PTypeStructure.(iistr).jequalOneDist_T=jequalOneDist_temp;
+    else
+        transpathoptions.(iistr).trivialjequalonedist=1;
+        if N_z==0
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a,1]);
+            else
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_e,1]); % simoptions.fastOLG==1
+            end
+        else
+            if N_e==0
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z,1]); % simoptions.fastOLG==1
+            else
+                jequalOneDist_temp=reshape(jequalOneDist_temp,[N_a*N_z*N_e,1]); % simoptions.fastOLG==1
+            end
+        end
+        PTypeStructure.(iistr).jequalOneDist=jequalOneDist_temp;
+    end
+
     %% Which parts of ParamPath and PricePath relate to ptype ii
     % Some ParamPath and PricePath parameters may depend on ptype
     PTypeStructure.(iistr).RelevantPricePath=ones(1,size(PricePath0,2)); % start will all relevant
@@ -860,11 +674,42 @@ for ii=1:PTypeStructure.N_i
     end
 end
 
+%% If using intermediateEqns, switch from structure to cell setup
+transpathoptions.useintermediateEqns=0;
+if isfield(transpathoptions,'intermediateEqns')
+    transpathoptions.useintermediateEqns=1;
+    intEqnNames=fieldnames(transpathoptions.intermediateEqns);
+    nIntEqns=length(intEqnNames);
 
-% GeneralEqmEqnNames=fieldnames(GeneralEqmEqns);
-% for gg=1:length(GeneralEqmEqnNames)
-%     GeneralEqmEqnParamNames{gg}=getAnonymousFnInputNames(GeneralEqmEqns.(GeneralEqmEqnNames{gg}));
-% end
+    transpathoptions.intermediateEqnsCell=cell(1,nIntEqns);
+    for gg=1:nIntEqns
+        temp=getAnonymousFnInputNames(transpathoptions.intermediateEqns.(intEqnNames{gg}));
+        transpathoptions.intermediateEqnParamNames(gg).Names=temp;
+        transpathoptions.intermediateEqnsCell{gg}=transpathoptions.intermediateEqns.(intEqnNames{gg});        
+    end
+    % Now:
+    %  transpathoptions.intermediateEqns is still the structure
+    %  transpathoptions.intermediateEqnsCell is cell
+    %  transpathoptions.intermediateEqnParamNames(gg).Names contains the names
+end
+
+%% GE eqns, switch from structure to cell setup
+GEeqnNames=fieldnames(GeneralEqmEqns);
+nGeneralEqmEqns=length(GEeqnNames);
+nGeneralEqmEqns_acrossptypes=sum(transpathoptions.GEptype==0)+N_i*sum(transpathoptions.GEptype==1);
+
+GeneralEqmEqnsCell=cell(1,nGeneralEqmEqns);
+for gg=1:nGeneralEqmEqns
+    temp=getAnonymousFnInputNames(GeneralEqmEqns.(GEeqnNames{gg}));
+    GeneralEqmEqnParamNames(gg).Names=temp;
+    GeneralEqmEqnsCell{gg}=GeneralEqmEqns.(GEeqnNames{gg});
+end
+% Now: 
+%  GeneralEqmEqns is still the structure
+%  GeneralEqmEqnsCell is cell
+%  GeneralEqmEqnParamNames(ff).Names contains the names
+
+
 
 %%
 if transpathoptions.stockvars==1 
@@ -879,15 +724,9 @@ end
 %% If using a shooting algorithm, set that up
 transpathoptions=setupGEnewprice3_shooting(transpathoptions,GeneralEqmEqns,PricePathNames,N_i,PricePathSizeVec);
 
-%% Check if using _tminus1 and/or _tplus1 variables, and update PTypeStructure
+%% Check if using _tminus1 and/or _tplus1 variables.
 if isstruct(FnsToEvaluate) && isstruct(GeneralEqmEqns)
-    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames,Names_i);
-    if isstruct(tminus1AggVarsNames)
-        AggVarsPTypes=fieldnames(tminus1AggVarsNames);
-        for ii=1:length(AggVarsPTypes)
-            PTypeStructure.(AggVarsPTypes{ii}).tminus1AggVarsNames=tminus1AggVarsNames.(AggVarsPTypes{ii});
-        end
-    end
+    [tplus1priceNames,tminus1priceNames,tminus1AggVarsNames,tminus1paramNames,tplus1pricePathkk]=inputsFindtplus1tminus1(FnsToEvaluate,GeneralEqmEqns,PricePathNames,ParamPathNames);
 else
     tplus1priceNames=[];
     tminus1priceNames=[];
@@ -903,20 +742,9 @@ end
 use_tminus1price=0;
 if ~isempty(tminus1priceNames)
     use_tminus1price=1;
-    if isstruct(tminus1AggVarsNames)
-        AggVarsPTypes=fieldnames(tminus1AggVarsNames);
-        for nn=1:length(AggVarsPTypes)
-            for ii=1:length(tminus1AggVarsNames.(AggVarsPTypes{nn}))
-                if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames.(AggVarsPTypes{nn}){ii})
-                    error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-                end
-            end
-        end
-    else
-        for ii=1:length(tminus1AggVarsNames)
-            if ~isfield(transpathoptions.initialvalues,tminus1AggVarsNames{ii})
-                error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1AggVarsNames{ii})
-            end
+    for ii=1:length(tminus1priceNames)
+        if ~isfield(transpathoptions.initialvalues,tminus1priceNames{ii})
+            error('Using %s as an input (to FnsToEvaluate or GeneralEqmEqns) but it is not in transpathoptions.initialvalues \n',tminus1priceNames{ii})
         end
     end
 end
@@ -955,9 +783,9 @@ end
 
 %% Shooting algorithm
 if transpathoptions.GEnewprice~=2
-    % For permanent types, there is just one shooting command,
-    % because things like z,e, and fastOLG, as well as ExpAsset are handled on a per-PType basis (to permit that they differ across ptype)
-    [PricePath,GEcondnPath]=TransitionPath_Case1_FHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, jequalOneDist_T, AgeWeights_T, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
+    % For permanent type, there is just one shooting command,
+    % because things like z,e, and fastOLG are handled on a per-PType basis (to permit that they differ across ptype)
+    [PricePath,GEcondnPath]=TransitionPath_Case1_FHorz_PType_shooting(PricePath0, PricePathNames, ParamPath, ParamPathNames, T, V_final, AgentDist_initial, FnsToEvaluate, GeneralEqmEqns, PricePathSizeVec, ParamPathSizeVec, PricePathSizeVec_ii, ParamPathSizeVec_ii, GEeqnNames,nGeneralEqmEqns,nGeneralEqmEqns_acrossptypes,GeneralEqmEqnsCell,GeneralEqmEqnParamNames, use_tminus1price, use_tminus1params, use_tplus1price, use_tminus1AggVars, tminus1priceNames, tminus1paramNames, tplus1priceNames, tminus1AggVarsNames, transpathoptions, PTypeStructure);
 
     % Switch the solution into structure for output.
     pp_indexinpricepath=zeros(1,length(PricePathNames));

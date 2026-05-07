@@ -34,8 +34,8 @@ if Parallel==2
     
     AggVars=zeros(length(FnsToEvaluate),1,'gpuArray');
 
-    PolicyValues=PolicyInd2Val_Case1(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
-    PolicyValuesWhenExiting=PolicyInd2Val_Case1(PolicyIndexesWhenExiting,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValues=PolicyInd2Val_InfHorz(PolicyIndexes,n_d,n_a,n_z,d_grid,a_grid);
+    PolicyValuesWhenExiting=PolicyInd2Val_InfHorz(PolicyIndexesWhenExiting,n_d,n_a,n_z,d_grid,a_grid);
     permuteindexes=[1+(1:1:(l_a+l_z)),1];    
     PolicyValuesPermute=permute(PolicyValues,permuteindexes); %[n_a,n_s,l_d+l_a]
     PolicyValuesPermuteWhenExiting=permute(PolicyValuesWhenExiting,permuteindexes); %[n_a,n_s,l_d+l_a]

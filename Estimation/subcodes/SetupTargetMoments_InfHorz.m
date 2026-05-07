@@ -24,9 +24,14 @@ else
     usingcustomstats=0;
 end
 
-
-if any(~strcmp(fieldnames(TargetMoments),'AllStats') .* ~strcmp(fieldnames(TargetMoments),'AutoCorrTransProbs')  .* ~strcmp(fieldnames(TargetMoments),'CrossSectionCovarCorr') .* ~strcmp(fieldnames(TargetMoments),'CustomModelStats') )
-    warning('TargetMoments seems to be set up incorrect: it has a field which is neither AllStats nor AutoCorrTransProbs nor CrossSectionCovarCorr')
+temp=fieldnames(TargetMoments);
+for a1=1:length(temp)
+    if ~isempty(setdiff(temp{a1}, {'AllStats','AutoCorrTransProbs','CrossSectionCovarCorr','CustomModelStats'}))
+        fprintf(' \n')
+        fprintf(' \n')
+        fprintf('The following error is because %s is a field in TargetMoments but does not fit allowed formats (e.g., AllStats, etc.) \n', temp{a1})
+        error('TargetMoments contains a field with a problematic name (see line above)')
+    end
 end
 
 if useptype==0

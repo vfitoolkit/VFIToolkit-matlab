@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, d_grid, a2_grid, aprimeFnParams, aprimeIndexAsColumn)
+function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % Note: aprimeIndex is [N_d*N_a2,1], whereas aprimeProbs is [N_d,N_a2]
 %
 % Creates the grid points and their 'interpolation' probabilities
@@ -32,79 +32,28 @@ if nargin(aprimeFn)~=l_d+l_a2+length(aprimeFnParams)
 end
 
 if l_d>=1
-    d1vals=d_grid(1:n_d(1));
+    d1vals=d_gridvals(:,1);
     if l_d>=2
-        d2vals=shiftdim(d_grid(n_d(1)+1:sum(n_d(1:2))),-1);
+        d2vals=d_gridvals(:,2);
         if l_d>=3
-            d3vals=shiftdim(d_grid(sum(n_d(1:2))+1:sum(n_d(1:3))),-2);
+            d3vals=d_gridvals(:,3);
             if l_d>=4
-                d4vals=shiftdim(d_grid(sum(n_d(1:3))+1:sum(n_d(1:4))),-3);
+                d4vals=d_gridvals(:,4);
             end
         end
     end
 end
-if l_a2>=1
-    a1vals=shiftdim(a2_grid(1:n_a2(1)),-l_d);
-    if l_a2>=2
-        a2vals=shiftdim(a2_grid(n_a2(1)+1:sum(n_a2(1:2))),-l_d-1);
-        if l_a2>=3
-            a3vals=shiftdim(a2_grid(sum(n_a2(1:2))+1:sum(n_a2(1:3))),-l_d-2);
-            if l_a2>=4
-                a4vals=shiftdim(a2_grid(sum(n_a2(1:3))+1:sum(n_a2(1:4))),-l_d-3);
-            end
-        end
-    end
-end
+a2vals=shiftdim(a2_grid(1:n_a2(1)),-1);
 
 if l_d==1
-    if l_a2==1
-        d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
-        a2primeVals=arrayfun(aprimeFn, d1vals, a1vals, ParamCell{:});
-    elseif l_a2==2
-        a2primeVals=arrayfun(aprimeFn, d1vals, a1vals,a2vals, ParamCell{:});
-    elseif l_a2==3
-        a2primeVals=arrayfun(aprimeFn, d1vals, a1vals,a2vals,a3vals, ParamCell{:});
-    elseif l_a2==4
-        a2primeVals=arrayfun(aprimeFn, d1vals, a1vals,a2vals,a3vals,a4vals, ParamCell{:});
-    elseif l_a2==5
-        a2primeVals=arrayfun(aprimeFn, d1vals, a1vals,a2vals,a3vals,a4vals,a5vals, ParamCell{:});
-    end
+    % d1vals(1,1,1,1)=d_grid(1); % Requires special treatment
+    a2primeVals=arrayfun(aprimeFn, d1vals, a2vals, ParamCell{:});
 elseif l_d==2
-    if l_a2==1
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a1vals, ParamCell{:});
-    elseif l_a2==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a1vals,a2vals, ParamCell{:});
-    elseif l_a2==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a1vals,a2vals,a3vals, ParamCell{:});
-    elseif l_a2==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a1vals,a2vals,a3vals,a4vals, ParamCell{:});
-    elseif l_a2==5
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a1vals,a2vals,a3vals,a4vals,a5vals, ParamCell{:});
-    end
+    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals, a2vals, ParamCell{:});
 elseif l_d==3
-    if l_a2==1
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a1vals, ParamCell{:});
-    elseif  l_a2==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a1vals,a2vals, ParamCell{:});
-    elseif  l_a2==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a1vals,a2vals,a3vals, ParamCell{:});
-    elseif  l_a2==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a1vals,a2vals,a3vals,a4vals, ParamCell{:});
-    elseif  l_a2==5
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a1vals,a2vals,a3vals,a4vals,a5vals, ParamCell{:});
-    end
+    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals, a2vals, ParamCell{:});
 elseif l_d==4
-    if l_a2==1
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a1vals, ParamCell{:});
-    elseif l_a2==2
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals, ParamCell{:});
-    elseif l_a2==3
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals,a3vals, ParamCell{:});
-    elseif l_a2==4
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals,a3vals,a4vals, ParamCell{:});
-    elseif l_a2==5
-        a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a1vals,a2vals,a3vals,a4vals,a5vals, ParamCell{:});
-    end
+    a2primeVals=arrayfun(aprimeFn, d1vals,d2vals,d3vals,d4vals, a2vals, ParamCell{:});
 end
 
 

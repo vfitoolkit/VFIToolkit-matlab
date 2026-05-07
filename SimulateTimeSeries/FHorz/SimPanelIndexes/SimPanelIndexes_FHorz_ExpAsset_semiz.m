@@ -86,7 +86,7 @@ end
 
 %% Setup related to semi-exogenous state
 % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
-simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2);
+simoptions=SemiExogShockSetup_FHorz(n_d,N_j,simoptions.d_grid,Parameters,simoptions,2,3);
 % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
 % size(semiz_gridvals_J)=[prod(n_z),length(n_z),N_j]
 % size(pi_semiz_J)=[prod(n_semiz),prod(n_semiz),prod(n_dsemiz),N_j]
@@ -125,7 +125,7 @@ PolicyProbs=zeros(N_a,N_semizze,2,N_j,'gpuArray'); % The fourth dimension is low
 whichisdforexpasset=length(n_d)-l_d3;  % is just saying which is the decision variable that influences the experience asset (it is the 'second last' decision variable)
 for jj=1:N_j
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset_Case1(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_semizze, d_grid, a2_grid, aprimeFnParamsVec);
+    [aprimeIndexes, aprimeProbs]=CreateaprimePolicyExperienceAsset(Policy(:,:,:,jj),simoptions.aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_semizze, d_grid, a2_grid, aprimeFnParamsVec);
     % Note: aprimeIndexes and aprimeProbs are both [N_a,N_semizze]
     % Note: aprimeIndexes is always the 'lower' point (the upper points are just aprimeIndexes+1), and the aprimeProbs are the probability of this lower point (prob of upper point is just 1 minus this).
 

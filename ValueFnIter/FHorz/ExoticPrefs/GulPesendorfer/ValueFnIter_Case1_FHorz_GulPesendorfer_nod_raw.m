@@ -66,7 +66,7 @@ else
 
         % Use sparse for a few lines until sum over zprime
         EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*EV;%.*ones(1,N_a,1);
@@ -88,7 +88,7 @@ else
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=V_Jplus1.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
 
             entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_a,1).*MostTempting_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);
@@ -128,7 +128,7 @@ for reverse_j=1:N_j-1
             
         % Use sparse for a few lines until sum over zprime
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
         entireRHS=ReturnMatrix+TemptationMatrix-ones(N_a,1).*MostTempting+DiscountFactorParamsVec*EV; %.*ones(1,N_a,1);
@@ -150,7 +150,7 @@ for reverse_j=1:N_j-1
             %Calc the condl expectation term (except beta), which depends on z but
             %not on control variables
             EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
             entireRHS_z=ReturnMatrix_z+TemptationMatrix_z-ones(N_a,1).*MostTempting_z+DiscountFactorParamsVec*EV_z; %*ones(1,N_a,1);

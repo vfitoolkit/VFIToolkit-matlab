@@ -227,7 +227,7 @@ else
         % ReturnMatrix is over (d,a,z,e)
         
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -275,7 +275,7 @@ else
 
     elseif vfoptions.lowmemory==1
         EV=temp.*shiftdim(pi_z_J(:,:,N_j)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -340,7 +340,7 @@ else
             
             %Calc the condl expectation term (except beta) which depends on z but not control variables
             EV_z=temp.*(ones(N_a2,1,'gpuArray')*pi_z_J(z_c,:,N_j));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -467,7 +467,7 @@ for reverse_j=1:N_j-1
         % ReturnMatrix is over (d,a,z,e)
 
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -522,7 +522,7 @@ for reverse_j=1:N_j-1
     elseif vfoptions.lowmemory==1
 
         EV=temp.*shiftdim(pi_z_J(:,:,jj)',-1);
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,2); % sum over z', leaving a singular second dimension
         
         % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -588,7 +588,7 @@ for reverse_j=1:N_j-1
             
             %Calc the condl expectation term (except beta) which depends on z but not control variables
             EV_z=temp.*(ones(N_a2,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,2);
             
             % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)

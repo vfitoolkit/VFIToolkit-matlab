@@ -23,7 +23,7 @@ while currdist>Tolerance
         %not on control variables
         a_z_c=(1:1:N_a)+(z_c-1)*N_a;
         EV_z=VKronold.*pi_z_semiendog(a_z_c,:); %(ones(N_a,1,'gpuArray')*pi_z(z_c,:)); %kron(ones(N_a,1),pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
                 
         entireRHS=ReturnMatrix_z+beta*EV_z*ones(1,N_a,1); %aprime by a
@@ -56,15 +56,7 @@ while currdist>Tolerance
         end
     end
 
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
     tempcounter=tempcounter+1;
-
 end
 
 if keeppolicyonexit==0 % This is default

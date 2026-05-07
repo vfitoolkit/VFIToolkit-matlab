@@ -85,7 +85,7 @@ else
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d*N_a1,N_u,N_z]
 
     EV=EV.*shiftdim(pi_z_J(:,:,N_j)',-1);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)
@@ -175,7 +175,7 @@ for reverse_j=1:N_j-1
     aprimeProbs=repmat(a2primeProbs,N_a1,1,N_z);  % [N_d*N_a1,N_u,N_z]
 
     EV=EV.*shiftdim(pi_z_J(:,:,jj)',-1);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     % Switch EV from being in terms of aprime to being in terms of d (in expectation because of the u shocks)

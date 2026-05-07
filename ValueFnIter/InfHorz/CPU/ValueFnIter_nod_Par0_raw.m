@@ -20,7 +20,7 @@ while currdist>Tolerance && tempcounter<=maxiter
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=VKronold.*shiftdim(pi_z',-1); %kron(ones(N_a,1),pi_z(z_c,:));
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*EV; %aprime by a by z

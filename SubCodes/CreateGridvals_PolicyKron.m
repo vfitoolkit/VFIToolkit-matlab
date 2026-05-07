@@ -35,23 +35,33 @@ if Case1orCase2==1
         PolicyKron=reshape(PolicyKron,[2,N_a*N_z]);
         Policy_d=PolicyKron(1,:)';
         Policy_aprime=PolicyKron(2,:)';
-        if l_d==1
-            dPolicy_gridvals=d_grid(Policy_d);
-        elseif l_d==2
-            d1_grid=d_grid(1:n_d(1));
-            d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
-            dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(ceil(Policy_d/n_d(1)))];
-        elseif l_d==3
-            d1_grid=d_grid(1:n_d(1));
-            d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
-            d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
-            dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/prod(n_d(1)))-1,n_d(2))+1),d3_grid(ceil(Policy_d/prod(n_d(1:2))))];
-        elseif l_d==4
-            d1_grid=d_grid(1:n_d(1));
-            d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
-            d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
-            d4_grid=d_grid(n_d(1)+n_d(2)+n_d(3)+1:n_d(1)+n_d(2)+n_d(3)+n_d(4));
-            dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/n_d(1))-1,n_d(2))+1),d3_grid(rem(ceil(Policy_d/prod(n_d(1:2)))-1,n_d(3))+1),d4_grid(ceil(Policy_d/prod(n_d(1:3))))];
+        if size(d_grid,2)==1 % stacked-column vector, d_grid
+            if l_d==1
+                dPolicy_gridvals=d_grid(Policy_d);
+            elseif l_d==2
+                d1_grid=d_grid(1:n_d(1));
+                d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
+                dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(ceil(Policy_d/n_d(1)))];
+            elseif l_d==3
+                d1_grid=d_grid(1:n_d(1));
+                d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
+                d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
+                dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/prod(n_d(1)))-1,n_d(2))+1),d3_grid(ceil(Policy_d/prod(n_d(1:2))))];
+            elseif l_d==4
+                d1_grid=d_grid(1:n_d(1));
+                d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
+                d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
+                d4_grid=d_grid(n_d(1)+n_d(2)+n_d(3)+1:n_d(1)+n_d(2)+n_d(3)+n_d(4));
+                dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/n_d(1))-1,n_d(2))+1),d3_grid(rem(ceil(Policy_d/prod(n_d(1:2)))-1,n_d(3))+1),d4_grid(ceil(Policy_d/prod(n_d(1:3))))];
+            end
+        else % l_d>1 and joint-grid, d_gridvals
+            if l_d==2
+                dPolicy_gridvals=[d_grid(Policy_d,1),d_grid(Policy_d,2)]; % Note: d_grid is actually d_gridvals (joint-grid)
+            elseif l_d==3
+                dPolicy_gridvals=[d_grid(Policy_d,1),d_grid(Policy_d,2),d_grid(Policy_d,3)]; % Note: d_grid is actually d_gridvals (joint-grid)
+            elseif l_d==4
+                dPolicy_gridvals=[d_grid(Policy_d,1),d_grid(Policy_d,2),d_grid(Policy_d,3),d_grid(Policy_d,4)]; % Note: d_grid is actually d_gridvals (joint-grid)
+            end
         end
     else
         dPolicy_gridvals=nan;
@@ -79,23 +89,33 @@ if Case1orCase2==1
 else % Case1orCase2==2
     aprimePolicy_gridvals=nan; % there is no aprime when using Case2
     Policy_d=reshape(PolicyKron,[N_a*N_z,1]);
-    if l_d==1
-        dPolicy_gridvals=d_grid(Policy_d);
-    elseif l_d==2
-        d1_grid=d_grid(1:n_d(1));
-        d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
-        dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(ceil(Policy_d/n_d(1)))];
-    elseif l_d==3
-        d1_grid=d_grid(1:n_d(1));
-        d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
-        d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
+    if size(d_grid,2)==1 % stacked-column vector, d_grid
+        if l_d==1
+            dPolicy_gridvals=d_grid(Policy_d);
+        elseif l_d==2
+            d1_grid=d_grid(1:n_d(1));
+            d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
+            dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(ceil(Policy_d/n_d(1)))];
+        elseif l_d==3
+            d1_grid=d_grid(1:n_d(1));
+            d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
+            d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
             dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/prod(n_d(1)))-1,n_d(2))+1),d3_grid(ceil(Policy_d/prod(n_d(1:2))))];
-    elseif l_d==4
-        d1_grid=d_grid(1:n_d(1));
-        d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
-        d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
-        d4_grid=d_grid(n_d(1)+n_d(2)+n_d(3)+1:n_d(1)+n_d(2)+n_d(3)+n_d(4));
-        dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/n_d(1))-1,n_d(2))+1),d3_grid(rem(ceil(Policy_d/prod(n_d(1:2)))-1,n_d(3))+1),d4_grid(ceil(Policy_d/prod(n_d(1:3))))];
+        elseif l_d==4
+            d1_grid=d_grid(1:n_d(1));
+            d2_grid=d_grid(n_d(1)+1:n_d(1)+n_d(2));
+            d3_grid=d_grid(n_d(1)+n_d(2)+1:n_d(1)+n_d(2)+n_d(3));
+            d4_grid=d_grid(n_d(1)+n_d(2)+n_d(3)+1:n_d(1)+n_d(2)+n_d(3)+n_d(4));
+            dPolicy_gridvals=[d1_grid(rem(Policy_d-1,n_d(1))+1),d2_grid(rem(ceil(Policy_d/n_d(1))-1,n_d(2))+1),d3_grid(rem(ceil(Policy_d/prod(n_d(1:2)))-1,n_d(3))+1),d4_grid(ceil(Policy_d/prod(n_d(1:3))))];
+        end
+    else % l_d>1 and joint-grid, d_gridvals
+        if l_d==2
+            dPolicy_gridvals=[d_grid(Policy_d,1),d_grid(Policy_d,2)]; % Note: d_grid is actually d_gridvals (joint-grid)
+        elseif l_d==3
+            dPolicy_gridvals=[d_grid(Policy_d,1),d_grid(Policy_d,2),d_grid(Policy_d,3)]; % Note: d_grid is actually d_gridvals (joint-grid)
+        elseif l_d==4
+            dPolicy_gridvals=[d_grid(Policy_d,1),d_grid(Policy_d,2),d_grid(Policy_d,3),d_grid(Policy_d,4)]; % Note: d_grid is actually d_gridvals (joint-grid)
+        end
     end
 end
 

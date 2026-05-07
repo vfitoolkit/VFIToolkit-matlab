@@ -58,14 +58,14 @@ end
 %% Do grids if those depend on parameters being calibrated (otherwise they are already done)
 if caliboptions.calibrateshocks==1
     % Internally, only ever use joint-grids (makes all the code much easier to write)
-    [z_gridvals, pi_z, vfoptions]=ExogShockSetup(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
+    [z_gridvals, pi_z, vfoptions]=ExogShockSetup_InfHorz(n_z,z_gridvals,pi_z,Parameters,vfoptions,3);
     % output: z_gridvals, pi_z, vfoptions.e_gridvals, vfoptions.pi_e
     simoptions.e_gridvals=vfoptions.e_gridvals;
     simoptions.pi_e=vfoptions.pi_e;
 end
 
 %% Solve the model and calculate the stats
-[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_Case1_PType(n_d, n_a, n_z, Names_i, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
+[p_eqm,~,GeneralEqmConditionsVec]=HeteroAgentStationaryEqm_InfHorz_PType(n_d, n_a, n_z, Names_i, [], pi_z, d_grid, a_grid, z_grid, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
 
 for pp=1:length(GEPriceParamNames)
     Parameters.(GEPriceParamNames{pp})=p_eqm.(GEPriceParamNames{pp});
@@ -73,12 +73,12 @@ end
 
 if usingcustomstats==1
     % Keep V
-    [V, Policy]=ValueFnIter_Case1_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    [V, Policy]=ValueFnIter_InfHorz_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
 else
-    [~, Policy]=ValueFnIter_Case1_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
+    [~, Policy]=ValueFnIter_InfHorz_PType(n_d,n_a,n_z,Names_i,d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, vfoptions);
 end
 
-StationaryDist=StationaryDist_Case1_PType(PTypeDistParamNames,Policy,n_d,n_a,n_z,Names_i,pi_z,Parameters,simoptions);
+StationaryDist=StationaryDist_InfHorz_PType(PTypeDistParamNames,Policy,n_d,n_a,n_z,Names_i,pi_z,Parameters,simoptions);
 
 %% Custom Model Stats
 if usingcustomstats==1
@@ -88,7 +88,7 @@ end
 %% Model Moments
 if usingallstats==1
     simoptions.whichstats=AllStats_whichstats;
-    AllStats=EvalFnOnAgentDist_AllStats_Case1_PType(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
+    AllStats=EvalFnOnAgentDist_AllStats_InfHorz_PType(StationaryDist,Policy, FnsToEvaluate_AllStats,Parameters,n_d,n_a,n_z,Names_i,d_grid,a_grid,z_gridvals,simoptions);
 end
 if usingautocorr==1
     error('Have not yet implemented EvalFnOnAgentDist_AutoCorrTransProbs_InfHorz_PType; ask on forum if you want/need this')

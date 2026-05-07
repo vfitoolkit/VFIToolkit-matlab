@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 
 N_d=prod(n_d);
 N_a=prod(n_a);
@@ -21,11 +21,11 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 %%
 if vfoptions.lowmemory==0
     
-    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals, ReturnFnParamsVec);
+    ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals, ReturnFnParamsVec);
     
     % Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=Vnext.*shiftdim(pi_z',-1);
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=sum(EV,2);
 
     entireRHS=ReturnMatrix+DiscountFactorParamsVec*repelem(EV,N_d,1,1);
@@ -37,11 +37,11 @@ if vfoptions.lowmemory==0
 elseif vfoptions.lowmemory==1
     for z_c=1:N_z
         z_val=z_gridvals(z_c,:);
-        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);
+        ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);
         
         % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=Vnext.*pi_z(z_c,:);
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
         entireEV_z=kron(EV_z,ones(N_d,1));
@@ -55,13 +55,8 @@ elseif vfoptions.lowmemory==1
 end
 
 
-%%
-Policy2=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % d
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1); % aprime
-
 %% Policy in transition paths
-Policy2=UnKronPolicyIndexes_Case1(Policy2,n_d,n_a,n_z,vfoptions);
+Policy2=reshape(ind2sub_vec_homemade([n_d,n_a],Policy(:))',[length(n_d)+length(n_a),N_a,N_z]);
 
 
 end

@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC2_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy]=ValueFnIter_InfHorz_TPath_SingleStep_DC2_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % DC2B: two endogenous states, divide-and-conquer on the first endo state, but not on the second endo state
 
 N_d=prod(n_d);
@@ -30,7 +30,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 DiscountedentireEV=DiscountFactorParamsVec*reshape(repmat(shiftdim(EV,-1),N_d,1,1,1),[N_d,N_a1*N_a2,1,1,N_z]); % [d,aprime,1,z]
 
@@ -150,9 +150,7 @@ end
 V=reshape(V,[N_a1*N_a2,N_z]);
 Policy=reshape(Policy,[N_a1*N_a2,N_z]);
 
-%%
-Policy2=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % d
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1); % aprime
+%% Policy in transition paths
+Policy=reshape(ind2sub_vec_homemade([n_d,n_a],Policy(:))',[length(n_d)+length(n_a),N_a,N_z]);
 
 end

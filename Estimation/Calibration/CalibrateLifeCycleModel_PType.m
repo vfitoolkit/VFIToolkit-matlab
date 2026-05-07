@@ -91,8 +91,10 @@ end
 % First figure out how many parameters there are (tricky as they can be dependent on ptype)
 nCalibParams=0;
 nCalibParamsFinder=[]; % rows are the nCalibParams, first column is pp, second column is ii
+nCalibParams_PTypeMatrix=[]; % records which ptype parameters are set up as matrix, only use is in setting up the final output, =1 means N_i is first dim, =2 means N_i is second dim
 for pp=1:length(CalibParamNames)
-    if isstruct(Parameters.(CalibParamNames{pp}))
+    if isstruct(Parameters.(CalibParamNames{pp})) % parameter depends on ptype, as struct
+        nCalibParams_PTypeMatrix(pp,1)=0;
         for ii=1:N_i
             if isfield(Parameters.(CalibParamNames{pp}),Names_i{ii})
                 nCalibParams=nCalibParams+1;
@@ -101,9 +103,27 @@ for pp=1:length(CalibParamNames)
             end
         end
     else
-        nCalibParams=nCalibParams+1;
-        nCalibParamsFinder(nCalibParams,1)=pp;
-        nCalibParamsFinder(nCalibParams,2)=0;
+        if any(size(Parameters.(CalibParamNames{pp}))==N_i) % parameter depends on ptype, as matrix. Convert it to struct
+            temp=Parameters.(CalibParamNames{pp});
+            if size(temp,1)==N_i
+                nCalibParams_PTypeMatrix(pp,1)=1;
+                temp=temp';
+            else
+                nCalibParams_PTypeMatrix(pp,1)=2;
+            end
+            Parameters=rmfield(Parameters,(CalibParamNames{pp}));
+            for ii=1:N_i
+                nCalibParams=nCalibParams+1;
+                nCalibParamsFinder(nCalibParams,1)=pp;
+                nCalibParamsFinder(nCalibParams,2)=ii;
+                Parameters.(CalibParamNames{pp}).(Names_i{ii})=temp(:,ii);
+            end
+        else % parameter does not depend on ptype
+            nCalibParams_PTypeMatrix(pp,1)=0;
+            nCalibParams=nCalibParams+1;
+            nCalibParamsFinder(nCalibParams,1)=pp;
+            nCalibParamsFinder(nCalibParams,2)=0;
+        end
     end
 end
 if nCalibParams<length(CalibParamNames)
@@ -166,7 +186,6 @@ for pp=1:nCalibParams
         calibparamsvecindex(pp+1)=calibparamsvecindex(pp)+length(currentparameter);
     end
 end
-
 
 % If the parameter is constrained in some way then we need to transform it
 [calibparamsvec0,caliboptions]=ParameterConstraints_PType_TransformParamsToUnconstrained(calibparamsvec0,calibparamsvecindex,CalibParamNames,nCalibParamsFinder,caliboptions,1);
@@ -258,17 +277,17 @@ if isstruct(caliboptions.logmoments)
     logmomentnames=caliboptions.logmoments;
     % replace caliboptions.logmoments with a vector as this is what gets used internally
     caliboptions.logmoments=zeros(length(targetmomentvec),1);
-    if any(fieldnames(logmomentnames),'AllStats')
-        caliboptions.logmoments(1:allstatcummomentsizes(1))=caliboptions.logmoments.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+    if isfield(logmomentnames,'AllStats')
+        caliboptions.logmoments(1:allstatcummomentsizes(1))=logmomentnames.AllStats.(allstatmomentnames{1,1}).(allstatmomentnames{1,2})*ones(allstatcummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(allstatmomentnames,1)
-            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=caliboptions.logmoments.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
+            caliboptions.logmoments(allstatcummomentsizes(ii-1)+1:allstatcummomentsizes(ii))=logmomentnames.AllStats.(allstatmomentnames{ii,1}).(allstatmomentnames{ii,2})*ones(allstatcummomentsizes(ii)-allstatcummomentsizes(ii-1),1);
         end
     end
-    if any(fieldnames(logmomentnames),'AgeConditionalStats')
+    if isfield(logmomentnames,'AgeConditionalStats')
         sofar=allstatcummomentsizes(end);
-        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=caliboptions.logmoments.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
+        caliboptions.logmoments(sofar+1:sofar+acscummomentsizes(1))=logmomentnames.AllStats.(acsmomentnames{1,1}).(acsmomentnames{1,2})*ones(acscummomentsizes(1),1); % Note: *ones() at end is so you can input 1 for a vector parameter and then this becomes a vector of ones
         for ii=2:size(acsmomentnames,1)
-            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=caliboptions.logmoments.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
+            caliboptions.logmoments(sofar+acscummomentsizes(ii-1)+1:sofar+acscummomentsizes(ii))=logmomentnames.AllStats.(acsmomentnames{ii,1}).(acsmomentnames{ii,2})*ones(acscummomentsizes(ii)-acscummomentsizes(ii-1),1);
         end
     end
 
@@ -384,27 +403,40 @@ end
 
 
 %% Clean up output
+% If the parameter is constrained in some way then we need to un-transform it
+[calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
+if sum(penalty)>0
+    warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
+end
 for pp=1:nCalibParams
-    % If the parameter is constrained in some way then we need to un-transform it
-    [calibparamsvec,penalty]=ParameterConstraints_TransformParamsToOriginal(calibparamsvec,calibparamsvecindex,CalibParamNames,caliboptions);
-    if sum(penalty)>0
-        warning('penalty for the parameter constraints is non-zero (some parameters are not satisfying the constraints)')
-    end
-
     % Now store the unconstrained values
     if calibomitparams_counter(pp)>0
         currparamraw=calibomitparamsmatrix(:,sum(calibomitparams_counter(1:pp)));
         currparamraw(isnan(currparamraw))=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
-        else % depends on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
-        end
     else
-        if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
-        else
-            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+        currparamraw=calibparamsvec(calibparamsvecindex(pp)+1:calibparamsvecindex(pp+1));
+    end
+    if nCalibParamsFinder(pp,2)==0 % does not depend on ptype
+        CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=currparamraw;
+    else % depends on ptype
+        if nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==0
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)}).(Names_i{nCalibParamsFinder(pp,2)})=currparamraw;
+        elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==1 % N_i as first dim
+            if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
+                temp=CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)});
+            else
+                temp=zeros(N_i,length(currparamraw));
+            end
+            temp(ii,:)=currparamraw';
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
+        elseif nCalibParams_PTypeMatrix(nCalibParamsFinder(pp,1))==2 % N_i as second dim
+            if isfield(CalibParams,CalibParamNames{nCalibParamsFinder(pp,1)})
+                temp=CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)});
+            else
+                temp=zeros(length(currparamraw),N_i);
+            end
+            temp(:,ii)=currparamraw;
+            CalibParams.(CalibParamNames{nCalibParamsFinder(pp,1)})=temp;
         end
     end
 end

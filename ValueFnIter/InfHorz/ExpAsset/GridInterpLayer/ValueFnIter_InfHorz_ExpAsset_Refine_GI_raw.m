@@ -95,7 +95,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
     
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EV.*Epi_z;
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
     % EV is over (d2&a1prime,a2,1,z)
 
@@ -146,7 +146,7 @@ while currdist>(vfoptions.multigridswitch*vfoptions.tolerance) && tempcounter<=v
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV=aaa.*EV;
-            EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
 
             V=Ftemp+DiscountFactorParamsVec*EV;
@@ -183,7 +183,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
     
     %Calc the condl expectation term (except beta), which depends on z but not on control variables
     EV=EV.*Epi_z;
-    EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+    EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
     EV=squeeze(sum(EV,3)); % sum over z', leaving a singular second dimension
     % EV is over (d2&a1prime,a2,1,z)
 
@@ -237,7 +237,7 @@ while currdist>vfoptions.tolerance && tempcounter<=vfoptions.maxiter
 
             % Calc the condl expectation term (except beta), which depends on z but not on control variables
             EV=aaa.*EV;
-            EV(isnan(EV))=0; % multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; % multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=squeeze(sum(EV,2)); % sum over z', leaving a singular second dimension
 
             V=Ftemp+DiscountFactorParamsVec*EV;

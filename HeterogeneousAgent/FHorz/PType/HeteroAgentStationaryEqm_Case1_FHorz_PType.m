@@ -503,6 +503,13 @@ for ii=1:PTypeStructure.N_i
         end
         PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'z_grid'); % Should not be used, as now have z_gridvals_J
         PTypeStructure.(iistr)=rmfield(PTypeStructure.(iistr),'pi_z'); % Should not be used, as now have pi_z_J
+        if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_FHorz() removed ExogShockFn from vfoptions but not from simoptions
+            if heteroagentoptions.useCustomModelStats==1
+                heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).z_gridvals_J;
+                heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).pi_z_J;
+            end
+            PTypeStructure.(iistr).simoptions=rmfield(simoptions,'ExogShockFn');
+        end
     else % InfHorz
         if heteroagentoptions.gridsinGE(ii)==0
             [PTypeStructure.(iistr).z_gridvals, PTypeStructure.(iistr).pi_z, PTypeStructure.(iistr).vfoptions]=ExogShockSetup_InfHorz(PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).z_grid,PTypeStructure.(iistr).pi_z,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).vfoptions,3);
@@ -512,6 +519,13 @@ for ii=1:PTypeStructure.N_i
             % % Create placeholders, as these will need to be created in general eqm since they depend on General eqm parameters
             % PTypeStructure.(iistr).z_gridvals=[];
             % PTypeStructure.(iistr).pi_z=[];
+        end
+        if isfield(PTypeStructure.(iistr).simoptions,'ExogShockFn') % Note: ExogShockSetup_InfHorz() removed ExogShockFn from vfoptions but not from simoptions
+            if heteroagentoptions.useCustomModelStats==1
+                heteroagentoptions.CustomModelStatsInputs.z_grid=PTypeStructure.(iistr).z_gridvals_J;
+                heteroagentoptions.CustomModelStatsInputs.pi_z=PTypeStructure.(iistr).pi_z_J;
+            end
+            PTypeStructure.(iistr).simoptions=rmfield(PTypeStructure.(iistr).simoptions,'ExogShockFn');
         end
     end
     % Regardless of whether they are done here of in _subfn, they will be precomputed by the time we get to the value fn, staty dist, etc. So
@@ -923,6 +937,9 @@ if heteroagentoptions.maxiter>0 % Can use heteroagentoptions.maxiter=0 to just e
             % Update p for next iteration
             p=p_new;
             itercounter=itercounter+1; % increment iteration counter
+        end
+        if itercounter>=heteroagentoptions.maxiter
+            warning('HeteroAgentStationaryEqm stopped due to reaching maximum number of iterations (you can control using heteroagentoptions.maxiter)')
         end
         p_eqm_vec=p_new; % Need to put it in p_eqm_vec so that it can be used to create the final output
     elseif heteroagentoptions.fminalgo==6

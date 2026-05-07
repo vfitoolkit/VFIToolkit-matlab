@@ -1,4 +1,4 @@
-function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_raw(Vnext,n_d,n_a,n_z, d_grid, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
+function [V,Policy2]=ValueFnIter_InfHorz_TPath_SingleStep_DC2B_raw(Vnext,n_d,n_a,n_z, d_gridvals, a_grid, z_gridvals, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions)
 % DC2B: two endogenous states, divide-and-conquer on the first endo state, but not on the second endo state
 
 N_d=prod(n_d);
@@ -14,8 +14,6 @@ V=zeros(N_a,N_z,'gpuArray');
 Policy=zeros(N_a,N_z,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
 %%
-d_gridvals=CreateGridvals(n_d,d_grid,1);
-
 % n-Monotonicity
 % vfoptions.level1n=5;
 level1ii=round(linspace(1,N_a1,vfoptions.level1n));
@@ -28,7 +26,7 @@ DiscountFactorParamsVec=CreateVectorFromParams(Parameters, DiscountFactorParamNa
 DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 EV=Vnext.*shiftdim(pi_z',-1);
-EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
 EV=sum(EV,2); % sum over z', leaving a singular second dimension
 entireEV=repelem(shiftdim(EV,-1),N_d,1,1,1); % [d,aprime,1,z]
 
@@ -97,12 +95,7 @@ end
 
 
 
-%%
-Policy2=zeros(2,N_a,N_z,'gpuArray'); %NOTE: this is not actually in Kron form
-Policy2(1,:,:)=shiftdim(rem(Policy-1,N_d)+1,-1); % d
-Policy2(2,:,:)=shiftdim(ceil(Policy/N_d),-1); % aprime
-
 %% Policy in transition paths
-Policy2=UnKronPolicyIndexes_Case1(Policy2,n_d,n_a,n_z,vfoptions);
+Policy2=reshape(ind2sub_vec_homemade([n_d,n_a],Policy(:))',[length(n_d)+length(n_a),N_a,N_z]);
 
 end

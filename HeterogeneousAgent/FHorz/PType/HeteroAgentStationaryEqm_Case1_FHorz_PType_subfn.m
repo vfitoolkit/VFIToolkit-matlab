@@ -120,6 +120,10 @@ end
 %% Custom Model Stats
 if heteroagentoptions.useCustomModelStats==1
     StationaryDist.ptweights=PTypeStructure.ptweights;
+    if heteroagentoptions.gridsinGE==1
+        heteroagentoptions.CustomModelStatsInputs.z_grid=z_gridvals;
+        heteroagentoptions.CustomModelStatsInputs.pi_z=pi_z;
+    end
     % A bunch of the inputs are stashed in heteroagentoptions.CustomModelStatsInputs
     % Note: CustomStats deliberately does not get AgeWeightParamNames and PTypeDistParamNames, user will anyway know them
     CustomStats=heteroagentoptions.CustomModelStats(V,Policy,StationaryDist,Parameters,heteroagentoptions.CustomModelStatsInputs.FnsToEvaluate,heteroagentoptions.CustomModelStatsInputs.n_d,heteroagentoptions.CustomModelStatsInputs.n_a,heteroagentoptions.CustomModelStatsInputs.n_z,heteroagentoptions.CustomModelStatsInputs.N_j,PTypeStructure.Names_i,heteroagentoptions.CustomModelStatsInputs.d_grid,heteroagentoptions.CustomModelStatsInputs.a_grid,heteroagentoptions.CustomModelStatsInputs.z_grid,heteroagentoptions.CustomModelStatsInputs.pi_z,heteroagentoptions,heteroagentoptions.CustomModelStatsInputs.vfoptions,heteroagentoptions.CustomModelStatsInputs.simoptions);

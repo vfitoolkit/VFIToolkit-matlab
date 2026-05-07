@@ -75,7 +75,7 @@ else
         % (d,aprime,a,z)
         
         EV=V_Jplus1.*shiftdim(pi_z_J(:,:,N_j)',-2); % Note: shiftdim -3
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
@@ -92,7 +92,7 @@ else
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, special_n_z, d_grid, a_grid, r_grid, z_val, ReturnFnParamsVec);
             
             EV_z=V_Jplus1.*shiftdim(pi_z_J(z_c,:,N_j)',-2); % Note: shiftdim -3
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));
@@ -146,7 +146,7 @@ for reverse_j=1:N_j-1
         % (d,aprime,a,r,z)
             
         EV=VKronNext_j.*shiftdim(pi_z_J(:,:,jj)',-2); % Note: shiftdim -3
-        EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV=sum(EV,3); % sum over z', leaving a singular second dimension
 
         entireRHS=ReturnMatrix+DiscountFactorParamsVec*(reshape(EV,[N_d*N_a,N_a,1,N_z]));
@@ -163,7 +163,7 @@ for reverse_j=1:N_j-1
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_ResidAsset_Disc_Par2(ReturnFn, n_d, n_a, n_r, special_n_z, d_grid, a_grid, r_grid, z_val, ReturnFnParamsVec,0);
             
             EV_z=VKronNext_j.*shiftdim(pi_z_J(z_c,:,jj)',-2); % Note: shiftdim -3
-            EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV_z=sum(EV_z,3); % sum over z', leaving a singular second dimension
             
             entireRHS_z=ReturnMatrix_z+DiscountFactorParamsVec*(reshape(EV_z,[N_d*N_a,N_a,1]));

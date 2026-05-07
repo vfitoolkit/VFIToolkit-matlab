@@ -124,7 +124,7 @@ else
             % (d,aprime,a,z)
 
             EV=V_Jplus1.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
@@ -183,7 +183,7 @@ else
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
                 EV_z=V_Jplus1.*pi_bothz(z_c,:);
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
                 % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
@@ -272,7 +272,7 @@ for reverse_j=1:N_j-1
             % (d,aprime,a,z)
 
             EV=VKronNext_j.*shiftdim(pi_bothz',-1);
-            EV(isnan(EV))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+            EV(isnan(EV))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
             EV=sum(EV,2); % sum over z', leaving a singular second dimension
 
             % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal
@@ -332,7 +332,7 @@ for reverse_j=1:N_j-1
                 %Calc the condl expectation term (except beta), which depends on z but
                 %not on control variables
                 EV_z=VKronNext_j.*pi_bothz(z_c,:);
-                EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+                EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
                 EV_z=sum(EV_z,2);
 
                 % Seems like interpolation has trouble due to numerical precision rounding errors when the two points being interpolated are equal

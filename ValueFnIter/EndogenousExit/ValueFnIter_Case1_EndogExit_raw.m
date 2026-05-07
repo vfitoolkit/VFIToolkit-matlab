@@ -20,16 +20,15 @@ while currdist>Tolerance
     for z_c=1:N_z
         ReturnMatrix_z=ReturnMatrix(:,:,z_c);     
         ReturnToExitMatrix_z=ReturnToExitMatrix(:,z_c);     
-        %Calc the condl expectation term (except beta), which depends on z but
-        %not on control variables
+        % Calc the condl expectation term (except beta), which depends on z but not on control variables
         EV_z=VKronold.*(ones(N_a,1)*pi_z(z_c,:));
-        EV_z(isnan(EV_z))=0; %multilications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
+        EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
         EV_z=sum(EV_z,2);
         
         entireEV_z=kron(EV_z,ones(N_d,1));
         entireRHS=ReturnMatrix_z+beta*entireEV_z*ones(1,N_a,1);
 
-        %Calc the max and it's index
+        % Calc the max and it's index
         [Vtemp,maxindex]=max(entireRHS,[],1);
         % Exit decision
         ExitPolicy(:,z_c)=((ReturnToExitMatrix_z-Vtemp)>0); % Assumes that when indifferent you do not exit.
@@ -55,16 +54,8 @@ while currdist>Tolerance
             VKron=Ftemp+beta*(1-ExitPolicy).*EVKrontemp;
         end
     end
-    
-%     if Verbose==1
-%         if rem(tempcounter,100)==0
-%             disp(tempcounter)
-%             disp(currdist)
-%         end
-%         tempcounter=tempcounter+1;
-%     end
+
     tempcounter=tempcounter+1;
-    
 end
 
 Policy=zeros(2,N_a,N_z); %NOTE: this is not actually in Kron form
