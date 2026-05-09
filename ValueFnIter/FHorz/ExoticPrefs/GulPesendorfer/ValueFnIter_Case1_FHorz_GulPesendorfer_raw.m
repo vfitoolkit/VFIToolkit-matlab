@@ -24,7 +24,6 @@ TemptationFnParamsVec=CreateVectorFromParams(Parameters, TemptationFnParamNames,
 if ~isfield(vfoptions,'V_Jplus1')
     if vfoptions.lowmemory==0
 
-        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         TemptationMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(TemptationFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), TemptationFnParamsVec);
@@ -38,7 +37,6 @@ if ~isfield(vfoptions,'V_Jplus1')
 
     elseif vfoptions.lowmemory==1
 
-        %if vfoptions.returnmatrix==2 % GPU
         for z_c=1:N_z
             z_val=z_gridvals_J(z_c,:,N_j);
             ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_grid, a_grid, z_val, ReturnFnParamsVec);

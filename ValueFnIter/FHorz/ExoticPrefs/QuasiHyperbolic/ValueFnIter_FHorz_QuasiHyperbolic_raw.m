@@ -188,7 +188,6 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
         
-        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
         
         % Use sparse for a few lines until sum over zprime

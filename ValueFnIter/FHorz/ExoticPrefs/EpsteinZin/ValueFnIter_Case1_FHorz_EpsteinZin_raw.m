@@ -107,7 +107,6 @@ else
     
     if vfoptions.lowmemory==0
         
-        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
@@ -227,7 +226,6 @@ for reverse_j=1:N_j-1
     
     if vfoptions.lowmemory==0
         
-        %if vfoptions.returnmatrix==2 % GPU
         ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_gridvals_J(:,:,jj), ReturnFnParamsVec);
 
         % Modify the Return Function appropriately for Epstein-Zin Preferences
