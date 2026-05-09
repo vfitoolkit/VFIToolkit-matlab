@@ -22,6 +22,8 @@ if exist('vfoptions','var')==0
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
+    vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
     % Largely just for internal use only
     vfoptions.parallel=1+(gpuDeviceCount>0);
     vfoptions.polindorval=1;
@@ -70,6 +72,15 @@ else
     if ~isfield(vfoptions,'residualasset')
         vfoptions.residualasset=0;
     end
+    if ~isfield(vfoptions,'n_ambiguity')
+        vfoptions.n_ambiguity=0;
+    end
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
+    end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
     % Largely just for internal use only
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
@@ -101,6 +112,7 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
 
 if ~all(size(d_grid)==[sum(n_d), 1])
     if ~isempty(n_d) % Make sure d is being used before complaining about size of d_grid
@@ -157,7 +169,7 @@ if vfoptions.alreadygridvals==0
     end
 
 
-    if isfield(vfoptions,'n_e') && ~isfield(vfoptions,'EiidShockFn')
+    if N_e>0 && ~isfield(vfoptions,'EiidShockFn')
         if isfield(vfoptions,'e_grid_J')
             error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
         elseif ~isfield(vfoptions,'e_grid')
@@ -189,10 +201,10 @@ if vfoptions.alreadygridvals==0
 end
 
 if vfoptions.parallel<2
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
     end
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz>0)
         error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.divideandconquer==0
@@ -272,7 +284,7 @@ end
 
 %% Semi-exogenous shock gridvals and pi 
 if vfoptions.alreadygridvals_semiexo==0
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
         vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,2,3);
         % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
@@ -309,8 +321,8 @@ end
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
 elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    [V, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    varargout={V, Policy,Valt};
+    [V1, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V1, Policy,Valt};
     return
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
     [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -546,7 +558,7 @@ if any(vfoptions.incrementaltype)
     [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_gridvals_J,N_j,pi_z_J,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
@@ -604,7 +616,7 @@ end
 
 % vfoptions.parallel==2 % GPU
 if N_d==0
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
@@ -620,7 +632,7 @@ if N_d==0
     % Policy without d
     PolicyKron=shiftdim(PolicyKron,-1);
 else % N_d
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             [VKron, PolicyKron]=ValueFnIter_FHorz_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
@@ -639,7 +651,7 @@ end
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if vfoptions.outputkron==0
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
