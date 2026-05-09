@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix_Case1(aprimeFn, n_d, n_a2, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
+function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetFnMatrix(aprimeFn, n_d, n_a2, d_gridvals, a2_grid, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % Note: aprimeIndex is [N_d*N_a2,1], whereas aprimeProbs is [N_d,N_a2]
 %
 % Creates the grid points and their 'interpolation' probabilities

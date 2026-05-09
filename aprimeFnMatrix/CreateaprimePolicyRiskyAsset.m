@@ -1,4 +1,4 @@
-function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyRiskyAsset_Case1(Policy,aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
+function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyRiskyAsset(Policy,aprimeFn, whichisdforriskyasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
 % The input Policy will contain aprime (except for the risky asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the risky asset). As well as the

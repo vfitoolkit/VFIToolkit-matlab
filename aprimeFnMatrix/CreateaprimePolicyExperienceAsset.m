@@ -13,7 +13,7 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAsset(Policy
 % is just 1 minus this).
 %
 %
-% Remark: This is like CreateExperienceAssetFnMatrix_Case1(), except
+% Remark: This is like CreateExperienceAssetFnMatrix(), except
 % instead of looking at all possible d, we only care about those in Policy.
 % The Policy based ones are needed for simulation, while those for all
 % possible d were needed for value function (to find Policy).

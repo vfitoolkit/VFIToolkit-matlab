@@ -1,4 +1,4 @@
-function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d, n_a2, n_u, d_gridvals, a2_grid, u_gridvals, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
+function [a2primeIndexes,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d, n_a2, n_u, d_gridvals, a2_grid, u_gridvals, aprimeFnParams, aprimeIndexAsColumn)  % since a2 is one-dimensional, can be a2_grid or a2_gridvals
 % Note: a2primeIndex is [N_d*N_a2*N_u,1], whereas a2primeProbs is [N_d,N_a2,N_u]
 %
 % Creates the grid points and their 'interpolation' probabilities

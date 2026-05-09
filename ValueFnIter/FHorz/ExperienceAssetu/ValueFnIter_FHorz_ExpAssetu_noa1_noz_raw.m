@@ -33,7 +33,7 @@ else
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
     
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,N_j);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
     % Note: aprimeIndex is [N_d2*N_a2*N_u,1], whereas aprimeProbs is [N_d2,N_a2,N_u]
     
     EVpre=reshape(vfoptions.V_Jplus1,[N_a,1]);
@@ -75,7 +75,7 @@ for reverse_j=1:N_j-1
     DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
     aprimeFnParamsVec=CreateVectorFromParams(Parameters, aprimeFnParamNames,jj);
-    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
+    [a2primeIndex,a2primeProbs]=CreateExperienceAssetuFnMatrix(aprimeFn, n_d2, n_a2, n_u, d2_gridvals, a2_grid, u_gridvals, aprimeFnParamsVec,1); % Note, is actually aprime_grid (but a_grid is anyway same for all ages)
 
     Vlower=reshape(V(a2primeIndex,jj+1),[N_d2,N_a2,N_u]);
     Vupper=reshape(V(a2primeIndex+1,jj+1),[N_d2,N_a2,N_u]);

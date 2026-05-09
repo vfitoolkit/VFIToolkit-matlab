@@ -1,4 +1,4 @@
-function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu_Case1(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
+function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu(Policy,aprimeFn, whichisdforexpasset, n_d, n_a1,n_a2, N_z, n_u, d_grid, a2_grid, u_grid, aprimeFnParams)
 % The input Policy will contain aprime (except for the experience asset)
 % and the decision variables (d2, and where applicable d1). The output is
 % just the Policy for a2prime (the experience asset). As well as the
@@ -13,7 +13,7 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyExperienceAssetu_Case1
 % is just 1 minus this).
 %
 %
-% Remark: This is like CreateExperienceAssetuFnMatrix_Case1(), except
+% Remark: This is like CreateExperienceAssetuFnMatrix(), except
 % instead of looking at all possible d, we only care about those in Policy.
 % The Policy based ones are needed for simulation, while those for all
 % possible d were needed for value function (to find Policy).

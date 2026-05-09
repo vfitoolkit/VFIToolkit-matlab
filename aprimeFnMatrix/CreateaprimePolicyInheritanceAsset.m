@@ -13,7 +13,7 @@ function [a2primeIndexes, a2primeProbs]=CreateaprimePolicyInheritanceAsset(Polic
 % is just 1 minus this).
 %
 %
-% Remark: This is like CreateInheritanceAssetFnMatrix_Case1(), except
+% Remark: This is like CreateInheritanceAssetFnMatrix(), except
 % instead of looking at all possible d, we only care about those in Policy.
 % The Policy based ones are needed for simulation, while those for all
 % possible d were needed for value function (to find Policy).
@@ -70,7 +70,7 @@ end
 % needs to be something else, e.g., when combining inheritance asset with semi-exogenous state)
 % inheritanceasset: aprime(d,z,zprime)
 
-% Note: Following are different to how they are in CreateInheritanceAssetFnMatrix_Case1()
+% Note: Following are different to how they are in CreateInheritanceAssetFnMatrix()
 z_gridvals=shiftdim(z_gridvals,-1);
 zprime_gridvals=shiftdim(zprime_gridvals,-2);
 
