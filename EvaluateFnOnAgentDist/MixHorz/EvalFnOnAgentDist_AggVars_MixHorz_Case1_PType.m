@@ -1,4 +1,4 @@
-function AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
+function AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Parameters,n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, simoptions)
 % Allows for different permanent (fixed) types of agent.
 % See ValueFnIter_PType for general idea.
 %
@@ -217,7 +217,12 @@ for ii=1:N_i
     [FnsToEvaluate_temp,FnsToEvaluateParamNames_temp, ~,FnsAndPTypeIndicator_ii]=PType_FnsToEvaluate(FnsToEvaluate,Names_i,ii,l_d_temp,l_a_temp,l_z_temp,0);
 
     simoptions_temp.outputasstructure=0;
-    AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
+    if isfinite(N_j_temp)
+        AggVars_ii=EvalFnOnAgentDist_AggVars_FHorz_Case1(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, N_j_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp);
+    else % PType actually allows for infinite horizon as well
+        AggVars_ii=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist_temp, PolicyIndexes_temp, FnsToEvaluate_temp, Parameters_temp, FnsToEvaluateParamNames_temp, n_d_temp, n_a_temp, n_z_temp, d_grid_temp, a_grid_temp, z_grid_temp, simoptions_temp); % , EntryExitParamNames, PolicyWhenExiting
+    end
+
     AggVarsFull(logical(FnsAndPTypeIndicator_ii),ii)=AggVars_ii;
 end
 
