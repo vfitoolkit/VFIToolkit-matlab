@@ -309,7 +309,7 @@ end
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
 elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    [V, Policy,Valt]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V, Policy,Valt};
     return
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
