@@ -258,7 +258,7 @@ for ii=1:PTypeStructure.N_i
     % Need to fill in some defaults
     PTypeStructure.(iistr).vfoptions.parallel=2; % hardcode
     PTypeStructure.(iistr).simoptions.parallel=2; % hardcode
-    PTypeStructure.(iistr).simoptions.fastOLG=1; % hardcode 
+    PTypeStructure.(iistr).simoptions.fastOLG=1; % hardcode
     if ~isfield(PTypeStructure.(iistr).vfoptions,'n_e')
         PTypeStructure.(iistr).n_e=0;
     else
@@ -376,98 +376,41 @@ for ii=1:PTypeStructure.N_i
         PTypeStructure.(iistr).z_grid=gpuArray(z_grid);
     end
 
-    if PTypeStructure.(iistr).vfoptions.experienceasset
-        % Borrowed from TransitionPaths/InfHorz/TransitionPath_Case1.m
-        % Split decision variables into the standard ones and the one relevant to the experience asset
-        if isscalar(PTypeStructure.(iistr).n_d)
-            PTypeStructure.(iistr).n_d1=0;
-        else
-            PTypeStructure.(iistr).n_d1=PTypeStructure.(iistr).n_d(1:end-1);
-        end
-        PTypeStructure.(iistr).n_d2=PTypeStructure.(iistr).n_d(end); % n_d2 is the decision variable that influences next period vale of the experience asset
-        PTypeStructure.(iistr).d1_grid=PTypeStructure.(iistr).d_grid(1:sum(PTypeStructure.(iistr).n_d1));
-        PTypeStructure.(iistr).d2_grid=PTypeStructure.(iistr).d_grid(sum(PTypeStructure.(iistr).n_d1)+1:end);
-        % Split endogenous assets into the standard ones and the experience asset
+    % to be able to EvalFnsOnAgentDist using fastOLG we also need
+    PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
+    % use fine grid for aprime_gridvals
+    if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
+        PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
+    elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
         if isscalar(PTypeStructure.(iistr).n_a)
-            PTypeStructure.(iistr).n_a1=0;
+            n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+            aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
+            PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
         else
-            PTypeStructure.(iistr).n_a1=PTypeStructure.(iistr).n_a(1:end-1);
+            a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
+            n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
+            n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
+            a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
+            aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
+            PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
         end
-        PTypeStructure.(iistr).n_a2=PTypeStructure.(iistr).n_a(end); % n_a2 is the experience asset
-        PTypeStructure.(iistr).a1_grid=PTypeStructure.(iistr).a_grid(1:sum(PTypeStructure.(iistr).n_a1));
-        PTypeStructure.(iistr).a2_grid=PTypeStructure.(iistr).a_grid(sum(PTypeStructure.(iistr).n_a1)+1:end);
-
-        % aprimeFnParamNames in same fashion
-        l_d2=length(PTypeStructure.(iistr).n_d2);
-        l_a2=length(PTypeStructure.(iistr).n_a2);
-        temp=getAnonymousFnInputNames(PTypeStructure.(iistr).vfoptions.aprimeFn);
-        if length(temp)>(l_d2+l_a2)
-            PTypeStructure.(iistr).aprimeFnParamNames={temp{l_d2+l_a2+1:end}}; % the first inputs will always be (d2,a2)
-        else
-            PTypeStructure.(iistr).aprimeFnParamNames={};
-        end
-
-        PTypeStructure.(iistr).N_a1=prod(PTypeStructure.(iistr).n_a1);
-
-        % to be able to EvalFnsOnAgentDist using fastOLG we also need
-        PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
-        % use fine grid for aprime_gridvals
-        if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
-            PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
-        elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
-            if isscalar(PTypeStructure.(iistr).n_a)
-                n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
-                aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
-                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            else
-                a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
-                n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
-                n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
-                a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
-                aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
-                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            end
-        end
-        PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
-        % if N_d==0
-        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
-        % else
-        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-        % end
-    else
-        % to be able to EvalFnsOnAgentDist using fastOLG we also need
-        PTypeStructure.(iistr).a_gridvals=gpuArray(CreateGridvals(PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).a_grid,1)); % a_grivdals is [N_a,l_a]
-        % use fine grid for aprime_gridvals
-        if PTypeStructure.(iistr).vfoptions.gridinterplayer==0
-            PTypeStructure.(iistr).aprime_gridvals=PTypeStructure.(iistr).a_gridvals;
-        elseif PTypeStructure.(iistr).vfoptions.gridinterplayer==1
-            if isscalar(PTypeStructure.(iistr).n_a)
-                n_aprime=PTypeStructure.(iistr).n_a+(PTypeStructure.(iistr).n_a-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
-                aprime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).N_a)',PTypeStructure.(iistr).a_grid,gpuArray(linspace(1,PTypeStructure.(iistr).N_a,n_aprime))');
-                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            else
-                a1_grid=PTypeStructure.(iistr).a_grid(1:PTypeStructure.(iistr).n_a(1));
-                n_a1prime=PTypeStructure.(iistr).n_a(1)+(PTypeStructure.(iistr).n_a(1)-1)*PTypeStructure.(iistr).vfoptions.ngridinterp;
-                n_aprime=[n_a1prime,PTypeStructure.(iistr).n_a(2:end)];
-                a1prime_grid=interp1(gpuArray(1:1:PTypeStructure.(iistr).n_a(1))',a1_grid,gpuArray(linspace(1,PTypeStructure.(iistr).n_a(1),n_a1prime))');
-                aprime_grid=[a1prime_grid; PTypeStructure.(iistr).a_grid(PTypeStructure.(iistr).n_a(1)+1:end)];
-                PTypeStructure.(iistr).aprime_gridvals=CreateGridvals(n_aprime,aprime_grid,1);
-            end
-        end
-        PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
-        % if N_d==0
-        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
-        % else
-        %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
-        % end
     end
+    PTypeStructure.(iistr).d_gridvals=CreateGridvals(PTypeStructure.(iistr).n_d,gpuArray(PTypeStructure.(iistr).d_grid),1);
+    % if N_d==0
+    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray(PTypeStructure.(iistr).a_gridvals);
+    % else
+    %     PTypeStructure.(iistr).daprime_gridvals=gpuArray([kron(ones(N_a,1),CreateGridvals(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).d_grid,1)), kron(PTypeStructure.(iistr).a_gridvals,ones(PTypeStructure.(iistr).N_d,1))]); % daprime_gridvals is [N_d*N_aprime,l_d+l_aprime]
+    % end
 
     if isa(pi_z,'struct')
         PTypeStructure.(iistr).pi_z=pi_z.(iistr); % Different grids by permanent type, but not depending on age. (same as the case just above; this case can occour with or without the existence of vfoptions, as long as there is no vfoptions.agedependentgrids)
     else
         PTypeStructure.(iistr).pi_z=pi_z;
     end
-    
+
+    % If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
+    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
+
     PTypeStructure.(iistr).ReturnFn=ReturnFn;
     if isa(ReturnFn,'struct')
         PTypeStructure.(iistr).ReturnFn=ReturnFn.(iistr);
@@ -517,8 +460,8 @@ for ii=1:PTypeStructure.N_i
         l_d=length(PTypeStructure.(iistr).n_d);
     end
     if PTypeStructure.(iistr).vfoptions.experienceasset
-        l_aprime=length(PTypeStructure.(iistr).n_a1);
-        l_a=l_aprime+length(PTypeStructure.(iistr).n_a2);
+        l_aprime=length(PTypeStructure.(iistr).vfoptions.setup_experienceasset.n_a1);
+        l_a=l_aprime+length(PTypeStructure.(iistr).vfoptions.setup_experienceasset.n_a2);
     else
         l_aprime=length(PTypeStructure.(iistr).n_a);
         l_a=l_aprime;
@@ -594,13 +537,10 @@ for ii=1:PTypeStructure.N_i
     % Convert z and e to age-dependent joint-grids and transtion matrix
     % output: z_gridvals_J, pi_z_J, e_gridvals_J, pi_e_J, transpathoptions,vfoptions,simoptions
 
-    %% If using any non-standard endogenous states, setup for those (both FHorz and InfHorz btw)
-    [PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions]=SetupNonStandardEndoStates_FHorz_TPath(PTypeStructure.(iistr).n_d,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).d_grid,PTypeStructure.(iistr).a_grid,PTypeStructure.(iistr).vfoptions,PTypeStructure.(iistr).simoptions);
-    
     %% Organise V_final, AgeWeights and AgentDist_init
     % Reshape V_final
+    N_j_temp=PTypeStructure.(iistr).N_j;
     if transpathoptions.fastOLG==0
-        N_j_temp=PTypeStructure.(iistr).N_j;
         if N_z==0
             if N_e==0
                 V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
@@ -615,7 +555,6 @@ for ii=1:PTypeStructure.N_i
             end
         end
     else % transpathoptions.fastOLG==1
-        N_j_temp=PTypeStructure.(iistr).N_j;
         if N_z==0
             if N_e==0
                 V_final.(iistr)=reshape(V_final.(iistr),[N_a,N_j_temp]);
@@ -634,7 +573,6 @@ for ii=1:PTypeStructure.N_i
     % Reshape AgentDist_initial and turn AgeWeights_T into appropriate size so that we can always just do AgentDist.*AgeWeights
     % Note when simoptions.fastOLG==1 we have shapes of [N_a*N_j_temp*whatever,1-or-N_e] instead of [N_a,whatever-and-maybe-N_e,N_j_temp]
     AgentDist_init=AgentDist_initial.(iistr);
-    N_j_temp=PTypeStructure.(iistr).N_j;
     if N_z==0
         if N_e==0
             AgentDist_init=reshape(AgentDist_init,[N_a,N_j_temp]); % if simoptions.fastOLG==0

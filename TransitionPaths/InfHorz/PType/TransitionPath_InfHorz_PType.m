@@ -372,8 +372,8 @@ for ii=1:PTypeStructure.N_i
 
 
 
-    %% Check if pi_z and z_grid can be precomputed
-    % Note: cannot handle that whether not not they can be precomputed differs across ptypes
+    %% Check if pi_z and z_grid can be pre-computed
+    % Note: cannot handle that whether not not they can be pre-computed differs across ptypes
     transpathoptions.zpathprecomputed=1;
     transpathoptions.zpathtrivial=1; % z_grid_J and pi_z_J are not varying over the path
     if isfield(PTypeStructure.(iistr).vfoptions,'ExogShockFn')
@@ -428,8 +428,8 @@ for ii=1:PTypeStructure.N_i
             end
         end
     end
-    %% If used, check if pi_e and e_grid can be procomputed
-    % Note: cannot handle that whether not not they can be precomputed differs across ptypes
+    %% If used, check if pi_e and e_grid can be pre-computed
+    % Note: cannot handle that whether not not they can be pre-computed differs across ptypes
     if using_e_var==1
         % Check if e_grid and/or pi_e depend on prices. If not then create pi_e_J and e_grid_J for the entire transition before we start
         transpathoptions.epathprecomputed=1;
