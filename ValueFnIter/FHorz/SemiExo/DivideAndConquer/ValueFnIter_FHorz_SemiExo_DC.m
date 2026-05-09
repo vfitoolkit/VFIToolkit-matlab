@@ -122,7 +122,7 @@ end
 
 % Because of how we have N_semiz*N_z together, use the _noz commands to UnKron
 if vfoptions.outputkron==0
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         V=reshape(VKron,[n_a,n_bothz, vfoptions.n_e,N_j]);
         Policy=UnKronPolicyIndexes_Case1_FHorz_semiz(Policy3, n_d1,n_d2, n_a, n_bothz, vfoptions.n_e, N_j, vfoptions); % pretend e is z (as z is with semiz)
     else

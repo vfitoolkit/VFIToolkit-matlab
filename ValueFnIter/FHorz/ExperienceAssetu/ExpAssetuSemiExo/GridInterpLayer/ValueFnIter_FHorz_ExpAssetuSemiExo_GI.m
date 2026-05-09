@@ -8,11 +8,7 @@ N_d1=prod(n_d1);
 % N_d3=prod(n_d3);
 N_a1=prod(n_a1);
 N_z=prod(n_z);
-if isfield(vfoptions,'n_e')
-    N_e=prod(vfoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(vfoptions.n_e);
 
 %%
 if N_a1==0
@@ -98,7 +94,7 @@ if vfoptions.outputkron==0
     end
     n_d=[n_d,vfoptions.ngridinterp]; % for the L2 indexes
     % Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_semiz, vfoptions.n_e, N_j, vfoptions);

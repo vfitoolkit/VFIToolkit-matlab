@@ -325,7 +325,7 @@ end
 
 if vfoptions.outputkron==0
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             V=reshape(VKron,[n_a,n_semiz,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_semiz,vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)

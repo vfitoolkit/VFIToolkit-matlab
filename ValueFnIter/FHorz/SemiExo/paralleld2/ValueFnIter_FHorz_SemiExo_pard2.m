@@ -36,7 +36,7 @@ if vfoptions.pard2==1
     N_semiz=prod(n_semiz);
 end
 if vfoptions.outputkron==0
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_semiz, vfoptions.n_e,N_j]);
             if vfoptions.pard2==0
