@@ -37,18 +37,9 @@ else
     end
 end
 
-%% Setup simoptions a little (needs to be done here so for-loop can be parallelized)
+%% 
 if ~exist('simoptions','var')
-    simoptions=struct(); % defaults are filled in later
-end
-if ~isfield(simoptions,'verbose')
-    simoptions.verbose=0;
-end
-if ~isfield(simoptions,'verboseparams')
-    simoptions.verboseparams=0;
-end
-if ~isfield(simoptions,'ptypestorecpu')
-    simoptions.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
+    error('You must input simoptions, you can always set simoptions=struct().')
 end
 
 %% Check inputs
@@ -64,6 +55,15 @@ end
 for ii=1:N_i
     % First set up simoptions
     simoptions_temp=PType_Options(simoptions,Names_i,ii);
+    if ~isfield(simoptions_temp,'verbose')
+        simoptions_temp.verbose=0;
+    end
+    if ~isfield(simoptions_temp,'verboseparams')
+        simoptions_temp.verboseparams=0;
+    end
+    if ~isfield(simoptions_temp,'ptypestorecpu')
+        simoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
+    end
 
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)

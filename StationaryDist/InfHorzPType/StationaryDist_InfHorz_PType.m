@@ -37,25 +37,34 @@ else
     end
 end
 
-for ii=1:N_i
+%% 
+if ~exist('simoptions','var')
+    error('You must input simoptions, you can always set simoptions=struct().')
+end
 
+%% Check inputs
+if ~iscell(PTypeDistParamNames)
+    error('PTypeDistParamNames should be a cell, it is not')
+end
+if abs(sum(Parameters.(PTypeDistParamNames{1}))-1)>10^(-15)
+    warning('The permanent type mass weights must sum to one (PTypeDistParamNames points to weights that do not sum to one)')
+end
+
+
+
+%%
+for ii=1:N_i
     % First set up simoptions
-    if exist('simoptions','var')
-        simoptions_temp=PType_Options(simoptions,Names_i,ii);
-        if ~isfield(simoptions_temp,'verbose')
-            simoptions_temp.verbose=0;
-        end
-        if ~isfield(simoptions_temp,'verboseparams')
-            simoptions_temp.verboseparams=0;
-        end
-        if ~isfield(simoptions_temp,'ptypestorecpu')
-            simoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
-        end
-    else
+    simoptions_temp=PType_Options(simoptions,Names_i,ii);
+    if ~isfield(simoptions_temp,'verbose')
         simoptions_temp.verbose=0;
+    end
+    if ~isfield(simoptions_temp,'verboseparams')
         simoptions_temp.verboseparams=0;
+    end
+    if ~isfield(simoptions_temp,'ptypestorecpu')
         simoptions_temp.ptypestorecpu=0; % GPU memory is limited, so switch solutions to the cpu. Off by default.
-    end 
+    end
     
     if simoptions_temp.verbose==1
         fprintf('Permanent type: %i of %i \n',ii, N_i)
@@ -116,7 +125,7 @@ for ii=1:N_i
         sprintf('Parameter values for the current permanent type')
         Parameters_temp
     end
-    
+
     StationaryDist_ii=StationaryDist_InfHorz(Policy_temp,n_d_temp,n_a_temp,n_z_temp,pi_z_temp,simoptions_temp,Parameters_temp); % EntryExitParams not yet supported (is on my to-do list)
     
     if simoptions_temp.ptypestorecpu==1
@@ -127,8 +136,9 @@ for ii=1:N_i
     
 end
 
-if length(Parameters.(PTypeDistParamNames{:}))==N_i
-    StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{:}),[],1); % reshape is to make sure this is a column vector
+
+if length(Parameters.(PTypeDistParamNames{1}))==N_i
+    StationaryDist.ptweights=reshape(Parameters.(PTypeDistParamNames{1}),[],1); % reshape is to make sure this is a column vector
 else
     error('Parameter for PTypeDistParamNames does not have the same number of permanent types as N_i/Names_i \n')
 end
