@@ -7,11 +7,6 @@ N_z=prod(n_z);
 V=zeros(N_a,N_z,N_j,'gpuArray');
 Policy=zeros(N_a,N_z,N_j,'gpuArray'); %first dim indexes the optimal choice for d and aprime rest of dimensions a,z
 
-%%
-if vfoptions.lowmemory>1
-    special_n_a=ones(1,length(n_a));
-    a_gridvals=CreateGridvals(n_a,a_grid,1); % The 1 at end indicates want output in form of matrix.
-end
 
 %% Get the parameter values that depend on the z_state.
 l_SDV_z=length(vfoptions.StateDependentVariables_z);
@@ -64,22 +59,6 @@ elseif vfoptions.lowmemory==1
         V(:,z_c,N_j)=Vtemp;
         Policy(:,z_c,N_j)=maxindex;
     end
-    
-elseif vfoptions.lowmemory==2
-
-    for z_c=1:N_z
-        z_val=[z_gridvals_J(z_c,:,N_j),SDV_z_gridvals(z_c,:)];
-        for a_c=1:N_a
-            a_val=a_gridvals(z_c,:);
-            ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-            %Calc the max and it's index
-            [Vtemp,maxindex]=max(ReturnMatrix_az);
-            V(a_c,z_c,N_j)=Vtemp;
-            Policy(a_c,z_c,N_j)=maxindex;
-
-        end
-    end   
-    
 end
 
 %% Iterate backwards through j.
@@ -148,30 +127,6 @@ for reverse_j=1:N_j-1
             V(:,z_c,jj)=Vtemp;
             Policy(:,z_c,jj)=maxindex;
         end
-        
-    elseif lowmemory==2
-        for z_c=1:N_z
-            %Calc the condl expectation term (except beta), which depends on z but
-            %not on control variables
-            EV_z=VKronNext_j.*(ones(N_a,1,'gpuArray')*pi_z_J(z_c,:,jj));
-            EV_z(isnan(EV_z))=0; %multiplications of -Inf with 0 gives NaN, this replaces them with zeros (as the zeros come from the transition probabilites)
-            EV_z=sum(EV_z,2);
-            
-            entireEV_z=kron(EV_z,ones(N_d,1));
-            
-            z_val=[z_gridvals_J(z_c,:,jj),SDV_z_gridvals(z_c,:)];
-            for a_c=1:N_a
-                a_val=a_gridvals(z_c,:);
-                ReturnMatrix_az=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, special_n_a, special_n_z, d_grid, a_val, z_val, ReturnFnParamsVec);
-                
-                entireRHS_az=ReturnMatrix_az+DiscountFactorParamsVec*entireEV_z;
-                %Calc the max and it's index
-                [Vtemp,maxindex]=max(entireRHS_az);
-                V(a_c,z_c,jj)=Vtemp;
-                Policy(a_c,z_c,jj)=maxindex;
-            end
-        end
-        
     end
 end
 

@@ -2,11 +2,7 @@ function [V,Policy]=ValueFnIter_FHorz_SemiExo_DC_GI(n_d1,n_d2,n_a,n_semiz,n_z,N_
 
 N_d1=prod(n_d1);
 N_z=prod(n_z);
-if isfield(vfoptions,'n_e')
-    N_e=prod(vfoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(vfoptions.n_e);
 
 if vfoptions.divideandconquer==1
     if ~isfield(vfoptions,'level1n')

@@ -204,7 +204,7 @@ if vfoptions.parallel<2
     if N_e>0
         error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
     end
-    if prod(vfoptions.n_semiz>0)
+    if prod(vfoptions.n_semiz)>0
         error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.divideandconquer==0
@@ -365,7 +365,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         vfoptions.l_d2=vfoptions.l_dexperienceassetu;
     end
 
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         if ~isfield(vfoptions,'l_dsemiz')
             vfoptions.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
         end
@@ -414,13 +414,13 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
 
     % Now just send all this to the right value fn iteration command
     if vfoptions.experienceasset==1
-        if isfield(vfoptions,'n_semiz')
+        if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.experienceassetu==1
-        if isfield(vfoptions,'n_semiz')
+        if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetuSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -469,7 +469,7 @@ if vfoptions.riskyasset==1
     end
 
     % Now just send all this to the right value fn iteration command
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
             [V, Policy]=ValueFnIter_FHorz_EpsteinZin_RiskyAsset_semiz(n_d,n_a1,n_a2,vfoptions.n_semiz,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, vfoptions.semiz_gridvals_J,z_gridvals_J, vfoptions.u_grid, vfoptions.pi_semiz_J, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
@@ -512,7 +512,7 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     end
     
     if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % Policy without d
         PolicyKron=shiftdim(PolicyKron,-1);
     else
@@ -577,7 +577,7 @@ end
 
 %% Semi-exogenous state
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
-if isfield(vfoptions,'n_semiz')
+if prod(vfoptions.n_semiz)>0
     if length(n_d)>vfoptions.l_dsemiz
         n_d1=n_d(1:end-vfoptions.l_dsemiz);
         d1_grid=d_grid(1:sum(n_d1));
