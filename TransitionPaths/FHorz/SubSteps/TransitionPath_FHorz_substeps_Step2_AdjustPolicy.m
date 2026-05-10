@@ -221,12 +221,17 @@ if transpathoptions.fastOLG==0
                 end
                 PolicyProbsPath=a2primeProbsPath;
             elseif simoptions.fastOLG==1
+                PolicyaprimejzPath=permute(repmat(PolicyaprimejzPath,[1,1,2]),[1,3,2]);
                 if simoptions.setup_experienceasset.N_a1==0
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(a2primeIndexesPath,1,2,1);
+                    PolicyaprimejzPath=PolicyaprimejzPath+a2primeIndexesPath;
                 else
-                    PolicyaprimejzPath=repmat(PolicyaprimejzPath,1,2,1)+repelem(simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1),1,2,1);
+                    PolicyaprimejzPath=PolicyaprimejzPath+simoptions.setup_experienceasset.N_a1*(a2primeIndexesPath-1);
                 end
-                PolicyProbsPath=repmat(PolicyProbsPath,1,2,1).*repelem(a2primeProbsPath,1,2,1);
+                if exist('PolicyProbsPath','var')
+                    PolicyProbsPath=PolicyProbsPath.*a2primeProbsPath;
+                else
+                    PolicyProbsPath=a2primeProbsPath;
+                end
             end
         end
     elseif N_z==0 && N_e>0
