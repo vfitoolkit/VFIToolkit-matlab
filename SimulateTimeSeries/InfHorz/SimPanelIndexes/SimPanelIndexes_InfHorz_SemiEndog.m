@@ -17,9 +17,6 @@ N_d=prod(n_d);
 %% Check which simoptions have been declared, set all others to defaults 
 if exist('simoptions','var')==1
     %Check simoptions for missing fields, if there are some fill them with the defaults
-    if ~isfield(simoptions, 'polindorval')
-        simoptions.polindorval=1;
-    end
     if ~isfield(simoptions, 'simperiods')
         simoptions.simperiods=50;
     end
@@ -32,13 +29,9 @@ if exist('simoptions','var')==1
     if ~isfield(simoptions, 'verbose')
         simoptions.verbose=0;
     end
-    if ~isfield(simoptions, 'verbose')
-        simoptions.verbose=0;
-    end
     % Note: SemiEndogShockFn does not presently allow entry/exit
 else
     %If simoptions is not given, just use all the defaults
-    simoptions.polindorval=1;
     simoptions.simperiods=50;
     simoptions.numbersims=10^3;
     simoptions.parallel=1+(gpuDeviceCount>0);
