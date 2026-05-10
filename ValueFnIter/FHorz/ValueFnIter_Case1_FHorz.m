@@ -26,7 +26,6 @@ if exist('vfoptions','var')==0
     vfoptions.n_semiz=0;
     % Largely just for internal use only
     vfoptions.parallel=1+(gpuDeviceCount>0);
-    vfoptions.policy_forceintegertype=0;
     % When calling as a subcommand, the following are used internally
     vfoptions.outputkron=0; % If 1 then leave output in Kron form
     vfoptions.alreadygridvals=0; % =1 when calling as a subcommand
@@ -83,9 +82,6 @@ else
     % Largely just for internal use only
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
     end
     % When calling as a subcommand, the following are used internally
     if ~isfield(vfoptions,'outputkron')
