@@ -221,11 +221,6 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 end
             end
 
-            if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
-                PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
-            else
-                PVP_ii_t=PolicyValuesPath_ii(:,:,:,:,tt);
-            end
             if isfinite(PTypeStructure.(iistr).N_j)
                 %% Get the current optimal policy, and iterate the agent dist
                 if transpathoptions.(iistr).trivialjequalonedist==0
@@ -242,11 +237,21 @@ while PricePathDist>transpathoptions.tolerance && pathcounter<=transpathoptions.
                 AgentDistnext_ii=TransitionPath_FHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z_J,PTypeStructure.(iistr).pi_z_J_sim,PTypeStructure.(iistr).pi_e_J,PTypeStructure.(iistr).pi_e_J_sim,PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,PTypeStructure.(iistr).exceptlastj,PTypeStructure.(iistr).exceptfirstj,PTypeStructure.(iistr).justfirstj,PTypeStructure.(iistr).jequalOneDist,transpathoptions,PTypeStructure.(iistr).simoptions);
     
                 %% AggVars
+                if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
+                    PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
+                else
+                    PVP_ii_t=PolicyValuesPath_ii(:,:,:,:,tt);
+                end
                 AggVars_ii=TransitionPath_FHorz_substeps_Step4tt_AggVars(AgentDist_ii,AgeWeights_ii,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).N_j,PTypeStructure.(iistr).l_d,PTypeStructure.(iistr).l_aprime,PTypeStructure.(iistr).l_a,PTypeStructure.(iistr).l_z,PTypeStructure.(iistr).l_e,PTypeStructure.(iistr).N_d,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).ze_gridvals_J_fastOLG,transpathoptions);
             else
                 warning("TransitionPath_Case1_MixHorz_PType_shooting not hanlding pi_e yet")
                 AgentDist_ii_InfHorz=reshape(AgentDist_ii,[PTypeStructure.(iistr).N_a*PTypeStructure.(iistr).N_z,1]);
                 AgentDistnext_ii=TransitionPath_InfHorz_substeps_Step3tt_IterAgentDist(AgentDist_ii_InfHorz,PolicyPath_ForAgentDistIter_ii,PolicyProbsPath_ii,tt,PTypeStructure.(iistr).N_a,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).N_probs,PTypeStructure.(iistr).pi_z,[],PTypeStructure.(iistr).II1,PTypeStructure.(iistr).II2,transpathoptions,PTypeStructure.(iistr).simoptions);
+                if PTypeStructure.(iistr).N_z==0 && PTypeStructure.(iistr).N_e==0
+                    PVP_ii_t=PolicyValuesPath_ii(:,:,tt);
+                else
+                    PVP_ii_t=PolicyValuesPath_ii(:,:,:,tt);
+                end
                 AggVars_ii=TransitionPath_InfHorz_substeps_Step4tt_AggVars(AgentDist_ii_InfHorz,PVP_ii_t,tt,PTypeStructure.(iistr).FnsToEvaluateCell,PTypeStructure.(iistr).FnsToEvaluateParamNames,AggVarNames_ii,PTypeStructure.(iistr).Parameters,PTypeStructure.(iistr).n_a,PTypeStructure.(iistr).n_z,PTypeStructure.(iistr).n_e,PTypeStructure.(iistr).N_z,PTypeStructure.(iistr).N_e,PTypeStructure.(iistr).a_gridvals,PTypeStructure.(iistr).z_grid,transpathoptions);
             end
 
