@@ -85,7 +85,6 @@ while currdist>vfoptions.tolerance
                     [Phi_aprimeMatrix_Index,Phi_aprimeMatrix_Prob]=CreatePhiaprimeMatrix_Case2_Disc_nphi_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
                 end
                 
-                %if vfoptions.returnmatrix==2 % GPU
                 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
@@ -186,7 +185,6 @@ while currdist>vfoptions.tolerance
                     PhiaprimeParamsVec=[jj;CreateVectorFromParams(Parameters, PhiaprimeParamNames,jj)];
                 end
                 
-                %if vfoptions.returnmatrix==2 % GPU
                 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);
@@ -292,7 +290,6 @@ while currdist>vfoptions.tolerance
                     [Phi_aprimeMatrix_Index,Phi_aprimeMatrix_Prob]=CreatePhiaprimeMatrix_Case2_Disc_nphi_Par2(Phi_aprime, Case2_Type, n_d, n_a, n_z, d_grid, a_grid, z_grid,PhiaprimeParamsVec);
                 end
                 
-                %if vfoptions.returnmatrix==2 % GPU
                 ReturnMatrix=CreateReturnFnMatrix_Case2_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_grid, a_grid, z_grid, ReturnFnParamsVec);
                 %        FmatrixKron_j=reshape(FmatrixFn_j(j),[N_d,N_a,N_z]);
                 %        Phi_aprimeKron=Phi_aprimeKronFn_j(j);

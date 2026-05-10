@@ -22,6 +22,8 @@ if exist('vfoptions','var')==0
     vfoptions.riskyasset=0;
     vfoptions.residualasset=0;
     vfoptions.n_ambiguity=0;
+    vfoptions.n_e=0;
+    vfoptions.n_semiz=0;
     % Largely just for internal use only
     vfoptions.parallel=1+(gpuDeviceCount>0);
     vfoptions.polindorval=1;
@@ -70,6 +72,15 @@ else
     if ~isfield(vfoptions,'residualasset')
         vfoptions.residualasset=0;
     end
+    if ~isfield(vfoptions,'n_ambiguity')
+        vfoptions.n_ambiguity=0;
+    end
+    if ~isfield(vfoptions,'n_e')
+        vfoptions.n_e=0;
+    end
+    if ~isfield(vfoptions,'n_semiz')
+        vfoptions.n_semiz=0;
+    end
     % Largely just for internal use only
     if ~isfield(vfoptions,'parallel')
         vfoptions.parallel=1+(gpuDeviceCount>0);
@@ -101,6 +112,7 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
 
 if ~all(size(d_grid)==[sum(n_d), 1])
     if ~isempty(n_d) % Make sure d is being used before complaining about size of d_grid
@@ -157,7 +169,7 @@ if vfoptions.alreadygridvals==0
     end
 
 
-    if isfield(vfoptions,'n_e') && ~isfield(vfoptions,'EiidShockFn')
+    if N_e>0 && ~isfield(vfoptions,'EiidShockFn')
         if isfield(vfoptions,'e_grid_J')
             error('No longer use vfoptions.e_grid_J, instead just put the age-dependent grid in vfoptions.e_grid (functionality of VFI Toolkit has changed to make it easier to use)')
         elseif ~isfield(vfoptions,'e_grid')
@@ -189,10 +201,10 @@ if vfoptions.alreadygridvals==0
 end
 
 if vfoptions.parallel<2
-    if isfield(vfoptions,'n_e')
+    if N_e>0
         error('Sorry but e (i.i.d) variables are not implemented for cpu, you will need a gpu to use them')
     end
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         error('Sorry but Semi-Exogenous states are not implemented for cpu, you will need a gpu to use them')
     end
     if ~vfoptions.divideandconquer==0
@@ -272,7 +284,7 @@ end
 
 %% Semi-exogenous shock gridvals and pi 
 if vfoptions.alreadygridvals_semiexo==0
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         % Internally, only ever use age-dependent joint-grids (makes all the code much easier to write)
         vfoptions=SemiExogShockSetup_FHorz(n_d,N_j,d_grid,Parameters,vfoptions,2,3);
         % output: vfoptions.semiz_gridvals_J, vfoptions.pi_semiz_J
@@ -309,8 +321,8 @@ end
 if strcmp(vfoptions.exoticpreferences,'None')
     % Just ignore and will then continue on.
 elseif strcmp(vfoptions.exoticpreferences,'QuasiHyperbolic')
-    [V, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-    varargout={V, Policy,Valt};
+    [V1, Policy,Valt]=ValueFnIter_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    varargout={V1, Policy,Valt};
     return
 elseif strcmp(vfoptions.exoticpreferences,'EpsteinZin') && vfoptions.riskyasset==0 % deal with risky asset elsewhere
     [V, Policy]=ValueFnIter_Case1_FHorz_EpsteinZin(n_d,n_a,n_z,N_j,d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -353,7 +365,7 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
         vfoptions.l_d2=vfoptions.l_dexperienceassetu;
     end
 
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         if ~isfield(vfoptions,'l_dsemiz')
             vfoptions.l_dsemiz=1; % by default, only one decision variable influences the semi-exogenous state
         end
@@ -402,13 +414,13 @@ if vfoptions.experienceasset==1 || vfoptions.experienceassetu==1
 
     % Now just send all this to the right value fn iteration command
     if vfoptions.experienceasset==1
-        if isfield(vfoptions,'n_semiz')
+        if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAsset(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid, d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     elseif vfoptions.experienceassetu==1
-        if isfield(vfoptions,'n_semiz')
+        if prod(vfoptions.n_semiz)>0
             [V,Policy]=ValueFnIter_FHorz_ExpAssetuSemiExo(n_d1,n_d2,n_d3,n_a1,n_a2,n_z,vfoptions.n_semiz, N_j, d1_grid , d2_grid, d3_grid, a1_grid, a2_grid, z_gridvals_J, vfoptions.semiz_gridvals_J, pi_z_J, vfoptions.pi_semiz_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
             [V,Policy]=ValueFnIter_FHorz_ExpAssetu(n_d1,n_d2,n_a1,n_a2,n_z, N_j, d1_grid , d2_grid, a1_grid, a2_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -457,7 +469,7 @@ if vfoptions.riskyasset==1
     end
 
     % Now just send all this to the right value fn iteration command
-    if isfield(vfoptions,'n_semiz')
+    if prod(vfoptions.n_semiz)>0
         if strcmp(vfoptions.exoticpreferences,'EpsteinZin')
             [V, Policy]=ValueFnIter_FHorz_EpsteinZin_RiskyAsset_semiz(n_d,n_a1,n_a2,vfoptions.n_semiz,n_z,vfoptions.n_u, N_j, d_grid, a1_grid, a2_grid, vfoptions.semiz_gridvals_J,z_gridvals_J, vfoptions.u_grid, vfoptions.pi_semiz_J, pi_z_J, vfoptions.pi_u, ReturnFn, vfoptions.aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
@@ -500,7 +512,7 @@ if isfield(vfoptions,'StateDependentVariables_z')==1
     end
     
     if N_d==0
-        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_no_d_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_nod_SDVz_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         % Policy without d
         PolicyKron=shiftdim(PolicyKron,-1);
     else
@@ -546,7 +558,10 @@ if any(vfoptions.incrementaltype)
     [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Increment(n_d,n_a,n_z,d_grid,a_grid,z_gridvals_J,N_j,pi_z_J,ReturnFn,Parameters,ReturnFnParamNames,DiscountFactorParamNames,vfoptions);
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    if N_e==0
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+    else
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
@@ -554,18 +569,15 @@ if any(vfoptions.incrementaltype)
             V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
-    else
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
     end
-    
+
     varargout={V, Policy};
     return
 end
 
 %% Semi-exogenous state
 % The transition matrix of the exogenous shocks depends on the value of the 'last' decision variable(s).
-if isfield(vfoptions,'n_semiz')
+if prod(vfoptions.n_semiz)>0
     if length(n_d)>vfoptions.l_dsemiz
         n_d1=n_d(1:end-vfoptions.l_dsemiz);
         d1_grid=d_grid(1:sum(n_d1));
@@ -587,50 +599,50 @@ end
 %% Just do the standard case
 if vfoptions.divideandconquer==1 && vfoptions.gridinterplayer==1
     % Solve by doing Divide-and-Conquer, and then a grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_DC_GI(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_FHorz_DC_GI(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V, Policy};
     return
 elseif vfoptions.divideandconquer==1
     % Solve using Divide-and-Conquer algorithm
-    [V,Policy]=ValueFnIter_FHorz_DC(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_FHorz_DC(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V, Policy};
     return
 elseif vfoptions.gridinterplayer==1
     % Solve using grid interpolation layer
-    [V,Policy]=ValueFnIter_FHorz_GI(n_d, n_a, n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+    [V,Policy]=ValueFnIter_FHorz_GI(n_d, n_a, n_z, N_j, d_gridvals, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
     varargout={V, Policy};
     return
 end
 
 % vfoptions.parallel==2 % GPU
-if N_d==0
-    if isfield(vfoptions,'n_e')
-        if N_z==0
-            [VKron,PolicyKron]=ValueFnIter_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        else
-            [VKron,PolicyKron]=ValueFnIter_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-        end
-    else
-        if N_z==0
+if N_e==0
+    if N_z==0
+        if N_d==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_nod_noz_raw(n_a, N_j, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        end
+    else
+        if N_d==0
             [VKron,PolicyKron]=ValueFnIter_FHorz_nod_raw(n_a, n_z, N_j, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        else
+            [VKron, PolicyKron]=ValueFnIter_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
     % Policy without d
     PolicyKron=shiftdim(PolicyKron,-1);
-else % N_d
-    if isfield(vfoptions,'n_e')
-        if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_FHorz_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+else % N_e
+    if N_z==0
+        if N_d==0
+            [VKron,PolicyKron]=ValueFnIter_FHorz_nod_noz_e_raw(n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_noz_e_raw(n_d,n_a,  vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     else
-        if N_z==0
-            [VKron, PolicyKron]=ValueFnIter_FHorz_noz_raw(n_d,n_a, N_j, d_grid, a_grid, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+        if N_d==0
+            [VKron,PolicyKron]=ValueFnIter_FHorz_nod_e_raw(n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_FHorz_raw(n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_FHorz_e_raw(n_d,n_a,n_z,  vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
         end
     end
 end
@@ -639,15 +651,7 @@ end
 
 %% Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
 if vfoptions.outputkron==0
-    if isfield(vfoptions,'n_e')
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    else
+    if N_e==0
         if N_z==0
             V=reshape(VKron,[n_a,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
@@ -655,36 +659,20 @@ if vfoptions.outputkron==0
             V=reshape(VKron,[n_a,n_z,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
         end
+    else
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
+        end
     end
 else
     V=VKron;
     Policy=PolicyKron;
 end
 
-% Sometimes numerical rounding errors (of the order of 10^(-16) can mean
-% that Policy is not integer valued. The following corrects this by converting to int64 and then
-% makes the output back into double as Matlab otherwise cannot use it in
-% any arithmetical expressions.
-if vfoptions.policy_forceintegertype==1
-    fprintf('USING vfoptions to force integer... \n')
-    % First, give some output on the size of any changes in Policy as a result of turning the values into integers
-    temp=max(max(max(abs(round(Policy)-Policy))));
-    while ndims(temp)>1
-        temp=max(temp);
-    end
-    fprintf('  CHECK: Maximum change when rounding values of Policy is %8.6f (if these are not of numerical rounding error size then something is going wrong) \n', temp)
-    % Do the actual rounding to integers
-    Policy=round(Policy);
-    % Somewhat unrelated, but also do a double-check that Policy is now all positive integers
-    temp=min(min(min(Policy)));
-    while ndims(temp)>1
-        temp=min(temp);
-    end
-    fprintf('  CHECK: Minimum value of Policy is %8.6f (if this is <=0 then something is wrong) \n', temp)
-elseif vfoptions.policy_forceintegertype==2
-    % Do the actual rounding to integers
-    Policy=round(Policy);
-end
 
 varargout={V, Policy};
 

@@ -21,7 +21,6 @@ ReturnFnParamsVec=CreateVectorFromParams(Parameters, ReturnFnParamNames,N_j);
 
 if vfoptions.lowmemory==0
     
-    %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, n_z, d_gridvals, a_grid, z_gridvals_J(:,:,N_j), ReturnFnParamsVec);
     %Calc the max and it's index
     [Vtemp,maxindex]=max(ReturnMatrix,[],1);
@@ -30,7 +29,6 @@ if vfoptions.lowmemory==0
 
 elseif vfoptions.lowmemory==1
     
-    %if vfoptions.returnmatrix==2 % GPU
     for z_c=1:N_z
         z_val=z_gridvals_J(z_c,:,N_j);
         ReturnMatrix_z=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, n_d, n_a, special_n_z, d_gridvals, a_grid, z_val, ReturnFnParamsVec);

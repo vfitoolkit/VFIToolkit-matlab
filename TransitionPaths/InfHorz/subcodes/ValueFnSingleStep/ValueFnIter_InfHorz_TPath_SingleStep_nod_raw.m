@@ -19,7 +19,6 @@ DiscountFactorParamsVec=prod(DiscountFactorParamsVec);
 
 if vfoptions.lowmemory==0
     
-    %if vfoptions.returnmatrix==2 % GPU
     ReturnMatrix=CreateReturnFnMatrix_Case1_Disc_Par2(ReturnFn, 0, n_a, n_z, [], a_grid, z_gridvals, ReturnFnParamsVec);
 
     %Calc the condl expectation term (except beta), which depends on z but not on control variables

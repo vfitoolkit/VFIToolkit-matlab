@@ -24,7 +24,7 @@ if transpathoptions.fastOLG==0
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             if simoptions.fastOLG==0
                 II1=1:1:N_a;
                 II2=ones(N_a,1);
@@ -35,7 +35,7 @@ if transpathoptions.fastOLG==0
                 exceptfirstj=[];
                 justfirstj=[];
             end
-        elseif simoptions.gridinterplayer==1
+        else
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
@@ -56,7 +56,7 @@ if transpathoptions.fastOLG==0
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             if simoptions.fastOLG==0
                 II1=1:1:N_a*N_z;
                 II2=ones(N_a*N_z,1);
@@ -67,7 +67,7 @@ if transpathoptions.fastOLG==0
                 exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
                 justfirstj=repmat((1:1:N_a)',N_z,1)+N_a*N_j*repelem((0:1:N_z-1)',N_a,1);
             end
-        elseif simoptions.gridinterplayer==1
+        else
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
@@ -88,7 +88,7 @@ if transpathoptions.fastOLG==0
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             if simoptions.fastOLG==0
                 II1=1:1:N_a*N_e;
                 II2=ones(N_a*N_e,1);
@@ -99,7 +99,7 @@ if transpathoptions.fastOLG==0
                 exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
                 justfirstj=repmat((1:1:N_a)',N_e,1)+N_a*N_j*repelem((0:1:N_e-1)',N_a,1);
             end
-        elseif simoptions.gridinterplayer==1
+        else
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
@@ -120,7 +120,7 @@ if transpathoptions.fastOLG==0
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,N_e,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             if simoptions.fastOLG==0
                 II1=1:1:N_a*N_z*N_e;
                 II2=ones(N_a*N_z*N_e,1);
@@ -131,7 +131,7 @@ if transpathoptions.fastOLG==0
                 exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
                 justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j*repelem((0:1:N_z*N_e-1)',N_a,1);
             end
-        elseif simoptions.gridinterplayer==1
+        else
             if simoptions.fastOLG==0
                 error('Cannot use simoptions.fastOLG=0 with grid interpolation layer')
             elseif simoptions.fastOLG==1
@@ -152,13 +152,13 @@ elseif transpathoptions.fastOLG==1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             II1=1:1:N_a*(N_j-1);
             II2=ones(N_a*(N_j-1),1);
             exceptlastj=repmat((1:1:N_a)',N_j-1,1)+repelem(N_a*(0:1:N_j-2)',N_a,1); % Note: there is one use of N_j which is because we want to index AgentDist
             exceptfirstj=[];
             justfirstj=[];
-        elseif simoptions.gridinterplayer==1
+        else
             II1=repelem((1:1:N_a*(N_j-1))',1,N_probs);
             II2=[];
             exceptlastj=[]; % not needed
@@ -171,13 +171,13 @@ elseif transpathoptions.fastOLG==1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             II1=1:1:N_a*(N_j-1)*N_z;
             II2=ones(N_a*(N_j-1)*N_z,1);
             exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
             exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
             justfirstj=repmat((1:1:N_a)',N_z,1)+N_a*N_j*repelem((0:1:N_z-1)',N_a,1);
-        elseif simoptions.gridinterplayer==1
+        else
             II1=repelem((1:1:N_a*(N_j-1)*N_z)',1,N_probs);
             II2=[];
             exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z,1)+repelem(N_a*N_j*(0:1:N_z-1)',N_a*(N_j-1),1);
@@ -190,13 +190,13 @@ elseif transpathoptions.fastOLG==1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             II1=1:1:N_a*(N_j-1)*N_e;
             II2=ones(N_a*(N_j-1)*N_e,1);
             exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
             exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
             justfirstj=repmat((1:1:N_a)',N_e,1)+N_a*N_j*repelem((0:1:N_e-1)',N_a,1);
-        elseif simoptions.gridinterplayer==1
+        else
             II1=repelem((1:1:N_a*(N_j-1)*N_e)',1,N_probs);
             II2=[];
             exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_e,1)+repelem(N_a*N_j*(0:1:N_e-1)',N_a*(N_j-1),1);
@@ -209,13 +209,13 @@ elseif transpathoptions.fastOLG==1
         elseif vfoptions.gridinterplayer==1
             PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_j,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
         end
-        if simoptions.gridinterplayer==0
+        if N_probs==1
             II1=1:1:N_a*(N_j-1)*N_z*N_e;
             II2=ones(N_a*(N_j-1)*N_z*N_e,1);
             exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
             exceptfirstj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(1:1:N_j-1)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);
             justfirstj=repmat((1:1:N_a)',N_z*N_e,1)+N_a*N_j*repelem((0:1:N_z*N_e-1)',N_a,1);
-        elseif simoptions.gridinterplayer==1
+        else
             II1=repelem((1:1:N_a*(N_j-1)*N_z*N_e)',1,N_probs);
             II2=[];
             exceptlastj=repmat((1:1:N_a)',(N_j-1)*N_z*N_e,1)+repmat(repelem(N_a*(0:1:N_j-2)',N_a,1),N_z*N_e,1)+repelem(N_a*N_j*(0:1:N_z*N_e-1)',N_a*(N_j-1),1);

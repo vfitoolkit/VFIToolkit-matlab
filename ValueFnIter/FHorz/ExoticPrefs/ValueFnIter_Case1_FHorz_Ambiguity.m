@@ -9,6 +9,7 @@ Policy=nan;
 N_d=prod(n_d);
 % N_a=prod(n_a);
 N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
 l_z=length(n_z);
 
 %% Some Epstein-Zin specific options need to be set if they are not already declared
@@ -38,33 +39,33 @@ end
 %% Note that with ambiguity we have no need for pi_z (nor pi_e, just ambiguity_pi_z_J and ambiguity_pi_e_J)
 if vfoptions.parallel==2
     if N_d==0
-        if isfield(vfoptions,'n_e')
-            if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_noz_e_raw(n_ambiguity, n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_e_raw(n_ambiguity, n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            end
-        else
+        if N_e==0
             if N_z==0
                 error('Cannot use Ambiguity Aversion without any shocks (what is the point?); you have n_z=0 and no e variables')
             else
                 [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_raw(n_ambiguity, n_a, n_z, N_j, a_grid, z_gridvals_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
+        else
+            if N_z==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_noz_e_raw(n_ambiguity, n_a, vfoptions.n_e, N_j, a_grid, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_nod_e_raw(n_ambiguity, n_a, n_z, vfoptions.n_e, N_j, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
         end
         % Policy without d
         PolicyKron=shiftdim(PolicyKron,-1);
     else
-        if isfield(vfoptions,'n_e')
-            if N_z==0
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_noz_e_raw(n_ambiguity, n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            else
-                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_e_raw(n_ambiguity, n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
-            end
-        else
+        if N_e==0
             if N_z==0
                 error('Cannot use Ambiguity Aversion without any shocks (what is the point?); you have n_z=0 and no e variables')
             else
                 [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_raw(n_ambiguity, n_d,n_a,n_z, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.ambiguity_pi_z_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            end
+        else
+            if N_z==0
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_noz_e_raw(n_ambiguity, n_d, n_a, vfoptions.n_e, N_j, d_grid, a_grid, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
+            else
+                [VKron,PolicyKron]=ValueFnIter_Case1_FHorz_Ambiguity_e_raw(n_ambiguity, n_d, n_a, n_z, vfoptions.n_e, N_j, d_grid, a_grid, z_gridvals_J, vfoptions.e_gridvals_J, vfoptions.ambiguity_pi_z_J, vfoptions.ambiguity_pi_e_J, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
             end
         end
     end
@@ -74,7 +75,10 @@ end
 
 if vfoptions.outputkron==0
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    if N_e==0
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+    else
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
@@ -82,9 +86,6 @@ if vfoptions.outputkron==0
             V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
-    else
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
     end
 else
     V=VKron;

@@ -12,9 +12,7 @@ end
 N_d=prod(n_d);
 N_a=prod(n_a);
 N_z=prod(n_z);
-if isfield(vfoptions,'n_e')
-    N_e=prod(vfoptions.n_e);
-end
+N_e=prod(vfoptions.n_e);
 
 %% First, just solve the control group
 [V.control, Policy.control, Valt.control]=ValueFnIter_Case1_FHorz_QuasiHyperbolic(n_d,n_a,n_z,N_j,d_grid, a_grid, z_grid, pi_z, ReturnFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, vfoptions);
@@ -42,88 +40,6 @@ else
     end
 end
 
-%% Check which vfoptions have been used, set all others to defaults 
-if exist('vfoptions','var')==0
-    disp('No vfoptions given, using defaults')
-    %If vfoptions is not given, just use all the defaults
-%     vfoptions.exoticpreferences='None';
-%     vfoptions.dynasty=0; % Dynasty not supported for Field experiments
-    vfoptions.parallel=1+(gpuDeviceCount>0);
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if isfield(vfoptions,'returnmatrix')==0
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    vfoptions.verbose=0;
-    vfoptions.lowmemory=0;
-    if prod(n_z)>50
-        vfoptions.paroverz=1; % This is just a refinement of lowmemory=0
-    else
-        vfoptions.paroverz=0;
-    end
-    vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
-    vfoptions.polindorval=1;
-    vfoptions.policy_forceintegertype=0;
-    vfoptions.outputkron=0; % If 1, leave output in Kron form
-else
-    %Check vfoptions for missing fields, if there are some fill them with the defaults
-%     if ~isfield(vfoptions,'exoticpreferences')
-%         vfoptions.exoticpreferences='None';
-%     end
-%     vfoptions.dynasty=0; % Dynasty not supported for Field experiments
-    if ~isfield(vfoptions,'parallel')
-        vfoptions.parallel=1+(gpuDeviceCount>0);
-    end
-    if vfoptions.parallel==2
-        vfoptions.returnmatrix=2; % On GPU, must use this option
-    end
-    if ~isfield(vfoptions,'returnmatrix')
-        if isa(ReturnFn,'function_handle')==1
-            vfoptions.returnmatrix=0;
-        else
-            vfoptions.returnmatrix=1;
-        end
-    end
-    if ~isfield(vfoptions,'lowmemory')
-        vfoptions.lowmemory=0;
-    end
-    if ~isfield(vfoptions,'paroverz') % Only used when vfoptions.lowmemory=0
-        if prod(n_z)>50
-            vfoptions.paroverz=1;
-        else
-            vfoptions.paroverz=0;
-        end
-    end
-    if ~isfield(vfoptions,'verbose')
-        vfoptions.verbose=0;
-    end
-    if isfield(vfoptions,'incrementaltype')==0
-        vfoptions.incrementaltype=0; % (vector indicating endogenous state is an incremental endogenous state variable)
-    end
-    if ~isfield(vfoptions,'polindorval')
-        vfoptions.polindorval=1;
-    end
-    if ~isfield(vfoptions,'policy_forceintegertype')
-        vfoptions.policy_forceintegertype=0;
-    end
-    if isfield(vfoptions,'ExogShockFn')
-        vfoptions.ExogShockFnParamNames=getAnonymousFnInputNames(vfoptions.ExogShockFn);
-    end
-    if isfield(vfoptions,'EiidShockFn')
-        vfoptions.EiidShockFnParamNames=getAnonymousFnInputNames(vfoptions.EiidShockFn);
-    end
-    if ~isfield(vfoptions,'outputkron')
-        vfoptions.outputkron=0; % If 1, leave output in Kron form
-    end
-end
-
-% Can skip checking input sizes as this will be done when solving for the control group anyway.
-
 %% Implement new way of handling ReturnFn inputs
 if n_d(1)==0
     l_d=0;
@@ -135,10 +51,10 @@ l_z=length(n_z);
 if n_z(1)==0
     l_z=0;
 end
-if isfield(vfoptions,'n_e')
-    l_e=length(vfoptions.n_e);
-else
+if N_e==0
     l_e=0;
+else
+    l_e=length(vfoptions.n_e);
 end
 % If no ReturnFnParamNames inputted, then figure it out from ReturnFn
 if isempty(ReturnFnParamNames)
@@ -151,20 +67,11 @@ if isempty(ReturnFnParamNames)
 end
 
 %% 
-if vfoptions.parallel==2 
-   % If using GPU make sure all the relevant inputs are GPU arrays (not standard arrays)
-   pi_z=gpuArray(pi_z);
-   d_grid=gpuArray(d_grid);
-   a_grid=gpuArray(a_grid);
-   z_grid=gpuArray(z_grid);
-else
-   % If using CPU make sure all the relevant inputs are CPU arrays (not standard arrays)
-   % This may be completely unnecessary.
-   pi_z=gather(pi_z);
-   d_grid=gather(d_grid);
-   a_grid=gather(a_grid);
-   z_grid=gather(z_grid);
-end
+% make sure all the relevant inputs are GPU arrays (not standard arrays)
+pi_z=gpuArray(pi_z);
+d_grid=gpuArray(d_grid);
+a_grid=gpuArray(a_grid);
+z_grid=gpuArray(z_grid);
 
 if vfoptions.verbose==1
     vfoptions
@@ -245,21 +152,21 @@ for j_p=TreatmentAgeRange(1):TreatmentAgeRange(2)
     end
     
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
-        if N_z==0
-            V_jp=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V_jp=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy_jp=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    else
+    if N_e==0
         if N_z==0
             V_jp=reshape(VKron,[n_a,N_j]);
             Policy_jp=UnKronPolicyIndexes_Case1_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
         else
             V_jp=reshape(VKron,[n_a,n_z,N_j]);
             Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        end
+    else
+        if N_z==0
+            V_jp=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy_jp=UnKronPolicyIndexes_Case1_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V_jp=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy_jp=UnKronPolicyIndexes_Case1_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
     end
 

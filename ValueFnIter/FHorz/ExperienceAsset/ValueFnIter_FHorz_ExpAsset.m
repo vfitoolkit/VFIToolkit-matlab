@@ -20,11 +20,7 @@ end
 N_d1=prod(n_d1);
 N_a1=prod(n_a1);
 N_z=prod(n_z);
-if isfield(vfoptions,'n_e')
-    N_e=prod(vfoptions.n_e);
-else
-    N_e=0;
-end
+N_e=prod(vfoptions.n_e);
 
 % Note: divide-and-conquer is only possible with a1
 if N_a1>0 % set up for divide-and-conquer
@@ -49,7 +45,7 @@ d2_gridvals=CreateGridvals(n_d2,d2_grid,1);
 if N_d1>0
     d_gridvals=CreateGridvals([n_d1,n_d2],[d1_grid; d2_grid],1);
 else
-    d_gridvals=[]; % not used 
+    d_gridvals=[]; % not used
 end
 
 
@@ -60,53 +56,8 @@ end
 
 
 %%
-if N_e>0
-    if N_a1==0
-        if N_d1==0
-            if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_noa1_noz_e_raw(n_d2,n_a2, vfoptions.n_e, N_j, d2_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_noa1_e_raw(n_d2,n_a2,n_z, vfoptions.n_e, N_j, d2_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        else % d1 variable
-            if N_z==0
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_noa1_noz_e_raw(n_d1,n_d2,n_a2, vfoptions.n_e, N_j , d_gridvals, d2_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            else
-                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_noa1_e_raw(n_d1,n_d2,n_a2,n_z, vfoptions.n_e, N_j , d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-            end
-        end
-    else % N_a1
-        if vfoptions.divideandconquer==0
-            if N_d1==0
-                if N_z==0
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            else % d1 variable
-                if N_z==0
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            end
-        elseif vfoptions.divideandconquer==1
-            if N_d1==0
-                if N_z==0
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            else % d1 variable
-                if N_z==0
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                else
-                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
-                end
-            end
-        end
-    end
-else % no e variable
+if N_e==0
+
     if N_a1==0
         if N_d1==0
             if N_z==0
@@ -152,13 +103,59 @@ else % no e variable
             end
         end
     end
+else % N_e
+    if N_a1==0
+        if N_d1==0
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_noa1_noz_e_raw(n_d2,n_a2, vfoptions.n_e, N_j, d2_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_noa1_e_raw(n_d2,n_a2,n_z, vfoptions.n_e, N_j, d2_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        else % d1 variable
+            if N_z==0
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_noa1_noz_e_raw(n_d1,n_d2,n_a2, vfoptions.n_e, N_j , d_gridvals, d2_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            else
+                [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_noa1_e_raw(n_d1,n_d2,n_a2,n_z, vfoptions.n_e, N_j , d_gridvals, d2_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+            end
+        end
+    else % N_a1
+        if vfoptions.divideandconquer==0
+            if N_d1==0
+                if N_z==0
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                else
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                end
+            else % d1 variable
+                if N_z==0
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                else
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                end
+            end
+        elseif vfoptions.divideandconquer==1
+            if N_d1==0
+                if N_z==0
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_nod1_noz_e_raw(n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                else
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_nod1_e_raw(n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                end
+            else % d1 variable
+                if N_z==0
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_noz_e_raw(n_d1,n_d2,n_a1,n_a2, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, vfoptions.e_gridvals_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                else
+                    [VKron, PolicyKron]=ValueFnIter_FHorz_ExpAsset_DC1_e_raw(n_d1,n_d2,n_a1,n_a2,n_z, vfoptions.n_e, N_j, d_gridvals, d2_gridvals, a1_gridvals, a2_grid, z_gridvals_J, vfoptions.e_gridvals_J, pi_z_J, vfoptions.pi_e_J, ReturnFn, aprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, aprimeFnParamNames, vfoptions);
+                end
+            end
+        end
+    end
 end
 
 %%
 if vfoptions.outputkron==0
     if n_d1>0
         n_d=[n_d1,n_d2];
-    else 
+    else
         n_d=n_d2;
     end
     if n_a1>0
@@ -168,21 +165,21 @@ if vfoptions.outputkron==0
         n_a=n_a2;
     end
     %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
-        if N_z==0
-            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
-        else
-            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
-            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
-        end
-    else
+    if N_e==0
         if N_z==0
             V=reshape(VKron,[n_a,N_j]);
             Policy=UnKronPolicyIndexes_Case2_FHorz_noz(PolicyKron, n_d, n_a, N_j, vfoptions);
         else
             V=reshape(VKron,[n_a,n_z,N_j]);
             Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, n_z, N_j, vfoptions);
+        end
+    else
+        if N_z==0
+            V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_d, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
+        else
+            V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
+            Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_d, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
     end
 else

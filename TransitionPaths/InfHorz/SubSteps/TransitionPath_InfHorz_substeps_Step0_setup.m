@@ -23,10 +23,10 @@ if N_z==0 && N_e==0
     elseif vfoptions.gridinterplayer==1
         PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,T-1,'gpuArray'); %Periods 1 to T-1
     end
-    if simoptions.gridinterplayer==0
+    if N_probs==1
         II1=1:1:N_a;
         II2=ones(N_a,1);
-    elseif simoptions.gridinterplayer==1
+    else
         II1=repelem((1:1:N_a)',1,N_probs);
         II2=[];
     end
@@ -40,10 +40,10 @@ elseif N_z>0 && N_e==0
     elseif vfoptions.gridinterplayer==1
         PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,T-1,'gpuArray'); %Periods 1 to T-1
     end
-    if simoptions.gridinterplayer==0
+    if N_probs==1
         II1=1:1:N_a*N_z;
         II2=ones(N_a*N_z,1);
-    elseif simoptions.gridinterplayer==1
+    else
         II1=repelem((1:1:N_a*N_z)',1,N_probs);
         II2=[];
     end
@@ -57,10 +57,10 @@ elseif N_z==0 && N_e>0
     elseif vfoptions.gridinterplayer==1
         PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_e,T-1,'gpuArray'); %Periods 1 to T-1
     end
-    if simoptions.gridinterplayer==0
+    if N_probs==1
         II1=1:1:N_a*N_e;
         II2=ones(N_a*N_e,1);
-    elseif simoptions.gridinterplayer==1
+    else
         II1=repelem((1:1:N_a*N_e)',1,N_probs);
         II2=[];
     end
@@ -74,10 +74,10 @@ elseif N_z>0 && N_e>0
     elseif vfoptions.gridinterplayer==1
         PolicyIndexesPath=zeros(l_d+l_aprime+1,N_a,N_z,N_e,T-1,'gpuArray'); %Periods 1 to T-1
     end
-    if simoptions.gridinterplayer==0
+    if N_probs==1
         II1=1:1:N_a*N_z*N_e;
         II2=ones(N_a*N_z*N_e,1);
-    elseif simoptions.gridinterplayer==1
+    else
         II2=repelem((1:1:N_a*N_z*N_e)',1,N_probs);
         II1=[];
     end

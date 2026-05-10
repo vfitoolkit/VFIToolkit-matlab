@@ -40,7 +40,7 @@ end
 
 
 %% Create aprimeFn Matrix
-[a2primeIndex,a2primeProbs]=CreateInheritanceAssetFnMatrix_Case1(aprimeFn, n_d2, n_a2, n_z, n_z, d2_grid, a2_grid, z_gridvals, z_gridvals, aprimeFnParamsVec); % Note, is actually a2prime_grid (but a2_grid is anyway same for all ages)
+[a2primeIndex,a2primeProbs]=CreateInheritanceAssetFnMatrix(aprimeFn, n_d2, n_a2, n_z, n_z, d2_grid, a2_grid, z_gridvals, z_gridvals, aprimeFnParamsVec); % Note, is actually a2prime_grid (but a2_grid is anyway same for all ages)
 % Note: aprimeIndex is [N_d2,N_zprime,N_z], and aprimeProbs is also [N_d2,N_zprime,N_z]
 
 addindexforzprime=N_a*gpuArray(0:1:N_z-1);

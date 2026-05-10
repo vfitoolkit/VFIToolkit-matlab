@@ -29,34 +29,38 @@ else
     rprimeFnParamNames={};
 end
 
+N_d=prod(n_d);
 N_z=prod(n_z);
+N_e=prod(vfoptions.n_e);
 
-if isfield(vfoptions,'n_e')
-    if n_d==0
-        if N_z==0
+
+%%
+if N_e==0
+    if N_z==0
+        if N_d==0
             error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         else
-            % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_nod_e_raw(n_a1,n_r,n_z, vfoptions.n_e, N_j, a1_grid, r_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
+            error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         end
     else
-        if N_z==0
-            error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+        if N_d==0
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_nod_raw(n_a1,n_r,n_z, N_j, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         else
-            % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_e_raw(n_d,n_a1,n_r,n_z, vfoptions.n_e, N_j, d_grid, a1_grid, r_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
+            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_raw(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         end        
     end
 else
-    if n_d==0
-        if N_z==0
+    if N_z==0
+        if N_d==0
             error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_nod_raw(n_a1,n_r,n_z, N_j, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
+            error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
         end
     else
-        if N_z==0
-            error('Have not implemented residual assets without at least one exogenous variable [you could fake it adding a single-valued z with pi_z=1]')
+        if N_d==0
+            % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_nod_e_raw(n_a1,n_r,n_z, vfoptions.n_e, N_j, a1_grid, r_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         else
-            [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_raw(n_d,n_a1,n_r,n_z, N_j, d_grid, a1_grid, r_grid, z_gridvals_J, pi_z_J, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
+            % [VKron, PolicyKron]=ValueFnIter_Case1_FHorz_ResidAsset_e_raw(n_d,n_a1,n_r,n_z, vfoptions.n_e, N_j, d_grid, a1_grid, r_grid, z_grid, e_grid, pi_z, pi_e, ReturnFn, rprimeFn, Parameters, DiscountFactorParamNames, ReturnFnParamNames, rprimeFnParamNames, vfoptions);
         end
     end
 end
@@ -76,8 +80,11 @@ if vfoptions.outputkron==0
         PolicyKron=reshape(PolicyKron,[2,prod(n_a),prod(n_z),N_j]);
         PolicyKron=shiftdim(PolicyKron(1,:,:,:)+prod(n_d)*(PolicyKron(2,:,:,:)-1),1);
     end
-    %Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
-    if isfield(vfoptions,'n_e')
+    % Transforming Value Fn and Optimal Policy Indexes matrices back out of Kronecker Form
+    if N_e==0
+        V=reshape(VKron,[n_a,n_z,N_j]);
+        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, n_z, N_j, vfoptions);
+    else
         if N_z==0
             V=reshape(VKron,[n_a,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, vfoptions.n_e, N_j, vfoptions); % Treat e as z (because no z)
@@ -85,9 +92,6 @@ if vfoptions.outputkron==0
             V=reshape(VKron,[n_a,n_z,vfoptions.n_e,N_j]);
             Policy=UnKronPolicyIndexes_Case2_FHorz_e(PolicyKron, n_dmod, n_a, n_z, vfoptions.n_e, N_j, vfoptions);
         end
-    else
-        V=reshape(VKron,[n_a,n_z,N_j]);
-        Policy=UnKronPolicyIndexes_Case2_FHorz(PolicyKron, n_dmod, n_a, n_z, N_j, vfoptions);
     end
 else
     V=VKron;
